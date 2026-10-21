@@ -1,12 +1,17 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-10-21T15:26:01.104705+00:00",
-  "scope": "v17 source, assets and verification artifacts; excludes this manifest and Git metadata",
+  "generatedAt": "2026-10-21T17:28:19.351671+00:00",
+  "scope": "v18 source, assets and verification artifacts; excludes this manifest and Git metadata",
   "files": [
     {
       "path": ".agent-harness/contracts/valley-water-carry.md",
-      "size": 972,
-      "sha256": "c86415189fcb5c00db239a21da4246f1f9a38adc62b7c991c835796524570b3e"
+      "size": 1168,
+      "sha256": "8c45658d115be9f8d7c394b1df2db2d9b7c1052322cea298478d1cfccb048c76"
+    },
+    {
+      "path": ".agent-harness/runs/2026-10-22-valley-life-v18.md",
+      "size": 2724,
+      "sha256": "bae66dbd21a770a6bcf148c8d61491822bf67fe1e57e0e6199385a41ccded859"
     },
     {
       "path": ".agent-harness/runs/2026-10-22-valley-water-carry.md",
@@ -110,33 +115,43 @@
     },
     {
       "path": ".kiro/specs/valley-water-carry/design.md",
-      "size": 6327,
-      "sha256": "595307850bad5b819d33a25acd24ace601101c1aa8616e860de7a094864d6cba"
+      "size": 6438,
+      "sha256": "d20115b67fc097bf92819181ba9014517ae2933b55e2f78469bf03ab7a99d853"
     },
     {
       "path": ".kiro/specs/valley-water-carry/requirements.md",
-      "size": 4771,
-      "sha256": "f3b17359f9f470d4dba07acdb42770372d258de35fdcb62f73c5c1b309babce6"
+      "size": 6662,
+      "sha256": "068a2ad08e15a4ce25427efc49a4e73ca0e9f57d6ffb6779f7e4269a2a282efc"
     },
     {
       "path": ".kiro/specs/valley-water-carry/research.md",
-      "size": 1884,
-      "sha256": "0ce202d50f72e7b3c462b10cbac9bb639e09da9e5628021b20ffd921c73f5a75"
+      "size": 2328,
+      "sha256": "32c71755d340ba8645eb4c372ef51164dd8084a767e32593a94dd157f33299bd"
     },
     {
       "path": ".kiro/specs/valley-water-carry/spec.json",
-      "size": 1040,
-      "sha256": "c095a8a7c461d76eee7499352fb3adc027b2f6dd1048a722dead2ef184152927"
+      "size": 2460,
+      "sha256": "e09251e8217418abe2535c74d6fcb007e9d2797d39d7e40b79ceb687b61d8388"
     },
     {
       "path": ".kiro/specs/valley-water-carry/tasks.md",
-      "size": 4696,
-      "sha256": "a3fc4180b9c817069a59238672b7b86148efb71b8ff1c3458771c92e7581fc90"
+      "size": 4787,
+      "sha256": "87a4443dcb4f95548529ecdd93517dbcaa03652990c225789b732659d77886f4"
+    },
+    {
+      "path": ".kiro/specs/valley-water-carry/v18-design.md",
+      "size": 5879,
+      "sha256": "a8c10930ee56ce198f3df92244d02c57ddff05dab29524ea13b08066d2f7dbfb"
+    },
+    {
+      "path": ".kiro/specs/valley-water-carry/v18-tasks.md",
+      "size": 5344,
+      "sha256": "0a2004f6522b1922f950421bee3deecbe3e3cca3a53d25ba29fa90321ebb9215"
     },
     {
       "path": ".kiro/steering/product.md",
-      "size": 673,
-      "sha256": "f738b3227bf00d9bb3160e9220b8a75410aad164a25f6cd53dc631bd5af15749"
+      "size": 688,
+      "sha256": "0fe1f04994a4d3072bd8fcc39fb4e27c353d5a96df622f51bc676889d0348d83"
     },
     {
       "path": ".kiro/steering/structure.md",
@@ -150,8 +165,8 @@
     },
     {
       "path": "AGENTS.md",
-      "size": 2497,
-      "sha256": "00bc8483c1267d11d4dcb6b493a184407e092272bbc632e2f536b837585d4740"
+      "size": 2538,
+      "sha256": "8228b8fe0e57ad83ae1e225ac3e93bed69068b348d1981b0b8648a679ea3fac2"
     },
     {
       "path": "CLAUDE.md",
@@ -170,13 +185,13 @@
     },
     {
       "path": "README_START_HERE.md",
-      "size": 3264,
-      "sha256": "7274017b4ff97d84ecbb3ffe3cd9f9ff093a842bb2ef68996bb793cd2d2fbb49"
+      "size": 4101,
+      "sha256": "640a49089856c685437d0ca62e7250cf60f1d77589821d8f545070b1efe63d5b"
     },
     {
       "path": "dist/app.js",
-      "size": 16489,
-      "sha256": "c1e4768561bb0c513a95d27920f3cdcebe1ffed2520db2e8d93b9001e33920ec"
+      "size": 17805,
+      "sha256": "49c89e50980ed8c624cb0a120884257576da1c80e56b76bd78f9a21cc7aedcbb"
     },
     {
       "path": "dist/assets/collision.json",
@@ -184,9 +199,49 @@
       "sha256": "f7cc177f0921d1a984b6fefee5a033354aad75f58c4618c6a4dd96135b2d882f"
     },
     {
+      "path": "dist/assets/foliage/polyhaven-fir_tree_01/fir_tree_01_twig_alpha_1k.jpg",
+      "size": 274407,
+      "sha256": "1f0607dd457c32406717daffe5049b1d2248c497589c83795c623c5e8b03e542"
+    },
+    {
+      "path": "dist/assets/foliage/polyhaven-fir_tree_01/fir_tree_01_twig_diff_1k.jpg",
+      "size": 371741,
+      "sha256": "8c0833a10e4fd44498d848cf9e659fe250a3813984cbd679f42430eb98c61fb8"
+    },
+    {
       "path": "dist/assets/scene.glb",
       "size": 19476020,
       "sha256": "4fbeeec599166e4da9eedb2f814d40be932cd62302a7275e76e4b0a03af6b43a"
+    },
+    {
+      "path": "dist/assets/terrain/polyhaven-dirt_floor/dirt_floor_diff_1k.jpg",
+      "size": 903417,
+      "sha256": "6c2e7f1c5eab8239fec561f255c607d0e3a86046925ba3a8b9340805efc1ab62"
+    },
+    {
+      "path": "dist/assets/terrain/polyhaven-dirt_floor/dirt_floor_nor_gl_1k.jpg",
+      "size": 1167485,
+      "sha256": "9481dc2cee97b240ca10dc1cd60fec834a85e455aaa7d2a584396ea10210c2c0"
+    },
+    {
+      "path": "dist/assets/terrain/polyhaven-dirt_floor/dirt_floor_rough_1k.jpg",
+      "size": 389725,
+      "sha256": "093166ffda063b8fcf04ec645e1e12c24811f614468ba378437a3535c3c53f57"
+    },
+    {
+      "path": "dist/assets/terrain/polyhaven-forest_leaves_02/forest_leaves_02_diffuse_1k.jpg",
+      "size": 437891,
+      "sha256": "2bac85cdc76927fa7dc311037bbbc4dfa2633ea56eb0a24c9cabe163a68c9aa5"
+    },
+    {
+      "path": "dist/assets/terrain/polyhaven-forest_leaves_02/forest_leaves_02_nor_gl_1k.jpg",
+      "size": 577163,
+      "sha256": "cf6a40ab24f44d3e891a92a1c252416ed1192af54ac92a5704bdfbda0805e290"
+    },
+    {
+      "path": "dist/assets/terrain/polyhaven-forest_leaves_02/forest_leaves_02_rough_1k.jpg",
+      "size": 192523,
+      "sha256": "3d2163acb9e22801caa4d34cb3e9bb443dfd0e6f2bebbd559c61e9b14f945dd4"
     },
     {
       "path": "dist/assets/textures/Walkthrough_Rice_leaf_0.png",
@@ -230,8 +285,8 @@
     },
     {
       "path": "dist/audio.js",
-      "size": 3198,
-      "sha256": "b2c53426dfdd2439f93b9874908276e6aa2eb5e6de2845d320799e83ae66ce70"
+      "size": 7056,
+      "sha256": "a6431b6f113a95b8a2f8006fa2258299ac845b683564e9013241485c547c77f8"
     },
     {
       "path": "dist/collision.js",
@@ -240,18 +295,18 @@
     },
     {
       "path": "dist/environment.js",
-      "size": 33987,
-      "sha256": "d8c83e8e4c1bb8f30689f0888b19d4b13b19a70719e71a56edab08b36aab4c98"
+      "size": 36532,
+      "sha256": "a15a629384645fe1339ce4a018727fdef85b79f45170ae22f7fb517fc5019d11"
     },
     {
       "path": "dist/gameplay.js",
-      "size": 1523,
-      "sha256": "daa9cd98588b8bde5344c65d31cddb3bde09cf7798cabd0e4c5f9955cd84fad3"
+      "size": 2263,
+      "sha256": "cccd7e98767f54cc8d8630c251914cc790b5be2c2df55ae45605ba8499fc4d24"
     },
     {
       "path": "dist/index.html",
-      "size": 8975,
-      "sha256": "1041473f2b13c15d4aa1904f55005346376116be703d6e0faac42a376fa6906e"
+      "size": 9267,
+      "sha256": "3f7c6b06a89e8af0f8ca9b964540b7b796b7298ad76f6280a535e641ce10d303"
     },
     {
       "path": "dist/interactions.js",
@@ -259,24 +314,39 @@
       "sha256": "20946368a1e2312658b0b14bf4dfb7322ae7799f2c2df66e27eec8cc7dd823bc"
     },
     {
+      "path": "dist/life-view.js",
+      "size": 7544,
+      "sha256": "5d03ce2e67d710bf5655f52d00e30538ffdd4b6435490f9d8de490c4946a4069"
+    },
+    {
+      "path": "dist/places.js",
+      "size": 361,
+      "sha256": "a5b287636599a3c789efbc2bb2995e48f1ae7e00db1020c2c7f57ddb71a20eff"
+    },
+    {
       "path": "dist/quest-view.js",
-      "size": 3732,
-      "sha256": "abde79df20573dcdfd1becf539ace590af06f1fac1e5d5de118513b1ed47741a"
+      "size": 4069,
+      "sha256": "054e3566dcbb873329bb0708876f20e950c0f2df9166eb66dfda0ac76e0865e5"
     },
     {
       "path": "dist/save.js",
-      "size": 1990,
-      "sha256": "b448278119e8abccad7c9215345544da672aa26c3cb1317740476ce410bcd8a3"
+      "size": 2278,
+      "sha256": "e07a81426c544f43e32eb3a368f417546f0d31b996877aeee7b4293725bd73bf"
     },
     {
       "path": "dist/style.css",
-      "size": 19336,
-      "sha256": "16cecbff3fc2779c27a8365c44cb92ad548e8deb77824c1b4bea02589abb5cc8"
+      "size": 19928,
+      "sha256": "dc9455a8931b448f524b55c5843b4dd46f32a56e952c71ef110abcb73c335fd2"
+    },
+    {
+      "path": "dist/terrain-materials.js",
+      "size": 6850,
+      "sha256": "69b067713a4d7e7700785887e78a2157250dc5a647d42ba1a1cdee242d6290b3"
     },
     {
       "path": "dist/ui.js",
-      "size": 10453,
-      "sha256": "d40ccebfbf9837812acba08cc95706b81b645ba4f86bfdfcc1bf92728eb7c221"
+      "size": 10364,
+      "sha256": "84d428ac207c8539efc2f5b4d550197a7c8a91387524f3c08e48f6d89f896ae8"
     },
     {
       "path": "dist/vendor/THREE-LICENSE.txt",
@@ -329,6 +399,11 @@
       "sha256": "d1e4e1a9f99d433a8d85347d59d54e376f3eef97a3a46da26233febd30397bfb"
     },
     {
+      "path": "docs/06_TERRAIN_ASSETS_JA.md",
+      "size": 2670,
+      "sha256": "5b7e46cbcd343d55ae7141d0b35ed654f7b3593098aa2658da52c365da8fdfc7"
+    },
+    {
       "path": "licenses/THREE-LICENSE.txt",
       "size": 1081,
       "sha256": "bfe119ea4fd413f5f7ca3fcd63adb0c4a073ed39daa2fe7d3e6b769e21272601"
@@ -336,7 +411,7 @@
     {
       "path": "package.json",
       "size": 424,
-      "sha256": "566b8617e6705f73db4187d790a4faacfe98ae3b74e023bea1e278840b651ac9"
+      "sha256": "550449c37392fd11a5ba94e7ce7f412515ccdd2da6c231353e1ec4d114d3c357"
     },
     {
       "path": "provenance/house_v08_asset-manifest.json",
@@ -389,6 +464,11 @@
       "sha256": "0f545f005dbd33d0443c6efd576a070a2bb75a56912c1b3521b409c6c12075b2"
     },
     {
+      "path": "provenance/terrain-v18.json",
+      "size": 5294,
+      "sha256": "d915f94f6cd80ecfdf54db5033385ad4ef71fe5caa189bcd2a56b752f0ffd317"
+    },
+    {
       "path": "provenance/v14_source_manifest.json",
       "size": 1265,
       "sha256": "6ea8db558c855895c8902b98da6b8f70cba753695b38ab1d20e7824e825d7875"
@@ -410,6 +490,11 @@
     },
     {
       "path": "reports/VERIFICATION_JA.md",
+      "size": 5370,
+      "sha256": "c9e2973ecb3e29b94c925567118787a35b86de0b896f2c1a51408d1fe8806b19"
+    },
+    {
+      "path": "reports/VERIFICATION_V17_JA.md",
       "size": 4719,
       "sha256": "d723464a41efb7d1e416442fbfdbfabdd8f0a5717a1934cfde609e19a08d0c43"
     },
@@ -425,8 +510,8 @@
     },
     {
       "path": "reports/browser-check.json",
-      "size": 3534,
-      "sha256": "be50b94f1400f59b1839c984f912fa41e98f45ca7a60ed3d45f680fe67332787"
+      "size": 5072,
+      "sha256": "2e3098e611ca1db31e9197f769d9f89ed3e05835e8679b164799fa5dac49a9b4"
     },
     {
       "path": "reports/browser-interaction-errors.json",
@@ -439,14 +524,39 @@
       "sha256": "456d6ed0fd57cd50f8a4c9f79ab510ecf6d2a01f8fb7b842b6bd9860df33c977"
     },
     {
+      "path": "reports/environment-review-v18.json",
+      "size": 3581,
+      "sha256": "63148da449bad090f8d311fb211979eeaf8bd418b75a9c9e6f293880c6cd0af8"
+    },
+    {
+      "path": "reports/experience-review-v18.json",
+      "size": 1941,
+      "sha256": "f68bb01bb09a9252bb5ce7a019e96c4ac2a948596b460bd5a4937a13435afb39"
+    },
+    {
       "path": "reports/experience-review.json",
       "size": 8338,
       "sha256": "4f336ca03262f67184ae13d5dbaf68b1b9caeaef959b54a74c643823e731a3b8"
     },
     {
+      "path": "reports/graphics-comparison.html",
+      "size": 3485,
+      "sha256": "bbcd728702864fefb6602b597f20c61606368dd3084ea965f4d0ff465271f88e"
+    },
+    {
+      "path": "reports/performance-v18.json",
+      "size": 5873,
+      "sha256": "4aa7a3be68505c9d758b0efe8e427ed3e61eda7e67e80a5a48774d9bb76bfe4b"
+    },
+    {
       "path": "reports/performance.json",
       "size": 1083,
       "sha256": "f225449796189958d80daeefc84a15d1c478c4b4bc95fbc77fe63336c30f4f7d"
+    },
+    {
+      "path": "reports/reviews-v18.json",
+      "size": 1403,
+      "sha256": "670ecba66f59aa9037c9494a73f02e1c0f280d2c6f873c0835e3162e76f92d48"
     },
     {
       "path": "reports/screenshots/Kamakura_v16_narrow.jpg",
@@ -485,13 +595,13 @@
     },
     {
       "path": "reports/screenshots/current/delivered-1440.png",
-      "size": 1047719,
-      "sha256": "731205d14830a34b96429e92c72144676b2e1ff76f0ee3068fccdc45c23ce427"
+      "size": 1023248,
+      "sha256": "7cdb6fcb1870ebe53355ede436a121266e89fe896cb53ac63d5554b3c2711bf9"
     },
     {
       "path": "reports/screenshots/current/empty-bucket-1440.png",
-      "size": 1216440,
-      "sha256": "667c1d21b3b3552ae04d7d948c924601da1e980a4929fcba1375d2c6fee5f7f0"
+      "size": 1595304,
+      "sha256": "c62c8d862722c2138306f9393f9de1e06f2d753ba860c301c5c85fc707ec25f3"
     },
     {
       "path": "reports/screenshots/current/experience-delivered.png",
@@ -530,63 +640,173 @@
     },
     {
       "path": "reports/screenshots/current/full-bucket-1440.png",
-      "size": 1168620,
-      "sha256": "df4b87087385bd0a705b11cf2c15c8ad2dc9219fe6eb71d3c5834d9adf049134"
+      "size": 1434185,
+      "sha256": "9e415f5ee381183e5657c97c1183082df96369108b51fc70e9205335c4a9711c"
+    },
+    {
+      "path": "reports/screenshots/current/irrigated-1440.png",
+      "size": 1965404,
+      "sha256": "a74a8acf87e67582b842ae54c8d10d417113a3b100a36679a3abaf564155cab0"
     },
     {
       "path": "reports/screenshots/current/playing-390x844.png",
-      "size": 274292,
-      "sha256": "04ba921c98a9c06fa883d16de6f0f11bd266fe16cd2978ec2b894654937965d8"
+      "size": 390902,
+      "sha256": "d83150b8e9e3d7651ba8cee96f25edc75d87ff9e0c9e8bfa72d6f0f25a48528a"
     },
     {
       "path": "reports/screenshots/current/playing-768x1024.png",
-      "size": 621657,
-      "sha256": "5fbb3428324e2038e6391ee32aaa06a15df1e02a69a2b7f9b66719bffcfe7c81"
+      "size": 942989,
+      "sha256": "3fd8b1a82d73ae7a785f8e1ec2b8bd7298dd9b7fff5d191f020f5b771fb99303"
     },
     {
       "path": "reports/screenshots/current/playing-844x390.png",
-      "size": 356644,
-      "sha256": "c472c83a6832f767439b60d1ad2b95f13a1a087f634b09c4bd4bf1b9889e1917"
+      "size": 432224,
+      "sha256": "fefec6333e487f92e13052dadb03349093704cdd3c7505e9bc27ad55122111a5"
     },
     {
       "path": "reports/screenshots/current/reduced-motion-1440.png",
-      "size": 1044948,
-      "sha256": "adcdceb56b6b9b84cc80e5f26eeb244eb5b66112d77dd4368483efebd9157b1c"
+      "size": 1682142,
+      "sha256": "90561f11de0903ac2348bfbc5b0ab87f9afe4d2d996bcd136beb9ed561d20ffb"
+    },
+    {
+      "path": "reports/screenshots/current/restored-1440.png",
+      "size": 1153215,
+      "sha256": "cd48487037e559f5ffbf2d2d762947e900c32d610a497bfd1a816fb6a5673995"
     },
     {
       "path": "reports/screenshots/current/settings-390x844.png",
-      "size": 79157,
-      "sha256": "888d92aa550c804d60b55829ebd201d59d767b7f5c86f9aebdca767c802731fe"
+      "size": 82445,
+      "sha256": "9fd29442f1d7b92daa2ed91928b584044f021aa301d71d47e5c92e554c4c7439"
     },
     {
       "path": "reports/screenshots/current/settings-768x1024.png",
-      "size": 146289,
-      "sha256": "248c4411b4dd5822a5e009c922d151e207daa5c517e5068e2b7ce8554d27e83d"
+      "size": 157860,
+      "sha256": "3b5daa4712a8045986b4a3d4cc6ec80b9967258263fa3e3f5fe5d865a8fbb525"
     },
     {
       "path": "reports/screenshots/current/settings-844x390.png",
-      "size": 66139,
-      "sha256": "d44c18f86e20c87fa9b355bcea4df69d1aa381121ff57974b43c80d0f84173d5"
+      "size": 66640,
+      "sha256": "195cbc6728c221c93f9d4df72761512de4a3e08113ceb0ddcf80f0b8c850a343"
     },
     {
       "path": "reports/screenshots/current/title-1440.png",
-      "size": 1200165,
-      "sha256": "c8fbd972b7be7463021365f6184e5e8c164e75be9971ec86bb7887d44baf0828"
+      "size": 1613269,
+      "sha256": "64cefb173b662868f25938de9aa221e33be6e9ad59ad3cce9b3c2a457077cc28"
     },
     {
       "path": "reports/screenshots/current/title-390x844.png",
-      "size": 340917,
-      "sha256": "18b958f6eeb7f8256672c09deddbf8e570f4119df969095b1bddf2bccb9da536"
+      "size": 339902,
+      "sha256": "0b7ad4e82e26ce01f05dbd0fd2502f518e9a5d2aab4ef3405c4dae2afde0b513"
     },
     {
       "path": "reports/screenshots/current/title-768x1024.png",
-      "size": 722449,
-      "sha256": "7acb59e285557e7d2fc60e87bf1d729f7fcf88008cc4e5d1589e78772ba491e3"
+      "size": 912576,
+      "sha256": "28af84de408aec1af3ea4d21ff0910dde49d175996bb21ed90e84057189d2b6b"
     },
     {
       "path": "reports/screenshots/current/title-844x390.png",
-      "size": 365200,
-      "sha256": "0a148529d58f7cf1827cf830eba58381209a84f404585354ffa4dd54636602c3"
+      "size": 447672,
+      "sha256": "3aff9abf50bcc7c4fd68eb758cb3eacd09c687415354433abd285d7a8604696d"
+    },
+    {
+      "path": "reports/screenshots/experience-v18/focus-input-stopped.png",
+      "size": 1562268,
+      "sha256": "e74679b663b293fa54d37f456a169581e7da7fe8b5daa0b08ddec709257e0a1d"
+    },
+    {
+      "path": "reports/screenshots/experience-v18/lantern-after.png",
+      "size": 1156681,
+      "sha256": "ff515299a0107664f052a70dd25842f6b298b4ad0256f1e66015a5dfce468ca1"
+    },
+    {
+      "path": "reports/screenshots/experience-v18/lantern-before.png",
+      "size": 1112970,
+      "sha256": "b4e3e464f09cf61e0e002e586ec6d9cc748d3e48f2cb515021ff42b354aff2e9"
+    },
+    {
+      "path": "reports/screenshots/experience-v18/seedbed-after.png",
+      "size": 1101239,
+      "sha256": "c62ac6160444ae6f0fb373791967bb203d5893a5427cdf83deb92d09a2f9146a"
+    },
+    {
+      "path": "reports/screenshots/experience-v18/seedbed-before.png",
+      "size": 1104946,
+      "sha256": "c2a3f75922e0e2d96ec428e7c84e96d0849c1e63549168ea5ea65a39c0ed5c95"
+    },
+    {
+      "path": "reports/screenshots/experience-v18/sluice-after.png",
+      "size": 2014591,
+      "sha256": "3dfdaf12e1cd3aee4704b21f73648888074615d88b0019fc883e4409761dba67"
+    },
+    {
+      "path": "reports/screenshots/experience-v18/sluice-before.png",
+      "size": 2023568,
+      "sha256": "b5c38ae85e20ad94fe290efb2b66d464579688a6759c262ea252a71859848176"
+    },
+    {
+      "path": "reports/screenshots/v18-after/ground-detail.png",
+      "size": 1930931,
+      "sha256": "aa5f307a404af9cdc662ec8f40ec1ca9d822ac7be77c3e7f4a1829c51c9427e4"
+    },
+    {
+      "path": "reports/screenshots/v18-after/mountains-east.png",
+      "size": 1875346,
+      "sha256": "43bee4a072dd15fc8cfdcd8aba603a5f4a20635d506878c4224100df6a47146e"
+    },
+    {
+      "path": "reports/screenshots/v18-after/mountains-west.png",
+      "size": 1529968,
+      "sha256": "dfb6037fa6b16a83ca5bcc4753f6f165effe60060fa0d07fb8e276ddecae0064"
+    },
+    {
+      "path": "reports/screenshots/v18-after/playing-390.png",
+      "size": 390891,
+      "sha256": "0798a40283674349c061f52110c68830b9bd0b9c611159c34b3c4cc9afe43fd2"
+    },
+    {
+      "path": "reports/screenshots/v18-after/start.png",
+      "size": 1664211,
+      "sha256": "195b2df9782013f79fb65230d567412a4113443ff81bb13d0de87fb4010404ff"
+    },
+    {
+      "path": "reports/screenshots/v18-after/water-detail.png",
+      "size": 2157576,
+      "sha256": "1857d59470331d55e4a7dfa2fb15ea1196f55aaec7a23466a3cc29a394140efb"
+    },
+    {
+      "path": "reports/screenshots/v18-before/ground-detail.png",
+      "size": 1078266,
+      "sha256": "b743d598005596db57ed3c593bd35742d8089a4d647bef1ffbf0bce897165640"
+    },
+    {
+      "path": "reports/screenshots/v18-before/look-and-walk.png",
+      "size": 870626,
+      "sha256": "4cec9acfe4a19f42b7bf415a60ba06d662ad9480ed97e46f92dce11c3df98d5c"
+    },
+    {
+      "path": "reports/screenshots/v18-before/start.png",
+      "size": 1005624,
+      "sha256": "cea9040d5c91ff0dc1620f48d5f017190d349befeb123e225e0e229b5d07692a"
+    },
+    {
+      "path": "reports/screenshots/v18-before/water-detail.png",
+      "size": 1162978,
+      "sha256": "dd7f159ba87c69433ca0038bda17444639ab7281bb277fab2bbeedb199ed6db9"
+    },
+    {
+      "path": "reports/screenshots/v18-before/water.png",
+      "size": 807253,
+      "sha256": "7e55657ab0d412eef0e79f8ce0541e71e81723139981ba5cfc94cade5f8a01b3"
+    },
+    {
+      "path": "reports/screenshots/water-prototype-rejected.png",
+      "size": 2003985,
+      "sha256": "cffc2a78e8ecfc2d04d0b178d9a0caf9390209d0394628c7e309fc9082fbf856"
+    },
+    {
+      "path": "reports/visual-review-v18.json",
+      "size": 1700,
+      "sha256": "086f89b3334d8533e35f4b3d365768671589f21346b6949d807198c32a609cc5"
     },
     {
       "path": "reports/visual-review.json",
@@ -594,9 +814,14 @@
       "sha256": "bd28a5d32013826cb253637ece51e38be9017f80e521b78dc1338f3c939f0187"
     },
     {
+      "path": "reports/water-seam-v18.md",
+      "size": 1068,
+      "sha256": "4081e0847ebacef94a86c9740abcb73fa23954d4d8fb843a87d16b846569e096"
+    },
+    {
       "path": "tests/audio.test.mjs",
-      "size": 3933,
-      "sha256": "9bc8499de76ebf8ac4bffba4e43e11f7838b2267e069edcfdb923a9a98f57ae3"
+      "size": 13819,
+      "sha256": "9089a2088c4080756f3eb85c75bdaab519ecaea05d8a53e8a9e0a04b06fb4b09"
     },
     {
       "path": "tests/collision.test.mjs",
@@ -605,8 +830,8 @@
     },
     {
       "path": "tests/gameplay.test.mjs",
-      "size": 2428,
-      "sha256": "bea055ac2c462f4ad33a163d25fa0d054c49e99e1e5b521fb0d629364339bfd3"
+      "size": 2430,
+      "sha256": "345d405373e4c501efc592817548fbdca1ad889ec478da285417e89b139924a2"
     },
     {
       "path": "tests/interactions.test.mjs",
@@ -614,9 +839,14 @@
       "sha256": "a7e06877171c2f43e1f0be01544e93fb13caaed794d04dbf68e69be38734acf8"
     },
     {
+      "path": "tests/places.test.mjs",
+      "size": 1610,
+      "sha256": "92384ec5d09117630b57f8d0991db9e07ae861b39534f80cd1eecbb7615484a4"
+    },
+    {
       "path": "tests/save.test.mjs",
-      "size": 4388,
-      "sha256": "89ed3d6994abb39386d6e7fb68a719e24d255d89a65902bd5f94cdc4d8c851b9"
+      "size": 4382,
+      "sha256": "7f8b1db6223659db85df3d27f931cf4f2c9b54b831ba9629a7148cbc2c254bd1"
     },
     {
       "path": "tests/ui.test.mjs",
@@ -624,19 +854,29 @@
       "sha256": "c4e778c8059d12c36e32b9a35f1b2ba748340ab4560e7b8d8873e8438d2bd36b"
     },
     {
+      "path": "tests/valley-life.test.mjs",
+      "size": 3447,
+      "sha256": "78bd53e4e7bf7e9ce1553420b5028856eb56acf5196242d39beab4afcf26b7eb"
+    },
+    {
       "path": "tools/browser-check.mjs",
-      "size": 17417,
-      "sha256": "2ed9a86dc5b0f8e1a62eae9d1a21dba8cecd9ac9bc029b878455c3e3d3d423c4"
+      "size": 24320,
+      "sha256": "690adc203cb5e266a2097b9cea926f0d0bf3dd4e9cdfde0d559a3e7630678a58"
     },
     {
       "path": "tools/check-package.mjs",
-      "size": 2389,
-      "sha256": "3cbf9cbfe817a4c357e9d325910f50b5bc42094e83db8482885e36946e9f0ccb"
+      "size": 4004,
+      "sha256": "bd8cb341c58917ff03d30c172822f2ffc15e5fdc4e5aad0afaf9b30e747143b4"
     },
     {
       "path": "tools/export_scene_reference.py",
       "size": 16052,
       "sha256": "04bb5de7fb1498987d841347c7ad54f263b4319d40f0dff25814eb732f7a6909"
+    },
+    {
+      "path": "tools/measure-frame-time.mjs",
+      "size": 5127,
+      "sha256": "34bf8c49da03f7071d8b2bc3e202879c8f5dc6ec03f3db0a18c18535c9705c08"
     },
     {
       "path": "tools/serve.mjs",
@@ -645,8 +885,8 @@
     },
     {
       "path": "tools/smoke.mjs",
-      "size": 1604,
-      "sha256": "00c2e9f187a3e78441fa205b6dfd6834611fcba52c14a7dbf2f299ccf65782c9"
+      "size": 2161,
+      "sha256": "8675a9d11c3054bf98f6c25dbf9d714be4e2b31ff439ad5a371dd1be3e4de900"
     }
   ]
 }
