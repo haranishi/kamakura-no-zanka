@@ -49,7 +49,8 @@ flowchart LR
 状態は`bucket → empty → full → delivered`。操作は`pickup, fill, deliver`。
 `save.js`: `loadProgress(storage)`は状態・保存有無・案内理由、`saveProgress(storage,state)`は成否を返す。
 不正なJSON・null・配列・未知の版・不整合は初期状態へ。位置は保存せず安全な開始点へ戻す。
-`interactions.js`: `selectTarget(player,yaw,targets,isOccluded)`は水平距離1.6m以内、前方許容角、遮蔽なしの一対象かnullを返す。
+`interactions.js`: `selectTarget(player,yaw,targets,isOccluded)`は既定の水平距離1.6m以内、前方許容角、遮蔽なしの一対象かnullを返す。
+距離は対象データで設定可能。今回の桶・井戸・配達先はすべて1.6mを使う。
 予告とE・タッチ実行は同じ関数で再評価。遮蔽は身体目線から対象アンカーへ、家と井戸の境界を使う。
 `environment.js`: `createEnvironment({scene,renderer,model,sun,groundAt})`は`update(dt,elapsed)`, `setQuality(quality)`を返す。
 風の頂点変形はインスタンシングと深度影へ対応。停止時にelapsedを進めない。
