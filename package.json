@@ -1,6 +1,6 @@
 {
-  "name": "kamakura-developer-handoff",
-  "version": "16.0.0",
+  "name": "kamakura-no-zanka",
+  "version": "17.0.0",
   "private": true,
   "type": "module",
   "engines": {
@@ -8,9 +8,9 @@
   },
   "scripts": {
     "start": "node tools/serve.mjs",
-    "test": "node tests/collision.test.mjs && node tests/ui.test.mjs",
+    "test": "node --test tests/*.test.mjs",
     "check": "node tools/check-package.mjs",
     "smoke": "node tools/smoke.mjs"
   },
-  "description": "Portable v16 walkthrough source and development brief; next gameplay is not implemented."
+  "description": "A private browser 3D experience: carry water through a misty medieval Japanese valley."
 }

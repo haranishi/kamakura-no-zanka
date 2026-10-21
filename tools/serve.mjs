@@ -21,6 +21,6 @@ if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.ur
  const flag=process.argv.indexOf('--port');const port=Number(flag>=0?process.argv[flag+1]:process.env.PORT||8080);
  if(!Number.isInteger(port)||port<1||port>65535)throw Error('Port must be an integer from 1 to 65535.');
  const server=createServer();server.on('error',e=>{console.error(e.code==='EADDRINUSE'?`Port ${port} is busy. Try: npm start -- --port 8081`:e.message);process.exitCode=1;});
- server.listen(port,'127.0.0.1',()=>console.log(`Kamakura v16: http://127.0.0.1:${port}\nStop with Ctrl+C. No install/build step required.`));
+ server.listen(port,'127.0.0.1',()=>console.log(`Kamakura v17: http://127.0.0.1:${port}\nStop with Ctrl+C. No install/build step required.`));
  for(const signal of ['SIGINT','SIGTERM'])process.on(signal,()=>server.close(()=>process.exit(0)));
 }
