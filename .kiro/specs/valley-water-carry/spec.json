@@ -1,0 +1,27 @@
+{
+  "feature_name": "valley-water-carry",
+  "created_at": "2026-10-21T14:46:14.564968+00:00",
+  "updated_at": "2026-10-21T14:49:53.075124+00:00",
+  "language": "ja",
+  "phase": "tasks-generated",
+  "approvals": {
+    "requirements": {
+      "generated": true,
+      "approved": true
+    },
+    "design": {
+      "generated": true,
+      "approved": true
+    },
+    "tasks": {
+      "generated": true,
+      "approved": true
+    }
+  },
+  "ready_for_implementation": true,
+  "approval_basis": "ユーザーの一気通貫実行依頼と引き継ぎdocs/01〜05を継承",
+  "task_graph_review": {
+    "mode": "independent",
+    "verdict": "PASS"
+  }
+}
