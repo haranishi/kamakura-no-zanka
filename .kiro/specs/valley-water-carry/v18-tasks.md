@@ -1,6 +1,6 @@
 # v18 Implementation Plan
 既存tasks.mdの1〜7はv17完了記録。以下をv18追補として実行する。
-12.2と14.2は未達・未確認を保持し、それ以外の検証済み変更を提出する。
+12.2と14.2は未達・未確認、15.2は外部CI未実行として保持し、検証済み変更を提出する。
 
 - [x] 8. 基準を実見し、仕様と素材の制約を固める
   - 既存検証成功、独立した体験・画像監査、SSD確認、固定画角のbeforeを保持する。
@@ -55,10 +55,19 @@
   - _Boundary: BrowserVerification_
   - _Blocked: native selectのキー確定を現検査環境で実証できない_
   - _Requirements: 4.3, 4.6_
-- [ ] 15. 検証済みの改善を非公開Gitへ反映しPRをマージする
-  - private=true、PRのmerge、mainのCIと通常起動、ローカル/remote一致を読み戻す。
+- [ ] 15. 非公開Gitへ反映し、外部CIの未実行を区別する
+- [ ] 15.1 検証済みの改善をPRでマージしmainの通常起動を確認する
+  - private=true、PRのmerge、main通常起動、ローカル/remote一致を読み戻す。
   - _Boundary: GitDelivery_
   - _Depends: 14.1_
+  - _Requirements: 6.2_
+
+- [ ] 15.2 GitHubのmain CIを確認する（外部要因で未実行）
+  - Node22/24とも課金・利用上限のエラーでjob未起動、step0。アカウント設定は変更しない。
+  - macOSのNode22.23.4/24.12.0で同じNode/配布/HTTP検査は成功。GitHub Linux成功へ読み替えない。
+  - _Boundary: CI_
+  - _Depends: 15.1_
+  - _Blocked: GitHub billing/spending limit_
   - _Requirements: 6.2_
 
 ## レビュー記録

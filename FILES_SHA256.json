@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-10-21T17:28:19.351671+00:00",
+  "generatedAt": "2026-10-21T17:33:18.308602+00:00",
   "scope": "v18 source, assets and verification artifacts; excludes this manifest and Git metadata",
   "files": [
     {
@@ -10,8 +10,8 @@
     },
     {
       "path": ".agent-harness/runs/2026-10-22-valley-life-v18.md",
-      "size": 2724,
-      "sha256": "bae66dbd21a770a6bcf148c8d61491822bf67fe1e57e0e6199385a41ccded859"
+      "size": 2967,
+      "sha256": "f3f2542d6a9dc3a8fdcbafadcbb19e49778aaefbb8f2f00a3e49c18f915dbbbd"
     },
     {
       "path": ".agent-harness/runs/2026-10-22-valley-water-carry.md",
@@ -130,8 +130,8 @@
     },
     {
       "path": ".kiro/specs/valley-water-carry/spec.json",
-      "size": 2460,
-      "sha256": "e09251e8217418abe2535c74d6fcb007e9d2797d39d7e40b79ceb687b61d8388"
+      "size": 2808,
+      "sha256": "9e1f46998349aa86007f6735fe92929983adba12b9dc87e59fb0ae4614aeb2ec"
     },
     {
       "path": ".kiro/specs/valley-water-carry/tasks.md",
@@ -145,8 +145,8 @@
     },
     {
       "path": ".kiro/specs/valley-water-carry/v18-tasks.md",
-      "size": 5344,
-      "sha256": "0a2004f6522b1922f950421bee3deecbe3e3cca3a53d25ba29fa90321ebb9215"
+      "size": 5855,
+      "sha256": "0c1a83827eb9972ce4ed57bd66d336b4d07cd5288785d8c9dd0b0e6e90bd32c9"
     },
     {
       "path": ".kiro/steering/product.md",
@@ -490,8 +490,8 @@
     },
     {
       "path": "reports/VERIFICATION_JA.md",
-      "size": 5370,
-      "sha256": "c9e2973ecb3e29b94c925567118787a35b86de0b896f2c1a51408d1fe8806b19"
+      "size": 5793,
+      "sha256": "78b689feab04b667eec850aa7471577ed454778104382e674ef4b789bf888ee6"
     },
     {
       "path": "reports/VERIFICATION_V17_JA.md",
@@ -517,6 +517,11 @@
       "path": "reports/browser-interaction-errors.json",
       "size": 928,
       "sha256": "8005abffe0e3990b3fbb24e8bb27eed4768f07d2849b85682ee6f62811cc8824"
+    },
+    {
+      "path": "reports/ci-blocker-v18.json",
+      "size": 1576,
+      "sha256": "4aedc5b13cb569f50132b402641849cdaf8f2eb990ebe354d01488e4504b5ecf"
     },
     {
       "path": "reports/collision_tests.json",
