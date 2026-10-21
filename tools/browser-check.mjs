@@ -37,7 +37,17 @@ async function drag(page, dx, dy = 0) {
   await page.mouse.move(x, y); await page.mouse.down(); await page.mouse.move(x + dx, y + dy, { steps: 4 }); await page.mouse.up();
   await page.waitForTimeout(40);
 }
+let keyboardLook = false;
 async function turnTo(page, x, z) {
+  if (keyboardLook) {
+    for(let i=0;i<100;i++){
+      const current=await state(page),angle=Math.atan2(-(x-current.player.x),-(z-current.player.z));
+      const diff=Math.atan2(Math.sin(angle-current.yaw),Math.cos(angle-current.yaw));
+      if(Math.abs(diff)<.025)return;
+      const key=diff>0?'j':'l';await page.keyboard.down(key);await page.waitForTimeout(Math.min(180,Math.max(16,Math.abs(diff)/(.85*current.settings.sensitivity)*950)));await page.keyboard.up(key);
+    }
+    throw new Error('Keyboard could not aim toward waypoint');
+  }
   for (let i = 0; i < 5; i++) {
     const current = await state(page); const angle = Math.atan2(-(x - current.player.x), -(z - current.player.z));
     let difference = (angle - current.yaw + Math.PI * 3) % (Math.PI * 2) - Math.PI;
@@ -79,12 +89,20 @@ try {
   current = await state(page); assert.equal(current.quest.waterVisible, true); assert.equal(current.quest.parent, 'camera'); record('fill from the safe east side of the well'); await screenshot(page, 'full-bucket-1440.png');
   await walkTo(page, -4.9, 3.8, .18); await walkTo(page, -8.5, 3.8, .2); await walkTo(page, -8.5, -.4, .25); await turnTo(page, -8.5, -.4); await operate(page, 'delivered');
   current = await state(page); assert.equal(current.quest.parent, 'scene'); assert.equal(current.quest.waterVisible, true); record('carry along a continuous safe path and deliver with normal controls');
+  assert.equal(current.life.watered,true); assert.equal(current.life.flowing,false); assert.equal(current.life.lit,false);
   await screenshot(page, 'delivered-1440.png');
-  await page.keyboard.press('r'); assert.equal((await state(page)).game.stage, 'delivered'); assert.ok(Math.abs((await state(page)).player.x + 2.3) < .01); record('R resets position while preserving progress');
+  await walkTo(page,-8.5,3.8,.2);await walkTo(page,-4.9,3.8,.18);await walkTo(page,-2.3,3.8,.18);await walkTo(page,-2.3,1.2,.16);await turnTo(page,-1.16,1.2);await operate(page,'irrigated');
+  current=await state(page);assert.equal(current.life.flowing,true);assert.equal(current.life.branchesVisible,false);assert.ok(current.life.gateHeight>.5);assert.equal(current.quest.waterVisible,true);
+  record('clear visible branches and restore the canal with normal controls');await screenshot(page,'irrigated-1440.png');
+  await walkTo(page,-2.3,3.8,.18);await walkTo(page,-8.5,3.8,.2);await walkTo(page,-10.5,3.8,.2);await walkTo(page,-10.5,.4,.16);await turnTo(page,-10.5,-.65);await operate(page,'restored');
+  current=await state(page);assert.equal(current.life.lit,true);assert.ok(current.life.lightIntensity>0);assert.equal(current.quest.parent,'scene');assert.equal(current.quest.waterVisible,true);
+  assert.equal(await page.locator('#destination').isVisible(),false);assert.ok(await page.locator('#quest-again').isVisible());
+  record('light the porch lantern and retain all world consequences');await screenshot(page,'restored-1440.png');
+  await page.keyboard.press('r'); assert.equal((await state(page)).game.stage, 'restored'); assert.ok(Math.abs((await state(page)).player.x + 2.3) < .01); record('R resets position while preserving progress');
   await page.keyboard.press('Escape'); await page.waitForFunction(() => document.body.dataset.state === 'paused');
   const stopped = await state(page); await page.keyboard.down('w'); await page.keyboard.press('e'); await page.waitForTimeout(250); await page.keyboard.up('w');
-  current = await state(page); assert.deepEqual(current.player, stopped.player); assert.equal(current.game.stage, 'delivered'); assert.equal(current.audio.contextState, 'suspended'); assert.equal(current.elapsed, stopped.elapsed); record('pause stops movement, interactions, time and audio');
-  await page.locator('#restart-game').click(); await page.locator('#cancel-restart').click(); assert.equal((await state(page)).game.stage, 'delivered'); record('cancel restart keeps the completed state');
+  current = await state(page); assert.deepEqual(current.player, stopped.player); assert.equal(current.game.stage, 'restored'); assert.equal(current.audio.contextState, 'suspended'); assert.equal(current.elapsed, stopped.elapsed); record('pause stops movement, interactions, time and audio');
+  await page.locator('#restart-game').click(); await page.locator('#cancel-restart').click(); assert.equal((await state(page)).game.stage, 'restored'); record('cancel restart keeps the completed state');
   await page.locator('#restart-game').click(); await page.locator('#confirm-restart').click(); assert.equal((await state(page)).game.stage, 'bucket'); assert.equal((await state(page)).quest.parent, 'scene'); record('confirmed restart restores the bucket and position');
   await page.reload(); await page.waitForFunction(() => window.__walktest?.state.ready); assert.equal((await state(page)).game.stage, 'bucket'); record('restart saves a consistent initial state');
   await context.close();
@@ -92,10 +110,11 @@ try {
   // State restoration is deliberately seeded here, separate from the normal journey above.
   const restoreContext = await browser.newContext({ viewport: { width: 1440, height: 900 } });
   const restore = await open(restoreContext);
-  for (const stage of ['bucket', 'empty', 'full', 'delivered']) {
-    await restore.evaluate(stage => localStorage.setItem('kamakura-progress-v1', JSON.stringify({ schemaVersion: 1, stage })), stage);
+  for (const stage of ['bucket', 'empty', 'full', 'delivered','irrigated','restored']) {
+    await restore.evaluate(stage => localStorage.setItem('kamakura-progress-v1', JSON.stringify({ schemaVersion: 2, stage })), stage);
     await restore.reload(); await restore.waitForFunction(() => window.__walktest?.state.ready);
-    let value = await state(restore); assert.equal(value.game.stage, stage); assert.equal(value.quest.parent, ['empty','full'].includes(stage) ? 'camera' : 'scene'); assert.equal(value.quest.waterVisible, ['full','delivered'].includes(stage));
+    let value = await state(restore); assert.equal(value.game.stage, stage); assert.equal(value.quest.parent, ['empty','full'].includes(stage) ? 'camera' : 'scene'); assert.equal(value.quest.waterVisible, ['full','delivered','irrigated','restored'].includes(stage));
+    assert.equal(value.life.watered,['delivered','irrigated','restored'].includes(stage));assert.equal(value.life.flowing,['irrigated','restored'].includes(stage));assert.equal(value.life.lit,stage==='restored');
     await start(restore); await restore.keyboard.press('Escape');
     value = await state(restore); const before = value.player;
     await restore.keyboard.down('w'); await restore.keyboard.press('e'); await restore.waitForTimeout(120); await restore.keyboard.up('w');
@@ -104,6 +123,7 @@ try {
     await restore.keyboard.press('r'); assert.equal((await state(restore)).game.stage, stage);
     record('restore, pause, title, continue and R at ' + stage);
   }
+  await restore.evaluate(()=>localStorage.setItem('kamakura-progress-v1',JSON.stringify({schemaVersion:1,stage:'delivered'})));await restore.reload();await restore.waitForFunction(()=>window.__walktest?.state.ready);assert.equal((await state(restore)).game.stage,'delivered');assert.equal((await state(restore)).life.watered,true);assert.equal((await state(restore)).life.flowing,false);record('legacy v1 delivery continues at canal work without losing the seedbed');
   for (const raw of ['{', 'null', '[]', '{"schemaVersion":99,"stage":"full"}', '{"schemaVersion":1,"stage":"unknown"}']) {
     await restore.evaluate(raw => localStorage.setItem('kamakura-progress-v1', raw), raw); await restore.reload(); await restore.waitForFunction(() => window.__walktest?.state.ready);
     assert.equal((await state(restore)).game.stage, 'bucket'); assert.match(await restore.locator('#toast').textContent(), /保存データ/);
@@ -119,11 +139,11 @@ try {
   });
   const denied = await open(rejected); await start(denied); await denied.waitForTimeout(150);
   assert.match(await denied.locator('#toast').textContent(), /音を開始/); record('blocked Web Audio reports a reason and keeps the game available');
-  for (const [x,z,angle,next] of [[-4.55,3.65,0,'empty'],[-4.9,2.2,Math.PI/2,'full'],[-8.5,.2,0,'delivered']]) {
+  for (const [x,z,angle,next] of [[-4.55,3.65,0,'empty'],[-4.9,2.2,Math.PI/2,'full'],[-8.5,.2,0,'delivered'],[-2.3,1.2,-Math.PI/2,'irrigated'],[-10.5,.4,0,'restored']]) {
     await denied.evaluate(([x,z,angle]) => window.__walktest.teleport(x,z,angle), [x,z,angle]);
     await denied.waitForTimeout(500); await operate(denied,next); assert.match(await denied.locator('#toast').textContent(), /保存容量/);
   }
-  assert.equal((await state(denied)).game.stage, 'delivered'); assert.equal((await state(denied)).hasSave, false); record('quota refusal keeps all three session transitions usable and visible');
+  assert.equal((await state(denied)).game.stage, 'restored'); assert.equal((await state(denied)).hasSave, false); record('quota refusal keeps all five session transitions usable and visible');
   await rejected.close();
 
   for (const [width,height] of [[390,844],[768,1024],[844,390]]) {
@@ -167,6 +187,34 @@ try {
   await keyboard.locator('[data-open="settings"]').click(); await keyboard.locator('#quality').selectOption('light'); await keyboard.locator('#quality').selectOption('standard');
   await keyboard.locator('#dialog-close').click(); await start(keyboard); assert.equal(await keyboard.evaluate(()=>matchMedia('(prefers-reduced-motion: reduce)').matches),true);
   await screenshot(keyboard,'reduced-motion-1440.png'); record('visible keyboard focus, both quality modes and reduced-motion media setting');
+  keyboardLook=true;
+  // No mouse input or QA teleport in this journey. All observation uses the QA read-only state.
+  for(const [points,anchor,next] of [
+    [[[-4.55,3.65]],[-4.55,3.10005],'empty'],
+    [[[-4.9,2.5]],[-5.35,2.2],'full'],
+    [[[-4.9,3.8],[-8.5,3.8],[-8.5,.2]],[-8.5,-.4],'delivered'],
+    [[[-8.5,3.8],[-4.9,3.8],[-2.3,3.8],[-2.3,1.2]],[-1.16,1.2],'irrigated'],
+    [[[-2.3,3.8],[-8.5,3.8],[-10.5,3.8],[-10.5,.4]],[-10.5,-.65],'restored']
+  ]){
+    for(const [x,z] of points)await walkTo(keyboard,x,z,.18);
+    await turnTo(keyboard,...anchor);await operate(keyboard,next);
+  }
+  keyboardLook=false;record('all five actions with WASD, IJKL and E only, under reduced motion');
+  await keyboard.keyboard.down('j');await keyboard.keyboard.down('w');await keyboard.waitForTimeout(100);await keyboard.keyboard.press('Tab');
+  assert.equal(await keyboard.evaluate(()=>document.activeElement.id),'menu-button');
+  const uiFocused=await state(keyboard);await keyboard.waitForTimeout(350);let guarded=await state(keyboard);
+  assert.equal(guarded.uiState,'playing');assert.equal(guarded.yaw,uiFocused.yaw);assert.deepEqual(guarded.player,uiFocused.player);
+  await keyboard.keyboard.up('j');await keyboard.keyboard.up('w');await keyboard.keyboard.press('Enter');await keyboard.locator('#dialog-close').click();
+  record('Tab into a live menu button clears held look and movement keys');
+  const beforeLook=await state(keyboard);await keyboard.keyboard.down('i');await keyboard.waitForTimeout(220);await keyboard.keyboard.up('i');assert.ok((await state(keyboard)).pitch>beforeLook.pitch+.05);
+  const beforeArrow=(await state(keyboard)).player;await keyboard.keyboard.down('ArrowRight');await keyboard.waitForTimeout(180);await keyboard.keyboard.up('ArrowRight');assert.ok(Math.hypot((await state(keyboard)).player.x-beforeArrow.x,(await state(keyboard)).player.z-beforeArrow.z)>.1);
+  await keyboard.keyboard.press('Escape');const stoppedLook=await state(keyboard);await keyboard.keyboard.down('l');await keyboard.keyboard.down('i');await keyboard.waitForTimeout(180);await keyboard.keyboard.up('l');await keyboard.keyboard.up('i');assert.equal((await state(keyboard)).yaw,stoppedLook.yaw);assert.equal((await state(keyboard)).pitch,stoppedLook.pitch);
+  await keyboard.locator('[data-panel="settings"]').click();await keyboard.locator('#sensitivity').focus();await keyboard.keyboard.press('j');assert.equal((await state(keyboard)).yaw,stoppedLook.yaw);
+  await keyboard.locator('#dialog-close').click();record('vertical keyboard look, arrow movement, pause and UI focus guards');
+  for(let i=0;i<4;i++){await keyboard.keyboard.press('Escape');await keyboard.locator('#dialog-close').click();await keyboard.keyboard.press('Escape');await keyboard.locator('#dialog-close').click();}
+  await keyboard.keyboard.press('Escape');
+  await keyboard.waitForTimeout(400);let audioStopped=(await state(keyboard)).audio;assert.equal(audioStopped.paused,true);assert.equal(audioStopped.ambientVoices,0);assert.equal(audioStopped.voices,0);assert.equal(audioStopped.contextState,'suspended');
+  await keyboard.locator('#dialog-close').click();await keyboard.locator('#menu-button').click();await keyboard.locator('[data-panel="settings"]').click();await keyboard.locator('#mute').check();await keyboard.locator('#dialog-close').click();await keyboard.waitForTimeout(200);audioStopped=(await state(keyboard)).audio;assert.equal(audioStopped.ambientVoices,0);assert.equal(audioStopped.contextState,'suspended');record('immediate resume/pause and mute settle to silence with no ambient source leaks');
   await keyboard.evaluate(()=>window.dispatchEvent(new Event('blur'))); assert.equal((await state(keyboard)).uiState,'paused'); record('blur event pauses and clears input without automatic resume');
   assert.equal(await keyboard.evaluate(()=>!!window.__walktest),true);
   await keyboardContext.close();
@@ -179,6 +227,13 @@ try {
   const noWebGL = await noWebGLContext.newPage(); await noWebGL.goto(base); await noWebGL.locator('body[data-state="error"]').waitFor();
   assert.ok(await noWebGL.locator('#retry').isVisible()); assert.match(await noWebGL.locator('#load-text').textContent(),/3D表示/); assert.equal(await noWebGL.evaluate(()=>document.activeElement.id),'retry');
   record('WebGL refusal exposes an accessible retry screen (expected renderer error)'); await noWebGLContext.close();
+
+  for(const missing of ['dirt_floor_nor_gl_1k.jpg','fir_tree_01_twig_alpha_1k.jpg']){
+    const brokenContext=await browser.newContext();await brokenContext.route('**/'+missing,route=>route.abort());
+    const broken=await brokenContext.newPage();await broken.goto(base);await broken.locator('body[data-state="error"]').waitFor({timeout:60000});
+    assert.ok(await broken.locator('#retry').isVisible());assert.equal(await broken.evaluate(()=>document.activeElement.id),'retry');assert.match(await broken.locator('#load-text').textContent(),/風景の読み込み/);
+    record('missing '+missing+' shows the retry screen (intentional request failure)');await brokenContext.close();
+  }
 
   const normalContext = await browser.newContext(); const normal = await open(normalContext,''); assert.equal(await normal.evaluate(()=>window.__walktest),undefined); record('QA hooks are absent from the normal URL'); await normalContext.close();
 } catch (error) { failure = error; console.error(error); }

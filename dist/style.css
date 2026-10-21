@@ -18,3 +18,12 @@
 @media(max-height:600px){.quest-hud{top:18px;padding:10px 13px}.quest-hud p{font-size:14px}.quest-heading{font-size:9px}.interaction{bottom:100px}.toast{bottom:165px}.title-story{display:none}.title-english{margin-bottom:8px}.title-subtitle{margin-bottom:18px}.inventory,.place{bottom:18px}.control-hint{display:none}.title-content{padding-bottom:15px}.title-screen h1{font-size:42px}.title-footer{bottom:12px}.touch-controls{bottom:18px}}
 @media(max-height:600px) and (pointer:coarse){.quest-hud{top:70px;max-width:260px}.interaction{bottom:110px}.inventory{bottom:24px}}
 @media(pointer:coarse),(max-width:600px){.place{bottom:auto}}
+
+/* v18: readable captions and 44px settings controls. */
+.title-story{color:#e0e4d5;text-shadow:0 1px 4px #0b160f}
+.setting-row select{min-height:44px}
+#defaults{min-height:44px;padding-block:10px}
+.setting-row label small,.setting-note,.panel-note,.scope-inline{font-size:12px}
+.save-note{font-size:12px;color:#c7ccbe;line-height:1.8;margin-top:20px}
+@media(pointer:coarse),(max-width:600px){.quest-heading{font-size:11px}.destination{font-size:12px}}
+@media(max-width:600px){body[data-state=title] .scene-shade{background:linear-gradient(90deg,#101916f2 0%,#14201ac9 58%,#15231a24 100%)}}

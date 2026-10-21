@@ -1,6 +1,6 @@
 {
-  "startedAt": "2026-10-21T15:18:23.601Z",
-  "durationSeconds": 46.968,
+  "startedAt": "2026-10-21T17:16:45.586Z",
+  "durationSeconds": 124.224,
   "browser": "Google Chrome, headless on macOS",
   "checks": [
     {
@@ -30,6 +30,16 @@
     },
     {
       "name": "carry along a continuous safe path and deliver with normal controls",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "name": "clear visible branches and restore the canal with normal controls",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "name": "light the porch lantern and retain all world consequences",
       "passed": true,
       "details": ""
     },
@@ -79,6 +89,21 @@
       "details": ""
     },
     {
+      "name": "restore, pause, title, continue and R at irrigated",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "name": "restore, pause, title, continue and R at restored",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "name": "legacy v1 delivery continues at canal work without losing the seedbed",
+      "passed": true,
+      "details": ""
+    },
+    {
       "name": "corrupt JSON, null, array, future schema and invalid stages recover safely",
       "passed": true,
       "details": ""
@@ -89,7 +114,7 @@
       "details": ""
     },
     {
-      "name": "quota refusal keeps all three session transitions usable and visible",
+      "name": "quota refusal keeps all five session transitions usable and visible",
       "passed": true,
       "details": ""
     },
@@ -114,6 +139,26 @@
       "details": ""
     },
     {
+      "name": "all five actions with WASD, IJKL and E only, under reduced motion",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "name": "Tab into a live menu button clears held look and movement keys",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "name": "vertical keyboard look, arrow movement, pause and UI focus guards",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "name": "immediate resume/pause and mute settle to silence with no ambient source leaks",
+      "passed": true,
+      "details": ""
+    },
+    {
       "name": "blur event pauses and clears input without automatic resume",
       "passed": true,
       "details": ""
@@ -125,6 +170,16 @@
     },
     {
       "name": "WebGL refusal exposes an accessible retry screen (expected renderer error)",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "name": "missing dirt_floor_nor_gl_1k.jpg shows the retry screen (intentional request failure)",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "name": "missing fir_tree_01_twig_alpha_1k.jpg shows the retry screen (intentional request failure)",
       "passed": true,
       "details": ""
     },

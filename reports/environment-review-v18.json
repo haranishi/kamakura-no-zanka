@@ -1,0 +1,163 @@
+{
+  "verdict": "READY_FOR_REVIEW_PARTIAL",
+  "scopeComplete": [
+    "ground PBR",
+    "woodland and branch atlas",
+    "ridge grid removal",
+    "three water materials"
+  ],
+  "scopeIncomplete": [
+    "z=7 boundary-water seam"
+  ],
+  "failedTrialRemoved": true,
+  "browser": "155.0.8059.85",
+  "mode": "headless",
+  "viewport": {
+    "width": 1440,
+    "height": 900
+  },
+  "errors": [],
+  "fixed": [
+    {
+      "name": "ground-detail",
+      "metrics": {
+        "triangles": 588372,
+        "draws": 24,
+        "trees": 569,
+        "terrainMaterials": 2,
+        "terrainTextures": 6,
+        "foliageTextures": 2,
+        "waterConnections": 0
+      }
+    },
+    {
+      "name": "mountains-west",
+      "metrics": {
+        "triangles": 588372,
+        "draws": 24,
+        "trees": 569,
+        "terrainMaterials": 2,
+        "terrainTextures": 6,
+        "foliageTextures": 2,
+        "waterConnections": 0
+      }
+    },
+    {
+      "name": "mountains-east",
+      "metrics": {
+        "triangles": 588372,
+        "draws": 24,
+        "trees": 569,
+        "terrainMaterials": 2,
+        "terrainTextures": 6,
+        "foliageTextures": 2,
+        "waterConnections": 0
+      }
+    },
+    {
+      "name": "water-detail",
+      "metrics": {
+        "triangles": 588372,
+        "draws": 24,
+        "trees": 569,
+        "terrainMaterials": 2,
+        "terrainTextures": 6,
+        "foliageTextures": 2,
+        "waterConnections": 0
+      }
+    }
+  ],
+  "quality": [
+    {
+      "quality": "light",
+      "environment": {
+        "triangles": 377206,
+        "draws": 24,
+        "trees": 334,
+        "terrainMaterials": 2,
+        "terrainTextures": 6,
+        "foliageTextures": 2,
+        "waterConnections": 0
+      },
+      "resources": {
+        "geometries": 584,
+        "textures": 53,
+        "programs": 47
+      }
+    },
+    {
+      "quality": "standard",
+      "environment": {
+        "triangles": 588372,
+        "draws": 24,
+        "trees": 569,
+        "terrainMaterials": 2,
+        "terrainTextures": 6,
+        "foliageTextures": 2,
+        "waterConnections": 0
+      },
+      "resources": {
+        "geometries": 584,
+        "textures": 53,
+        "programs": 52
+      }
+    },
+    {
+      "quality": "light",
+      "environment": {
+        "triangles": 377206,
+        "draws": 24,
+        "trees": 334,
+        "terrainMaterials": 2,
+        "terrainTextures": 6,
+        "foliageTextures": 2,
+        "waterConnections": 0
+      },
+      "resources": {
+        "geometries": 584,
+        "textures": 53,
+        "programs": 52
+      }
+    },
+    {
+      "quality": "standard",
+      "environment": {
+        "triangles": 588372,
+        "draws": 24,
+        "trees": 569,
+        "terrainMaterials": 2,
+        "terrainTextures": 6,
+        "foliageTextures": 2,
+        "waterConnections": 0
+      },
+      "resources": {
+        "geometries": 584,
+        "textures": 53,
+        "programs": 52
+      }
+    }
+  ],
+  "mobile": {
+    "environment": {
+      "triangles": 377206,
+      "draws": 24,
+      "trees": 334,
+      "terrainMaterials": 2,
+      "terrainTextures": 6,
+      "foliageTextures": 2,
+      "waterConnections": 0
+    },
+    "quality": "light"
+  },
+  "reducedCanvasIdentical": true,
+  "failureRecord": "reports/water-seam-v18.md",
+  "independentReview": {
+    "task": "12.1",
+    "verdict": "APPROVED",
+    "scope": "Ground, woodland, ridges and three water materials only; task 12.2 remains unresolved",
+    "packageRequiredFiles": 42,
+    "jsSyntaxFiles": 29,
+    "immutableOriginals": true,
+    "assetBytes": 4314352
+  }
+}

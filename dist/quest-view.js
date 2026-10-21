@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import {progressFor} from './gameplay.js';
 
 /** Keep original source nodes together before any static batching. */
 export function createQuestView({ model, scene, camera, groundAt }) {
@@ -37,24 +38,29 @@ export function createQuestView({ model, scene, camera, groundAt }) {
   const cloth = new THREE.Mesh(new THREE.PlaneGeometry(.13, .19), new THREE.MeshStandardMaterial({ color: '#c9b995', roughness: .95, side: THREE.DoubleSide }));
   cloth.position.set(-.36, .35, -.12); cloth.rotation.y = .25; marker.add(cloth);
   scene.add(marker);
-  let currentStage = 'bucket';
-  function sync(state) {
+  let currentStage = 'bucket', filling = 0;
+  function sync(state, action) {
     currentStage = state.stage;
+    const delivered = progressFor(state).watered;
+    filling = action === 'fill' ? .65 : 0;
     const held = state.stage === 'empty' || state.stage === 'full';
     const parent = held ? camera : scene;
     if (bucket.parent !== parent) parent.add(bucket);
     bucket.rotation.set(0, 0, 0); bucket.scale.setScalar(held ? .68 : 1);
     if (held) bucket.position.set(.32, -.62, -.73);
-    else if (state.stage === 'delivered') bucket.position.set(delivery.x, floor + .015, delivery.z);
+    else if (delivered) bucket.position.set(delivery.x, floor + .015, delivery.z);
     else bucket.position.copy(base);
-    water.visible = state.stage === 'full' || state.stage === 'delivered';
-    marker.visible = state.stage !== 'delivered';
+    water.visible = state.stage === 'full' || delivered;
+    water.position.y = filling ? .08 : .273;
+    marker.visible = state.stage === 'full';
     straw.material.color.set(state.stage === 'full' ? '#d0bb7e' : '#8f8468');
   }
-  function update(elapsed, moving, reducedMotion) {
+  function update(elapsed, moving, reducedMotion, dt = 0) {
+    filling = Math.max(0, filling - dt);
+    water.position.y = reducedMotion || !filling ? .273 : .08 + (1 - filling / .65) * .193;
     const held = currentStage === 'empty' || currentStage === 'full';
     if (held) {
-      bucket.position.y = -.62 + (moving && !reducedMotion ? Math.sin(elapsed * 8) * .009 : 0);
+      bucket.position.y = -.62 + (moving && !reducedMotion ? Math.sin(elapsed * 8) * (currentStage === 'full' ? .005 : .009) : 0);
       bucket.rotation.z = moving && !reducedMotion ? Math.sin(elapsed * 4) * .008 : 0;
     }
     if (water.visible) water.material.roughness = .18;

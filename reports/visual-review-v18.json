@@ -1,0 +1,54 @@
+{
+  "version": 18,
+  "evaluator": "Independent read-only image and isolated-browser evaluator",
+  "scope": "Screen UI only; not a graphics or game-quality score",
+  "score": 17,
+  "maximumScore": 20,
+  "scores": {
+    "firstUnderstanding": 2,
+    "hierarchy": 2,
+    "color": 1,
+    "spacing": 2,
+    "typography": 1,
+    "mobile": 2,
+    "cta": 2,
+    "consistency": 2,
+    "accessibility": 1,
+    "perceivedSpeed": 2
+  },
+  "inspected": [
+    "title-1440",
+    "title-390x844",
+    "title-768x1024",
+    "playing-390x844",
+    "playing-768x1024",
+    "playing-844x390",
+    "settings-390x844",
+    "settings-768x1024",
+    "restored-1440"
+  ],
+  "liveChecks": [
+    "Enter start",
+    "Tab/Enter menu and settings",
+    "Escape pause",
+    "restart cancellation",
+    "range keyboard 1.0 to 1.1",
+    "quality standard/light via selection API",
+    "visible focus",
+    "no horizontal overflow"
+  ],
+  "correctiveChangesAfterScoring": [
+    "Darker mobile title shade and brighter body copy",
+    "Auxiliary text at least 12px and clearer completion text",
+    "Autosave explanation in pause menu",
+    "E control description includes lighting",
+    "Quality select and defaults at least 44px high"
+  ],
+  "correctiveEvidence": "Latest 37-group browser run and current screenshots; no independent rescoring after these small changes",
+  "unverified": "Native quality select ArrowUp/Enter commit; same unchanged value in isolated headless/headful Chrome and a minimal standalone select. Not identified as a game-specific defect.",
+  "strictUiGate": "PENDING task 14.2",
+  "limits": [
+    "No physical phone, Safari, assistive-technology or listening-quality validation"
+  ],
+  "browserErrors": []
+}

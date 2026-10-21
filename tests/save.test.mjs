@@ -36,9 +36,9 @@ test('壊れたJSON、null、配列、型や列挙の不正を初期状態と案
  }
 });
 
-test('未知・旧版や文字列の版を移行せず、使えない理由を案内する',()=>{
+test('未知版や文字列の版を移行せず、使えない理由を案内する',()=>{
  const storage=memoryStorage();
- for(const schemaVersion of [0,2,-1,1.5,'1',null,true]){
+ for(const schemaVersion of [0,3,-1,1.5,'1',null,true]){
   storage.setItem(PROGRESS_KEY,JSON.stringify({schemaVersion,stage:'full'}));
   const result=loadProgress(storage);
   assert.deepEqual(result.state,{stage:'bucket'});

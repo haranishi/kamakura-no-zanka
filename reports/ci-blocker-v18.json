@@ -1,0 +1,54 @@
+{
+  "schemaVersion": 1,
+  "checkedAt": "2026-10-21T17:33:18.139947+00:00",
+  "decision": "BLOCKED_EXTERNAL",
+  "run": "https://github.com/haranishi/kamakura-no-zanka/actions/runs/39644229793",
+  "nodes": [
+    22,
+    24
+  ],
+  "runnerStarted": false,
+  "stepsExecuted": 0,
+  "reason": "GitHub reports recent account payments failed or spending limit needs to be increased. No job was started.",
+  "accountSettingsChanged": false,
+  "localFallback": {
+    "node22": {
+      "runtime": "v22.23.4",
+      "platform": "macOS arm64",
+      "source": "https://nodejs.org/dist/latest-v22.x/node-v22.23.4-darwin-arm64.tar.gz",
+      "archiveSha256": "c9e1dbc748b33ed2d14f42445191ecaf14c56259c7a9a26d0042c49ec2b66428",
+      "results": [
+        {
+          "command": "npm test",
+          "exitCode": 0
+        },
+        {
+          "command": "npm run check",
+          "exitCode": 0
+        },
+        {
+          "command": "npm run smoke",
+          "exitCode": 0
+        }
+      ],
+      "limits": "Local fallback only; GitHub Linux CI has not run"
+    },
+    "node24": {
+      "runtime": "v24.12.0",
+      "platform": "macOS arm64",
+      "commands": [
+        "npm test",
+        "npm run check",
+        "npm run smoke"
+      ],
+      "allPassed": true
+    }
+  },
+  "mergeProtection": {
+    "mainProtected": false,
+    "requiredChecks": [],
+    "rulesets": [],
+    "adminOverrideUsed": false
+  },
+  "limits": "Local macOS checks are evidence for the delivered code, not a substitute for a successful GitHub Ubuntu CI run. Main CI remains pending external account state."
+}
