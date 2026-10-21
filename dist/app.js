@@ -2,12 +2,14 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { groundAt, checkPosition, movePlayer } from './collision.js';
 import { WalkUI } from './ui.js';
-import { initialState, transition, objectiveFor, inventoryFor } from './gameplay.js';
+import { initialState, transition, objectiveFor, inventoryFor, progressFor } from './gameplay.js';
 import { selectTarget, segmentBlocked } from './interactions.js';
 import { loadProgress, saveProgress, PROGRESS_KEY } from './save.js';
 import { GameAudio } from './audio.js';
 import { createQuestView } from './quest-view.js';
 import { createEnvironment } from './environment.js';
+import { createLifeView } from './life-view.js';
+import { PLACES } from './places.js';
 
 const $ = s => document.querySelector(s), view = $('#view');
 const start = { x: -2.3, z: 6.4, yaw: .537, pitch: .025 }, eyeHeight = 1.65;
@@ -15,7 +17,7 @@ const keys = new Set(), touchKeys = new Set();
 const stats = { instances: 0, drawCalls: 0, triangles: 0, frames: 0 };
 const touch = matchMedia('(pointer:coarse)').matches || innerWidth < 600;
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
-let renderer, scene, camera, world, model, sun, environment, questView, ui;
+let renderer, scene, camera, world, model, sun, environment, questView, lifeView, ui;
 let ready = false, started = false, lightMode = false, needsRender = true;
 let player = { x: start.x, z: start.z, y: 0 }, yaw = start.yaw, pitch = start.pitch;
 let drag = null, lastTime = 0, lastUI = 0, elapsed = 0, lastStep = 0, interactionUntil = 0;
@@ -50,8 +52,8 @@ function reset() {
   yaw = start.yaw; pitch = start.pitch; syncCamera(); refreshQuest();
 }
 function restartGame() {
-  game = initialState(); interactionUntil = 0; questView?.sync(game); reset(); const saved = persist(); refreshQuest();
-  ui.notify(saved.ok ? '桶を元の場所へ戻しました。水運びをはじめましょう' : '桶を戻しました。' + saved.notice, saved.ok ? 2400 : 4500); needsRender = true;
+  game = initialState(); interactionUntil = 0; questView?.sync(game); lifeView?.sync(game); reset(); const saved = persist(); refreshQuest();
+  ui.notify(saved.ok ? '桶を元の場所へ戻しました。庭のしごとをはじめましょう' : '桶を戻しました。' + saved.notice, saved.ok ? 2400 : 4500); needsRender = true;
 }
 function persist() {
   const result = saveProgress(progressStore, game);
@@ -120,7 +122,9 @@ function targets() {
   return [
     { id: 'bucket', anchor: { x: -4.55, y: .42, z: 3.10005 }, available: game.stage === 'bucket', action: 'pickup', label: '桶を拾う', name: '庭の桶' },
     { id: 'well', anchor: { x: -5.35, y: .75, z: 2.2 }, available: game.stage === 'empty', action: 'fill', label: '井戸で水をくむ', name: '井戸の東側', approach: p => p.x >= -5.10 },
-    { id: 'delivery', anchor: { x: -8.5, y: .38, z: -.4 }, available: game.stage === 'full', action: 'deliver', label: '庭へ水を届ける', name: '縁側の前の目印' },
+    { id: 'delivery', anchor: PLACES.delivery, available: game.stage === 'full', action: 'deliver', label: '苗床へ水を届ける', name: '縁側前の苗床' },
+    { id: 'sluice', anchor: PLACES.sluice, available: game.stage === 'delivered', action: 'clear', label: '落枝を除いて水門を開く', name: '水門の足元の落枝' },
+    { id: 'lantern', anchor: PLACES.lantern, available: game.stage === 'irrigated', action: 'light', label: '縁側の灯をともす', name: '縁側前の灯' },
   ];
 }
 function interactionTarget() {
@@ -130,17 +134,17 @@ function interactionTarget() {
 function refreshQuest() {
   const destination = targets().find(target => target.available);
   const dx = destination ? destination.anchor.x - player.x : 0, dz = destination ? destination.anchor.z - player.z : 0;
-  ui.showQuest({ objective: objectiveFor(game), inventory: inventoryFor(game), stage: game.stage, hasSave: hasSave || game.stage !== 'bucket', distance: Math.hypot(dx, dz), direction: Math.atan2(dx, -dz) + yaw, label: destination?.name });
+  ui.showQuest({ objective: objectiveFor(game), inventory: inventoryFor(game), stage: game.stage, progress: progressFor(game), hasSave: hasSave || game.stage !== 'bucket', distance: Math.hypot(dx, dz), direction: Math.atan2(dx, -dz) + yaw, label: destination?.name });
   ui.setPrompt(interactionTarget());
 }
 function interact() {
   if (!ready || !ui.playing || performance.now() < interactionUntil) return false;
   const target = interactionTarget();
-  if (!target) { if (game.stage !== 'delivered') ui.notify('目的の場所へ近づいて、そちらを向いてみましょう', 1700); return false; }
+  if (!target) { if (!progressFor(game).complete) ui.notify('目的の場所へ近づいて、そちらを向いてみましょう', 1700); return false; }
   const result = transition(game, target.action);
   if (!result.changed) return false;
   game = result.state; interactionUntil = performance.now() + 450;
-  questView.sync(game); needsRender = true; const saved = persist(); refreshQuest();
+  questView.sync(game, target.action); lifeView.sync(game, target.action); needsRender = true; const saved = persist(); refreshQuest();
   audio.play(target.action); ui.notify(saved.ok ? result.notice : result.notice + '。' + saved.notice, saved.ok ? 2400 : 4500); return true;
 }
 function frame(now) {
@@ -149,6 +153,9 @@ function frame(now) {
   let moving = false;
   if (ui.playing) {
     elapsed += dt;
+    const lookX = (keys.has('KeyL') ? 1 : 0) - (keys.has('KeyJ') ? 1 : 0);
+    const lookY = (keys.has('KeyK') ? 1 : 0) - (keys.has('KeyI') ? 1 : 0);
+    if (lookX || lookY) look(lookX * dt * 340, lookY * dt * 280);
     let forward = (keys.has('KeyW') || keys.has('ArrowUp') || touchKeys.has('forward') ? 1 : 0) - (keys.has('KeyS') || keys.has('ArrowDown') || touchKeys.has('back') ? 1 : 0);
     let right = (keys.has('KeyD') || keys.has('ArrowRight') || touchKeys.has('right') ? 1 : 0) - (keys.has('KeyA') || keys.has('ArrowLeft') || touchKeys.has('left') ? 1 : 0);
     const length = Math.hypot(forward, right);
@@ -165,7 +172,8 @@ function frame(now) {
         ui.notify(id === 'water' ? '田と水路には入れません' : id === 'boundary' ? 'この先は、今回の散策範囲の外です' : id === 'step' ? 'この段差は登れません' : /house|porch|farmhouse/i.test(id) ? '建物と縁側は、外からご覧ください' : '井戸の脇を回ってみましょう', 700);
       }
     }
-    environment.update(dt, elapsed); questView.update(elapsed, moving, reducedMotion.matches);
+    environment.update(dt, elapsed); questView.update(elapsed, moving, reducedMotion.matches, dt); lifeView.update(dt, elapsed, reducedMotion.matches);
+    audio.updateAmbient({ distanceToWater: Math.abs(player.x + .35), flowing: progressFor(game).flowing });
   }
   syncCamera();
   if (ui.playing || needsRender) { renderer.render(scene, camera); stats.frames++; needsRender = false; }
@@ -190,8 +198,9 @@ async function init() {
   world = data; model = gltf.scene; scene.add(model);
   questView = createQuestView({ model, scene, camera, groundAt: (x, z) => groundAt(world.ground, x, z) });
   tuneMeshes(model); tuneMeshes(questView.bucket); optimizeInstances(model);
-  environment = createEnvironment({ scene, renderer, model, sun, groundAt: (x, z) => groundAt(world.ground, x, z) });
-  environment.setQuality(ui.settings.quality); questView.sync(game); ready = true; reset(); ui.preparing();
+  environment = await createEnvironment({ scene, renderer, model, sun, groundAt: (x, z) => groundAt(world.ground, x, z) });
+  lifeView = createLifeView({ scene, model, groundAt: (x, z) => groundAt(world.ground, x, z) });
+  environment.setQuality(ui.settings.quality); questView.sync(game); lifeView.sync(game); ready = true; reset(); ui.preparing();
   await renderer.compileAsync(scene, camera); renderer.render(scene, camera); ui.ready(); refreshQuest();
   if (loaded.notice) ui.notify(loaded.notice, 4500);
   requestAnimationFrame(frame);
@@ -199,7 +208,7 @@ async function init() {
 }
 function setupQA() {
   window.__walktest = {
-    get state() { return { ready, started, paused: !ui.playing, uiState: ui.state, settings: { ...ui.settings }, player: { ...player }, yaw, pitch, locked: !!document.pointerLockElement, stats: { ...stats }, bounds: world.bounds, boxes: world.boxes, game: { ...game }, hasSave, progressKey: PROGRESS_KEY, target: interactionTarget()?.id || null, quest: questView.state, audio: audio.state, elapsed }; },
+    get state() { return { ready, started, paused: !ui.playing, uiState: ui.state, settings: { ...ui.settings }, player: { ...player }, yaw, pitch, locked: !!document.pointerLockElement, stats: { ...stats }, bounds: world.bounds, boxes: world.boxes, game: { ...game }, hasSave, progressKey: PROGRESS_KEY, target: interactionTarget()?.id || null, quest: questView.state, life: lifeView.state, environment: environment.metrics, resources: { ...renderer.info.memory, programs: renderer.info.programs.length }, audio: audio.state, elapsed }; },
     teleport(x, z, angle = 0, elevation = 0) { const result = checkPosition(world, x, z); if (!result.ok) throw Error('Invalid test position ' + JSON.stringify(result)); player = { x, z, y: result.y }; yaw = angle; pitch = elevation; syncCamera(); needsRender = true; refreshQuest(); return this.state; },
     aimAt(x, z, elevation = 0) { yaw = Math.atan2(-(x - player.x), -(z - player.z)); pitch = elevation; syncCamera(); needsRender = true; refreshQuest(); },
     move(dx, dz) { const result = movePlayer(world, player, dx, dz); player = result.position; syncCamera(); needsRender = true; refreshQuest(); return result; },
@@ -207,12 +216,13 @@ function setupQA() {
   };
 }
 function uiInput(target) { return !!target?.closest?.('button,input,select,textarea,dialog,[contenteditable="true"]'); }
+document.addEventListener('focusin', event => { if (uiInput(event.target)) clearInput(); });
 window.addEventListener('keydown', event => {
   if (event.code === 'Escape') { if (ui.playing && !document.pointerLockElement) { event.preventDefault(); ui.open(); } return; }
   if (!ui.playing || uiInput(event.target)) return;
-  if (['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ShiftLeft', 'ShiftRight'].includes(event.code)) { event.preventDefault(); keys.add(event.code); }
+  if (['KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyI', 'KeyJ', 'KeyK', 'KeyL', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ShiftLeft', 'ShiftRight'].includes(event.code)) { event.preventDefault(); keys.add(event.code); }
   if (event.code === 'KeyE' && !event.repeat) { event.preventDefault(); interact(); }
-  if (event.code === 'KeyR' && !event.repeat) { reset(); ui.notify('出発点に戻りました。水運びの進行は保持しています'); }
+  if (event.code === 'KeyR' && !event.repeat) { reset(); ui.notify('出発点に戻りました。しごとの進行は保持しています'); }
   if (event.code === 'KeyH' && !event.repeat) { event.preventDefault(); ui.toggleHUD(); }
 });
 window.addEventListener('keyup', event => keys.delete(event.code));

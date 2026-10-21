@@ -10,7 +10,7 @@
   - _Boundary: Gameplay, Save_
   - _Depends: 8_
   - _Requirements: 2.2, 2.3, 3.3, 3.4, 3.5, 7.1, 7.2, 7.3, 7.4_
-- [ ] 10. 庭に結果が残る小道具と対話を結合する
+- [x] 10. 庭に結果が残る小道具と対話を結合する
   - 全5操作を既存の道から通し、苗床・水路・灯と桶39部品・UIが状態に一致する。
   - I/J/K/Lの見回しとWASD/Eだけでも全対象へ到達でき、矢印移動を保持し、pause・UI入力中は視点が動かない。
   - _Boundary: LifeView, QuestView, App, WalkUI (integration)_
@@ -53,3 +53,4 @@
 
 タスク9: Node15/15・構文5ファイル成功。独立レビューAPPROVED。
 タスク11: 音14/14・独立レビューAPPROVED。即resume/pause/muteをChromeでも確認。
+タスク10: 5操作×通常/キーのみ、6状態復帰成功。独立コードAPPROVED、体験2指摘の対象再検査も解消。\n

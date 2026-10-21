@@ -39,7 +39,7 @@ export class WalkUI {
   error(error) {
     this.mode('error'); if (this.dialog.open) this.dialog.close();
     $('#loading').classList.remove('hidden'); $('#loading').classList.add('error-state'); $('#load-title').textContent = '風景をひらけませんでした';
-    $('#load-text').textContent = /webgl/i.test(String(error)) ? 'このブラウザでは3D表示を開始できませんでした。WebGL2対応のブラウザと、グラフィック設定をご確認ください。' : 'モデルの読み込みが途中で止まりました。もう一度読み込んでください。';
+    $('#load-text').textContent = /webgl/i.test(String(error)) ? 'このブラウザでは3D表示を開始できませんでした。WebGL2対応のブラウザと、グラフィック設定をご確認ください。' : '風景の読み込みが途中で止まりました。もう一度読み込んでください。';
     $('#load-note').textContent = '保存済みの進行や設定は保持されています'; $('#progress-track').classList.add('hidden'); $('#retry').classList.remove('hidden'); $('#retry').focus({ preventScroll: true });
   }
   play(lock = true) {
@@ -65,23 +65,23 @@ export class WalkUI {
     $('#dialog-kicker').textContent = this.dialogOrigin === 'playing' ? '隠れ谷で、ひと休み' : '残火の鎌倉';
     for (const id of ['resume', 'reset', 'to-title', 'restart-game']) $('#' + id).classList.toggle('hidden', this.dialogOrigin !== 'playing');
     $('.nav-divider').classList.toggle('hidden', this.dialogOrigin !== 'playing');
-    $('#dialog-footer-text').textContent = this.dialogOrigin === 'playing' ? '移動・水運び・音は一時停止しています' : '隠れ谷に残る、暮らしの気配';
+    $('#dialog-footer-text').textContent = this.dialogOrigin === 'playing' ? '移動・しごと・音は一時停止しています' : '隠れ谷に残る、暮らしの気配';
   }
   close(lock = false) { if (!this.dialog.open) return; this.dialog.close(); this.hideRestart(); if (this.dialogOrigin === 'playing') this.play(lock); else this.mode('title'); }
   title() { if (this.dialog.open) this.dialog.close(); this.mode('title'); if (document.pointerLockElement) document.exitPointerLock(); $('#start').focus({ preventScroll: true }); }
   pause() { if (this.playing) this.open('rest'); }
   requestRestart() { this.open('rest'); $('#restart-confirm').classList.remove('hidden'); $('#cancel-restart').focus({ preventScroll: true }); }
   hideRestart() { $('#restart-confirm').classList.add('hidden'); }
-  showQuest({ objective, inventory, stage, hasSave, distance, direction, label }) {
+  showQuest({ objective, inventory, stage, progress, hasSave, distance, direction, label }) {
     const changed = this.questStage !== stage; this.questStage = stage;
     $('#objective-text').textContent = objective; $('#inventory-text').textContent = inventory;
-    $('#quest-step').textContent = stage === 'bucket' ? '一 / 三' : stage === 'empty' ? '二 / 三' : stage === 'full' ? '三 / 三' : '完';
-    $('#quest-label').textContent = stage === 'delivered' ? '暮らしに、小さな灯を' : '今日のしごと';
-    $('#quest-again').classList.toggle('hidden', stage !== 'delivered');
+    $('#quest-step').textContent = progress.complete ? '完' : ['一','二','三','四','五'][progress.step - 1] + ' / 五';
+    $('#quest-label').textContent = progress.label;
+    $('#quest-again').classList.toggle('hidden', !progress.complete);
     $('#inventory').classList.toggle('is-full', stage === 'full');
-    $('#inventory').classList.toggle('is-empty', stage === 'bucket' || stage === 'delivered');
+    $('#inventory').classList.toggle('is-empty', stage !== 'empty' && stage !== 'full');
     $('#start-label').textContent = hasSave ? 'つづきから' : '庭へ入る';
-    $('#destination').classList.toggle('hidden', stage === 'delivered');
+    $('#destination').classList.toggle('hidden', progress.complete);
     $('#destination-text').textContent = `${label || ''} · ${Number.isFinite(distance) ? distance.toFixed(1) : '—'} m`;
     $('#destination-needle').style.transform = `rotate(${direction || 0}rad)`;
     if (changed) $('#quest-status').textContent = objective;
@@ -111,7 +111,7 @@ export class WalkUI {
   bind() {
     $('#start').onclick = () => this.play(); $('#menu-button').onclick = () => this.open(); $('#resume').onclick = () => this.close(true); $('#dialog-close').onclick = () => this.close();
     $('#look').onclick = () => this.callbacks.lock(); $('#retry').onclick = () => location.reload();
-    $('#reset').onclick = () => { this.callbacks.reset(); this.notify('出発点に戻りました。水運びの進行は保持しています'); };
+    $('#reset').onclick = () => { this.callbacks.reset(); this.notify('出発点に戻りました。しごとの進行は保持しています'); };
     $('#to-title').onclick = () => this.title(); $('#restart-game').onclick = () => this.requestRestart(); $('#quest-again').onclick = () => this.requestRestart();
     $('#cancel-restart').onclick = () => { this.hideRestart(); $('#restart-game').focus(); };
     $('#confirm-restart').onclick = () => { this.callbacks.restart(); this.hideRestart(); this.close(false); };

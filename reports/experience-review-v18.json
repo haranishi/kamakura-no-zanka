@@ -1,0 +1,55 @@
+{
+  "version": 18,
+  "scope": "Five-action garden, not all chapters or long-term replay value",
+  "evaluator": "Independent read-only browser evaluator",
+  "browser": "Chrome 155 on macOS",
+  "durationSeconds": 400,
+  "coreInput": "Enter, WASD, IJKL, E; QA read-only observations; no teleport for the complete journey",
+  "baselineScore": 14,
+  "initialV18Score": 17,
+  "maximumScore": 20,
+  "scores": {
+    "firstUse": 2,
+    "coreLoop": 2,
+    "feel": 1,
+    "feedback": 1,
+    "onboarding": 2,
+    "fairness": 2,
+    "goals": 2,
+    "restart": 2,
+    "continuation": 1,
+    "progressReliability": 2
+  },
+  "correctiveRecheck": {
+    "method": "v2 delivered save seeded, walked from the start with normal keys; no QA teleport",
+    "heldInputAfterTab": "J/I/W held, Tab to menu, 400ms: position/yaw/pitch unchanged",
+    "sluice": "Diagonal gate visible from the road; looking down about 18 degrees shows branches removed, gate raised and handle rotated",
+    "verdict": "Both reported P2 findings resolved. No full rescoring after targeted correction."
+  },
+  "checked": [
+    "all five actions",
+    "watered seedbed",
+    "flow restored",
+    "lit lantern",
+    "save reload",
+    "restart confirmation",
+    "light/standard quality",
+    "reduced motion",
+    "pause/mute audio sources zero"
+  ],
+  "browserErrors": [],
+  "limits": [
+    "listening quality not evaluated",
+    "physical phones and Safari not tested",
+    "after completion the same five actions can be replayed"
+  ],
+  "screenshots": [
+    "reports/screenshots/experience-v18/seedbed-before.png",
+    "reports/screenshots/experience-v18/seedbed-after.png",
+    "reports/screenshots/experience-v18/lantern-before.png",
+    "reports/screenshots/experience-v18/lantern-after.png",
+    "reports/screenshots/experience-v18/sluice-before.png",
+    "reports/screenshots/experience-v18/sluice-after.png",
+    "reports/screenshots/experience-v18/focus-input-stopped.png"
+  ]
+}

@@ -1,11 +1,11 @@
 // Progress is independent of scene objects, player position, input and storage.
 const steps={
- bucket:{action:'pickup',next:'empty',objective:'庭の桶を拾いましょう',inventory:'なし',notice:'空の桶を拾いました'},
- empty:{action:'fill',next:'full',objective:'井戸で水をくみましょう',inventory:'空の桶',notice:'井戸で水をくみました'},
- full:{action:'deliver',next:'delivered',objective:'縁側前の苗床へ水を届けましょう',inventory:'水入りの桶',notice:'苗床に水が届きました。次は水路の落枝を除きましょう'},
- delivered:{action:'clear',next:'irrigated',objective:'水路の落枝を取り除きましょう',inventory:'なし',notice:'水路に流れが戻りました。縁側に灯をともそう'},
- irrigated:{action:'light',next:'restored',objective:'縁側の灯をともして、しごとを終えましょう',inventory:'なし',notice:'水と灯が戻りました。今日のしごとは、ここまで'},
- restored:{objective:'水と灯が戻りました。自由に散策できます',inventory:'なし'}
+ bucket:{action:'pickup',next:'empty',objective:'庭の桶を拾う',inventory:'なし',notice:'空の桶を拾いました'},
+ empty:{action:'fill',next:'full',objective:'井戸で水をくむ',inventory:'空の桶',notice:'井戸で水をくみました'},
+ full:{action:'deliver',next:'delivered',objective:'縁側の苗床へ水を届ける',inventory:'水入りの桶',notice:'苗床に水が届きました。次は水路の落枝を除きましょう'},
+ delivered:{action:'clear',next:'irrigated',objective:'水路の落枝を取り除く',inventory:'なし',notice:'水路に流れが戻りました。縁側に灯をともそう'},
+ irrigated:{action:'light',next:'restored',objective:'縁側の灯をともす',inventory:'なし',notice:'水と灯が戻りました。今日のしごとは、ここまで'},
+ restored:{objective:'水と灯が戻りました。庭を散策できます',inventory:'なし'}
 };
 const stages=Object.freeze(Object.keys(steps));
 export function initialState(){return{stage:'bucket'};}
