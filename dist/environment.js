@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { loadTerrainMaterials, applyTerrainMaterial } from './terrain-materials.js';
 
 // Original, deterministic scenery. The imported scene and collision data stay intact.
 const WATER_MATERIALS = new Set([
@@ -6,9 +7,15 @@ const WATER_MATERIALS = new Set([
   'Flooded rice surface | STATIC',
   'Still shallow muddy puddles | STATIC',
 ]);
-const HORIZON = '#bdcbbb';
+const HORIZON = '#bdc9c3';
 const ZENITH = '#789eac';
 const TAU = Math.PI * 2;
+// Rectangles contain only branch islands in the Poly Haven atlas (image V is flipped).
+const FIR_BRANCH_UVS = [
+  [0.180, 0.686, 0.443, 0.970], [0.644, 0.622, 0.955, 0.970],
+  [0.298, 0.225, 0.648, 0.600], [0.645, 0.171, 0.956, 0.558],
+  [0.475, 0.604, 0.628, 0.756],
+];
 const clamp = THREE.MathUtils.clamp;
 const smooth = THREE.MathUtils.smoothstep;
 
@@ -115,69 +122,52 @@ function outsideHeight(x, z) {
     + smooth(distance, 8, 46) * (7 + 3 * Math.sin(x * 0.065 + z * 0.053));
 }
 
-function valleyFloor() {
+function valleyFloor(textures) {
   const positions = [], colors = [], indices = [];
-  const low = new THREE.Color('#262b22'), high = new THREE.Color('#414c38'), color = new THREE.Color();
-  const soil = new THREE.Color('#29271d');
+  const low = new THREE.Color('#303a29'), high = new THREE.Color('#49513a'), color = new THREE.Color();
   const xs = [...new Set([...Array.from({ length: 65 }, (_, i) => -65 + i * 2), -15, 10])].sort((a, b) => a - b);
   const zs = [...new Set([...Array.from({ length: 65 }, (_, i) => -64 + i * 2), -11, 7])].sort((a, b) => a - b);
-  for (let iz = 0; iz < zs.length - 1; iz++) for (let ix = 0; ix < xs.length - 1; ix++) {
-    const x = xs[ix], z = zs[iz], nextX = xs[ix + 1], nextZ = zs[iz + 1];
-    // The original scene occupies this hole; no new surface covers its paths or water.
-    if (x < 10 && nextX > -15 && z < 7 && nextZ > -11) continue;
-    const first = positions.length / 3;
-    for (const [px, pz] of [[x, z], [nextX, z], [nextX, nextZ], [x, nextZ]]) {
-      const y = outsideHeight(px, pz);
-      positions.push(px, y - 0.06, pz);
-      const mottling = 0.44 + Math.sin(px * 0.49 + pz * 0.13) * 0.12 + Math.sin(pz * 0.72) * 0.08;
-      color.copy(low).lerp(high, mottling);
-      const distance = Math.hypot(Math.max(-15 - px, px - 10, 0), Math.max(-11 - pz, pz - 7, 0));
-      color.lerp(soil, 1 - smooth(distance, 0, 7));
-      colors.push(color.r, color.g, color.b);
-    }
-    indices.push(first, first + 2, first + 1, first, first + 3, first + 2);
+  for (const z of zs) for (const x of xs) {
+    positions.push(x, outsideHeight(x, z) - 0.06, z);
+    color.copy(low).lerp(high, terrainNoise(x * 0.13, z * 0.13));
+    colors.push(color.r, color.g, color.b);
   }
-  const mesh = new THREE.Mesh(geometryFrom(positions, colors, indices),
-    new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1 }));
-  mesh.name = 'Background meadow beyond the original boundary';
-  mesh.receiveShadow = true;
-  mesh.userData.valleyGround = true;
-  patch(mesh.material, 'soil-grain-v1', shader => {
-    shader.vertexShader = shader.vertexShader.replace('#include <common>',
-      '#include <common>\nvarying vec2 vValleySoil;').replace('#include <begin_vertex>',
-      '#include <begin_vertex>\nvValleySoil = position.xz;');
-    shader.fragmentShader = shader.fragmentShader.replace('#include <common>',
-      '#include <common>\nvarying vec2 vValleySoil;').replace('#include <color_fragment>', `
-      #include <color_fragment>
-      float soilGrain = fract(sin(dot(floor(vValleySoil * 48.0), vec2(127.1, 311.7))) * 43758.5453);
-      float soilDetail = 1.0 - smoothstep(0.01, 0.06, length(fwidth(vValleySoil)));
-      diffuseColor.rgb *= mix(1.0, 0.88 + soilGrain * 0.24, soilDetail);
-    `);
-  });
+  // Shared vertices smooth only this new apron. The original ground and its hole are intact.
+  for (let iz = 0; iz < zs.length - 1; iz++) for (let ix = 0; ix < xs.length - 1; ix++) {
+    if (xs[ix] < 10 && xs[ix + 1] > -15 && zs[iz] < 7 && zs[iz + 1] > -11) continue;
+    const a = iz * xs.length + ix, b = a + xs.length;
+    indices.push(a, b + 1, a + 1, a, b, b + 1);
+  }
+  const material = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1 });
+  applyTerrainMaterial(material, textures, { baked: false, forest: 0.32 });
+  const mesh = new THREE.Mesh(geometryFrom(positions, colors, indices), material);
+  mesh.name = 'Continuous forest floor beyond the original boundary';
+  mesh.receiveShadow = true; mesh.userData.valleyGround = true;
   return mesh;
 }
 
 function ridge(inner, width, height, phase, baseColor) {
   const positions = [], colors = [], indices = [];
-  const segments = inner < 70 ? 384 : 256, rows = inner < 70 ? 36 : 24;
-  const base = new THREE.Color(baseColor), haze = new THREE.Color(HORIZON), color = new THREE.Color();
+  const segments = inner < 70 ? 288 : 224, rows = inner < 70 ? 32 : 24;
+  const base = new THREE.Color(baseColor), rock = new THREE.Color('#60685b'), color = new THREE.Color();
   for (let row = 0; row <= rows; row++) {
     const t = row / rows;
     for (let i = 0; i <= segments; i++) {
       const a = i / segments * TAU;
-      const profile = 0.70 + Math.sin(a * 3 + phase) * 0.16
-        + Math.sin(a * 7 - phase * 0.7) * 0.10 + Math.cos(a * 11 + phase) * 0.045;
-      const radius = inner + width * t + Math.sin(a * 5 + phase) * 3.4;
-      const slope = Math.pow(Math.sin(Math.PI * t), 1.4);
-      const ribs = Math.sin(a * 31 + t * 4 + phase) * Math.sin(a * 13 - t * 8) * 0.035;
-      const x = -3 + Math.cos(a) * radius, z = -2 + Math.sin(a) * radius;
-      const relief = (terrainNoise(x * 0.11 + phase, z * 0.11) - 0.5) * 0.16
-        + (terrainNoise(x * 0.32, z * 0.32 + phase) - 0.5) * 0.055
-        + (terrainNoise(x * 0.81, z * 0.81) - 0.5) * 0.015;
-      const y = -1.5 + height * (profile + ribs + relief) * slope;
+      const angularX = Math.cos(a), angularZ = Math.sin(a);
+      const crest = terrainNoise(angularX * 3.6 + phase * 11, angularZ * 3.6 + phase * 7);
+      const profile = 0.63 + crest * 0.38;
+      const radius = inner + width * t + (crest - 0.5) * 7;
+      const x = -3 + angularX * radius, z = -2 + angularZ * radius;
+      const valleys = terrainNoise(x * 0.074 + phase * 3, z * 0.074 - phase);
+      const folds = terrainNoise(x * 0.19 + phase + valleys * 1.8, z * 0.19) - 0.5;
+      const slope = Math.pow(Math.sin(Math.PI * t), 1.35);
+      const y = -1.5 + height * (profile + (valleys - 0.5) * 0.34 + folds * 0.15) * slope;
       positions.push(x, y, z);
-      const moss = terrainNoise(x * 0.25 + phase, z * 0.25);
-      color.copy(base).multiplyScalar(0.77 + moss * 0.43).lerp(haze, Math.max(0, t - 0.55) * 0.15);
+      const grove = terrainNoise(x * 0.15 + phase, z * 0.15);
+      color.copy(base).multiplyScalar(0.77 + grove * 0.36);
+      const exposed = smooth(grove, 0.68, 0.94) * smooth(t, 0.25, 0.65) * 0.23;
+      color.lerp(rock, exposed);
       colors.push(color.r, color.g, color.b);
       if (row < rows && i < segments) {
         const v = row * (segments + 1) + i;
@@ -187,35 +177,26 @@ function ridge(inner, width, height, phase, baseColor) {
   }
   const mesh = new THREE.Mesh(geometryFrom(positions, colors, indices),
     new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, side: THREE.DoubleSide }));
-  mesh.name = `Forested ridge ${inner}m`;
-  mesh.userData.valleyGround = true;
-  patch(mesh.material, 'weathered-forest-slope-v1', shader => {
+  mesh.name = `Wooded ridge ${inner}m`; mesh.userData.valleyGround = true;
+  // Detail follows irregular patches of canopy, while geometric normals describe the folds.
+  patch(mesh.material, 'irregular-groves-v18', shader => {
     shader.vertexShader = shader.vertexShader.replace('#include <common>',
-      '#include <common>\nvarying vec3 vValleyTerrain;').replace('#include <begin_vertex>',
-      '#include <begin_vertex>\nvValleyTerrain = (modelMatrix * vec4(position, 1.0)).xyz;');
+      '#include <common>\nvarying vec3 vGrovePosition;').replace('#include <begin_vertex>',
+      '#include <begin_vertex>\nvGrovePosition = position;');
     shader.fragmentShader = shader.fragmentShader.replace('#include <common>', `#include <common>
-      varying vec3 vValleyTerrain;
-      float valleyHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
-      float valleyNoise(vec2 p) {
+      varying vec3 vGrovePosition;
+      float groveNoise(vec2 p) {
         vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
-        return mix(mix(valleyHash(i), valleyHash(i + vec2(1., 0.)), f.x),
-          mix(valleyHash(i + vec2(0., 1.)), valleyHash(i + vec2(1.)), f.x), f.y);
+        vec4 h = fract(sin(vec4(dot(i, vec2(127.1, 311.7)), dot(i + vec2(1.0, 0.0), vec2(127.1, 311.7)),
+          dot(i + vec2(0.0, 1.0), vec2(127.1, 311.7)), dot(i + vec2(1.0), vec2(127.1, 311.7)))) * 43758.5453);
+        return mix(mix(h.x, h.y, f.x), mix(h.z, h.w, f.x), f.y);
       }`).replace('#include <color_fragment>', `#include <color_fragment>
-      vec2 terrainUV = vValleyTerrain.xz;
-      float groves = valleyNoise(terrainUV * 0.31);
-      float smallCanopy = valleyNoise(terrainUV * 1.45 + groves * 4.0);
-      float lichen = valleyNoise(terrainUV * 4.8);
-      float rock = smoothstep(0.69, 0.88, valleyNoise(terrainUV * 0.18 + 17.0));
-      diffuseColor.rgb *= 0.72 + groves * 0.43 + smallCanopy * 0.18;
-      diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.105, 0.119, 0.091)
-        * (0.84 + lichen * 0.24), rock * 0.24);
-    `).replace('#include <normal_fragment_begin>', `#include <normal_fragment_begin>
-      vec2 terrainN = vValleyTerrain.xz;
-      float fineNormal = 1.0 - smoothstep(0.18, 0.65, length(fwidth(terrainN)));
-      vec3 forestNormal = vec3(cos(terrainN.x * 3.7 + terrainN.y * 0.8), 0.0,
-        sin(terrainN.y * 4.9 - terrainN.x * 0.3)) * 0.075 * fineNormal;
-      normal = normalize(normal + mat3(viewMatrix) * forestNormal);
-    `);
+        vec2 groveUV = vGrovePosition.xz;
+        float groves = groveNoise(groveUV * 0.23);
+        float crowns = groveNoise(groveUV * 0.81 + groves * 3.2);
+        float fineCrowns = groveNoise(groveUV * 1.71 + crowns * 2.7);
+        diffuseColor.rgb *= 0.62 + groves * 0.36 + crowns * 0.34 + fineCrowns * 0.14;
+      `);
   });
   return mesh;
 }
@@ -257,36 +238,37 @@ function leafTexture(cedar) {
   return texture;
 }
 
-function treeGeometry(cedar) {
-  const random = randomSource(cedar ? 217 : 512);
+function treeGeometry(cedar, variant = 0, far = false) {
+  const random = randomSource((cedar ? 217 : 512) + variant * 197 + (far ? 23 : 0));
   const leaves = [], leafColors = [], uvs = [], branches = [], branchIndices = [], branchColors = [];
   const q = new THREE.Quaternion(), right = new THREE.Vector3(), up = new THREE.Vector3();
   const euler = new THREE.Euler(), v = new THREE.Vector3();
-  function leaf(center, width, length, heading = null) {
-    euler.set((random() - 0.5) * 2.9, heading ?? random() * TAU, random() * TAU);
+  function spray(center, width, length, heading) {
+    euler.set((random() - 0.5) * 2.3, heading, (random() - 0.5) * 2.4);
     q.setFromEuler(euler);
     right.set(width, 0, 0).applyQuaternion(q); up.set(0, length, 0).applyQuaternion(q);
-    const brightness = 0.80 + random() * 0.27;
+    const brightness = 0.74 + random() * 0.34;
+    const uv = far ? FIR_BRANCH_UVS[Math.floor(random() * FIR_BRANCH_UVS.length)] : [0, 0, 1, 1];
     for (const [x, y] of [[0, 0], [1, 0], [1, 1], [0, 0], [1, 1], [0, 1]]) {
       v.copy(center).addScaledVector(right, x - 0.5).addScaledVector(up, y - 0.5);
-      leaves.push(v.x, v.y, v.z); uvs.push(x, y);
-      leafColors.push(brightness * 0.98, brightness, brightness * 0.96);
+      leaves.push(v.x, v.y, v.z); uvs.push(uv[0] + x * (uv[2] - uv[0]), uv[1] + y * (uv[3] - uv[1]));
+      leafColors.push(brightness * 0.98, brightness, brightness * 0.95);
     }
   }
   function tube(path, radius) {
-    const first = branches.length / 3, sides = 6, tangent = new THREE.Vector3();
+    const first = branches.length / 3, sides = far ? 4 : 5, tangent = new THREE.Vector3();
     const side = new THREE.Vector3(), vertical = new THREE.Vector3(), point = new THREE.Vector3();
     for (let row = 0; row < path.length; row++) {
       tangent.copy(path[Math.min(row + 1, path.length - 1)]).sub(path[Math.max(0, row - 1)]).normalize();
       side.crossVectors(tangent, new THREE.Vector3(0, 0, 1)).normalize();
       vertical.crossVectors(tangent, side).normalize();
-      const r = radius * Math.pow(1 - row / path.length, 1.3);
+      const r = radius * Math.pow(1 - row / path.length, 1.15);
       for (let i = 0; i <= sides; i++) {
         const angle = i / sides * TAU;
         point.copy(path[row]).addScaledVector(side, Math.cos(angle) * r).addScaledVector(vertical, Math.sin(angle) * r);
         branches.push(point.x, point.y, point.z);
-        const light = 0.10 + 0.035 * Math.sin(i * 3 + row);
-        branchColors.push(light, light * 0.88, light * 0.67);
+        const grain = 0.055 + random() * 0.028;
+        branchColors.push(grain, grain * 0.86, grain * 0.63);
         if (row < path.length - 1 && i < sides) {
           const n = first + row * (sides + 1) + i;
           branchIndices.push(n, n + 1, n + sides + 2, n, n + sides + 2, n + sides + 1);
@@ -294,55 +276,46 @@ function treeGeometry(cedar) {
       }
     }
   }
-  const trunk = Array.from({ length: 9 }, (_, i) => {
-    const t = i / 8;
-    return new THREE.Vector3(Math.sin(t * 3.7) * 0.015, t * (cedar ? 1.02 : 0.72), Math.sin(t * 2.5) * 0.009);
+  const trunk = Array.from({ length: far ? 5 : 8 }, (_, i) => {
+    const t = i / (far ? 4 : 7);
+    return new THREE.Vector3(Math.sin(t * 3.7 + variant) * 0.018, t * (cedar ? 1.02 : 0.78), Math.sin(t * 2.5) * 0.014);
   });
-  tube(trunk, cedar ? 0.018 : 0.023);
+  tube(trunk, cedar ? 0.022 : 0.027);
   if (cedar) {
-    for (let tier = 0; tier < 15; tier++) {
-      const height = 0.23 + tier / 15 * 0.77;
-      const count = 4 + Math.floor(random() * 3);
+    const tiers = far ? 7 : 10;
+    for (let tier = 0; tier < tiers; tier++) {
+      const height = 0.22 + tier / tiers * 0.76, count = far ? 4 : 5;
       for (let b = 0; b < count; b++) {
-        const angle = b / count * TAU + tier * 1.77 + random() * 0.4;
-        const reach = Math.pow(1.06 - height, 0.65) * (0.20 + random() * 0.04);
-        const path = Array.from({ length: 5 }, (_, step) => {
-          const t = step / 4;
-          return new THREE.Vector3(Math.cos(angle) * reach * t, height - Math.sin(t * 1.8) * 0.025,
-            Math.sin(angle) * reach * t);
-        });
-        tube(path, 0.0035 * (1.1 - height));
-        for (let spray = 0; spray < 25; spray++) {
-          const t = 0.15 + random() * 0.9;
-          const center = new THREE.Vector3(Math.cos(angle) * reach * t, height - t * 0.025,
-            Math.sin(angle) * reach * t);
-          center.x += (random() - 0.5) * 0.045; center.z += (random() - 0.5) * 0.045;
-          center.y += (random() - 0.5) * 0.025;
-          leaf(center, 0.028 + random() * 0.015, 0.040 + random() * 0.025, angle);
+        const angle = b / count * TAU + tier * 2.1 + random() * 0.45;
+        const reach = Math.pow(1.08 - height, 0.72) * (0.31 + random() * 0.045);
+        const path = [new THREE.Vector3(0, height, 0),
+          new THREE.Vector3(Math.cos(angle) * reach * 0.6, height - 0.018, Math.sin(angle) * reach * 0.6),
+          new THREE.Vector3(Math.cos(angle) * reach, height - 0.03, Math.sin(angle) * reach)];
+        if (!far && tier % 2 === 0) tube(path, 0.0035 * (1.1 - height));
+        for (let clump = 0; clump < (far ? 3 : 15); clump++) {
+          const t = 0.36 + random() * 0.65;
+          spray(new THREE.Vector3(Math.cos(angle) * reach * t, height + (random() - 0.5) * 0.075,
+            Math.sin(angle) * reach * t), far ? 0.11 + random() * 0.055 : 0.045 + random() * 0.025,
+            far ? 0.16 + random() * 0.06 : 0.07 + random() * 0.035, angle);
         }
       }
     }
   } else {
-    for (let limb = 0; limb < 10; limb++) {
-      const angle = limb * 2.399 + random() * 0.5, reach = 0.13 + random() * 0.14;
-      const start = 0.26 + random() * 0.23, tip = 0.59 + random() * 0.30;
-      const path = Array.from({ length: 6 }, (_, step) => {
-        const t = step / 5;
-        return new THREE.Vector3(Math.cos(angle) * reach * t,
-          start + (tip - start) * Math.pow(t, 0.70), Math.sin(angle) * reach * t);
-      });
-      tube(path, 0.007 + random() * 0.003);
-      for (let twig = 0; twig < 5; twig++) {
-        const center = path[path.length - 1].clone();
-        center.x += (random() - 0.5) * 0.14; center.z += (random() - 0.5) * 0.14;
-        center.y += (random() - 0.5) * 0.09;
-        tube([path[3], path[4], center], 0.0023);
-        for (let l = 0; l < 52; l++) {
-          const p = center.clone();
-          const a = random() * TAU, r = Math.cbrt(random()) * 0.065;
-          p.x += Math.cos(a) * r; p.z += Math.sin(a) * r;
-          p.y += (random() - 0.5) * 0.10;
-          leaf(p, 0.010 + random() * 0.012, 0.020 + random() * 0.020);
+    const limbs = far ? 8 : 12;
+    for (let limb = 0; limb < limbs; limb++) {
+      const angle = limb * 2.399 + random() * 0.55;
+      const reach = 0.17 + random() * 0.21, start = 0.29 + random() * 0.23;
+      const tip = 0.61 + random() * 0.31;
+      const end = new THREE.Vector3(Math.cos(angle) * reach, tip, Math.sin(angle) * reach);
+      if (!far) tube([new THREE.Vector3(0, start, 0), new THREE.Vector3(end.x * 0.6, tip * 0.86, end.z * 0.6), end], 0.008);
+      for (let twig = 0; twig < (far ? 2 : 4); twig++) {
+        const center = end.clone().add(new THREE.Vector3((random() - 0.5) * 0.16,
+          (random() - 0.5) * 0.15, (random() - 0.5) * 0.16));
+        for (let clump = 0; clump < (far ? 5 : 14); clump++) {
+          const point = center.clone().add(new THREE.Vector3((random() - 0.5) * 0.13,
+            (random() - 0.5) * 0.12, (random() - 0.5) * 0.13));
+          spray(point, far ? 0.11 + random() * 0.06 : 0.018 + random() * 0.020,
+            far ? 0.15 + random() * 0.08 : 0.032 + random() * 0.022, angle + random() * 2);
         }
       }
     }
@@ -416,11 +389,9 @@ function leafLitter(root) {
   leaves.computeBoundingSphere(); stones.computeBoundingSphere(); root.add(leaves, stones);
 }
 
-function woodland(root) {
+function woodland(root, textures) {
   const random = randomSource(15589), groups = [], points = [];
   const transform = new THREE.Object3D(), color = new THREE.Color();
-  // Sample the actual rendered triangles, including overlapping ridge surfaces.
-  // The previous apron-only sampler could leave a trunk hanging over another layer.
   root.updateMatrixWorld(true);
   const terrain = root.children.filter(o => o.userData.valleyGround);
   terrain.forEach(mesh => mesh.geometry.computeBoundingBox());
@@ -429,32 +400,54 @@ function woodland(root) {
     ray.ray.origin.set(x, 150, z);
     return ray.intersectObjects(terrain, false)[0]?.point.y ?? outsideHeight(x, z) - 0.06;
   }
-  for (let i = 0; i < 152; i++) {
-    const near = i < 96;
-    const a = random() * TAU, distance = near ? 25 + Math.pow(random(), 1.5) * 35 : 60 + random() * 43;
-    const x = -3 + Math.cos(a) * distance, z = -2 + Math.sin(a) * distance;
-    if (x > -20 && x < 15 && z > -16 && z < 12) continue;
-    points.push({ x, z, y: backgroundHeight(x, z) - 0.065,
-      height: near ? 3.6 + random() * 3.4 : 4.8 + random() * 4.1,
-      yaw: random() * TAU, cedar: random() < 0.57 });
+  // Cluster centres and separate random draws keep groups irregular without a planting grid.
+  for (let cluster = 0; cluster < 48; cluster++) {
+    const near = cluster < 18, angle = cluster * 2.399 + (random() - 0.5) * 0.6;
+    const distance = near ? 25 + random() * 24 : 57 + random() * 46;
+    const cx = -3 + Math.cos(angle) * distance, cz = -2 + Math.sin(angle) * distance;
+    const count = near ? 8 + Math.floor(random() * 5) : 8 + Math.floor(random() * 6);
+    const cedar = random() < 0.48;
+    for (let tree = 0; tree < count; tree++) {
+      const a = random() * TAU, offset = Math.sqrt(random()) * (near ? 5.4 : 7.7);
+      const x = cx + Math.cos(a) * offset, z = cz + Math.sin(a) * offset;
+      if (x > -19 && x < 14 && z > -15 && z < 11) continue;
+      points.push({ x, z, y: backgroundHeight(x, z) - 0.09,
+        height: (near ? 4.8 : 5.5) + random() * (near ? 4.4 : 4.0),
+        yaw: random() * TAU, cedar: tree % 6 === 0 ? !cedar : cedar,
+        variant: Math.floor(random() * 2), far: !near, shrub: false });
+    }
   }
-  points.sort((a, b) => Math.hypot(a.x, a.z) - Math.hypot(b.x, b.z));
-  for (const cedar of [true, false]) {
-    const trees = points.filter(p => p.cedar === cedar), geometry = treeGeometry(cedar);
-    const foliageMaterial = new THREE.MeshStandardMaterial({ map: leafTexture(cedar), vertexColors: true,
-      roughness: 0.92, alphaTest: 0.33, alphaToCoverage: true, side: THREE.DoubleSide });
+  // Low planting softens the original terrain boundary, without entering the walkable garden.
+  for (let i = 0; i < 64; i++) {
+    const edge = Math.floor(random() * 4), offset = 0.4 + Math.pow(random(), 1.5) * 5.2;
+    const x = edge < 2 ? (edge ? 10 + offset : -15 - offset) : -16 + random() * 28;
+    const z = edge < 2 ? -13 + random() * 23 : edge === 2 ? -11 - offset : 7 + offset;
+    if (x > -15 && x < 10 && z > -11 && z < 7) continue;
+    points.push({ x, z, y: backgroundHeight(x, z) - 0.08, height: 0.6 + random() * 1.25,
+      yaw: random() * TAU, cedar: false, variant: i % 2, far: false, shrub: true });
+  }
+  const leafImages = { cedar: leafTexture(true), leaf: leafTexture(false) };
+  for (const cedar of [true, false]) for (const far of [false, true]) for (const variant of [0, 1]) {
+    const trees = points.filter(p => p.cedar === cedar && p.far === far && p.variant === variant);
+    if (!trees.length) continue;
+    trees.sort((a, b) => Math.hypot(a.x + 3, a.z + 2) - Math.hypot(b.x + 3, b.z + 2));
+    const geometry = treeGeometry(cedar, variant, far);
+    const foliageMaterial = new THREE.MeshStandardMaterial({ map: far ? textures.firColor : (cedar ? leafImages.cedar : leafImages.leaf),
+      alphaMap: far ? textures.firAlpha : null,
+      vertexColors: true, roughness: 0.91, alphaTest: 0.28, alphaToCoverage: true, side: THREE.DoubleSide });
     const barkMaterial = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1 });
     const crown = new THREE.InstancedMesh(geometry.foliage, foliageMaterial, trees.length);
     const trunks = new THREE.InstancedMesh(geometry.wood, barkMaterial, trees.length);
-    crown.name = cedar ? 'Distant fine-needled cedar woodland' : 'Distant small-leaf woodland';
-    trunks.name = crown.name + ' branching trunks';
+    crown.name = `${far ? 'Middle and distant' : 'Near'} ${cedar ? 'cedar' : 'broadleaf'} groves ${variant}`;
+    trunks.name = crown.name + ' rooted trunks';
+    crown.receiveShadow = trunks.receiveShadow = true;
     trees.forEach((p, i) => {
       transform.position.set(p.x, p.y, p.z);
-      transform.rotation.set((random() - 0.5) * 0.06, p.yaw, (random() - 0.5) * 0.08);
-      const width = p.height * (0.85 + random() * 0.22);
+      transform.rotation.set((random() - 0.5) * 0.035, p.yaw, (random() - 0.5) * 0.04);
+      const width = p.height * (p.shrub ? 1.45 : 0.9 + random() * 0.19);
       transform.scale.set(width, p.height, width); transform.updateMatrix();
       crown.setMatrixAt(i, transform.matrix); trunks.setMatrixAt(i, transform.matrix);
-      color.setRGB(0.85 + random() * 0.14, 0.88 + random() * 0.13, 0.85 + random() * 0.15);
+      color.setRGB(0.84 + random() * 0.17, 0.86 + random() * 0.13, 0.80 + random() * 0.17);
       crown.setColorAt(i, color);
     });
     crown.computeBoundingSphere(); trunks.computeBoundingSphere();
@@ -570,32 +563,53 @@ function animatePlants(scene, uniforms) {
 }
 
 function animateWater(material, uniforms) {
-  material.transparent = true; material.opacity = 0.91; material.depthWrite = false;
-  material.roughness = 0.20; material.metalness = 0.12;
-  material.color.set('#526d53'); material.envMapIntensity = 1.4;
-  patch(material, 'flow-v1', shader => {
-    Object.assign(shader.uniforms, uniforms);
+  const puddle = /puddle/i.test(material.name), paddy = /Flooded rice/.test(material.name);
+  material.transparent = true; material.opacity = puddle ? 0.94 : paddy ? 0.78 : 0.86;
+  material.depthWrite = false; material.side = THREE.FrontSide;
+  material.roughness = puddle ? 0.44 : paddy ? 0.34 : 0.27;
+  material.metalness = 0;
+  material.color.set(puddle ? '#3a4031' : paddy ? '#52634a' : '#3d554b');
+  material.envMapIntensity = puddle ? 0.46 : paddy ? 0.72 : 0.86;
+  const flow = puddle ? 0 : paddy ? 0.008 : 0.035;
+  const amplitude = puddle ? 0.012 : paddy ? 0.027 : 0.060;
+  patch(material, 'irregular-flow-v18', shader => {
+    Object.assign(shader.uniforms, uniforms, { uWaterFlow: { value: flow }, uWaterAmplitude: { value: amplitude } });
     shader.vertexShader = shader.vertexShader.replace('#include <common>',
       '#include <common>\nvarying vec2 vValleyWater;').replace('#include <begin_vertex>',
       '#include <begin_vertex>\nvValleyWater = (modelMatrix * vec4(position, 1.0)).xz;');
-    shader.fragmentShader = shader.fragmentShader.replace('#include <common>',
-      '#include <common>\nvarying vec2 vValleyWater;\nuniform float uValleyTime, uValleyMotion;')
-      .replace('#include <normal_fragment_begin>', `#include <normal_fragment_begin>
-        vec2 p = vValleyWater;
-        float flowTime = uValleyTime * uValleyMotion;
-        vec2 ripple = vec2(cos(p.x * 28.0 + p.y * 17.0 - flowTime * 2.3),
-          sin(p.y * 35.0 - p.x * 9.0 - flowTime * 3.1)) * 0.045;
-        ripple += vec2(sin(p.x * 11.0 + flowTime), cos(p.y * 14.0 - flowTime)) * 0.025;
-        normal = normalize(normal + mat3(viewMatrix) * vec3(ripple.x, 0.0, ripple.y));`);
+    shader.fragmentShader = shader.fragmentShader.replace('#include <common>', `#include <common>
+      varying vec2 vValleyWater;
+      uniform float uValleyTime, uValleyMotion, uWaterFlow, uWaterAmplitude;
+      float waterNoise(vec2 p) {
+        vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
+        float a = fract(sin(dot(i, vec2(127.1, 311.7))) * 43758.5453);
+        float b = fract(sin(dot(i + vec2(1.0, 0.0), vec2(127.1, 311.7))) * 43758.5453);
+        float c = fract(sin(dot(i + vec2(0.0, 1.0), vec2(127.1, 311.7))) * 43758.5453);
+        float d = fract(sin(dot(i + vec2(1.0), vec2(127.1, 311.7))) * 43758.5453);
+        return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
+      }
+      float waterHeight(vec2 p) {
+        return waterNoise(p * 2.1) * 0.68 + waterNoise(p * 5.3 + 13.7) * 0.32;
+      }`)
+      .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
+        float waterTime = uValleyTime * uValleyMotion * uWaterFlow;
+        vec2 p = vValleyWater + vec2(waterTime * 0.31, -waterTime);
+        vec2 ripple = vec2(waterHeight(p + vec2(0.07, 0.0)) - waterHeight(p - vec2(0.07, 0.0)),
+          waterHeight(p + vec2(0.0, 0.07)) - waterHeight(p - vec2(0.0, 0.07)));
+        float waterDetail = 1.0 - smoothstep(0.035, 0.26, length(fwidth(p)));
+        normal = normalize(normal + mat3(viewMatrix) * vec3(ripple.x, 0.0, ripple.y)
+          * uWaterAmplitude * waterDetail);
+      `);
   });
 }
 
-export function createEnvironment({ scene, renderer, model, sun, groundAt }) {
+export async function createEnvironment({ scene, renderer, model, sun, groundAt }) {
+  const terrainTextures = await loadTerrainMaterials(renderer);
   const root = new THREE.Group(); root.name = 'Hidden valley atmosphere';
   const motionPreference = typeof matchMedia === 'function' ? matchMedia('(prefers-reduced-motion: reduce)') : null;
   let quality = 'standard';
   const uniforms = { uValleyTime: { value: 0 }, uValleyMotion: { value: 1 } };
-  const waterMaterials = new Set();
+  const waterMaterials = new Set(), groundMaterials = new Set();
   scene.fog = new THREE.Fog(HORIZON, 24, 170);
   scene.background = new THREE.Color(HORIZON);
   scene.environment = reflectionSky(); scene.environmentIntensity = 0.48;
@@ -608,6 +622,7 @@ export function createEnvironment({ scene, renderer, model, sun, groundAt }) {
     const mats = Array.isArray(o.material) ? o.material : [o.material];
     for (const material of mats) {
       if (WATER_MATERIALS.has(material.name)) waterMaterials.add(material);
+      if (/^Walkthrough baked terrain_[01]$/.test(material.name)) groundMaterials.add(material);
       if (material.name === 'Water-darkened timber endgrain') {
         material.transparent = false; material.opacity = 1; material.depthWrite = true;
         material.roughness = 0.55; material.metalness = 0;
@@ -619,6 +634,7 @@ export function createEnvironment({ scene, renderer, model, sun, groundAt }) {
       if (Math.max(size.x, size.y, size.z) < 0.12) o.castShadow = false;
     }
   });
+  groundMaterials.forEach(material => applyTerrainMaterial(material, terrainTextures));
   sun.color.set('#ffe9cb'); sun.intensity = 3.2;
   sun.position.set(12, 23, 23); sun.target.position.set(-5, 0, -2);
   sun.shadow.normalBias = 0.025; sun.shadow.bias = -0.00015;
@@ -626,9 +642,9 @@ export function createEnvironment({ scene, renderer, model, sun, groundAt }) {
   sun.shadow.camera.updateProjectionMatrix();
   const sky = new THREE.Mesh(new THREE.SphereGeometry(250, 32, 20), skyMaterial());
   sky.name = 'Painted morning sky'; sky.renderOrder = -10; sky.frustumCulled = false;
-  root.add(sky, valleyFloor(), ridge(106, 89, 80, 0.8, '#6d8a81'),
-    ridge(66, 68, 48, 2.7, '#536f60'), ridge(35, 55, 31, 4.3, '#3e5945'));
-  const trees = woodland(root);
+  root.add(sky, valleyFloor(terrainTextures), ridge(106, 89, 80, 0.8, '#748c82'),
+    ridge(66, 68, 48, 2.7, '#4d685d'), ridge(35, 55, 31, 4.3, '#33493e'));
+  const trees = woodland(root, terrainTextures);
   // Rooted wind is applied after app's instancing, so scene-direct batches participate.
   const plants = animatePlants(scene, uniforms);
   waterMaterials.forEach(material => animateWater(material, uniforms));
@@ -656,6 +672,17 @@ export function createEnvironment({ scene, renderer, model, sun, groundAt }) {
   motionPreference?.addEventListener?.('change', () => setQuality(quality));
   setQuality(quality);
   return {
+    get metrics() {
+      let triangles = 0, draws = 0;
+      root.traverse(object => {
+        if (!object.isMesh) return;
+        draws++;
+        triangles += (object.geometry.index?.count ?? object.geometry.getAttribute('position').count)
+          / 3 * (object.isInstancedMesh ? object.count : 1);
+      });
+      return { triangles, draws, trees: trees.reduce((sum, group) => sum + group.crown.count, 0),
+        terrainMaterials: groundMaterials.size, terrainTextures: 6, foliageTextures: 2, waterConnections: 0 };
+    },
     update(dt, elapsed) {
       if (!(dt >= 0) || !Number.isFinite(elapsed)) return;
       if (!motionPreference?.matches) {

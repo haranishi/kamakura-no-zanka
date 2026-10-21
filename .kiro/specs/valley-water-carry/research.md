@@ -24,3 +24,9 @@ v16の既存16件、構文・モデル・HTTP検査はすべて成功した。
 ## Verification Constraints
 ブラウザのスクリーンショットと実操作を新たに確認する。過去のv16画像を今回の証拠にしない。
 GitHubは開始時401。認証復旧後、haranishi/kamakura-no-zankaを非公開で作成し読み戻し確認した。
+
+## v18の実検査後の判断
+土粒・格子抑制は画像で改善。遠景の葉カード・黄褐色の裸床・水面切端白線が残った。
+改善2周目は元GLBを保持し、岸の接続と外周の色を調整する。
+fir_tree_01本体464.8MBは使わず、公式APIの1K twig diff/alphaだけ646KBを取得した。
+画像のMD5をAPI記録と照合。CC0、作者Rob Tuytel/Rico Cilliers、出典は素材記録へ残す。

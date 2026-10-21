@@ -46,9 +46,11 @@ reduced-motionでは揺れ・点滅・粒子を止める。強制カメラ移動
 追加山の周期的な格子模様を除き、尾根・谷筋と低彩度の距離色で奥行きを出す。
 木立は近中遠の群落、樹高差、低木を使い、裸の外周床と疎らな針金木を減らす。
 水路・田・水たまりを区別し、等間隔の縞と岸の白線を抑える。
-新素材はPoly Havenのdirt_floor・forest_leaves_02の1K diff/normalGL/roughのみ。
+地面はPoly Havenのdirt_floor・forest_leaves_02の1K diff/normalGL/roughを使う。
+中遠景の紙片感を抑えるため、fir_tree_01の1K twig diff/alpha（計646KB）を追補する。
+樹木モデル本体は取得せず、枝葉画像のUV領域を共有描画で使う。
 CC0の出典、作者、取得日、hashを記録する。高ポリゴン樹木の追加導入は見送る。
-追加素材は8MB以内を目安、追加背景triangle60万以内・draw30以内を目安とし実測する。
+地面と枝葉の追加素材合計は8MB以内を目安、追加背景triangle60万以内・draw30以内を目安とし実測する。
 品質切替でオブジェクトや音を増殖させない。
 
 ## 環境音の契約

@@ -1,0 +1,132 @@
+{
+  "version": 18,
+  "description": "Six 1K ground maps and two 1K branch atlas images. Original scene.glb and collision data remain intact.",
+  "totalBytes": 4314352,
+  "assets": [
+    {
+      "id": "dirt_floor",
+      "author": "eye-candy.xyz",
+      "source": "https://polyhaven.com/a/dirt_floor",
+      "license": "CC0-1.0",
+      "licenseSource": "https://polyhaven.com/license",
+      "retrievedOn": "2026-10-22",
+      "files": [
+        {
+          "path": "dist/assets/terrain/polyhaven-dirt_floor/dirt_floor_diff_1k.jpg",
+          "downloadUrl": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/dirt_floor/dirt_floor_diff_1k.jpg",
+          "bytes": 903417,
+          "sha256": "6c2e7f1c5eab8239fec561f255c607d0e3a86046925ba3a8b9340805efc1ab62",
+          "resolution": [
+            1024,
+            1024
+          ],
+          "role": "baseColor"
+        },
+        {
+          "path": "dist/assets/terrain/polyhaven-dirt_floor/dirt_floor_nor_gl_1k.jpg",
+          "downloadUrl": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/dirt_floor/dirt_floor_nor_gl_1k.jpg",
+          "bytes": 1167485,
+          "sha256": "9481dc2cee97b240ca10dc1cd60fec834a85e455aaa7d2a584396ea10210c2c0",
+          "resolution": [
+            1024,
+            1024
+          ],
+          "role": "normal (OpenGL)"
+        },
+        {
+          "path": "dist/assets/terrain/polyhaven-dirt_floor/dirt_floor_rough_1k.jpg",
+          "downloadUrl": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/dirt_floor/dirt_floor_rough_1k.jpg",
+          "bytes": 389725,
+          "sha256": "093166ffda063b8fcf04ec645e1e12c24811f614468ba378437a3535c3c53f57",
+          "resolution": [
+            1024,
+            1024
+          ],
+          "role": "roughness"
+        }
+      ]
+    },
+    {
+      "id": "forest_leaves_02",
+      "author": "Rob Tuytel",
+      "source": "https://polyhaven.com/a/forest_leaves_02",
+      "license": "CC0-1.0",
+      "licenseSource": "https://polyhaven.com/license",
+      "retrievedOn": "2026-10-22",
+      "files": [
+        {
+          "path": "dist/assets/terrain/polyhaven-forest_leaves_02/forest_leaves_02_diffuse_1k.jpg",
+          "downloadUrl": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/forest_leaves_02/forest_leaves_02_diffuse_1k.jpg",
+          "bytes": 437891,
+          "sha256": "2bac85cdc76927fa7dc311037bbbc4dfa2633ea56eb0a24c9cabe163a68c9aa5",
+          "resolution": [
+            1024,
+            1024
+          ],
+          "role": "baseColor"
+        },
+        {
+          "path": "dist/assets/terrain/polyhaven-forest_leaves_02/forest_leaves_02_nor_gl_1k.jpg",
+          "downloadUrl": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/forest_leaves_02/forest_leaves_02_nor_gl_1k.jpg",
+          "bytes": 577163,
+          "sha256": "cf6a40ab24f44d3e891a92a1c252416ed1192af54ac92a5704bdfbda0805e290",
+          "resolution": [
+            1024,
+            1024
+          ],
+          "role": "normal (OpenGL)"
+        },
+        {
+          "path": "dist/assets/terrain/polyhaven-forest_leaves_02/forest_leaves_02_rough_1k.jpg",
+          "downloadUrl": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/forest_leaves_02/forest_leaves_02_rough_1k.jpg",
+          "bytes": 192523,
+          "sha256": "3d2163acb9e22801caa4d34cb3e9bb443dfd0e6f2bebbd559c61e9b14f945dd4",
+          "resolution": [
+            1024,
+            1024
+          ],
+          "role": "roughness"
+        }
+      ]
+    },
+    {
+      "id": "fir_tree_01",
+      "authors": [
+        "Rob Tuytel",
+        "Rico Cilliers"
+      ],
+      "source": "https://polyhaven.com/a/fir_tree_01",
+      "license": "CC0-1.0",
+      "licenseSource": "https://polyhaven.com/license",
+      "retrievedOn": "2026-10-22",
+      "files": [
+        {
+          "path": "dist/assets/foliage/polyhaven-fir_tree_01/fir_tree_01_twig_diff_1k.jpg",
+          "downloadUrl": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/fir_tree_01/fir_tree_01_twig_diff_1k.jpg",
+          "bytes": 371741,
+          "sha256": "8c0833a10e4fd44498d848cf9e659fe250a3813984cbd679f42430eb98c61fb8",
+          "md5": "d267b1117a5d6dbbbd620bd997fb498e",
+          "resolution": [
+            1024,
+            1024
+          ],
+          "role": "branch baseColor atlas"
+        },
+        {
+          "path": "dist/assets/foliage/polyhaven-fir_tree_01/fir_tree_01_twig_alpha_1k.jpg",
+          "downloadUrl": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/fir_tree_01/fir_tree_01_twig_alpha_1k.jpg",
+          "bytes": 274407,
+          "sha256": "1f0607dd457c32406717daffe5049b1d2248c497589c83795c623c5e8b03e542",
+          "md5": "9a681881886a9889f662bcfc2db42a97",
+          "resolution": [
+            1024,
+            1024
+          ],
+          "role": "branch alpha atlas"
+        }
+      ],
+      "usage": "Only five branch-island UV rectangles are sampled; trunk and lower atlas islands are excluded. No tree model or source scene was downloaded."
+    }
+  ],
+  "processing": "Original JPGs retained. Runtime projection, color/normal strength, roughness and branch-island UV selection only. Tree geometry, near-leaf art, mountains and grasses are original procedural work. Boundary-water connection trial removed; original z=7 seam remains open."
+}
