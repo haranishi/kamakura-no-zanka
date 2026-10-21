@@ -1,0 +1,36 @@
+{
+  "browser": "155.0.8059.85",
+  "mode": "headless",
+  "method": "QA-valid teleport positions for boundary/error cases; keyboard E; normal journey separately in browser-check.json",
+  "checks": [
+    {
+      "name": "body-distance boundary: 1.59m shown, 1.61m rejected",
+      "passed": true
+    },
+    {
+      "name": "turning away invalidates interaction",
+      "passed": true
+    },
+    {
+      "name": "empty bucket cannot be delivered",
+      "passed": true
+    },
+    {
+      "name": "near but disallowed well approach cannot fill",
+      "passed": true
+    },
+    {
+      "name": "wrong facing is rejected, east-side filling works once",
+      "passed": true
+    },
+    {
+      "name": "operation from the opposite side of the house is rejected (combined range and obstruction)",
+      "passed": true
+    },
+    {
+      "name": "delivered state does not deliver twice",
+      "passed": true
+    }
+  ],
+  "errors": []
+}

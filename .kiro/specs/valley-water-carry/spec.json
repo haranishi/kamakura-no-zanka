@@ -1,9 +1,9 @@
 {
   "feature_name": "valley-water-carry",
   "created_at": "2026-10-21T14:46:14.564968+00:00",
-  "updated_at": "2026-10-21T14:49:53.075124+00:00",
+  "updated_at": "2026-10-21T15:25:09.896696+00:00",
   "language": "ja",
-  "phase": "tasks-generated",
+  "phase": "implementation-validated",
   "approvals": {
     "requirements": {
       "generated": true,
@@ -23,5 +23,16 @@
   "task_graph_review": {
     "mode": "independent",
     "verdict": "PASS"
+  },
+  "verification": {
+    "decision": "GO",
+    "unit_checks": 40,
+    "node_runner_items": 25,
+    "browser_groups": 26,
+    "interaction_error_groups": 7,
+    "experience_score": "19/20",
+    "visual_score": "19/20",
+    "evidence": "reports/VERIFICATION_JA.md",
+    "git_delivery": "private repository created; feature branch pushed; PR and merge follow the validation gate"
   }
 }

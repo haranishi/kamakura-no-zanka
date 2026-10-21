@@ -1,298 +1,652 @@
 {
-  "algorithm": "SHA256",
-  "excludes": [
-    "FILES_SHA256.json"
-  ],
+  "schemaVersion": 1,
+  "generatedAt": "2026-10-21T15:26:01.104705+00:00",
+  "scope": "v17 source, assets and verification artifacts; excludes this manifest and Git metadata",
   "files": [
     {
+      "path": ".agent-harness/contracts/valley-water-carry.md",
+      "size": 972,
+      "sha256": "c86415189fcb5c00db239a21da4246f1f9a38adc62b7c991c835796524570b3e"
+    },
+    {
+      "path": ".agent-harness/runs/2026-10-22-valley-water-carry.md",
+      "size": 1190,
+      "sha256": "f8311f7e1ea7b100be21dcda6e718928a28ca94f2b2623232afada01dd2c6b30"
+    },
+    {
+      "path": ".github/workflows/verify.yml",
+      "size": 554,
+      "sha256": "dda01ee08e3f087db2e9f8f585d145abfa95485d9f191fa6fa6ff42e6a60ee60"
+    },
+    {
       "path": ".gitignore",
-      "bytes": 81,
+      "size": 81,
       "sha256": "f0501587ae055afb12f733a14d4ac1e63ea479fb3c054310c27e23ca9ccd1d97"
     },
     {
+      "path": ".kiro/settings/templates/specs/design.md",
+      "size": 13307,
+      "sha256": "8dcaf9ce659b862a149d0511eb76979d2e90790cc5b382f9533871e6f9df61fd"
+    },
+    {
+      "path": ".kiro/settings/templates/specs/init.json",
+      "size": 437,
+      "sha256": "d792c8d92937a6ca8605a065f17634da6959623d419c08ffc97521381ff27d12"
+    },
+    {
+      "path": ".kiro/settings/templates/specs/requirements-init.md",
+      "size": 159,
+      "sha256": "ad3f8051e45003cc3f3b5a82bdd04c8b303c5e8d9f00e7d94c1593019c15ecf9"
+    },
+    {
+      "path": ".kiro/settings/templates/specs/requirements.md",
+      "size": 1297,
+      "sha256": "876aed0185db39e9fd160331a408b84e856d1f0ad1143036615b663742ddbdca"
+    },
+    {
+      "path": ".kiro/settings/templates/specs/research.md",
+      "size": 2355,
+      "sha256": "a77becba2f120a2d020004a08ad331a602fb0cb30c5fa3c7cc9fa8acc8da0fde"
+    },
+    {
+      "path": ".kiro/settings/templates/specs/tasks.md",
+      "size": 1291,
+      "sha256": "18dbd31931ef1c32242fdd7f58895ddc4a9001c94b998793b4ff4451e3712af8"
+    },
+    {
+      "path": ".kiro/settings/templates/steering-custom/api-standards.md",
+      "size": 1662,
+      "sha256": "c091a4579807ffcfa2eb16f956b273f7925e92a1e11cb436c7ae95ee45ef4b34"
+    },
+    {
+      "path": ".kiro/settings/templates/steering-custom/authentication.md",
+      "size": 2089,
+      "sha256": "061aa606b4bd2ed0a40dcfcf78882c5e2c7acc82ed80008611896e22efb9607c"
+    },
+    {
+      "path": ".kiro/settings/templates/steering-custom/database.md",
+      "size": 1507,
+      "sha256": "b93f66bbed730c787ebf43577c4dfb1cbe98d788c79681763fa68034ed84f0c4"
+    },
+    {
+      "path": ".kiro/settings/templates/steering-custom/deployment.md",
+      "size": 1782,
+      "sha256": "462a787ccc6ac63ca0d6d311bcadea24aae5a1cf9a513aed7d1f316237a46f33"
+    },
+    {
+      "path": ".kiro/settings/templates/steering-custom/error-handling.md",
+      "size": 2205,
+      "sha256": "1a58856c020fd3cbfc779a67ad67571fe661399631b9f4ef497a218ee36396ae"
+    },
+    {
+      "path": ".kiro/settings/templates/steering-custom/security.md",
+      "size": 2092,
+      "sha256": "a00847516d574e6e0d54bddc1819b8fba975344316dd6307b9d1c4cbee6686be"
+    },
+    {
+      "path": ".kiro/settings/templates/steering-custom/testing.md",
+      "size": 1297,
+      "sha256": "e5679d6769bddd196b9e44fa5f3f8bf31cb8caad63a5905b34838d6e68fa2540"
+    },
+    {
+      "path": ".kiro/settings/templates/steering/product.md",
+      "size": 355,
+      "sha256": "f233ba3cebcaa4e8303ba59d9c447d2fa1c95a0a6504b19e8dc3df63e236f73f"
+    },
+    {
+      "path": ".kiro/settings/templates/steering/structure.md",
+      "size": 871,
+      "sha256": "2d4ea086e3619750cc00166daeefa025cdfe75fdc3b745165cfabb6c53375910"
+    },
+    {
+      "path": ".kiro/settings/templates/steering/tech.md",
+      "size": 792,
+      "sha256": "ab20caddc4a2361ebccbb09978cf0798a88e10bf259ee20113975f2966051025"
+    },
+    {
+      "path": ".kiro/specs/valley-water-carry/brief.md",
+      "size": 1438,
+      "sha256": "628edffd5ad7da4ab42ba791eaa49871244b7acaf45dbdd15da0cd4afaee74d5"
+    },
+    {
+      "path": ".kiro/specs/valley-water-carry/design.md",
+      "size": 6327,
+      "sha256": "595307850bad5b819d33a25acd24ace601101c1aa8616e860de7a094864d6cba"
+    },
+    {
+      "path": ".kiro/specs/valley-water-carry/requirements.md",
+      "size": 4771,
+      "sha256": "f3b17359f9f470d4dba07acdb42770372d258de35fdcb62f73c5c1b309babce6"
+    },
+    {
+      "path": ".kiro/specs/valley-water-carry/research.md",
+      "size": 1884,
+      "sha256": "0ce202d50f72e7b3c462b10cbac9bb639e09da9e5628021b20ffd921c73f5a75"
+    },
+    {
+      "path": ".kiro/specs/valley-water-carry/spec.json",
+      "size": 1040,
+      "sha256": "c095a8a7c461d76eee7499352fb3adc027b2f6dd1048a722dead2ef184152927"
+    },
+    {
+      "path": ".kiro/specs/valley-water-carry/tasks.md",
+      "size": 4696,
+      "sha256": "a3fc4180b9c817069a59238672b7b86148efb71b8ff1c3458771c92e7581fc90"
+    },
+    {
+      "path": ".kiro/steering/product.md",
+      "size": 673,
+      "sha256": "f738b3227bf00d9bb3160e9220b8a75410aad164a25f6cd53dc631bd5af15749"
+    },
+    {
+      "path": ".kiro/steering/structure.md",
+      "size": 634,
+      "sha256": "c488d028bc966a2c5b7a00b6e278fbc7e3d7b7cfef46a05ae60f5108579ad532"
+    },
+    {
+      "path": ".kiro/steering/tech.md",
+      "size": 737,
+      "sha256": "36d4f1334df209920be7f771024ad0501474ee8d3af022501296be569b180882"
+    },
+    {
       "path": "AGENTS.md",
-      "bytes": 2417,
-      "sha256": "b8b3e3ebe15ec003107dc3f66001fbd99771bf6c3dbad2ee3f92ba3d91bf2591"
+      "size": 2497,
+      "sha256": "00bc8483c1267d11d4dcb6b493a184407e092272bbc632e2f536b837585d4740"
     },
     {
       "path": "CLAUDE.md",
-      "bytes": 374,
+      "size": 374,
       "sha256": "563b547a1a3c2d362f4f1f3a7d551f83b2ddb2fefcdba2f88ceca3216f829cae"
     },
     {
       "path": "PROMPT_FOR_CLAUDE_CODE_OR_CODEX.md",
-      "bytes": 3238,
-      "sha256": "abd3342240eaae664601fa0e32fbed3c5f9f7c34bcad9bd73c47c5ef7bc1d0b8"
+      "size": 3412,
+      "sha256": "9c85a2a2fc861ddbb65aa4d63aa39b6cc90bae7ea409d5fcd6f7e4abbc8599e4"
+    },
+    {
+      "path": "README.md",
+      "size": 1235,
+      "sha256": "f664fae8c55c5fd1ba27f2354ebe1df7ffbdeceef0830a39dee43964400bb269"
     },
     {
       "path": "README_START_HERE.md",
-      "bytes": 5929,
-      "sha256": "5ed93a89d83b9c445afbeca9bf9bd005b32fa7fcfb7e52b8043a8c7b1f162235"
+      "size": 3264,
+      "sha256": "7274017b4ff97d84ecbb3ffe3cd9f9ff093a842bb2ef68996bb793cd2d2fbb49"
     },
     {
       "path": "dist/app.js",
-      "bytes": 10136,
-      "sha256": "4eb48d12453515a7ed773d58f32abcf0f87bdc4162c0ce4bbb22d728f50127e8"
+      "size": 16489,
+      "sha256": "c1e4768561bb0c513a95d27920f3cdcebe1ffed2520db2e8d93b9001e33920ec"
     },
     {
       "path": "dist/assets/collision.json",
-      "bytes": 51731,
+      "size": 51731,
       "sha256": "f7cc177f0921d1a984b6fefee5a033354aad75f58c4618c6a4dd96135b2d882f"
     },
     {
       "path": "dist/assets/scene.glb",
-      "bytes": 19476020,
+      "size": 19476020,
       "sha256": "4fbeeec599166e4da9eedb2f814d40be932cd62302a7275e76e4b0a03af6b43a"
     },
     {
       "path": "dist/assets/textures/Walkthrough_Rice_leaf_0.png",
-      "bytes": 288,
+      "size": 288,
       "sha256": "885aae7218b3f106e33fc36c985feaf21ace962eef3065fd574401f2e3e044c2"
     },
     {
       "path": "dist/assets/textures/Walkthrough_Rice_leaf_1.png",
-      "bytes": 302,
+      "size": 302,
       "sha256": "db10e92b6eb8f8434e9b80cf7966bbeec8f6b8527a5938215e0d86f804c98c0c"
     },
     {
       "path": "dist/assets/textures/Walkthrough_Rice_leaf_2.png",
-      "bytes": 280,
+      "size": 280,
       "sha256": "bc3cfdd47f83f4b224fb72ff398eef9db706175f101350ced7c59af91c3d006d"
     },
     {
       "path": "dist/assets/textures/Walkthrough_Rice_leaf_3.png",
-      "bytes": 289,
+      "size": 289,
       "sha256": "956fa8c3dced513d41757f095839678751ee3af5a7ed9a05f766df8d7530d907"
     },
     {
       "path": "dist/assets/textures/Walkthrough_Rice_leaf_4.png",
-      "bytes": 317,
+      "size": 317,
       "sha256": "77156694c0256852e783ddd80663213f56e8113b6c4b0df2a42d06179fcb8a06"
     },
     {
       "path": "dist/assets/textures/clay_plaster_basecolor.jpg",
-      "bytes": 181755,
+      "size": 181755,
       "sha256": "431e2843c8a789fa00bcf9a76182de7090bff201886a3f4fc7f2d0d92809f809"
     },
     {
       "path": "dist/assets/textures/terrain_0_basecolor.jpg",
-      "bytes": 35753,
+      "size": 35753,
       "sha256": "07ca2f540400eb0c5e172291a73c55160fca032287382aca3ba4d5a63e0410ce"
     },
     {
       "path": "dist/assets/textures/terrain_1_basecolor.jpg",
-      "bytes": 29353,
+      "size": 29353,
       "sha256": "8a560352bc6bd29d0b9692c70cb5ab7878926a4824b83a2f4ffd3d90093df0cc"
     },
     {
+      "path": "dist/audio.js",
+      "size": 3198,
+      "sha256": "b2c53426dfdd2439f93b9874908276e6aa2eb5e6de2845d320799e83ae66ce70"
+    },
+    {
       "path": "dist/collision.js",
-      "bytes": 1998,
+      "size": 1998,
       "sha256": "c3f816821b8601ebac649c7310859379b88411eec5e2fd54e8bd849d141157a2"
     },
     {
+      "path": "dist/environment.js",
+      "size": 33987,
+      "sha256": "d8c83e8e4c1bb8f30689f0888b19d4b13b19a70719e71a56edab08b36aab4c98"
+    },
+    {
+      "path": "dist/gameplay.js",
+      "size": 1523,
+      "sha256": "daa9cd98588b8bde5344c65d31cddb3bde09cf7798cabd0e4c5f9955cd84fad3"
+    },
+    {
       "path": "dist/index.html",
-      "bytes": 6771,
-      "sha256": "fc916f65b848b86eb074e8c74ec606a3e501eeb0c3bb29e77ab93422a307b23d"
+      "size": 8975,
+      "sha256": "1041473f2b13c15d4aa1904f55005346376116be703d6e0faac42a376fa6906e"
+    },
+    {
+      "path": "dist/interactions.js",
+      "size": 2459,
+      "sha256": "20946368a1e2312658b0b14bf4dfb7322ae7799f2c2df66e27eec8cc7dd823bc"
+    },
+    {
+      "path": "dist/quest-view.js",
+      "size": 3732,
+      "sha256": "abde79df20573dcdfd1becf539ace590af06f1fac1e5d5de118513b1ed47741a"
+    },
+    {
+      "path": "dist/save.js",
+      "size": 1990,
+      "sha256": "b448278119e8abccad7c9215345544da672aa26c3cb1317740476ce410bcd8a3"
     },
     {
       "path": "dist/style.css",
-      "bytes": 14359,
-      "sha256": "1d50b5889d8c85e3aff594c90571344db86629629b95bb143a147fbd7abc4c57"
+      "size": 19336,
+      "sha256": "16cecbff3fc2779c27a8365c44cb92ad548e8deb77824c1b4bea02589abb5cc8"
     },
     {
       "path": "dist/ui.js",
-      "bytes": 7049,
-      "sha256": "b154a680a91d162128b8a8b695fba357014b4861e71e30388a99fd2e22e25730"
+      "size": 10453,
+      "sha256": "d40ccebfbf9837812acba08cc95706b81b645ba4f86bfdfcc1bf92728eb7c221"
     },
     {
       "path": "dist/vendor/THREE-LICENSE.txt",
-      "bytes": 1081,
+      "size": 1081,
       "sha256": "bfe119ea4fd413f5f7ca3fcd63adb0c4a073ed39daa2fe7d3e6b769e21272601"
     },
     {
       "path": "dist/vendor/loaders/GLTFLoader.js",
-      "bytes": 114739,
+      "size": 114739,
       "sha256": "67ac5551fdafa6e349bd80c8f8e5e39c136d6b2fb1ad647db9abb21dc86f9e4a"
     },
     {
       "path": "dist/vendor/three.core.min.js",
-      "bytes": 381124,
+      "size": 381124,
       "sha256": "61ba0df005b05991361d040d8ff670e1aadfd0ce7aeebd1fdb0725957a8957de"
     },
     {
       "path": "dist/vendor/three.module.min.js",
-      "bytes": 338908,
+      "size": 338908,
       "sha256": "e2b5ee6bccd38fd6d8a2428546b83c5f2426d84b152ef82be8055556e3b40eb6"
     },
     {
       "path": "dist/vendor/utils/BufferGeometryUtils.js",
-      "bytes": 35539,
+      "size": 35539,
       "sha256": "fda7e946b8e0b5ab39b779206589e7a1079a22eb24efb89d7223e03fdfb1f751"
     },
     {
       "path": "docs/01_DEVELOPMENT_BRIEF_JA.md",
-      "bytes": 7882,
+      "size": 7882,
       "sha256": "80d22cdacbffa6d5defc447ec7808641976fe590eb25c5375f4e98ca9ee770e7"
     },
     {
       "path": "docs/02_ARCHITECTURE_JA.md",
-      "bytes": 5288,
+      "size": 5288,
       "sha256": "1e23be49e0fd7729088f49cd87bbf56dde2cfb048e7431772e1f797834bf1de6"
     },
     {
       "path": "docs/03_ACCEPTANCE_CHECKLIST_JA.md",
-      "bytes": 5594,
+      "size": 5594,
       "sha256": "eb1193ac7a1bc5bdbd8dfc66487c143e9c5dfa768c761a55e2389173670063ad"
     },
     {
       "path": "docs/04_BASELINE_AND_LIMITS_JA.md",
-      "bytes": 3551,
+      "size": 3551,
       "sha256": "53e1a68bae7b1ff18565e79ef430fc4f24c7e9fd8418a24bf790f4006c743f1e"
     },
     {
       "path": "docs/05_ASSETS_AND_LICENSES_JA.md",
-      "bytes": 4814,
+      "size": 4814,
       "sha256": "d1e4e1a9f99d433a8d85347d59d54e376f3eef97a3a46da26233febd30397bfb"
     },
     {
       "path": "licenses/THREE-LICENSE.txt",
-      "bytes": 1081,
+      "size": 1081,
       "sha256": "bfe119ea4fd413f5f7ca3fcd63adb0c4a073ed39daa2fe7d3e6b769e21272601"
     },
     {
       "path": "package.json",
-      "bytes": 462,
-      "sha256": "e8f49c88e65ff7c6535ea0b14a075916d6d34584d8c80e7eeee4b5f63ac4334a"
+      "size": 424,
+      "sha256": "566b8617e6705f73db4187d790a4faacfe98ae3b74e023bea1e278840b651ac9"
     },
     {
       "path": "provenance/house_v08_asset-manifest.json",
-      "bytes": 7034,
+      "size": 7034,
       "sha256": "13279698cdbd914d7370b7c6b88af24f354d1941962dff17f07676736446aa8b"
     },
     {
       "path": "provenance/house_v08_download-verification.json",
-      "bytes": 4554,
+      "size": 4554,
       "sha256": "74a88e32fb8eefb28861ed5eb893aef821d8c9c21023630d1f223979cabb0477"
     },
     {
       "path": "provenance/house_v08_grass_source.json",
-      "bytes": 250,
+      "size": 250,
       "sha256": "606467230d56cc4099b1031a8af20476d069a653eba10dfdffc1e47c8bd24106"
     },
     {
       "path": "provenance/house_v08_grass_textures.json",
-      "bytes": 1815,
+      "size": 1815,
       "sha256": "0179ffcf26ef95b25c6046858a19b9ceb5e2d78ff49acb57d42af70cd79c520b"
     },
     {
       "path": "provenance/house_v08_rock_4k_download_verification.json",
-      "bytes": 1320,
+      "size": 1320,
       "sha256": "a86f27ec86effccb5fc940846363e6decc707e1a2692791964c5783f64555371"
     },
     {
       "path": "provenance/house_v08_source_provenance.json",
-      "bytes": 408,
+      "size": 408,
       "sha256": "dd73cdbf217f85356d942c9acaeb07f74bec399d8e8cb6780b14962b99c616ba"
     },
     {
       "path": "provenance/house_v08_texture_provenance.json",
-      "bytes": 6371,
+      "size": 6371,
       "sha256": "99c8b675e71e06e51da703d82db6c7d419ca04dd1cdf91373954331f47c6ffba"
     },
     {
       "path": "provenance/house_v08_thatch_source.json",
-      "bytes": 2005,
+      "size": 2005,
       "sha256": "bb6b00ac5962c1ee8a715a9e641ac0cbc670f58ecb1d8e20d2166e55bd248436"
     },
     {
       "path": "provenance/house_v08_timber_source.json",
-      "bytes": 1193,
+      "size": 1193,
       "sha256": "3e7c30237055976de8c3a14d1d057474cc4a7883543271f5545a68f48012f875"
     },
     {
       "path": "provenance/rice_color_fix.json",
-      "bytes": 1934,
+      "size": 1934,
       "sha256": "0f545f005dbd33d0443c6efd576a070a2bb75a56912c1b3521b409c6c12075b2"
     },
     {
       "path": "provenance/v14_source_manifest.json",
-      "bytes": 1265,
+      "size": 1265,
       "sha256": "6ea8db558c855895c8902b98da6b8f70cba753695b38ab1d20e7824e825d7875"
     },
     {
+      "path": "provenance/v16-files-sha256.json",
+      "size": 9770,
+      "sha256": "752194bc65933c0a7d195ba36f63c307ea1b072682098e791f9b85b9f432021f"
+    },
+    {
       "path": "provenance/well_v01_provenance.json",
-      "bytes": 912,
+      "size": 912,
       "sha256": "93aaf62bc3327fe6b29ed189e3a7e4f0285c2c74b15b7c6f657e89bf15fc4f84"
     },
     {
       "path": "reports/HANDOFF_VALIDATION_JA.md",
-      "bytes": 1908,
+      "size": 1908,
       "sha256": "470644cb038be55abaf3ff4008a828171a47619a4d43df87a1d16374a2340795"
     },
     {
+      "path": "reports/VERIFICATION_JA.md",
+      "size": 4719,
+      "sha256": "d723464a41efb7d1e416442fbfdbfabdd8f0a5717a1934cfde609e19a08d0c43"
+    },
+    {
       "path": "reports/baseline/QA_JA.md",
-      "bytes": 2742,
+      "size": 2742,
       "sha256": "833b867961172f6153b67ff80ec9916a6576310ac8e8a463a5c57a947ce47eac"
     },
     {
       "path": "reports/baseline/UI_REFERENCES_JA.md",
-      "bytes": 2303,
+      "size": 2303,
       "sha256": "98ec50376bd252769de91b2b77152ff5562294f0113a0101e117ebfb4927bcdb"
     },
     {
+      "path": "reports/browser-check.json",
+      "size": 3534,
+      "sha256": "be50b94f1400f59b1839c984f912fa41e98f45ca7a60ed3d45f680fe67332787"
+    },
+    {
+      "path": "reports/browser-interaction-errors.json",
+      "size": 928,
+      "sha256": "8005abffe0e3990b3fbb24e8bb27eed4768f07d2849b85682ee6f62811cc8824"
+    },
+    {
       "path": "reports/collision_tests.json",
-      "bytes": 1025,
+      "size": 1025,
       "sha256": "456d6ed0fd57cd50f8a4c9f79ab510ecf6d2a01f8fb7b842b6bd9860df33c977"
     },
     {
+      "path": "reports/experience-review.json",
+      "size": 8338,
+      "sha256": "4f336ca03262f67184ae13d5dbaf68b1b9caeaef959b54a74c643823e731a3b8"
+    },
+    {
+      "path": "reports/performance.json",
+      "size": 1083,
+      "sha256": "f225449796189958d80daeefc84a15d1c478c4b4bc95fbc77fe63336c30f4f7d"
+    },
+    {
       "path": "reports/screenshots/Kamakura_v16_narrow.jpg",
-      "bytes": 74615,
+      "size": 74615,
       "sha256": "8572890b550ecf807c9e3f003ef40a78729b2000d49923384aae4f1bffaa0bdd"
     },
     {
       "path": "reports/screenshots/Kamakura_v16_settings.jpg",
-      "bytes": 84134,
+      "size": 84134,
       "sha256": "4f4ce1191b43a81f8ba9e410b24ee9d06d36a9f426fee82a378f1c8fb8df537d"
     },
     {
       "path": "reports/screenshots/Kamakura_v16_title.jpg",
-      "bytes": 115498,
+      "size": 115498,
       "sha256": "ec7147e5fbbb5ec3d5f33776a68bd874729b85ab12e62b2167eac9bcf8091757"
     },
     {
       "path": "reports/screenshots/Kamakura_v16_walkthrough.jpg",
-      "bytes": 116081,
+      "size": 116081,
       "sha256": "f41e39957a14c2e4b346add5836842efd3d1190896e007a25ee74fcf9cdd840c"
     },
     {
+      "path": "reports/screenshots/current/after-playing-v3.png",
+      "size": 1041998,
+      "sha256": "31ce9f95fc355f822254192905efa7e320fba6016fa68abc012030a33fbd29ba"
+    },
+    {
+      "path": "reports/screenshots/current/before-standard-playing.png",
+      "size": 612542,
+      "sha256": "c34acfa136860c6f669b52f47a02c681691fe842a589e60a3d1f2cf9c3b69d75"
+    },
+    {
+      "path": "reports/screenshots/current/before-standard-title.png",
+      "size": 870117,
+      "sha256": "ade83ba6c4acfcae04c2c1a05e5d8993cadc2a8ecf262d99c93425e691e0e2ad"
+    },
+    {
+      "path": "reports/screenshots/current/delivered-1440.png",
+      "size": 1047719,
+      "sha256": "731205d14830a34b96429e92c72144676b2e1ff76f0ee3068fccdc45c23ce427"
+    },
+    {
+      "path": "reports/screenshots/current/empty-bucket-1440.png",
+      "size": 1216440,
+      "sha256": "667c1d21b3b3552ae04d7d948c924601da1e980a4929fcba1375d2c6fee5f7f0"
+    },
+    {
+      "path": "reports/screenshots/current/experience-delivered.png",
+      "size": 1038888,
+      "sha256": "b0d3236ac1758dbcb1bbc31fc03fff222960ca32b12de4755192cc6d67079616"
+    },
+    {
+      "path": "reports/screenshots/current/experience-filled.png",
+      "size": 1084155,
+      "sha256": "e4321cd0c1b521e001aa2965a174109092b82078dfdf1fca87b0f35cb0b92c77"
+    },
+    {
+      "path": "reports/screenshots/current/experience-final-pause.png",
+      "size": 253934,
+      "sha256": "82502ad48b0e15da921902dbf9c20f3a48e5e1c8bd767e5256952d9152b4ec2c"
+    },
+    {
+      "path": "reports/screenshots/current/experience-first-start.png",
+      "size": 929541,
+      "sha256": "fe550456f9f2c14fee46197e88e54c407dc3e9984833d3926e6b81ee99f32157"
+    },
+    {
+      "path": "reports/screenshots/current/experience-pickup.png",
+      "size": 1107950,
+      "sha256": "a1a00e25ff75a45254b7e2c17279049e0c19f82db51f541d7f0917959190f5b3"
+    },
+    {
+      "path": "reports/screenshots/current/experience-settings-focus.png",
+      "size": 336809,
+      "sha256": "46b9646a84df5c389212b33bd85196b31964e8a516261d2bd7c66ad0a4a285e4"
+    },
+    {
+      "path": "reports/screenshots/current/experience-title.png",
+      "size": 1068239,
+      "sha256": "e9181681ce7796cbd5366fd27d661ede3afbd9ee6bf0f8a5400e73123d5125a0"
+    },
+    {
+      "path": "reports/screenshots/current/full-bucket-1440.png",
+      "size": 1168620,
+      "sha256": "df4b87087385bd0a705b11cf2c15c8ad2dc9219fe6eb71d3c5834d9adf049134"
+    },
+    {
+      "path": "reports/screenshots/current/playing-390x844.png",
+      "size": 274292,
+      "sha256": "04ba921c98a9c06fa883d16de6f0f11bd266fe16cd2978ec2b894654937965d8"
+    },
+    {
+      "path": "reports/screenshots/current/playing-768x1024.png",
+      "size": 621657,
+      "sha256": "5fbb3428324e2038e6391ee32aaa06a15df1e02a69a2b7f9b66719bffcfe7c81"
+    },
+    {
+      "path": "reports/screenshots/current/playing-844x390.png",
+      "size": 356644,
+      "sha256": "c472c83a6832f767439b60d1ad2b95f13a1a087f634b09c4bd4bf1b9889e1917"
+    },
+    {
+      "path": "reports/screenshots/current/reduced-motion-1440.png",
+      "size": 1044948,
+      "sha256": "adcdceb56b6b9b84cc80e5f26eeb244eb5b66112d77dd4368483efebd9157b1c"
+    },
+    {
+      "path": "reports/screenshots/current/settings-390x844.png",
+      "size": 79157,
+      "sha256": "888d92aa550c804d60b55829ebd201d59d767b7f5c86f9aebdca767c802731fe"
+    },
+    {
+      "path": "reports/screenshots/current/settings-768x1024.png",
+      "size": 146289,
+      "sha256": "248c4411b4dd5822a5e009c922d151e207daa5c517e5068e2b7ce8554d27e83d"
+    },
+    {
+      "path": "reports/screenshots/current/settings-844x390.png",
+      "size": 66139,
+      "sha256": "d44c18f86e20c87fa9b355bcea4df69d1aa381121ff57974b43c80d0f84173d5"
+    },
+    {
+      "path": "reports/screenshots/current/title-1440.png",
+      "size": 1200165,
+      "sha256": "c8fbd972b7be7463021365f6184e5e8c164e75be9971ec86bb7887d44baf0828"
+    },
+    {
+      "path": "reports/screenshots/current/title-390x844.png",
+      "size": 340917,
+      "sha256": "18b958f6eeb7f8256672c09deddbf8e570f4119df969095b1bddf2bccb9da536"
+    },
+    {
+      "path": "reports/screenshots/current/title-768x1024.png",
+      "size": 722449,
+      "sha256": "7acb59e285557e7d2fc60e87bf1d729f7fcf88008cc4e5d1589e78772ba491e3"
+    },
+    {
+      "path": "reports/screenshots/current/title-844x390.png",
+      "size": 365200,
+      "sha256": "0a148529d58f7cf1827cf830eba58381209a84f404585354ffa4dd54636602c3"
+    },
+    {
+      "path": "reports/visual-review.json",
+      "size": 4729,
+      "sha256": "bd28a5d32013826cb253637ece51e38be9017f80e521b78dc1338f3c939f0187"
+    },
+    {
+      "path": "tests/audio.test.mjs",
+      "size": 3933,
+      "sha256": "9bc8499de76ebf8ac4bffba4e43e11f7838b2267e069edcfdb923a9a98f57ae3"
+    },
+    {
       "path": "tests/collision.test.mjs",
-      "bytes": 2441,
+      "size": 2441,
       "sha256": "e0aa11ce6d5d2f2dfb6a42dd6c716621573204e527373767145a01b1cb556c6e"
     },
     {
+      "path": "tests/gameplay.test.mjs",
+      "size": 2428,
+      "sha256": "bea055ac2c462f4ad33a163d25fa0d054c49e99e1e5b521fb0d629364339bfd3"
+    },
+    {
+      "path": "tests/interactions.test.mjs",
+      "size": 4238,
+      "sha256": "a7e06877171c2f43e1f0be01544e93fb13caaed794d04dbf68e69be38734acf8"
+    },
+    {
+      "path": "tests/save.test.mjs",
+      "size": 4388,
+      "sha256": "89ed3d6994abb39386d6e7fb68a719e24d255d89a65902bd5f94cdc4d8c851b9"
+    },
+    {
       "path": "tests/ui.test.mjs",
-      "bytes": 1051,
-      "sha256": "295df6794f6094e2417e42a88fe67faf7c422e60aa0a00aa149d1ba7bb5a6451"
+      "size": 1328,
+      "sha256": "c4e778c8059d12c36e32b9a35f1b2ba748340ab4560e7b8d8873e8438d2bd36b"
+    },
+    {
+      "path": "tools/browser-check.mjs",
+      "size": 17417,
+      "sha256": "2ed9a86dc5b0f8e1a62eae9d1a21dba8cecd9ac9bc029b878455c3e3d3d423c4"
     },
     {
       "path": "tools/check-package.mjs",
-      "bytes": 1652,
-      "sha256": "c094a4057fcf69470c6004582860e059e914606cbf58d344951ef18174a0517a"
+      "size": 2389,
+      "sha256": "3cbf9cbfe817a4c357e9d325910f50b5bc42094e83db8482885e36946e9f0ccb"
     },
     {
       "path": "tools/export_scene_reference.py",
-      "bytes": 16052,
+      "size": 16052,
       "sha256": "04bb5de7fb1498987d841347c7ad54f263b4319d40f0dff25814eb732f7a6909"
     },
     {
       "path": "tools/serve.mjs",
-      "bytes": 2254,
-      "sha256": "6cf45678089c4dbe0dc7370edf8d373cc8469808ccd9a85d7eabea487787d4b3"
+      "size": 2254,
+      "sha256": "fc8eeb98049ab7562da69206ce14bf6c57d1f4ba595733dee344ae4a7443ffcd"
     },
     {
       "path": "tools/smoke.mjs",
-      "bytes": 1485,
-      "sha256": "0be6e44bf81845253fc1da24f296dce14f6b9cc0204f2659da85180c57470d5a"
+      "size": 1604,
+      "sha256": "00c2e9f187a3e78441fa205b6dfd6834611fcba52c14a7dbf2f299ccf65782c9"
     }
   ]
 }
