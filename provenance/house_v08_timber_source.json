@@ -1,0 +1,38 @@
+{
+  "source": "https://polyhaven.com/a/weathered_planks",
+  "license": "CC0-1.0",
+  "license_url": "https://polyhaven.com/license",
+  "physical_coverage_m": 2,
+  "files": [
+    {
+      "path": "weathered_planks_diff_4k.jpg",
+      "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/weathered_planks/weathered_planks_diff_4k.jpg",
+      "bytes": 9162106,
+      "sha256": "e270daa7ac5aed9d8c0f55e1bdccb219405ec581d4fabce9eda8785acf5df484",
+      "size": [
+        4096,
+        4096
+      ]
+    },
+    {
+      "path": "weathered_planks_nor_gl_4k.jpg",
+      "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/weathered_planks/weathered_planks_nor_gl_4k.jpg",
+      "bytes": 14750434,
+      "sha256": "61f8e3cf3bcdfc208f70b373883e07ce6136e96b9700d92862fbe50de4905fd7",
+      "size": [
+        4096,
+        4096
+      ]
+    },
+    {
+      "path": "weathered_planks_rough_4k.jpg",
+      "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/weathered_planks/weathered_planks_rough_4k.jpg",
+      "bytes": 3967591,
+      "sha256": "ba6a0db5c819717792d9727565259c310dd2d55a2a4996258491e8115e581bef",
+      "size": [
+        4096,
+        4096
+      ]
+    }
+  ]
+}

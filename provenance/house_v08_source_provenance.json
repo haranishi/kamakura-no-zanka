@@ -1,0 +1,9 @@
+{
+  "source": "https://polyhaven.com/a/fir_tree_01",
+  "download": "https://dl.polyhaven.org/file/ph-assets/Models/blend/2k/fir_tree_01/fir_tree_01_2k.blend",
+  "license": "CC0-1.0",
+  "license_url": "https://polyhaven.com/license",
+  "bytes": 218986513,
+  "sha1": "329a4c90bbd77f69511ad6bca90331d4b50f5650",
+  "purpose": "Inspect existing LODs; do not instance full-resolution source throughout village."
+}

@@ -1,0 +1,103 @@
+[
+  {
+    "path": "textures/forest_ground_05_diff_2k.jpg",
+    "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/forest_ground_05/forest_ground_05_diff_2k.jpg",
+    "bytes": 2760081,
+    "role": "base_color_srgb",
+    "sha256": "5a626d6512200a868a0c03bad046076ff07c60ab8ead6f4af9d5fa82c1bc09c6"
+  },
+  {
+    "path": "textures/forest_ground_05_nor_gl_2k.jpg",
+    "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/forest_ground_05/forest_ground_05_nor_gl_2k.jpg",
+    "bytes": 4830561,
+    "role": "tangent_normal_noncolor_opengl",
+    "sha256": "55f8c6675c20c69da33c6daa2052580746996441feae3de53c9b720b3b4fcc49"
+  },
+  {
+    "path": "textures/forest_ground_05_arm_2k.jpg",
+    "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/forest_ground_05/forest_ground_05_arm_2k.jpg",
+    "bytes": 3119333,
+    "role": "noncolor_R_ambient_occlusion_G_roughness_B_metallic",
+    "sha256": "698bab58ef770fa57fb96ea7256c878973532bb099492ddec5b8bbdeebe4ec1a"
+  },
+  {
+    "path": "textures/forest_ground_05_disp_2k.png",
+    "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/2k/forest_ground_05/forest_ground_05_disp_2k.png",
+    "bytes": 6604851,
+    "role": "height_noncolor_optional",
+    "sha256": "0e9bb68ff5d12d6cbed876bcf2fb1c531e43d248e1fbee7d0d266cb3d49b4f8b"
+  },
+  {
+    "path": "rock_moss_set_02/rock_moss_set_02_2k.gltf",
+    "url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/2k/rock_moss_set_02/rock_moss_set_02_2k.gltf",
+    "bytes": 11608,
+    "sha256": "d17cf3d4ea94bdc5007b249cdc2f42c8525cf312043a90c6762361ef5c03fd4a"
+  },
+  {
+    "path": "rock_moss_set_02/rock_moss_set_02.bin",
+    "url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/8k/rock_moss_set_02/rock_moss_set_02.bin",
+    "bytes": 1316572,
+    "sha256": "2df9d8eaaca4207529b0f613d4886d3962d0b9ffc0cdfd2bc4bf35dbcd391cb5"
+  },
+  {
+    "path": "rock_moss_set_02/textures/rock_moss_set_02_diff_2k.jpg",
+    "url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/2k/rock_moss_set_02/rock_moss_set_02_diff_2k.jpg",
+    "bytes": 750955,
+    "sha256": "796cbab6ee2708f443f5a57e9081ac8747c703ab035e9cf3a438147bcde187f0"
+  },
+  {
+    "path": "rock_moss_set_02/textures/rock_moss_set_02_nor_gl_2k.jpg",
+    "url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/2k/rock_moss_set_02/rock_moss_set_02_nor_gl_2k.jpg",
+    "bytes": 1000512,
+    "sha256": "5d2d7095a4ad459b40d3da2c5d9083e0735484a7df6033ac696e4379fb2e86f3"
+  },
+  {
+    "path": "rock_moss_set_02/textures/rock_moss_set_02_rough_2k.jpg",
+    "url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/2k/rock_moss_set_02/rock_moss_set_02_rough_2k.jpg",
+    "bytes": 501755,
+    "sha256": "89a178fc23de0c3df2f316a869bcd74a3c17bc646405a3ba66e4c6c51230a9e6"
+  },
+  {
+    "path": "fern_02/fern_02_2k.gltf",
+    "url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/2k/fern_02/fern_02_2k.gltf",
+    "bytes": 6899,
+    "sha256": "50540d37531f93fd693d5340d5b3095c9d6d2834fa05c74bea797d54f290cb6a"
+  },
+  {
+    "path": "fern_02/fern_02.bin",
+    "url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/8k/fern_02/fern_02.bin",
+    "bytes": 176176,
+    "sha256": "fe1abb762bcbbc7ad9e86925c8080437a62add257d9280e9142fdc85c226e64c"
+  },
+  {
+    "path": "fern_02/textures/fern_02_arm_2k.jpg",
+    "url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/2k/fern_02/fern_02_arm_2k.jpg",
+    "bytes": 850856,
+    "sha256": "1eaf9bd29e2d83a77ca5d89bdddebcd9216b8b4ba244644580fe5b89bbe713f1"
+  },
+  {
+    "path": "fern_02/textures/fern_02_diff_2k.jpg",
+    "url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/2k/fern_02/fern_02_diff_2k.jpg",
+    "bytes": 993703,
+    "sha256": "9ee18172170728050871772e2cd6d8d37b52f9138e61b49b04486623f9caf84b"
+  },
+  {
+    "path": "fern_02/textures/fern_02_nor_gl_2k.jpg",
+    "url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/2k/fern_02/fern_02_nor_gl_2k.jpg",
+    "bytes": 1365615,
+    "sha256": "dfe1ac4a428d21f7c134411500177d66b8dd800c8fec6f0040c50f44414a777b"
+  },
+  {
+    "path": "fern_02/textures/fern_02_alpha_2k.png",
+    "url": "https://dl.polyhaven.org/file/ph-assets/Models/png/2k/fern_02/fern_02_alpha_2k.png",
+    "bytes": 230089,
+    "role": "optional_alpha_noncolor",
+    "sha256": "f51eb9b8f9f4b25a882f8fe12d1ef53ba69448bac7e71396ec1f05b684e9ea75"
+  },
+  {
+    "path": "lighting/xanderklinge_2k.hdr",
+    "url": "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/2k/xanderklinge_2k.hdr",
+    "bytes": 7360207,
+    "sha256": "dbab70ec4436aa2beb40a110279c1a2c6d765680ab91bb6071d04d32db083c71"
+  }
+]

@@ -1,0 +1,59 @@
+{
+  "source": "https://polyhaven.com/a/thatch_roof_angled",
+  "license": "CC0-1.0",
+  "license_url": "https://polyhaven.com/license",
+  "physical_coverage_m": 0.5,
+  "files": [
+    {
+      "path": "thatch_roof_angled_diff_4k.jpg",
+      "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/thatch_roof_angled/thatch_roof_angled_diff_4k.jpg",
+      "bytes": 10863647,
+      "sha256": "9d7eaf754a24da9b783ff77c0e091aa20e419a9bbfbc892a60a69beb6b6b3c73",
+      "size": [
+        4096,
+        4096
+      ]
+    },
+    {
+      "path": "thatch_roof_angled_nor_gl_4k.jpg",
+      "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/thatch_roof_angled/thatch_roof_angled_nor_gl_4k.jpg",
+      "bytes": 18621203,
+      "sha256": "57f8047256153fb74d06dfce4c9f277f7bc323550d05474b5100f9a2ea1aace9",
+      "size": [
+        4096,
+        4096
+      ]
+    },
+    {
+      "path": "thatch_roof_angled_rough_4k.jpg",
+      "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/thatch_roof_angled/thatch_roof_angled_rough_4k.jpg",
+      "bytes": 7494120,
+      "sha256": "b69d5d9b5b7a24b06588327c6be4ed64cea54cc141ab876d0328efcdf8a81033",
+      "size": [
+        4096,
+        4096
+      ]
+    },
+    {
+      "path": "thatch_roof_angled_disp_4k.png",
+      "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/4k/thatch_roof_angled/thatch_roof_angled_disp_4k.png",
+      "bytes": 23517170,
+      "sha256": "c5727a73bb38f37844a4a0857e24b3e52f3d90b2516cf068d3facd5be2a2c230",
+      "size": [
+        4096,
+        4096
+      ]
+    },
+    {
+      "path": "thatch_roof_angled_disp_2k.png",
+      "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/2k/thatch_roof_angled/thatch_roof_angled_disp_2k.png",
+      "bytes": 6351189,
+      "sha256": "6cb82489299fec816ab8e2ed1edf0f2f113d2986f9b77539da28a18b05fd6eb0",
+      "size": [
+        2048,
+        2048
+      ],
+      "purpose": "Official lower-resolution height option for portable bundles; 4K original retained."
+    }
+  ]
+}
