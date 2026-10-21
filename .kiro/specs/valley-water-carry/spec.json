@@ -1,9 +1,9 @@
 {
   "feature_name": "valley-water-carry",
   "created_at": "2026-10-21T14:46:14.564968+00:00",
-  "updated_at": "2026-10-21T15:25:09.896696+00:00",
+  "updated_at": "2026-10-21T16:28:52.716266+00:00",
   "language": "ja",
-  "phase": "implementation-validated",
+  "phase": "tasks-generated",
   "approvals": {
     "requirements": {
       "generated": true,
@@ -19,12 +19,8 @@
     }
   },
   "ready_for_implementation": true,
-  "approval_basis": "ユーザーの一気通貫実行依頼と引き継ぎdocs/01〜05を継承",
-  "task_graph_review": {
-    "mode": "independent",
-    "verdict": "PASS"
-  },
-  "verification": {
+  "approval_basis": "2026-10-22の作り込みとハーネス反復の依頼、および自律実行指示を継承",
+  "verification_v17": {
     "decision": "GO",
     "unit_checks": 40,
     "node_runner_items": 25,
@@ -34,5 +30,11 @@
     "visual_score": "19/20",
     "evidence": "reports/VERIFICATION_JA.md",
     "git_delivery": "private repository created; feature branch pushed; PR and merge follow the validation gate"
+  },
+  "task_graph_review": {
+    "mode": "independent-two-passes-plus-parent-annotation-correction",
+    "independent_verdict": "NEEDS_FIXES",
+    "parent_verification": "39 requirement references covered; final missing 7.7 annotation corrected; dependencies unchanged",
+    "decision": "proceed under user autonomous execution authorization"
   }
 }

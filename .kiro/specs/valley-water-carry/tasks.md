@@ -83,3 +83,6 @@
 ## 引渡ゲート
 非公開リポジトリ haranishi/kamakura-no-zanka を作成し、private=trueを読み戻した。
 要件6.2のcommit/push/PR/mergeは依頼済み。最終状態はGitHubのPRとmerge履歴を正本とする。
+
+## v18追補
+追加作業と完了証拠は[v18-tasks.md](v18-tasks.md)で追跡する。
