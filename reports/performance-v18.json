@@ -1,0 +1,228 @@
+{
+  "schemaVersion": 1,
+  "measuredAt": "2026-10-21T17:25:33.404Z",
+  "environment": {
+    "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/155.0.0.0 Safari/537.36",
+    "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M4 Pro, Unspecified Version)",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "devicePixelRatio": 1
+  },
+  "measurements": [
+    {
+      "quality": "standard",
+      "kind": "stationary",
+      "durationMs": 8002.4545,
+      "renderedFrames": 480,
+      "sampledIntervals": 480,
+      "maxDisplacementMeters": 0,
+      "segmentPositions": [],
+      "fps": 59.98159689630225,
+      "medianMs": 16.699999999999818,
+      "p95Ms": 16.700000000000728,
+      "p99Ms": 16.800000000000182,
+      "drawCalls": 536,
+      "triangles": 1481009,
+      "environment": {
+        "triangles": 588372,
+        "draws": 24,
+        "trees": 569,
+        "terrainMaterials": 2,
+        "terrainTextures": 6,
+        "foliageTextures": 2,
+        "waterConnections": 0
+      },
+      "resources": {
+        "geometries": 584,
+        "textures": 53,
+        "programs": 31
+      },
+      "positionBefore": {
+        "x": -2.3,
+        "z": 6.4,
+        "y": 0.08766000000000024
+      },
+      "positionAfter": {
+        "x": -2.3,
+        "z": 6.4,
+        "y": 0.08766000000000024
+      }
+    },
+    {
+      "quality": "standard",
+      "kind": "moving",
+      "durationMs": 8021.776792000001,
+      "renderedFrames": 481,
+      "sampledIntervals": 481,
+      "maxDisplacementMeters": 4.200000000000007,
+      "segmentPositions": [
+        {
+          "x": -4.448446906888903,
+          "z": 2.7913420870939407,
+          "y": 0.12245715479037729
+        },
+        {
+          "x": -2.3000000000000016,
+          "z": 6.4,
+          "y": 0.08766000000000024
+        },
+        {
+          "x": -4.448554334605635,
+          "z": 2.791161645176194,
+          "y": 0.12246887095018455
+        },
+        {
+          "x": -2.300107427716737,
+          "z": 6.399819558082252,
+          "y": 0.08767618113098352
+        }
+      ],
+      "fps": 59.961778103785456,
+      "medianMs": 16.69999999999891,
+      "p95Ms": 16.799999999999272,
+      "p99Ms": 16.80000000000109,
+      "drawCalls": 535,
+      "triangles": 1480993,
+      "environment": {
+        "triangles": 588372,
+        "draws": 24,
+        "trees": 569,
+        "terrainMaterials": 2,
+        "terrainTextures": 6,
+        "foliageTextures": 2,
+        "waterConnections": 0
+      },
+      "resources": {
+        "geometries": 584,
+        "textures": 53,
+        "programs": 31
+      },
+      "positionBefore": {
+        "x": -2.3,
+        "z": 6.4,
+        "y": 0.08766000000000024
+      },
+      "positionAfter": {
+        "x": -2.300107427716737,
+        "z": 6.399819558082252,
+        "y": 0.08767618113098352
+      }
+    },
+    {
+      "quality": "light",
+      "kind": "stationary",
+      "durationMs": 8001.218250000002,
+      "renderedFrames": 480,
+      "sampledIntervals": 480,
+      "maxDisplacementMeters": 0,
+      "segmentPositions": [],
+      "fps": 59.990864516162894,
+      "medianMs": 16.700000000000728,
+      "p95Ms": 16.700000000000728,
+      "p99Ms": 16.799999999999272,
+      "drawCalls": 535,
+      "triangles": 1269843,
+      "environment": {
+        "triangles": 377206,
+        "draws": 24,
+        "trees": 334,
+        "terrainMaterials": 2,
+        "terrainTextures": 6,
+        "foliageTextures": 2,
+        "waterConnections": 0
+      },
+      "resources": {
+        "geometries": 584,
+        "textures": 53,
+        "programs": 51
+      },
+      "positionBefore": {
+        "x": -2.300107427716737,
+        "z": 6.399819558082252,
+        "y": 0.08767618113098352
+      },
+      "positionAfter": {
+        "x": -2.300107427716737,
+        "z": 6.399819558082252,
+        "y": 0.08767618113098352
+      }
+    },
+    {
+      "quality": "light",
+      "kind": "moving",
+      "durationMs": 8018.943290999996,
+      "renderedFrames": 481,
+      "sampledIntervals": 481,
+      "maxDisplacementMeters": 4.1997900000000055,
+      "segmentPositions": [
+        {
+          "x": -4.44855433460564,
+          "z": 2.791161645176188,
+          "y": 0.12246887095018488
+        },
+        {
+          "x": -2.2821669990227837,
+          "z": 6.4299533583450295,
+          "y": 0.08916949344482791
+        },
+        {
+          "x": -4.4307213336284,
+          "z": 2.821115003521209,
+          "y": 0.12061206412017678
+        },
+        {
+          "x": -2.282274426739509,
+          "z": 6.429772916427281,
+          "y": 0.08915897440778231
+        }
+      ],
+      "fps": 59.98296565332329,
+      "medianMs": 16.69999999999709,
+      "p95Ms": 16.799999999995634,
+      "p99Ms": 16.80000000000291,
+      "drawCalls": 534,
+      "triangles": 1269827,
+      "environment": {
+        "triangles": 377206,
+        "draws": 24,
+        "trees": 334,
+        "terrainMaterials": 2,
+        "terrainTextures": 6,
+        "foliageTextures": 2,
+        "waterConnections": 0
+      },
+      "resources": {
+        "geometries": 584,
+        "textures": 53,
+        "programs": 51
+      },
+      "positionBefore": {
+        "x": -2.300107427716737,
+        "z": 6.399819558082252,
+        "y": 0.08767618113098352
+      },
+      "positionAfter": {
+        "x": -2.282274426739509,
+        "z": 6.429772916427281,
+        "y": 0.08915897440778231
+      }
+    }
+  ],
+  "qualitySwitchResources": {
+    "warm": {
+      "geometries": 584,
+      "textures": 53,
+      "programs": 56
+    },
+    "after": {
+      "geometries": 584,
+      "textures": 53,
+      "programs": 56
+    },
+    "passed": true
+  },
+  "browserErrors": [],
+  "limits": "Headless Chrome on this Mac only. Frame intervals cover the stated 8-second stationary and W/S walking segments. No physical phone or Safari result is inferred."
+}

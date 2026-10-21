@@ -5,7 +5,7 @@ const steps={
  full:{action:'deliver',next:'delivered',objective:'縁側の苗床へ水を届ける',inventory:'水入りの桶',notice:'苗床に水が届きました。次は水路の落枝を除きましょう'},
  delivered:{action:'clear',next:'irrigated',objective:'水路の落枝を取り除く',inventory:'なし',notice:'水路に流れが戻りました。縁側に灯をともそう'},
  irrigated:{action:'light',next:'restored',objective:'縁側の灯をともす',inventory:'なし',notice:'水と灯が戻りました。今日のしごとは、ここまで'},
- restored:{objective:'水と灯が戻りました。庭を散策できます',inventory:'なし'}
+ restored:{objective:'しごとは完了。庭を歩けます',inventory:'なし'}
 };
 const stages=Object.freeze(Object.keys(steps));
 export function initialState(){return{stage:'bucket'};}

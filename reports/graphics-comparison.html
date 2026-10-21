@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="ja">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>残火の鎌倉 — v17 / v18 画面比較</title>
+<style>
+:root{color-scheme:dark;font-family:system-ui,sans-serif;background:#16201c;color:#eee9dc}body{margin:0;padding:clamp(18px,4vw,48px);max-width:1440px;margin:auto}h1{font:400 clamp(24px,3vw,38px)/1.5 'Yu Mincho',serif;margin:0 0 12px}p{color:#c3c9bd;line-height:1.8;font-size:14px}nav{display:flex;gap:8px;flex-wrap:wrap;margin:22px 0}button{font:inherit;padding:10px 20px;color:inherit;background:#25352d;border:1px solid #75816e;cursor:pointer}button[aria-pressed=true]{background:#54624a;border-color:#dbc69b}button:focus-visible,input:focus-visible{outline:3px solid #e6c78a;outline-offset:4px}.compare{position:relative;aspect-ratio:8/5;border:1px solid #75816e;overflow:hidden;background:#101915}.compare img{position:absolute;width:100%;height:100%;object-fit:contain;inset:0}.compare #after{clip-path:inset(0 0 0 50%)}.divider{position:absolute;height:100%;width:2px;background:#eee5cd;left:50%;pointer-events:none}.labels{display:flex;justify-content:space-between;font-size:12px;letter-spacing:.1em;margin:12px 0}.range{display:flex;align-items:center;gap:16px;margin-top:20px}input{width:100%;accent-color:#d8c095;min-height:44px}small{color:#b7c1b1;line-height:1.8}output{min-width:4em;text-align:right}
+</style>
+<h1>庭に、水と灯が戻る。</h1>
+<p>同じ立ち位置・画角で、v17とv18を比較します。スライダーを動かすと、土・木立・山・水面の変化を確認できます。</p>
+<nav aria-label="比べる画角"><button data-view="start" aria-pressed="true">庭の全景</button><button data-view="ground-detail" aria-pressed="false">土の寄り</button><button data-view="water-detail" aria-pressed="false">水路</button></nav>
+<div class="labels"><span>← v17・改善前</span><span>v18・改善後 →</span></div>
+<div class="compare"><img id="before" src="screenshots/v18-before/start.png" alt="v17の庭の全景"><img id="after" src="screenshots/v18-after/start.png" alt="v18の庭の全景"><i class="divider" aria-hidden="true"></i></div>
+<div class="range"><label for="split">比較位置</label><input id="split" type="range" min="0" max="100" value="50"><output id="percent" for="split">50%</output></div>
+<p><a href="VERIFICATION_JA.md" style="color:#dbc69b">検証記録</a> · <a href="../README_START_HERE.md" style="color:#dbc69b">起動方法</a></p>
+<small>標準品質、1440×900。固定画像の比較です。水面末端の継ぎ目は残件です。歩行・保存・入力・性能は検証記録で確認できます。</small>
+<script>
+const split=document.querySelector('#split'),after=document.querySelector('#after'),before=document.querySelector('#before');
+split.addEventListener('input',()=>{after.style.clipPath='inset(0 0 0 '+split.value+'%)';document.querySelector('.divider').style.left=split.value+'%';document.querySelector('#percent').value=split.value+'%';});
+for(const button of document.querySelectorAll('[data-view]'))button.addEventListener('click',()=>{for(const item of document.querySelectorAll('[data-view]'))item.setAttribute('aria-pressed',String(item===button));before.src='screenshots/v18-before/'+button.dataset.view+'.png';after.src='screenshots/v18-after/'+button.dataset.view+'.png';before.alt='v17の'+button.textContent;after.alt='v18の'+button.textContent;});
+</script>
+</html>

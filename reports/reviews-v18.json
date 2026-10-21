@@ -1,0 +1,41 @@
+{
+  "version": 18,
+  "taskGraph": {
+    "independentPasses": 2,
+    "verdict": "NEEDS_FIXES",
+    "parentCorrection": "Missing 7.7 reference corrected; mechanical coverage 39/39; no third independent review"
+  },
+  "reviews": [
+    {
+      "task": "9",
+      "verdict": "APPROVED",
+      "checks": "15 pure gameplay/save/life checks; RED evidence reviewed"
+    },
+    {
+      "task": "11",
+      "verdict": "APPROVED",
+      "checks": "14 audio checks; reversed async completion and three mutation failures verified"
+    },
+    {
+      "task": "10/13",
+      "initial": "REJECTED: held J followed by Tab kept rotating",
+      "correction": "focusin clears held input",
+      "verdict": "APPROVED",
+      "checks": "Independent Chrome J/W + Tab 350ms: yaw, pitch and position unchanged"
+    },
+    {
+      "task": "12",
+      "initial": "REJECTED: water endpoint seam remains",
+      "finalTask": "12.1 only",
+      "verdict": "APPROVED",
+      "checks": "Six final images, 8 asset hashes, budgets and r180 shaders; experimental water extension removed",
+      "excluded": "Task 12.2 endpoint seam remains unresolved"
+    },
+    {
+      "task": "14.1",
+      "verdict": "EVALUATED",
+      "checks": "Independent experience 17/20 and UI 17/20; targeted experience corrections verified, no rescoring",
+      "excluded": "Strict UI gate pending native select keyboard confirmation in task 14.2"
+    }
+  ]
+}
