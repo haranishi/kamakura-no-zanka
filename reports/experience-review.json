@@ -1,0 +1,217 @@
+{
+  "kind": "independent-experience-review",
+  "startedAt": "2026-10-21T15:11:40.102Z",
+  "finishedAt": "2026-10-21T15:17:05.883Z",
+  "durationSeconds": 325.8,
+  "environment": {
+    "browser": "155.0.8059.85",
+    "platform": "darwin",
+    "headless": true,
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "qualities": [
+      "standard",
+      "light"
+    ],
+    "audioListening": "実聴は未評価。Web Audio状態とvoice数を観測",
+    "fps": "未測定"
+  },
+  "scope": "実装者とは別の読取体験評価。コード・Git変更なし。最終の視覚評価は描画調整後に別途行う。",
+  "method": "通常のW/S・ドラッグ・E・Esc・Tab/Enterと画面ボタンで二周。既存browser-checkの経路座標を再利用。QAは状態観測だけでteleport/move/保存seedなし。操作・画像確認を交互に実施した経過時間。",
+  "scores": [
+    {
+      "item": "初見の理解",
+      "score": 2,
+      "evidence": "タイトルに桶→井戸→配達の短文と庭へ入る。開始後はWASD/E/Escと最初の目的が明示。最初の操作記録35秒には読み込み・撮影を含む。"
+    },
+    {
+      "item": "コアループ",
+      "score": 2,
+      "evidence": "通常操作で取得→給水→配達を二周。二周目も同じ入力で正しく進行した。"
+    },
+    {
+      "item": "操作の手応え",
+      "score": 2,
+      "evidence": "W/Sとドラッグが追従。E長押しとrepeat7回でも給水一遷移のみ。Tab/Enterでメニューを操作できた。"
+    },
+    {
+      "item": "フィードバック",
+      "score": 2,
+      "evidence": "取得・給水・配達の文と所持、桶の水面、三段階表示が同期。範囲外Eには近づいて向く案内を表示。"
+    },
+    {
+      "item": "導入と難易度",
+      "score": 2,
+      "evidence": "一枠所持と三段階だけで説明が短い。初回取得後も次の目的・距離・方向が更新され、複雑な操作を要求しない。"
+    },
+    {
+      "item": "失敗の納得感",
+      "score": 2,
+      "evidence": "範囲外Eは進行せず、対象へ近づいて向く案内。やり直しは進行消去の確認と取消がある。"
+    },
+    {
+      "item": "目標の見える化",
+      "score": 2,
+      "evidence": "取得後は井戸東側、給水後は縁側前の目印と距離・矢印が更新。配達後は完ともう一度が表示。"
+    },
+    {
+      "item": "やり直しやすさ",
+      "score": 2,
+      "evidence": "キャンセルは完了保持。確認後は開始点・桶・目的を初期化し音・画質設定保持。Rは進行保持で位置だけ戻る。"
+    },
+    {
+      "item": "継続利用",
+      "score": 1,
+      "evidence": "二周後も散策・再挑戦は妨げられない。同じ短い仕事を繰り返す範囲で、成長や新目標は今回仕様の対象外。"
+    },
+    {
+      "item": "進行の信頼性",
+      "score": 2,
+      "evidence": "満水で再読込後に所持・目的・設定を復元。停止中W/Eは無効、W保持から停止復帰しても入力残留なし。二周と道の往復で進行不能なし。"
+    }
+  ],
+  "total": 19,
+  "max": 20,
+  "verdict": "PASS",
+  "findings": [],
+  "top5": [],
+  "observations": {
+    "runtimeErrors": [],
+    "pauseMovementStable": true,
+    "pauseInteractionStable": true,
+    "pauseClockStable": true,
+    "pauseAudio": "suspended、voices=0",
+    "resumeNoResidualInput": true,
+    "settingsFocus": "sensitivityに2pxのoutline。フォーカス中W/E/R/Hでゲームが動かずTabでmenu-button、Enterで開けた。",
+    "audio": "操作前uninitialized/unlocked=false、給水でrunning/voice=1、停止時suspended/0、ミュート保存後再読込でmuted=true、解除後散策でrunning/voice=1。",
+    "save": "empty/full/delivered保存、満水再読込で進行と設定復元。",
+    "hud": "デスクトップHでHUDとメニューボタンを隠すが、Escでメニュー/Hで再表示できた。"
+  },
+  "limitations": [
+    "headlessでは別タブbringToFront後も元ページvisibility=visibleのため、本当のタブ離脱・OSフォーカス喪失の停止は未確認。手動blurイベントを成功証拠に使っていない。",
+    "今回は1440x900のデスクトップ体験のみ。タッチ・390/768幅・Safari・スマートフォン実機・聴感・FPSは未評価。",
+    "既知の経路座標を通常操作で辿ったため、初見の無誘導な探索時間は測定していない。",
+    "environment.js調整中につき最終の視覚採点は別途。"
+  ],
+  "timeline": [
+    {
+      "seconds": 35,
+      "event": "Enterで庭へ入り、W移動/Eを試す。範囲外Eでは進行しない",
+      "stage": "bucket",
+      "mode": "playing"
+    },
+    {
+      "seconds": 78,
+      "event": "通常W移動とドラッグで桶へ。E取得で目的・所持・保存が更新",
+      "stage": "empty",
+      "mode": "playing"
+    },
+    {
+      "seconds": 80,
+      "event": "Wを押したままEsc→E→閉じる。停止中と復帰後の入力残留なし",
+      "stage": "empty",
+      "mode": "playing"
+    },
+    {
+      "seconds": 136,
+      "event": "井戸東側からE長押しとrepeat。満水の一遷移だけ進む",
+      "stage": "full",
+      "mode": "playing"
+    },
+    {
+      "seconds": 137,
+      "event": "設定の範囲入力へフォーカス、W/E/R/Hでゲームが誤発火しない",
+      "stage": "full",
+      "mode": "paused"
+    },
+    {
+      "seconds": 139,
+      "event": "再読込後に満水・ミュート・軽量・感度が復元、タイトルでは無音",
+      "stage": "full",
+      "mode": "title"
+    },
+    {
+      "seconds": 139,
+      "event": "つづきから安全な開始点へ。満水の所持と目的を保持",
+      "stage": "full",
+      "mode": "playing"
+    },
+    {
+      "seconds": 197,
+      "event": "通常操作で井戸の南側を回り配達。一周達成、所持解除と完の表示",
+      "stage": "delivered",
+      "mode": "playing"
+    },
+    {
+      "seconds": 197,
+      "event": "達成後Rで開始点へ。完了進行と配達配置を保持",
+      "stage": "delivered",
+      "mode": "playing"
+    },
+    {
+      "seconds": 197,
+      "event": "最初からやり直すをキャンセル。完了は保持",
+      "stage": "delivered",
+      "mode": "paused"
+    },
+    {
+      "seconds": 197,
+      "event": "タイトルへ戻ると音停止、つづきからを表示",
+      "stage": "delivered",
+      "mode": "title"
+    },
+    {
+      "seconds": 197,
+      "event": "達成HUDのもう一度→確認で桶・所持・目的・位置を初期化、設定は保持",
+      "stage": "bucket",
+      "mode": "playing"
+    },
+    {
+      "seconds": 244,
+      "event": "二周目も通常操作で桶を取得",
+      "stage": "empty",
+      "mode": "playing"
+    },
+    {
+      "seconds": 245,
+      "event": "二周目の給水。リセット後の対話が再び有効",
+      "stage": "full",
+      "mode": "playing"
+    },
+    {
+      "seconds": 250,
+      "event": "二周目を通常操作で配達まで完了、詰まりなし",
+      "stage": "delivered",
+      "mode": "playing"
+    },
+    {
+      "seconds": 252,
+      "event": "別タブ操作を試行。headlessでvisibilityが変わらず、実離脱停止は未確認",
+      "stage": "delivered",
+      "mode": "playing"
+    },
+    {
+      "seconds": 310,
+      "event": "TabでメニューにフォーカスしEnterで開く。ミュート解除と標準品質へ戻す",
+      "stage": "delivered",
+      "mode": "playing"
+    },
+    {
+      "seconds": 325,
+      "event": "達成後も道を往復し見回し・後退。衝突や操作不能なし",
+      "stage": "delivered",
+      "mode": "playing"
+    }
+  ],
+  "images": [
+    "reports/screenshots/current/experience-title.png",
+    "reports/screenshots/current/experience-first-start.png",
+    "reports/screenshots/current/experience-pickup.png",
+    "reports/screenshots/current/experience-filled.png",
+    "reports/screenshots/current/experience-settings-focus.png",
+    "reports/screenshots/current/experience-delivered.png",
+    "reports/screenshots/current/experience-final-pause.png"
+  ]
+}

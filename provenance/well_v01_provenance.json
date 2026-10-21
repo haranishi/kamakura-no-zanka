@@ -1,0 +1,31 @@
+{
+  "source_drive_url": "https://drive.google.com/file/d/1AWMmVnugL0BiQ5kdbC5kDztyf5_jToey/view",
+  "source_zip": "01_kamakura_models.zip",
+  "original_asset": "models/timber_well.glb",
+  "object_node": "timber_well",
+  "mesh_name": "Icosphere.030",
+  "triangles_verified": 2048,
+  "gltf_vertices": 3947,
+  "material_count": 5,
+  "embedded_images": 2,
+  "has_uv_all_primitives": true,
+  "external_dependencies": [],
+  "sha256": "1a476ceb028f708c3cc16e8415acb7451aa7a05c0409f01480a47e87ddfa24c0",
+  "coordinate_system": "GLB Y-up, Blender importer converts to Z-up; metre unit",
+  "dimensions_blender_xyz_m": [
+    3.13,
+    1.95,
+    3.159
+  ],
+  "bounds_min_blender": [
+    -1.585,
+    -0.9821,
+    -0.0726
+  ],
+  "bounds_max_blender": [
+    1.545,
+    0.9676,
+    3.0868
+  ],
+  "placement_note": "Origin ground centre; lower stones extend 0.0726 m below ground as intended. Import without scale conversion."
+}

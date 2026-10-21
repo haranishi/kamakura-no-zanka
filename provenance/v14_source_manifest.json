@@ -1,0 +1,44 @@
+{
+  "project": "残火の鎌倉",
+  "review_version": "v14",
+  "sources": [
+    {
+      "asset": "farmhouse",
+      "file": "House_Grass_v08_Editable.blend"
+    },
+    {
+      "asset": "irrigation, path and paddy",
+      "file": "Kamakura_Waterway_Path_v09_Editable.blend"
+    },
+    {
+      "asset": "well",
+      "file": "models/timber_well.glb",
+      "drive_url": "https://drive.google.com/file/d/1AWMmVnugL0BiQ5kdbC5kDztyf5_jToey/view"
+    },
+    {
+      "asset": "daily props",
+      "file": "Kamakura_Daily_Props_v10_Editable.blend"
+    },
+    {
+      "asset": "farm tools",
+      "file": "kamakura_farm_props_v12.blend"
+    },
+    {
+      "asset": "water utensils",
+      "file": "kamakura_water_utensils_v13.blend"
+    }
+  ],
+  "changes_in_review_copy": [
+    "Unified 1 Blender unit = 1 metre. No uniform scaling of source models.",
+    "Added connecting yard and closed cut terrain sides; adjusted placements and cameras.",
+    "Exact-byte deduplication of 35 duplicate packed images.",
+    "Review copy caps 10 inherited 4k textures at 2k. Original source assets unchanged."
+  ],
+  "excluded": [
+    "v11 hearth: no interior integration in this exterior review",
+    "characters",
+    "fish",
+    "whole settlement",
+    "game-engine integration"
+  ]
+}

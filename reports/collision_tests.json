@@ -1,0 +1,50 @@
+{
+  "passed": 11,
+  "failed": 0,
+  "tests": [
+    {
+      "name": "Source-ground start is valid",
+      "passed": true
+    },
+    {
+      "name": "Unobstructed path movement",
+      "passed": true
+    },
+    {
+      "name": "House and porch stop a swept approach",
+      "passed": true
+    },
+    {
+      "name": "Well blocks approach without roof-overhang collider",
+      "passed": true
+    },
+    {
+      "name": "West scene boundary prevents escape",
+      "passed": true
+    },
+    {
+      "name": "Channel bank prevents entering water",
+      "passed": true
+    },
+    {
+      "name": "South and north cut edges block walking",
+      "passed": true
+    },
+    {
+      "name": "A large frame cannot tunnel through well",
+      "passed": true
+    },
+    {
+      "name": "Wall sliding preserves tangential movement",
+      "passed": true
+    },
+    {
+      "name": "Ground stays attached along 17m of road",
+      "passed": true
+    },
+    {
+      "name": "Raised >22cm steps are blocked",
+      "passed": true
+    }
+  ]
+}

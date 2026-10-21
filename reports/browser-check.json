@@ -1,0 +1,139 @@
+{
+  "startedAt": "2026-10-21T15:18:23.601Z",
+  "durationSeconds": 46.968,
+  "browser": "Google Chrome, headless on macOS",
+  "checks": [
+    {
+      "name": "no autoplay before a user gesture",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "name": "out-of-range operation is rejected",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "name": "walk with W and mouse drag to pick up all 39 bucket nodes",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "name": "held and repeated E does not skip stages",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "name": "fill from the safe east side of the well",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "name": "carry along a continuous safe path and deliver with normal controls",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "name": "R resets position while preserving progress",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "name": "pause stops movement, interactions, time and audio",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "name": "cancel restart keeps the completed state",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "name": "confirmed restart restores the bucket and position",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "name": "restart saves a consistent initial state",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "name": "restore, pause, title, continue and R at bucket",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "name": "restore, pause, title, continue and R at empty",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "name": "restore, pause, title, continue and R at full",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "name": "restore, pause, title, continue and R at delivered",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "name": "corrupt JSON, null, array, future schema and invalid stages recover safely",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "name": "blocked Web Audio reports a reason and keeps the game available",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "name": "quota refusal keeps all three session transitions usable and visible",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "name": "touch movement, drag, HUD recovery, interaction, settings and no overflow at 390x844",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "name": "touch movement, drag, HUD recovery, interaction, settings and no overflow at 768x1024",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "name": "touch movement, drag, HUD recovery, interaction, settings and no overflow at 844x390",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "name": "visible keyboard focus, both quality modes and reduced-motion media setting",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "name": "blur event pauses and clears input without automatic resume",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "name": "storage read refusal opens a playable initial state with a reason",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "name": "WebGL refusal exposes an accessible retry screen (expected renderer error)",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "name": "QA hooks are absent from the normal URL",
+      "passed": true,
+      "details": ""
+    }
+  ],
+  "browserErrors": [],
+  "failure": null
+}

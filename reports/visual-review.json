@@ -1,0 +1,87 @@
+{
+  "kind": "independent-web-ui-review",
+  "verdict": "PASS",
+  "total": 19,
+  "max": 20,
+  "gate": "16点以上、0点なし",
+  "imagesViewed": [
+    "reports/screenshots/current/title-1440.png",
+    "reports/screenshots/current/delivered-1440.png",
+    "reports/screenshots/current/playing-390x844.png",
+    "reports/screenshots/current/playing-768x1024.png",
+    "reports/screenshots/current/settings-390x844.png",
+    "reports/screenshots/current/playing-844x390.png"
+  ],
+  "method": "指定の最新6画像をview_imageで実見。操作・フォーカス・反応は同評価者の325.8秒の実操作を併用。測定はperformance.json、回帰の範囲はbrowser-check.jsonを直接読んで確認。",
+  "scores": [
+    {
+      "item": "3秒理解",
+      "score": 2,
+      "evidence": "1440pxタイトルで庭へ入るが明確。水を届ける短文があり、390/768/844pxのプレイ画面でも次の目的と対話ボタンが読める。"
+    },
+    {
+      "item": "視覚階層",
+      "score": 2,
+      "evidence": "タイトルは作品名から説明、開始へ流れる。ゲーム中は左上の目的、右上のメニュー、中央下の対話、右下の所持に役割を分けている。"
+    },
+    {
+      "item": "配色",
+      "score": 2,
+      "evidence": "墨緑の面と淡い文字、金色の境界・フォーカス、朱の選択表示が一貫。達成・所持・操作内容は色だけでなく文言でも伝わる。"
+    },
+    {
+      "item": "余白と整列",
+      "score": 2,
+      "evidence": "390pxの地名は上部の短い面へ収まり、目的と重ならない。設定は画面内に全項目が並び、844x390横向きでも対話・方向ボタン・所持が重ならない。"
+    },
+    {
+      "item": "タイポグラフィ",
+      "score": 2,
+      "evidence": "作品名、目的、本文、操作補助の大きさが区別されている。390px設定と完了文にも不自然な切断や欠けは見当たらない。"
+    },
+    {
+      "item": "モバイル",
+      "score": 2,
+      "evidence": "390x844・768x1024・844x390の画像で主要操作が画面内。横はみ出しなしとタッチ移動・ドラッグ・対話はbrowser-check.jsonの対応3画面で成功記録。"
+    },
+    {
+      "item": "CTA・導線",
+      "score": 2,
+      "evidence": "庭へ入る、メニュー、桶を拾う、もう一度、水を運ぶが各状態で明示。評価者自身も二周とキャンセル・確認・タイトル復帰を通常操作で完了。"
+    },
+    {
+      "item": "一貫性",
+      "score": 2,
+      "evidence": "タイトル・HUD・タッチ対話・設定で明朝系文字、半透明の墨緑、細い境界、控えめな金・朱を共有し、元3D素材と和風UIの方向を保っている。"
+    },
+    {
+      "item": "アクセシビリティ",
+      "score": 1,
+      "evidence": "実操作でTabの2pxフォーカス、Enterのメニュー起動、設定入力中のゲーム停止を確認。browser-checkにはreduced-motionとWebGL失敗時の再試行画面の成功記録。正式なコントラスト測定とスクリーンリーダー・実機の評価は未実施。"
+    },
+    {
+      "item": "体感速度",
+      "score": 2,
+      "evidence": "325.8秒の実操作で移動・対話・メニューが応答。macOS 27.0.1、Chrome 155 headless、Apple M4 ProのANGLE Metal、1440x900、暖機後の静止プレイ各8秒では標準60.07fps・軽量60.09fps。実機スマートフォンや長時間負荷への一般化はしていない。"
+    }
+  ],
+  "findings": [],
+  "top5": [],
+  "runtime": {
+    "independentExperienceErrors": 0,
+    "browserCheckFailure": null,
+    "browserCheckErrors": [],
+    "performanceMethod": "Stationary playing scene, warmed shaders, 8 seconds per quality; concurrent review Chrome was running",
+    "performanceSource": "reports/performance.json",
+    "browserCheckSource": "reports/browser-check.json",
+    "experienceSource": "reports/experience-review.json"
+  },
+  "limits": [
+    "背景の山・木立は手続き生成による表現。既存GLBの全体再生成や素材の全面刷新を行った評価ではない。",
+    "今回実見したのは指定6画面。すべての画角・照明・端末状態を網羅したものではない。",
+    "モバイル画像・タッチはChromeのエミュレーション。スマートフォン実機、Safari、支援技術、音の聴感は未確認。",
+    "FPSは記載されたMac・headless・静止場面・暖機後各8秒の測定。低性能端末、移動中の最悪値、起動時間の正式計測ではない。"
+  ],
+  "productCodeChanged": false,
+  "gitOperations": false
+}

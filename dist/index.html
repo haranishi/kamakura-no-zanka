@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#171d1b"><title>残火の鎌倉 | 隠れ谷の灯</title>
+<meta name="description" content="山霧の谷を歩き、一杯の水を届ける。中世の暮らしを訪ねる、小さな3D体験。">
+<link rel="icon" href="data:,"><link rel="stylesheet" href="./style.css">
+<script type="importmap">{"imports":{"three":"./vendor/three.module.min.js","three/addons/":"./vendor/"}}</script>
+</head>
+<body data-state="loading">
+<main tabindex="-1" id="view" aria-label="農家の庭を歩く3Dシーン"></main>
+<div class="scene-shade" aria-hidden="true"></div>
+<section id="title-screen" class="title-screen hidden" aria-label="タイトル画面">
+  <div class="title-content"><div class="title-kicker"><span class="seal" aria-hidden="true">残火</span><span>序章　隠れ谷の灯</span></div>
+  <h1>残火の鎌倉</h1><p class="title-english" aria-hidden="true">THE EMBERS OF KAMAKURA</p><p class="title-subtitle">帰る場所に、もう一度、灯を。</p>
+  <p class="title-story">山あいの庭に、ひとつのしごと。<br>桶を手に取り、井戸の水を届けよう。</p><nav class="title-nav" aria-label="メインメニュー"><button id="start" class="menu-link primary-link"><span id="start-label">庭へ入る</span><span aria-hidden="true">→</span></button><button data-open="controls" class="menu-link">歩き方</button><button data-open="settings" class="menu-link">設定</button></nav>
+  </div><div class="title-footer"><span>信濃・隠れ谷 <span class="fiction-note">架空の谷を舞台にした体験</span></span><span>一杯の水から、暮らしが戻る。 <i>17</i></span></div>
+</section>
+<section id="loading" class="loading-screen" aria-live="polite"><div class="load-mark" aria-hidden="true"><span></span></div><p class="load-kicker">残火の鎌倉</p><h2 id="load-title">風景をひらいています</h2><p id="load-text">3Dモデルを読み込んでいます</p><div id="progress-track" class="progress" role="progressbar" aria-label="読み込み" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i id="load-bar"></i></div><p id="load-note" class="load-note">初回は約20MBのモデルを読み込みます</p><button id="retry" class="solid-button hidden">もう一度読み込む</button></section>
+<div id="hud" class="hud hidden">
+  <button id="menu-button" class="hud-menu" aria-label="一時停止メニューを開く"><span class="menu-glyph" aria-hidden="true"></span><span>メニュー</span><kbd>Esc</kbd></button>
+  <div class="place"><span class="place-line" aria-hidden="true"></span><div><small>隠れ谷</small><p id="location-label">水路沿いの道</p></div></div>
+  <div id="control-hint" class="control-hint"><span class="desktop-hint"><kbd>W A S D</kbd> 歩く <b>·</b> マウス 見回す <b>·</b> <kbd>E</kbd> 調べる <b>·</b> <kbd>Esc</kbd> メニュー</span><span class="touch-hint">方向ボタンで歩く <b>·</b> 画面をドラッグして見回す</span></div>
+  <button id="look" class="look-button hidden">クリックでマウス視点</button>
+</div>
+<section id="quest-hud" class="quest-hud hidden" aria-label="水運びの目的">
+  <div class="quest-heading"><span id="quest-label">今日のしごと</span><span id="quest-step">一 / 三</span></div>
+  <p id="objective-text">庭に置かれた桶を拾う</p>
+  <div id="destination" class="destination"><span id="destination-needle" aria-hidden="true">↑</span><span id="destination-text">桶</span></div>
+  <button id="quest-again" class="text-button hidden">もう一度、水を運ぶ →</button>
+</section>
+<div id="quest-status" class="sr-only" role="status" aria-live="polite"></div>
+<div id="inventory" class="inventory is-empty" aria-label="持ち物"><svg width="26" height="30" viewBox="0 0 26 30" fill="none" aria-hidden="true"><path d="M4 12h18l-2 15H6L4 12Z M8 12V7a5 5 0 0 1 10 0v5 M5 17h16M6 24h14" stroke="currentColor" stroke-width="1.2"/></svg><span><small>持ち物</small><span id="inventory-text">なし</span></span></div>
+<button id="interaction" class="interaction hidden" aria-label="目の前の対象を操作"><kbd>E</kbd><span id="interaction-text">桶を拾う</span><span class="interaction-dot" aria-hidden="true"></span></button>
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+<div id="touch-controls" class="touch-controls hidden" aria-label="移動"><button data-move="forward" aria-label="前へ">↑</button><button data-move="left" aria-label="左へ">←</button><button data-move="back" aria-label="後ろへ">↓</button><button data-move="right" aria-label="右へ">→</button></div>
+<dialog id="pause-dialog" aria-labelledby="dialog-title"><div class="dialog-top"><div><p class="section-kicker" id="dialog-kicker">散策をひと休み</p><h2 id="dialog-title">ひと休み</h2></div><button id="dialog-close" class="icon-button" aria-label="閉じる">×</button></div>
+  <div class="dialog-layout"><nav class="dialog-nav" aria-label="メニューの項目"><button id="resume" class="resume-button">散策をつづける <span aria-hidden="true">→</span></button><button data-panel="controls">歩き方</button><button data-panel="settings">設定</button><div class="nav-divider"></div><button id="reset">出発点に戻る</button><button id="restart-game">最初からやり直す</button><button id="to-title">タイトルへ</button></nav>
+  <div class="dialog-main"><section id="panel-rest" class="menu-panel"><span class="scene-number">一</span><p class="rest-title">一杯の水を、庭へ。</p><p class="rest-copy">桶を拾い、井戸で水をくむ。<br>縁側の前の、小さな目印へ。<br>しごとの後は、気ままに歩こう。</p><div id="restart-confirm" class="restart-confirm hidden"><p>水運びを最初からやり直しますか？</p><small>現在の進行を消して、桶と出発点を戻します。表示と音の設定は保持します。</small><div><button id="cancel-restart" class="solid-button">つづける</button><button id="confirm-restart" class="solid-button">最初からやり直す</button></div></div><div class="scope-note"><span>今回歩ける場所</span><p>庭と水路沿いの道。建物の中・縁側・田・水路は対象外です。</p></div></section>
+  <section id="panel-controls" class="menu-panel hidden"><h3>歩き方</h3><dl class="key-list"><div><dt><kbd>W A S D</kbd><small>または矢印キー</small></dt><dd>歩く</dd></div><div><dt>マウス</dt><dd>見回す</dd></div><div><dt><kbd>E</kbd><small>タッチは画面の操作ボタン</small></dt><dd>拾う・くむ・届ける</dd></div><div><dt><kbd>Shift</kbd></dt><dd>少し速く歩く</dd></div><div><dt><kbd>Esc</kbd></dt><dd>一時停止・メニュー</dd></div><div><dt><kbd>R</kbd></dt><dd>出発点に戻る</dd></div><div><dt><kbd>H</kbd></dt><dd>画面表示を隠す／戻す</dd></div></dl><p class="panel-note">マウス固定が使えないときは、画面をドラッグして見回せます。スマートフォンは方向ボタンで移動します。</p><p class="scope-inline">縁側の段差は登れません。ジャンプや室内探索はありません。</p></section>
+  <section id="panel-settings" class="menu-panel hidden"><h3>設定</h3><div class="setting-row"><label for="quality">描画品質<small>標準は自然光と影。重い場合は軽量へ</small></label><select id="quality"><option value="light">軽量</option><option value="standard">標準</option></select></div><div class="setting-row range-row"><label for="sensitivity">視点の速さ</label><output id="sensitivity-value" for="sensitivity">1.0</output><input id="sensitivity" type="range" min="0.4" max="2" step="0.1" value="1"></div><div class="setting-row range-row"><label for="fov">視野角</label><output id="fov-value" for="fov">65°</output><input id="fov" type="range" min="55" max="85" step="5" value="65"></div><label class="check-row"><span>上下の視点を反転</span><input id="invert" type="checkbox"></label><label class="check-row"><span>地名とメニューを表示</span><input id="show-hud" type="checkbox" checked></label><label class="check-row"><span>操作のヒントを表示</span><input id="show-hints" type="checkbox" checked></label><label class="check-row"><span>音を消す</span><input id="mute" type="checkbox"></label><button id="defaults" class="text-button">設定を初期値に戻す</button><p class="setting-note">進行と設定は、このブラウザに自動保存されます</p></section></div></div><div class="dialog-footer"><span id="dialog-footer-text">移動は一時停止しています</span><span><kbd>Esc</kbd> 戻る</span></div>
+</dialog>
+<div id="qa-mount"></div>
+<script type="module" src="./app.js"></script>
+</body></html>

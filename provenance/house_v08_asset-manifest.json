@@ -1,0 +1,149 @@
+{
+  "verified_date": "2026-10-19",
+  "verification": "Official asset pages and official file manifests read; source preview images visually inspected in cloud browser. Binary asset payloads not downloaded or imported in this research task.",
+  "license": "CC0-1.0",
+  "license_url": "https://polyhaven.com/license",
+  "legal_code": "https://creativecommons.org/publicdomain/zero/1.0/legalcode",
+  "license_notes": "Commercial use, modification, and raw asset redistribution allowed, attribution not required. Poly Haven website text, logos, and example renders are excluded from the CC0 asset license. Do not use website preview screenshots as distributable game content. Download and self-host asset data; API integrations have separate terms.",
+  "assets": [
+    {
+      "id": "forest_ground_05",
+      "role": "ground",
+      "source": "https://polyhaven.com/a/forest_ground_05",
+      "manifest": "https://api.polyhaven.com/files/forest_ground_05",
+      "scale_note": "Published coverage width 2 m; source max 16K. This scan was captured in Japan near Ichikawa Zoo.",
+      "files": [
+        {
+          "path": "textures/forest_ground_05_diff_2k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/forest_ground_05/forest_ground_05_diff_2k.jpg",
+          "bytes": 2760081,
+          "role": "base_color_srgb"
+        },
+        {
+          "path": "textures/forest_ground_05_nor_gl_2k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/forest_ground_05/forest_ground_05_nor_gl_2k.jpg",
+          "bytes": 4830561,
+          "role": "tangent_normal_noncolor_opengl"
+        },
+        {
+          "path": "textures/forest_ground_05_arm_2k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/forest_ground_05/forest_ground_05_arm_2k.jpg",
+          "bytes": 3119333,
+          "role": "noncolor_R_ambient_occlusion_G_roughness_B_metallic"
+        },
+        {
+          "path": "textures/forest_ground_05_rough_2k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/forest_ground_05/forest_ground_05_rough_2k.jpg",
+          "bytes": 1452625,
+          "role": "roughness_noncolor_optional_instead_of_arm"
+        },
+        {
+          "path": "textures/forest_ground_05_disp_2k.png",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/2k/forest_ground_05/forest_ground_05_disp_2k.png",
+          "bytes": 6604851,
+          "role": "height_noncolor_optional"
+        }
+      ]
+    },
+    {
+      "id": "rock_moss_set_02",
+      "role": "hero_rocks",
+      "source": "https://polyhaven.com/a/rock_moss_set_02",
+      "manifest": "https://api.polyhaven.com/files/rock_moss_set_02",
+      "scale_note": "Published set width 8.3 m, 58K triangles; six rocks visible in preview. Max textures 8K. 2K glTF package 3,581,402 bytes.",
+      "files": [
+        {
+          "path": "rock_moss_set_02/rock_moss_set_02_2k.gltf",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/2k/rock_moss_set_02/rock_moss_set_02_2k.gltf",
+          "bytes": 11608
+        },
+        {
+          "path": "rock_moss_set_02/rock_moss_set_02.bin",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/8k/rock_moss_set_02/rock_moss_set_02.bin",
+          "bytes": 1316572
+        },
+        {
+          "path": "rock_moss_set_02/textures/rock_moss_set_02_diff_2k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/2k/rock_moss_set_02/rock_moss_set_02_diff_2k.jpg",
+          "bytes": 750955
+        },
+        {
+          "path": "rock_moss_set_02/textures/rock_moss_set_02_nor_gl_2k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/2k/rock_moss_set_02/rock_moss_set_02_nor_gl_2k.jpg",
+          "bytes": 1000512
+        },
+        {
+          "path": "rock_moss_set_02/textures/rock_moss_set_02_rough_2k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/2k/rock_moss_set_02/rock_moss_set_02_rough_2k.jpg",
+          "bytes": 501755
+        }
+      ]
+    },
+    {
+      "id": "fern_02",
+      "role": "forest_understory",
+      "source": "https://polyhaven.com/a/fern_02",
+      "manifest": "https://api.polyhaven.com/files/fern_02",
+      "scale_note": "Published set width 2 m, 6K triangles; four clumps visible in preview. Max textures 8K. Main glTF package 3,393,249 bytes. Alpha is supplied separately by publisher; inspect imported material before adding it, as main glTF manifest does not reference it.",
+      "files": [
+        {
+          "path": "fern_02/fern_02_2k.gltf",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/2k/fern_02/fern_02_2k.gltf",
+          "bytes": 6899
+        },
+        {
+          "path": "fern_02/fern_02.bin",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/8k/fern_02/fern_02.bin",
+          "bytes": 176176
+        },
+        {
+          "path": "fern_02/textures/fern_02_arm_2k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/2k/fern_02/fern_02_arm_2k.jpg",
+          "bytes": 850856
+        },
+        {
+          "path": "fern_02/textures/fern_02_diff_2k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/2k/fern_02/fern_02_diff_2k.jpg",
+          "bytes": 993703
+        },
+        {
+          "path": "fern_02/textures/fern_02_nor_gl_2k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/2k/fern_02/fern_02_nor_gl_2k.jpg",
+          "bytes": 1365615
+        },
+        {
+          "path": "fern_02/textures/fern_02_alpha_2k.png",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Models/png/2k/fern_02/fern_02_alpha_2k.png",
+          "bytes": 230089,
+          "role": "optional_alpha_noncolor"
+        }
+      ]
+    },
+    {
+      "id": "xanderklinge",
+      "role": "soft_overcast_forest_lighting",
+      "source": "https://polyhaven.com/a/xanderklinge",
+      "manifest": "https://api.polyhaven.com/files/xanderklinge",
+      "scale_note": "Equirectangular HDRI, max 21K, unclipped 12 EV. Use 2K HDR for first lighting test; European forest lighting is not proof of historical Japanese location.",
+      "files": [
+        {
+          "path": "lighting/xanderklinge_2k.hdr",
+          "url": "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/2k/xanderklinge_2k.hdr",
+          "bytes": 7360207
+        },
+        {
+          "path": "lighting/xanderklinge_2k.exr",
+          "url": "https://dl.polyhaven.org/file/ph-assets/HDRIs/exr/2k/xanderklinge_2k.exr",
+          "bytes": 9040173,
+          "role": "alternative_to_hdr"
+        }
+      ]
+    }
+  ],
+  "deferred_tree": {
+    "id": "pine_tree_01",
+    "source": "https://polyhaven.com/a/pine_tree_01",
+    "manifest": "https://api.polyhaven.com/files/pine_tree_01",
+    "reason": "Published 17M triangles; 2K glTF references 948849556-byte .bin. Texture resolution is not geometry LOD. Exclude from first 20m experiment; extract/bake suitable LOD from source in a later task."
+  }
+}

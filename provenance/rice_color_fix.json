@@ -1,0 +1,81 @@
+{
+  "issue": "Rice scene-linear ramp values had been stored directly as sRGB bytes, causing an extra decode and near-black appearance.",
+  "correction": "Five rice image buffers replaced with exact source ramps encoded using IEC 61966-2-1 linear-to-sRGB.",
+  "oldGLBSHA256": "520b67db9dac9982cab43c5dc3086403d54e732f5e5ac66a69c70db6fd9f0cd2",
+  "glbSHA256": "4fbeeec599166e4da9eedb2f814d40be932cd62302a7275e76e4b0a03af6b43a",
+  "glbBytes": 19476020,
+  "geometryAndStructureUnchanged": true,
+  "geometryStructureSHA256": "3eacbc68994a752bd041c5d4fa5e7bb2e42156237b33fc0844efa02c14a9a8b1",
+  "textures": [
+    {
+      "image": "Walkthrough_Rice_leaf_0",
+      "midPixelSRGB": [
+        65,
+        100,
+        32
+      ],
+      "bytes": 288,
+      "sourceLinearMid": [
+        0.0532185435295105,
+        0.12750276923179626,
+        0.01441335678100586
+      ]
+    },
+    {
+      "image": "Walkthrough_Rice_leaf_1",
+      "midPixelSRGB": [
+        75,
+        110,
+        37
+      ],
+      "bytes": 302,
+      "sourceLinearMid": [
+        0.06984934210777283,
+        0.15743820369243622,
+        0.01884823478758335
+      ]
+    },
+    {
+      "image": "Walkthrough_Rice_leaf_2",
+      "midPixelSRGB": [
+        50,
+        85,
+        24
+      ],
+      "bytes": 280,
+      "sourceLinearMid": [
+        0.032152868807315826,
+        0.0909150168299675,
+        0.008869757875800133
+      ]
+    },
+    {
+      "image": "Walkthrough_Rice_leaf_3",
+      "midPixelSRGB": [
+        86,
+        103,
+        43
+      ],
+      "bytes": 289,
+      "sourceLinearMid": [
+        0.09202373027801514,
+        0.13637253642082214,
+        0.024391833692789078
+      ]
+    },
+    {
+      "image": "Walkthrough_Rice_leaf_4",
+      "midPixelSRGB": [
+        120,
+        102,
+        52
+      ],
+      "bytes": 317,
+      "sourceLinearMid": [
+        0.1884823441505432,
+        0.13304635882377625,
+        0.034370310604572296
+      ]
+    }
+  ]
+}
