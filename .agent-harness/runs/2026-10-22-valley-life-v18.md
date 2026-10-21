@@ -31,7 +31,8 @@ Node55確認、配布42必須/29構文、HTTP28ルート、Chrome37グループ�
 [検証詳細](../../reports/VERIFICATION_JA.md)、[比較画像](../../reports/graphics-comparison.html)、
 [独立レビュー](../../reports/reviews-v18.json)と[性能](../../reports/performance-v18.json)を根拠とする。
 残件は消さず、成功した変更だけを非公開ブランチからPR経由で反映する。
-Git反映完了はタスク15と納品記録で別途確認する。
+PR #2をマージし、mainの開始・Tab/Enter休止・QA非公開・origin一致を確認した。
+[反映記録](../../reports/delivery-v18.json)を保持し、15.1を完了、15.2のCIは未実行として残した。
 
 PRのGitHub CIは課金・利用上限の注釈でjob未起動。公式Node22をhash照合してローカル検査を補い成功した。
 Node24も成功。Linux CIの成功とは区別し、15.2は外部要因で未実行として残す。
