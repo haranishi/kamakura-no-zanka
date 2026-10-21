@@ -9,8 +9,8 @@ test('水運びを一周し、目的と一枠の所持が各段階に一致す�
  assert.equal(inventoryFor(state),'なし');
  for(const [action,stage,inventory,objective] of [
   ['pickup','empty','空の桶',/井戸.*水/],
-  ['fill','full','水入りの桶',/庭.*届/],
-  ['deliver','delivered','なし',/届け|届き|散策/]
+  ['fill','full','水入りの桶',/(庭|苗床).*届/],
+  ['deliver','delivered','なし',/水路|落枝/]
  ]){
   const previous={...state};
   const result=transition(state,action);

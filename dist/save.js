@@ -1,6 +1,7 @@
 import {initialState,isProgressState} from './gameplay.js';
 export const PROGRESS_KEY='kamakura-progress-v1';
-export const SCHEMA_VERSION=1;
+export const SCHEMA_VERSION=2;
+const legacyStages=new Set(['bucket','empty','full','delivered']);
 const fresh=notice=>({state:initialState(),hasSave:false,notice});
 const invalidNotice='保存データを読み取れなかったため、最初から始めます';
 
@@ -15,11 +16,11 @@ export function loadProgress(storage){
  let data;
  try{data=JSON.parse(raw);}catch{return fresh(invalidNotice);}
  if(!data||typeof data!=='object'||Array.isArray(data))return fresh(invalidNotice);
- if(!Object.hasOwn(data,'schemaVersion')||data.schemaVersion!==SCHEMA_VERSION)
+ if(!Object.hasOwn(data,'schemaVersion')||(data.schemaVersion!==SCHEMA_VERSION&&data.schemaVersion!==1))
   return fresh('保存データの版に対応していないため、最初から始めます');
- if(!isProgressState(data))return fresh(invalidNotice);
- // Coordinates and unknown fields are never used or copied into live state.
- return{state:{stage:data.stage},hasSave:true,notice:''};
+ if(!isProgressState(data)||(data.schemaVersion===1&&!legacyStages.has(data.stage)))return fresh(invalidNotice);
+ // Read-only migration: do not overwrite old data until the next successful action.
+ return{state:{stage:data.stage},hasSave:true,notice:data.schemaVersion===1&&data.stage==='delivered'?'水運びの続きから再開できます。次は水路を整えましょう':''};
 }
 export function saveProgress(storage,state){
  try{
