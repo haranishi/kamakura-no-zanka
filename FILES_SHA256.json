@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-10-21T17:33:18.308602+00:00",
+  "generatedAt": "2026-10-21T17:38:54.502607+00:00",
   "scope": "v18 source, assets and verification artifacts; excludes this manifest and Git metadata",
   "files": [
     {
@@ -10,8 +10,8 @@
     },
     {
       "path": ".agent-harness/runs/2026-10-22-valley-life-v18.md",
-      "size": 2967,
-      "sha256": "f3f2542d6a9dc3a8fdcbafadcbb19e49778aaefbb8f2f00a3e49c18f915dbbbd"
+      "size": 3121,
+      "sha256": "c2e3787ecf55d7c99b26ace49c862fb5595d2c630a5d31f24d79db08910d1e8d"
     },
     {
       "path": ".agent-harness/runs/2026-10-22-valley-water-carry.md",
@@ -130,8 +130,8 @@
     },
     {
       "path": ".kiro/specs/valley-water-carry/spec.json",
-      "size": 2808,
-      "sha256": "9e1f46998349aa86007f6735fe92929983adba12b9dc87e59fb0ae4614aeb2ec"
+      "size": 2967,
+      "sha256": "4344186de84b80915d53b3774746e9aa9a1fca37d80a35dd7e68d6a3f6be12bf"
     },
     {
       "path": ".kiro/specs/valley-water-carry/tasks.md",
@@ -145,8 +145,8 @@
     },
     {
       "path": ".kiro/specs/valley-water-carry/v18-tasks.md",
-      "size": 5855,
-      "sha256": "0c1a83827eb9972ce4ed57bd66d336b4d07cd5288785d8c9dd0b0e6e90bd32c9"
+      "size": 6080,
+      "sha256": "501b89330ce81fb05ad88e222386f657603efdc7336361430b262d5e5e6c2eb2"
     },
     {
       "path": ".kiro/steering/product.md",
@@ -490,8 +490,8 @@
     },
     {
       "path": "reports/VERIFICATION_JA.md",
-      "size": 5793,
-      "sha256": "78b689feab04b667eec850aa7471577ed454778104382e674ef4b789bf888ee6"
+      "size": 5917,
+      "sha256": "22cd53f5cb90eb6f7d49c3cd84ebb1d3a0deaa24f99c3a1ac99619033ba171e1"
     },
     {
       "path": "reports/VERIFICATION_V17_JA.md",
@@ -520,13 +520,18 @@
     },
     {
       "path": "reports/ci-blocker-v18.json",
-      "size": 1576,
-      "sha256": "4aedc5b13cb569f50132b402641849cdaf8f2eb990ebe354d01488e4504b5ecf"
+      "size": 1940,
+      "sha256": "db773b2c6f9bcd8f3d368450a2c5153099eaba46bf33794aa7983714984124a3"
     },
     {
       "path": "reports/collision_tests.json",
       "size": 1025,
       "sha256": "456d6ed0fd57cd50f8a4c9f79ab510ecf6d2a01f8fb7b842b6bd9860df33c977"
+    },
+    {
+      "path": "reports/delivery-v18.json",
+      "size": 1780,
+      "sha256": "e07dddd00db4f1e7123f631eb873cc9fb3b9827350f687dd7166243d506aa463"
     },
     {
       "path": "reports/environment-review-v18.json",
@@ -886,7 +891,7 @@
     {
       "path": "tools/serve.mjs",
       "size": 2254,
-      "sha256": "fc8eeb98049ab7562da69206ce14bf6c57d1f4ba595733dee344ae4a7443ffcd"
+      "sha256": "2c0304daea1af2a842f5f0f9e0f39659eec22741690bceb6462cec0a95b635ae"
     },
     {
       "path": "tools/smoke.mjs",

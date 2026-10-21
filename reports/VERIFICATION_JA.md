@@ -2,7 +2,8 @@
 
 2026-10-22（JST）。庭の5操作・保存移行・環境音・地面と木立の改善を検証した。
 判定は**PARTIAL**。水面末端の継ぎ目と品質selectのキー確定は完了扱いにしない。
-Git反映は非公開ブランチへ段階的にpush済み。PRとmain反映の確認は別途記録する。
+[非公開PR #2](https://github.com/haranishi/kamakura-no-zanka/pull/2)をマージし、mainの通常起動とorigin一致を確認した。
+[反映記録](delivery-v18.json)を保持。mainのGitHub CIは課金制限で未起動。
 前回の記録は[VERIFICATION_V17_JA.md](VERIFICATION_V17_JA.md)に保持した。
 
 ## 機能・保存・回帰の検証は通った

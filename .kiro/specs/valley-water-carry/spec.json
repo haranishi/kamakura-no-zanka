@@ -1,7 +1,7 @@
 {
   "feature_name": "valley-water-carry",
   "created_at": "2026-10-21T14:46:14.564968+00:00",
-  "updated_at": "2026-10-21T17:33:18.141292+00:00",
+  "updated_at": "2026-10-21T17:38:54.304113+00:00",
   "language": "ja",
   "phase": "partially-validated",
   "approvals": {
@@ -68,11 +68,12 @@
     "visual_score": "17/20 UI only, strict gate pending native select keyboard commit",
     "performance": "reports/performance-v18.json",
     "evidence": "reports/VERIFICATION_JA.md",
-    "git_delivery": "Feature branch pushed incrementally; PR/merge and main verification pending",
+    "git_delivery": "PR #2 merged at 40f07218a0c697ea8c72d273a000339e663ff991; private=true, normal main boot, local/origin equality verified. Main GitHub CI blocked by billing; task 15.2 remains open.",
     "local_node_versions": [
       "22.23.4",
       "24.12.0"
     ],
-    "github_ci": "BLOCKED_EXTERNAL: billing/spending limit; jobs not started"
+    "github_ci": "BLOCKED_EXTERNAL: billing/spending limit; jobs not started",
+    "delivery_evidence": "reports/delivery-v18.json"
   }
 }

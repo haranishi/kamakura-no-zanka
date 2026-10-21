@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 1,
+  "checkedAt": "2026-10-21T17:38:54.299799+00:00",
+  "repository": "https://github.com/haranishi/kamakura-no-zanka",
+  "isPrivate": true,
+  "implementationPullRequest": {
+    "number": 2,
+    "url": "https://github.com/haranishi/kamakura-no-zanka/pull/2",
+    "state": "MERGED",
+    "mergeCommit": "40f07218a0c697ea8c72d273a000339e663ff991"
+  },
+  "localOriginMainEqualAtInspection": true,
+  "workingTreeCleanAtInspection": true,
+  "normalBoot": {
+    "checkedAt": "2026-10-21T17:37:53.200Z",
+    "url": "http://127.0.0.1:8097/",
+    "version": 18,
+    "ready": true,
+    "readyCondition": "Title visible and start focused after model/material load",
+    "normalUrlQaAbsent": true,
+    "enterStarts": true,
+    "tabEnterMenuPauses": true,
+    "browser": "Chrome155 headless macOS",
+    "browserErrors": [],
+    "scope": "Normal startup on merged main; full journey proven in the earlier 37-group feature run",
+    "limits": "Synthetic Escape while pointer locked is not asserted here; ordinary Escape after lock release is covered by browser-check.json"
+  },
+  "mainCI": {
+    "url": "https://github.com/haranishi/kamakura-no-zanka/actions/runs/39645001908",
+    "headSha": "40f07218a0c697ea8c72d273a000339e663ff991",
+    "status": "completed",
+    "conclusion": "failure",
+    "runnerStarted": false,
+    "stepsExecuted": 0,
+    "reason": "Account payments/spending limit; GitHub annotations confirm no job started"
+  },
+  "decision": "PARTIAL",
+  "openTasks": [
+    "12.2 water endpoint seam",
+    "14.2 native quality select keyboard commit",
+    "15.2 GitHub CI blocked by account state"
+  ],
+  "documentationNote": "This record is committed afterward through a separate documentation PR; the boot proof is for the implementation merge shown above."
+}

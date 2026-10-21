@@ -50,5 +50,14 @@
     "rulesets": [],
     "adminOverrideUsed": false
   },
-  "limits": "Local macOS checks are evidence for the delivered code, not a substitute for a successful GitHub Ubuntu CI run. Main CI remains pending external account state."
+  "limits": "Local macOS checks are evidence for the delivered code, not a substitute for a successful GitHub Ubuntu CI run. Main CI remains pending external account state.",
+  "mainRun": {
+    "url": "https://github.com/haranishi/kamakura-no-zanka/actions/runs/39645001908",
+    "headSha": "40f07218a0c697ea8c72d273a000339e663ff991",
+    "status": "completed",
+    "conclusion": "failure",
+    "runnerStarted": false,
+    "stepsExecuted": 0,
+    "reason": "Account payments/spending limit; GitHub annotations confirm no job started"
+  }
 }
