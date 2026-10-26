@@ -53,6 +53,9 @@ export function installFog(a = ATMOS) {
 #ifdef USE_FOG
   uniform vec3 fogColor; varying float vFogDepth; varying float vFogWorldY; varying vec3 vFogDirV;
   ${hazeGLSL(a)}
+  float fogHash( vec2 p ) { return fract( sin( dot( p, vec2( 127.1, 311.7 ) ) ) * 43758.5453 ); }
+  float fogNoise( vec2 p ) { vec2 i = floor( p ), f = fract( p ); f = f * f * ( 3.0 - 2.0 * f );
+    return mix( mix( fogHash( i ), fogHash( i + vec2( 1.0, 0.0 ) ), f.x ), mix( fogHash( i + vec2( 0.0, 1.0 ) ), fogHash( i + vec2( 1.0, 1.0 ) ), f.x ), f.y ); }
   #ifdef FOG_EXP2
     uniform float fogDensity;
   #else
@@ -74,6 +77,17 @@ export function installFog(a = ATMOS) {
   vec3 fvd = normalize( vFogDirV );
   vec3 fogWorldDir = vec3( dot( viewMatrix[ 0 ].xyz, fvd ), dot( viewMatrix[ 1 ].xyz, fvd ), dot( viewMatrix[ 2 ].xyz, fvd ) );
   gl_FragColor.rgb = mix( gl_FragColor.rgb, fogHazeColor( fogWorldDir ), fogFactor );
+  // 谷の壁にかかる霧の帯：高さ約38m・92m・150mに、横へ流れる淡い帯（ノイズで切れ切れ）。遠い斜面にだけ効く。
+  // 奥行きが「暗い森」と「稜線」の2段しか無かった（第3周の評価）。帯の色は青灰より明るい淡い青白で、太陽側は暖色が混ざる。
+  {
+    float bandD = length( vFogDirV );
+    vec3 bandP = cameraPosition + fogWorldDir * bandD;
+    float bandY = exp( - pow( ( vFogWorldY - 38.0 ) / 11.0, 2.0 ) ) * 0.8 + exp( - pow( ( vFogWorldY - 92.0 ) / 15.0, 2.0 ) ) * 0.7 + exp( - pow( ( vFogWorldY - 150.0 ) / 20.0, 2.0 ) ) * 0.55;
+    float bandN = fogNoise( vec2( bandP.x * 0.009 + bandP.z * 0.004, bandP.y * 0.03 ) ) * 0.65 + fogNoise( vec2( bandP.x * 0.031 - bandP.z * 0.012, bandP.y * 0.07 + 3.3 ) ) * 0.35;
+    float band = bandY * smoothstep( 70.0, 230.0, bandD ) * smoothstep( 0.36, 0.76, bandN ) * 0.42;
+    vec3 bandCol = mix( vec3( 0.46, 0.51, 0.62 ), fogHazeColor( fogWorldDir ), 0.45 );
+    gl_FragColor.rgb = mix( gl_FragColor.rgb, bandCol, band );
+  }
 #endif`;
 }
 
