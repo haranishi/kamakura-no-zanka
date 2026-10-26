@@ -6,3 +6,7 @@ node_modules/
 *.log
 reports/local/
 coverage/
+.captures/
+reports/local/
+__pycache__/
+*.pyc
