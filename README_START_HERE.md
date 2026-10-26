@@ -3,6 +3,17 @@
 庭へ水を届け、水路を整え、帰る場所に灯をともす、小さな3D体験です。
 v16の実モデルを引き継ぎ、v18でしごとの続き・景色の変化・自然の質感・環境音を加えました。
 
+## 隠れ谷の縦切り（v19・`/valley/`）
+
+`npm start` のあと `http://127.0.0.1:8080/valley/index.html` を開くと、三人称アクションの第一章「隠れ谷の灯」が遊べます（庭の `/` は v18 のまま）。
+廃寺で目覚め、里を襲う追手を倒し、縛られた弥十郎を解いて仲間にし、待ち伏せを抜けて帰ります。所要は約10〜15分。
+操作：WASD 歩き／Shift 走り／C 屈み／左クリック 斬り（三連）／F 強斬り／右クリック 受け（敵の刃が光った直後に押すと弾き→左クリックで反撃）／
+Space 転がり／E 調べる・とどめ・闇討ち／Tab 狙い／Q 弥十郎へ指示／Esc 休止。構え（体力とは別のゲージ）が尽きた敵にはとどめを刺せます。
+- 設計：[要件・設計・タスク](.kiro/specs/hidden-valley-slice/)（物語は [docs/10_STORY_AND_DESIGN_JA.md](docs/10_STORY_AND_DESIGN_JA.md)）。
+- 自動プレイと固定画角の撮影：[tools/README-valley-qa.md](tools/README-valley-qa.md)（`tools/valley-play.mjs`、Playwright は `PLAYWRIGHT_MODULE` で指定）。
+- 出所：人物・小道具は Meshy AI で生成（[provenance/meshy-v19.json](provenance/meshy-v19.json)）。**公開・配布の前に、Meshy の契約プランの商用・公開条件を確認する**。非公開リポジトリのみに置く。
+- 検査：`npm test`（規則・世界の整合）、`npm run check`（配布検査。`/valley/` を含む）、`npm run smoke`。
+
 ## ブラウザで遊ぶ
 
 Node.js 18以上で、このフォルダから起動します。
