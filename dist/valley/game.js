@@ -349,7 +349,11 @@ export class Game {
     if (id === 'boy_arrives') { const boy = this.npcs.get('boy'); if (boy) boy.runTo(-88.4, -74.5, b => { b.setCower(true); }); }
     if (id === 'viewpoint_overlook') this.showChoice();
     if (id === 'village_cleared') this.healHero(40, 'つばきが傷の手当てをしてくれた');
-    if (id === 'ambush_cleared') this.healHero(25, '弥十郎が傷に布を巻いてくれた');
+    if (id === 'ambush_cleared') {
+      this.healHero(25, '弥十郎が傷に布を巻いてくれた');
+      const z = WORLD.zones.temple_steps;
+      if (Math.hypot(this.hero.pos.x - z.x, this.hero.pos.z - z.z) < z.r) this.inZone.temple_steps = false;   // 石段で待ち伏せを退けたなら、もう一度「着いた」を数える
+    }
     if (id === 'village_cleared') { for (const n of ['v_old', 'v_tsubaki']) this.npcs.get(n)?.setCower(false); this.after(1.2, () => { if (this.quest.beat === 'b5_archer' || this.quest.beat === 'b6_escort') this.makeRevived(true); }); }
     if (id === 'archer_joins') {
       this.ally?.join(false);

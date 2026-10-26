@@ -26,13 +26,17 @@ for (const entrance of ['village_front', 'village_north', 'village_south']) {
       ['enemy_down', { id: 'officer', how: 'surrendered' }, 'b5_archer', 'despawn'],
       ['interact', { id: 'archer_captive' }, 'b5_archer', 'dialogue'],
       ['party_joined', { id: 'archer' }, 'b6_escort', 'checkpoint'],
+      ['enter_zone', { zone: 'ambush_trigger' }, 'b6_escort', 'spawn'],
+      ['enemy_down', { id: 'ambush_soldier_1', how: 'killed' }, 'b6_escort', 'noop'],
+      ['enemy_down', { id: 'ambush_soldier_2', how: 'killed' }, 'b6_escort', 'noop'],
+      ['enemy_down', { id: 'ambush_archer', how: 'killed' }, 'b6_escort', 'dialogue'],
       ['arrived', { place: 'temple_steps' }, 'b7_result', 'ending'],
       ['dialogue_end', { id: 'result' }, 'done', 'objective'],
     ];
     for (const [type, fields, beat, effect] of steps) {
       const before = structuredClone(s); const r = reduce(s, ev(type, fields));
       assert.deepEqual(s, before); assert.notEqual(r.state, s);
-      assert.equal(r.state.beat, beat); assert.ok(r.effects.some(e => e.type === effect)); s = r.state;
+      assert.equal(r.state.beat, beat); assert.ok(effect === 'noop' || r.effects.some(e => e.type === effect)); s = r.state;
     }
     assert.equal(s.flags.archerJoined, true); assert.equal(s.resources.morale, 65);
     assert.equal(s.flags.approach, entrance === 'village_front' ? 'front' : 'flank');
@@ -69,6 +73,17 @@ test('trust rises with mercy, stealth and what is left in the stores; a careful 
   const raided = run(run(village(), 'pillage_tick', { dt: 60, pillagers: 5 }), 'enemy_down', { id: 'officer', how: 'killed' });
   assert.ok(raided.trust < done.trust);
   assert.ok(summarize({ ...done, flags: { ...done.flags, archerJoined: true } }).trust >= 50 || done.trust < 50);   // 要約は信頼をそのまま映す
+});
+test('reaching the temple steps without meeting the ambush starts the ambush there instead of ending the chapter', () => {
+  let s = escort();
+  const r = reduce(s, ev('arrived', { place: 'temple_steps' }));
+  assert.equal(r.state.beat, 'b6_escort'); assert.equal(r.state.flags.ambush, 'active');
+  assert.ok(r.effects.some(e => e.type === 'spawn' && e.group === 'escort_ambush' && e.late === true));
+  s = r.state;
+  assert.equal(run(s, 'arrived', { place: 'temple_steps' }).beat, 'b6_escort');                                   // 退けるまでは終わらない
+  for (const id of ['ambush_soldier_1', 'ambush_soldier_2', 'ambush_archer']) s = run(s, 'enemy_down', { id, how: 'killed' });
+  assert.equal(s.flags.ambush, 'cleared');
+  assert.equal(run(s, 'arrived', { place: 'temple_steps' }).beat, 'b7_result');
 });
 test('retry keeps the chosen plan so the compass and the choice stay consistent', () => {
   let s = run(viewpoint(), 'choose_plan', { plan: 'flank' });

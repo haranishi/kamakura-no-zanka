@@ -67,6 +67,9 @@ export function reduce(state, event) {
       advance('b6_escort'); checkpoint('cp_archer_joined');
     } else if (s.beat === 'b6_escort' && event.type === 'enter_zone' && event.zone === 'ambush_trigger' && s.flags.ambush === null) {
       s.flags.ambush = 'active'; emit('spawn', { group: 'escort_ambush' });
+    } else if (s.beat === 'b6_escort' && event.type === 'arrived' && event.place === 'temple_steps' && s.flags.ambush === null) {
+      // 待ち伏せの場所を避けて石段まで来た。追手は寺の前まで追ってくる（見せ場を飛ばして終わらせない）
+      s.flags.ambush = 'active'; emit('spawn', { group: 'escort_ambush', late: true });
     } else if (s.beat === 'b6_escort' && event.type === 'arrived' && event.place === 'temple_steps' && s.flags.ambush !== 'active') {
       advance('b7_result'); checkpoint('cp_result'); dialogue('result'); emit('ending', { summary: summarize(s) });
     } else if (s.beat === 'b7_result' && event.type === 'dialogue_end' && event.id === 'result') advance('done');

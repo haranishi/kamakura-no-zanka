@@ -7,6 +7,7 @@ import { installFog, createAtmosphere } from './atmosphere.js';
 import { Post } from './post.js';
 import { SHOTS, applyShot } from './shots.js';
 import { scatterTrees, scatterRocks, scatterGrass, scatterRice, scatterCrops } from './scatter.js';
+import { buildRidges } from './ridges.js';
 import { buildVegetation } from './vegetation.js';
 import { loadModels, buildBuildings, buildRocks } from './buildings.js';
 import { loadPropModels, buildProps } from './props.js';
@@ -95,6 +96,7 @@ async function boot() {
   scene.add(buildRocks({ data: scatter.rocks, model: models.boulder_lo || models.boulder }));
   const props = buildProps({ world: WORLD, terrain, models: { ...models, ...propModels } }); scene.add(props.group);
   const water = buildWater({ terrain, world: WORLD }); scene.add(water.mesh);
+  scene.add(buildRidges({ center: [WORLD.valley.cx, WORLD.valley.cz] }));          // 谷の外の山並み（霧で霞む稜線）
   await step(0.42, '人物を読み込んでいます');
   const roster = await loadRoster({ anisotropy: renderer.capabilities.getMaxAnisotropy(), onProgress: p => hud.loading(0.42 + p * 0.45, '人物を読み込んでいます') });
   await step(0.9, '空と光を整えています');

@@ -6,7 +6,7 @@ export const GRIP = {
   // 右手→左手のベクトルは構えで骨ローカル +Z、斬る向きの手の速度は −X。刃は −Z、刃の向きは −X に合わせた（ラボで実測）。
   tachiDrawn: { bone: 'RightHand', pos: [0, 0, 0.05], axes: { y: [0, 0, -1], z: [-1, 0, 0] } },
   // 左腰に、切先を後ろ下へ、刃を下へ向けて吊る（太刀の佩き方）。
-  tachiHip: { bone: 'Hips', pos: [0.19, 0.0, 0.12], axes: { y: [0.08, -0.55, -0.83], z: [0, -1, 0] } },
+  tachiHip: { bone: 'Hips', pos: [0.19, 0.0, 0.12], axes: { y: [0.1, -0.36, -0.93], z: [0, -1, 0] } },
   naginata: { bone: 'RightHand', pos: [0, 0, 0], rot: [0, 0, 0] },
   yumi: { bone: 'LeftHand', pos: [0, 0, 0], rot: [0, 0, 0] },
   // 矢は構えの間だけ、両手の位置から bow.js が作る（骨には付けない）。矢筒は背中の上（Spine02）に斜めに背負う。
