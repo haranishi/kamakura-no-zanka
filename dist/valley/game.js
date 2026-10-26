@@ -387,6 +387,13 @@ export class Game {
       const f = WORLD.props.find(p => p.id === 'bonfire'), at = (dx, dz, from = { x: f.x, z: f.z }) => ({ x: f.x + dx, z: f.z + dz, yaw: yawOf(from.x - (f.x + dx), from.z - (f.z + dz)) });
       const h = at(1.0, -2.5); this.hero.place(h.x, h.z, h.yaw);
       const old = at(-2.0, 1.6), tsu = at(2.5, -0.4);
+      // 里の人々も焚き火に集まる（里を救った結果。カメラの反対側＝奥に座を作る）
+      this.makeRevived(false);
+      for (const [id, dx, dz] of [['r_man', -3.6, -2.3], ['r_woman', -1.2, -3.7], ['r_child', -4.2, 0.9]]) {
+        const n = this.npcs.get(id); if (!n) continue;
+        const p = at(dx, dz); n.place(p.x, p.z, p.yaw); n.mode = 'idle'; n.route = null; n.goal = null; n.lookAt({ x: f.x, z: f.z });
+      }
+      const walker = this.npcs.get('r_walker'); if (walker) { walker.remove(); this.npcs.delete('r_walker'); }
       this.npcs.get('v_old')?.place(old.x, old.z, old.yaw); this.npcs.get('v_old')?.setCower(false);
       this.npcs.get('v_tsubaki')?.place(tsu.x, tsu.z, tsu.yaw); this.npcs.get('v_tsubaki')?.setCower(false);
       for (const id of ['v_old', 'v_tsubaki']) this.npcs.get(id)?.lookAt(this.hero.pos);

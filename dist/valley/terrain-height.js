@@ -240,7 +240,8 @@ export function createTerrain(world = WORLD) {
     let mud = T && x > T.x0 - 4 && x < T.x1 + 4 && z > T.z0 - 2 && z < T.z1 + 2 ? 0.5 * (0.5 + 0.5 * fbm(x * 0.2, z * 0.2, seed + 33, 2)) : 0;
     for (const f of world.plots || []) mud = Math.max(mud, 0.9 * (1 - smooth(0, 1.4, rectDistance(f, x, z))));   // 畑は耕した土
     const forestCover = forestDensity(x, z);
-    const rock = Math.min(1, smooth(28, 44, slope + 6 * fbm(x * 0.09, z * 0.09, seed + 35, 2)) * (1 - 0.55 * forestCover) + steep * 0.55);
+    // 岩肌（縦の層理が出る質感）は本当に急な所だけ。歩ける斜面（〜40°）は土・落ち葉・草で覆い、岩の板が斜面いっぱいに出ないようにする
+    const rock = Math.min(1, smooth(36, 52, slope + 5 * fbm(x * 0.09, z * 0.09, seed + 35, 2)) * (1 - 0.4 * forestCover) + steep * 0.3);
     const forest = forestCover;
     // 落ち葉と草は真上から投影するので、急な面では縞に伸びる。急なほど岩（三方向から投影）へ譲る
     let litter = forest * (1 - dirt) * 0.8 * (1 - gravel) * (1 - 0.85 * smooth(26, 40, slope));
