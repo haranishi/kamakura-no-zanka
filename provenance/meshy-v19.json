@@ -8,7 +8,7 @@
     "floor": 500,
     "spent_note": "キャラクター一式＋小道具6＋遠景3。残高は台帳（作業用）で管理"
   },
-  "terms_note": "Meshy の生成物の公開・商用利用条件は、公開前に契約プラン（有料プランの所有権・商用可否）を本人が確認する。未確認の間は非公開リポジトリのみに置く。",
+  "terms_note": "Meshy の公式ヘルプ（2026-10-27 確認）：有料プランの生成物は利用者が所有し商用利用できる（Meshy のコミュニティへ公開しないこと、参照画像が他者の著作権を侵さないことが条件）。無料プランは CC BY 4.0（表記が必要）。公開・配布の前に、本人の契約プランが有料であることと、コミュニティへ公開していないことを確認する。",
   "assets": [
     {
       "file": "dist/assets/characters/hero.glb",
@@ -195,5 +195,10 @@
       "bytes": 1332768,
       "pipeline": "Meshy text-to-3D → tools/blender/optimize_asset.py (WebP, max 1280px) → GLB"
     }
+  ],
+  "terms_sources": [
+    "https://intercom.help/meshy/en/articles/16102098-can-i-use-meshy-assets-commercially",
+    "https://docs.meshy.ai/faq",
+    "https://docs.meshy.ai/en/webapp/pricing"
   ]
 }
