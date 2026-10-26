@@ -265,5 +265,15 @@ export class Character {
     }
   }
 
-  dispose() { this.bow?.dispose(); this.mixer.stopAllAction(); this.root.removeFromParent(); for (const d of this.drops || []) d.obj.removeFromParent(); }
+  // 取り除く。人物ごとに作った付属品（太刀・弓・矢筒・縄）の形と材質は、ここで解放する（模型の形・材質は全員で共有なので触らない）。
+  // やり直しのたびに作り直すので、解放しないとGPU資源が増え続ける。
+  dispose() {
+    this.bow?.dispose(); this.mixer.stopAllAction(); this.mixer.uncacheRoot(this.model); this.root.removeFromParent();
+    this.model.traverse(o => { if (o.isSkinnedMesh) o.skeleton.dispose(); });          // 骨ごとに作られる骨の行列の画像（これが増え続けていた：人物1人につき1枚）
+    for (const d of this.drops || []) d.obj.removeFromParent();
+    for (const w of Object.values(this.weapons)) w.object?.traverse(o => {
+      o.geometry?.dispose();
+      for (const m of [].concat(o.material || [])) { m.map?.dispose(); m.dispose(); }
+    });
+  }
 }

@@ -70,6 +70,17 @@ test('an enemy can reach the exit from every village spawn (else it would surren
   }
 });
 
+test('the ambushers can reach the temple steps (the ambush starts there when the hero skips the road)', () => {
+  const steps = WORLD.zones.temple_steps;
+  for (const s of WORLD.spawns.escort_ambush) {
+    ai.clear();
+    const path = ai.pathTo({ id: s.id, x: s.x, z: s.z }, { x: steps.x, z: steps.z });
+    assert(path && path.length, `${s.id} cannot reach the temple steps`);
+    const end = path[path.length - 1];
+    assert(Math.hypot(end.x - steps.x, end.z - steps.z) < steps.r, `${s.id}: path ends ${Math.hypot(end.x - steps.x, end.z - steps.z).toFixed(1)} m from the steps`);
+  }
+});
+
 test('people who come out of their houses can walk from the door to their spot and along their route', () => {
   assert(WORLD.spawns.revived.length >= 3, 'the revived village needs people');
   for (const r of WORLD.spawns.revived) {

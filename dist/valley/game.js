@@ -237,7 +237,7 @@ export class Game {
     switch (e.type) {
       case 'objective': this.hud.setObjective(e.text); break;
       case 'dialogue': this.queueDialogue(e.id); break;
-      case 'spawn': this.activateGroup(e.group, e.alert); break;
+      case 'spawn': this.activateGroup(e.group, e.alert, e.late); break;
       case 'despawn': this.despawnGroup(e.group); break;
       case 'checkpoint': this.saveCheckpoint(e.id); break;
       case 'resources': this.onResources(e.delta); break;
@@ -281,7 +281,7 @@ export class Game {
   }
 
   // 敵・村人の出現と退場
-  activateGroup(group, alert) {
+  activateGroup(group, alert, late = false) {
     if (GROUP_KINDS[group] === 'npc') { this.startBoy(); return; }
     if (group === 'road_scout') this.makeEnemies('road_scout', { alert: 'unaware' });
     if (group === 'village_enemies') {
@@ -302,6 +302,7 @@ export class Game {
         if (e.brain.state !== 'combat') { e.brain.state = 'combat'; e.brain.awareness = 1; e.brain.lastSeen = { x: this.hero.pos.x, z: this.hero.pos.z }; e.fighter.aware = true; }
       }
       this.audio.play('taiko', { gain: 0.8 });
+      if (late) this.hud.toast('追手が、寺まで追ってきた', 2800);          // 待ち伏せを避けても、石段で追いつかれる
     }
   }
   despawnGroup(group) {

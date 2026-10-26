@@ -78,5 +78,11 @@ export class BowRig {
     if (this.arrow) this.arrow.visible = false;
   }
 
-  dispose() { for (const m of this.strings) m.removeFromParent(); this.arrow?.removeFromParent(); }
+  // 弦（形は2本で共有・材質は弓の静止弦と共有）と手に持つ矢は、この弓だけの物なので解放する。静止弦・弓本体は Character.dispose が武器として解放する。
+  dispose() {
+    for (const m of this.strings) m.removeFromParent();
+    this.strings[0]?.geometry.dispose();
+    this.arrow?.removeFromParent();
+    this.arrow?.traverse(o => { o.geometry?.dispose(); for (const m of [].concat(o.material || [])) m.dispose(); });
+  }
 }

@@ -227,18 +227,28 @@ test('posture regenerates 18 per second only after 1.2s, pauses for block/attack
   applyDamage(g, 1, 0); tick(g, 1); assert.equal(g.posture, 80);
 });
 
-test('the hero\'s posture break is shorter than an enemy\'s, and a strong hit makes a lightly armored soldier flinch', () => {
+test('the hero\'s posture break is shorter than an enemy\'s (1.4s)', () => {
   const h = fighter('hero', {kind: 'hero'}); broken(h);
   assert.deepEqual(tick(h, 1.399), [{type: 'stagger_start', id: h.id}]); assert.equal(h.state, 'stagger');
   assert.deepEqual(tick(h, .001), [{type: 'stagger_end', id: h.id}]); assert.equal(h.state, 'idle');
-  for (const [moveId, flinches] of [['light1', false], ['light2', false], ['light3', true], ['heavy', true], ['counter', true]]) {
-    const a = fighter('a', {kind: 'hero'}), d = fighter('d', {kind: 'soldier', x: 1.2});
-    a.yaw = Math.atan2(-(d.x - a.x), -(d.z - a.z)); d.yaw = a.yaw + Math.PI;
-    d.state = 'idle'; startMove(d, 'soldier_slash');
-    applyDamage(d, 1, 1, ['light3', 'heavy', 'counter'].includes(moveId));
-    assert.equal(d.state, flinches ? 'hit' : 'attack', moveId);
-  }
-  const o = fighter('o', {kind: 'officer'}); startMove(o, 'officer_a'); applyDamage(o, 1, 1, true); assert.equal(o.state, 'attack');   // 重い鎧はひるまない
+});
+// 実際に strike() で当てて確かめる（強い技の印が strike から applyDamage へ渡ることまで）
+test('a lightly armored soldier flinches only from a strong hit (3rd chain, heavy, counter); a heavy armor never does', () => {
+  const stateAfter = (prepare, who = 'soldier') => {
+    const [a, d] = pair({kind: who}); prepare(a, d); assert.ok(strike(a, d), 'the strike must land'); return d.state;
+  };
+  const chainTo = (a, id, ids) => { for (const prev of ids) { assert.equal(startMove(a, prev), true); tick(a, MOVES[prev].windup + MOVES[prev].active + .03); } active(a, id); };
+  assert.equal(stateAfter(a => active(a, 'light1')), 'idle');
+  assert.equal(stateAfter(a => chainTo(a, 'light2', ['light1'])), 'idle');
+  assert.equal(stateAfter(a => chainTo(a, 'light3', ['light1', 'light2'])), 'hit');
+  assert.equal(stateAfter(a => active(a, 'heavy')), 'hit');
+  assert.equal(stateAfter(a => active(a, 'heavy'), 'officer'), 'idle');
+  // 反撃：敵の斬りを弾いたあと
+  const [a, d] = pair();
+  startMove(d, 'soldier_slash'); tick(d, MOVES.soldier_slash.windup);
+  setBlock(a, true); assert.equal(strike(d, a).outcome, 'parried'); setBlock(a, false);
+  d.posture = d.postureMax;                                    // 弾かれて削れた構えを戻し、反撃で崩れない状態にして「ひるみ」だけを見る
+  startMove(a, 'counter'); tick(a, MOVES.counter.windup); assert.ok(strike(a, d)); assert.equal(d.state, 'hit');
 });
 test('none armor interrupts windup/active while light/heavy continue until posture break', () => {
   for (const kind of ['hero', 'soldier', 'officer']) {
