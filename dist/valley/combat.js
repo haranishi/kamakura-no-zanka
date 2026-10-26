@@ -30,8 +30,8 @@ export const MOVES = freezeRows({
   soldier_thrust: move('soldier_thrust', .70, .10, .80, 12, 14, 2.6, 40, 'Katana_Thrust', {telegraph: .70}),
   officer_a: move('officer_a', .35, .12, .30, 14, 14, 2, 110, 'Officer_Attack', {telegraph: .35}),
   // 二段目の威力・間合いは未記載のため一段目を引き継ぐ。
-  officer_b: move('officer_b', .20, .12, .30, 14, 14, 2, 110, 'Officer_Attack',
-    {telegraph: .20, chainFrom: 'officer_a', chainWindow: .30}),
+  officer_b: move('officer_b', .34, .12, .30, 14, 14, 2, 110, 'Officer_Attack',
+    {telegraph: .34, chainFrom: 'officer_a', chainWindow: .30}),
   officer_c: move('officer_c', .45, .14, .80, 22, 24, 2.2, 120, 'Officer_Attack',
     {telegraph: .45, chainFrom: 'officer_b', chainWindow: .30}),
   // 弾きの直後だけ出せる反撃（RULES.counterWindow）。受け止めた勢いで斬り返すので、予備が短く構え削りが大きい。
@@ -101,6 +101,13 @@ function interrupt(f) {
   f.blocking = false;
   f.parryT = 0;
   f.hitT = f.recoilT = f.dodgeT = 0;
+}
+// 振っている途中の技を無かったことにする。里が片づいた瞬間に退く兵の、これから当たる一撃を止めるのに使う。
+export function cancelMove(f) {
+  if (!f.alive || f.state !== 'attack') return false;
+  interrupt(f);
+  f.state = 'idle';
+  return true;
 }
 function stagger(f) {
   if (f.state === 'stagger') return;

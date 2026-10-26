@@ -18,7 +18,7 @@ class PointCloud {
     const m = new THREE.ShaderMaterial({
       uniforms: this.uniforms, transparent: true, depthWrite: false, blending: additive ? THREE.AdditiveBlending : THREE.NormalBlending,
       vertexShader: 'attribute vec4 aColor; attribute float aSize; varying vec4 vC; uniform float uScale; void main(){ vC = aColor; vec4 mv = modelViewMatrix * vec4(position, 1.0); gl_PointSize = aSize * uScale / max(0.1, -mv.z); gl_Position = projectionMatrix * mv; }',
-      fragmentShader: 'varying vec4 vC; void main(){ vec2 d = gl_PointCoord - 0.5; float r = length(d) * 2.0; float a = smoothstep(1.0, 0.0, r); a *= a; gl_FragColor = vec4(vC.rgb, vC.a * a); }',
+      fragmentShader: 'varying vec4 vC; void main(){ vec2 d = gl_PointCoord - 0.5; float r = length(d) * 2.0; float a = 1.0 - smoothstep(0.0, 1.0, r); a *= a; gl_FragColor = vec4(vC.rgb, vC.a * a); }',
     });
     this.points = new THREE.Points(g, m); this.points.frustumCulled = false; this.points.renderOrder = additive ? 5 : 4;
     this.geometry = g;

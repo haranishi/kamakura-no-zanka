@@ -163,9 +163,10 @@ function footprintInterval(o, a, b, r) {
   }
   return t;
 }
-function obstacleHit(col, terrain, a, b, radius) {
+function obstacleHit(col, terrain, a, b, radius, ignoreThin = 0) {
   let best = 2;
   for (const o of nearby(col, a.x, a.z, b.x, b.z, radius)) {
+    if (ignoreThin > 0 && o.type !== 'box' && o.r < ignoreThin) continue;       // 幟の竿のような細い円は、カメラの線を遮らない
     const t = footprintInterval(o, a, b, radius);
     if (!t) continue;
     const base = terrain.heightAt(o.x, o.z); finite(base);
@@ -187,9 +188,9 @@ export function segmentBlocked(col, terrain, a, b, opts = {}) {
   }
   return false;
 }
-export function rayClip(col, terrain, from, to, radius = 0.25) {
+export function rayClip(col, terrain, from, to, radius = 0.25, { ignoreThin = 0 } = {}) {
   validateLine(from, to); size(radius);
-  let hit = obstacleHit(col, terrain, from, to, radius);
+  let hit = obstacleHit(col, terrain, from, to, radius, ignoreThin);
   const n = Math.max(1, Math.ceil(Math.hypot(to.x - from.x, to.y - from.y, to.z - from.z) / 0.1));
   const under = t => { const p = point(from, to, t), h = terrain.heightAt(p.x, p.z); finite(h); return p.y < h + radius; };
   for (let i = 0; i <= n && i / n <= hit; i++) if (under(i / n)) {

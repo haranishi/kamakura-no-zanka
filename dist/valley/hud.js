@@ -34,11 +34,13 @@ export class HUD {
   setBoss(visible, name, ratio) { this.el.boss.classList.toggle('hidden', !visible); if (visible) { this.el['boss-name'].textContent = name; this.el['boss-hp'].style.transform = `scaleX(${Math.max(0, ratio)})`; } }
   prompt(text, key = 'E') { this.el.prompt.classList.toggle('hidden', !text); if (text) { this.el['prompt-text'].textContent = text; this.el.prompt.querySelector('kbd').textContent = key; } }
 
+  // 案内は鍵ごとに一度だけ出す。出したときだけ true
   hint(key, text, ms = 5200) {
-    if (this.hintsShown.has(key)) return;
+    if (this.hintsShown.has(key)) return false;
     this.hintsShown.add(key);
     const h = this.el.hint; h.textContent = text; h.classList.remove('hidden');
     this.after('hint', ms / 1000, () => h.classList.add('hidden'));
+    return true;
   }
   toast(text, ms = 2200) {
     const t = this.el.toast; t.textContent = text; t.classList.add('on');

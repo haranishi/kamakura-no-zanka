@@ -3,12 +3,13 @@ import { initialSave, sanitize } from './save.js';
 const copy = v => JSON.parse(JSON.stringify(v));
 const validNumber = n => typeof n === 'number' && Number.isFinite(n) && n >= 0;
 const snapshot = s => ({ beat: s.beat, flags: copy(s.flags), resources: copy(s.resources), trust: s.trust,
-  down: copy(s.down), captiveFreed: s.captiveFreed });
+  down: copy(s.down), captiveFreed: s.captiveFreed, seen: s.seen, stealth: s.stealth });
 const objective = s => ({ type: 'objective', text: s.story.beats[s.beat].objective });
 export function createQuest(story = STORY) {
   const s = { story: copy(story), beat: 'b0_temple', flags: { plan: null, approach: null, archerJoined: false, ambush: null },
     resources: copy(story.resources), trust: story.trust, checkpoint: null, checkpointState: null,
-    down: {}, captiveFreed: false, pendingRetry: false };
+    down: {}, captiveFreed: false, pendingRetry: false,
+    seen: false, stealth: 0 };                                       // 里の戦いの記録（保存しない）：一度でも騒ぎになったか／闇討ちの数。結果の文と士気・信頼に効く
   return s;
 }
 export function reduce(state, event) {
@@ -40,6 +41,7 @@ export function reduce(state, event) {
       emit('spawn', { group: 'village_enemies', alert: s.flags.approach === 'front' ? 'high' : 'unaware' });
       advance('b4_village');
     } else if (s.beat === 'b4_village' && event.type === 'pillage_tick' && validNumber(event.dt) && validNumber(event.pillagers)) {
+      if (event.loud === true) s.seen = true;
       const rate = event.loud === true ? s.story.pillage.front : s.story.pillage[s.flags.approach];   // 見つかって騒ぎになれば、脇道でも正面と同じ速さで荒らされる
       // 上限を先に設け、巨大な有限入力同士の積でもInfinityを状態へ渡さない。
       const loss = Math.min(s.resources.food, Math.min(event.dt, 1e6) * Math.min(event.pillagers, 1e6) * rate);
@@ -49,10 +51,17 @@ export function reduce(state, event) {
       if (s.story.groups[group].includes(event.id) && !s.down[event.id] && (group !== 'escort_ambush' || s.flags.ambush === 'active')) {
         s.down[event.id] = event.how;
         // 里の信頼：投降を受け入れる・追い払う・闇討ちで静かに倒すほど上がる
-        const gain = (event.how === 'surrendered' ? 4 : event.how === 'routed' ? 2 : 0) + (event.how === 'killed' && event.stealth === true ? 3 : 0);
+        const stealthKill = event.how === 'killed' && event.stealth === true;
+        if (stealthKill) s.stealth += 1;
+        const gain = (event.how === 'surrendered' ? 4 : event.how === 'routed' ? 2 : 0) + (stealthKill ? 3 : 0);
         if (gain) s.trust = Math.min(100, s.trust + gain);
         if (group === 'village_enemies' && (event.id === 'officer' || s.story.groups[group].every(id => s.down[id]))) {
           s.trust = Math.max(0, Math.min(100, s.trust + Math.max(-6, Math.min(6, Math.round((s.resources.food - 30) / 5)))));   // 蓄えが残った分だけ里の見る目が変わる
+          // 脇道を一度も見つからずに片づけたなら、里は騒ぎを知らない。闇討ちと投降の受け入れは、仲間の足取りを軽くする
+          if (s.flags.approach === 'flank' && !s.seen) s.trust = Math.min(100, s.trust + 8);
+          const mercy = Object.values(s.down).filter(h => h === 'surrendered').length;
+          const lift = Math.min(12, s.stealth * 4 + mercy * 3, 100 - s.resources.morale);
+          if (lift > 0) { s.resources.morale += lift; emit('resources', { delta: { morale: lift } }); }
           dialogue('village_cleared'); advance('b5_archer'); emit('despawn', { group: 'village_enemies_rest' });
         } else if (group === 'escort_ambush' && s.story.groups[group].every(id => s.down[id])) {
           s.flags.ambush = 'cleared'; dialogue('ambush_cleared');
@@ -76,11 +85,12 @@ export function reduce(state, event) {
   }
   return { state: s, effects };
 }
+// 結果の文の境目は、実際に遊んで出る幅に合わせてある（正面で食糧33〜45・信頼44〜47、静かな脇道で食糧50前後・信頼55前後）
 export function summarize(s) {
-  const { food, morale } = s.resources, approach = s.flags.approach;
+  const { food, morale } = s.resources, approach = s.flags.approach, r = s.story.results;
   return { saved: s.flags.archerJoined ? 4 : 3, food, morale, trust: s.trust, approach,
-    lines: [s.story.results[approach || 'none'], s.story.results[food >= 50 ? 'plentiful' : 'scarce'],
-      morale >= 60 ? '仲間と帰る灯がある。' : '里の灯を絶やすな。', s.trust >= 50 ? '里は門を開く。' : '信頼はこれからだ。'] };
+    lines: [r[approach || 'none'], r[food >= 50 ? 'plentiful' : food >= 35 ? 'meager' : 'scarce'],
+      morale >= 75 ? r.moraleHigh : morale >= 60 ? r.moraleMid : r.moraleLow, s.trust >= 58 ? r.trustHigh : s.trust >= 48 ? r.trustMid : r.trustLow] };
 }
 export function exportProgress(state) {
   // 戦闘中の保存は、消費された資源を含め直前の区切りへ戻す。

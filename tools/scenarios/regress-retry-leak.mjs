@@ -1,5 +1,6 @@
 // 回帰：やり直しを繰り返しても、GPU資源（形・画像）が増えない。
 // 以前は人物ごとの骨の行列の画像・武器の形と材質を解放しておらず、やり直しのたびに画像が約11枚ずつ増えた。
+// 資源の数だけ見ると、やり直しが起きずに倒れたままでも成功してしまう。各周で「主人公が立ち直った・見晴らしへ戻った・里の敵5人が作り直された」も確かめる。
 // 実行：PLAYWRIGHT_MODULE=… node tools/valley-play.mjs tools/scenarios/regress-retry-leak.mjs --strict
 export default async function ({ st, step, call, v, freeze, start, log }) {
   await start('new'); await freeze(true); await step(30);
@@ -13,7 +14,12 @@ export default async function ({ st, step, call, v, freeze, start, log }) {
     await v("(()=>{ const g = __valley.game, f = g.hero.fighter; f.hp = 0; f.alive = false; f.state = 'down'; g.onHeroDown(); })()");
     await step(120);
     await v("document.getElementById('death-retry').click()"); await step(120); await adv();
-    counts.push(await mem()); log('retry', k + 1, JSON.stringify(counts[k]));
+    const q = await st(), village = q.enemies.filter(e => e.id === 'officer' || e.id.startsWith('village_'));
+    if (!q.hero.alive || q.hero.hp <= 0) throw new Error(`retry ${k + 1}: the hero did not recover ${JSON.stringify(q.hero)}`);
+    if (q.flow !== 'play' && q.flow !== 'choice') throw new Error(`retry ${k + 1}: flow is ${q.flow}`);
+    if (q.beat !== 'b3_viewpoint') throw new Error(`retry ${k + 1}: beat is ${q.beat}, expected b3_viewpoint`);
+    if (village.length !== 5 || village.some(e => e.hp <= 0)) throw new Error(`retry ${k + 1}: the village enemies were not rebuilt ${JSON.stringify(village.map(e => [e.id, e.hp]))}`);
+    counts.push(await mem()); log('retry', k + 1, JSON.stringify(counts[k]), 'hero hp', q.hero.hp, 'flow', q.flow);
     await v("document.getElementById('choice-front')?.click()"); await step(10);
   }
   const first = counts[0], last = counts[counts.length - 1];

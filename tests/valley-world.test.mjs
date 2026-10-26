@@ -4,9 +4,9 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { WORLD } from '../dist/valley/world-data.js';
 import { createTerrain } from '../dist/valley/terrain-height.js';
-import { scatterTrees, insideFootprint, insidePlot, scatterCrops } from '../dist/valley/scatter.js';
+import { scatterTrees, scatterRocks, insideFootprint, insidePlot, scatterCrops } from '../dist/valley/scatter.js';
 import { buildColliders, nearestFree, moveActor } from '../dist/valley/collision.js';
-import { propColliders } from '../dist/valley/world-colliders.js';
+import { propColliders, rockColliders, ROCK_MODEL } from '../dist/valley/world-colliders.js';
 import { createAIWorld } from '../dist/valley/ai-world.js';
 import { STORY } from '../dist/valley/story-data.js';
 import { LOCOMOTION, MOVE_CLIPS, ACTION_CLIPS, GAITS, pickGait, segmentFor, locomotionTimeScale, CLIP_SEGMENTS } from '../dist/valley/anim-data.js';
@@ -79,6 +79,21 @@ test('the ambushers can reach the temple steps (the ambush starts there when the
     const end = path[path.length - 1];
     assert(Math.hypot(end.x - steps.x, end.z - steps.z) < steps.r, `${s.id}: path ends ${Math.hypot(end.x - steps.x, end.z - steps.z).toFixed(1)} m from the steps`);
   }
+});
+
+test('no big rock stands in the village flat, on a road shoulder or in a story zone, and every big rock blocks movement', () => {
+  const rocks = scatterRocks(WORLD, terrain), village = WORLD.flats.find(f => f.id === 'village');
+  const wide = i => Math.max(ROCK_MODEL.width * rocks.s[i] * rocks.sx[i], ROCK_MODEL.depth * rocks.s[i] * rocks.sz[i]);
+  for (let i = 0; i < rocks.x.length; i++) {
+    if (wide(i) < 2.5) continue;
+    const x = rocks.x[i], z = rocks.z[i], at = `rock ${i} (${x.toFixed(1)},${z.toFixed(1)}) width ${wide(i).toFixed(1)}m`;
+    assert(!(Math.abs(x - village.x) < village.hx && Math.abs(z - village.z) < village.hz), `${at} stands in the village flat`);
+    for (const [name, zone] of Object.entries(WORLD.zones)) assert(Math.hypot(x - zone.x, z - zone.z) > zone.r + wide(i) / 2, `${at} stands in zone ${name}`);
+    const road = terrain.roadInfo(x, z); assert(!road || road.dist > 4, `${at} sits on a road shoulder`);
+  }
+  // 幅1.4m以上の岩には当たりが付く（岩の中へ入れない）
+  const circles = rockColliders(rocks), bigCount = rocks.x.filter((_, i) => wide(i) >= 1.4).length;
+  assert.equal(circles.length, bigCount); assert(circles.length > 20, 'the valley should have rocks that block');
 });
 
 test('people who come out of their houses can walk from the door to their spot and along their route', () => {

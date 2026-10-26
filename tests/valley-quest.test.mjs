@@ -38,7 +38,7 @@ for (const entrance of ['village_front', 'village_north', 'village_south']) {
       assert.deepEqual(s, before); assert.notEqual(r.state, s);
       assert.equal(r.state.beat, beat); assert.ok(effect === 'noop' || r.effects.some(e => e.type === effect)); s = r.state;
     }
-    assert.equal(s.flags.archerJoined, true); assert.equal(s.resources.morale, 65);
+    assert.equal(s.flags.archerJoined, true); assert.equal(s.resources.morale, 68);   // 50 + 投降を受け入れた1人 3 + 弥十郎が加わった 15
     assert.equal(s.flags.approach, entrance === 'village_front' ? 'front' : 'flank');
   });
 }
@@ -147,7 +147,45 @@ test('checkpoint export/restore round trips; combat export rewinds and preserves
 test('summary derives text from approach, food, morale and trust', () => {
   const s = escort(), a = summarize(s);
   assert.equal(a.saved, 4); assert.ok(a.lines.some(l => l.includes('冬を越せる')));
-  s.flags.approach = 'flank'; s.resources.food = 49; s.resources.morale = 20; s.trust = 60;
+  s.flags.approach = 'flank'; s.resources.food = 30; s.resources.morale = 20; s.trust = 60;
   const b = summarize(s); assert.notDeepEqual(a.lines, b.lines);
   assert.equal(b.approach, 'flank'); assert.ok(b.lines.some(l => l.includes('次は匿えない')));
+});
+
+test('result text has three tiers each, cut where real play lands (front: food 33-45, trust 44-47; quiet flank: food about 50, trust 55+)', () => {
+  const lines = (food, morale, trust) => { const s = escort(); Object.assign(s.resources, { food, morale }); s.trust = trust; return summarize(s).lines; };
+  const L = STORY.results;
+  assert.deepEqual([50, 49, 35, 34].map(f => lines(f, 65, 40)[1]), [L.plentiful, L.meager, L.meager, L.scarce]);
+  assert.deepEqual([75, 74, 60, 59].map(m => lines(60, m, 40)[2]), [L.moraleHigh, L.moraleMid, L.moraleMid, L.moraleLow]);
+  assert.deepEqual([58, 57, 48, 47].map(t => lines(60, 65, t)[3]), [L.trustHigh, L.trustMid, L.trustMid, L.trustLow]);
+  assert.ok(L.plentiful.includes('冬を越せる') && L.meager.includes('蓄えは半分') && L.scarce.includes('次は匿えない'));
+});
+test('a flank cleared without being seen earns trust; quiet kills and mercy lift morale; being seen costs the trust bonus', () => {
+  const clear = loud => {
+    let s = village('village_north');
+    s = run(s, 'pillage_tick', { dt: 5, pillagers: 5, loud });
+    s = run(s, 'enemy_down', { id: 'village_soldier_1', how: 'killed', stealth: true });
+    s = run(s, 'enemy_down', { id: 'village_soldier_2', how: 'killed', stealth: true });
+    return run(s, 'enemy_down', { id: 'officer', how: 'killed' });
+  };
+  const quiet = clear(false), noticed = clear(true);
+  assert.equal(quiet.beat, 'b5_archer'); assert.equal(quiet.seen, false); assert.equal(noticed.seen, true);
+  assert.ok(quiet.trust >= noticed.trust + 8, `${quiet.trust} vs ${noticed.trust}`);
+  assert.equal(quiet.resources.morale, 58, 'two quiet kills = +8');
+  let m = village('village_north');
+  m = run(m, 'enemy_down', { id: 'village_soldier_1', how: 'surrendered' });
+  m = run(m, 'enemy_down', { id: 'village_soldier_2', how: 'surrendered' });
+  m = run(m, 'enemy_down', { id: 'officer', how: 'killed' });
+  assert.equal(m.resources.morale, 56, 'two mercies = +6');
+  const front = run(village(), 'enemy_down', { id: 'officer', how: 'killed' });
+  assert.equal(front.resources.morale, 50, 'a plain fight lifts nothing');
+  assert.ok(reduce(village('village_north'), ev('enemy_down', { id: 'officer', how: 'killed' })).effects.every(e => e.type !== 'resources' || !e.delta.morale));
+});
+test('retry forgets that the village noticed you and the quiet kills', () => {
+  let s = village('village_north');
+  s = run(s, 'pillage_tick', { dt: 1, pillagers: 2, loud: true });
+  s = run(s, 'enemy_down', { id: 'village_soldier_1', how: 'killed', stealth: true });
+  assert.equal(s.seen, true); assert.equal(s.stealth, 1);
+  s = run(run(s, 'player_down'), 'retry');
+  assert.equal(s.seen, false); assert.equal(s.stealth, 0);
 });

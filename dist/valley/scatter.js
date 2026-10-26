@@ -19,6 +19,9 @@ export function cellRand(seed, i, j) {
 function nearPeak(world, x, z, scale = 1) { return (world.peaks || []).some(p => Math.hypot(x - p.x, z - p.z) < p.r * scale); }
 function onPeakTop(world, x, z) { return (world.peaks || []).some(p => Math.hypot(x - p.x, z - p.z) < p.flatR * 1.9); }   // 砦は実寸で約50m。頂の周り約45mは木を抜く（低い所から砦の輪郭が見えるように）
 
+// 岩の模型（boulder.glb）の大きさ(m)。当たりと、里の岩の大きさの上限に使う。
+export const ROCK_MODEL = { width: 2.72, depth: 1.96, height: 1.48 };
+
 // 建物の足跡（回転した長方形）に点が入るか。margin はメートル。
 export function insideFootprint(b, x, z, margin = 0) {
   const c = Math.cos(b.rotY), s = Math.sin(b.rotY), dx = x - b.x, dz = z - b.z;
@@ -127,7 +130,7 @@ export function scatterRocks(world, terrain, { seed = 13, nearBox = [-150, 170, 
     const road = terrain.roadInfo(x, z);
     if (road && road.dist < 1.0) continue;
     let s = 0.35 + Math.pow(sRoll, 2.2) * (bank > 0.2 ? 2.6 : 1.7) + steep * 0.5;
-    if (s > 1.2 && (inVillage(x, z) || (road && road.dist < 6))) s = 0.35 + (s - 0.35) * 0.3;          // 里と道の脇は小さな石だけ
+    if (inVillage(x, z) || (road && road.dist < 6)) s = Math.min(s, 2.0 / (ROCK_MODEL.width * Math.max(0.75 + sx * 0.6, 0.75 + sz * 0.6)));          // 里と道の脇は幅2m以下の石だけ
     out.x.push(x); out.z.push(z); out.y.push(terrain.heightAt(x, z)); out.s.push(s); out.rot.push(rot * Math.PI * 2);
     out.sx.push(0.75 + sx * 0.6); out.sz.push(0.75 + sz * 0.6); out.sink.push(0.15 + sink * 0.25);
   }

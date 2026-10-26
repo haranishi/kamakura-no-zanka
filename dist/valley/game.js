@@ -4,12 +4,12 @@ import * as THREE from 'three';
 import { WORLD } from './world-data.js';
 import { buildColliders, rayClip } from './collision.js';
 import { createAIWorld } from './ai-world.js';
-import { propColliders } from './world-colliders.js';
+import { propColliders, rockColliders } from './world-colliders.js';
 import { HeroActor, EnemyActor, AllyActor, NpcActor, SPEED, yawOf, dist2 } from './actors.js';
 import { Battle } from './battle.js';
 import { CameraRig } from './camera-rig.js';
 import { FX } from './fx.js';
-import { createQuest, reduce, exportProgress, restoreProgress } from './quest.js';
+import { createQuest, reduce, exportProgress, restoreProgress, summarize } from './quest.js';
 import { STORY } from './story-data.js';
 import { loadValley, saveValley } from './save.js';
 import { FEEL } from './config.js';
@@ -28,7 +28,7 @@ export class Game {
     this.enemies = []; this.npcs = new Map(); this.ally = null; this.noises = [];
     this.exitPoint = { ...WORLD.exit };
     const extra = propColliders(WORLD);
-    this.col = buildColliders({ buildings: WORLD.buildings, props: WORLD.props, trees: scatter.trees, bounds: WORLD.bounds, extraCircles: extra.circles, extraBoxes: extra.boxes });
+    this.col = buildColliders({ buildings: WORLD.buildings, props: WORLD.props, trees: scatter.trees, bounds: WORLD.bounds, extraCircles: [...extra.circles, ...rockColliders(scatter.rocks)], extraBoxes: extra.boxes });
     this.aiWorld = createAIWorld({ terrain, col: this.col, bounds: WORLD.bounds, now: () => this.time });
     this.tokens = this.aiWorld.createTokens(2);
     this.rig = new CameraRig(camera);
@@ -153,6 +153,10 @@ export class Game {
     this.placeHeroAt(cp);
     this.buildWorld(); this.begin();
     if (this.quest.beat === 'done') this.showResult();
+    // クリア後の保存は結果の区切り(b7_result)。つづきからは焚き火の前で結果の会話を出し直す（出さないと何も起きない）
+    else if (this.quest.beat === 'b7_result') { this.ending = summarize(this.quest); this.queueDialogue('result'); }
+    // 見晴らしの区切りからのつづきも、道を選ぶ場面を飛ばさない（やり直しと同じ）
+    else if (this.quest.beat === 'b3_viewpoint') this.after(0.9, () => { if (this.flow === 'play' && this.quest.beat === 'b3_viewpoint') this.showChoice(); });
   }
   begin() {
     this.hero.character.root.visible = true;
@@ -309,6 +313,7 @@ export class Game {
     if (group === 'village_enemies_rest') {
       // 侍大将が崩れたら、残りは退いていく
       for (const e of this.enemies) if (e.group === 'village_enemies' && e.fighter.alive && !e.departed && e.brain.state !== 'surrendered') { e.brain.state = 'retreat'; e.dormant = false; }
+      this.battle.ceaseFire();
       return;
     }
     const keep = [];
@@ -333,7 +338,10 @@ export class Game {
   }
 
   // ------------------------------------------------------------------ 会話
+  // 会話の最中は主人公が傷を受けない。勝った場面の余韻に、退く兵の一撃や飛んでいる矢が当たって倒れ、守った里が元に戻るのを防ぐ
+  heroProtected() { return this.hud.talking || !!this.pendingDialogue; }
   queueDialogue(id) {
+    if (id === 'ambush_cleared') this.battle.ceaseFire();         // 待ち伏せを退けた瞬間に、逃げる兵の振りと飛んでいる矢を止める
     // 子が駆けつけてから話し始める（間に合わなくても6秒で始める）。結果は場面の入れ替え（暗転）が終わってから
     this.pendingDialogue = { id, since: this.time, delay: id === 'result' ? 1.1 : 0 };
   }
@@ -567,7 +575,7 @@ export class Game {
     const frozen = this.flow === 'choice' || this.flow === 'result';
     this.rig.update(dt, this.hero.pos, {
       lookDx: frozen ? 0 : look.dx, lookDy: frozen ? 0 : look.dy, lockTarget,
-      rayClip: (a, b) => rayClip(this.col, this.terrain, a, b, 0.45), groundAt: (x, z) => this.terrain.heightAt(x, z), zoom: this.input.wheel,
+      rayClip: (a, b) => rayClip(this.col, this.terrain, a, b, 0.3, { ignoreThin: 0.2 }), groundAt: (x, z) => this.terrain.heightAt(x, z), zoom: this.input.wheel,
     });
     this.applyCine(dt);
   }

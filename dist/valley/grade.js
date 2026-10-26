@@ -46,7 +46,7 @@ export function patchLift(material, gamma = 0.8) {
         vec3 lc = max(diffuseColor.rgb, vec3(0.0));
         float ll = dot(lc, vec3(0.2126, 0.7152, 0.0722));
         // 暗い所だけ持ち上げる（明るさが約0.25を超えるほど効かない）。肌（手・顔）まで明るくすると、手が顔より白っぽく見えた
-        diffuseColor.rgb = mix(lc, pow(lc, vec3(${gamma.toFixed(3)})), smoothstep(0.3, 0.02, ll));
+        diffuseColor.rgb = mix(lc, pow(lc, vec3(${gamma.toFixed(3)})), (1.0 - smoothstep(0.02, 0.3, ll)));
       }`);
   };
   material.customProgramCacheKey = () => `lift2-${gamma}`;

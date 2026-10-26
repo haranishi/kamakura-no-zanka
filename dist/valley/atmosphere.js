@@ -101,7 +101,7 @@ function skyMaterial(a, time) {
         vec3 hz = hazeColor(d);
         vec3 col = mix(hz, mid, smoothstep(0.0, 0.22, h));
         col = mix(col, zenith, smoothstep(0.12, 0.85, h));
-        col = mix(col, mix(hz, below, 0.5), smoothstep(0.0, -0.18, h));
+        col = mix(col, mix(hz, below, 0.5), (1.0 - smoothstep(-0.18, 0.0, h)));
         float sd = max(dot(d, normalize(sunDir)), 0.0);
         // 太陽のまわり（暖色の散乱）と円盤
         col += sunColor * (pow(sd, 5.0) * 0.20 + pow(sd, 40.0) * 0.55);

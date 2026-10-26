@@ -552,7 +552,7 @@ export class AllyActor extends Actor {
     if (!busy && intent.move && intent.speed !== 'stop') {
       dir = intent.move;                     // 仲間AIの move は「進む向き」（単位ベクトル）
       const d = dist2(this.pos, g.hero.pos);
-      target = SPEED.ally * Math.min(1, 0.6 + d * 0.12) * (1 + Math.max(0, Math.min(0.75, (d - 5) / 10)));   // 離れたら急いで追いつく（主人公の歩きより遅いと、いつまでも離れた）
+      target = SPEED.ally * Math.min(1, 0.6 + d * 0.12) * (1 + Math.max(0, Math.min(1.6, (d - 5) / 6)));   // 離れたら急いで追いつく。15m離れれば主人公の走り(5m/s)を超える（主人公の走りに19m離された）
     }
     this.speedNow = approach(this.speedNow, target, 9, dt);
     if (intent.startMove && !busy && intent.shoot) {

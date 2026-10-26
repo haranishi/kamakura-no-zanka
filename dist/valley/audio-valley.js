@@ -2,6 +2,11 @@
 // 風・川・虫・焚き火の環境音と、刃・被弾・受け・弓・足音・鐘・太鼓の効果音を足す。音量は master 1か所で調整する。
 import { GameAudio } from '../audio.js';
 
+// 音ごとの音量の補正（実測のピーク dBFS で、強い音は -6〜-10・弱い音は -15〜-22 に寄せる。以前は命中・弾きが -4〜-6、足音・振りが -23〜-33 で、
+// 足音と振りがほとんど聞こえず、強い音は同時に鳴ると 0 dBFS を超えて割れた）。tools/scenarios/regress-audio-levels.mjs が守る。
+const LEVEL = { swing: 2.3, swing_heavy: 1.2, hit: 0.7, hit_heavy: 0.6, clash: 0.75, block: 0.65, parry: 0.65, hurt: 2.5, die: 1.0, bow_draw: 2.5, bow_release: 0.9, arrow_hit: 0.85, taiko: 0.65,
+  bell: 1.0, alert: 1.6, step_grass: 3.2, step_dirt: 3.2, step_gravel: 3.2, step_wood: 2.0, roll: 2.2, draw: 2.5, sheathe: 2.5, ui: 2.0, dialogue: 2.0 };
+
 export class ValleyAudio extends GameAudio {
   constructor(onUnavailable) {
     super(onUnavailable);
@@ -14,7 +19,9 @@ export class ValleyAudio extends GameAudio {
     if (!this.master) {
       this.master = ctx.createGain(); this.master.gain.value = this.volume;
       this.comp = ctx.createDynamicsCompressor(); this.comp.threshold.value = -16; this.comp.ratio.value = 4; this.comp.attack.value = 0.004; this.comp.release.value = 0.18;
-      this.master.connect(this.comp); this.comp.connect(ctx.destination);
+      // 最後に天井（リミッター）。圧縮器だけでは、同時に鳴る強い音の山が 0 dBFS を超えて割れた
+      this.limiter = ctx.createDynamicsCompressor(); this.limiter.threshold.value = -3; this.limiter.knee.value = 0; this.limiter.ratio.value = 20; this.limiter.attack.value = 0.001; this.limiter.release.value = 0.09;
+      this.master.connect(this.comp); this.comp.connect(this.limiter); this.limiter.connect(ctx.destination);
     }
     return this.master;
   }
@@ -69,7 +76,7 @@ export class ValleyAudio extends GameAudio {
     const master = this.ensureMaster();
     const t = ctx.currentTime;
     const nodes = [];
-    const bus = ctx.createGain(); bus.gain.value = gain; nodes.push(bus);
+    const bus = ctx.createGain(); bus.gain.value = gain * (LEVEL[kind] ?? 1); nodes.push(bus);
     let out = bus;
     if (pan && ctx.createStereoPanner) { const p = ctx.createStereoPanner(); p.pan.value = Math.max(-1, Math.min(1, pan)); bus.connect(p); p.connect(master); nodes.push(p); } else bus.connect(master);
     const env = (g, peak, attack, decay) => { g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(peak, t + attack); g.gain.exponentialRampToValueAtTime(0.0001, t + attack + decay); };

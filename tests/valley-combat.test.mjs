@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {MOVES, STATS, createFighter, startMove, setBlock, startDodge, tick, strike,
-  canFinish, finish, stealthStrike, applyDamage, projectileHit} from '../dist/valley/combat.js';
+  canFinish, finish, stealthStrike, applyDamage, projectileHit, cancelMove} from '../dist/valley/combat.js';
 
 const fighter = (id = 'hero', options = {}) => createFighter({id, team: 'hero', kind: 'hero', ...options});
 const pair = (options = {}) => [fighter(), fighter('enemy', {team: 'enemy', kind: 'soldier', z: -1, yaw: Math.PI, ...options})];
@@ -28,7 +28,7 @@ test('MOVES retains all contract fields and freezes each row', () => {
   for (const [id, values] of Object.entries({
     heavy: [.42, .12, .55, 30, 36, 2, 90], finisher: [.25, .10, .65, 60, 0, 1.6, 90],
     soldier_slash: [.55, .12, .70, 10, 12, 1.7, 100], soldier_thrust: [.70, .10, .80, 12, 14, 2.6, 40],
-    officer_a: [.35, .12, .30, 14, 14, 2, 110], officer_b: [.20, .12, .30, 14, 14, 2, 110],
+    officer_a: [.35, .12, .30, 14, 14, 2, 110], officer_b: [.34, .12, .30, 14, 14, 2, 110],
     officer_c: [.45, .14, .80, 22, 24, 2.2, 120], counter: [.12, .10, .42, 26, 32, 2, 110],
   })) {
     const m = MOVES[id];
@@ -81,7 +81,9 @@ test('chain window accepts officer transitions and rejects wrong/completed prede
   const f = fighter('officer', {kind: 'officer'});
   startMove(f, 'officer_a'); tick(f, .47);
   assert.equal(startMove(f, 'officer_b'), true);
-  tick(f, .32);
+  tick(f, .45);
+  assert.equal(startMove(f, 'officer_c'), false);                 // 二段目の戻りの窓はまだ開かない
+  tick(f, .01);
   assert.equal(startMove(f, 'officer_c'), true);
   tick(f, .59);
   // 長い戻りの技で、chainFromに合わない再入力も拒否する。
@@ -415,4 +417,17 @@ test('a parry opens a counter window for the defender only, the counter consumes
   // 窓があっても、構えを崩されて動けない間は出せない
   const d3 = fighter('hero3'); d3.counterT = 0.9; applyDamage(d3, 0, d3.posture);
   assert.equal(startMove(d3, 'counter'), false);
+});
+
+test('cancelMove stops a swing that has not landed, so a soldier who turns to flee cannot hit', () => {
+  const [a, d] = pair();
+  assert.equal(cancelMove(a), false, 'nothing to cancel while idle');
+  startMove(a, 'soldier_slash'); tick(a, MOVES.soldier_slash.windup);
+  assert.equal(a.move.phase, 'active');
+  assert.equal(cancelMove(a), true);
+  assert.equal(a.state, 'idle'); assert.equal(a.move, null); assert.equal(a.telegraphing, false);
+  assert.equal(strike(a, d), null, 'a cancelled swing hits nobody');
+  assert.equal(startMove(a, 'soldier_slash'), true, 'and the soldier can act again');
+  const dead = fighter('dead'); applyDamage(dead, dead.hp, 0);
+  assert.equal(cancelMove(dead), false);
 });

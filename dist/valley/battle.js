@@ -1,7 +1,7 @@
 // battle.js — 戦闘の結線（app層）。当たりの判定は combat.js に任せ、結果を音・火花・揺れ・敵の反応・士気・任務へ配る。
 // 矢の飛行・予兆（刃の光・照準線）・掛け声・士気の伝播もここ。規則の数値は combat.js と config.js の FEEL。
 import * as THREE from 'three';
-import { MOVES, strike, projectileHit } from './combat.js';
+import { MOVES, strike, projectileHit, cancelMove } from './combat.js';
 import { adjustMorale, alertFromAlly } from './enemy-ai.js';
 import { segmentBlocked } from './collision.js';
 import { makeArrow } from './weapons.js';
@@ -43,7 +43,8 @@ export class Battle {
     for (const e of g.enemies) {
       const f = e.fighter;
       if (!f.alive || e.departed || f.state !== 'attack' || f.move?.phase !== 'active' || MOVES[f.move.id].kind === 'shot') continue;
-      if (hf.alive) { const res = strike(f, hf); if (res) this.onStrike(e, hero, res); }
+      if (e.brain.state === 'retreat' || e.brain.state === 'surrendered') continue;       // 背を向けた兵の振りは当たらない
+      if (hf.alive && !g.heroProtected()) { const res = strike(f, hf); if (res) this.onStrike(e, hero, res); }
       const ally = g.ally;
       if (ally?.inParty && !ally.down) { const res = strike(f, ally.fighter); if (res) this.onStrike(e, ally, res); }
     }
@@ -84,7 +85,8 @@ export class Battle {
       att.onHit?.(res, def);
       if (att.brain) adjustMorale(att.brain, FEEL.parriedMorale, 'parried');
     }
-    g.emitNoise(def.pos.x, def.pos.z, res.outcome === 'hit' ? 12 : 18, 'clash');
+    // 闇討ちは静かな技。周りを呼ぶ音は3m（普通に斬る12m、受け・弾きの金属音18m）
+    g.emitNoise(def.pos.x, def.pos.z, res.outcome === 'stealth' ? 3 : res.outcome === 'hit' ? 12 : 18, 'clash');
     if (res.dead) this.onDeath(def, att, res);
   }
 
@@ -141,7 +143,10 @@ export class Battle {
       g.fx.add.emit({ pos: [p.x + fx * 0.55, p.y + 0.4, p.z + fz * 0.55], vel: [0, 0, 0], life: 0.17, size: 1.0, sizeEnd: 0.25, color: [1, 0.88, 0.6], alpha: 1 });
       g.audio.play('alert', { gain: 0.55, pan: g.pan(actor.pos), pitch: 1.5 });
       this.glints.push({ actor, t: 0.34 });
-      if (dist2(actor.pos, g.hero.pos) < 16) g.hud.hint('parry', STORY.hints.parry);
+      if (dist2(actor.pos, g.hero.pos) < 16) {
+        // 弾きの案内を見せたあとの侍大将の光で、連続技の案内を出す（同時には出せない）
+        if (!g.hud.hint('parry', STORY.hints.parry) && actor.kind === 'officer') g.hud.hint('officer', STORY.hints.officer);
+      }
     });
   }
   // 予兆の光：振りかぶる刃に沿って光の粒を並べる（光る刃が弾きの合図。胸の前の光だけだと主人公の陰で見えなかった）
@@ -208,6 +213,7 @@ export class Battle {
     const g = this.g, targets = a.ally ? g.enemies : [g.hero, ...(g.ally?.inParty && !g.ally.down ? [g.ally] : [])];
     for (const d of targets) {
       if (!d.fighter.alive || d.departed || (d.brain && d.brain.state === 'surrendered')) continue;
+      if (d === g.hero && g.heroProtected()) continue;                // 会話の最中は主人公に当たらない
       if (Math.hypot(a.pos.x - d.pos.x, a.pos.z - d.pos.z) > 0.5 || a.pos.y < d.pos.y - 0.1 || a.pos.y > d.pos.y + d.character.height + 0.15) continue;
       const fromYaw = yawOf(a.owner.pos.x - d.pos.x, a.owner.pos.z - d.pos.z);
       const res = projectileHit(d.fighter, { damage: a.move.damage, posture: a.move.posture, fromYaw, blockable: true });
@@ -235,6 +241,13 @@ export class Battle {
       line.visible = true;
     }
     for (let i = n; i < this.aimLines.length; i++) this.aimLines[i].visible = false;
+  }
+
+  // 戦いが決した瞬間（里を守った・待ち伏せを退けた）：背を向けた兵の振りと、飛んでいる敵の矢を止める。
+  // 止めないと、会話の最中にその一撃が当たって倒れ、守ったはずの里が見晴らしからやり直しになった（第2周の評価）
+  ceaseFire() {
+    for (const e of this.g.enemies) if (e.brain.state === 'retreat' || e.brain.state === 'surrendered') { if (cancelMove(e.fighter)) e.lunge = null; }
+    for (const a of [...this.arrows]) if (!a.ally) this.removeArrow(a);
   }
 
   clear() {

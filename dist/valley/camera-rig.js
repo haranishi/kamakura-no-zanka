@@ -4,6 +4,8 @@ import * as THREE from 'three';
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const damp = (cur, target, rate, dt) => cur + (target - cur) * (1 - Math.exp(-rate * dt));
+const MIN_REACH = 1.35;            // 壁際でもカメラは主人公からこれ以上寄らない（寄ると頭の中が映った）
+const LIFT = 1.1;                  // 寄せきれないぶん、カメラを上へ逃がして見下ろす（視線も主人公の頭へ寄せ、画面の端に追いやらない）
 
 export class CameraRig {
   constructor(camera, { fov = 58, distance = 3.6, shoulder = 0.55, height = 1.55 } = {}) {
@@ -11,7 +13,7 @@ export class CameraRig {
     this.yaw = 0; this.pitch = 0.2; this.distance = distance; this.shoulder = shoulder; this.height = height;
     this.focus = new THREE.Vector3(); this.pos = new THREE.Vector3(); this.initialized = false;
     this.shake = 0; this.shakeSeed = 0; this.sensitivity = 1; this.invert = false; this.shakeScale = 1;
-    this.lockYaw = null; this.clipped = 1; this.lockBlend = 0;
+    this.lockYaw = null; this.clipped = 1; this.lockBlend = 0; this.lift = 0;
     this._f = new THREE.Vector3(); this._d = new THREE.Vector3();
   }
 
@@ -49,9 +51,14 @@ export class CameraRig {
     if (groundAt) desired.y = Math.max(desired.y, groundAt(desired.x, desired.z) + 0.55);
     let t = 1;
     if (rayClip) t = rayClip({ x: this.focus.x, y: this.focus.y, z: this.focus.z }, { x: desired.x, y: desired.y, z: desired.z });
+    // 寄せる量には下限を置く。詰まったぶんだけカメラを上げ、壁や竿の際でも主人公を見下ろす形にする
+    const reach = Math.hypot(desired.x - this.focus.x, desired.y - this.focus.y, desired.z - this.focus.z) || 1, tMin = Math.min(1, MIN_REACH / reach);
+    const lift = t < tMin ? (tMin - t) / tMin : 0;
+    t = Math.max(t, tMin);
     // 手前へ寄せるときは即座に、戻すときはゆっくり
     this.clipped = t < this.clipped ? t : damp(this.clipped, t, 5, dt);
-    const px = this.focus.x + (desired.x - this.focus.x) * this.clipped, py = this.focus.y + (desired.y - this.focus.y) * this.clipped, pz = this.focus.z + (desired.z - this.focus.z) * this.clipped;
+    this.lift = damp(this.lift, lift, lift > this.lift ? 18 : 4, dt);
+    const px = this.focus.x + (desired.x - this.focus.x) * this.clipped, py = this.focus.y + (desired.y - this.focus.y) * this.clipped + this.lift * LIFT, pz = this.focus.z + (desired.z - this.focus.z) * this.clipped;
     this.camera.position.set(px, py, pz);
     // 揺れ（減衰する）
     this.shake = damp(this.shake, 0, 7, dt); this.shakeSeed += dt * 60;
@@ -61,7 +68,10 @@ export class CameraRig {
     }
     let lx = this.focus.x + right.x * shoulder * 0.4 + forward.x * 2.0, lz = this.focus.z + right.z * shoulder * 0.4 + forward.z * 2.0;
     if (lockTarget) { const m = 0.55 * lb; lx += ((this.focus.x + lockTarget.x) / 2 - lx) * m; lz += ((this.focus.z + lockTarget.z) / 2 - lz) * m; }   // 注視点を主人公と敵のあいだへ
-    this.camera.lookAt(lx, this.focus.y - 0.1 - sp * 0.5, lz);
+    let ly = this.focus.y - 0.1 - sp * 0.5;
+    const toHero = Math.min(1, this.lift) * 0.7;
+    if (toHero > 0.001) { lx += (this.focus.x - lx) * toHero; lz += (this.focus.z - lz) * toHero; ly += (this.focus.y - ly) * toHero; }
+    this.camera.lookAt(lx, ly, lz);
     this.fovPunch = damp(this.fovPunch, 0, 8, dt);
     const fov = this.baseFov + this.fovPunch;
     if (Math.abs(this.camera.fov - fov) > 0.01) { this.camera.fov = fov; this.camera.updateProjectionMatrix(); }
