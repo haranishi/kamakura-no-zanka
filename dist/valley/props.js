@@ -17,7 +17,11 @@ export async function loadPropModels({ anisotropy = 8 } = {}) {
         const ms = Array.isArray(o.material) ? o.material : [o.material];
         for (const m of ms) for (const k of ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'aoMap']) if (m[k]) m[k].anisotropy = anisotropy;
       });
-      out[name] = gltf.scene;
+      // Meshy のモデルは原点が中心に寄っていることがある。底面の中心を原点に揃えた入れ物に包む（置くとき足もとが地面に付く）
+      const box = new THREE.Box3().setFromObject(gltf.scene), c = box.getCenter(new THREE.Vector3());
+      gltf.scene.position.set(-c.x, -box.min.y, -c.z);
+      const wrap = new THREE.Group(); wrap.name = 'prop-' + name; wrap.add(gltf.scene);
+      out[name] = wrap;
     } catch { /* 無くても遊べる。置かないだけ */ }
   }));
   return out;

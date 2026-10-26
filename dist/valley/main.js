@@ -72,6 +72,7 @@ async function boot() {
   resize();
   await step(0.95, '道と見通しを調べています');
   game = new Game({ scene, camera, renderer, post, atmosphere, veg, props, terrain, scatter, roster, hud, audio, input, storage: (() => { try { return localStorage; } catch { return null; } })(), seed: Number(q.get('seed') || 1333) });
+  game.skipIntro = q.get('intro') === '0';
   applySettings(saved);
   await step(1, '準備ができました');
   wire();
@@ -134,11 +135,12 @@ function wire() {
   document.addEventListener('visibilitychange', () => { if (document.hidden && game?.flow === 'play' && !dlg.open) openPause(); });
 }
 
-// タイトル：廃寺の縁側から谷を見下ろす固定画角を、ゆっくり揺らす
+// タイトル：焚き火の向こうに廃寺が見える固定画角を、ゆっくり揺らす
 function titleCamera(dt) {
   titleT += dt;
-  applyShot(camera, SHOTS.veranda, game.terrain);
-  camera.rotateY(Math.sin(titleT * 0.12) * 0.045); camera.rotateX(Math.sin(titleT * 0.09) * 0.012);
+  applyShot(camera, SHOTS.title, game.terrain);
+  camera.rotateY(Math.sin(titleT * 0.12) * 0.035); camera.rotateX(Math.sin(titleT * 0.09) * 0.01);
+  camera.position.x += Math.sin(titleT * 0.1) * 0.5; camera.position.z += Math.cos(titleT * 0.1) * 0.35;
 }
 
 const clock = new THREE.Clock();

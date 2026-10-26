@@ -14,6 +14,7 @@ import { STORY } from './story-data.js';
 import { loadValley, saveValley } from './save.js';
 import { FEEL } from './config.js';
 import { mulberry32 } from './scatter.js';
+import { SHOTS } from './shots.js';
 
 const PLACE_ZONES = ['viewpoint', 'temple_steps'];
 const GROUP_KINDS = { boy: 'npc', road_scout: 'enemy', village_enemies: 'enemy', escort_ambush: 'enemy' };
@@ -34,9 +35,11 @@ export class Game {
     this.fx = new FX(scene);
     this.battle = new Battle(this);
     this.hero = new HeroActor(this, { x: WORLD.start.x, z: WORLD.start.z, yaw: WORLD.start.yaw });
+    this.hero.character.root.visible = false;           // タイトルでは姿を出さない（始めたとき見せる）
     this.quest = createQuest(); this.cpPos = {}; this.inZone = {}; this.pendingDialogue = null; this.ending = null;
     this.lostFood = 0; this.pillageT = 0; this.promptKey = ''; this.deathT = 0; this.heroWasAlive = true;
     this.lock = null; this.listenerT = 0; this.markerT = 0; this.enemySnaps = null; this.enemySnapsAt = -1;
+    this.cine = null; this.intro = null;
     this.stats = { kills: 0, parries: 0, stealth: 0 };
     this.settings = { sens: 1, invert: false, shake: 1, subs: true };
   }
@@ -118,10 +121,11 @@ export class Game {
   }
   startNew() {
     this.quest = createQuest(); this.cpPos = {}; this.ending = null; this.lostFood = 0; this.stats = { kills: 0, parries: 0, stealth: 0 };
+    this.hero.character.root.visible = true;
     const y = WORLD.zones.temple_yard;
     this.placeHeroAt({ x: WORLD.start.x, z: WORLD.start.z, yaw: yawOf(y.x - WORLD.start.x, y.z - WORLD.start.z) });
     this.buildWorld(); this.begin();
-    this.hud.hint('move', STORY.hints.move, 9000);
+    if (this.skipIntro) this.hud.hint('move', STORY.hints.move, 9000); else this.startIntro();
   }
   continueGame() {
     const { state, hasSave } = loadValley(this.storage);
@@ -133,6 +137,7 @@ export class Game {
     if (this.quest.beat === 'done') this.showResult();
   }
   begin() {
+    this.hero.character.root.visible = true;
     this.flow = this.quest.beat === 'done' ? 'result' : 'play';
     this.hud.setState('play'); this.hud.showHUD(true); this.hud.hideTitle(); this.hud.showDeath(false); this.hud.hideResult(); this.hud.fade(false);
     this.hud.setBars(this.hero.fighter.hp, this.hero.fighter.hpMax, this.hero.fighter.posture, this.hero.fighter.postureMax);
@@ -157,6 +162,48 @@ export class Game {
     });
   }
   toCheckpoint() { if (this.flow === 'play' || this.flow === 'dead') { this.flow = 'dead'; if (!this.quest.pendingRetry) this.dispatch({ type: 'player_down' }); this.retry(); } }
+
+  // ------------------------------------------------------------------ 冒頭の目覚め・演出カメラ
+  // 廃寺の庭で目覚める（横たわる → 頭をもたげる → 立ち上がる）。E・Space・クリックで飛ばせる。
+  startIntro() {
+    const h = this.hero, st = WORLD.start;
+    h.scripted = true; h.place(st.x, st.z, yawOf(-0.6, 0.8));
+    h.character.armRelax = false; h.character.playAction('wake', { timeScale: 1.25 });
+    this.intro = { t: 0, stood: false };
+    this.flow = 'intro';
+    this.hud.showHUD(false); this.hud.fadeInstant(true);
+    this.after(0.3, () => this.hud.fade(false));
+    this.setCine({ pos: [st.x + 5.2, 0.95, st.z + 5.6], look: [st.x, 0.45, st.z], fov: 42 }, 1);
+  }
+  updateIntro(dt) {
+    const it = this.intro; if (!it) return;
+    it.t += dt;
+    const skip = this.input.wasPressed('KeyE') || this.input.wasPressed('Space') || this.input.mouseWasPressed(0);
+    if (it.t > 2.7 && !it.stood) { it.stood = true; this.hero.character.playAction('getup', { timeScale: 1.45 }); this.cine && (this.cine.shot = { pos: [WORLD.start.x + 4.2, 1.5, WORLD.start.z + 4.6], look: [WORLD.start.x, 1.0, WORLD.start.z], fov: 44 }); }
+    if (it.t > 5.2 || (skip && it.t > 0.6)) this.endIntro();
+  }
+  endIntro() {
+    const h = this.hero; this.intro = null;
+    h.scripted = false; h.character.armRelax = true; h.character.locoName = null; h.character.gait = 'idle';
+    this.flow = 'play'; this.clearCine();
+    // 起き上がった向きのまま、庭（廃寺の石段の方）へ向けてカメラを置く
+    const y = WORLD.zones.temple_yard; this.rig.yaw = yawOf(y.x - h.pos.x, y.z - h.pos.z); this.rig.pitch = 0.2;
+    this.hud.showHUD(true); this.hud.hint('move', STORY.hints.move, 9000);
+  }
+  // 固定の演出カメラへ滑らかに移る（k が 0→1）。解除すると元のカメラへ戻る。pos/look の y は地面からの高さ（m）
+  setCine(shot, k0 = 0) { this.cine = { shot, k: k0, target: 1 }; }
+  clearCine() { if (this.cine) this.cine.target = 0; }
+  applyCine(dt) {
+    const c = this.cine; if (!c) return;
+    c.k += (c.target - c.k) * (1 - Math.exp(-(c.target ? 3.2 : 4.5) * dt));
+    if (c.target === 0 && c.k < 0.01) { this.cine = null; return; }
+    const sh = c.shot, T = this.terrain, pos = new THREE.Vector3(sh.pos[0], sh.pos[1] + T.heightAt(sh.pos[0], sh.pos[2]), sh.pos[2]);
+    const look = new THREE.Vector3(sh.look[0], sh.look[1] + T.heightAt(sh.look[0], sh.look[2]), sh.look[2]);
+    const m = new THREE.Matrix4().lookAt(pos, look, new THREE.Vector3(0, 1, 0)), q = new THREE.Quaternion().setFromRotationMatrix(m);
+    const e = c.k * c.k * (3 - 2 * c.k);
+    this.camera.position.lerp(pos, e); this.camera.quaternion.slerp(q, e);
+    if (sh.fov) { const f = this.camera.fov + (sh.fov - this.camera.fov) * e; if (Math.abs(f - this.camera.fov) > 0.01) { this.camera.fov = f; this.camera.updateProjectionMatrix(); } }
+  }
 
   // ------------------------------------------------------------------ 任務
   dispatch(event) {
@@ -261,12 +308,14 @@ export class Game {
   }
   startDialogue(id) {
     this.pendingDialogue = null;
+    if (id === 'viewpoint_overlook') { const o = SHOTS.overlook; this.setCine({ pos: [o.pos[0], o.eye, o.pos[1]], look: [o.look[0], o.look[2] ?? 1.2, o.look[1]], fov: o.fov }); }
     const lines = STORY.dialogues[id]; if (!lines) return;
     this.hud.startDialogue(id, lines, did => this.onDialogueEnd(did));
     this.audio.play('dialogue');
   }
   onDialogueEnd(id) {
     this.dispatch({ type: 'dialogue_end', id });
+    if (id === 'viewpoint_overlook') this.after(0.2, () => this.clearCine());
     if (id === 'boy_arrives') { const boy = this.npcs.get('boy'); if (boy) boy.runTo(-88.4, -74.5, b => { b.setCower(true); }); }
     if (id === 'viewpoint_overlook') this.showChoice();
     if (id === 'village_cleared') for (const n of ['v_old', 'v_tsubaki']) this.npcs.get(n)?.setCower(false);
@@ -334,7 +383,7 @@ export class Game {
     this.time += dt;
     this.runTimers();
     const input = this.input;
-    if (this.flow === 'idle') { this.updateWorld(dt); input.endFrame(); return; }
+    if (this.flow === 'idle') { this.fx.update(dt, this.camera, this.renderer.domElement.clientHeight || 800); this.updateAmbientFx(dt); this.updateWorld(dt); input.endFrame(); return; }
 
     if (this.god) { const f = this.hero.fighter; if (f.alive) { f.hp = f.hpMax; f.posture = f.postureMax; } }
     const ctl = this.controlFrame();          // 会話を閉じる E が、同じ瞬間に別の操作にならないよう先に作る
@@ -350,6 +399,7 @@ export class Game {
     for (const n of this.npcs.values()) n.update(dt);
     this.battle.update(dt);
     this.noises = this.noises.filter(n => this.time - n.t < 0.6);
+    if (this.flow === 'intro') this.updateIntro(dt);
     if (this.flow === 'play' || this.flow === 'dead') { this.updateZones(); this.updatePillage(dt); }
     this.updateLock(input);
     this.updateCamera(dt);
@@ -427,6 +477,7 @@ export class Game {
       lookDx: frozen ? 0 : look.dx, lookDy: frozen ? 0 : look.dy, lockTarget,
       rayClip: (a, b) => rayClip(this.col, this.terrain, a, b, 0.25), groundAt: (x, z) => this.terrain.heightAt(x, z), zoom: this.input.wheel,
     });
+    this.applyCine(dt);
   }
 
   // 範囲に入った瞬間を任務へ知らせる

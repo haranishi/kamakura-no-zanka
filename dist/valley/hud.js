@@ -53,6 +53,10 @@ export class HUD {
     if (ratio != null) this.el['granary-fill'].style.transform = `scaleX(${Math.max(0, Math.min(1, ratio))})`;
   }
   fade(on) { this.el.fade.classList.toggle('on', on); }
+  // 暗転を待たずに黒にする（冒頭の目覚めを、黒から明けるために）
+  fadeInstant(on) { const f = this.el.fade; f.style.transition = 'none'; f.classList.toggle('on', on); void f.offsetWidth; f.style.transition = ''; }
+  // 結果・死亡の画面の下に、通知や案内が透けて重ならないようにする
+  clearTransient() { for (const k of ['hint', 'toast', 'sub']) clearTimeout(this.timers.get(k)); this.el.hint.classList.add('hidden'); this.el.toast.classList.remove('on'); this.el.subtitle.classList.add('hidden'); this.el.prompt.classList.add('hidden'); this.setBoss(false); }
   hurt() {
     const h = this.el.hurt; h.classList.add('on'); clearTimeout(this.timers.get('hurt'));
     this.timers.set('hurt', setTimeout(() => h.classList.remove('on'), 90));
@@ -103,8 +107,9 @@ export class HUD {
     const nums = this.el['result-nums'];
     nums.replaceChildren(...[['救えた人', summary.saved], ['食糧', Math.round(summary.food)], ['士気', Math.round(summary.morale)], ['村の信頼', Math.round(summary.trust)]].map(([k, v]) => {
       const d = document.createElement('div'), dt = document.createElement('dt'), dd = document.createElement('dd'); dt.textContent = k; dd.textContent = v; d.append(dt, dd); return d; }));
+    this.clearTransient(); this.el.hud.classList.add('hidden');
     this.el.result.classList.remove('hidden');
   }
   hideResult() { this.el.result.classList.add('hidden'); }
-  showDeath(on) { this.el.death.classList.toggle('hidden', !on); }
+  showDeath(on) { if (on) this.clearTransient(); this.el.death.classList.toggle('hidden', !on); }
 }

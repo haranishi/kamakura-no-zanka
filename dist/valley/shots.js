@@ -12,6 +12,7 @@ export const SHOTS = {
   hero:      { eye: 1.9, pos: [-92, -80], look: [-84, -72, 1.5], fov: 46, note: '主人公の肩越し' },
   backlight: { eye: 2.0, pos: [-30, 2], look: [-110, -60, 14], fov: 56, note: '夕日の逆光' },
   mountains: { eye: 5.0, pos: [20, 40], look: [260, -140, 60], fov: 40, note: '対岸の山砦' },
+  title:     { eye: 1.35, pos: [-83.5, -73.5], look: [-104, -93, 4.2], fov: 46, note: 'タイトル：焚き火の向こうの廃寺' },
 };
 export function applyShot(camera, shot, terrain) {
   const [x, z] = shot.pos, y = terrain.heightAt(x, z) + shot.eye;

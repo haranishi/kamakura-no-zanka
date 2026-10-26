@@ -1,5 +1,6 @@
 // 開発用：縦切りを自動で遊ぶ道具（ヘッドレスChrome + ?qa=1 のフック window.__valley）。ランタイムは依存なし。
-// 使い方: PLAYWRIGHT_MODULE=<playwright/index.mjs> node tools/valley-play.mjs <シナリオ.mjs> [--w 1280 --h 720 --q standard --out .captures/play --seed 1333 --log]
+// 使い方: PLAYWRIGHT_MODULE=<playwright/index.mjs> node tools/valley-play.mjs <シナリオ.mjs> [--w 1280 --h 720 --q standard --out .captures/play --seed 1333 --intro 1 --log]
+//   既定では冒頭の目覚めの演出を飛ばす（intro=0）。演出を見るときは --intro 1。
 // シナリオは `export default async function (ctx) {...}`。ctx = { page, v(式), st(), step(n,dt), shot(名前), key/tap/click, wait(ms), log(...) }。
 import fs from 'node:fs/promises';
 import path from 'node:path';
@@ -22,7 +23,7 @@ try {
   const page = await browser.newPage({ viewport: { width: W, height: H }, deviceScaleFactor: 1 });
   page.on('console', m => { if (args.includes('--log') || m.type() === 'error' || m.type() === 'warning') logs.push(`[${m.type()}] ${m.text()}`); });
   page.on('pageerror', e => logs.push('[pageerror] ' + (e.stack || e)));
-  await page.goto(`${base}/valley/index.html?qa=1&w=${W}&h=${H}&q=${flag('q', 'standard')}&seed=${flag('seed', 1333)}`);
+  await page.goto(`${base}/valley/index.html?qa=1&w=${W}&h=${H}&q=${flag('q', 'standard')}&seed=${flag('seed', 1333)}${flag('intro', '0') === '0' ? '&intro=0' : ''}`);
   await page.waitForFunction('window.__valleyReady===true', null, { timeout: 180000 });
   const v = expr => page.evaluate(expr);
   const ctx = {
