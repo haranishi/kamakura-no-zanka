@@ -20,8 +20,8 @@ const PLACE_ZONES = ['viewpoint', 'temple_steps'];
 const GROUP_KINDS = { boy: 'npc', road_scout: 'enemy', village_enemies: 'enemy', escort_ambush: 'enemy' };
 
 export class Game {
-  constructor({ scene, camera, renderer, post, atmosphere, veg, props, terrain, scatter, roster, hud, audio, input, storage, seed = 1333 }) {
-    Object.assign(this, { scene, camera, renderer, post, atmosphere, veg, props, terrain, scatter, roster, hud, audio, input, storage });
+  constructor({ scene, camera, renderer, post, atmosphere, veg, props, water, terrain, scatter, roster, hud, audio, input, storage, seed = 1333 }) {
+    Object.assign(this, { scene, camera, renderer, post, atmosphere, veg, props, water, terrain, scatter, roster, hud, audio, input, storage });
     this.world = WORLD; this.rng = mulberry32(seed);
     this.time = 0; this.stopT = 0; this.timers = []; this.paused = false; this.aiPaused = false;
     this.flow = 'idle';                       // idle | play | choice | dead | result
@@ -339,15 +339,21 @@ export class Game {
     if (this.quest.beat === 'b5_archer' && a && a.role === 'captive' && dist2(this.hero.pos, a.pos) < 2.8 && !this.quest.captiveFreed) this.dispatch({ type: 'interact', id: 'archer_captive' });
   }
 
-  // 結果の場面：焚き火のそばに弥十郎が座り、村人が食糧を運んでくる
+  // 結果の場面：焚き火のそばに弥十郎が座り、村人が食糧を運んでくる。暗転のあいだに全員を輪に並べ、廃寺を背に火を囲む画角へ
   setupResultScene(instant) {
     const place = () => {
-      const fire = WORLD.props.find(p => p.id === 'bonfire');
-      this.npcs.get('v_old')?.place(fire.x + 2.4, fire.z + 1.2, yawOf(-2.4, -1.2)); this.npcs.get('v_old')?.setCower(false);
-      this.npcs.get('v_tsubaki')?.place(fire.x + 2.6, fire.z - 0.6, yawOf(-2.6, 0.6)); this.npcs.get('v_tsubaki')?.setCower(false);
+      const f = WORLD.props.find(p => p.id === 'bonfire'), at = (dx, dz, from = { x: f.x, z: f.z }) => ({ x: f.x + dx, z: f.z + dz, yaw: yawOf(from.x - (f.x + dx), from.z - (f.z + dz)) });
+      const h = at(1.0, -2.5); this.hero.place(h.x, h.z, h.yaw);
+      const old = at(-2.0, 1.6), tsu = at(2.5, -0.4);
+      this.npcs.get('v_old')?.place(old.x, old.z, old.yaw); this.npcs.get('v_old')?.setCower(false);
+      this.npcs.get('v_tsubaki')?.place(tsu.x, tsu.z, tsu.yaw); this.npcs.get('v_tsubaki')?.setCower(false);
       for (const id of ['v_old', 'v_tsubaki']) this.npcs.get(id)?.lookAt(this.hero.pos);
-      if (this.ally) { this.ally.place(fire.x - 1.8, fire.z + 1.4, yawOf(1.8, -1.4)); this.ally.role = 'captive'; this.ally.character.weapons.yumi.holder.visible = true; this.ally.character.play('Sit_Cross_Legged_on_Floor', { fade: 0.2 }); }
+      if (this.ally) { const a = at(-2.1, -0.9); this.ally.place(a.x, a.z, a.yaw); this.ally.role = 'captive'; this.ally.character.weapons.yumi.holder.visible = true; this.ally.character.play('Sit_Cross_Legged_on_Floor', { fade: 0.2 }); }
       this.hud.setParty(false);
+      this.lock = null; this.hero.lockTarget = null;
+      this.rig.yaw = yawOf(f.x - h.x, f.z - h.z); this.rig.snap();
+      this.hud.clearTransient();
+      if (!instant) this.setCine({ pos: [f.x + 6.0, 1.6, f.z + 3.2], look: [f.x - 0.5, 1.0, f.z - 0.6], fov: 48 }, 1);
     };
     if (instant) place(); else { this.hud.fade(true); this.after(0.7, () => { place(); this.hud.fade(false); }); }
   }
@@ -415,7 +421,7 @@ export class Game {
   // 世界の見た目の更新（大気・風・木の近さ・影の追従・環境音）
   updateWorld(dt) {
     this.atmosphere.update(this.camera, dt);
-    this.veg.wind.uTime.value += dt; this.veg.trees.update(this.camera); this.veg.grass.update(this.camera); this.veg.rice.update(this.camera); this.props?.update(this.time);
+    this.veg.wind.uTime.value += dt; this.veg.trees.update(this.camera); this.veg.grass.update(this.camera); this.veg.rice.update(this.camera); this.props?.update(this.time); this.water?.update(this.time);
     const h = this.hero.pos;
     this.atmosphere.follow(new THREE.Vector3(h.x - Math.sin(this.rig.yaw) * 8, h.y, h.z - Math.cos(this.rig.yaw) * 8));
     this.listenerT -= dt;
@@ -466,6 +472,16 @@ export class Game {
 
   updateCamera(dt) {
     const look = this.input.look(dt);
+    // 戦闘中、カメラを動かしていなければ、いちばん近い敵の方へゆるくカメラを向ける（敵が主人公の陰に隠れないよう）
+    if (Math.abs(look.dx) + Math.abs(look.dy) > 2) this.lastLookT = this.time;
+    if (this.flow === 'play' && !this.lock && !this.camOverride && !this.cine && this.time - (this.lastLookT ?? -9) > 1.0 && this.alertedEnemies() > 0) {
+      let best = null, bd = 9;
+      for (const e of this.enemies) if (e.fighter.alive && !e.departed && !e.dormant && e.brain.state === 'combat') { const d = dist2(e.pos, this.hero.pos); if (d < bd) { bd = d; best = e; } }
+      if (best) {
+        const want = yawOf(best.pos.x - this.hero.pos.x, best.pos.z - this.hero.pos.z), diff = Math.atan2(Math.sin(want - this.rig.yaw), Math.cos(want - this.rig.yaw));
+        if (Math.abs(diff) > 0.45) this.rig.yaw += Math.sign(diff) * Math.min(Math.abs(diff) - 0.35, 0.9 * dt) * 1.0;
+      }
+    }
     if (this.camOverride) {                  // 検査用：カメラを固定して撮る（?qa=1）
       const c = this.camOverride; this.camera.position.set(...c.pos); this.camera.lookAt(...c.look);
       if (c.fov && this.camera.fov !== c.fov) { this.camera.fov = c.fov; this.camera.updateProjectionMatrix(); }
@@ -475,7 +491,7 @@ export class Game {
     const frozen = this.flow === 'choice' || this.flow === 'result';
     this.rig.update(dt, this.hero.pos, {
       lookDx: frozen ? 0 : look.dx, lookDy: frozen ? 0 : look.dy, lockTarget,
-      rayClip: (a, b) => rayClip(this.col, this.terrain, a, b, 0.25), groundAt: (x, z) => this.terrain.heightAt(x, z), zoom: this.input.wheel,
+      rayClip: (a, b) => rayClip(this.col, this.terrain, a, b, 0.45), groundAt: (x, z) => this.terrain.heightAt(x, z), zoom: this.input.wheel,
     });
     this.applyCine(dt);
   }

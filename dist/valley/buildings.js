@@ -58,7 +58,16 @@ export function buildBuildings({ world, terrain, models }) {
     else if (b.kind === 'granary') place('farmhouse', b, { scale: 0.82, tint: '#bfae92' });
   }
   for (const d of world.distant) {
-    if (d.kind === 'bridge') place('bridge', d, { scale: 2.3 });
+    if (d.kind === 'bridge') {
+      // 橋は川を横切る。両岸の高い方に床を合わせ、足は川の中へ伸びる
+      const o = place('bridge', d, { scale: 1 }), sc = d.scale || [2.3, 2.3, 2.3];
+      if (o) {
+        o.scale.set(sc[0], sc[1], sc[2]);
+        const half = 6.06 * sc[0] / 2, ax = [Math.cos(d.rotY), -Math.sin(d.rotY)];
+        const ends = [-1, 1].map(k => terrain.heightAt(d.x + ax[0] * half * k * 0.92, d.z + ax[1] * half * k * 0.92));
+        o.position.y = Math.max(...ends) - 0.45;
+      }
+    }
   }
   for (const p of world.props) {
     if (p.kind === 'boulder_big') {

@@ -78,7 +78,7 @@ export const WORLD = {
 
   // 遠景の建物（入れない）
   distant: [
-    { id: 'bridge', kind: 'bridge', x: 128, z: -44, rotY: 1.35 },
+    { id: 'bridge', kind: 'bridge', x: 128.4, z: -44.5, rotY: -0.17, scale: [3.7, 2.2, 2.0] },
     { id: 'gatehouse', kind: 'gatehouse', x: 156, z: -46, rotY: 1.35 },
     { id: 'fort', kind: 'fort', x: 262, z: -140, rotY: 3.6 },
     { id: 'barricade', kind: 'barricade', x: 100, z: -8, rotY: 1.2 },

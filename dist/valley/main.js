@@ -10,6 +10,7 @@ import { scatterTrees, scatterRocks, scatterGrass, scatterRice } from './scatter
 import { buildVegetation } from './vegetation.js';
 import { loadModels, buildBuildings, buildRocks } from './buildings.js';
 import { loadPropModels, buildProps } from './props.js';
+import { buildWater } from './water.js';
 import { loadRoster } from './characters.js';
 import { HUD } from './hud.js';
 import { Input } from './input.js';
@@ -65,13 +66,14 @@ async function boot() {
   scene.add(buildBuildings({ world: WORLD, terrain, models }).group);
   scene.add(buildRocks({ data: scatter.rocks, model: models.boulder }));
   const props = buildProps({ world: WORLD, terrain, models: { ...models, ...propModels } }); scene.add(props.group);
+  const water = buildWater({ terrain, world: WORLD }); scene.add(water.mesh);
   await step(0.42, '人物を読み込んでいます');
   const roster = await loadRoster({ anisotropy: renderer.capabilities.getMaxAnisotropy(), onProgress: p => hud.loading(0.42 + p * 0.45, '人物を読み込んでいます') });
   await step(0.9, '空と光を整えています');
   const atmosphere = createAtmosphere({ scene, renderer, quality });
   resize();
   await step(0.95, '道と見通しを調べています');
-  game = new Game({ scene, camera, renderer, post, atmosphere, veg, props, terrain, scatter, roster, hud, audio, input, storage: (() => { try { return localStorage; } catch { return null; } })(), seed: Number(q.get('seed') || 1333) });
+  game = new Game({ scene, camera, renderer, post, atmosphere, veg, props, water, terrain, scatter, roster, hud, audio, input, storage: (() => { try { return localStorage; } catch { return null; } })(), seed: Number(q.get('seed') || 1333) });
   game.skipIntro = q.get('intro') === '0';
   applySettings(saved);
   await step(1, '準備ができました');
