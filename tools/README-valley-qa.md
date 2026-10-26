@@ -4,12 +4,13 @@
 ランタイムは依存なし。Playwright は `PLAYWRIGHT_MODULE=<…/playwright/index.mjs>` で渡す。
 
 ```
-PLAYWRIGHT_MODULE=… node tools/valley-play.mjs <シナリオ.mjs> --out <出力フォルダ> [--w 1280 --h 720 --q standard|light --seed 1333 --intro 1 --log]
+PLAYWRIGHT_MODULE=… node tools/valley-play.mjs <シナリオ.mjs> --out <出力フォルダ> [--w 1280 --h 720 --q standard|light --seed 1333 --intro 1 --lk <見た目の調整> --log --strict]
 ```
 シナリオは `export default async function (ctx) {…}`。冒頭の目覚めの演出は既定で飛ばす（`--intro 1` で見る）。
 `ctx`: `st()`（状態）・`step(n,dt)`（1/60秒×n コマ進めて描く）・`freeze(true)`（自動の進行を止めて手動で進める）・`start('new'|'continue')`・
 `key(code,down)`・`tap(code,frames)`・`click(button,hold)`・`release(button)`・`call(名前,…引数)`・`v(式)`（ページ内で式を評価）・`shot(名前)`・`log(…)`。
 最初に `await start('new'); await freeze(true);` を呼ぶ。以降は `step` で時間を進める（実時間では進まない）。
+`--strict`：ページの例外・コンソールの error が1つでもあれば終了コード1（回帰の検査用）。`--lk sx:0.5,sy:0.17,sunc:ffc088,…` は見た目（太陽の向き・色・霧）を書き換えずに試す（キーの一覧は `main.js` の冒頭）。
 
 ## `__valley` のフック（`call(名前, …)` で呼ぶ）
 | 名前 | 内容 |
@@ -32,5 +33,6 @@ b0 庭へ降りる（`temple_yard` に入る）→ b1 穂太の話 → b2 林道
 座標の目安は `dist/valley/world-data.js` の `zones` と `spawns`。
 
 ## 例
-- `tools/scenarios/capture-set.mjs`：固定画角21枚を撮る（画面の採点・前後比較用）。
+- `tools/scenarios/capture-set.mjs`：固定画角を撮る（画面の採点・前後比較用）。影は主人公に追従するので、遠景を撮るときは主人公をカメラの足元へ置く。
+- `tools/scenarios/regress-arrow-death.mjs`：矢で倒れても描画が止まらず、倒れた画面が出る（`--strict` で回す）。
 - 検査の流れの見本：`tools/scenarios/` のシナリオ。
