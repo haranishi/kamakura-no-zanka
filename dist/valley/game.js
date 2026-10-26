@@ -370,6 +370,7 @@ export class Game {
   }
   showChoice() {
     this.flow = 'choice'; this.input.releaseLock();
+    this.hud.clearTransient();                       // 案内・通知が選択の枠に重ならないよう、選ぶあいだは消す
     this.hud.showChoice(true, plan => { this.hud.showChoice(false); this.dispatch({ type: 'choose_plan', plan }); this.flow = 'play'; this.input.requestLock(); this.hud.toast(plan === 'front' ? '正面から入る' : '脇道から回る', 1400); });
   }
   showResult() {
