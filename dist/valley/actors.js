@@ -358,7 +358,13 @@ export class EnemyActor extends Actor {
     if (this.brain.state === 'surrendered') { g.tokens.release(this.id); this.character.update(dt); this.sync(); return; }
     if (this.brain.departed) { this.departed = true; g.tokens.release(this.id); this.character.root.visible = false; return; }
     if (this.dormant || g.aiPaused) { this.animateFree(dt); this.character.update(dt); this.sync(); return; }
-    const { intent, events } = think(this.brain, g.aiView(this), dt);
+    const view = g.aiView(this);
+    // 侍大将の連続技：一段目・二段目の戻りの終わり際（連続の窓）だけ「手が空いた」ことにして、次の技を決めさせる。
+    // 敵の頭は手が空いたときしか技を決めないので、二段目・三段目が一度も出なかった。
+    const chaining = this.kind === 'officer' && this.chainWindowOpen();
+    if (chaining) view.self = { ...view.self, ready: true };
+    const { intent, events } = think(this.brain, view, dt);
+    this.chaining = chaining;
     // 気づかれていない＝戦闘に入っておらず、離脱もしていない（闇討ちの条件）
     f.aware = !['patrol', 'suspicious', 'search'].includes(this.brain.state);
     this.handleEvents(events);
@@ -406,7 +412,7 @@ export class EnemyActor extends Actor {
       const l = this.lunge, k = Math.min(dt, l.dur - l.t); l.t += k;
       this.step(-Math.sin(this.yaw) * l.rate * k, -Math.cos(this.yaw) * l.rate * k);
     }
-    if (intent.startMove && !busy) {
+    if (intent.startMove && (!busy || this.chaining)) {
       const hp = g.hero.pos, aim = yawOf(hp.x - this.pos.x, hp.z - this.pos.z);
       if (Math.abs(angleDiff(this.yaw, aim)) < 1.0) this.yaw = aim;
       f.yaw = this.yaw;
@@ -416,8 +422,16 @@ export class EnemyActor extends Actor {
     if (!busy && f.state === 'idle') this.animateFree(dt);
   }
 
+  chainWindowOpen() {
+    const f = this.fighter, m = f.move && MOVES[f.move.id];
+    if (f.state !== 'attack' || !m || f.move.phase !== 'recover' || !(m.id === 'officer_a' || m.id === 'officer_b') || !(this.chainRoll < (m.id === 'officer_a' ? 0.75 : 0.55))) return false;
+    const next = MOVES[m.id === 'officer_a' ? 'officer_b' : 'officer_c'], end = m.windup + m.active + m.recover;
+    return f.move.t + 1e-6 >= end - next.chainWindow && f.move.t < end - 1e-6 && dist2(this.pos, this.game.hero.pos) < 2.7;
+  }
+
   beginMove(id) {
     const m = MOVES[id], g = this.game;
+    this.chainRoll = g.rng();
     this.character.playMove(id, { windup: m.windup, active: m.active, recover: m.recover }, { fade: 0.1 });
     const dur = m.windup + m.active, d = LUNGE[id] || 0;
     this.lunge = { rate: d / dur, t: 0, dur };

@@ -39,7 +39,8 @@ export const MOVES = freezeRows({
   archer_shot: move('archer_shot', .90, .05, 1.2, 12, 8, 24, 0, 'Archery_Shot', {kind: 'shot', telegraph: .90}),
   ally_shot: move('ally_shot', .90, .05, 1.2, 10, 8, 24, 0, 'Archery_Shot', {kind: 'shot', telegraph: .90}),
 });
-const RULES = Object.freeze({regenDelay: 1.2, regen: 18, stagger: 2.2, dodge: .52,
+// stagger は敵の構え崩れ（とどめを刺す猶予）。主人公の構え崩れは短く（袋叩きの時間を減らす）。
+const RULES = Object.freeze({regenDelay: 1.2, regen: 18, stagger: 2.2, heroStagger: 1.4, dodge: .52,
   invStart: .06, invEnd: .30, dodgeCost: 12, parry: .2, parryDamage: 40,
   recoil: .5, hit: .3, blockArc: 120, counterWindow: .9});
 
@@ -105,7 +106,7 @@ function stagger(f) {
   if (f.state === 'stagger') return;
   interrupt(f);
   f.state = 'stagger';
-  f.staggerT = RULES.stagger;
+  f.staggerT = f.team === 'hero' ? RULES.heroStagger : RULES.stagger;
   f.pendingEvents.push({type: 'stagger_start', id: f.id});
 }
 export function startDodge(f, yaw = f.yaw) {
@@ -188,7 +189,9 @@ const result = (outcome, damage, postureDamage, def, moveId = null, attackerId =
   ({outcome, damage, postureDamage, staggered: def.state === 'stagger', dead: !def.alive,
     moveId, attackerId, defenderId: def.id});
 
-function damageFighter(f, hp, posture, flinch = true) {
+// 軽い鎧の兵も、強い技（三段目・強斬り・反撃）の直撃ではひるむ。鎧なしはどの技でもひるむ。重い鎧は構えが崩れるまでひるまない。
+const STRONG = new Set(['light3', 'heavy', 'counter']);
+function damageFighter(f, hp, posture, flinch = true, strong = false) {
   if (!f.alive) return null;
   const damage = positive(hp), postureDamage = positive(posture);
   f.hp = round(Math.max(0, f.hp - damage));
@@ -197,13 +200,13 @@ function damageFighter(f, hp, posture, flinch = true) {
   if (f.hp === 0) {
     interrupt(f); f.staggerT = 0; f.alive = false; f.state = 'down';
   } else if (f.posture === 0) stagger(f);
-  else if (flinch && damage > 0 && f.armor === 'none' && f.state !== 'stagger') {
+  else if (flinch && damage > 0 && (f.armor === 'none' || (strong && f.armor === 'light')) && f.state !== 'stagger') {
     interrupt(f); f.state = 'hit'; f.hitT = RULES.hit;
   }
   return result('hit', damage, postureDamage, f);
 }
-export function applyDamage(f, hp, posture) {
-  return damageFighter(f, hp, posture);
+export function applyDamage(f, hp, posture, strong = false) {
+  return damageFighter(f, hp, posture, true, strong);
 }
 function recoil(f) {
   if (!f.alive || f.state === 'stagger') return;
@@ -239,7 +242,7 @@ export function strike(att, def) {
     if (m.id === 'heavy') recoil(att);
     return response('blocked', m.damage * .15, m.posture * .5);
   }
-  applyDamage(def, m.damage, m.posture);
+  applyDamage(def, m.damage, m.posture, STRONG.has(m.id));
   return response('hit', m.damage, m.posture);
 }
 export function canFinish(att, def) {

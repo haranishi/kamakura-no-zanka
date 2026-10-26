@@ -84,15 +84,15 @@ async function boot() {
   const terrain = createTerrain(WORLD);
   const textures = await loadGroundTextures(new URL('../assets/valley/terrain/', import.meta.url).href, renderer.capabilities.getMaxAnisotropy());
   await step(0.12, '谷の地形を組み立てています');
-  const built = buildTerrain({ terrain, textures, quality }); scene.add(built.group);
+  const built = buildTerrain({ terrain, textures, quality }); scene.add(built.group); live.built = built;
   await step(0.2, '木と岩を植えています');
   const scatter = { trees: scatterTrees(WORLD, terrain), rocks: scatterRocks(WORLD, terrain), grass: scatterGrass(WORLD, terrain), rice: scatterRice(WORLD, terrain), crops: scatterCrops(WORLD, terrain) };
   await step(0.28, '建物を読み込んでいます');
   const aniso = renderer.capabilities.getMaxAnisotropy();
   const [models, propModels] = await Promise.all([loadModels({ anisotropy: aniso }), loadPropModels({ anisotropy: aniso })]);
-  const veg = buildVegetation({ scatter, quality }); scene.add(veg.group);
+  const veg = buildVegetation({ scatter, quality }); scene.add(veg.group); live.scatter = scatter; live.scene = scene;
   scene.add(buildBuildings({ world: WORLD, terrain, models }).group);
-  scene.add(buildRocks({ data: scatter.rocks, model: models.boulder }));
+  scene.add(buildRocks({ data: scatter.rocks, model: models.boulder_lo || models.boulder }));
   const props = buildProps({ world: WORLD, terrain, models: { ...models, ...propModels } }); scene.add(props.group);
   const water = buildWater({ terrain, world: WORLD }); scene.add(water.mesh);
   await step(0.42, '人物を読み込んでいます');
@@ -122,7 +122,23 @@ function applySettings(s) {
   Object.assign(saved, set);
 }
 function persist() { store.set(SETTINGS_KEY, JSON.stringify(saved)); }
-function setQuality(v) { quality = v; saved.quality = v; persist(); post.setQuality(v); game.atmosphere.setQuality(v); resize(); }
+// 品質の切り替え：後処理・影・解像度のほか、草や木の描く範囲と地面の細かさも変える（以前は後処理と影だけで、三角形が減らなかった）
+const live = {};
+function setQuality(v) {
+  quality = v; saved.quality = v; persist(); post.setQuality(v); game.atmosphere.setQuality(v);
+  live.built?.setQuality(v);
+  if (live.scatter && game.veg) {
+    const old = game.veg; live.scene.remove(old.group);
+    const veg = buildVegetation({ scatter: live.scatter, quality: v }); live.scene.add(veg.group); game.veg = veg;
+    old.group.traverse(o => {                                                  // 作り直す前の GPU 資源を解放する（切り替えのたびに増えない）
+      if (!o.isMesh) return;
+      if (o.isInstancedMesh) o.dispose();
+      o.geometry?.dispose();
+      for (const m of [].concat(o.material)) { m.map?.dispose(); m.dispose(); }
+    });
+  }
+  resize();
+}
 
 function start(mode) {
   if (!game || game.flow !== 'idle') return;

@@ -19,7 +19,7 @@ export const STORY = {
       { speaker: hero, text: '分かった。ここで待て。' },
     ],
     viewpoint_overlook: [
-      { speaker: hero, text: '荷車は倉の前。兵は五人。屋根に弓が一人。' },
+      { speaker: hero, text: '荷車は倉の前。兵は五人。弓が一人、混じっている。' },
       { speaker: hero, text: '西の口から入れば早い。だが戦が長引けば、倉が荒らされる。' },
       { speaker: hero, text: '北の斜面か南の畦を回れば背後に出られる。時はかかるが、見つかりにくい。' },
     ],
@@ -61,7 +61,7 @@ export const STORY = {
     move: 'W A S D で歩く　マウスで見回す　Shift で走る',
     crouch: 'C で屈む。屈むと、敵に気づかれにくい',
     attack: '左クリックで斬る（続けて三連）。右クリックで受ける',
-    parry: '敵の刃が光った直後に右クリックで、弾く。弾いたら左クリックで反撃',
+    parry: '敵の刃が光ったら、見てから右クリックで弾く（早すぎると受けるだけ）。弾いたら左クリックで反撃',
     dodge: 'Space で転がって避ける',
     finisher: '崩れた敵には E で、とどめを刺せる',
     stealth: '気づかれていない敵の背後から E で、闇討ちできる',
@@ -69,7 +69,7 @@ export const STORY = {
   },
   places: { temple: '廃寺', village: '水穂の里', viewpoint: '見晴らし岩', temple_steps: '廃寺の石段' },
   resources: { food: 60, material: 0, funds: 0, morale: 50 }, trust: 40,
-  pillage: { front: 0.8, flank: 0.2 },
+  pillage: { front: 0.8, flank: 0.1 },      // 敵1人・1秒あたり。脇道は静かに片づければ蓄えが50以上残る。騒ぎになる（敵に見つかる）と正面と同じ速さで荒らされる
   groups: {
     boy: ['boy'], road_scout: ['road_scout'],
     village_enemies: ['village_soldier_1', 'village_soldier_2', 'village_soldier_3', 'village_archer', 'officer'],

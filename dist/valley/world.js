@@ -42,7 +42,7 @@ async function main() {
   const models = await loadModels({});
   const veg = buildVegetation({ scatter, quality }); scene.add(veg.group);
   const bld = buildBuildings({ world: WORLD, terrain, models }); scene.add(bld.group);
-  scene.add(buildRocks({ data: scatter.rocks, model: models.boulder }));
+  scene.add(buildRocks({ data: scatter.rocks, model: models.boulder_lo || models.boulder }));
   const t4 = performance.now();
   atmosphere = createAtmosphere({ scene, renderer, quality });
   resize(); window.addEventListener('resize', resize);

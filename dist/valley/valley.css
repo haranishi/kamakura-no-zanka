@@ -23,8 +23,8 @@ body:not([data-state=loading]) .loading{display:none}
 /* hud */
 .hud{position:fixed;inset:0;pointer-events:none;font-family:var(--sans)}.hud>*{pointer-events:none}.hud .menu-btn{pointer-events:auto}
 body.hide-hud .hud>*:not(.menu-btn):not(.subtitle):not(.prompt){opacity:0}
-.obj{position:absolute;left:clamp(16px,2.6vw,38px);top:clamp(14px,2.4vw,32px);max-width:min(440px,60vw)}
-.obj-tag{display:inline-block;font-size:11px;letter-spacing:.3em;color:var(--red2);border-left:2px solid var(--red);padding-left:8px}.obj p{margin:6px 0 4px;font:500 17px/1.5 var(--serif);letter-spacing:.1em;text-shadow:0 1px 8px #000a}
+.obj{position:absolute;left:clamp(16px,2.6vw,38px);top:clamp(14px,2.4vw,32px);max-width:min(440px,60vw);padding:8px 44px 8px 12px;margin:-8px -12px;background:linear-gradient(90deg,#0b100ed0,#0b100e80 60%,#0b100e00)}   /* 明るい夕空の上でも読めるよう、左から暗い下地を敷く */
+.obj-tag{display:inline-block;font-size:11px;letter-spacing:.3em;color:var(--red2);text-shadow:0 1px 5px #000;border-left:2px solid var(--red);padding-left:8px}.obj p{margin:6px 0 4px;font:500 17px/1.5 var(--serif);letter-spacing:.1em;text-shadow:0 1px 8px #000a}
 .compass{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:12px}.compass i{font-style:normal;display:inline-block;transition:transform .15s;color:var(--gold)}.compass.hidden-compass{display:none}
 .bars{position:absolute;left:clamp(16px,2.6vw,38px);bottom:clamp(18px,3vw,40px);width:min(260px,40vw);display:grid;gap:7px}
 .bar{display:grid;grid-template-columns:34px 1fr;gap:8px;align-items:center;font-size:11px;letter-spacing:.18em;color:var(--muted)}.track{height:5px;background:#0b110f99;border:1px solid #d9ddcc2a;border-radius:1px;overflow:hidden;position:relative}

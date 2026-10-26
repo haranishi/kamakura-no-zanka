@@ -206,12 +206,12 @@ test('block rejects busy states and attacks require releasing block', () => {
   }
 });
 
-test('posture break lasts 2.2s, emits events once and restores 50 percent', () => {
-  const f = fighter(); broken(f);
+test('an enemy\'s posture break lasts 2.2s (the time to finish it), emits events once and restores 50 percent', () => {
+  const f = fighter('s', {team: 'enemy', kind: 'soldier'}); broken(f);
   assert.deepEqual(tick(f, 2.199), [{type: 'stagger_start', id: f.id}]);
   assert.equal(f.posture, 0); assert.equal(f.state, 'stagger');
   assert.deepEqual(tick(f, .001), [{type: 'stagger_end', id: f.id}]);
-  assert.equal(f.posture, 50); assert.equal(f.state, 'idle');
+  assert.equal(f.posture, f.postureMax / 2); assert.equal(f.state, 'idle');
   assert.deepEqual(tick(f, 0), []);
 });
 
@@ -227,6 +227,19 @@ test('posture regenerates 18 per second only after 1.2s, pauses for block/attack
   applyDamage(g, 1, 0); tick(g, 1); assert.equal(g.posture, 80);
 });
 
+test('the hero\'s posture break is shorter than an enemy\'s, and a strong hit makes a lightly armored soldier flinch', () => {
+  const h = fighter('hero', {kind: 'hero'}); broken(h);
+  assert.deepEqual(tick(h, 1.399), [{type: 'stagger_start', id: h.id}]); assert.equal(h.state, 'stagger');
+  assert.deepEqual(tick(h, .001), [{type: 'stagger_end', id: h.id}]); assert.equal(h.state, 'idle');
+  for (const [moveId, flinches] of [['light1', false], ['light2', false], ['light3', true], ['heavy', true], ['counter', true]]) {
+    const a = fighter('a', {kind: 'hero'}), d = fighter('d', {kind: 'soldier', x: 1.2});
+    a.yaw = Math.atan2(-(d.x - a.x), -(d.z - a.z)); d.yaw = a.yaw + Math.PI;
+    d.state = 'idle'; startMove(d, 'soldier_slash');
+    applyDamage(d, 1, 1, ['light3', 'heavy', 'counter'].includes(moveId));
+    assert.equal(d.state, flinches ? 'hit' : 'attack', moveId);
+  }
+  const o = fighter('o', {kind: 'officer'}); startMove(o, 'officer_a'); applyDamage(o, 1, 1, true); assert.equal(o.state, 'attack');   // 重い鎧はひるまない
+});
 test('none armor interrupts windup/active while light/heavy continue until posture break', () => {
   for (const kind of ['hero', 'soldier', 'officer']) {
     for (const elapsed of [0, .17]) {

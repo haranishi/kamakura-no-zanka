@@ -174,6 +174,7 @@ export class Game {
       this.pendingDialogue = null; this.lostFood = 0;
       this.buildWorld();
       this.flow = 'play'; this.heroWasAlive = true; this.deathT = 0; this.deathShown = false; this.input.requestLock();
+      if (this.quest.beat === 'b3_viewpoint') this.after(0.9, () => { if (this.flow === 'play' && this.quest.beat === 'b3_viewpoint') this.showChoice(); });   // 道を選び直せる
       this.hud.setBars(this.hero.fighter.hp, this.hero.fighter.hpMax, this.hero.fighter.posture, this.hero.fighter.postureMax);
       this.hud.setFood(this.quest.beat === 'b4_village' ? this.quest.resources.food / 100 : null);
       this.hud.fade(false);
@@ -253,11 +254,11 @@ export class Game {
     const hints = { b2_road: 'crouch', b6_escort: 'command' };
     if (hints[next]) this.hud.hint(hints[next], STORY.hints[hints[next]], 7000);
   }
-  reportDown(enemy, how) {
+  reportDown(enemy, how, extra = {}) {
     if (enemy.reported) return;
     enemy.reported = how; this.tokens.release(enemy.id); this.aiWorld.forget(enemy.id);
     if (how === 'killed') this.stats.kills++;
-    this.dispatch({ type: 'enemy_down', id: enemy.id, how });
+    this.dispatch({ type: 'enemy_down', id: enemy.id, how, ...extra });
   }
   onResources(delta) {
     if (delta.food) {
@@ -315,6 +316,12 @@ export class Game {
     if (group === 'boy') { this.npcs.get('boy')?.remove(); this.npcs.delete('boy'); }
   }
 
+  // 穂太が来られなかったとき、主人公の少し手前（歩いてきた向き）へ置く
+  seatBoy(boy) {
+    const h = this.hero.pos, d = Math.hypot(h.x - boy.pos.x, h.z - boy.pos.z) || 1, k = 2.6 / d;
+    boy.goal = null; boy.place(h.x - (h.x - boy.pos.x) * k, h.z - (h.z - boy.pos.z) * k, yawOf(h.x - boy.pos.x, h.z - boy.pos.z));
+    boy.arrived = true; boy.mode = 'idle'; boy.lookAt(h);
+  }
   startBoy() {
     const boy = this.makeNpc('boy');
     boy.place(-66, -58, yawOf(this.hero.pos.x + 66, this.hero.pos.z + 58));
@@ -341,12 +348,20 @@ export class Game {
     if (id === 'viewpoint_overlook') this.after(0.2, () => this.clearCine());
     if (id === 'boy_arrives') { const boy = this.npcs.get('boy'); if (boy) boy.runTo(-88.4, -74.5, b => { b.setCower(true); }); }
     if (id === 'viewpoint_overlook') this.showChoice();
+    if (id === 'village_cleared') this.healHero(40, 'つばきが傷の手当てをしてくれた');
+    if (id === 'ambush_cleared') this.healHero(25, '弥十郎が傷に布を巻いてくれた');
     if (id === 'village_cleared') { for (const n of ['v_old', 'v_tsubaki']) this.npcs.get(n)?.setCower(false); this.after(1.2, () => { if (this.quest.beat === 'b5_archer' || this.quest.beat === 'b6_escort') this.makeRevived(true); }); }
     if (id === 'archer_joins') {
       this.ally?.join(false);
       this.after(2.6, () => { this.dispatch({ type: 'party_joined', id: 'archer' }); this.hud.setParty(true, this.modeLabel('follow')); this.hud.hint('command', STORY.hints.command, 7000); });
     }
     if (id === 'result') this.after(0.4, () => { this.persist(); this.showResult(); });
+  }
+  // 体力と構えを戻す（里を守ったあと・待ち伏せを退けたあと。戦いの合間に息をつける）
+  healHero(amount, text) {
+    const f = this.hero.fighter; if (!f.alive) return;
+    f.hp = Math.min(f.hpMax, f.hp + amount); f.posture = f.postureMax;
+    this.hud.setBars(f.hp, f.hpMax, f.posture, f.postureMax); this.hud.toast(text, 2600);
   }
   showChoice() {
     this.flow = 'choice'; this.input.releaseLock();
@@ -420,8 +435,12 @@ export class Game {
     this.handleUiKeys();
     if (this.pendingDialogue) {
       const pd = this.pendingDialogue, boy = this.npcs.get('boy');
-      const waiting = (pd.id === 'boy_arrives' && boy && !boy.arrived && this.time - pd.since < 6) || this.time - pd.since < pd.delay;
-      if (!waiting && !this.hud.talking) this.startDialogue(pd.id);
+      const near = boy && dist2(boy.pos, this.hero.pos) < 4.5;
+      const waiting = (pd.id === 'boy_arrives' && boy && !boy.arrived && !near && this.time - pd.since < 10) || this.time - pd.since < pd.delay;
+      if (!waiting && !this.hud.talking) {
+        if (pd.id === 'boy_arrives' && boy && !boy.arrived && !near) this.seatBoy(boy);      // 間に合わなければ、主人公の近くへ置いてから話す（画面の外から話しかけない）
+        this.startDialogue(pd.id);
+      }
     }
     this.hero.update(dt, ctl);
     for (const e of this.enemies) e.update(dt);
@@ -558,9 +577,9 @@ export class Game {
     this.pillageT += dt;
     if (this.pillageT < 0.5) return;
     const dtp = this.pillageT; this.pillageT = 0;
-    let raiders = 0;
-    for (const e of this.enemies) if (e.group === 'village_enemies' && e.fighter.alive && !e.departed && !['retreat', 'surrendered'].includes(e.brain.state)) raiders++;
-    this.dispatch({ type: 'pillage_tick', dt: dtp * FEEL.pillageScale, pillagers: raiders });
+    let raiders = 0, loud = false;
+    for (const e of this.enemies) if (e.group === 'village_enemies' && e.fighter.alive && !e.departed && !['retreat', 'surrendered'].includes(e.brain.state)) { raiders++; if (e.brain.state === 'combat') loud = true; }
+    this.dispatch({ type: 'pillage_tick', dt: dtp * FEEL.pillageScale, pillagers: raiders, loud });
   }
 
   // ------------------------------------------------------------------ HUD

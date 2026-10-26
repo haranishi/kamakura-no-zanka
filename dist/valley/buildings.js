@@ -6,7 +6,7 @@ import { patchGrade, gradeModel } from './grade.js';
 
 const DIR = new URL('../assets/valley/models/', import.meta.url).href;
 const FILES = ['farmhouse', 'temple', 'bridge', 'fence', 'boulder', 'firewood'];
-const EXTRA_FILES = ['dozo', 'naya'];            // 里の変化をつける建物（Meshy）。無くても遊べる（農家で代用）
+const EXTRA_FILES = ['dozo', 'naya', 'boulder_lo'];     // boulder_lo: 散らす岩用に三角形を約4割へ減らした版（1.1M→0.45M）            // 里の変化をつける建物（Meshy）。無くても遊べる（農家で代用）
 // 水平の最大辺が 1m になるよう縮め、底面の中心を原点に置く。置くときの scale が、そのまま建物の幅（m）になる。
 function fitToUnitWidth(scene) {
   const box = new THREE.Box3().setFromObject(scene), size = box.getSize(new THREE.Vector3()), c = box.getCenter(new THREE.Vector3());
@@ -30,9 +30,9 @@ export async function loadModels({ onProgress, anisotropy = 8 } = {}) {
       for (const m of mats) for (const k of ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'aoMap']) if (m[k]) m[k].anisotropy = anisotropy;
     });
     // 岩は暗い青に寄って見えるので、明るく少し暖かい灰色へ寄せる（夕日の下で他の地面と並ぶように）
-    if (name === 'boulder') gltf.scene.traverse(o => { if (o.isMesh) { const ms = Array.isArray(o.material) ? o.material : [o.material]; for (const m of ms) { m.color.multiply(new THREE.Color(1.7, 1.55, 1.35)); m.roughness = Math.max(m.roughness ?? 0.9, 0.92); } } });
-    if (name !== 'boulder') gradeModel(gltf.scene, name === 'dozo' ? { whiteMax: 0.36, mossFix: 0.7 } : { whiteMax: 0.46 });          // 青い礎石・白い壁の照り・蛍光の苔を、夕景の中で他と並ぶ色へ
-    out[name] = EXTRA_FILES.includes(name) ? fitToUnitWidth(gltf.scene) : gltf.scene;
+    if (name === 'boulder' || name === 'boulder_lo') gltf.scene.traverse(o => { if (o.isMesh) { const ms = Array.isArray(o.material) ? o.material : [o.material]; for (const m of ms) { m.color.multiply(new THREE.Color(1.7, 1.55, 1.35)); m.roughness = Math.max(m.roughness ?? 0.9, 0.92); } } });
+    if (name !== 'boulder' && name !== 'boulder_lo') gradeModel(gltf.scene, name === 'dozo' ? { whiteMax: 0.36, mossFix: 0.7 } : { whiteMax: 0.46 });          // 青い礎石・白い壁の照り・蛍光の苔を、夕景の中で他と並ぶ色へ
+    out[name] = EXTRA_FILES.includes(name) && name !== 'boulder_lo' ? fitToUnitWidth(gltf.scene) : gltf.scene;
     onProgress?.(++done / (FILES.length + EXTRA_FILES.length));
   }));
   return out;

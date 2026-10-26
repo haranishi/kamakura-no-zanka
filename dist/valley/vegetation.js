@@ -297,7 +297,7 @@ function solidMaterial(uniforms, { height, color = 0xffffff, rough = 0.95 }) {
 // 木の群れ：種類ごとに近・中・遠の InstancedMesh を持ち、カメラの位置で振り分ける。
 export class TreeField {
   constructor({ data, wind, quality = 'standard', lod = [64, 190] }) {
-    this.data = data; this.lod = quality === 'light' ? [lod[0] * 0.6, lod[1] * 0.7] : lod; this.group = new THREE.Group(); this.group.name = 'trees';
+    this.data = data; this.baseLod = lod; this.lod = quality === 'light' ? [lod[0] * 0.6, lod[1] * 0.7] : lod; this.light = quality === 'light'; this.group = new THREE.Group(); this.group.name = 'trees';
     const needle = needleTexture(), leaf = leafTexture();
     const kinds = [
       { geo: [cedarGeometry(0), cedarGeometry(1), cedarGeometry(2)], tex: needle, h: 20, alpha: 0.42 },
@@ -336,6 +336,7 @@ export class TreeField {
     for (let i = 0; i < n; i++) {
       const dx = d.x[i] - cx, dz = d.z[i] - cz, dd = dx * dx + dz * dz;
       const level = dd < a2 ? 0 : dd < b2 ? 1 : 2;
+      if (this.light && level === 2 && (i & 1)) continue;                 // 軽量は、遠くの木を半分にする
       const set = this.sets[d.kind[i] * 3 + level];
       if (!set) continue;
       const k = set.leaf.count;
@@ -344,7 +345,14 @@ export class TreeField {
       this.m.compose(this.p, this.q, this.s);
       set.leaf.setMatrixAt(k, this.m);
       if (set.wood) set.wood.setMatrixAt(k, this.m);
-      if (set.kind === 1) { this.color.setRGB(0.85 + d.tint[i] * 0.4, 0.8 + d.tint[i] * 0.15, 0.5 + d.tint[i] * 0.25); set.leaf.setColorAt(k, this.color); }
+      if (set.kind === 1) {
+        // 秋の広葉樹：緑・黄・橙・赤茶がまだらに（実る稲と同じ季節。夕日の下で色の差し色になる）
+        const t = d.tint[i], pick = (t * 9301 + d.x[i] * 0.37) % 1;
+        if (pick < 0.30) this.color.setRGB(1.55, 0.62, 0.22);          // 紅葉（橙〜赤）
+        else if (pick < 0.52) this.color.setRGB(1.35, 1.12, 0.3);      // 黄葉
+        else this.color.setRGB(0.85 + t * 0.4, 0.8 + t * 0.15, 0.5 + t * 0.25);
+        set.leaf.setColorAt(k, this.color);
+      }
       else { const v = 0.85 + d.tint[i] * 0.3; this.color.setRGB(v, v * 1.02, v * 0.95); set.leaf.setColorAt(k, this.color); }
       set.leaf.count = k + 1; if (set.wood) set.wood.count = k + 1;
       this.stats[level === 0 ? 'near' : level === 1 ? 'mid' : 'far']++;

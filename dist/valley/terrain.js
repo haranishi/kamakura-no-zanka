@@ -49,7 +49,7 @@ function terrainMaterial(textures, quality) {
     shader.uniforms.uTexC = { value: textures.color };
     shader.uniforms.uTexN = { value: textures.normal };
     shader.uniforms.uTile = { value: tiles };
-    shader.uniforms.uDetail = { value: quality === 'light' ? 0 : 1 };
+    shader.uniforms.uDetail = material.userData.uDetailU = { value: quality === 'light' ? 0 : 1 };
     shader.vertexShader = shader.vertexShader
       .replace('#include <common>', `#include <common>
         attribute vec3 aS0; attribute vec3 aS1;
@@ -127,7 +127,7 @@ function terrainMaterial(textures, quality) {
       .replace('#include <roughnessmap_fragment>', `float roughnessFactor = gRough;`)
       .replace('#include <normal_fragment_maps>', `normal = normalize((viewMatrix * vec4(gN, 0.0)).xyz);`);
   };
-  material.customProgramCacheKey = () => 'valley-terrain-v1-' + quality;
+  material.customProgramCacheKey = () => 'valley-terrain-v2';     // 品質は uniform（uDetail）で切り替えるので、プログラムは1つ
   return material;
 }
 
@@ -237,5 +237,7 @@ export function buildTerrain({ terrain, textures, quality = 'standard' }) {
   const far = new THREE.Mesh(farGeo, material); far.name = 'terrain-far'; far.receiveShadow = false;
   near.frustumCulled = true; far.frustumCulled = false;
   const group = new THREE.Group(); group.name = 'terrain'; group.add(far, near);
-  return { group, near, far, material, buildMs: performance.now() - t0, stats: { nearVertices: nx * nz, farVertices: fn * fn } };
+  // 品質の切り替え（軽量は細かい法線の凹凸を読まない）
+  const setQuality = q => { const u = material.userData.uDetailU; if (u) u.value = q === 'light' ? 0 : 1; };
+  return { group, near, far, material, setQuality, buildMs: performance.now() - t0, stats: { nearVertices: nx * nz, farVertices: fn * fn } };
 }

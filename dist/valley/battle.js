@@ -85,14 +85,14 @@ export class Battle {
       if (att.brain) adjustMorale(att.brain, FEEL.parriedMorale, 'parried');
     }
     g.emitNoise(def.pos.x, def.pos.z, res.outcome === 'hit' ? 12 : 18, 'clash');
-    if (res.dead) this.onDeath(def, att);
+    if (res.dead) this.onDeath(def, att, res);
   }
 
-  onDeath(def, att) {
+  onDeath(def, att, res) {
     const g = this.g;
     if (def === g.hero) { g.onHeroDown(); return; }
     if (!def.brain) return;
-    g.reportDown(def, 'killed');
+    g.reportDown(def, 'killed', { stealth: res?.outcome === 'stealth' });
     for (const o of g.enemies) if (o !== def && o.fighter.alive && !o.departed && dist2(o.pos, def.pos) < 12) adjustMorale(o.brain, FEEL.deathMorale, 'ally_down');
   }
 

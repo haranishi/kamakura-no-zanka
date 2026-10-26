@@ -5,6 +5,8 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { gradeModel } from './grade.js';
 
 const DIR = new URL('../assets/valley/models/', import.meta.url).href;
+// 石の小道具の色のそろえ。地蔵は赤い前掛けを残すので彩度の上限を高く、灯籠の黄色い地衣は強く抑える。
+const GRADE = { well: { whiteMax: 0.26, mossFix: 0.65, satMax: 0.6 }, lantern: { whiteMax: 0.28, satMax: 0.42 }, firepit: { whiteMax: 0.3, satMax: 0.5 }, jizo: { whiteMax: 0.34, satMax: 0.85 } };
 export const PROP_FILES = ['well', 'cart', 'lantern', 'hasa', 'jizo', 'firepit', 'gatehouse', 'fort', 'barricade', 'wara'];
 
 export async function loadPropModels({ anisotropy = 8 } = {}) {
@@ -18,7 +20,7 @@ export async function loadPropModels({ anisotropy = 8 } = {}) {
         const ms = Array.isArray(o.material) ? o.material : [o.material];
         for (const m of ms) for (const k of ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'aoMap']) if (m[k]) m[k].anisotropy = anisotropy;
       });
-      gradeModel(gltf.scene, { whiteMax: 0.26, mossFix: 0.65 });          // 真っ白な石を灰色へ、青い石を暖かい灰色へ、蛍光の苔を抑える
+      gradeModel(gltf.scene, GRADE[name] || { whiteMax: 0.34 });          // 真っ白な石を灰色へ、青い石を暖かい灰色へ、蛍光の苔・黄色い地衣を抑える
       // Meshy のモデルは原点が中心に寄っていることがある。底面の中心を原点に揃えた入れ物に包む（置くとき足もとが地面に付く）
       const box = new THREE.Box3().setFromObject(gltf.scene), c = box.getCenter(new THREE.Vector3());
       gltf.scene.position.set(-c.x, -box.min.y, -c.z);

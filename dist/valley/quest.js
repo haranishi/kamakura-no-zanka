@@ -21,7 +21,9 @@ export function reduce(state, event) {
   if (event.type === 'player_down' && !s.pendingRetry && s.beat !== 'done') s.pendingRetry = true;
   else if (event.type === 'retry' && s.pendingRetry) {
     const restored = s.checkpointState ? copy(s.checkpointState) : snapshot(createQuest(s.story));
+    const plan = s.flags.plan;                                       // 選んだ道は、やり直しても残す（見晴らしへ戻っても針が正面を指さない）
     Object.assign(s, restored, { pendingRetry: false });
+    if (s.beat === 'b3_viewpoint' && plan) s.flags.plan = plan;
     for (const group of [...Object.keys(s.story.groups), 'village_enemies_rest']) emit('despawn', { group });
     effects.push(objective(s));
   } else if (!s.pendingRetry) {
@@ -38,7 +40,7 @@ export function reduce(state, event) {
       emit('spawn', { group: 'village_enemies', alert: s.flags.approach === 'front' ? 'high' : 'unaware' });
       advance('b4_village');
     } else if (s.beat === 'b4_village' && event.type === 'pillage_tick' && validNumber(event.dt) && validNumber(event.pillagers)) {
-      const rate = s.story.pillage[s.flags.approach];
+      const rate = event.loud === true ? s.story.pillage.front : s.story.pillage[s.flags.approach];   // 見つかって騒ぎになれば、脇道でも正面と同じ速さで荒らされる
       // 上限を先に設け、巨大な有限入力同士の積でもInfinityを状態へ渡さない。
       const loss = Math.min(s.resources.food, Math.min(event.dt, 1e6) * Math.min(event.pillagers, 1e6) * rate);
       if (loss > 0) { s.resources.food -= loss; emit('resources', { delta: { food: -loss } }); }
@@ -46,7 +48,11 @@ export function reduce(state, event) {
       const group = s.beat === 'b4_village' ? 'village_enemies' : 'escort_ambush';
       if (s.story.groups[group].includes(event.id) && !s.down[event.id] && (group !== 'escort_ambush' || s.flags.ambush === 'active')) {
         s.down[event.id] = event.how;
+        // 里の信頼：投降を受け入れる・追い払う・闇討ちで静かに倒すほど上がる
+        const gain = (event.how === 'surrendered' ? 4 : event.how === 'routed' ? 2 : 0) + (event.how === 'killed' && event.stealth === true ? 3 : 0);
+        if (gain) s.trust = Math.min(100, s.trust + gain);
         if (group === 'village_enemies' && (event.id === 'officer' || s.story.groups[group].every(id => s.down[id]))) {
+          s.trust = Math.max(0, Math.min(100, s.trust + Math.max(-6, Math.min(6, Math.round((s.resources.food - 30) / 5)))));   // 蓄えが残った分だけ里の見る目が変わる
           dialogue('village_cleared'); advance('b5_archer'); emit('despawn', { group: 'village_enemies_rest' });
         } else if (group === 'escort_ambush' && s.story.groups[group].every(id => s.down[id])) {
           s.flags.ambush = 'cleared'; dialogue('ambush_cleared');

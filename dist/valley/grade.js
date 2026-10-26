@@ -3,7 +3,7 @@
 const patched = new WeakSet();
 
 // 材質を複製したら、もう一度呼ぶ（複製は onBeforeCompile を引き継がない）。
-export function patchGrade(material, { whiteMax = 0.34, blueFix = 0.85, mossFix = 0.5 } = {}) {
+export function patchGrade(material, { whiteMax = 0.34, blueFix = 0.85, mossFix = 0.5, satMax = 1 } = {}) {
   if (!material || patched.has(material)) return material;
   patched.add(material);
   material.onBeforeCompile = shader => {
@@ -19,10 +19,11 @@ export function patchGrade(material, { whiteMax = 0.34, blueFix = 0.85, mossFix 
         gc *= mix(1.0, min(1.0, ${whiteMax.toFixed(3)} / max(gl, 1e-3)), white);
         float moss = smoothstep(1.35, 2.2, gc.g / max(max(gc.r, gc.b), 1e-3)) * smoothstep(0.06, 0.22, gl);
         gc = mix(gc, vec3(gl) * vec3(0.92, 1.0, 0.72), moss * ${mossFix.toFixed(3)});
+        gc = mix(vec3(gl), gc, min(1.0, ${satMax.toFixed(3)} / max(gsat, 1e-3)));          // 彩度の上限（石の黄色い地衣など）
         diffuseColor.rgb = gc;
       }`);
   };
-  material.customProgramCacheKey = () => `grade-${whiteMax}-${blueFix}-${mossFix}`;
+  material.customProgramCacheKey = () => `grade-${whiteMax}-${blueFix}-${mossFix}-${satMax}`;
   material.needsUpdate = true;
   return material;
 }

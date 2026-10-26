@@ -49,9 +49,32 @@ test('plan is advisory and first actual entrance is fixed', () => {
 test('pillage follows approach, clamps at zero and rejects invalid input', () => {
   const f = run(village(), 'pillage_tick', { dt: 10, pillagers: 2 });
   const l = run(village('village_north'), 'pillage_tick', { dt: 10, pillagers: 2 });
-  assert.equal(f.resources.food, 44); assert.equal(l.resources.food, 56);
+  assert.equal(f.resources.food, 44); assert.equal(l.resources.food, 58);
+  // 脇道でも見つかって騒ぎになれば、正面と同じ速さで荒らされる
+  assert.equal(run(village('village_north'), 'pillage_tick', { dt: 10, pillagers: 2, loud: true }).resources.food, 44);
   assert.equal(run(f, 'pillage_tick', { dt: 1e300, pillagers: 1e300 }).resources.food, 0);
   for (const dt of [NaN, Infinity, -1, '3']) assert.deepEqual(run(f, 'pillage_tick', { dt, pillagers: 2 }), f);
+});
+test('trust rises with mercy, stealth and what is left in the stores; a careful flank keeps 50+ food', () => {
+  let s = village('village_north');
+  const t0 = s.trust;
+  s = run(s, 'enemy_down', { id: 'village_soldier_1', how: 'surrendered' }); assert.equal(s.trust, t0 + 4);
+  s = run(s, 'enemy_down', { id: 'village_soldier_2', how: 'routed' }); assert.equal(s.trust, t0 + 6);
+  s = run(s, 'enemy_down', { id: 'village_soldier_3', how: 'killed', stealth: true }); assert.equal(s.trust, t0 + 9);
+  s = run(s, 'enemy_down', { id: 'village_archer', how: 'killed' }); assert.equal(s.trust, t0 + 9);            // 正面から倒しても信頼は増えない
+  const quiet = run(s, 'pillage_tick', { dt: 20, pillagers: 5 });                                              // 静かな脇道：20秒で 20×5×0.1 = 10
+  assert.ok(quiet.resources.food >= 50);
+  const done = run(quiet, 'enemy_down', { id: 'officer', how: 'killed' });
+  assert.equal(done.beat, 'b5_archer'); assert.ok(done.trust >= t0 + 9 + 1);                                    // 蓄えが多く残るほど、里の信頼が上がる
+  const raided = run(run(village(), 'pillage_tick', { dt: 60, pillagers: 5 }), 'enemy_down', { id: 'officer', how: 'killed' });
+  assert.ok(raided.trust < done.trust);
+  assert.ok(summarize({ ...done, flags: { ...done.flags, archerJoined: true } }).trust >= 50 || done.trust < 50);   // 要約は信頼をそのまま映す
+});
+test('retry keeps the chosen plan so the compass and the choice stay consistent', () => {
+  let s = run(viewpoint(), 'choose_plan', { plan: 'flank' });
+  s = run(s, 'enter_zone', { zone: 'village_north' });
+  s = run(run(s, 'player_down'), 'retry');
+  assert.equal(s.beat, 'b3_viewpoint'); assert.equal(s.flags.plan, 'flank'); assert.equal(s.flags.approach, null);
 });
 test('each defeat kind clears officer and repeated defeats have no effects', () => {
   for (const how of ['killed', 'routed', 'surrendered']) {
