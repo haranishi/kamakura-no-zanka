@@ -164,27 +164,31 @@ export function createTerrain(world = WORLD) {
     return h;
   }
 
-  // 道：自然な高さを道の点列に沿って平らにならした踏み面
+  // 道：自然な高さを道の点列に沿って平らにならした踏み面。端では窓を狭めて自然な高さへ寄せる
+  // （端どうしで平均の取り方が違うと、廃寺の道と林道の継ぎ目に 2.7m の段ができて歩けなくなった）
   const roads = Object.entries(world.roads).map(([id, def]) => {
     const line = smoothPolyline(def.points, 2.5);
     const raw = line.map(p => natural(p.x, p.z));
     const tread = raw.map((_, i) => {
-      let s = 0, c = 0;
-      for (let k = -7; k <= 7; k++) { const j = i + k; if (j >= 0 && j < raw.length) { s += raw[j]; c++; } }
-      return s / c;
+      const k = Math.min(7, i, raw.length - 1 - i);
+      let s = 0;
+      for (let j = i - k; j <= i + k; j++) s += raw[j];
+      return s / (2 * k + 1);
     });
     return { id, line, tread, half: def.halfWidth, index: new SegmentIndex(line, 16) };
   });
+  // 近い道の高さは重みで混ぜる（重なる道を「近い方だけ」で選ぶと、踏み面が違う所で段になる）
   function roadInfo(x, z) {
-    let best = null;
+    let best = null, sw = 0, sy = 0;
     for (const r of roads) {
       const n = r.index.nearest(x, z, r.half + 3);
       const w = 1 - smooth(r.half, r.half + 2.8, n.d);
-      if (w > 0 && (!best || n.d - r.half < best.dist)) {
-        const y = lerp(r.tread[n.i], r.tread[Math.min(n.i + 1, r.tread.length - 1)], n.t);
-        best = { id: r.id, d: n.d, w, y, dist: n.d - r.half };
-      }
+      if (w <= 0) continue;
+      const y = lerp(r.tread[n.i], r.tread[Math.min(n.i + 1, r.tread.length - 1)], n.t);
+      sw += w; sy += w * y;
+      if (!best || n.d - r.half < best.dist) best = { id: r.id, d: n.d, w, y, dist: n.d - r.half };
     }
+    if (best) best.y = sy / sw;
     return best;
   }
 

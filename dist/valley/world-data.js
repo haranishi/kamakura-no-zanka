@@ -58,7 +58,7 @@ export const WORLD = {
     { id: 'lantern_temple', kind: 'stone_lantern', x: -84, z: -76, r: 0.5, scale: 0.8 },
     { id: 'lantern_steps', kind: 'stone_lantern', x: -72.5, z: -69.5, r: 0.5, scale: 0.8 },
     { id: 'bonfire', kind: 'bonfire', x: -88, z: -80, r: 0.8, scale: 1.0 },
-    { id: 'drying1', kind: 'drying_rack', x: 22, z: 4, rotY: 0.4, r: 1.3, scale: 1.25 },
+    { id: 'drying1', kind: 'drying_rack', x: 24.5, z: 8.6, rotY: 0.4, r: 1.3, scale: 1.25 },
     { id: 'drying2', kind: 'drying_rack', x: -6, z: 30, rotY: -0.2, r: 1.3, scale: 1.25 },
     { id: 'jizo_view', kind: 'jizo', x: -47.5, z: -31.5, r: 0.35, scale: 0.47 },
     { id: 'jizo_road', kind: 'jizo', x: -66.5, z: -61, r: 0.35, scale: 0.47 },

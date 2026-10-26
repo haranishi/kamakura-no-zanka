@@ -88,6 +88,28 @@ test('people who come out of their houses can walk from the door to their spot a
   assert.equal(new Set(ids).size, ids.length, 'villager ids must be unique');
 });
 
+// 道の中心線を、操作と同じ移動の規則（斜度・段差・壁・水）で端から端まで歩く。道の継ぎ目の段・道の上の置き物を落とす。
+test('every road can be walked end to end with the real movement rule (no cliff at a seam, nothing standing on the road)', () => {
+  const barricades = WORLD.distant.filter(d => d.collider);                         // 東の口の馬防柵だけは道を塞ぐ設計
+  for (const road of terrain.roads) {
+    let pos = { x: road.line[0].x, y: terrain.heightAt(road.line[0].x, road.line[0].z), z: road.line[0].z };
+    walk: for (let i = 1; i < road.line.length; i++) {
+      const tx = road.line[i].x, tz = road.line[i].z;
+      for (let g = 0; g < 400; g++) {
+        const dx = tx - pos.x, dz = tz - pos.z, d = Math.hypot(dx, dz);
+        if (d < 0.25) break;
+        const st = Math.min(0.12, d), r = moveActor(col, terrain, pos, dx / d * st, dz / d * st, 0.3, {});
+        if (r.blocked) {
+          const byDesign = r.blocked === 'wall' && barricades.some(b => Math.hypot(pos.x - b.x, pos.z - b.z) < 6);
+          assert(byDesign, `${road.id}: blocked (${r.blocked}) at ${pos.x.toFixed(1)},${pos.z.toFixed(1)}`);
+          break walk;
+        }
+        pos = { x: r.x, y: r.y, z: r.z };
+      }
+    }
+  }
+});
+
 test('decorations do not overlap buildings, and fences stay clear of roads the hero must use', () => {
   const insideBuilding = (x, z) => WORLD.buildings.some(b => { const dx = x - b.x, dz = z - b.z, c = Math.cos(b.rotY), s = Math.sin(b.rotY), u = dx * c - dz * s, v = dx * s + dz * c; return Math.abs(u) < b.footprint.w / 2 + 0.3 && Math.abs(v) < b.footprint.d / 2 + 0.3; });
   for (const d of WORLD.dress) {
