@@ -17,7 +17,7 @@ export function cellRand(seed, i, j) {
 
 // 峰（烏峰）の内側か。遠景でも急な斜面に木を立て、頂の平らな所（砦）の周りだけ木を抜く。
 function nearPeak(world, x, z, scale = 1) { return (world.peaks || []).some(p => Math.hypot(x - p.x, z - p.z) < p.r * scale); }
-function onPeakTop(world, x, z) { return (world.peaks || []).some(p => Math.hypot(x - p.x, z - p.z) < p.flatR * 1.2); }
+function onPeakTop(world, x, z) { return (world.peaks || []).some(p => Math.hypot(x - p.x, z - p.z) < p.flatR * 1.9); }   // 砦は実寸で約50m。頂の周り約45mは木を抜く（低い所から砦の輪郭が見えるように）
 
 // 建物の足跡（回転した長方形）に点が入るか。margin はメートル。
 export function insideFootprint(b, x, z, margin = 0) {
