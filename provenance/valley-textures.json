@@ -1,0 +1,150 @@
+{
+ "about": "隠れ谷の縦切りの地面質感。Poly Haven の CC0 を 1K で取得し、加工せず同梱する。実行時に色＋粗さ、法線の配列テクスチャへ詰める。",
+ "date": "2026-10-27",
+ "assets": [
+  {
+   "layer": "grass",
+   "polyhaven": "grass_ground",
+   "url": "https://polyhaven.com/a/grass_ground",
+   "author": "Charlotte Baglioni",
+   "license": "CC0-1.0",
+   "files": {
+    "grass_c.jpg": {
+     "source": "grass_ground_diff_1k.jpg",
+     "bytes": 876584,
+     "sha256": "a79cc5ed65af0f80261b39a383b64a8c5272c5144d724deb43dbc29f0e4cd19b"
+    },
+    "grass_n.jpg": {
+     "source": "grass_ground_nor_gl_1k.jpg",
+     "bytes": 1310516,
+     "sha256": "7000e2ccd479bb7b66dcdf4faef7b47554324566886314ca620cbf03e274e826"
+    },
+    "grass_r.jpg": {
+     "source": "grass_ground_rough_1k.jpg",
+     "bytes": 328190,
+     "sha256": "111341f948b7e073edf7ac6add8777e1bf10df8959400df3863243e89bbc8c08"
+    }
+   }
+  },
+  {
+   "layer": "dirt",
+   "polyhaven": "dirt_floor",
+   "url": "https://polyhaven.com/a/dirt_floor",
+   "author": "eye-candy.xyz",
+   "license": "CC0-1.0",
+   "files": {
+    "dirt_c.jpg": {
+     "source": "dirt_floor_diff_1k.jpg",
+     "bytes": 903417,
+     "sha256": "6c2e7f1c5eab8239fec561f255c607d0e3a86046925ba3a8b9340805efc1ab62"
+    },
+    "dirt_n.jpg": {
+     "source": "dirt_floor_nor_gl_1k.jpg",
+     "bytes": 1167485,
+     "sha256": "9481dc2cee97b240ca10dc1cd60fec834a85e455aaa7d2a584396ea10210c2c0"
+    },
+    "dirt_r.jpg": {
+     "source": "dirt_floor_rough_1k.jpg",
+     "bytes": 389725,
+     "sha256": "093166ffda063b8fcf04ec645e1e12c24811f614468ba378437a3535c3c53f57"
+    }
+   }
+  },
+  {
+   "layer": "rock",
+   "polyhaven": "aerial_rocks_02",
+   "url": "https://polyhaven.com/a/aerial_rocks_02",
+   "author": "Rob Tuytel",
+   "license": "CC0-1.0",
+   "files": {
+    "rock_c.jpg": {
+     "source": "aerial_rocks_02_diff_1k.jpg",
+     "bytes": 785923,
+     "sha256": "708373b2af7fd07ac8de1500556006aaf904c41a99985a849cacc78874f38eac"
+    },
+    "rock_n.jpg": {
+     "source": "aerial_rocks_02_nor_gl_1k.jpg",
+     "bytes": 1177932,
+     "sha256": "6df5263ba6c30e9343ee324d87078b926024d710b0b349025083600369df8d25"
+    },
+    "rock_r.jpg": {
+     "source": "aerial_rocks_02_rough_1k.jpg",
+     "bytes": 381745,
+     "sha256": "07e842a9c9f128fb2afc2655cb09db914b5ec7c7657dcff4dcfce9c487ee0aae"
+    }
+   }
+  },
+  {
+   "layer": "gravel",
+   "polyhaven": "river_small_rocks",
+   "url": "https://polyhaven.com/a/river_small_rocks",
+   "author": "Rob Tuytel, Rico Cilliers",
+   "license": "CC0-1.0",
+   "files": {
+    "gravel_c.jpg": {
+     "source": "river_small_rocks_diff_1k.jpg",
+     "bytes": 1028735,
+     "sha256": "adbcaae1f1445d5b49797c71ea2c3f43ccaf7b109f933a427f0d0993d1dbbc51"
+    },
+    "gravel_n.jpg": {
+     "source": "river_small_rocks_nor_gl_1k.jpg",
+     "bytes": 1365737,
+     "sha256": "983f99bd61cdcdeb3d2ebe0cbba851fd58f249d38f9e76a25084a558ee56e8e6"
+    },
+    "gravel_r.jpg": {
+     "source": "river_small_rocks_rough_1k.jpg",
+     "bytes": 642685,
+     "sha256": "c5cd1953e559339c588f01d21509eff8894cd49f03da193b1dbb3161483a8113"
+    }
+   }
+  },
+  {
+   "layer": "mud",
+   "polyhaven": "brown_mud_02",
+   "url": "https://polyhaven.com/a/brown_mud_02",
+   "author": "Rob Tuytel",
+   "license": "CC0-1.0",
+   "files": {
+    "mud_c.jpg": {
+     "source": "brown_mud_02_diff_1k.jpg",
+     "bytes": 527741,
+     "sha256": "058b6f12493305ec6b47cb5ea77f013c9e7e58216b34af3700a3d3d7d821732d"
+    },
+    "mud_n.jpg": {
+     "source": "brown_mud_02_nor_gl_1k.jpg",
+     "bytes": 1397011,
+     "sha256": "9ca6f68d25599c98ba5e594df221f5653d93faceda1ba26a0babb1143e8c615f"
+    },
+    "mud_r.jpg": {
+     "source": "brown_mud_02_rough_1k.jpg",
+     "bytes": 422119,
+     "sha256": "c6d5891f090554c8f51172b2c4056f490ab1ed1a69127f1f876f9d58c46f0f23"
+    }
+   }
+  },
+  {
+   "layer": "litter",
+   "polyhaven": "forrest_ground_03",
+   "url": "https://polyhaven.com/a/forrest_ground_03",
+   "author": "Rob Tuytel",
+   "license": "CC0-1.0",
+   "files": {
+    "litter_c.jpg": {
+     "source": "forrest_ground_03_diff_1k.jpg",
+     "bytes": 821191,
+     "sha256": "69c3ae8a40c70eecbb312c2ca1044b5dea4f48d37f2a6f84ca7ed56b95f04a7b"
+    },
+    "litter_n.jpg": {
+     "source": "forrest_ground_03_nor_gl_1k.jpg",
+     "bytes": 1587102,
+     "sha256": "2f2a18622ff1fde203ad7b17f12da5e46608b77b27307f6a91cc5a016cc72e41"
+    },
+    "litter_r.jpg": {
+     "source": "forrest_ground_03_rough_1k.jpg",
+     "bytes": 418230,
+     "sha256": "faa2fc4305cb839a2240ffa84de513dc16671879915a13c88fb319d5e168e926"
+    }
+   }
+  }
+ ]
+}
