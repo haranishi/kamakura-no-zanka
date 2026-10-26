@@ -6,8 +6,8 @@ import { gradeModel } from './grade.js';
 
 const DIR = new URL('../assets/valley/models/', import.meta.url).href;
 // 石の小道具の色のそろえ。地蔵は赤い前掛けを残すので彩度の上限を高く、灯籠の黄色い地衣は強く抑える。
-const GRADE = { well: { whiteMax: 0.26, mossFix: 0.65, satMax: 0.6 }, lantern: { whiteMax: 0.28, satMax: 0.42 }, firepit: { whiteMax: 0.3, satMax: 0.5 }, jizo: { whiteMax: 0.34, satMax: 0.85 } };
-export const PROP_FILES = ['well', 'cart', 'lantern', 'hasa', 'jizo', 'firepit', 'gatehouse', 'fort', 'barricade', 'wara'];
+const GRADE = { well: { whiteMax: 0.26, mossFix: 0.65, satMax: 0.6 }, lantern: { whiteMax: 0.28, satMax: 0.42 }, firepit: { whiteMax: 0.3, satMax: 0.5 }, jizo: { whiteMax: 0.34, satMax: 0.85 }, kakashi: { whiteMax: 0.5 }, hokora: { whiteMax: 0.3, blueFix: 1, satMax: 0.5 } };
+export const PROP_FILES = ['well', 'cart', 'lantern', 'hasa', 'jizo', 'firepit', 'gatehouse', 'fort', 'barricade', 'wara', 'kakashi', 'hokora'];
 
 export async function loadPropModels({ anisotropy = 8 } = {}) {
   const loader = new GLTFLoader(), out = {};
@@ -61,11 +61,11 @@ export function buildProps({ world, terrain, models }) {
   const cloneOf = key => models[key]?.clone(true);
 
   for (const p of world.props) {
-    const key = { well: 'well', cart: 'cart', stone_lantern: 'lantern', drying_rack: 'hasa', bonfire: 'firepit', jizo: 'jizo', haystack: 'wara' }[p.kind];
+    const key = { well: 'well', cart: 'cart', stone_lantern: 'lantern', drying_rack: 'hasa', bonfire: 'firepit', jizo: 'jizo', haystack: 'wara', scarecrow: 'kakashi', shrine: 'hokora' }[p.kind];
     const o = key && cloneOf(key);
     if (!o) continue;
     // 足もとを地面へ。モデルの底（原点）が地面に付く前提で、少し沈めて浮きを防ぐ
-    place(o, p.x, p.z, p.rotY || 0, p.scale || 1, -0.04);
+    place(o, p.x, p.z, p.rotY || 0, p.scale || 1, p.kind === 'shrine' ? -0.06 : -0.04);
     if (p.kind === 'bonfire') {
       const light = new THREE.PointLight(0xff9a4a, 9, 16, 1.6); light.position.set(p.x, terrain.heightAt(p.x, p.z) + 0.9, p.z); light.castShadow = false; group.add(light); lights.push({ light, base: 9, seed: p.x });
     }

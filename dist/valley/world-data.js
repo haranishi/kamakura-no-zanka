@@ -82,6 +82,11 @@ export const WORLD = {
     { id: 'wara1', kind: 'haystack', x: 3, z: -23, r: 0.6, scale: 1.4 }, { id: 'wara2', kind: 'haystack', x: -8, z: -22, r: 0.6, scale: 1.3 },
     { id: 'wara3', kind: 'haystack', x: 31.5, z: 21, r: 0.6, scale: 1.4 }, { id: 'wara4', kind: 'haystack', x: 41, z: 10, r: 0.6, scale: 1.3 },
     { id: 'wara5', kind: 'haystack', x: 12, z: 31, r: 0.6, scale: 1.4 }, { id: 'wara6', kind: 'haystack', x: 30, z: -26, r: 0.6, scale: 1.3 },
+    // 路傍の祠（里の入口と東の端）。
+    { id: 'hokora1', kind: 'shrine', x: -27.5, z: -7.5, rotY: 0.9, r: 0.55, scale: 0.55 }, { id: 'hokora2', kind: 'shrine', x: 53, z: 12.5, rotY: -0.8, r: 0.55, scale: 0.55 },
+    // 案山子（畑のそば）。
+    { id: 'kakashi1', kind: 'scarecrow', x: 0.6, z: 30.2, rotY: 0.6, r: 0.45, scale: 0.92 }, { id: 'kakashi2', kind: 'scarecrow', x: 32.2, z: 25.4, rotY: -0.4, r: 0.45, scale: 0.92 },
+    { id: 'kakashi3', kind: 'scarecrow', x: 48.9, z: 4.2, rotY: 2.4, r: 0.45, scale: 0.92 },
     { id: 'jizo_view', kind: 'jizo', x: -47.5, z: -31.5, r: 0.35, scale: 0.47 },
     { id: 'jizo_road', kind: 'jizo', x: -66.5, z: -61, r: 0.35, scale: 0.47 },
     { id: 'viewpoint_rock', kind: 'boulder_big', x: -52, z: -37, r: 2.1, vr: 3.5 },

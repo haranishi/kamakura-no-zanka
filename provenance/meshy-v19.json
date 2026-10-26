@@ -6,7 +6,7 @@
   "credits": {
     "start": 1219,
     "floor": 500,
-    "spent_note": "キャラクター一式＋小道具6＋遠景3＋里の変化3（土蔵・納屋・藁塚）。残高は台帳（作業用）で管理"
+    "spent_note": "キャラクター一式＋小道具6＋遠景3＋里の変化5（土蔵・納屋・藁塚・案山子・祠）。残高は台帳（作業用）で管理"
   },
   "terms_note": "Meshy の公式ヘルプ（2026-10-27 確認）：有料プランの生成物は利用者が所有し商用利用できる（Meshy のコミュニティへ公開しないこと、参照画像が他者の著作権を侵さないことが条件）。無料プランは CC BY 4.0（表記が必要）。公開・配布の前に、本人の契約プランが有料であることと、コミュニティへ公開していないことを確認する。",
   "assets": [
@@ -227,6 +227,28 @@
       "sha256": "40684c9d42492f0bba82eafb4d2c4fc3d5381734a11e6234af5208bd3135d0a5",
       "bytes": 1191000,
       "pipeline": "Meshy text-to-3D → tools/blender/decimate_asset.py (約1.3%・WebP 最大1280px) → GLB（原画は約100万〜150万三角形）"
+    },
+    {
+      "file": "dist/assets/valley/models/kakashi.glb",
+      "kind": "prop",
+      "label": "案山子",
+      "task_id": "01a17983-9cbb-73f9-b4f9-ec5c11e120b1",
+      "preview_task_id": "01a17982-8387-72dd-b3bc-78080c975e54",
+      "route": "text-to-3d meshy-6 (preview 20cr + refine PBR 2k 10cr)",
+      "sha256": "93b1c98b1430c0ce53bc50a6d1315bd51a044b14bfbe5dd4d9e967dbead4aeca",
+      "bytes": 461616,
+      "pipeline": "Meshy text-to-3D → tools/blender/decimate_asset.py（約1〜2%・WebP 最大1024px）→ GLB"
+    },
+    {
+      "file": "dist/assets/valley/models/hokora.glb",
+      "kind": "prop",
+      "label": "路傍の祠",
+      "task_id": "01a17984-e338-7579-be21-ef285bb3be8c",
+      "preview_task_id": "01a17982-8b4e-72f7-aac5-4ce94d4e6f9d",
+      "route": "text-to-3d meshy-6 (preview 20cr + refine PBR 2k 10cr)",
+      "sha256": "e6568a663962c9d92bc452a5cb64fefce0f088e932e9111a110f4a74c3b41f16",
+      "bytes": 938548,
+      "pipeline": "Meshy text-to-3D → tools/blender/decimate_asset.py（約1〜2%・WebP 最大1024px）→ GLB"
     }
   ],
   "terms_sources": [

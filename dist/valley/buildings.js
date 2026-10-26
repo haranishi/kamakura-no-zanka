@@ -67,8 +67,8 @@ export function buildBuildings({ world, terrain, models }) {
   for (const b of world.buildings) {
     if (b.kind === 'temple') place('temple', b, { scale: 1.45 });
     else if (b.kind === 'farmhouse') place('farmhouse', b, { scale: 0.98 + (b.variant || 0) * 0.04, tint: tints[(b.variant || 0) % 3] });
-    else if (b.kind === 'granary') { if (models.dozo) place('dozo', b, { scale: 6.4 }); else place('farmhouse', b, { scale: 0.82, tint: '#bfae92' }); }
-    else if (b.kind === 'naya') { if (models.naya) place('naya', b, { scale: b.width || 6.4 }); else place('farmhouse', b, { scale: 0.7, tint: '#bfae92' }); }
+    else if (b.kind === 'granary') { if (models.dozo) place('dozo', b, { scale: 6.4, lift: -0.15 }); else place('farmhouse', b, { scale: 0.82, tint: '#bfae92' }); }
+    else if (b.kind === 'naya') { if (models.naya) place('naya', b, { scale: b.width || 6.4, lift: -0.15, tint: '#e8d2a8' }); /* 板壁の青みを、暖かい色の掛け合わせで打ち消す */ else place('farmhouse', b, { scale: 0.7, tint: '#bfae92' }); }
   }
   for (const d of world.distant) {
     if (d.kind === 'bridge') {
