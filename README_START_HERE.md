@@ -14,7 +14,7 @@ Space 転がり／E 調べる・とどめ・闇討ち／Tab 狙い／Q 弥十郎
 - 出所：人物・小道具は Meshy AI で生成（[provenance/meshy-v19.json](provenance/meshy-v19.json)）。**公開・配布の前に、Meshy の契約プランの商用・公開条件を確認する**。非公開リポジトリのみに置く。
 - 検査：`npm test`（規則・世界の整合）、`npm run check`（配布検査。`/valley/` を含む）、`npm run smoke`。
 - 検証記録：[reports/VERIFICATION_V19_JA.md](reports/VERIFICATION_V19_JA.md)（独立評価の周回・実測・未確認）。
-- 遊びの設計判断と、踏んだ罠：[.kiro/specs/hidden-valley-slice/design-app.md](.kiro/specs/hidden-valley-slice/design-app.md)。回帰の検査（矢で倒れても止まらない・やり直しで資源が増えない）は `tools/scenarios/regress-*.mjs`（`--strict` で回す）。
+- 遊びの設計判断と、踏んだ罠：[.kiro/specs/hidden-valley-slice/design-app.md](.kiro/specs/hidden-valley-slice/design-app.md)。回帰の検査（矢で倒れても止まらない・やり直しで資源が増えない・会話中に被弾しない・つづきから・岩と土手・効果音の音量）は `tools/scenarios/regress-*.mjs`（`--strict` で回す）。
 - 未確認：実機のマウス操作（ポインターロック）・音の聴感・Safari/Firefox。人物の指は元の動作データに指の動きが無く開いたまま。
 
 ## ブラウザで遊ぶ
