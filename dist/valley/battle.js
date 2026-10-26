@@ -159,16 +159,17 @@ export class Battle {
     const mesh = this.arrowModel.clone(); mesh.position.copy(from); g.scene.add(mesh);
     this.arrows.push({ mesh, pos: from, vel: dir.multiplyScalar(speed), owner: shooter, ally, move: m, life: 4, stuck: false, t: 0 });
     g.audio.play('bow_release', { pan: g.pan(shooter.pos) });
-    if (this.arrows.length > 24) this.removeArrow(0);
+    if (this.arrows.length > 24) this.removeArrow(this.arrows[0]);
   }
 
-  removeArrow(i) { const a = this.arrows[i]; a.mesh.removeFromParent(); this.arrows.splice(i, 1); }
+  // 矢は参照で取り除く。命中の処理が主人公の死を通じて全部の矢を片づける（clear）ことがあり、添字では消えた矢を指して落ちた（矢で倒れると止まった）
+  removeArrow(a) { a.mesh.removeFromParent(); const i = this.arrows.indexOf(a); if (i >= 0) this.arrows.splice(i, 1); }
 
   updateArrows(dt) {
     const g = this.g;
-    for (let i = this.arrows.length - 1; i >= 0; i--) {
-      const a = this.arrows[i];
-      if (a.stuck) { a.t += dt; if (a.t > 12) this.removeArrow(i); continue; }
+    for (const a of [...this.arrows].reverse()) {
+      if (!this.arrows.includes(a)) continue;                       // この周で片づけられた矢
+      if (a.stuck) { a.t += dt; if (a.t > 12) this.removeArrow(a); continue; }
       a.life -= dt;
       const sub = Math.max(1, Math.ceil(a.vel.length() * dt / 0.4)), h = dt / sub;
       for (let s = 0; s < sub && !a.stuck; s++) {
@@ -177,10 +178,10 @@ export class Battle {
         if (this.arrowHitActor(a)) { a.stuck = true; a.hitActor = true; break; }
         if (a.pos.y < g.terrain.heightAt(a.pos.x, a.pos.z) + 0.03 || segmentBlocked(g.col, g.terrain, { x: _a.x, y: _a.y, z: _a.z }, { x: a.pos.x, y: a.pos.y, z: a.pos.z })) { a.stuck = true; a.t = 0; }
       }
-      if (a.hitActor) { this.removeArrow(i); continue; }
+      if (a.hitActor) { this.removeArrow(a); continue; }
       a.mesh.position.copy(a.pos);
       _b.copy(a.vel).normalize(); a.mesh.quaternion.copy(_q.setFromUnitVectors(_up, _b));
-      if (a.life <= 0 && !a.stuck) this.removeArrow(i);
+      if (a.life <= 0 && !a.stuck) this.removeArrow(a);
     }
   }
 
@@ -218,7 +219,7 @@ export class Battle {
   }
 
   clear() {
-    for (let i = this.arrows.length - 1; i >= 0; i--) this.removeArrow(i);
+    for (const a of [...this.arrows]) this.removeArrow(a);
     for (const l of this.aimLines) l.visible = false;
   }
 }

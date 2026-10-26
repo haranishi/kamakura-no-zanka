@@ -1,5 +1,6 @@
 // 開発用：縦切りを自動で遊ぶ道具（ヘッドレスChrome + ?qa=1 のフック window.__valley）。ランタイムは依存なし。
-// 使い方: PLAYWRIGHT_MODULE=<playwright/index.mjs> node tools/valley-play.mjs <シナリオ.mjs> [--w 1280 --h 720 --q standard --out .captures/play --seed 1333 --intro 1 --lk fog:0.0008,sat:1.1 --log]
+// 使い方: PLAYWRIGHT_MODULE=<playwright/index.mjs> node tools/valley-play.mjs <シナリオ.mjs> [--w 1280 --h 720 --q standard --out .captures/play --seed 1333 --intro 1 --lk fog:0.0008,sat:1.1 --log --strict]
+//   --strict：ページの例外・コンソールの error が1つでもあれば終了コード1（回帰の検査用）。
 //   既定では冒頭の目覚めの演出を飛ばす（intro=0）。演出を見るときは --intro 1。
 // シナリオは `export default async function (ctx) {...}`。ctx = { page, v(式), st(), step(n,dt), shot(名前), key/tap/click, wait(ms), log(...) }。
 import fs from 'node:fs/promises';
@@ -44,5 +45,6 @@ try {
   await scenario(ctx);
   async function scenario(c) { const mod = await import(pathToFileURL(path.resolve(scenarioPath)).href); await mod.default(c); }
   if (logs.length) console.log('--- console ---\n' + logs.slice(0, 60).join('\n'));
+  if (args.includes('--strict') && logs.some(l => l.startsWith('[pageerror]') || l.startsWith('[error]'))) { console.error('STRICT: page errors were logged'); process.exitCode = 1; }
 } catch (e) { console.error('FAILED:', e.stack || e); if (logs.length) console.log('--- console ---\n' + logs.slice(0, 60).join('\n')); process.exitCode = 1; }
 finally { await browser.close(); server.closeAllConnections?.(); server.close(); }

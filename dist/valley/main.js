@@ -175,7 +175,15 @@ function titleCamera(dt) {
 
 const clock = new THREE.Clock();
 let fpsAcc = 0, fpsN = 0;
+// 1コマの処理。例外で繰り返しが止まると、画面が固まって戻れない（矢で倒れたときに実際に起きた）。止めずに記録して続ける。
+let frameErrors = 0;
 function frame() {
+  try { tick(); } catch (e) {
+    if (frameErrors++ < 3) console.error('frame error', e);
+    if (frameErrors === 1) hud.toast('不具合が起きた。直らなければ Esc →「区切りからやり直す」', 7000);
+  }
+}
+function tick() {
   const dt = Math.min(clock.getDelta(), 0.1);
   if (!game || frozen) return;
   if (game.flow === 'idle') { titleCamera(dt); }
