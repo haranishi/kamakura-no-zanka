@@ -14,7 +14,15 @@ export function insideFootprint(b, x, z, margin = 0) {
   return Math.abs(u) <= b.footprint.w / 2 + margin && Math.abs(v) <= b.footprint.d / 2 + margin;
 }
 
+// 畑の長方形（半幅 hx,hz・回転 rot）に点が入るか
+export function insidePlot(f, x, z, margin = 0) {
+  const c = Math.cos(-f.rot), sn = Math.sin(-f.rot), dx = x - f.x, dz = z - f.z;
+  const u = dx * c - dz * sn, v = dx * sn + dz * c;
+  return Math.abs(u) <= f.hx + margin && Math.abs(v) <= f.hz + margin;
+}
+
 function blockedByWorld(world, terrain, x, z, margin, startRadius = 14) {
+  for (const f of world.plots || []) if (insidePlot(f, x, z, margin)) return true;
   for (const b of world.buildings) if (insideFootprint(b, x, z, margin)) return true;
   for (const p of world.props) if (Math.hypot(x - p.x, z - p.z) < (p.r || 1) + margin) return true;
   const road = terrain.roadInfo(x, z);
@@ -137,3 +145,24 @@ export function scatterRice(world, terrain, { seed = 19, step = 0.5 } = {}) {
   }
   return out;
 }
+
+// 野菜畑の菜：畝（うね）に沿って並べる。戻りは {x,y,z,s,rot,tint}
+export function scatterCrops(world, terrain, { seed = 23, rowStep = 0.85, plantStep = 0.52 } = {}) {
+  const rand = mulberry32(world.seed + seed * 503);
+  const out = { x: [], y: [], z: [], s: [], rot: [], tint: [] };
+  for (const f of world.plots || []) {
+    const c = Math.cos(f.rot), sn = Math.sin(f.rot);
+    for (let v = -f.hz + 0.5; v <= f.hz - 0.4; v += rowStep) {
+      const kind = rand();                                  // 畝ごとに育ちが違う（大きい菜・小さい菜）
+      for (let u = -f.hx + 0.45; u <= f.hx - 0.4; u += plantStep) {
+        if (rand() < 0.08) continue;                        // 抜けた株
+        const uu = u + (rand() - 0.5) * 0.16, vv = v + (rand() - 0.5) * 0.12;
+        const x = f.x + uu * c + vv * sn, z = f.z - uu * sn + vv * c;
+        if (terrain.waterAt(x, z) > 0.05 || blockedBuilding(world, x, z)) continue;
+        out.x.push(x); out.z.push(z); out.y.push(terrain.heightAt(x, z)); out.s.push((0.75 + kind * 0.45) * (0.85 + rand() * 0.3)); out.rot.push(rand() * Math.PI * 2); out.tint.push(rand());
+      }
+    }
+  }
+  return out;
+}
+const blockedBuilding = (world, x, z) => world.buildings.some(b => insideFootprint(b, x, z, 0.5)) || world.props.some(p => Math.hypot(x - p.x, z - p.z) < (p.r || 1) + 0.3);

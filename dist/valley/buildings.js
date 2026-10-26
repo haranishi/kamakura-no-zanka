@@ -6,13 +6,23 @@ import { patchGrade, gradeModel } from './grade.js';
 
 const DIR = new URL('../assets/valley/models/', import.meta.url).href;
 const FILES = ['farmhouse', 'temple', 'bridge', 'fence', 'boulder', 'firewood'];
+const EXTRA_FILES = ['dozo', 'naya'];            // 里の変化をつける建物（Meshy）。無くても遊べる（農家で代用）
+// 水平の最大辺が 1m になるよう縮め、底面の中心を原点に置く。置くときの scale が、そのまま建物の幅（m）になる。
+function fitToUnitWidth(scene) {
+  const box = new THREE.Box3().setFromObject(scene), size = box.getSize(new THREE.Vector3()), c = box.getCenter(new THREE.Vector3());
+  scene.position.set(-c.x, -box.min.y, -c.z);
+  const wrap = new THREE.Group(); wrap.add(scene); wrap.scale.setScalar(1 / Math.max(size.x, size.z));
+  const outer = new THREE.Group(); outer.add(wrap);
+  return outer;
+}
 
 export async function loadModels({ onProgress, anisotropy = 8 } = {}) {
   const loader = new GLTFLoader();
   const out = {};
   let done = 0;
-  await Promise.all(FILES.map(async name => {
-    const gltf = await loader.loadAsync(DIR + name + '.glb');
+  await Promise.all([...FILES, ...EXTRA_FILES].map(async name => {
+    let gltf;
+    try { gltf = await loader.loadAsync(DIR + name + '.glb'); } catch (e) { if (FILES.includes(name)) throw e; onProgress?.(++done / (FILES.length + EXTRA_FILES.length)); return; }
     gltf.scene.traverse(o => {
       if (!o.isMesh) return;
       o.castShadow = true; o.receiveShadow = true;
@@ -21,9 +31,9 @@ export async function loadModels({ onProgress, anisotropy = 8 } = {}) {
     });
     // 岩は暗い青に寄って見えるので、明るく少し暖かい灰色へ寄せる（夕日の下で他の地面と並ぶように）
     if (name === 'boulder') gltf.scene.traverse(o => { if (o.isMesh) { const ms = Array.isArray(o.material) ? o.material : [o.material]; for (const m of ms) { m.color.multiply(new THREE.Color(1.7, 1.55, 1.35)); m.roughness = Math.max(m.roughness ?? 0.9, 0.92); } } });
-    if (name !== 'boulder') gradeModel(gltf.scene, { whiteMax: 0.46 });          // 青い礎石・白い壁の照り・蛍光の苔を、夕景の中で他と並ぶ色へ
-    out[name] = gltf.scene;
-    onProgress?.(++done / FILES.length);
+    if (name !== 'boulder') gradeModel(gltf.scene, name === 'dozo' ? { whiteMax: 0.36, mossFix: 0.7 } : { whiteMax: 0.46 });          // 青い礎石・白い壁の照り・蛍光の苔を、夕景の中で他と並ぶ色へ
+    out[name] = EXTRA_FILES.includes(name) ? fitToUnitWidth(gltf.scene) : gltf.scene;
+    onProgress?.(++done / (FILES.length + EXTRA_FILES.length));
   }));
   return out;
 }
@@ -57,7 +67,8 @@ export function buildBuildings({ world, terrain, models }) {
   for (const b of world.buildings) {
     if (b.kind === 'temple') place('temple', b, { scale: 1.45 });
     else if (b.kind === 'farmhouse') place('farmhouse', b, { scale: 0.98 + (b.variant || 0) * 0.04, tint: tints[(b.variant || 0) % 3] });
-    else if (b.kind === 'granary') place('farmhouse', b, { scale: 0.82, tint: '#bfae92' });
+    else if (b.kind === 'granary') { if (models.dozo) place('dozo', b, { scale: 6.4 }); else place('farmhouse', b, { scale: 0.82, tint: '#bfae92' }); }
+    else if (b.kind === 'naya') { if (models.naya) place('naya', b, { scale: b.width || 6.4 }); else place('farmhouse', b, { scale: 0.7, tint: '#bfae92' }); }
   }
   for (const d of world.distant) {
     if (d.kind === 'bridge') {

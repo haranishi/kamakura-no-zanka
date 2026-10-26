@@ -35,7 +35,7 @@ export const WORLD = {
   roads: {
     forest: { halfWidth: 1.7, points: [[-74, -66], [-62, -60], [-48, -55], [-36, -48], [-38, -38], [-50, -34], [-60, -28], [-56, -20], [-44, -14], [-32, -8], [-22, -3], [-10, 1]] },
     lane: { halfWidth: 2.0, points: [[-22, -3], [-10, 1], [0, 3], [14, 4], [34, 6], [60, 6], [84, 0], [98, -10], [112, -26]] },
-    north: { halfWidth: 1.0, points: [[-40, -18], [-30, -30], [-14, -38], [2, -42], [8, -30], [6, -18]] },
+    north: { halfWidth: 1.0, points: [[-40, -18], [-30, -30], [-14, -38], [2, -42], [5, -30], [3, -18]] },
     south: { halfWidth: 0.9, points: [[-52, 30], [-40, 44], [-30, 52], [-18, 46], [-14, 36], [-10, 24]] },
     temple: { halfWidth: 2.2, points: [[-86, -72], [-76, -68], [-74, -66]] },
   },
@@ -49,6 +49,19 @@ export const WORLD = {
     { id: 'house4', kind: 'farmhouse', variant: 0, x: 16, z: 16, rotY: 3.40, footprint: { w: 9, d: 7 } },
     { id: 'house5', kind: 'farmhouse', variant: 1, x: -14, z: 18, rotY: 2.95, footprint: { w: 9, d: 7 } },
     { id: 'granary', kind: 'granary', x: -34, z: 10, rotY: 1.57, footprint: { w: 7, d: 6 } },
+    // 納屋（里の変化）。家のあいだを埋める。width は見た目の幅（m）。
+    { id: 'naya1', kind: 'naya', x: -2, z: -26, rotY: 0.1, width: 6.4, footprint: { w: 6.4, d: 5.8 } },
+    { id: 'naya2', kind: 'naya', x: 36, z: 16, rotY: -0.3, width: 6.4, footprint: { w: 6.4, d: 5.8 } },
+    { id: 'naya3', kind: 'naya', x: 7, z: 28, rotY: 0.2, width: 6.4, footprint: { w: 6.4, d: 5.8 } },
+  ],
+
+  // 畑（家のそばの野菜畑）。hx,hz は半幅。rot は世界の y 回り。地面は耕した土（mud）になり、畝に沿って菜が植わる（scatter.js scatterCrops）。
+  plots: [
+    { id: 'plot_h5', x: -4, z: 25.5, hx: 5, hz: 3, rot: 0.15 },
+    { id: 'plot_h4', x: 25, z: 25, hx: 6, hz: 3.4, rot: -0.1 },
+    { id: 'plot_h2', x: 21, z: -29, hx: 5.5, hz: 3.2, rot: 0.2 },
+    { id: 'plot_h1', x: -27, z: -23, hx: 5, hz: 3.2, rot: 0.3 },
+    { id: 'plot_h3', x: 43, z: 3, hx: 5, hz: 3.4, rot: 0.05 },
   ],
 
   // 置き物（当たりは小さい）。kind は props.js が読む（井戸・荷車・灯籠・稲架・地蔵・焚き火は Meshy のモデル）。scale はモデルの大きさ合わせ。
@@ -60,6 +73,10 @@ export const WORLD = {
     { id: 'bonfire', kind: 'bonfire', x: -88, z: -80, r: 0.8, scale: 1.0 },
     { id: 'drying1', kind: 'drying_rack', x: 24.5, z: 8.6, rotY: 0.4, r: 1.3, scale: 1.25 },
     { id: 'drying2', kind: 'drying_rack', x: -6, z: 30, rotY: -0.2, r: 1.3, scale: 1.25 },
+    // 藁塚（わらづか）。納屋と畑のそば。
+    { id: 'wara1', kind: 'haystack', x: 3, z: -23, r: 0.6, scale: 1.4 }, { id: 'wara2', kind: 'haystack', x: -8, z: -22, r: 0.6, scale: 1.3 },
+    { id: 'wara3', kind: 'haystack', x: 31.5, z: 21, r: 0.6, scale: 1.4 }, { id: 'wara4', kind: 'haystack', x: 41, z: 10, r: 0.6, scale: 1.3 },
+    { id: 'wara5', kind: 'haystack', x: 12, z: 31, r: 0.6, scale: 1.4 }, { id: 'wara6', kind: 'haystack', x: 30, z: -26, r: 0.6, scale: 1.3 },
     { id: 'jizo_view', kind: 'jizo', x: -47.5, z: -31.5, r: 0.35, scale: 0.47 },
     { id: 'jizo_road', kind: 'jizo', x: -66.5, z: -61, r: 0.35, scale: 0.47 },
     { id: 'viewpoint_rock', kind: 'boulder_big', x: -52, z: -37, r: 2.1, vr: 3.5 },

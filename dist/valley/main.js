@@ -6,7 +6,7 @@ import { buildTerrain, loadGroundTextures } from './terrain.js';
 import { installFog, createAtmosphere } from './atmosphere.js';
 import { Post } from './post.js';
 import { SHOTS, applyShot } from './shots.js';
-import { scatterTrees, scatterRocks, scatterGrass, scatterRice } from './scatter.js';
+import { scatterTrees, scatterRocks, scatterGrass, scatterRice, scatterCrops } from './scatter.js';
 import { buildVegetation } from './vegetation.js';
 import { loadModels, buildBuildings, buildRocks } from './buildings.js';
 import { loadPropModels, buildProps } from './props.js';
@@ -86,7 +86,7 @@ async function boot() {
   await step(0.12, '谷の地形を組み立てています');
   const built = buildTerrain({ terrain, textures, quality }); scene.add(built.group);
   await step(0.2, '木と岩を植えています');
-  const scatter = { trees: scatterTrees(WORLD, terrain), rocks: scatterRocks(WORLD, terrain), grass: scatterGrass(WORLD, terrain), rice: scatterRice(WORLD, terrain) };
+  const scatter = { trees: scatterTrees(WORLD, terrain), rocks: scatterRocks(WORLD, terrain), grass: scatterGrass(WORLD, terrain), rice: scatterRice(WORLD, terrain), crops: scatterCrops(WORLD, terrain) };
   await step(0.28, '建物を読み込んでいます');
   const aniso = renderer.capabilities.getMaxAnisotropy();
   const [models, propModels] = await Promise.all([loadModels({ anisotropy: aniso }), loadPropModels({ anisotropy: aniso })]);

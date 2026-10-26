@@ -219,6 +219,30 @@ export class Character {
     }
     if (this.armRelax) this.relaxArms(dt);
     if (this.bow) this.bow.update();
+    if (this.drops) this.updateDrops(dt);
+  }
+
+  // 倒れた人の武器を手から外して地面へ置く（手に付いたままだと、死んだ姿で刀が真上に立った）。武器の長い軸は +Y（weapons.js の約束）。
+  dropWeapon(key, groundAt) {
+    const w = this.weapons[key], parent = this.root.parent;
+    if (!w || !w.holder.visible || !parent || this.drops?.some(d => d.key === key)) return;
+    const obj = w.object, p0 = new THREE.Vector3(), q0 = new THREE.Quaternion(), sc = new THREE.Vector3();
+    obj.updateWorldMatrix(true, false); obj.matrixWorld.decompose(p0, q0, sc);
+    obj.removeFromParent(); parent.add(obj); obj.position.copy(p0); obj.quaternion.copy(q0); obj.scale.copy(sc);
+    const th = (Math.sin(p0.x * 12.9898 + p0.z * 78.233) * 43758.5453 % 1) * Math.PI * 2, dir = new THREE.Vector3(Math.cos(th), 0, Math.sin(th));
+    const qEnd = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
+    const pEnd = new THREE.Vector3(p0.x + dir.x * 0.1, groundAt(p0.x, p0.z) + 0.035, p0.z + dir.z * 0.1);
+    (this.drops ||= []).push({ key, obj, t: 0, p0, q0, pEnd, qEnd });
+    w.holder.visible = false;
+  }
+  updateDrops(dt) {
+    for (const d of this.drops) {
+      if (d.t >= 1) continue;
+      d.t = Math.min(1, d.t + dt / 0.5);
+      const k = d.t, fall = k * k;
+      d.obj.position.set(d.p0.x + (d.pEnd.x - d.p0.x) * k, d.p0.y + (d.pEnd.y - d.p0.y) * fall, d.p0.z + (d.pEnd.z - d.p0.z) * k);
+      d.obj.quaternion.slerpQuaternions(d.q0, d.qEnd, 1 - (1 - k) * (1 - k));
+    }
   }
 
   // 下がった腕の「体からの開き」を詰める（モデル空間の前向きの軸まわりに、上腕の骨を回す）
@@ -241,5 +265,5 @@ export class Character {
     }
   }
 
-  dispose() { this.bow?.dispose(); this.mixer.stopAllAction(); this.root.removeFromParent(); }
+  dispose() { this.bow?.dispose(); this.mixer.stopAllAction(); this.root.removeFromParent(); for (const d of this.drops || []) d.obj.removeFromParent(); }
 }

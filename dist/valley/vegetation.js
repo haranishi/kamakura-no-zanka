@@ -227,6 +227,22 @@ function grassGeometry() {
   return m.build();
 }
 
+function cropGeometry() {
+  // 野菜の株：根もとから広がる幅広の葉を輪にする（畝に並べる）。内側は暗く、先は明るい緑。
+  const rnd = mulberry32(9301), m = new Mesher();
+  for (let i = 0; i < 7; i++) {
+    const th = i / 7 * TAU + rnd() * 0.5, len = 0.26 + rnd() * 0.1, wid = 0.17 + rnd() * 0.05, rise = 0.14 + rnd() * 0.12;
+    const dir = [Math.cos(th), Math.sin(th)], sx = -dir[1], sz = dir[0], first = m.pos.length / 3, segs = 2;
+    for (let k = 0; k <= segs; k++) {
+      const t = k / segs, ww = wid * Math.sin(Math.min(1, t * 1.5 + 0.15) * Math.PI * 0.62) * (1 - t * 0.3);
+      const px = dir[0] * (0.03 + len * t), pz = dir[1] * (0.03 + len * t), y = 0.03 + rise * Math.sin(t * Math.PI * 0.55) - 0.05 * t * t, shade = 0.55 + 0.6 * t;
+      for (const sd of [-1, 1]) m.vert([px + sx * ww * sd, y, pz + sz * ww * sd], [0, 1, 0.2], [0.55 * shade, shade, 0.4 * shade], [sd < 0 ? 0 : 1, t]);
+    }
+    for (let k = 0; k < segs; k++) { const a = first + k * 2; m.quad(a, a + 1, a + 3, a + 2); }
+  }
+  return m.build();
+}
+
 function riceGeometry() {
   const rnd = mulberry32(9201);
   const m = new Mesher();
@@ -379,5 +395,7 @@ export function buildVegetation({ scatter, quality = 'standard' }) {
   const grass = makeTufts({ data: scatter.grass, geometry: grassGeometry(), wind, height: 0.3, fadeStart: quality === 'light' ? 16 : 28, fadeEnd: quality === 'light' ? 26 : 46, tintA: '#4a6a2a', tintB: '#8c8c45' });
   const rice = makeTufts({ data: scatter.rice, geometry: riceGeometry(), wind, height: 1.0, fadeStart: 60, fadeEnd: 95, tintA: '#b8963c', tintB: '#d6b658', flutter: 0.02 });
   group.add(grass, rice);
-  return { group, trees, grass, rice, wind };
+  const crops = scatter.crops?.x.length ? makeTufts({ data: scatter.crops, geometry: cropGeometry(), wind, height: 0.4, fadeStart: 55, fadeEnd: 90, tintA: '#3b5a26', tintB: '#6a8438', flutter: 0.01 }) : null;   // 家のそばの野菜畑
+  if (crops) group.add(crops);
+  return { group, trees, grass, rice, crops, wind };
 }

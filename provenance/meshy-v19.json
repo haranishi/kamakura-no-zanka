@@ -6,7 +6,7 @@
   "credits": {
     "start": 1219,
     "floor": 500,
-    "spent_note": "キャラクター一式＋小道具6＋遠景3。残高は台帳（作業用）で管理"
+    "spent_note": "キャラクター一式＋小道具6＋遠景3＋里の変化3（土蔵・納屋・藁塚）。残高は台帳（作業用）で管理"
   },
   "terms_note": "Meshy の公式ヘルプ（2026-10-27 確認）：有料プランの生成物は利用者が所有し商用利用できる（Meshy のコミュニティへ公開しないこと、参照画像が他者の著作権を侵さないことが条件）。無料プランは CC BY 4.0（表記が必要）。公開・配布の前に、本人の契約プランが有料であることと、コミュニティへ公開していないことを確認する。",
   "assets": [
@@ -194,6 +194,39 @@
       "sha256": "8ec247a1e00731d4a71966ab84c3ae740bb455c6b533bfbf1171973c954fc015",
       "bytes": 1332768,
       "pipeline": "Meshy text-to-3D → tools/blender/optimize_asset.py (WebP, max 1280px) → GLB"
+    },
+    {
+      "file": "dist/assets/valley/models/dozo.glb",
+      "kind": "prop",
+      "label": "土蔵（倉）",
+      "task_id": "01a1795e-4e12-756f-b2ec-731465e05b2b",
+      "preview_task_id": "01a1795c-8ec7-7066-80a6-66d3ee7de096",
+      "route": "text-to-3d meshy-6 (preview 20cr + refine PBR 2k 10cr)",
+      "sha256": "43d931450815ed1c85de2f955b59cc8567c65a50f631dd4815d87a58d201acf9",
+      "bytes": 1027640,
+      "pipeline": "Meshy text-to-3D → tools/blender/decimate_asset.py (約1.3%・WebP 最大1280px) → GLB（原画は約100万〜150万三角形）"
+    },
+    {
+      "file": "dist/assets/valley/models/naya.glb",
+      "kind": "prop",
+      "label": "納屋",
+      "task_id": "01a1795e-540a-775b-87da-9a07b8886771",
+      "preview_task_id": "01a1795c-967a-71b2-9400-43b7f58e651e",
+      "route": "text-to-3d meshy-6 (preview 20cr + refine PBR 2k 10cr)",
+      "sha256": "228f1e109491c9f63a43e8c82aa1998ad9ebd12e6fd475dcec39c59c33f43d0e",
+      "bytes": 1238004,
+      "pipeline": "Meshy text-to-3D → tools/blender/decimate_asset.py (約1.3%・WebP 最大1280px) → GLB（原画は約100万〜150万三角形）"
+    },
+    {
+      "file": "dist/assets/valley/models/wara.glb",
+      "kind": "prop",
+      "label": "藁塚",
+      "task_id": "01a1795e-5bd6-7377-b7f6-1a97cf8bbf17",
+      "preview_task_id": "01a1795c-9e9a-76be-aaf6-a06ff2c744c3",
+      "route": "text-to-3d meshy-6 (preview 20cr + refine PBR 2k 10cr)",
+      "sha256": "40684c9d42492f0bba82eafb4d2c4fc3d5381734a11e6234af5208bd3135d0a5",
+      "bytes": 1191000,
+      "pipeline": "Meshy text-to-3D → tools/blender/decimate_asset.py (約1.3%・WebP 最大1280px) → GLB（原画は約100万〜150万三角形）"
     }
   ],
   "terms_sources": [

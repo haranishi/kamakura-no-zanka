@@ -465,7 +465,7 @@ export class Game {
   // 世界の見た目の更新（大気・風・木の近さ・影の追従・環境音）
   updateWorld(dt) {
     this.atmosphere.update(this.camera, dt);
-    this.veg.wind.uTime.value += dt; this.veg.trees.update(this.camera); this.veg.grass.update(this.camera); this.veg.rice.update(this.camera); this.props?.update(this.time); this.water?.update(this.time);
+    this.veg.wind.uTime.value += dt; this.veg.trees.update(this.camera); this.veg.grass.update(this.camera); this.veg.rice.update(this.camera); this.veg.crops?.update(this.camera); this.props?.update(this.time); this.water?.update(this.time);
     const h = this.hero.pos;
     this.atmosphere.follow(new THREE.Vector3(h.x - Math.sin(this.rig.yaw) * 8, h.y, h.z - Math.cos(this.rig.yaw) * 8));
     this.listenerT -= dt;

@@ -350,7 +350,11 @@ export class EnemyActor extends Actor {
     for (const e of tick(f, dt)) this.onCombatEvent(e);
     f.x = this.pos.x; f.z = this.pos.z; f.yaw = this.yaw;
     if (this.departed) return;
-    if (!f.alive) { this.deadT += dt; g.tokens.release(this.id); this.character.update(dt); this.sync(); return; }
+    if (!f.alive) {
+      this.deadT += dt; g.tokens.release(this.id);
+      if (this.deadT >= 0.3) this.character.dropWeapon('tachiDrawn', (x, z) => g.terrain.heightAt(x, z));   // 倒れてから、刀が手を離れて落ちる
+      this.character.update(dt); this.sync(); return;
+    }
     if (this.brain.state === 'surrendered') { g.tokens.release(this.id); this.character.update(dt); this.sync(); return; }
     if (this.brain.departed) { this.departed = true; g.tokens.release(this.id); this.character.root.visible = false; return; }
     if (this.dormant || g.aiPaused) { this.animateFree(dt); this.character.update(dt); this.sync(); return; }

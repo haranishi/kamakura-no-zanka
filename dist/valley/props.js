@@ -5,7 +5,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { gradeModel } from './grade.js';
 
 const DIR = new URL('../assets/valley/models/', import.meta.url).href;
-export const PROP_FILES = ['well', 'cart', 'lantern', 'hasa', 'jizo', 'firepit', 'gatehouse', 'fort', 'barricade'];
+export const PROP_FILES = ['well', 'cart', 'lantern', 'hasa', 'jizo', 'firepit', 'gatehouse', 'fort', 'barricade', 'wara'];
 
 export async function loadPropModels({ anisotropy = 8 } = {}) {
   const loader = new GLTFLoader(), out = {};
@@ -59,7 +59,7 @@ export function buildProps({ world, terrain, models }) {
   const cloneOf = key => models[key]?.clone(true);
 
   for (const p of world.props) {
-    const key = { well: 'well', cart: 'cart', stone_lantern: 'lantern', drying_rack: 'hasa', bonfire: 'firepit', jizo: 'jizo' }[p.kind];
+    const key = { well: 'well', cart: 'cart', stone_lantern: 'lantern', drying_rack: 'hasa', bonfire: 'firepit', jizo: 'jizo', haystack: 'wara' }[p.kind];
     const o = key && cloneOf(key);
     if (!o) continue;
     // 足もとを地面へ。モデルの底（原点）が地面に付く前提で、少し沈めて浮きを防ぐ

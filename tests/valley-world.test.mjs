@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { WORLD } from '../dist/valley/world-data.js';
 import { createTerrain } from '../dist/valley/terrain-height.js';
-import { scatterTrees } from '../dist/valley/scatter.js';
+import { scatterTrees, insideFootprint, insidePlot, scatterCrops } from '../dist/valley/scatter.js';
 import { buildColliders, nearestFree, moveActor } from '../dist/valley/collision.js';
 import { propColliders } from '../dist/valley/world-colliders.js';
 import { createAIWorld } from '../dist/valley/ai-world.js';
@@ -108,6 +108,22 @@ test('every road can be walked end to end with the real movement rule (no cliff 
       }
     }
   }
+});
+
+test('buildings, props and vegetable plots do not overlap each other or stand on a road', () => {
+  const pts = b => { const out = [], c = Math.cos(b.rotY), sn = Math.sin(b.rotY); for (let u = -b.footprint.w / 2; u <= b.footprint.w / 2; u += 1) for (let v = -b.footprint.d / 2; v <= b.footprint.d / 2; v += 1) out.push({ x: b.x + u * c + v * sn, z: b.z - u * sn + v * c }); return out; };
+  const bs = WORLD.buildings.filter(b => b.footprint);
+  for (let i = 0; i < bs.length; i++) for (let j = i + 1; j < bs.length; j++) for (const p of pts(bs[i])) assert(!insideFootprint(bs[j], p.x, p.z, 1.0), `${bs[i].id} overlaps ${bs[j].id}`);
+  for (const p of WORLD.props) {
+    for (const b of bs) assert(!insideFootprint(b, p.x, p.z, (p.r || 0.5) + 0.3), `prop ${p.id} is inside building ${b.id}`);
+    for (const f of WORLD.plots) assert(!insidePlot(f, p.x, p.z, (p.r || 0.5)), `prop ${p.id} stands in ${f.id}`);
+    for (const o of WORLD.props) if (o !== p) assert(Math.hypot(p.x - o.x, p.z - o.z) >= (p.r || 0.5) + (o.r || 0.5) - 0.01, `props ${p.id} and ${o.id} overlap`);
+  }
+  for (const f of WORLD.plots) for (const b of bs) for (const p of [{ x: f.x, z: f.z }, { x: f.x + f.hx, z: f.z + f.hz }, { x: f.x - f.hx, z: f.z - f.hz }]) assert(!insideFootprint(b, p.x, p.z, 1.0), `${f.id} touches ${b.id}`);
+  const clear = (x, z, margin) => { for (const r of terrain.roads) { const n = r.index.nearest(x, z, r.half + margin + 3); if (n.d < r.half + margin) return false; } return true; };
+  for (const b of bs) if (b.kind !== 'temple') for (const p of pts(b)) assert(clear(p.x, p.z, 0.3), `${b.id} stands on a road at ${p.x.toFixed(1)},${p.z.toFixed(1)}`);
+  for (const f of WORLD.plots) assert(clear(f.x, f.z, 0.2), `${f.id} stands on a road`);
+  const crops = scatterCrops(WORLD, terrain); assert(crops.x.length > 300, 'the plots should have plants');
 });
 
 test('decorations do not overlap buildings, and fences stay clear of roads the hero must use', () => {

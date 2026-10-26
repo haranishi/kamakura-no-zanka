@@ -68,7 +68,7 @@ for (const c of characters) {
 }
 const clips = JSON.parse(read('dist/assets/characters/clips.json'));
 for (const c of characters) assert(clips.characters[c]?.clips?.length >= 30, `clips.json lacks ${c}`);
-const props = ['farmhouse', 'temple', 'bridge', 'fence', 'boulder', 'firewood', 'well', 'cart', 'lantern', 'hasa', 'jizo', 'firepit', 'gatehouse', 'fort', 'barricade'];
+const props = ['farmhouse', 'temple', 'bridge', 'fence', 'boulder', 'firewood', 'well', 'cart', 'lantern', 'hasa', 'jizo', 'firepit', 'gatehouse', 'fort', 'barricade', 'dozo', 'naya', 'wara'];
 const limitMB = { temple: 11, farmhouse: 7 };      // 建物は大きい。それ以外の小道具は 2MB まで
 for (const p of props) { const f = path.join(root, 'dist/assets/valley/models', p + '.glb'), g = glbInfo(f), lim = limitMB[p] ?? 2; assert(g.bytes <= lim * 1024 * 1024, `${p}.glb over ${lim} MB`); total += g.bytes; shas['dist/assets/valley/models/' + p + '.glb'] = g.sha256; }
 assert(total <= 115 * 1024 * 1024, `model budget exceeded: ${(total / 1048576).toFixed(1)} MB`);
@@ -82,6 +82,6 @@ for (const [file, sha] of Object.entries(shas)) {
   assert.equal(e.sha256, sha, `provenance sha256 differs from the shipped file: ${file}`);
 }
 for (const c of characters) assert(prov.assets.some(a => a.file === 'dist/assets/characters/' + c + '.glb'), `provenance lacks ${c}`);
-for (const p of ['well', 'cart', 'lantern', 'hasa', 'jizo', 'firepit', 'gatehouse', 'fort', 'barricade']) assert(prov.assets.some(a => a.file === 'dist/assets/valley/models/' + p + '.glb'), `provenance lacks ${p}`);
+for (const p of ['well', 'cart', 'lantern', 'hasa', 'jizo', 'firepit', 'gatehouse', 'fort', 'barricade', 'dozo', 'naya', 'wara']) assert(prov.assets.some(a => a.file === 'dist/assets/valley/models/' + p + '.glb'), `provenance lacks ${p}`);
 
 console.log(`Valley check passed: ${modules.length} modules, imports resolved, ${pure.length} pure layers clean, ${wanted.size} HTML ids, ${characters.length + props.length} GLBs (${(total / 1048576).toFixed(1)} MB), provenance matched.`);
