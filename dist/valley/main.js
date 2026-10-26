@@ -155,6 +155,10 @@ function openPause() {
   if (dlg.open) return;
   if (game?.flow !== 'idle') { game.paused = true; audio.setPaused(true); }
   input.releaseLock(); input.clear();
+  // タイトルから開いたときは、遊びの途中の項目（区切りへ戻る・タイトルへ）を出さない
+  const inGame = game?.flow !== 'idle';
+  for (const id of ['pause-checkpoint', 'pause-title']) $(id).classList.toggle('hidden', !inGame);
+  $('pause-resume').textContent = inGame ? 'つづける' : '閉じる';
   dlg.showModal();
 }
 
