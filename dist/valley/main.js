@@ -17,7 +17,8 @@ import { Input } from './input.js';
 import { ValleyAudio } from './audio-valley.js';
 import { Game } from './game.js';
 import { loadValley } from './save.js';
-import { applyLookOverrides } from './config.js';
+import { applyLookOverrides, LOOK } from './config.js';
+import { ATMOS } from './atmosphere.js';
 import { installQA } from './qa.js';
 
 const q = new URLSearchParams(location.search);
@@ -29,6 +30,12 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
 const saved = (() => { try { return JSON.parse(store.get(SETTINGS_KEY) || '{}'); } catch { return {}; } })();
 let quality = q.get('q') || saved.quality || 'standard';
 applyLookOverrides();
+// 見た目の調整を、書き換えずに試せる（?lk=fog:0.0008,mist:0.002,sun:3.6,hemi:0.7,env:1,exp:1.05,bloom:0.4,vig:0.3,sat:1.1,con:1.06）
+if (LOOK.fog != null) ATMOS.fogDensity = LOOK.fog;
+if (LOOK.mist != null) ATMOS.mist = { ...ATMOS.mist, density: LOOK.mist };
+if (LOOK.sun != null) ATMOS.sunIntensity = LOOK.sun;
+if (LOOK.hemi != null) ATMOS.hemiIntensity = LOOK.hemi;
+if (LOOK.env != null) ATMOS.envIntensity = LOOK.env;
 installFog();
 
 const hud = new HUD();
@@ -40,6 +47,7 @@ view.append(renderer.domElement);
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(58, 1, 0.15, 2200);
 const post = new Post(renderer, { quality });
+for (const [k, key] of [['exp', 'exposure'], ['bloom', 'bloomStrength'], ['vig', 'vignette'], ['sat', 'saturation'], ['con', 'contrast'], ['warm', 'warmth'], ['grain', 'grain']]) if (LOOK[k] != null) post.params[key] = LOOK[k];
 const input = new Input(renderer.domElement);
 const audio = new ValleyAudio(msg => hud.toast(msg, 3000));
 let game = null, frozen = false, titleT = 0;

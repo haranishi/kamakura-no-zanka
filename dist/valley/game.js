@@ -403,6 +403,7 @@ export class Game {
     for (const e of this.enemies) e.update(dt);
     this.ally?.update(dt);
     for (const n of this.npcs.values()) n.update(dt);
+    this.separateActors();
     this.battle.update(dt);
     this.noises = this.noises.filter(n => this.time - n.t < 0.6);
     if (this.flow === 'intro') this.updateIntro(dt);
@@ -416,6 +417,25 @@ export class Game {
     this.updateAmbientFx(dt);
     this.updateWorld(dt);
     input.endFrame();
+  }
+
+  // 人物どうしが重ならないよう、近すぎる組を左右へ押し分ける（死んだ・倒れた・降った者は押さない）
+  separateActors() {
+    const list = [this.hero];
+    for (const e of this.enemies) if (e.fighter.alive && !e.departed && !e.dormant && e.brain.state !== 'surrendered') list.push(e);
+    if (this.ally?.inParty && !this.ally.down) list.push(this.ally);
+    if (list.length < 2 || !this.hero.alive) return;
+    const MIN = 0.72;
+    for (let i = 0; i < list.length; i++) for (let j = i + 1; j < list.length; j++) {
+      const a = list[i], b = list[j];
+      if (a.fighter.team === b.fighter.team && a !== this.hero && b !== this.hero) { /* 敵どうし・味方どうしも離す */ }
+      const dx = b.pos.x - a.pos.x, dz = b.pos.z - a.pos.z, d = Math.hypot(dx, dz);
+      if (d >= MIN) continue;
+      const ux = d > 1e-4 ? dx / d : Math.cos(i * 2.4 + j), uz = d > 1e-4 ? dz / d : Math.sin(i * 2.4 + j), push = (MIN - d);
+      // 主人公は動かされにくい（操作が乱れないよう3割）。それ以外は半分ずつ
+      const ka = a === this.hero ? 0.3 : 0.5, kb = b === this.hero ? 0.3 : 0.5, sum = ka + kb;
+      a.step(-ux * push * ka / sum, -uz * push * ka / sum); b.step(ux * push * kb / sum, uz * push * kb / sum);
+    }
   }
 
   // 世界の見た目の更新（大気・風・木の近さ・影の追従・環境音）
