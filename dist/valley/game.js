@@ -609,16 +609,28 @@ export class Game {
     if (this.deathT > 1.9 && !this.deathShown) { this.hud.showDeath(true); this.deathShown = true; this.input.releaseLock(); }
   }
 
-  // 焚き火・煙などの常時の演出
+  // 焚き火・煙・舞う塵などの常時の演出
   updateAmbientFx(dt) {
     this.fxT = (this.fxT || 0) - dt;
     if (this.fxT > 0) return;
     this.fxT = 0.06;
-    const f = WORLD.props.find(p => p.id === 'bonfire');
-    if (Math.hypot(this.hero.pos.x - f.x, this.hero.pos.z - f.z) < 90) {
+    const hp = this.hero.pos, f = WORLD.props.find(p => p.id === 'bonfire');
+    if (Math.hypot(hp.x - f.x, hp.z - f.z) < 90) {
       const p = { x: f.x, y: this.terrain.heightAt(f.x, f.z) + 0.15, z: f.z };
       this.fx.flame(p); if (this.rng() < 0.4) this.fx.ember({ ...p, y: p.y + 0.4 }); if (this.rng() < 0.12) this.fx.smoke({ ...p, y: p.y + 0.9 });
     }
+    // 農家の煙突から細い煙（近くの家だけ）
+    this.chimneyT = (this.chimneyT || 0) - 0.06;
+    if (this.chimneyT <= 0) {
+      this.chimneyT = 0.45;
+      for (const b of WORLD.buildings) {
+        if (b.kind !== 'farmhouse' || Math.hypot(hp.x - b.x, hp.z - b.z) > 140) continue;
+        const y = this.terrain.heightAt(b.x, b.z) + 5.6 * (0.98 + (b.variant || 0) * 0.04);
+        this.fx.chimney({ x: b.x + Math.sin(b.rotY) * 0.8, y, z: b.z + Math.cos(b.rotY) * 0.8 });
+      }
+    }
+    // 光の筋の中を舞う塵（主人公のまわり）
+    if (this.rng() < 0.45 && this.flow !== 'idle') this.fx.mote({ x: hp.x + (this.rng() - 0.5) * 14, y: hp.y + 0.4 + this.rng() * 3.2, z: hp.z + (this.rng() - 0.5) * 14 });
   }
 
   render(dt) { this.renderer.info.reset(); this.post.render(this.scene, this.camera, dt); }

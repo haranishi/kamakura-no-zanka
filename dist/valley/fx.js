@@ -96,8 +96,16 @@ export class FX {
   flame(pos) {
     this.add.emit({ pos: [pos.x + rnd(-0.18, 0.18), pos.y + 0.1, pos.z + rnd(-0.18, 0.18)], vel: [rnd(-0.12, 0.12), rnd(0.9, 1.6), rnd(-0.12, 0.12)], life: rnd(0.35, 0.7), size: rnd(0.32, 0.5), sizeEnd: 0.05, color: [1.0, rnd(0.45, 0.7), 0.12], alpha: 0.55, drag: 0.5 });
   }
+  // 光の中を漂う塵。小さく淡く、長く生きる
+  mote(pos) {
+    this.add.emit({ pos: [pos.x, pos.y, pos.z], vel: [rnd(-0.12, 0.12), rnd(-0.03, 0.1), rnd(-0.12, 0.12)], life: rnd(4, 7), size: rnd(0.012, 0.024), sizeEnd: 0.01, color: [1.0, 0.92, 0.72], alpha: 0.5, drag: 0.4 });
+  }
   smoke(pos) {
     this.norm.emit({ pos: [pos.x, pos.y, pos.z], vel: [rnd(0.1, 0.5), rnd(0.7, 1.2), rnd(-0.2, 0.2)], life: rnd(3, 5.5), size: 0.5, sizeEnd: 2.8, color: [0.55, 0.55, 0.56], alpha: 0.22, drag: 0.2 });
+  }
+  // 煙突の煙：細く立ち上り、風下へなびきながら広がって消える。夕空に映えるよう淡い暖灰色で、少し濃い
+  chimney(pos) {
+    this.norm.emit({ pos: [pos.x, pos.y, pos.z], vel: [rnd(0.35, 0.7), rnd(0.9, 1.4), rnd(-0.1, 0.25)], life: rnd(7, 11), size: 0.7, sizeEnd: 6.5, color: [0.74, 0.7, 0.66], alpha: 0.42, drag: 0.12 });
   }
 
   update(dt, camera, viewportHeight) {
