@@ -1,6 +1,6 @@
 // scatter.js — 木・岩・草・稲の配置を地形関数から決定的に出す純関数（logic層。Three.js非依存）。
 // 乱数は機能ごとに別の系列（seed をずらす）。後から機能を足しても既存の絵を組み替えない（design.md）。
-import { smooth } from './terrain-height.js';
+import { smooth, fbm } from './terrain-height.js';
 
 export function mulberry32(seed) {
   let a = seed >>> 0;
@@ -14,18 +14,18 @@ export function insideFootprint(b, x, z, margin = 0) {
   return Math.abs(u) <= b.footprint.w / 2 + margin && Math.abs(v) <= b.footprint.d / 2 + margin;
 }
 
-function blockedByWorld(world, terrain, x, z, margin) {
+function blockedByWorld(world, terrain, x, z, margin, startRadius = 14) {
   for (const b of world.buildings) if (insideFootprint(b, x, z, margin)) return true;
   for (const p of world.props) if (Math.hypot(x - p.x, z - p.z) < (p.r || 1) + margin) return true;
   const road = terrain.roadInfo(x, z);
   if (road && road.dist < margin + 1.5) return true;
-  if (Math.hypot(x - world.start.x, z - world.start.z) < 14) return true;
+  if (Math.hypot(x - world.start.x, z - world.start.z) < startRadius) return true;
   return false;
 }
 
 // 木。kind: 0=杉, 1=広葉(ケヤキ・栗), 2=松。戻りは配列の組（描画側が LOD ごとに振り分ける）。
 // 近景（nearBox）は step の格子、その外の遠景は farStep の格子で、ゆらぎをつけて置く。
-export function scatterTrees(world, terrain, { seed = 7, step = 6, farStep = 10, nearBox = [-210, 240, -210, 200], farHalf = 700 } = {}) {
+export function scatterTrees(world, terrain, { seed = 7, step = 4.5, farStep = 10, nearBox = [-210, 240, -210, 200], farHalf = 700 } = {}) {
   const rand = mulberry32(world.seed + seed * 101);
   const out = { x: [], y: [], z: [], s: [], rot: [], kind: [], tint: [] };
   const taken = new Map(), cell = 4;
@@ -110,10 +110,12 @@ export function scatterGrass(world, terrain, { seed = 17, box = [-135, 105, -135
     const yard = Math.hypot(x - 4, z - 6);
     if (yard < 7) continue;
     if (x > world.terraces.x0 - 2 && x < world.terraces.x1 + 2 && z > world.terraces.z0 - 2 && z < world.terraces.z1 + 2) continue;
-    if (blockedByWorld(world, terrain, x, z, 0.4)) continue;
+    if (blockedByWorld(world, terrain, x, z, 0.4, 3)) continue;
     const slope = terrain.slopeAt(x, z, 1.0);
     if (slope > 35) continue;
-    if (rand() > (1 - forest * 0.9) * 0.95) continue;
+    // 群れにする：大きな斑（数m）と小さな斑でむらを付け、斑の外は疎らにする（一様な点々に見えない）
+    const patch = 0.3 + 1.1 * fbm(x * 0.21, z * 0.21, world.seed + 41, 3) + 0.35 * (fbm(x * 0.9, z * 0.9, world.seed + 43, 2) - 0.5);
+    if (rand() > (1 - forest * 0.9) * 0.95 * Math.max(0.12, Math.min(1, patch))) continue;
     out.x.push(x); out.z.push(z); out.y.push(terrain.heightAt(x, z)); out.s.push(0.8 + rand() * 0.55); out.rot.push(rand() * Math.PI); out.tint.push(rand());
   }
   return out;

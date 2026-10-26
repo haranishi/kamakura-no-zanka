@@ -7,29 +7,37 @@ const TAU = Math.PI * 2;
 
 // ---- 葉の絵（アルファつき） ----
 function needleTexture() {
+  // 杉の枝先：根元（下中央）から扇状に伸びる小枝に、短い針を密につける。内側ほど暗く、先ほど明るい。
   const c = document.createElement('canvas'); c.width = c.height = 256;
   const g = c.getContext('2d');
   const rnd = mulberry32(4401);
   g.clearRect(0, 0, 256, 256);
-  const twig = (x0, y0, x1, y1, depth) => {
-    g.strokeStyle = `rgb(${52 + rnd() * 14},${40 + rnd() * 10},${28 + rnd() * 8})`; g.lineWidth = depth ? 1.4 : 2.4;
+  g.lineCap = 'round';
+  const twig = (x0, y0, ang, len, depth) => {
+    const x1 = x0 + Math.cos(ang) * len, y1 = y0 + Math.sin(ang) * len;
+    g.strokeStyle = `rgb(${46 + rnd() * 12},${34 + rnd() * 8},${22 + rnd() * 6})`; g.lineWidth = depth ? 1.2 : 2.2;
     g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke();
-    const len = Math.hypot(x1 - x0, y1 - y0), n = Math.floor(len / 3.2);
-    const ang = Math.atan2(y1 - y0, x1 - x0);
-    for (let i = 0; i < n; i++) {
+    const n = Math.floor(len / 2.1);
+    for (let i = 1; i < n; i++) {
       const t = i / n, px = x0 + (x1 - x0) * t, py = y0 + (y1 - y0) * t;
+      const k = Math.max(0.15, Math.min(1, depth ? t : 0.25 + t * 0.6));            // 内側は暗く、先は明るく
       for (const side of [-1, 1]) {
-        const a = ang + side * (0.9 + rnd() * 0.5), l = (depth ? 7 : 11) * (1 - t * 0.5) * (0.6 + rnd() * 0.6);
-        const gcol = 62 + rnd() * 52, rcol = 30 + rnd() * 34;
-        g.strokeStyle = `rgb(${rcol},${gcol},${rcol * 0.8 + 6})`; g.lineWidth = 1.7;
+        const a = ang + side * (0.55 + rnd() * 0.55), l = (depth ? 8 : 12) * (0.55 + rnd() * 0.6) * (1 - t * 0.25);
+        const r = 16 + 26 * k + rnd() * 9, gr = 28 + 46 * k + rnd() * 12, b = 12 + 15 * k + rnd() * 6;
+        g.strokeStyle = `rgb(${r | 0},${gr | 0},${b | 0})`; g.lineWidth = 1.9;
         g.beginPath(); g.moveTo(px, py); g.lineTo(px + Math.cos(a) * l, py + Math.sin(a) * l); g.stroke();
       }
     }
+    return [x1, y1];
   };
-  twig(128, 250, 128, 6, 0);
-  for (let i = 0; i < 17; i++) {
-    const y = 235 - i * 13.2, len = (1 - i / 20) * 96;
-    for (const side of [-1, 1]) twig(128, y, 128 + side * len, y - 22 - rnd() * 10, 1);
+  const base = [128, 246], up = -Math.PI / 2;
+  for (let i = 0; i < 9; i++) {
+    const f = i / 8 - 0.5, ang = up + f * 1.9 + (rnd() - 0.5) * 0.12, len = 150 + rnd() * 70 - Math.abs(f) * 60;
+    twig(base[0], base[1], ang, len, 0);
+    for (let k = 0; k < 4; k++) {                                                    // 脇の小枝
+      const t = 0.28 + k * 0.17, px = base[0] + Math.cos(ang) * len * t, py = base[1] + Math.sin(ang) * len * t;
+      for (const side of [-1, 1]) twig(px, py, ang + side * (0.75 + rnd() * 0.3), 34 + rnd() * 30, 1);
+    }
   }
   const t = new THREE.CanvasTexture(c);
   t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping;
@@ -72,7 +80,7 @@ class Mesher {
 }
 const norm = v => { const l = Math.hypot(v[0], v[1], v[2]) || 1; return [v[0] / l, v[1] / l, v[2] / l]; };
 
-function addTrunk(m, { H, r0, r1, sides = 7, rings = 12, lean = 0, rnd, color = [0.075, 0.05, 0.035], flare = 0.22 }) {
+function addTrunk(m, { H, r0, r1, sides = 7, rings = 12, lean = 0, rnd, color = [0.05, 0.04, 0.032], flare = 0.22 }) {
   const first = m.pos.length / 3;
   for (let i = 0; i <= rings; i++) {
     const t = i / rings, y = t * H;
@@ -101,11 +109,11 @@ function addFrond(m, { base, dir, length, width, drop, segs, up = [0, 1, 0], cen
     for (let s = 0; s <= segs; s++) {
       const t = s / segs, wid = width * (0.35 + 0.65 * Math.sin(Math.min(1, t * 1.25 + 0.15) * Math.PI * 0.5)) * (1 - t * 0.35);
       const p = [base[0] + dir[0] * length * t, base[1] + dir[1] * length * t - drop * length * t * t, base[2] + dir[2] * length * t];
-      const lum = (0.55 + 0.75 * t) * tint;
+      const lum = Math.min(1.05, (0.6 + 0.5 * t) * tint);
       for (const sd of [-1, 1]) {
         const q = [p[0] + w[0] * wid * sd * 0.5, p[1] + w[1] * wid * sd * 0.5, p[2] + w[2] * wid * sd * 0.5];
-        let n = norm([q[0] - center[0], q[1] - center[1] + 1.2, q[2] - center[2]]);
-        m.vert(q, n, [0.15 * lum, 0.36 * lum, 0.17 * lum], [sd < 0 ? 0 : 1, t]);
+        let n = norm([q[0] - center[0], q[1] - center[1] + 0.4, q[2] - center[2]]);   // 横へ向ける：低い太陽でも日の当たる側が明るく、反対側は陰になる
+        m.vert(q, n, [0.92 * lum, lum, 0.86 * lum], [sd < 0 ? 0 : 1, t]);
       }
     }
     for (let s = 0; s < segs; s++) { const a = first + s * 2; m.quad(a, a + 1, a + 3, a + 2); }
@@ -116,17 +124,17 @@ function cedarGeometry(level) {
   const rnd = mulberry32(2211 + level * 17);
   const H = 20, wood = new Mesher(), leaf = new Mesher();
   addTrunk(wood, { H, r0: 0.5, r1: 0.07, sides: level === 0 ? 8 : level === 1 ? 5 : 4, rings: level === 0 ? 12 : 5, lean: 0.4, rnd });
-  const W = level === 0 ? 15 : level === 1 ? 8 : 0;
+  const W = level === 0 ? 26 : level === 1 ? 13 : 0;
   if (level < 2) {
     for (let i = 0; i < W; i++) {
-      const f = i / (W - 1), y = 3.4 + f * (H - 3.4 - 1.4);
-      const L = 4.4 * Math.pow(1 - f, 0.85) + 0.7;
-      const n = (level === 0 ? 7 : 6) - Math.floor(i / 6);
-      const off = i * 0.9 + rnd() * 0.5;
+      const f = i / (W - 1), y = 2.8 + f * (H - 2.8 - 0.3);
+      const L = (level === 0 ? 0.8 : 1.3) + (level === 0 ? 2.6 : 3.2) * Math.pow(1 - f, 0.85);   // 下ほど長く、上は短い（細い円錐）
+      const n = Math.max(3, Math.round((level === 0 ? 8 : 6) * Math.pow(1 - f, 0.45)));
+      const off = i * 2.399 + rnd() * 0.5;                                                            // 黄金角でずらして螺旋に
       for (let b = 0; b < n; b++) {
-        const th = off + b / n * TAU + (rnd() - 0.5) * 0.3, droop = 0.22 + 0.12 * (1 - f);
+        const th = off + b / n * TAU + (rnd() - 0.5) * 0.35, droop = 0.10 + 0.16 * (1 - f);
         const dir = norm([Math.cos(th), -droop, Math.sin(th)]);
-        addFrond(leaf, { base: [dir[0] * 0.15, y + (rnd() - 0.5) * 0.4, dir[2] * 0.15], dir, length: L, width: (level === 0 ? 1.5 : 2.4) * (0.7 + 0.5 * (1 - f)) + 0.6, drop: 0.55 + 0.25 * (1 - f), segs: level === 0 ? 3 : 2, center: [0, y, 0], tint: 0.78 + rnd() * 0.4 + 0.1 * f, rnd, roll: rnd() * 0.4 });
+        addFrond(leaf, { base: [dir[0] * 0.2, y + (rnd() - 0.5) * 0.5, dir[2] * 0.2], dir, length: L, width: L * (0.78 + rnd() * 0.2), drop: 0.28 + 0.2 * (1 - f), segs: level === 0 ? 2 : 1, center: [0, y, 0], tint: 0.8 + rnd() * 0.35 + 0.1 * f, rnd, roll: rnd() * 0.5 });
       }
     }
     // 内側の暗い芯（透けを防ぐ）。絵を使わない幹のメッシュ（頂点色のみ）に入れる。
@@ -139,8 +147,8 @@ function cedarGeometry(level) {
     const layers = 4, sides = 6;
     for (let i = 0; i < layers; i++) {
       const y0 = 2.5 + i * 4.2, y1 = y0 + 8.5 - i * 1.4, r = 3.1 - i * 0.58, first = leaf.pos.length / 3;
-      leaf.vert([0, y1, 0], [0, 1, 0], [0.08, 0.2, 0.1], [0.5, 1]);
-      for (let k = 0; k < sides; k++) { const a = k / sides * TAU; leaf.vert([Math.cos(a) * r, y0, Math.sin(a) * r], [Math.cos(a) * 0.8, 0.5, Math.sin(a) * 0.8], [0.04 + 0.02 * (i % 2), 0.12, 0.06], [0.5, 0]); }
+      leaf.vert([0, y1, 0], [0, 1, 0], [0.03, 0.065, 0.04], [0.5, 1]);
+      for (let k = 0; k < sides; k++) { const a = k / sides * TAU; leaf.vert([Math.cos(a) * r, y0, Math.sin(a) * r], [Math.cos(a) * 0.8, 0.5, Math.sin(a) * 0.8], [0.02 + 0.01 * (i % 2), 0.045, 0.028], [0.5, 0]); }
       for (let k = 0; k < sides; k++) leaf.tri(first, first + 1 + k, first + 1 + (k + 1) % sides);
     }
   }
@@ -211,7 +219,7 @@ function grassGeometry() {
       const t = s / segs, bend = lean * t * t * h, ww = w * (1 - t * 0.92);
       const y = t * h, px = cx + dir[0] * bend, pz = cz + dir[1] * bend;
       const sx = -Math.sin(th), sz = Math.cos(th);
-      const shade = 0.42 + 0.7 * t;
+      const shade = 0.5 + 0.55 * t;
       for (const sd of [-1, 1]) m.vert([px + sx * ww * sd, y, pz + sz * ww * sd], [0, 1, 0.2], [shade, shade, shade], [sd < 0 ? 0 : 1, t]);
     }
     for (let s = 0; s < segs; s++) { const a = first + s * 2; m.quad(a, a + 1, a + 3, a + 2); }
@@ -229,7 +237,7 @@ function riceGeometry() {
     for (let s = 0; s <= segs; s++) {
       const t = s / segs, ww = w * (1 - t * 0.6);
       const px = dir[0] * bend * t * t * h, pz = dir[1] * bend * t * t * h, y = t * h * (1 - 0.18 * t);
-      const col = t > 0.62 ? [1.0, 0.82, 0.32] : [0.78, 0.7, 0.34];
+      const col = t > 0.62 ? [0.84, 0.64, 0.27] : [0.5, 0.5, 0.22];     // 実る穂は黄土色、茎はまだ緑が残る
       for (const sd of [-1, 1]) m.vert([px + sx * ww * sd, y, pz + sz * ww * sd], [0, 1, 0.1], [col[0] * (0.7 + 0.5 * t), col[1] * (0.7 + 0.5 * t), col[2] * (0.6 + 0.5 * t)], [sd < 0 ? 0 : 1, t]);
     }
     for (let s = 0; s < segs; s++) { const a = first + s * 2; m.quad(a, a + 1, a + 3, a + 2); }
@@ -368,8 +376,8 @@ export function buildVegetation({ scatter, quality = 'standard' }) {
   const group = new THREE.Group(); group.name = 'vegetation';
   const trees = new TreeField({ data: scatter.trees, wind, quality });
   group.add(trees.group);
-  const grass = makeTufts({ data: scatter.grass, geometry: grassGeometry(), wind, height: 0.3, fadeStart: quality === 'light' ? 16 : 28, fadeEnd: quality === 'light' ? 26 : 46, tintA: '#4f6a2a', tintB: '#9a9647' });
-  const rice = makeTufts({ data: scatter.rice, geometry: riceGeometry(), wind, height: 1.0, fadeStart: 60, fadeEnd: 95, tintA: '#d5b348', tintB: '#f1d36a', flutter: 0.02 });
+  const grass = makeTufts({ data: scatter.grass, geometry: grassGeometry(), wind, height: 0.3, fadeStart: quality === 'light' ? 16 : 28, fadeEnd: quality === 'light' ? 26 : 46, tintA: '#4a6a2a', tintB: '#8c8c45' });
+  const rice = makeTufts({ data: scatter.rice, geometry: riceGeometry(), wind, height: 1.0, fadeStart: 60, fadeEnd: 95, tintA: '#b8963c', tintB: '#d6b658', flutter: 0.02 });
   group.add(grass, rice);
   return { group, trees, grass, rice, wind };
 }

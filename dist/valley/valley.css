@@ -34,12 +34,12 @@ body.hide-hud .hud>*:not(.menu-btn):not(.subtitle):not(.prompt){opacity:0}
 .boss{position:absolute;left:50%;top:clamp(14px,2.6vw,34px);transform:translateX(-50%);width:min(420px,50vw);text-align:center;font:14px var(--serif);letter-spacing:.2em}.boss .track{height:6px;margin-top:6px}.boss .track span{background:linear-gradient(90deg,#8a2a1f,var(--red2))}
 .markers{position:absolute;inset:0}.marker{position:absolute;width:44px;height:6px;margin:-4px 0 0 -22px;background:#0b110f99;border:1px solid #d9ddcc22;border-radius:1px}.marker span{display:block;height:100%;width:100%;transform-origin:left;background:var(--red2)}
 .marker.alert::after{content:'!';position:absolute;left:50%;top:-20px;transform:translateX(-50%);font:700 15px var(--serif);color:#ffd9a0;text-shadow:0 0 6px #000}.marker.sus::after{content:'?';position:absolute;left:50%;top:-20px;transform:translateX(-50%);font:700 14px var(--serif);color:#e9e2b8;text-shadow:0 0 6px #000}
-.prompt{position:absolute;left:50%;bottom:19%;transform:translateX(-50%);display:flex;align-items:center;gap:10px;padding:8px 16px;background:#0f1513cc;border:1px solid #d9ddcc33;border-radius:3px;font:16px var(--serif);letter-spacing:.1em}
+.prompt{position:absolute;left:calc(50% + 110px);bottom:27%;display:flex;align-items:center;gap:10px;padding:8px 16px;background:#0f1513cc;border:1px solid #d9ddcc33;border-radius:3px;font:16px var(--serif);letter-spacing:.1em}
 .hint{position:absolute;left:50%;top:15%;transform:translateX(-50%);max-width:min(640px,86vw);text-align:center;padding:10px 18px;background:#0f1513bb;border-top:1px solid var(--red);font:15px/1.7 var(--serif);letter-spacing:.08em}
-.subtitle{position:absolute;left:50%;bottom:11%;transform:translateX(-50%);max-width:min(720px,88vw);text-align:center;font:500 17px/1.6 var(--serif);letter-spacing:.08em;text-shadow:0 1px 6px #000,0 0 14px #000}.subtitle b{color:var(--gold);font-weight:500;margin-right:.6em}
+.subtitle{position:absolute;left:50%;bottom:4.2%;transform:translateX(-50%);max-width:min(720px,88vw);text-align:center;font:500 17px/1.6 var(--serif);letter-spacing:.08em;text-shadow:0 1px 6px #000,0 0 14px #000}.subtitle b{color:var(--gold);font-weight:500;margin-right:.6em}
 .menu-btn{position:absolute;right:clamp(16px,2.6vw,38px);top:clamp(14px,2.4vw,32px);display:flex;align-items:center;gap:8px;font-size:12px;letter-spacing:.14em;color:var(--muted);padding:6px 10px;background:#0f151377;border:1px solid #d9ddcc22;border-radius:3px}
 /* dialogue */
-.dialogue{position:fixed;left:50%;bottom:clamp(20px,6vh,58px);transform:translateX(-50%);width:min(780px,92vw);padding:18px 26px 20px;background:linear-gradient(180deg,#121915f0,#0e1411f5);border:1px solid #d9ddcc2e;border-top:2px solid var(--red);box-shadow:0 12px 40px #0009}
+.dialogue{position:fixed;left:50%;bottom:clamp(20px,6vh,58px);transform:translateX(-50%);width:min(780px,calc(100vw - 2 * (clamp(16px,2.6vw,38px) + min(260px,40vw) + 20px)));padding:18px 26px 20px;background:linear-gradient(180deg,#121915f0,#0e1411f5);border:1px solid #d9ddcc2e;border-top:2px solid var(--red);box-shadow:0 12px 40px #0009}
 .dlg-name{font:15px var(--serif);letter-spacing:.24em;color:var(--gold);margin-bottom:6px}.dlg-text{margin:0;font:19px/1.85 var(--serif);letter-spacing:.07em;min-height:3.7em}.dlg-next{position:absolute;right:22px;bottom:12px;font-size:12px;color:var(--dim);letter-spacing:.14em;animation:blink 1.3s infinite}
 @keyframes blink{50%{opacity:.25}}
 /* choice */
@@ -59,6 +59,10 @@ dialog#pause{width:min(920px,94vw);max-height:90vh;padding:0;border:1px solid #d
 .toast{position:fixed;left:50%;top:30%;transform:translate(-50%,-8px);padding:9px 18px;background:#0f1513dd;border-top:1px solid var(--gold);font:15px var(--serif);letter-spacing:.1em;opacity:0;pointer-events:none;transition:opacity .25s,transform .25s;z-index:20}.toast.on{opacity:1;transform:translate(-50%,0)}
 @media (max-width:760px){.pause-cols{grid-template-columns:1fr}.keys{grid-template-columns:1fr}.choice-row{grid-template-columns:1fr}.result-nums{grid-template-columns:1fr 1fr}}
 @media (max-height:640px),(max-width:900px){.hint{font-size:13px;padding:7px 14px}.subtitle{font-size:15px}.obj p{font-size:15px}}
+/* 画面が狭いと、会話枠を左下の体力・構えの帯の上へ逃がす。会話中の字幕は会話枠の上へ。操作の案内は人物の脇（狭い画面では中央の上） */
+@media (max-width:1000px){.dialogue{width:min(780px,92vw);bottom:clamp(96px,16vh,130px)}.prompt{left:50%;transform:translateX(-50%);bottom:38%}}
+body.talking .subtitle{bottom:calc(clamp(20px,6vh,58px) + 168px)}
+@media (max-width:1000px){body.talking .subtitle{bottom:calc(clamp(96px,16vh,130px) + 168px)}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 
 .marker.sus span{background:#d8cf8c}.marker.tele span{background:#ffd08a;box-shadow:0 0 8px #ffd08a}.marker.tele::after{content:'!';position:absolute;left:50%;top:-22px;transform:translateX(-50%);font:700 17px var(--serif);color:#ff9a6a;text-shadow:0 0 8px #000}.marker.lock{outline:1px solid var(--gold);outline-offset:2px}

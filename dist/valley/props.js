@@ -2,6 +2,7 @@
 // world-data の props / dress のとおりに置く。敵の幟（のぼり）は手続きで作り、風でなびかせる。当たりの円・箱も同じ表から作る。
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { gradeModel } from './grade.js';
 
 const DIR = new URL('../assets/valley/models/', import.meta.url).href;
 export const PROP_FILES = ['well', 'cart', 'lantern', 'hasa', 'jizo', 'firepit', 'gatehouse', 'fort', 'barricade'];
@@ -17,6 +18,7 @@ export async function loadPropModels({ anisotropy = 8 } = {}) {
         const ms = Array.isArray(o.material) ? o.material : [o.material];
         for (const m of ms) for (const k of ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'aoMap']) if (m[k]) m[k].anisotropy = anisotropy;
       });
+      gradeModel(gltf.scene, { whiteMax: 0.26, mossFix: 0.65 });          // 真っ白な石を灰色へ、青い石を暖かい灰色へ、蛍光の苔を抑える
       // Meshy のモデルは原点が中心に寄っていることがある。底面の中心を原点に揃えた入れ物に包む（置くとき足もとが地面に付く）
       const box = new THREE.Box3().setFromObject(gltf.scene), c = box.getCenter(new THREE.Vector3());
       gltf.scene.position.set(-c.x, -box.min.y, -c.z);

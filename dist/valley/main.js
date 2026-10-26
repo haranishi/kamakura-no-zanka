@@ -30,12 +30,17 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
 const saved = (() => { try { return JSON.parse(store.get(SETTINGS_KEY) || '{}'); } catch { return {}; } })();
 let quality = q.get('q') || saved.quality || 'standard';
 applyLookOverrides();
-// 見た目の調整を、書き換えずに試せる（?lk=fog:0.0008,mist:0.002,sun:3.6,hemi:0.7,env:1,exp:1.05,bloom:0.4,vig:0.3,sat:1.1,con:1.06）
+// 見た目の調整を、書き換えずに試せる（?lk=fog:0.0008,mist:0.002,sun:3.6,hemi:0.7,env:1,exp:1.05,bloom:0.4,vig:0.3,sat:1.1,con:1.06,warm:1.5）
+// 太陽の向き sx,sy,sz／霧の暖色の広がり hexp／色は末尾 c のキーに16進6桁（sunc zenc midc horc belc fogc hzcoolc hzwarmc hemisc hemigc）
 if (LOOK.fog != null) ATMOS.fogDensity = LOOK.fog;
 if (LOOK.mist != null) ATMOS.mist = { ...ATMOS.mist, density: LOOK.mist };
 if (LOOK.sun != null) ATMOS.sunIntensity = LOOK.sun;
 if (LOOK.hemi != null) ATMOS.hemiIntensity = LOOK.hemi;
 if (LOOK.env != null) ATMOS.envIntensity = LOOK.env;
+if (LOOK.sx != null || LOOK.sy != null || LOOK.sz != null) ATMOS.sunDir.set(LOOK.sx ?? ATMOS.sunDir.x, LOOK.sy ?? ATMOS.sunDir.y, LOOK.sz ?? ATMOS.sunDir.z).normalize();
+if (LOOK.hexp != null) ATMOS.hazeExp = LOOK.hexp;
+if (LOOK.fill != null) ATMOS.fillIntensity = LOOK.fill;
+for (const [k, key] of [['sunc', 'sunColor'], ['zenc', 'zenith'], ['midc', 'mid'], ['horc', 'horizon'], ['belc', 'below'], ['fogc', 'fogColor'], ['hzcoolc', 'hazeCool'], ['hzwarmc', 'hazeWarm'], ['hemisc', 'hemiSky'], ['hemigc', 'hemiGround']]) if (LOOK[k] != null) ATMOS[key] = LOOK[k];
 installFog();
 
 const hud = new HUD();

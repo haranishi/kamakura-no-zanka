@@ -27,6 +27,7 @@ export function applyLookOverrides(search = location.search) {
   if (!raw) return;
   for (const part of raw.split(',')) {
     const [key, value] = part.split(':');
+    if (key.length > 2 && key.endsWith('c') && /^[0-9a-fA-F]{6}$/.test(value || '')) { LOOK[key] = '#' + value; continue; }   // 色は末尾 c のキー（例 sunc:ffb070）
     const n = Number(value);
     if (key && Number.isFinite(n)) LOOK[key] = n;
   }

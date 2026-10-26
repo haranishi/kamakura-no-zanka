@@ -182,7 +182,10 @@ export function buildTerrain({ terrain, textures, quality = 'standard' }) {
     }
     const cavity = c ? Math.max(0, Math.min(1, (avg / c - heights[k]) / 2.2)) : 0;
     const ao = 1 - 0.42 * cavity;
-    col[k * 3] = col[k * 3 + 1] = col[k * 3 + 2] = ao;
+    // 森の下は樹冠の影で暗い緑（遠景と同じ規則。道・水の上は除く）
+    const road = terrain.roadInfo(x, z), clear = (road ? 1 - road.w : 1) * (terrain.waterAt(x, z) > 0.05 ? 0 : 1);
+    const ff = Math.min(1, terrain.forestDensity(x, z) * 1.5) * (1 - smooth(34, 46, slope) * 0.5) * clear;
+    col[k * 3] = ao * (1 - ff * 0.66); col[k * 3 + 1] = ao * (1 - ff * 0.5); col[k * 3 + 2] = ao * (1 - ff * 0.7);
   }
   const idx = new Uint32Array((nx - 1) * (nz - 1) * 6);
   let q = 0;

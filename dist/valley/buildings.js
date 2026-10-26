@@ -2,6 +2,7 @@
 // 当たりは world-data の足跡（footprint）から collision 側が作る。ここでは見た目だけ。
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { patchGrade, gradeModel } from './grade.js';
 
 const DIR = new URL('../assets/valley/models/', import.meta.url).href;
 const FILES = ['farmhouse', 'temple', 'bridge', 'fence', 'boulder', 'firewood'];
@@ -20,6 +21,7 @@ export async function loadModels({ onProgress, anisotropy = 8 } = {}) {
     });
     // 岩は暗い青に寄って見えるので、明るく少し暖かい灰色へ寄せる（夕日の下で他の地面と並ぶように）
     if (name === 'boulder') gltf.scene.traverse(o => { if (o.isMesh) { const ms = Array.isArray(o.material) ? o.material : [o.material]; for (const m of ms) { m.color.multiply(new THREE.Color(1.7, 1.55, 1.35)); m.roughness = Math.max(m.roughness ?? 0.9, 0.92); } } });
+    if (name !== 'boulder') gradeModel(gltf.scene, { whiteMax: 0.46 });          // 青い礎石・白い壁の照り・蛍光の苔を、夕景の中で他と並ぶ色へ
     out[name] = gltf.scene;
     onProgress?.(++done / FILES.length);
   }));
@@ -47,7 +49,7 @@ export function buildBuildings({ world, terrain, models }) {
     obj.rotation.y = def.rotY || 0;
     obj.scale.setScalar(scale);
     obj.name = def.id;
-    if (tint) obj.traverse(o => { if (o.isMesh) { o.material = o.material.clone(); o.material.color.multiply(new THREE.Color(tint)); } });
+    if (tint) obj.traverse(o => { if (o.isMesh) { o.material = o.material.clone(); o.material.color.multiply(new THREE.Color(tint)); patchGrade(o.material, { whiteMax: 0.46 }); } });
     group.add(obj); placed.push(obj);
     return obj;
   };

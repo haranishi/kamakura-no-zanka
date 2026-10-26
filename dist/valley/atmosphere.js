@@ -3,13 +3,15 @@
 import * as THREE from 'three';
 
 export const ATMOS = {
-  // 夕景：太陽は西南西の低い位置。主人公が南東を向くとき、右後ろから斜光が当たる。
-  sunDir: new THREE.Vector3(-0.80, 0.29, 0.42).normalize(),
-  sunColor: '#ffe0b4', sunIntensity: 3.3,
-  zenith: '#4f7fba', mid: '#9db7d2', horizon: '#f2d9b8', below: '#b9a688',
-  fogColor: '#b4c0cc', hazeCool: '#9fb1c6', hazeWarm: '#f2d8ae', fogDensity: 0.0011,
-  mist: { density: 0.0035, base: -4.0, falloff: 0.03 }, // 谷底に濃い霧（高さに指数で薄くなる）
-  hemiSky: '#8fb0dc', hemiGround: '#5f6a48', hemiIntensity: 0.85, envIntensity: 1.0,
+  // 夕景：太陽は南南東の低い位置（高さ約10°）。廃寺→里の道を歩くとき右前から逆光が当たり、帰り道は背中から長い影が伸びる。
+  // 影は青紫の半球光で持ち上げ、霧は太陽の方向だけ暖かく、ほかは灰紫（空気遠近）。
+  sunDir: new THREE.Vector3(0.50, 0.17, 0.85).normalize(),
+  sunColor: '#ffc088', sunIntensity: 3.4,
+  zenith: '#5b6a94', mid: '#a69cb2', horizon: '#f6c096', below: '#8c7d70',
+  fogColor: '#a8a3b6', hazeCool: '#a39fb8', hazeWarm: '#f2c090', hazeExp: 6.5, fogDensity: 0.0010,
+  mist: { density: 0.0032, base: -4.0, falloff: 0.03 }, // 谷底に濃い霧（高さに指数で薄くなる）
+  hemiSky: '#8f96bc', hemiGround: '#7a6446', hemiIntensity: 0.9, envIntensity: 0.7,
+  fillColor: '#a8b0d8', fillIntensity: 0.55, // カメラが向く向きに弱い青白い光（逆光でも人物・壁の正面が読める。影は落とさない）
   exposure: 1.0,
 };
 
@@ -23,7 +25,7 @@ export function hazeGLSL(a = ATMOS) {
     const vec2 SUN_XZ = vec2(${sd.x.toFixed(4)}, ${sd.z.toFixed(4)});
     vec3 hazeColor(vec3 dir) {
       float s = dot(normalize(dir.xz + 1e-5), normalize(SUN_XZ)) * 0.5 + 0.5;
-      return mix(HAZE_COOL, HAZE_WARM, pow(max(s, 0.0), 2.4));
+      return mix(HAZE_COOL, HAZE_WARM, pow(max(s, 0.0), ${(a.hazeExp ?? 2.4).toFixed(3)}));
     }`;
 }
 
@@ -136,10 +138,13 @@ export function createAtmosphere({ scene, renderer, quality = 'standard', a = AT
   Object.assign(sh.camera, { left: -46, right: 46, top: 46, bottom: -46, near: 1, far: 260 });
   sh.bias = -0.0003; sh.normalBias = 0.05; sh.radius = 2.2;
   scene.add(sun, sun.target);
+  const fill = new THREE.DirectionalLight(a.fillColor, a.fillIntensity);
+  scene.add(fill, fill.target);
+  const fwd = new THREE.Vector3();
 
   const texel = 92 / sh.mapSize.x;
   return {
-    sky, sun, hemi, params: a,
+    sky, sun, hemi, fill, params: a,
     // 影の範囲を注視点に追従させる（テクセルへ合わせて揺れを防ぐ）
     follow(target) {
       const sx = Math.round(target.x / texel) * texel, sz = Math.round(target.z / texel) * texel;
@@ -150,6 +155,8 @@ export function createAtmosphere({ scene, renderer, quality = 'standard', a = AT
     update(camera, dt) {
       time.value += dt;
       sky.position.copy(camera.position);
+      camera.getWorldDirection(fwd);
+      fill.position.copy(camera.position); fill.target.position.copy(camera.position).add(fwd); fill.target.updateMatrixWorld();
     },
     setQuality(q) {
       const size = q === 'light' ? 2048 : 4096;

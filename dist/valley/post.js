@@ -22,7 +22,7 @@ export class Post {
     this.quad = new THREE.Mesh(FULLSCREEN, null); this.quad.frustumCulled = false;
     this.scene = new THREE.Scene(); this.scene.add(this.quad);
     this.levels = []; this.target = null;
-    this.params = { exposure: 1.0, bloomStrength: 0.34, bloomThreshold: 0.95, vignette: 0.26, saturation: 1.06, contrast: 1.04, warmth: 1.0, grain: 0.012 };
+    this.params = { exposure: 1.0, bloomStrength: 0.34, bloomThreshold: 0.95, vignette: 0.26, saturation: 1.08, contrast: 1.06, warmth: 1.3, grain: 0.012 };
 
     this.matDown = pass(`varying vec2 vUv; uniform sampler2D tex; uniform vec2 texel; uniform float threshold; uniform float first; ${TONEMAP}
       vec3 s(vec2 o){ return texture2D(tex, vUv + o * texel).rgb; }
@@ -51,7 +51,7 @@ export class Post {
         c = aces(c);
         // 暖かい光と青い影の色分け
         float l = luma(c);
-        c *= mix(vec3(0.96, 0.99, 1.05), vec3(1.05, 1.0, 0.93), smoothstep(0.12, 0.8, l)) ;
+        c *= mix(1.0 + (vec3(0.96, 0.99, 1.05) - 1.0) * warmth, 1.0 + (vec3(1.05, 1.0, 0.93) - 1.0) * warmth, smoothstep(0.12, 0.8, l));
         c = mix(vec3(luma(c)), c, saturation);
         c = (c - 0.5) * contrast + 0.5;
         vec2 q = vUv - 0.5; float v = 1.0 - vignette * smoothstep(0.25, 0.95, length(q * vec2(1.15, 1.0)) * 1.25);

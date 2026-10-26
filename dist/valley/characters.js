@@ -6,6 +6,7 @@ import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
 import { LOCOMOTION, MOVE_CLIPS, ACTION_CLIPS, CLIP_SEGMENTS, pickGait, locomotionTimeScale, segmentFor } from './anim-data.js';
 import { BowRig } from './bow.js';
 import { makeTachi, makeNaginata, makeYumi, makeArrow, makeQuiver } from './weapons.js';
+import { patchLift } from './grade.js';
 
 const DIR = new URL('../assets/characters/', import.meta.url).href;
 export const ROSTER = ['hero', 'archer', 'soldier', 'officer', 'villager_m', 'villager_f', 'child'];
@@ -47,6 +48,7 @@ export async function loadRoster({ names = ROSTER, onProgress, anisotropy = 8 } 
       o.frustumCulled = false; o.castShadow = true; o.receiveShadow = true;
       const m = o.material;
       for (const k of ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'aoMap']) if (m[k]) m[k].anisotropy = anisotropy;
+      patchLift(m, 0.88);
     });
     const clips = new Map(), roots = new Map();
     for (const c of gltf.animations) {
@@ -67,7 +69,7 @@ export class Character {
     this.tpl = tpl;
     this.model = cloneSkinned(tpl.scene);
     this.model.traverse(o => {
-      if (o.isSkinnedMesh && tint) { o.material = o.material.clone(); o.material.color.set(tint); }
+      if (o.isSkinnedMesh && tint) { o.material = o.material.clone(); o.material.color.set(tint); patchLift(o.material, 0.88); }
     });
     this.root = new THREE.Group(); this.root.name = 'char-' + who; this.root.add(this.model); this.root.scale.setScalar(scale);
     this.height = (tpl.info?.height || 1.7) * scale;

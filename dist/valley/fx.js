@@ -101,11 +101,11 @@ export class FX {
     this.add.emit({ pos: [pos.x, pos.y, pos.z], vel: [rnd(-0.12, 0.12), rnd(-0.03, 0.1), rnd(-0.12, 0.12)], life: rnd(4, 7), size: rnd(0.012, 0.024), sizeEnd: 0.01, color: [1.0, 0.92, 0.72], alpha: 0.5, drag: 0.4 });
   }
   smoke(pos) {
-    this.norm.emit({ pos: [pos.x, pos.y, pos.z], vel: [rnd(0.1, 0.5), rnd(0.7, 1.2), rnd(-0.2, 0.2)], life: rnd(3, 5.5), size: 0.5, sizeEnd: 2.8, color: [0.55, 0.55, 0.56], alpha: 0.22, drag: 0.2 });
+    this.norm.emit({ pos: [pos.x, pos.y, pos.z], vel: [rnd(0.1, 0.5), rnd(0.7, 1.2), rnd(-0.2, 0.2)], life: rnd(3, 5.5), size: 0.5, sizeEnd: 2.8, color: [0.3, 0.29, 0.3], alpha: 0.2, drag: 0.2 });
   }
   // 煙突の煙：細く立ち上り、風下へなびきながら広がって消える。夕空に映えるよう淡い暖灰色で、少し濃い
   chimney(pos) {
-    this.norm.emit({ pos: [pos.x, pos.y, pos.z], vel: [rnd(0.35, 0.7), rnd(0.9, 1.4), rnd(-0.1, 0.25)], life: rnd(7, 11), size: 0.7, sizeEnd: 6.5, color: [0.74, 0.7, 0.66], alpha: 0.42, drag: 0.12 });
+    this.norm.emit({ pos: [pos.x, pos.y, pos.z], vel: [rnd(0.35, 0.7), rnd(0.9, 1.4), rnd(-0.1, 0.25)], life: rnd(7, 11), size: 0.7, sizeEnd: 6.5, color: [0.4, 0.37, 0.36], alpha: 0.36, drag: 0.12 });
   }
 
   update(dt, camera, viewportHeight) {

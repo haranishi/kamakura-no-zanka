@@ -403,6 +403,7 @@ export class Game {
     // 命中の停止：時間を完全には止めず、ごく遅くする
     if (this.stopT > 0) { this.stopT -= dt; dt *= FEEL.hitStopScale; }
     this.time += dt;
+    this.hud.tick(rawDt);
     this.runTimers();
     const input = this.input;
     if (this.flow === 'idle') { this.fx.update(dt, this.camera, this.renderer.domElement.clientHeight || 800); this.updateAmbientFx(dt); this.updateWorld(dt); input.endFrame(); return; }

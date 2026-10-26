@@ -12,7 +12,7 @@ const read = f => fs.readFileSync(path.join(root, f), 'utf8');
 
 // 1 入口・主要なモジュールと素材がある
 const modules = ['actors', 'ai-world', 'anim-data', 'atmosphere', 'audio-valley', 'battle', 'bow', 'buildings', 'camera-rig', 'characters', 'collision', 'combat', 'companion-ai', 'config',
-  'enemy-ai', 'fx', 'game', 'hud', 'input', 'main', 'nav', 'post', 'props', 'qa', 'quest', 'save', 'scatter', 'shots', 'story-data', 'terrain-height', 'terrain', 'vegetation', 'water', 'weapons', 'world-colliders', 'world-data'];
+  'enemy-ai', 'fx', 'game', 'grade', 'hud', 'input', 'main', 'nav', 'post', 'props', 'qa', 'quest', 'save', 'scatter', 'shots', 'story-data', 'terrain-height', 'terrain', 'vegetation', 'water', 'weapons', 'world-colliders', 'world-data'];
 for (const m of modules) assert(fs.statSync(path.join(dir, m + '.js')).size > 0, `missing dist/valley/${m}.js`);
 for (const f of ['index.html', 'valley.css']) assert(fs.statSync(path.join(dir, f)).size > 0, `missing dist/valley/${f}`);
 

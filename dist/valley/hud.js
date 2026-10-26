@@ -5,11 +5,14 @@ export class HUD {
   constructor() {
     this.el = Object.fromEntries(['hud', 'obj-text', 'compass', 'compass-needle', 'compass-dist', 'bar-hp', 'bar-posture', 'party', 'party-mode', 'boss', 'boss-name', 'boss-hp', 'markers', 'prompt', 'prompt-text', 'hint', 'subtitle',
       'dialogue', 'dlg-name', 'dlg-text', 'choice', 'result', 'result-lines', 'result-nums', 'death', 'title', 'loading', 'load-fill', 'load-note', 'load-title', 'toast', 'hurt', 'pause', 'fade', 'granary', 'granary-fill'].map(k => [k, $(k)]));
-    this.dialogue = null; this.markers = new Map(); this.timers = new Map(); this.subsOn = true;
+    this.dialogue = null; this.markers = new Map(); this.timers = new Map(); this.subsOn = true;   // timers: 案内・通知・字幕が消えるまで（ゲーム内の時間。休止中は進まない）
     this.hintsShown = new Set();
   }
 
   setState(state) { document.body.dataset.state = state; }
+  // 消えるまでの時間はゲーム内の時間で数える（実時間の setTimeout だと、休止や検査の時間送りと食い違って案内が残る）
+  after(key, sec, fn) { this.timers.set(key, { t: sec, fn }); }
+  tick(dt) { for (const [k, v] of [...this.timers]) { v.t -= dt; if (v.t <= 0) { this.timers.delete(k); v.fn(); } } }
   loading(p, note) { this.el['load-fill'].style.width = Math.round(p * 100) + '%'; if (note) this.el['load-note'].textContent = note; }
   showTitle(hasSave) { this.el.title.classList.remove('hidden'); $('btn-continue').classList.toggle('hidden', !hasSave); this.el.hud.classList.add('hidden'); }
   hideTitle() { this.el.title.classList.add('hidden'); }
@@ -35,18 +38,18 @@ export class HUD {
     if (this.hintsShown.has(key)) return;
     this.hintsShown.add(key);
     const h = this.el.hint; h.textContent = text; h.classList.remove('hidden');
-    clearTimeout(this.timers.get('hint')); this.timers.set('hint', setTimeout(() => h.classList.add('hidden'), ms));
+    this.after('hint', ms / 1000, () => h.classList.add('hidden'));
   }
   toast(text, ms = 2200) {
     const t = this.el.toast; t.textContent = text; t.classList.add('on');
-    clearTimeout(this.timers.get('toast')); this.timers.set('toast', setTimeout(() => t.classList.remove('on'), ms));
+    this.after('toast', ms / 1000, () => t.classList.remove('on'));
   }
   subtitle(speaker, text, ms = 2600) {
     if (!this.subsOn) return;
     const s = this.el.subtitle; s.innerHTML = '';
     if (speaker) { const b = document.createElement('b'); b.textContent = speaker; s.append(b); }
     s.append(document.createTextNode(text)); s.classList.remove('hidden');
-    clearTimeout(this.timers.get('sub')); this.timers.set('sub', setTimeout(() => s.classList.add('hidden'), ms));
+    this.after('sub', ms / 1000, () => s.classList.add('hidden'));
   }
   setFood(ratio) {
     const g = this.el.granary; g.classList.toggle('hidden', ratio == null);
@@ -56,16 +59,16 @@ export class HUD {
   // 暗転を待たずに黒にする（冒頭の目覚めを、黒から明けるために）
   fadeInstant(on) { const f = this.el.fade; f.style.transition = 'none'; f.classList.toggle('on', on); void f.offsetWidth; f.style.transition = ''; }
   // 結果・死亡の画面の下に、通知や案内が透けて重ならないようにする
-  clearTransient() { for (const k of ['hint', 'toast', 'sub']) clearTimeout(this.timers.get(k)); this.el.hint.classList.add('hidden'); this.el.toast.classList.remove('on'); this.el.subtitle.classList.add('hidden'); this.el.prompt.classList.add('hidden'); this.setBoss(false); }
+  clearTransient() { for (const k of ['hint', 'toast', 'sub']) this.timers.delete(k); this.el.hint.classList.add('hidden'); this.el.toast.classList.remove('on'); this.el.subtitle.classList.add('hidden'); this.el.prompt.classList.add('hidden'); this.setBoss(false); }
   hurt() {
-    const h = this.el.hurt; h.classList.add('on'); clearTimeout(this.timers.get('hurt'));
-    this.timers.set('hurt', setTimeout(() => h.classList.remove('on'), 90));
+    const h = this.el.hurt; h.classList.add('on'); clearTimeout(this.hurtTimer);
+    this.hurtTimer = setTimeout(() => h.classList.remove('on'), 90);          // 画面の赤みは短い演出なので実時間で消す
   }
 
   // 会話：行を順に出す。進めるのは E / クリック。終わったら onEnd。
   startDialogue(id, lines, onEnd) {
     this.dialogue = { id, lines, i: 0, onEnd };
-    this.el.dialogue.classList.remove('hidden');
+    this.el.dialogue.classList.remove('hidden'); document.body.classList.add('talking');
     this.showLine();
   }
   showLine() {
@@ -75,7 +78,7 @@ export class HUD {
   advanceDialogue() {
     const d = this.dialogue; if (!d) return false;
     d.i++;
-    if (d.i >= d.lines.length) { this.el.dialogue.classList.add('hidden'); this.dialogue = null; d.onEnd?.(d.id); }
+    if (d.i >= d.lines.length) { this.el.dialogue.classList.add('hidden'); document.body.classList.remove('talking'); this.dialogue = null; d.onEnd?.(d.id); }
     else this.showLine();
     return true;
   }
