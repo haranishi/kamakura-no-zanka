@@ -147,7 +147,7 @@ export class Character {
     const name = table[this.gait];
     const meta = this.meta(name);
     const frozen = this.gait === 'idle' && table.idleFreeze;
-    const ts = this.gait === 'idle' ? (frozen ? 0 : 1) : (style === 'injured' ? 1 : locomotionTimeScale(speed, meta?.avgSpeed));
+    const ts = this.gait === 'idle' ? (frozen ? 0 : 1) : (style === 'injured' ? Math.max(1, Math.min(1.5, locomotionTimeScale(speed, meta?.avgSpeed))) : locomotionTimeScale(speed, meta?.avgSpeed));   // 負傷でも急ぐときは足を速める
     if (this.locoName !== name) {
       this.play(name, { fade: 0.2, timeScale: ts });
       this.locoName = name;

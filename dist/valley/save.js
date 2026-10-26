@@ -56,12 +56,13 @@ export function loadValley(storage) {
     return { state: initialSave(), hasSave: false, notice: '保存が壊れているため最初から始める' };
   }
 }
-export function saveValley(storage, state) {
+// fresh: はじめからの最初の保存。前の遊びの死亡記録を引き継がない（引き継ぐと、つづきから再開したとき倒していない敵が倒した扱いになり、里の戦いが終わらなくなる）。
+export function saveValley(storage, state, { fresh = false } = {}) {
   try {
     if (!storage || typeof storage.setItem !== 'function') return { ok: false, notice: 'この環境では保存できない' };
     const clean = sanitize(state);
-    // 同じ保存枠の死亡記録は、生存スナップショットで上書きしない。
-    if (typeof storage.getItem === 'function') {
+    // 同じ遊びの死亡記録は、生存スナップショットで上書きしない。
+    if (!fresh && typeof storage.getItem === 'function') {
       const previous = loadValley(storage);
       if (previous.hasSave) {
         for (const [id, enemy] of Object.entries(previous.state.world.enemies)) {

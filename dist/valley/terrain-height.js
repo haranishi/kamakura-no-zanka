@@ -241,8 +241,9 @@ export function createTerrain(world = WORLD) {
     const forestCover = forestDensity(x, z);
     const rock = Math.min(1, smooth(28, 44, slope + 6 * fbm(x * 0.09, z * 0.09, seed + 35, 2)) * (1 - 0.55 * forestCover) + steep * 0.55);
     const forest = forestCover;
-    let litter = forest * (1 - dirt) * 0.8 * (1 - gravel);
-    let grass = Math.max(0, 1 - dirt - gravel - rock - mud - litter * 0.6) * (1 - 0.7 * smooth(34, 46, slope));
+    // 落ち葉と草は真上から投影するので、急な面では縞に伸びる。急なほど岩（三方向から投影）へ譲る
+    let litter = forest * (1 - dirt) * 0.8 * (1 - gravel) * (1 - 0.85 * smooth(26, 40, slope));
+    let grass = Math.max(0, 1 - dirt - gravel - rock - mud - litter * 0.6) * (1 - 0.85 * smooth(28, 42, slope));
     const m = { grass, dirt, rock, gravel, mud, litter };
     const sum = grass + dirt + rock + gravel + mud + litter || 1;
     for (const k in m) m[k] /= sum;

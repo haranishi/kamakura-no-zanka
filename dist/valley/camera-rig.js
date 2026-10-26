@@ -11,7 +11,7 @@ export class CameraRig {
     this.yaw = 0; this.pitch = 0.2; this.distance = distance; this.shoulder = shoulder; this.height = height;
     this.focus = new THREE.Vector3(); this.pos = new THREE.Vector3(); this.initialized = false;
     this.shake = 0; this.shakeSeed = 0; this.sensitivity = 1; this.invert = false; this.shakeScale = 1;
-    this.lockYaw = null; this.clipped = 1;
+    this.lockYaw = null; this.clipped = 1; this.lockBlend = 0;
     this._f = new THREE.Vector3(); this._d = new THREE.Vector3();
   }
 
@@ -31,6 +31,9 @@ export class CameraRig {
       this.pitch = clamp(this.pitch + lookDy * k * (this.invert ? -1 : 1), -0.5, 1.0);
     }
     this.distance = clamp(this.distance + zoom * 0.002, 2.4, 6.0);
+    // 狙い固定のあいだは、肩を大きく外し・少し引き・高くして、主人公の陰に敵が隠れないようにする（カメラ・主人公・敵が一直線に並ばない）
+    this.lockBlend = damp(this.lockBlend, lockTarget ? 1 : 0, 5, dt);
+    const lb = this.lockBlend, dist = this.distance * (1 + 0.18 * lb), shoulder = this.shoulder + 0.5 * lb;
     const f = this._f.set(target.x, target.y + this.height, target.z);
     if (!this.initialized) { this.focus.copy(f); this.initialized = true; this.pos.set(0, 0, 0); }
     // 注視点は少し遅れてついてくる（走り出し・停止の揺れを和らげる）
@@ -38,9 +41,9 @@ export class CameraRig {
     const cp = Math.cos(this.pitch), sp = Math.sin(this.pitch);
     const forward = { x: -Math.sin(this.yaw), z: -Math.cos(this.yaw) }, right = { x: Math.cos(this.yaw), z: -Math.sin(this.yaw) };
     const desired = this._d.set(
-      this.focus.x - forward.x * cp * this.distance + right.x * this.shoulder,
-      this.focus.y + sp * this.distance + 0.25,
-      this.focus.z - forward.z * cp * this.distance + right.z * this.shoulder);
+      this.focus.x - forward.x * cp * dist + right.x * shoulder,
+      this.focus.y + sp * dist + 0.25 + 0.25 * lb,
+      this.focus.z - forward.z * cp * dist + right.z * shoulder);
     if (groundAt) desired.y = Math.max(desired.y, groundAt(desired.x, desired.z) + 0.55);
     let t = 1;
     if (rayClip) t = rayClip({ x: this.focus.x, y: this.focus.y, z: this.focus.z }, { x: desired.x, y: desired.y, z: desired.z });
@@ -54,7 +57,9 @@ export class CameraRig {
       const s = this.shake * 0.09;
       this.camera.position.x += Math.sin(this.shakeSeed * 1.7) * s; this.camera.position.y += Math.cos(this.shakeSeed * 2.3) * s * 0.7; this.camera.position.z += Math.sin(this.shakeSeed * 1.1 + 2) * s;
     }
-    this.camera.lookAt(this.focus.x + right.x * this.shoulder * 0.4 + forward.x * 2.0, this.focus.y - 0.1 - sp * 0.5, this.focus.z + right.z * this.shoulder * 0.4 + forward.z * 2.0);
+    let lx = this.focus.x + right.x * shoulder * 0.4 + forward.x * 2.0, lz = this.focus.z + right.z * shoulder * 0.4 + forward.z * 2.0;
+    if (lockTarget) { const m = 0.55 * lb; lx += ((this.focus.x + lockTarget.x) / 2 - lx) * m; lz += ((this.focus.z + lockTarget.z) / 2 - lz) * m; }   // 注視点を主人公と敵のあいだへ
+    this.camera.lookAt(lx, this.focus.y - 0.1 - sp * 0.5, lz);
     this.fovPunch = damp(this.fovPunch, 0, 8, dt);
     const fov = this.baseFov + this.fovPunch;
     if (Math.abs(this.camera.fov - fov) > 0.01) { this.camera.fov = fov; this.camera.updateProjectionMatrix(); }

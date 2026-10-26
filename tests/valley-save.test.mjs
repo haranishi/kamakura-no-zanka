@@ -67,6 +67,18 @@ test('dead IDs remain dead across stale saves and never duplicate or mutate the 
   saveValley(st, initialSave()); r = loadValley(st).state;
   assert.equal(Object.keys(r.world.enemies).length, 2); assert.equal(r.world.enemies.officer.alive, false);
 });
+test('the first save of a new run does not inherit the previous run\'s kills, later saves of the same run do', () => {
+  const st = storage(), old = initialSave(); old.world.enemies.officer = { alive: false }; old.world.enemies.scout = { alive: false };
+  saveValley(st, old);
+  const fresh = initialSave(); fresh.checkpoint = 'cp_leave_temple'; fresh.beat = 'b2_road';
+  assert.equal(saveValley(st, fresh, { fresh: true }).ok, true);
+  assert.deepEqual(loadValley(st).state.world.enemies, {});
+  const later = initialSave(); later.world.enemies.scout = { alive: false };
+  saveValley(st, later);
+  const again = initialSave();
+  saveValley(st, again);
+  assert.deepEqual(loadValley(st).state.world.enemies, { scout: { alive: false } });
+});
 test('enemy map rejects prototype keys and excessive IDs', () => {
   const s = initialSave(); s.world.enemies = JSON.parse('{"__proto__":{"alive":false}}');
   assert.throws(() => sanitize(s));

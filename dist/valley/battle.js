@@ -14,7 +14,7 @@ const _a = new THREE.Vector3(), _b = new THREE.Vector3(), _up = new THREE.Vector
 
 export class Battle {
   constructor(game) {
-    this.g = game; this.arrows = []; this.barkAt = -9; this.lastAlertAt = -99; this.aimLines = [];
+    this.g = game; this.arrows = []; this.barkAt = -9; this.lastAlertAt = -99; this.aimLines = []; this.glints = [];
     this.arrowModel = makeArrow();
     const geo = new THREE.BoxGeometry(0.012, 0.012, 1);
     for (let i = 0; i < 4; i++) {
@@ -27,6 +27,7 @@ export class Battle {
     this.resolveMelee();
     this.updateArrows(dt);
     this.updateAimLines();
+    this.updateGlints(dt);
   }
 
   // ---------------------------------------------------------------- 近接
@@ -139,8 +140,24 @@ export class Battle {
       const p = actor.chest(), fx = -Math.sin(actor.yaw), fz = -Math.cos(actor.yaw);
       g.fx.add.emit({ pos: [p.x + fx * 0.55, p.y + 0.4, p.z + fz * 0.55], vel: [0, 0, 0], life: 0.17, size: 1.0, sizeEnd: 0.25, color: [1, 0.88, 0.6], alpha: 1 });
       g.audio.play('alert', { gain: 0.55, pan: g.pan(actor.pos), pitch: 1.5 });
+      this.glints.push({ actor, t: 0.34 });
       if (dist2(actor.pos, g.hero.pos) < 16) g.hud.hint('parry', STORY.hints.parry);
     });
+  }
+  // 予兆の光：振りかぶる刃に沿って光の粒を並べる（光る刃が弾きの合図。胸の前の光だけだと主人公の陰で見えなかった）
+  updateGlints(dt) {
+    const g = this.g;
+    for (let i = this.glints.length - 1; i >= 0; i--) {
+      const gl = this.glints[i]; gl.t -= dt;
+      const w = gl.actor.character?.weapons?.tachiDrawn || gl.actor.character?.weapons?.naginata;
+      if (gl.t <= 0 || !w || !w.holder.visible || !gl.actor.fighter.alive) { this.glints.splice(i, 1); continue; }
+      const len = w === gl.actor.character.weapons.naginata ? 1.7 : 0.95;
+      w.holder.updateWorldMatrix(true, false);
+      for (const t of [0.4, 0.6, 0.8, 1.0]) {
+        _a.set(0, t * len, 0); w.holder.localToWorld(_a);
+        g.fx.add.emit({ pos: [_a.x, _a.y, _a.z], vel: [0, 0, 0], life: 0.13, size: 0.12 + 0.22 * t, sizeEnd: 0.04, color: [1, 0.9, 0.62], alpha: 0.9 });
+      }
+    }
   }
 
   // ---------------------------------------------------------------- 矢
@@ -219,6 +236,7 @@ export class Battle {
   }
 
   clear() {
+    this.glints.length = 0;
     for (const a of [...this.arrows]) this.removeArrow(a);
     for (const l of this.aimLines) l.visible = false;
   }

@@ -136,6 +136,7 @@ export class Game {
     this.rig.update(0.016, this.hero.pos, { rayClip: null });
   }
   startNew() {
+    this.freshRun = true;
     this.quest = createQuest(); this.cpPos = {}; this.ending = null; this.lostFood = 0; this.stats = { kills: 0, parries: 0, stealth: 0 };
     this.hero.character.root.visible = true;
     const y = WORLD.zones.temple_yard;
@@ -146,6 +147,7 @@ export class Game {
   continueGame() {
     const { state, hasSave } = loadValley(this.storage);
     if (!hasSave) return this.startNew();
+    this.freshRun = false;
     this.quest = restoreProgress(STORY, state); this.ending = null; this.lostFood = 0;
     const cp = WORLD.checkpoints[this.quest.checkpoint] || { x: WORLD.start.x, z: WORLD.start.z, yaw: -2.2 };
     this.placeHeroAt(cp);
@@ -269,7 +271,12 @@ export class Game {
     const p = this.hero.pos;
     this.cpPos[id] = { x: p.x, z: p.z, yaw: this.hero.yaw };
     if (id !== 'cp_result') this.hud.toast('区切りを保存した', 1400);
-    saveValley(this.storage, exportProgress(this.quest));
+    this.persist();
+  }
+  // 保存。はじめからの最初の保存だけは、前の遊びの記録を引き継がない
+  persist() {
+    const r = saveValley(this.storage, exportProgress(this.quest), { fresh: this.freshRun });
+    if (r.ok) this.freshRun = false;
   }
 
   // 敵・村人の出現と退場
@@ -339,7 +346,7 @@ export class Game {
       this.ally?.join(false);
       this.after(2.6, () => { this.dispatch({ type: 'party_joined', id: 'archer' }); this.hud.setParty(true, this.modeLabel('follow')); this.hud.hint('command', STORY.hints.command, 7000); });
     }
-    if (id === 'result') this.after(0.4, () => { saveValley(this.storage, exportProgress(this.quest)); this.showResult(); });
+    if (id === 'result') this.after(0.4, () => { this.persist(); this.showResult(); });
   }
   showChoice() {
     this.flow = 'choice'; this.input.releaseLock();
