@@ -40,6 +40,8 @@ export function reduce(state, event) {
       s.flags.approach = event.zone === 'village_front' ? 'front' : 'flank';
       emit('spawn', { group: 'village_enemies', alert: s.flags.approach === 'front' ? 'high' : 'unaware' });
       advance('b4_village');
+    } else if (['b3_viewpoint', 'b4_village'].includes(s.beat) && event.type === 'noticed') {
+      s.seen = true;                                               // 里の兵に気づかれた（入口の手前で戦い始めた場合も含む）
     } else if (s.beat === 'b4_village' && event.type === 'pillage_tick' && validNumber(event.dt) && validNumber(event.pillagers)) {
       if (event.loud === true) s.seen = true;
       const rate = event.loud === true ? s.story.pillage.front : s.story.pillage[s.flags.approach];   // 見つかって騒ぎになれば、脇道でも正面と同じ速さで荒らされる

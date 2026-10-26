@@ -189,3 +189,14 @@ test('retry forgets that the village noticed you and the quiet kills', () => {
   s = run(run(s, 'player_down'), 'retry');
   assert.equal(s.seen, false); assert.equal(s.stealth, 0);
 });
+test('being noticed before the village entrance still counts: no unseen bonus', () => {
+  const clear = noticedFirst => {
+    let s = viewpoint();
+    if (noticedFirst) s = run(s, 'noticed');                       // 入口の手前（見晴らし）で敵に気づかれた
+    s = run(s, 'enter_zone', { zone: 'village_north' });
+    return run(s, 'enemy_down', { id: 'officer', how: 'killed' });
+  };
+  assert.equal(clear(false).seen, false); assert.equal(clear(true).seen, true);
+  assert.ok(clear(false).trust >= clear(true).trust + 8);
+  assert.equal(run(createQuest(STORY), 'noticed').seen, false, 'only the viewpoint and the village count');
+});

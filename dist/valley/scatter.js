@@ -115,6 +115,9 @@ export function scatterRocks(world, terrain, { seed = 13, nearBox = [-150, 170, 
   const out = { x: [], y: [], z: [], s: [], rot: [], sx: [], sz: [], sink: [] };
   const base = world.seed + seed * 211, village = (world.flats || []).find(f => f.id === 'village');
   const inVillage = (x, z) => village && Math.abs(x - village.x) < village.hx + 4 && Math.abs(z - village.z) < village.hz + 4;
+  // 戦いが起きる所（林道の斥候の巡回路の10m以内）には大きな岩を置かない。カメラのすぐ脇で画面の半分を塞いだ（第3周の評価）
+  const fightSpots = (world.spawns?.road_scout || []).flatMap(s => s.patrol || [[s.x, s.z]]);
+  const inFight = (x, z) => fightSpots.some(([px, pz]) => Math.hypot(x - px, z - pz) < 10);
   for (let iz = 0; nearBox[2] + iz * 5 <= nearBox[3]; iz++) for (let ix = 0; nearBox[0] + ix * 5 <= nearBox[1]; ix++) {
     const rand = cellRand(base, ix, iz), gx = nearBox[0] + ix * 5, gz = nearBox[2] + iz * 5;
     const ux = rand(), uz = rand(), roll = rand(), sRoll = rand(), rot = rand(), sx = rand(), sz = rand(), sink = rand();     // 毎回同じ数だけ引く
@@ -131,6 +134,7 @@ export function scatterRocks(world, terrain, { seed = 13, nearBox = [-150, 170, 
     if (road && road.dist < 1.0) continue;
     let s = 0.35 + Math.pow(sRoll, 2.2) * (bank > 0.2 ? 2.6 : 1.7) + steep * 0.5;
     if (inVillage(x, z) || (road && road.dist < 6)) s = Math.min(s, 2.0 / (ROCK_MODEL.width * Math.max(0.75 + sx * 0.6, 0.75 + sz * 0.6)));          // 里と道の脇は幅2m以下の石だけ
+    if (inFight(x, z)) s = Math.min(s, 1.2 / (ROCK_MODEL.width * Math.max(0.75 + sx * 0.6, 0.75 + sz * 0.6)));                                          // 戦いの場は幅1.2m以下
     out.x.push(x); out.z.push(z); out.y.push(terrain.heightAt(x, z)); out.s.push(s); out.rot.push(rot * Math.PI * 2);
     out.sx.push(0.75 + sx * 0.6); out.sz.push(0.75 + sz * 0.6); out.sink.push(0.15 + sink * 0.25);
   }

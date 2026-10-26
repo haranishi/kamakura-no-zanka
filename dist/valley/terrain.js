@@ -115,10 +115,10 @@ function terrainMaterial(textures, quality) {
         }
         float rk = score[2] / max(total, 1e-5);
         float macro = th_noise(wxz * 0.045) * 0.5 + th_noise(wxz * 0.19 + 7.1) * 0.35 + th_noise(wxz * 0.9) * 0.15;
-        albedo *= 0.82 + macro * 0.36;
+        albedo *= 0.72 + macro * 0.32;                     // 日なたの土は明るすぎた（第3周：中央値146、参照111〜130）。1割強暗く
         albedo = mix(albedo, albedo * vec3(0.92, 1.05, 0.85), clamp(w[0] * 1.2, 0.0, 1.0));
         // 彩度を少し落とす（日なたの地面が橙一色に飽和し、土や草の粒の明暗が潰れた。第2周の評価）
-        { float al = dot(albedo, vec3(0.3, 0.55, 0.15)); albedo = mix(vec3(al), albedo, 0.78); }
+        { float al = dot(albedo, vec3(0.3, 0.55, 0.15)); albedo = mix(vec3(al), albedo, 0.88); }
         diffuseColor.rgb *= albedo;
         gRough = clamp(rough, 0.35, 1.0);
         // UDN 合成（世界座標）。上向きの面は xz 平面、岩は三面。
@@ -214,7 +214,8 @@ export function buildTerrain({ terrain, textures, quality = 'standard' }) {
     const forest = terrain.forestDensity(x, z);
     const rock = smooth(47, 60, slope) * (1 - forest * 0.5), water = terrain.waterAt(x, z) > 0.05 ? 1 : 0;
     fs0[k * 3] = (1 - rock) * (1 - forest) * (1 - water); fs0[k * 3 + 2] = rock; fs1[k * 3] = water * 0.8; fs1[k * 3 + 2] = (1 - rock) * forest * (1 - water);
-    const f = forest * (1 - rock) * (1 - water);
+    // 木が立っていれば、急な斜面（岩の質感）でも暗くする。岩の重みで暗さを消すと、烏峰の急斜面で木のあいだに明るい地面の帯が残った（第3周の評価）
+    const f = forest * (1 - water);
     const ff = Math.min(1, f * 1.5);
     // 遠景の森の地面は樹冠の面として暗く（元の地面色の1〜1.5割）。60m前後のむら（±25%）で尾根と谷筋に段を付ける
     const patch = 0.78 + 0.44 * fbm(x * 0.016, z * 0.016, terrain.seed + 77, 3);

@@ -47,9 +47,13 @@ export function patchLift(material, gamma = 0.8) {
         float ll = dot(lc, vec3(0.2126, 0.7152, 0.0722));
         // 暗い所だけ持ち上げる（明るさが約0.25を超えるほど効かない）。肌（手・顔）まで明るくすると、手が顔より白っぽく見えた
         diffuseColor.rgb = mix(lc, pow(lc, vec3(${gamma.toFixed(3)})), (1.0 - smoothstep(0.02, 0.3, ll)));
+        // 肌（橙がかった明るい色）は1割暗く。カメラ向きの補助光と空の光で、下ろした手が顔より白っぽく浮いた（第3周の評価）
+        float lmx = max(lc.r, max(lc.g, lc.b)), lmn = min(lc.r, min(lc.g, lc.b)), lsat = (lmx - lmn) / max(lmx, 1e-3);
+        float skin = smoothstep(0.12, 0.22, lsat) * (1.0 - smoothstep(0.55, 0.75, lsat)) * step(lc.g, lc.r) * step(lc.b, lc.g) * smoothstep(0.28, 0.45, ll);
+        diffuseColor.rgb *= 1.0 - 0.1 * skin;
       }`);
   };
-  material.customProgramCacheKey = () => `lift2-${gamma}`;
+  material.customProgramCacheKey = () => `lift3-${gamma}`;
   material.needsUpdate = true;
   return material;
 }
@@ -59,7 +63,7 @@ export function patchLift(material, gamma = 0.8) {
 export function makeStrawTexture(size = 1024, seed = 4417) {
   const c = document.createElement('canvas'); c.width = c.height = size;
   const g = c.getContext('2d'), rnd = mulberry32(seed);
-  g.fillStyle = '#5a4c33'; g.fillRect(0, 0, size, size);
+  g.fillStyle = '#625a48'; g.fillRect(0, 0, size, size);                         // 灰寄りの古い茅（彩度を落とす。夕日の金が重なって濃い黄土色になった）
   const strand = (x, y, len, w, col, a) => {
     g.strokeStyle = col; g.globalAlpha = a; g.lineWidth = w; g.lineCap = 'round';
     const dx = (rnd() - 0.5) * len * 0.08;
@@ -69,10 +73,10 @@ export function makeStrawTexture(size = 1024, seed = 4417) {
       g.beginPath(); g.moveTo(x0, y0); g.lineTo(x0 + dx, y0 + len); g.stroke();
     }
   };
-  const bundle = ['#7a6842', '#5d4e32', '#8a7650', '#504228', '#907d56'], fine = ['#9c8a5c', '#7e6c44', '#a89466', '#5e4e30', '#8c7a52'];
+  const bundle = ['#80755a', '#665c46', '#8e8466', '#585040', '#928768'], fine = ['#a39877', '#867b5c', '#aea585', '#675d46', '#92896a'];
   for (let i = 0; i < 520; i++) strand(rnd() * size, rnd() * size, 180 + rnd() * 420, 9 + rnd() * 16, bundle[(rnd() * bundle.length) | 0], 0.22 + rnd() * 0.3);
   for (let i = 0; i < 7000; i++) strand(rnd() * size, rnd() * size, 70 + rnd() * 200, 1.4 + rnd() * 2.2, fine[(rnd() * fine.length) | 0], 0.28 + rnd() * 0.4);
-  for (let i = 0; i < 1400; i++) strand(rnd() * size, rnd() * size, 40 + rnd() * 120, 1.2 + rnd() * 1.6, '#3c3020', 0.25 + rnd() * 0.3);        // 束のあいだの暗い隙間
+  for (let i = 0; i < 1400; i++) strand(rnd() * size, rnd() * size, 40 + rnd() * 120, 1.2 + rnd() * 1.6, '#403a2c', 0.25 + rnd() * 0.3);        // 束のあいだの暗い隙間
   g.globalAlpha = 1;
   for (let y = 0; y < size; y += 170) {                                                                                                     // 葺きの段：薄い暗い帯と、その下の明るい縁
     g.fillStyle = 'rgba(40,30,18,0.20)'; g.fillRect(0, y + rnd() * 6, size, 7 + rnd() * 5);

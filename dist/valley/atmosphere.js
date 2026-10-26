@@ -6,9 +6,10 @@ export const ATMOS = {
   // 夕景：太陽は南南東の低い位置（高さ約10°）。廃寺→里の道を歩くとき右前から逆光が当たり、帰り道は背中から長い影が伸びる。
   // 影は青紫の半球光で持ち上げ、霧は太陽の方向だけ暖かく、ほかは灰紫（空気遠近）。
   sunDir: new THREE.Vector3(0.50, 0.17, 0.85).normalize(),
-  sunColor: '#ffd0a8', sunIntensity: 3.4,          // 緑と青を残す（飽和した橙にしない）。夕日らしさは低い角度と長い影に任せる
-  zenith: '#5b6a94', mid: '#a69cb2', horizon: '#f6c096', below: '#8c7d70',
-  fogColor: '#a8a3b6', hazeCool: '#9fa1b8', hazeWarm: '#e6b898', hazeExp: 6.5, fogDensity: 0.0007,
+  // 太陽は緑を残した金色（桃色にすると、土が桃色の砂色になった。第3周の評価）。冷たい色は緑が赤以上の青灰（赤が強いと遠景が藤色になる）
+  sunColor: '#ffd890', sunIntensity: 3.4,
+  zenith: '#5b6a94', mid: '#9ea4b4', horizon: '#f6c096', below: '#8c7d70',
+  fogColor: '#a2a7b8', hazeCool: '#949baf', hazeWarm: '#e8c08c', hazeExp: 6.5, fogDensity: 0.0007,
   mist: { density: 0.0012, base: -4.0, falloff: 0.045 }, // 谷底に濃い霧（高さに指数で薄くなる）。第2周で薄く・谷底へ寄せた（奥の山腹が明るい幕になった）
   hemiSky: '#9ea3b4', hemiGround: '#7a6446', hemiIntensity: 0.85, envIntensity: 0.7,
   fillColor: '#a8b0d0', fillIntensity: 0.4, // カメラが向く向きに弱い青白い光（逆光でも人物・壁の正面が読める。影は落とさない）
@@ -32,8 +33,7 @@ export function hazeGLSL(a = ATMOS) {
     // 向いた方角だけで色が決まると、太陽側の遠景が全部琥珀色になり奥行きが消えた（第2周の評価）。
     vec3 fogHazeColor(vec3 dir) {
       float s = dot(normalize(dir), SUN_DIR3);
-      float horiz = pow(max(dot(normalize(dir.xz + 1e-5), normalize(SUN_XZ)) * 0.5 + 0.5, 0.0), ${(a.hazeExp ?? 2.4).toFixed(3)});
-      return mix(HAZE_COOL, HAZE_WARM, clamp(smoothstep(0.93, 0.998, s) * 0.55 + horiz * 0.08, 0.0, 0.6));
+      return mix(HAZE_COOL, HAZE_WARM, clamp(smoothstep(0.93, 0.998, s) * 0.55, 0.0, 0.6));
     }`;
 }
 

@@ -80,7 +80,7 @@ class Mesher {
 }
 const norm = v => { const l = Math.hypot(v[0], v[1], v[2]) || 1; return [v[0] / l, v[1] / l, v[2] / l]; };
 
-function addTrunk(m, { H, r0, r1, sides = 7, rings = 12, lean = 0, rnd, color = [0.05, 0.04, 0.032], flare = 0.22 }) {
+function addTrunk(m, { H, r0, r1, sides = 7, rings = 12, lean = 0, rnd, color = [0.05, 0.04, 0.032], flare = 0.22, canopyDark = 0 }) {
   const first = m.pos.length / 3;
   for (let i = 0; i <= rings; i++) {
     const t = i / rings, y = t * H;
@@ -88,7 +88,7 @@ function addTrunk(m, { H, r0, r1, sides = 7, rings = 12, lean = 0, rnd, color = 
     const cx = Math.sin(t * 2.2 + lean) * lean * 0.35 * t, cz = Math.cos(t * 1.7) * lean * 0.2 * t;
     for (let k = 0; k <= sides; k++) {
       const a = k / sides * TAU, nx = Math.cos(a), nz = Math.sin(a);
-      const shade = 0.75 + rnd() * 0.3 + (k % 2) * 0.08;
+      const shade = (0.75 + rnd() * 0.3 + (k % 2) * 0.08) * (1 - canopyDark * Math.min(1, Math.max(0, (t - 0.12) / 0.15)));   // 樹冠の中の幹は暗く（葉の隙間から茶色の線が透けた）
       m.vert([cx + nx * r, y, cz + nz * r], [nx, 0.1, nz], [color[0] * shade, color[1] * shade, color[2] * shade], [k / sides, t * 4]);
     }
   }
@@ -123,7 +123,7 @@ function addFrond(m, { base, dir, length, width, drop, segs, up = [0, 1, 0], cen
 function cedarGeometry(level) {
   const rnd = mulberry32(2211 + level * 17);
   const H = 20, wood = new Mesher(), leaf = new Mesher();
-  addTrunk(wood, { H, r0: 0.5, r1: 0.07, sides: level === 0 ? 8 : level === 1 ? 5 : 4, rings: level === 0 ? 12 : 5, lean: 0.4, rnd });
+  addTrunk(wood, { H, r0: 0.5, r1: 0.07, sides: level === 0 ? 8 : level === 1 ? 5 : 4, rings: level === 0 ? 12 : 5, lean: 0.4, rnd, canopyDark: 0.6 });
   const W = level === 0 ? 26 : level === 1 ? 20 : 0;
   if (level < 2) {
     for (let i = 0; i < W; i++) {
@@ -137,18 +137,18 @@ function cedarGeometry(level) {
         addFrond(leaf, { base: [dir[0] * 0.2, y + (rnd() - 0.5) * 0.5, dir[2] * 0.2], dir, length: L, width: L * (0.78 + rnd() * 0.2), drop: 0.28 + 0.2 * (1 - f), segs: level === 0 ? 2 : 1, center: [0, y, 0], tint: 0.8 + rnd() * 0.35 + 0.1 * f, rnd, roll: rnd() * 0.5 });
       }
     }
-    // 内側の暗い芯（透けを防ぐ）。絵を使わない幹のメッシュ（頂点色のみ）に入れる。
+    // 内側の暗い芯（透けを防ぐ）。絵を使わない幹のメッシュ（頂点色のみ）に入れる。色は葉の針の平均より暗く（明るいと、日の当たる側が緑の縦筋になった）。
     const first = wood.pos.length / 3, sides = 10;
     for (let i = 0; i <= 5; i++) { const t = i / 5, y = 3.0 + t * (H - 3.4), r = 2.1 * Math.pow(1 - t, 0.9) + 0.05;
-      for (let k = 0; k <= sides; k++) { const a = k / sides * TAU; wood.vert([Math.cos(a) * r, y, Math.sin(a) * r], [Math.cos(a), 0.45, Math.sin(a)], [0.035, 0.1, 0.045], [0.5, 0.5]); } }
+      for (let k = 0; k <= sides; k++) { const a = k / sides * TAU; wood.vert([Math.cos(a) * r, y, Math.sin(a) * r], [Math.cos(a), 0.45, Math.sin(a)], [0.008, 0.016, 0.009], [0.5, 0.5]); } }
     for (let i = 0; i < 5; i++) for (let k = 0; k < sides; k++) { const a = first + i * (sides + 1) + k; wood.quad(a, a + 1, a + sides + 2, a + sides + 1); }
   } else {
     // 遠景：重ねた円錐（透過なし）
     const layers = 4, sides = 6;
     for (let i = 0; i < layers; i++) {
       const y0 = 2.5 + i * 4.2, y1 = y0 + 8.5 - i * 1.4, r = 3.1 - i * 0.58, first = leaf.pos.length / 3;
-      leaf.vert([0, y1, 0], [0, 1, 0], [0.03, 0.065, 0.04], [0.5, 1]);
-      for (let k = 0; k < sides; k++) { const a = k / sides * TAU; leaf.vert([Math.cos(a) * r, y0, Math.sin(a) * r], [Math.cos(a) * 0.8, 0.5, Math.sin(a) * 0.8], [0.02 + 0.01 * (i % 2), 0.045, 0.028], [0.5, 0]); }
+      leaf.vert([0, y1, 0], [0, 1, 0], [0.075, 0.13, 0.06], [0.5, 1]);          // 頂は日が当たって明るく、すそは暗い（一様な暗緑の円錐が、一本ずつ切り絵に見えた）
+      for (let k = 0; k < sides; k++) { const a = k / sides * TAU; leaf.vert([Math.cos(a) * r, y0, Math.sin(a) * r], [Math.cos(a) * 0.8, 0.5, Math.sin(a) * 0.8], [0.014 + 0.008 * (i % 2), 0.032, 0.02], [0.5, 0]); }
       for (let k = 0; k < sides; k++) leaf.tri(first, first + 1 + k, first + 1 + (k + 1) % sides);
     }
   }
@@ -236,7 +236,7 @@ function cropGeometry() {
     for (let k = 0; k <= segs; k++) {
       const t = k / segs, ww = wid * Math.sin(Math.min(1, t * 1.5 + 0.15) * Math.PI * 0.62) * (1 - t * 0.3);
       const px = dir[0] * (0.03 + len * t), pz = dir[1] * (0.03 + len * t), y = 0.03 + rise * Math.sin(t * Math.PI * 0.55) - 0.05 * t * t, shade = 0.55 + 0.6 * t;
-      for (const sd of [-1, 1]) m.vert([px + sx * ww * sd, y, pz + sz * ww * sd], [0, 1, 0.2], [0.5 * shade, 0.72 * shade, 0.4 * shade], [sd < 0 ? 0 : 1, t]);
+      for (const sd of [-1, 1]) m.vert([px + sx * ww * sd, y, pz + sz * ww * sd], [0, 1, 0.2], [0.48 * shade, 0.64 * shade, 0.42 * shade], [sd < 0 ? 0 : 1, t]);
     }
     for (let k = 0; k < segs; k++) { const a = first + k * 2; m.quad(a, a + 1, a + 3, a + 2); }
   }
@@ -286,7 +286,7 @@ function patchWind(material, uniforms, { height = 20, flutter = 0, fadeStart = 0
 // 葉・幹・草は艶消しの Lambert にする。標準の材質（PBR）だと、低い太陽に向かって見る遠景の木が、
 // 掠める角度のフレネル反射（日なたの面ほど強い）で琥珀色に光り、暗い樹冠が明るい「型押しの壁紙」に見えた（第2周の評価・材質を黒にしても残った）。
 function foliageMaterial(map, uniforms, { height, flutter = 0.03, alphaTest = 0.42 }) {
-  const m = new THREE.MeshLambertMaterial({ map, vertexColors: true, side: THREE.DoubleSide, alphaTest, alphaToCoverage: true, emissive: 0x242f20 });   // emissive：Lambert は環境光の拡散を受けないので、日陰の葉が真っ黒にならない下駄
+  const m = new THREE.MeshLambertMaterial({ map, vertexColors: true, side: THREE.DoubleSide, alphaTest, alphaToCoverage: true, emissive: 0x2a3826 });   // emissive：Lambert は環境光の拡散を受けないので、日陰の葉が真っ黒にならない下駄
   patchWind(m, uniforms, { height, flutter });
   return m;
 }
@@ -409,7 +409,7 @@ export function buildVegetation({ scatter, quality = 'standard' }) {
   const grass = makeTufts({ data: scatter.grass, geometry: grassGeometry(), wind, height: 0.3, fadeStart: quality === 'light' ? 16 : 28, fadeEnd: quality === 'light' ? 26 : 46, tintA: '#4a6a2a', tintB: '#8c8c45' });
   const rice = makeTufts({ data: scatter.rice, geometry: riceGeometry(), wind, height: 1.0, fadeStart: 60, fadeEnd: 95, tintA: '#b8963c', tintB: '#d6b658', flutter: 0.02 });
   group.add(grass, rice);
-  const crops = scatter.crops?.x.length ? makeTufts({ data: scatter.crops, geometry: cropGeometry(), wind, height: 0.4, fadeStart: 55, fadeEnd: 90, tintA: '#34502a', tintB: '#5c7a3a', flutter: 0.01 }) : null;   // 家のそばの野菜畑
+  const crops = scatter.crops?.x.length ? makeTufts({ data: scatter.crops, geometry: cropGeometry(), wind, height: 0.4, fadeStart: 55, fadeEnd: 90, tintA: '#3d5230', tintB: '#617548', flutter: 0.01 }) : null;   // 家のそばの野菜畑
   if (crops) group.add(crops);
   return { group, trees, grass, rice, crops, wind };
 }

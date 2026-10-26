@@ -108,7 +108,8 @@ export function makeTachi() {
   drawn.add(tsuka, kashira, tsuba, habaki, blade);
 
   const hip = new THREE.Group(); hip.name = 'tachi-hip';
-  const sayaMat = lacquer(0x33241a);          // 黒一色だと後ろ姿で「黒い棒」に見える。濃い茶の漆（照りで形が読める）
+  // 黒一色だと後ろ姿で「黒い棒」に見える。茶の漆。照りを抑え（clearcoat 0.3）、空の映り込みで正面が淡い青灰の刃に見えないようにする
+  const sayaMat = new THREE.MeshPhysicalMaterial({ color: 0x4a3020, metalness: 0.1, roughness: 0.45, clearcoat: 0.3, clearcoatRoughness: 0.3 });
   const saya = mesh(curvedTube(0.78, 0.018, 0.0225), sayaMat, 'saya'); saya.position.y = 0.17;
   const koiguchi = mesh(new THREE.CylinderGeometry(0.025, 0.024, 0.04, 14), iron(0x4a3d2a), 'koiguchi'); koiguchi.position.y = 0.168;
   const hiltOnHip = new THREE.Group(); hiltOnHip.name = 'tachi-hip-hilt';

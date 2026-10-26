@@ -101,6 +101,7 @@ export class Battle {
   // ---------------------------------------------------------------- 敵の反応
   onEnemyAlerted(e) {
     const g = this.g;
+    if (e.group === 'village_enemies') g.dispatch({ type: 'noticed' });
     g.audio.play('alert', { gain: 0.7, pan: g.pan(e.pos) });
     if (g.time - this.lastAlertAt > 25) g.audio.play('taiko', { gain: 0.7, pan: g.pan(e.pos) });
     this.lastAlertAt = g.time;
@@ -140,12 +141,12 @@ export class Battle {
       const f = actor.fighter;
       if (!f.alive || f.state !== 'attack' || f.move?.id !== id) return;
       const p = actor.chest(), fx = -Math.sin(actor.yaw), fz = -Math.cos(actor.yaw);
-      g.fx.add.emit({ pos: [p.x + fx * 0.55, p.y + 0.4, p.z + fz * 0.55], vel: [0, 0, 0], life: 0.17, size: 1.0, sizeEnd: 0.25, color: [1, 0.88, 0.6], alpha: 1 });
+      g.fx.add.emit({ pos: [p.x + fx * 0.55, p.y + 0.4, p.z + fz * 0.55], vel: [0, 0, 0], life: 0.17, size: 0.4, sizeEnd: 0.12, color: [1, 0.88, 0.6], alpha: 0.9 });          // 胸の前の閃光は小さく（大きいと敵の胴が白く飛んだ）
       g.audio.play('alert', { gain: 0.55, pan: g.pan(actor.pos), pitch: 1.5 });
       this.glints.push({ actor, t: 0.34 });
       if (dist2(actor.pos, g.hero.pos) < 16) {
         // 弾きの案内を見せたあとの侍大将の光で、連続技の案内を出す（同時には出せない）
-        if (!g.hud.hint('parry', STORY.hints.parry) && actor.kind === 'officer') g.hud.hint('officer', STORY.hints.officer);
+        if (!g.hud.hint('parry', STORY.hints.parry) && actor.kind === 'officer' && !g.hud.hintBusy()) g.hud.hint('officer', STORY.hints.officer);
       }
     });
   }
@@ -158,11 +159,11 @@ export class Battle {
       if (gl.t <= 0 || !w || !w.holder.visible || !gl.actor.fighter.alive) { this.glints.splice(i, 1); continue; }
       const len = w === gl.actor.character.weapons.naginata ? 1.7 : 0.95;
       w.holder.updateWorldMatrix(true, false);
-      // 細かい光の粒を刃に沿って詰める（丸い大きな玉だと「白い玉が3つ浮く」に見えた）。切先ほど明るく太い
-      for (let k = 0; k < 11; k++) {
-        const t = 0.22 + k * 0.08;
+      // 細かい光の粒を、間隔より大きく重ねて刃に沿った一本の線にする（粒が離れると「白い玉の数珠」に見えた）。切先ほど明るく太い
+      for (let k = 0; k < 22; k++) {
+        const t = 0.2 + k * 0.04;
         _a.set(0, t * len, 0); w.holder.localToWorld(_a);
-        g.fx.add.emit({ pos: [_a.x, _a.y, _a.z], vel: [0, 0, 0], life: 0.12, size: 0.07 + 0.1 * t, sizeEnd: 0.03, color: [1, 0.92, 0.68], alpha: 0.55 + 0.4 * t });
+        g.fx.add.emit({ pos: [_a.x, _a.y, _a.z], vel: [0, 0, 0], life: 0.12, size: 0.05 + 0.07 * t, sizeEnd: 0.02, color: [1, 0.92, 0.68], alpha: 0.5 + 0.4 * t });
       }
     }
   }

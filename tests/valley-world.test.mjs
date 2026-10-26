@@ -15,7 +15,9 @@ import { MOVES } from '../dist/valley/combat.js';
 const terrain = createTerrain(WORLD);
 const trees = scatterTrees(WORLD, terrain);
 const extra = propColliders(WORLD);
-const col = buildColliders({ buildings: WORLD.buildings, props: WORLD.props, trees, bounds: WORLD.bounds, extraCircles: extra.circles, extraBoxes: extra.boxes });
+const allRocks = scatterRocks(WORLD, terrain);
+// ゲームと同じく、岩の当たりも入れる（通行・経路・置き場の検査がすべて岩を避ける）
+const col = buildColliders({ buildings: WORLD.buildings, props: WORLD.props, trees, bounds: WORLD.bounds, extraCircles: [...extra.circles, ...rockColliders(allRocks)], extraBoxes: extra.boxes });
 let clock = 0;
 const ai = createAIWorld({ terrain, col, bounds: WORLD.bounds, now: () => clock });
 const free = p => nearestFree(col, terrain, p.x, p.z, 0.35, 0) !== null;
@@ -91,9 +93,19 @@ test('no big rock stands in the village flat, on a road shoulder or in a story z
     for (const [name, zone] of Object.entries(WORLD.zones)) assert(Math.hypot(x - zone.x, z - zone.z) > zone.r + wide(i) / 2, `${at} stands in zone ${name}`);
     const road = terrain.roadInfo(x, z); assert(!road || road.dist > 4, `${at} sits on a road shoulder`);
   }
+  // 林道の斥候と戦う所（巡回路の10m以内）には、幅1.3mを超える岩を置かない（カメラの脇で画面を塞ぐ）
+  for (const sc of WORLD.spawns.road_scout) for (const [px, pz] of sc.patrol) for (let i = 0; i < rocks.x.length; i++) {
+    if (Math.hypot(rocks.x[i] - px, rocks.z[i] - pz) < 10) assert(wide(i) <= 1.3, `rock ${i} (${rocks.x[i].toFixed(1)},${rocks.z[i].toFixed(1)}) is ${wide(i).toFixed(1)}m wide beside the scout fight`);
+  }
   // 幅1.4m以上の岩には当たりが付く（岩の中へ入れない）
   const circles = rockColliders(rocks), bigCount = rocks.x.filter((_, i) => wide(i) >= 1.4).length;
   assert.equal(circles.length, bigCount); assert(circles.length > 20, 'the valley should have rocks that block');
+  // 実際に止まる：いちばん大きな岩へ向かって歩くと、中心の手前で止まる（半径を0にしても、game から登録を外しても、ここで落ちる）
+  const big = [...rocks.x.keys()].sort((a, b) => wide(b) - wide(a))[0], c = circles.find(o => o.x === rocks.x[big] && o.z === rocks.z[big]);
+  assert(c && c.r > 0.5, 'the biggest rock needs a collider of real size');
+  let pos = { x: c.x + 4, y: terrain.heightAt(c.x + 4, c.z), z: c.z };
+  for (let g = 0; g < 80; g++) { const r = moveActor(col, terrain, pos, -0.1, 0, 0.3); pos = { x: r.x, y: r.y, z: r.z }; }
+  assert(Math.hypot(pos.x - c.x, pos.z - c.z) > c.r * 0.8, `walked into the biggest rock (${Math.hypot(pos.x - c.x, pos.z - c.z).toFixed(2)} m from its center, r ${c.r.toFixed(2)})`);
 });
 
 test('people who come out of their houses can walk from the door to their spot and along their route', () => {
