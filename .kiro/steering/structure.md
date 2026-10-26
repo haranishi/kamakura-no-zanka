@@ -1,9 +1,8 @@
 # 変更の境界
 
-- `.kiro/specs/valley-water-carry/` を今回の要件・設計・検証の正本にする。
-- 引き継ぎdocs/01〜05は根拠として保持し、現状はREADMEと今回の検証記録で示す。
-- `dist/app.js` は入力・描画・UIとゲームの結合を担う。
-- `dist/gameplay.js` と`dist/interactions.js`は純粋なゲーム規則を担う。
-- `dist/save.js`は進行保存、`dist/audio.js`は音の生存期間を担う。
-- `dist/environment.js`は追加背景・光・植生と水面の見た目を担う。
+- 庭のしごと：`.kiro/specs/valley-water-carry/` が正本。`dist/app.js` ほか既存ファイルは回帰検証のため壊さない。
+- 隠れ谷の縦切り：`.kiro/specs/hidden-valley-slice/` が正本。コードは `dist/valley/`、検査は `tests/valley-*.test.mjs`。
+- 層は data → logic（Three.js・DOM・乱数・時刻に依存しない）→ view → app → harness。上が下を呼び、逆は禁止（design.md）。
+- 素材の加工道具は `tools/blender/`（再生成できること）。生成物には生成元と版を `provenance/` へ記録する。
+- 引き継ぎdocs/01〜06は根拠として保持する。現状はREADMEと検証記録で示す。
 - 元モデルの全体再生成や衝突規則の緩和で問題を隠さない。

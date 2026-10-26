@@ -1,0 +1,23 @@
+{
+  "feature_name": "hidden-valley-slice",
+  "created_at": "2026-10-27T00:00:00+09:00",
+  "language": "ja",
+  "phase": "implementation",
+  "approvals": {
+    "requirements": { "generated": true, "approved": true },
+    "design": { "generated": true, "approved": true },
+    "tasks": { "generated": true, "approved": true }
+  },
+  "approval_basis": "2026-10-27の本人依頼（続きの制作・Meshy予算・SDD・ハーネス反復）と、2026-10-19の自律実行指示を継承",
+  "ready_for_implementation": true,
+  "parent_spec": "valley-water-carry",
+  "budget": {
+    "meshy_credits_start": 1219,
+    "meshy_credits_floor": 500
+  },
+  "open_questions": [
+    "見た目は写実寄りの夕景でよいか（企画書は『絵画的なスタイライズド3D』）",
+    "主人公の姓名の重複確認",
+    "Meshy生成物の公開時の扱い"
+  ]
+}
