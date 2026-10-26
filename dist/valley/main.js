@@ -44,9 +44,24 @@ const input = new Input(renderer.domElement);
 const audio = new ValleyAudio(msg => hud.toast(msg, 3000));
 let game = null, frozen = false, titleT = 0;
 
+// 描画の解像度は、重いと感じたら自動で下げ、余裕があれば戻す（コマ時間の移動平均で判断）。?w= の固定撮影・QA では動かさない。
+const SCALES = [1, 0.85, 0.7, 0.58];
+let scaleIdx = 0, scaleCool = 0, ftAcc = 0, ftN = 0, probeWait = 10, lastRaiseAt = -99, clockT = 0;
+const autoScale = !q.get('w') && q.get('autoscale') !== '0';
 function resize() {
-  const w = Number(q.get('w') || innerWidth), h = Number(q.get('h') || innerHeight), pr = q.get('w') ? 1 : Math.min(devicePixelRatio, quality === 'light' ? 1 : 1.5);
+  const w = Number(q.get('w') || innerWidth), h = Number(q.get('h') || innerHeight), pr = (q.get('w') ? 1 : Math.min(devicePixelRatio, quality === 'light' ? 1 : 1.5)) * SCALES[scaleIdx];
   renderer.setPixelRatio(pr); renderer.setSize(w, h); camera.aspect = w / h; camera.updateProjectionMatrix(); post.setSize(w, h, pr);
+}
+function adaptScale(dt) {
+  if (!autoScale || !game || game.flow === 'idle' || document.hidden) return;
+  ftAcc += dt; ftN++; scaleCool -= dt; clockT += dt;
+  if (ftN < 90) return;
+  const ms = ftAcc / ftN * 1000; ftAcc = 0; ftN = 0;
+  if (scaleCool > 0) return;
+  if (ms > 24 && scaleIdx < SCALES.length - 1) {                                                  // 40fps を割ったら下げる
+    if (clockT - lastRaiseAt < 6) probeWait = Math.min(90, probeWait * 2);                       // 戻した直後にまた重くなったら、次に戻すまでを長く
+    scaleIdx++; scaleCool = probeWait; resize();
+  } else if (ms < 18.5 && scaleIdx > 0) { scaleIdx--; scaleCool = 6; lastRaiseAt = clockT; resize(); }   // 60fps を保てるなら戻して試す
 }
 
 async function boot() {
@@ -153,6 +168,7 @@ function frame() {
   if (game.flow === 'idle') { titleCamera(dt); }
   game.update(dt);
   game.render(dt);
+  adaptScale(dt);
   fpsAcc += dt; fpsN++;
   if (fpsAcc >= 1) { window.__fps = Math.round(fpsN / fpsAcc); fpsAcc = 0; fpsN = 0; }
 }

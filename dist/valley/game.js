@@ -546,7 +546,9 @@ export class Game {
       if (!text && this.quest.beat === 'b5_archer' && this.ally?.role === 'captive' && dist2(h.pos, this.ally.pos) < 2.8) text = '縛めを解く';
       if (f.state !== 'idle') text = '';
     }
-    if (text !== this.promptKey) { this.promptKey = text; this.hud.prompt(text); }
+    let key = 'E';
+    if (this.flow === 'play' && this.hero.alive && this.hero.fighter.counterT > 0 && this.hero.fighter.state === 'idle') { text = '弾いた。いま反撃'; key = '左クリック'; }
+    if (text !== this.promptKey) { this.promptKey = text; this.hud.prompt(text, key); }
     if (text === 'とどめを刺す') this.hud.hint('finisher', STORY.hints.finisher);
     if (text === '背後から闇討ち') this.hud.hint('stealth', STORY.hints.stealth);
   }

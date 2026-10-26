@@ -34,12 +34,14 @@ export const MOVES = freezeRows({
     {telegraph: .20, chainFrom: 'officer_a', chainWindow: .30}),
   officer_c: move('officer_c', .45, .14, .80, 22, 24, 2.2, 120, 'Officer_Attack',
     {telegraph: .45, chainFrom: 'officer_b', chainWindow: .30}),
+  // 弾きの直後だけ出せる反撃（RULES.counterWindow）。受け止めた勢いで斬り返すので、予備が短く構え削りが大きい。
+  counter: move('counter', .12, .10, .42, 26, 32, 2, 110, 'Katana_Counter_Cut', {counter: true}),
   archer_shot: move('archer_shot', .90, .05, 1.2, 12, 8, 24, 0, 'Archery_Shot', {kind: 'shot', telegraph: .90}),
   ally_shot: move('ally_shot', .90, .05, 1.2, 10, 8, 24, 0, 'Archery_Shot', {kind: 'shot', telegraph: .90}),
 });
 const RULES = Object.freeze({regenDelay: 1.2, regen: 18, stagger: 2.2, dodge: .52,
   invStart: .06, invEnd: .30, dodgeCost: 12, parry: .2, parryDamage: 40,
-  recoil: .5, hit: .3, blockArc: 120});
+  recoil: .5, hit: .3, blockArc: 120, counterWindow: .9});
 
 export function createFighter({id, team = 'enemy', kind = 'soldier', x = 0, z = 0,
   yaw = 0, hp, posture} = {}) {
@@ -54,7 +56,7 @@ export function createFighter({id, team = 'enemy', kind = 'soldier', x = 0, z = 
   return {id, team, kind, x: finite(x), z: finite(z), yaw: finite(yaw),
     hp: alive ? hpMax : 0, hpMax, posture: broken ? 0 : postureMax, postureMax,
     radius: s.radius, armor: s.armor, alive, state: !alive ? 'down' : broken ? 'stagger' : 'idle',
-    blocking: false, parryT: 0, move: null, dodgeT: 0, staggerT: broken ? RULES.stagger : 0,
+    blocking: false, parryT: 0, counterT: 0, move: null, dodgeT: 0, staggerT: broken ? RULES.stagger : 0,
     hitT: 0, recoilT: 0, noRegenT: 0, telegraphing: false, aware: true,
     pendingEvents: broken ? [{type: 'stagger_start', id}] : []};
 }
@@ -71,6 +73,7 @@ function begin(f, id, targetId = null) {
 export function startMove(f, moveId) {
   if (!Object.hasOwn(MOVES, moveId) || moveId === 'finisher' || !f.alive || f.blocking) return false;
   const m = MOVES[moveId];
+  if (m.counter && !(f.counterT > EPS && ready(f))) return false;
   if (f.state === 'attack' && f.move) {
     const old = MOVES[f.move.id];
     const end = old.windup + old.active + old.recover;
@@ -79,6 +82,7 @@ export function startMove(f, moveId) {
     return begin(f, moveId);
   }
   if (!ready(f) || m.chainFrom) return false;
+  if (m.counter) f.counterT = 0;
   return begin(f, moveId);
 }
 export function setBlock(f, on) {
@@ -140,6 +144,7 @@ export function tick(f, dt) {
     if (regen) f.posture = round(Math.min(f.postureMax, f.posture + RULES.regen * boundary));
     f.noRegenT = round(Math.max(0, f.noRegenT - boundary));
     f.parryT = round(Math.max(0, f.parryT - boundary));
+    f.counterT = round(Math.max(0, f.counterT - boundary));
     if (f.state === 'attack' && f.move) {
       const m = MOVES[f.move.id];
       f.move.t = round(f.move.t + boundary);
@@ -227,6 +232,7 @@ export function strike(att, def) {
       // 弾きの構え削りは鎧にかかわらず反動を起こす。
       blockedDamage(att, 0, RULES.parryDamage);
       recoil(att);
+      def.counterT = RULES.counterWindow;
       return response('parried', 0, RULES.parryDamage);
     }
     blockedDamage(def, m.damage * .15, m.posture * .5);

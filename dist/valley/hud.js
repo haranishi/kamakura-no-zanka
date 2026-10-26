@@ -29,7 +29,7 @@ export class HUD {
   }
   setParty(visible, modeLabel) { this.el.party.classList.toggle('hidden', !visible); if (modeLabel) this.el['party-mode'].textContent = modeLabel; }
   setBoss(visible, name, ratio) { this.el.boss.classList.toggle('hidden', !visible); if (visible) { this.el['boss-name'].textContent = name; this.el['boss-hp'].style.transform = `scaleX(${Math.max(0, ratio)})`; } }
-  prompt(text) { this.el.prompt.classList.toggle('hidden', !text); if (text) this.el['prompt-text'].textContent = text; }
+  prompt(text, key = 'E') { this.el.prompt.classList.toggle('hidden', !text); if (text) { this.el['prompt-text'].textContent = text; this.el.prompt.querySelector('kbd').textContent = key; } }
 
   hint(key, text, ms = 5200) {
     if (this.hintsShown.has(key)) return;

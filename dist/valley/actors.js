@@ -17,7 +17,7 @@ export const hashId = s => { let h = 2166136261; for (const c of String(s)) h = 
 const BUSY = ['attack', 'hit', 'stagger', 'recoil', 'dodge'];
 
 // 技ごとの踏み込み（m）。動作の根の移動は取り除いてあるので、ここで前へ出す。
-const LUNGE = { light1: 0.55, light2: 0.45, light3: 0.85, heavy: 0.6, finisher: 0.3, soldier_slash: 0.5, soldier_thrust: 0.9, officer_a: 0.5, officer_b: 0.4, officer_c: 0.8 };
+const LUNGE = { light1: 0.55, light2: 0.45, light3: 0.85, heavy: 0.6, finisher: 0.3, counter: 0.75, soldier_slash: 0.5, soldier_thrust: 0.9, officer_a: 0.5, officer_b: 0.4, officer_c: 0.8 };
 export const SPEED = { walk: 2.5, sprint: 5.0, crouch: 1.3, guard: 1.5, patrol: 1.3, orbit: 0.95, run: 3.6, officerRun: 3.2, ally: 2.0, child: 4.2 };
 
 class Actor {
@@ -102,7 +102,14 @@ export class HeroActor extends Actor {
 
   attackInput(kind) {
     const f = this.fighter;
-    if (!f.alive || f.blocking || this.lockT > 0) return;
+    if (!f.alive || this.lockT > 0) return;
+    // 弾いた直後は、受けを握ったまま左クリックで反撃（受けを解いて斬り返す）
+    if (kind === 'light' && f.counterT > 0 && (f.state === 'idle')) {
+      if (f.blocking) setBlock(f, false);
+      this.blockPosed = false;
+      if (startMove(f, 'counter')) { this.beginMove('counter'); return; }
+    }
+    if (f.blocking) return;
     if (kind === 'heavy') {
       if (f.state === 'idle' && startMove(f, 'heavy')) this.beginMove('heavy'); else this.queued = { kind, t: 0.45 };
       return;

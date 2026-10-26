@@ -13,7 +13,7 @@ const close = (a, b) => assert.ok(Math.abs(a - b) < 1e-8, `${a} != ${b}`);
 const broken = f => { applyDamage(f, 0, f.posture); assert.equal(f.state, 'stagger'); };
 
 test('MOVES retains all contract fields and freezes each row', () => {
-  assert.equal(Object.keys(MOVES).length, 12);
+  assert.equal(Object.keys(MOVES).length, 13);
   assert.equal(Object.isFrozen(MOVES), true);
   for (const [id, m] of Object.entries(MOVES)) {
     assert.equal(m.id, id);
@@ -29,7 +29,7 @@ test('MOVES retains all contract fields and freezes each row', () => {
     heavy: [.42, .12, .55, 30, 36, 2, 90], finisher: [.25, .10, .65, 60, 0, 1.6, 90],
     soldier_slash: [.55, .12, .70, 10, 12, 1.7, 100], soldier_thrust: [.70, .10, .80, 12, 14, 2.6, 40],
     officer_a: [.35, .12, .30, 14, 14, 2, 110], officer_b: [.20, .12, .30, 14, 14, 2, 110],
-    officer_c: [.45, .14, .80, 22, 24, 2.2, 120],
+    officer_c: [.45, .14, .80, 22, 24, 2.2, 120], counter: [.12, .10, .42, 26, 32, 2, 110],
   })) {
     const m = MOVES[id];
     assert.deepEqual([m.windup, m.active, m.recover, m.damage, m.posture, m.reach, m.arcDeg], values);
@@ -368,4 +368,28 @@ test('invalid inputs cannot introduce NaN or Infinity', () => {
   const huge = fighter('huge', {hp: Number.MAX_VALUE, posture: Number.MAX_VALUE});
   applyDamage(huge, 1, 1); tick(huge, 1);
   assert.ok(Number.isFinite(huge.hp)); assert.ok(Number.isFinite(huge.posture));
+});
+
+test('a parry opens a counter window for the defender only, the counter consumes it, and it expires', () => {
+  const att = createFighter({id: 's', team: 'enemy', kind: 'soldier', x: 0, z: -1, yaw: Math.PI});
+  const def = fighter('hero', {x: 0, z: 0, yaw: 0});
+  assert.equal(startMove(def, 'counter'), false, 'no counter without a parry');
+  startMove(att, 'soldier_slash'); tick(att, .40);
+  setBlock(def, true);                                   // 当たりの直前（0.15秒前）に押す＝弾きの窓の中
+  tick(att, .15); tick(def, .15);
+  const res = strike(att, def);
+  assert.equal(res.outcome, 'parried');
+  assert.equal(att.counterT, 0, 'the attacker gets no window');
+  assert.ok(def.counterT > 0.8);
+  setBlock(def, false);
+  assert.equal(startMove(def, 'counter'), true);
+  assert.equal(def.state, 'attack'); assert.equal(def.counterT, 0);
+  tick(def, MOVES.counter.windup + MOVES.counter.active + MOVES.counter.recover + 0.01);
+  assert.equal(startMove(def, 'counter'), false, 'one counter per parry');
+  // 時間切れ
+  const d2 = fighter('hero2'); d2.counterT = 0.9; tick(d2, 0.91);
+  assert.equal(d2.counterT, 0); assert.equal(startMove(d2, 'counter'), false);
+  // 窓があっても、構えを崩されて動けない間は出せない
+  const d3 = fighter('hero3'); d3.counterT = 0.9; applyDamage(d3, 0, d3.posture);
+  assert.equal(startMove(d3, 'counter'), false);
 });

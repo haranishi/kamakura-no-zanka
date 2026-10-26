@@ -9,7 +9,8 @@
 ## combat.js
 
 - `MOVES`: design-gameplay.md の表どおりの凍結データ。`{id, kind, windup, active, recover, damage, posture, reach, arcDeg, lunge, blockable, telegraph, chainFrom?, chainWindow?, clip}`。
-  id は `light1 light2 light3 heavy finisher soldier_slash soldier_thrust officer_a officer_b officer_c archer_shot ally_shot`。
+  id は `light1 light2 light3 heavy finisher counter soldier_slash soldier_thrust officer_a officer_b officer_c archer_shot ally_shot`。
+  `counter` は弾き（parried）の直後0.9秒だけ、弾いた側が出せる反撃（予備.12・当たり.10・戻り.42・威力26・構え削り32）。窓は一度の反撃で消える。
 - `createFighter({id, team:'hero'|'ally'|'enemy', kind, x, z, yaw, hp, posture})` → Fighter（素のオブジェクト）。
 - `startMove(f, moveId)` → boolean。状態が許す・連携窓内のときだけ true。`setBlock(f, on)`、`startDodge(f, yaw)`。
 - `tick(f, dt)` → events。`{type:'phase', id, moveId, phase:'windup'|'active'|'recover'|'end'}` `{type:'stagger_start'|'stagger_end', id}`。構えの回復と崩れの時間もここ。

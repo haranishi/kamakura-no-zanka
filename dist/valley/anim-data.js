@@ -21,6 +21,7 @@ export const MOVE_CLIPS = {
   light3: { clip: 'Katana_Yokonagi_Cut' },
   heavy: { clip: 'Katana_Karatake_Heavy' },
   finisher: { clip: 'Katana_Finisher' },
+  counter: { clip: 'Katana_Counter_Cut' },
   soldier_slash: { clip: 'Attack_r1' },
   soldier_thrust: { clip: 'Katana_Thrust' },
   officer_a: { clip: 'Officer_Attack' },

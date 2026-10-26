@@ -77,13 +77,13 @@ export class FX {
       const a = Math.random() * Math.PI * 2, sp = rnd(2.5, blocked ? 8 : 6.5), up = rnd(0.5, 3.5);
       this.add.emit({ pos: [pos.x, pos.y, pos.z], vel: [Math.cos(a) * sp + dir.x * 2, up, Math.sin(a) * sp + dir.z * 2], life: rnd(0.18, 0.42), size: rnd(0.05, 0.1), sizeEnd: 0.01, color: blocked ? [1.0, 0.9, 0.6] : [1.0, 0.62, 0.22], alpha: 1, gravity: -7, drag: 1.5 });
     }
-    this.add.emit({ pos: [pos.x, pos.y, pos.z], vel: [0, 0, 0], life: 0.09, size: strong ? 1.1 : 0.7, sizeEnd: 0.2, color: blocked ? [1.0, 0.95, 0.8] : [1.0, 0.8, 0.5], alpha: 0.85 });
+    this.add.emit({ pos: [pos.x, pos.y, pos.z], vel: [0, 0, 0], life: 0.09, size: strong ? 0.6 : 0.38, sizeEnd: 0.1, color: blocked ? [1.0, 0.95, 0.8] : [1.0, 0.8, 0.5], alpha: 0.85 });
   }
 
   // 受け流し（弾き）の鋭い光
   parry(pos) {
-    this.add.emit({ pos: [pos.x, pos.y, pos.z], vel: [0, 0, 0], life: 0.14, size: 1.6, sizeEnd: 0.3, color: [1, 1, 0.9], alpha: 1 });
-    for (let i = 0; i < 16; i++) { const a = Math.random() * Math.PI * 2; this.add.emit({ pos: [pos.x, pos.y, pos.z], vel: [Math.cos(a) * 7, rnd(-1, 3), Math.sin(a) * 7], life: 0.3, size: 0.06, sizeEnd: 0.01, color: [1, 0.95, 0.7], gravity: -4 }); }
+    this.add.emit({ pos: [pos.x, pos.y, pos.z], vel: [0, 0, 0], life: 0.11, size: 0.75, sizeEnd: 0.12, color: [1, 0.97, 0.85], alpha: 0.9 });
+    for (let i = 0; i < 22; i++) { const a = Math.random() * Math.PI * 2, sp = rnd(5, 10); this.add.emit({ pos: [pos.x, pos.y, pos.z], vel: [Math.cos(a) * sp, rnd(-1, 3.5), Math.sin(a) * sp], life: rnd(0.2, 0.38), size: 0.05, sizeEnd: 0.008, color: [1, 0.95, 0.7], gravity: -5 }); }
   }
 
   dust(pos, amount = 3, tint = [0.62, 0.52, 0.4]) {
