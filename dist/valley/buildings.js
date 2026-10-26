@@ -60,7 +60,7 @@ export function buildBuildings({ world, terrain, models }) {
   }
   for (const p of world.props) {
     if (p.kind === 'boulder_big') {
-      const o = place('boulder', { ...p, rotY: (p.x * 7.13) % 6.28 }, { scale: p.r * 0.72, lift: -0.35 });
+      const o = place('boulder', { ...p, rotY: (p.x * 7.13) % 6.28 }, { scale: (p.vr ?? p.r) * 0.72, lift: -0.35 });
       if (o) { o.scale.y *= 0.8; }
     }
   }

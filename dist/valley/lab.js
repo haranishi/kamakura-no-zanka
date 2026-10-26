@@ -74,7 +74,7 @@ function spawn(who) {
 function setClip(name, t) {
   const a = ch.play(name, { fade: 0, restart: true });
   if (!a) return;
-  if (t != null) { a.paused = true; a.time = Math.min(t, ch.meta(name).seconds - 0.001); ch.mixer.update(0); playing = false; }
+  if (t != null) { a.paused = true; a.time = Math.min(t, ch.meta(name).seconds - 0.001); ch.update(0); playing = false; }
   const slider = document.getElementById('time');
   slider.max = ch.meta(name).seconds;
 }
@@ -92,7 +92,7 @@ async function main() {
   setView(viewName); resize();
   whoSel.onchange = () => { spawn(whoSel.value); fill(); setClip(clipSel.value in Object.fromEntries(ch.tpl.clips) ? clipSel.value : [...ch.tpl.clips.keys()][0]); };
   clipSel.onchange = () => { setClip(clipSel.value); playing = true; };
-  document.getElementById('time').oninput = e => { playing = false; const a = ch.current; a.paused = true; a.time = Number(e.target.value); ch.mixer.update(0); };
+  document.getElementById('time').oninput = e => { playing = false; const a = ch.current; a.paused = true; a.time = Number(e.target.value); ch.update(0); };
   document.getElementById('play').onclick = () => { playing = !playing; if (ch.current) ch.current.paused = !playing; };
   for (const b of document.querySelectorAll('[data-view]')) b.onclick = () => setView(b.dataset.view);
   let drag = null;

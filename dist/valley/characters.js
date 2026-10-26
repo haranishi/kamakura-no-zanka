@@ -9,6 +9,13 @@ import { makeTachi, makeNaginata, makeYumi, makeArrow, makeQuiver } from './weap
 const DIR = new URL('../assets/characters/', import.meta.url).href;
 export const ROSTER = ['hero', 'archer', 'soldier', 'officer', 'villager_m', 'villager_f', 'child'];
 const HIPS = 'Hips';
+const FLINCH_BONES = ['Spine', 'Spine01', 'Spine02'];
+const FLINCH_Q = new THREE.Quaternion(), FLINCH_AXIS = new THREE.Vector3();
+// 腕の力の抜き：焼き込んだ待ち・歩きの一部（Meshy由来の動作）は腕が体から30〜40°開く。下がった腕だけ、開きを目標まで詰める（度）。
+// full〜none は「腕が下がっている」と見なす範囲（下向きからの角）。構え・振りの腕には効かない。
+const ARM = { target: 9, max: 32, full: 48, none: 76, rate: 14 };
+const P0 = new THREE.Vector3(), P1 = new THREE.Vector3(), MQ = new THREE.Quaternion(), PQ = new THREE.Quaternion(), PQI = new THREE.Quaternion(), RQ = new THREE.Quaternion(), AX = new THREE.Vector3();
+const smoothstep = (a, b, x) => { const t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 
 // 非ループ動作の水平な根の移動を取り除く（その場の動作にする）。取り除いた分は root に残す。
 function stripRoot(clip) {
@@ -73,6 +80,8 @@ export class Character {
     this.model.traverse(o => { if (o.isBone) this.bones.set(o.name, o); });
     this.weapons = {};
     this.rootTravel = { x: 0, z: 0 };
+    this.flinch = { x: 0, v: 0, dir: 0 };
+    this.armRelax = true; this.relax = { Left: 0, Right: 0 };
   }
 
   bone(name) { return this.bones.get(name); }
@@ -178,12 +187,44 @@ export class Character {
     this.weapons.tachiHipHilt.object.visible = !drawn;
   }
 
+  // 被弾のひるみ：動作を止めずに、背骨を打たれた向きへ一瞬しならせる（鎧で怯まない相手にも手応えを返す）
+  kick(amount = 1, yawLocal = 0) { this.flinch.v += amount * 7; this.flinch.dir = yawLocal; }
+
   update(dt) {
     this.time += dt;
     this.mixer.update(dt * this.rate);
     if (this.segment && this.current && this.current.time >= this.segment.to) {
       const cb = this.onSegmentEnd; this.segment = null; this.onSegmentEnd = null;
       if (cb) cb(this);
+    }
+    const f = this.flinch;
+    if (f.v !== 0 || f.x !== 0) {
+      f.v += (-f.x * 120 - f.v * 14) * dt; f.x += f.v * dt;
+      if (Math.abs(f.x) < 1e-3 && Math.abs(f.v) < 1e-2) f.x = f.v = 0;
+      const a = Math.max(-0.5, Math.min(0.5, f.x));
+      FLINCH_Q.setFromAxisAngle(FLINCH_AXIS.set(Math.cos(f.dir), 0, -Math.sin(f.dir)), a * 0.4);
+      for (const name of FLINCH_BONES) this.bones.get(name)?.quaternion.premultiply(FLINCH_Q);
+    }
+    if (this.armRelax) this.relaxArms(dt);
+  }
+
+  // 下がった腕の「体からの開き」を詰める（モデル空間の前向きの軸まわりに、上腕の骨を回す）
+  relaxArms(dt) {
+    this.model.updateMatrixWorld(true);
+    this.model.getWorldQuaternion(MQ); AX.set(0, 0, 1).applyQuaternion(MQ);
+    for (const side of ['Left', 'Right']) {
+      const arm = this.bones.get(side + 'Arm'), fore = this.bones.get(side + 'ForeArm');
+      if (!arm || !fore) continue;
+      arm.getWorldPosition(P0); fore.getWorldPosition(P1); this.model.worldToLocal(P0); this.model.worldToLocal(P1);
+      const dx = (P1.x - P0.x) * (side === 'Left' ? 1 : -1), dy = P1.y - P0.y, dz = P1.z - P0.z;
+      const abduct = Math.atan2(dx, -dy) * 180 / Math.PI, fromDown = Math.atan2(Math.hypot(P1.x - P0.x, dz), -dy) * 180 / Math.PI;
+      const want = abduct > ARM.target ? Math.min(ARM.max, abduct - ARM.target) * (1 - smoothstep(ARM.full, ARM.none, fromDown)) : 0;
+      this.relax[side] += (want - this.relax[side]) * (dt > 0 ? 1 - Math.exp(-ARM.rate * dt) : 1);
+      const r = this.relax[side];
+      if (r < 0.05) continue;
+      arm.parent.getWorldQuaternion(PQ); PQI.copy(PQ).invert();
+      RQ.setFromAxisAngle(AX, THREE.MathUtils.degToRad(side === 'Left' ? -r : r));
+      arm.quaternion.premultiply(PQ).premultiply(RQ).premultiply(PQI);
     }
   }
 

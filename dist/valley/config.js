@@ -9,6 +9,17 @@ export const GRIP = {
   tachiHip: { bone: 'Hips', pos: [0.19, 0.0, 0.12], axes: { y: [0.08, -0.55, -0.83], z: [0, -1, 0] } },
   naginata: { bone: 'RightHand', pos: [0, 0, 0], rot: [0, 0, 0] },
   yumi: { bone: 'LeftHand', pos: [0, 0, 0], rot: [0, 0, 0] },
+  // 矢は右手（弦を引く手）につがえる。矢筒は背中の上（Spine02）に斜めに背負う。ラボで構えの動作を見ながら合わせる。
+  nock: { bone: 'RightHand', pos: [0, 0, 0], rot: [0, 0, 0] },
+  quiver: { bone: 'Spine02', pos: [0.0, 0.06, -0.2], rot: [0, 0, 0] },
+};
+
+// 遊びの手触りの調整値（暫定の初期値）。規則の数値は combat.js、ここは演出・操作の値だけ。
+export const FEEL = {
+  hitStop: { hit: 0.07, heavy: 0.10, parry: 0.09 }, hitStopScale: 0.05,
+  arrowSpeed: 34, arrowSpread: 0.012, pillageScale: 0.4,
+  alertShareRadius: 14, rallyMorale: 20, deathMorale: -20, leaderFledMorale: -35, parriedMorale: -15,
+  lockRange: 18, markerRange: 38,
 };
 
 export const LOOK = {};

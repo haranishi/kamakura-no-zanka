@@ -59,8 +59,8 @@ export const WORLD = {
     { id: 'bonfire', kind: 'bonfire', x: -88, z: -80, r: 0.8 },
     { id: 'drying1', kind: 'drying_rack', x: 22, z: 4, rotY: 0.4, r: 1.2 },
     { id: 'drying2', kind: 'drying_rack', x: -6, z: 30, rotY: -0.2, r: 1.2 },
-    { id: 'viewpoint_rock', kind: 'boulder_big', x: -52, z: -37, r: 3.5 },
-    { id: 'ambush_rock', kind: 'boulder_big', x: -66, z: -26, r: 2.5 },
+    { id: 'viewpoint_rock', kind: 'boulder_big', x: -52, z: -37, r: 2.1, vr: 3.5 },
+    { id: 'ambush_rock', kind: 'boulder_big', x: -66, z: -26, r: 1.6, vr: 2.5 },
   ],
 
   // 遠景の建物（入れない）
@@ -82,24 +82,34 @@ export const WORLD = {
     temple_steps: { x: -74, z: -66, r: 6 },
   },
 
+  // 区切りで戻る位置（やり直し・つづきから）。yaw は combat と同じ向き。
+  checkpoints: {
+    cp_leave_temple: { x: -80.5, z: -68.5, yaw: -2.2 },
+    cp_viewpoint: { x: -49, z: -33, yaw: -2.3 },
+    cp_archer_joined: { x: -14, z: 3, yaw: 1.2 },
+    cp_result: { x: -76, z: -67, yaw: 2.4 },
+  },
+  // 敵が総崩れのとき逃げる先（谷の東の端。たどり着けないなら投降する）
+  exit: { x: 92, z: -6 },
+
   // 開始点と、場面ごとの人・敵の初期配置（yaw は combat と同じ向き: 前方 (-sin,-cos)）。
-  start: { x: -92, z: -78, yaw: 2.35 },
+  start: { x: -100.5, z: -89, yaw: -2.2 },
   spawns: {
-    road_scout: [{ id: 'scout', kind: 'soldier', x: -48, z: -46, yaw: 2.2, patrol: [[-48, -46], [-42, -44], [-38, -42], [-44, -48]] }],
+    road_scout: [{ id: 'road_scout', kind: 'soldier', x: -48, z: -46, yaw: 2.2, patrol: [[-48, -46], [-42, -44], [-38, -42], [-44, -48]] }],
     village_enemies: [
-      { id: 'e_sol1', kind: 'soldier', x: -24, z: 2, yaw: 1.6 },
-      { id: 'e_sol2', kind: 'soldier', x: -20, z: 10, yaw: 2.4 },
-      { id: 'e_sol3', kind: 'soldier', x: 2, z: 8, yaw: 3.1 },
-      { id: 'e_arc1', kind: 'archer', x: -16, z: 6, yaw: 2.0 },
-      { id: 'officer', kind: 'officer', x: -6, z: 4, yaw: 1.6 },
+      { id: 'village_soldier_1', kind: 'soldier', x: -24, z: 2, yaw: 1.6, idleClip: 'Male_Bend_Over_Pick_Up' },
+      { id: 'village_soldier_2', kind: 'soldier', x: -20, z: 10, yaw: 2.4, idleClip: 'Stand_and_Chat' },
+      { id: 'village_soldier_3', kind: 'soldier', x: 2, z: 8, yaw: 3.1, idleClip: 'Long_Breathe_and_Look_Around' },
+      { id: 'village_archer', kind: 'archer', x: -16, z: 6, yaw: 2.0, idleClip: 'Long_Breathe_and_Look_Around' },
+      { id: 'officer', kind: 'officer', x: -6, z: 4, yaw: 1.6, idleClip: 'Sword_Shout' },
     ],
     escort_ambush: [
-      { id: 'a_sol1', kind: 'soldier', x: -66, z: -30, yaw: 4.5 },
-      { id: 'a_sol2', kind: 'soldier', x: -64, z: -34, yaw: 4.2 },
-      { id: 'a_arc1', kind: 'archer', x: -70, z: -40, yaw: 4.4 },
+      { id: 'ambush_soldier_1', kind: 'soldier', x: -66, z: -30, yaw: 4.5, idleClip: 'Long_Breathe_and_Look_Around' },
+      { id: 'ambush_soldier_2', kind: 'soldier', x: -64, z: -34, yaw: 4.2, idleClip: 'Long_Breathe_and_Look_Around' },
+      { id: 'ambush_archer', kind: 'archer', x: -70, z: -40, yaw: 4.4, idleClip: 'Long_Breathe_and_Look_Around' },
     ],
     villagers: [
-      { id: 'v_boy', who: 'child', x: -88, z: -73, yaw: 2.3, role: 'boy' },
+      { id: 'boy', who: 'child', x: -88, z: -73, yaw: 2.3, role: 'boy' },
       { id: 'v_old', who: 'villager_m', x: -2, z: 6, yaw: 0.4, role: 'old' },
       { id: 'v_tsubaki', who: 'villager_f', x: 3, z: 10, yaw: 3.6, role: 'tsubaki' },
       { id: 'v_work1', who: 'villager_m', x: 8, z: 46, yaw: 0.5, role: 'rice' },
