@@ -33,7 +33,9 @@ export class CameraRig {
     this.distance = clamp(this.distance + zoom * 0.002, 2.4, 6.0);
     // 狙い固定のあいだは、肩を大きく外し・少し引き・高くして、主人公の陰に敵が隠れないようにする（カメラ・主人公・敵が一直線に並ばない）
     this.lockBlend = damp(this.lockBlend, lockTarget ? 1 : 0, 5, dt);
-    const lb = this.lockBlend, dist = this.distance * (1 + 0.18 * lb), shoulder = this.shoulder + 0.5 * lb;
+    // 敵が近いほど肩を大きく外す（2.6m以内で合計約1.6m）。1.05m程度だと、2.8m先の敵の体の7割が主人公の陰に入った（第2周の評価）
+    const closeness = lockTarget ? clamp((4.2 - Math.hypot(lockTarget.x - target.x, lockTarget.z - target.z)) / 1.6, 0, 1) : 0;
+    const lb = this.lockBlend, dist = this.distance * (1 + 0.18 * lb), shoulder = this.shoulder + (0.5 + 0.55 * closeness) * lb;
     const f = this._f.set(target.x, target.y + this.height, target.z);
     if (!this.initialized) { this.focus.copy(f); this.initialized = true; this.pos.set(0, 0, 0); }
     // 注視点は少し遅れてついてくる（走り出し・停止の揺れを和らげる）

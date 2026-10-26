@@ -6,12 +6,12 @@ export const ATMOS = {
   // 夕景：太陽は南南東の低い位置（高さ約10°）。廃寺→里の道を歩くとき右前から逆光が当たり、帰り道は背中から長い影が伸びる。
   // 影は青紫の半球光で持ち上げ、霧は太陽の方向だけ暖かく、ほかは灰紫（空気遠近）。
   sunDir: new THREE.Vector3(0.50, 0.17, 0.85).normalize(),
-  sunColor: '#ffc088', sunIntensity: 3.4,
+  sunColor: '#ffd0a8', sunIntensity: 3.4,          // 緑と青を残す（飽和した橙にしない）。夕日らしさは低い角度と長い影に任せる
   zenith: '#5b6a94', mid: '#a69cb2', horizon: '#f6c096', below: '#8c7d70',
-  fogColor: '#a8a3b6', hazeCool: '#a39fb8', hazeWarm: '#f2c090', hazeExp: 6.5, fogDensity: 0.0010,
-  mist: { density: 0.0032, base: -4.0, falloff: 0.03 }, // 谷底に濃い霧（高さに指数で薄くなる）
-  hemiSky: '#8f96bc', hemiGround: '#7a6446', hemiIntensity: 0.9, envIntensity: 0.7,
-  fillColor: '#a8b0d8', fillIntensity: 0.55, // カメラが向く向きに弱い青白い光（逆光でも人物・壁の正面が読める。影は落とさない）
+  fogColor: '#a8a3b6', hazeCool: '#9fa1b8', hazeWarm: '#e6b898', hazeExp: 6.5, fogDensity: 0.0007,
+  mist: { density: 0.0012, base: -4.0, falloff: 0.045 }, // 谷底に濃い霧（高さに指数で薄くなる）。第2周で薄く・谷底へ寄せた（奥の山腹が明るい幕になった）
+  hemiSky: '#9ea3b4', hemiGround: '#7a6446', hemiIntensity: 0.85, envIntensity: 0.7,
+  fillColor: '#a8b0d0', fillIntensity: 0.4, // カメラが向く向きに弱い青白い光（逆光でも人物・壁の正面が読める。影は落とさない）
   exposure: 1.0,
 };
 
@@ -23,9 +23,17 @@ export function hazeGLSL(a = ATMOS) {
   return `
     const vec3 HAZE_COOL = ${lin(a.hazeCool)}; const vec3 HAZE_WARM = ${lin(a.hazeWarm)};
     const vec2 SUN_XZ = vec2(${sd.x.toFixed(4)}, ${sd.z.toFixed(4)});
-    vec3 hazeColor(vec3 dir) {
+    const vec3 SUN_DIR3 = vec3(${sd.x.toFixed(4)}, ${sd.y.toFixed(4)}, ${sd.z.toFixed(4)});
+    vec3 hazeColor(vec3 dir) {                                  // 空の地平線：太陽側の半分が暖色（従来どおり）
       float s = dot(normalize(dir.xz + 1e-5), normalize(SUN_XZ)) * 0.5 + 0.5;
       return mix(HAZE_COOL, HAZE_WARM, pow(max(s, 0.0), ${(a.hazeExp ?? 2.4).toFixed(3)}));
+    }
+    // 地形・木・山並みにかかる霧：暖色は太陽の周り（高さも含めた角度で約25°以内）に絞り、ほかは灰紫〜青灰（奥ほど冷たい）。
+    // 向いた方角だけで色が決まると、太陽側の遠景が全部琥珀色になり奥行きが消えた（第2周の評価）。
+    vec3 fogHazeColor(vec3 dir) {
+      float s = dot(normalize(dir), SUN_DIR3);
+      float horiz = pow(max(dot(normalize(dir.xz + 1e-5), normalize(SUN_XZ)) * 0.5 + 0.5, 0.0), ${(a.hazeExp ?? 2.4).toFixed(3)});
+      return mix(HAZE_COOL, HAZE_WARM, clamp(smoothstep(0.93, 0.998, s) * 0.55 + horiz * 0.08, 0.0, 0.6));
     }`;
 }
 
@@ -65,7 +73,7 @@ export function installFog(a = ATMOS) {
   #endif
   vec3 fvd = normalize( vFogDirV );
   vec3 fogWorldDir = vec3( dot( viewMatrix[ 0 ].xyz, fvd ), dot( viewMatrix[ 1 ].xyz, fvd ), dot( viewMatrix[ 2 ].xyz, fvd ) );
-  gl_FragColor.rgb = mix( gl_FragColor.rgb, hazeColor( fogWorldDir ), fogFactor );
+  gl_FragColor.rgb = mix( gl_FragColor.rgb, fogHazeColor( fogWorldDir ), fogFactor );
 #endif`;
 }
 

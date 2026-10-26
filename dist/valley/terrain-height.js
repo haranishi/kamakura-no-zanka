@@ -259,5 +259,5 @@ export function createTerrain(world = WORLD) {
     return slopeAt(x, z) < 40;
   }
 
-  return { heightAt, slopeAt, normalAt, waterAt, waterLevelAt, surfaceAt, forestDensity, roadInfo, riverInfo, walkable, bounds: b, riverLine, roads, natural };
+  return { seed, heightAt, slopeAt, normalAt, waterAt, waterLevelAt, surfaceAt, forestDensity, roadInfo, riverInfo, walkable, bounds: b, riverLine, roads, natural };
 }

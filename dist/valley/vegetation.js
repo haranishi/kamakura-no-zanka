@@ -124,7 +124,7 @@ function cedarGeometry(level) {
   const rnd = mulberry32(2211 + level * 17);
   const H = 20, wood = new Mesher(), leaf = new Mesher();
   addTrunk(wood, { H, r0: 0.5, r1: 0.07, sides: level === 0 ? 8 : level === 1 ? 5 : 4, rings: level === 0 ? 12 : 5, lean: 0.4, rnd });
-  const W = level === 0 ? 26 : level === 1 ? 13 : 0;
+  const W = level === 0 ? 26 : level === 1 ? 20 : 0;
   if (level < 2) {
     for (let i = 0; i < W; i++) {
       const f = i / (W - 1), y = 2.8 + f * (H - 2.8 - 0.3);
@@ -160,7 +160,7 @@ function broadleafGeometry(level) {
   const wood = new Mesher(), leaf = new Mesher();
   const H = 6.2;
   addTrunk(wood, { H, r0: 0.55, r1: 0.22, sides: level === 0 ? 8 : 5, rings: level === 0 ? 8 : 4, lean: 0.8, rnd, color: [0.1, 0.075, 0.055], flare: 0.3 });
-  const clusters = level === 0 ? 34 : level === 1 ? 16 : 6;
+  const clusters = level === 0 ? 34 : level === 1 ? 26 : 6;
   for (let i = 0; i < clusters; i++) {
     const a = rnd() * TAU, r = Math.sqrt(rnd()) * 3.4, y = H + 0.6 + rnd() * 3.6 - r * 0.25;
     const cx = Math.cos(a) * r, cz = Math.sin(a) * r, size = 2.0 + rnd() * 1.4;
@@ -177,8 +177,8 @@ function broadleafGeometry(level) {
       leaf.quad(first, first + 1, first + 2, first + 3);
     }
   }
-  if (level > 0) {
-    // 内側の塊（幹のメッシュ＝頂点色のみ）
+  if (level > 1) {
+    // 内側の塊（幹のメッシュ＝頂点色のみ）。中景では葉の房を増やして透けを防ぐ（芯は秋の色が掛からず、暗い八角の板に見えた）
     const first = wood.pos.length / 3, sides = 8;
     for (let i = 0; i <= 3; i++) { const t = i / 3, y = H + 0.2 + t * 4.6, r = 2.9 * Math.sin(Math.min(1, t * 1.15 + 0.15) * Math.PI * 0.85);
       for (let k = 0; k <= sides; k++) { const a = k / sides * TAU; wood.vert([Math.cos(a) * r, y, Math.sin(a) * r], [Math.cos(a), 0.3, Math.sin(a)], [0.09, 0.14, 0.04], [0.5, 0.5]); } }
@@ -236,7 +236,7 @@ function cropGeometry() {
     for (let k = 0; k <= segs; k++) {
       const t = k / segs, ww = wid * Math.sin(Math.min(1, t * 1.5 + 0.15) * Math.PI * 0.62) * (1 - t * 0.3);
       const px = dir[0] * (0.03 + len * t), pz = dir[1] * (0.03 + len * t), y = 0.03 + rise * Math.sin(t * Math.PI * 0.55) - 0.05 * t * t, shade = 0.55 + 0.6 * t;
-      for (const sd of [-1, 1]) m.vert([px + sx * ww * sd, y, pz + sz * ww * sd], [0, 1, 0.2], [0.55 * shade, shade, 0.4 * shade], [sd < 0 ? 0 : 1, t]);
+      for (const sd of [-1, 1]) m.vert([px + sx * ww * sd, y, pz + sz * ww * sd], [0, 1, 0.2], [0.5 * shade, 0.72 * shade, 0.4 * shade], [sd < 0 ? 0 : 1, t]);
     }
     for (let k = 0; k < segs; k++) { const a = first + k * 2; m.quad(a, a + 1, a + 3, a + 2); }
   }
@@ -283,20 +283,22 @@ function patchWind(material, uniforms, { height = 20, flutter = 0, fadeStart = 0
   material.customProgramCacheKey = () => 'wind-' + height + '-' + flutter + '-' + fadeEnd;
 }
 
+// 葉・幹・草は艶消しの Lambert にする。標準の材質（PBR）だと、低い太陽に向かって見る遠景の木が、
+// 掠める角度のフレネル反射（日なたの面ほど強い）で琥珀色に光り、暗い樹冠が明るい「型押しの壁紙」に見えた（第2周の評価・材質を黒にしても残った）。
 function foliageMaterial(map, uniforms, { height, flutter = 0.03, alphaTest = 0.42 }) {
-  const m = new THREE.MeshStandardMaterial({ map, vertexColors: true, roughness: 0.92, metalness: 0, side: THREE.DoubleSide, alphaTest, alphaToCoverage: true });
+  const m = new THREE.MeshLambertMaterial({ map, vertexColors: true, side: THREE.DoubleSide, alphaTest, alphaToCoverage: true, emissive: 0x253823 });   // emissive：Lambert は環境光の拡散を受けないので、日陰の葉が真っ黒にならない下駄
   patchWind(m, uniforms, { height, flutter });
   return m;
 }
-function solidMaterial(uniforms, { height, color = 0xffffff, rough = 0.95 }) {
-  const m = new THREE.MeshStandardMaterial({ color, vertexColors: true, roughness: rough, metalness: 0 });
+function solidMaterial(uniforms, { height, color = 0xffffff }) {
+  const m = new THREE.MeshLambertMaterial({ color, vertexColors: true, emissive: 0x1d2a18 });
   patchWind(m, uniforms, { height, flutter: 0 });
   return m;
 }
 
 // 木の群れ：種類ごとに近・中・遠の InstancedMesh を持ち、カメラの位置で振り分ける。
 export class TreeField {
-  constructor({ data, wind, quality = 'standard', lod = [64, 190] }) {
+  constructor({ data, wind, quality = 'standard', lod = [80, 220] }) {
     this.data = data; this.baseLod = lod; this.lod = quality === 'light' ? [lod[0] * 0.6, lod[1] * 0.7] : lod; this.light = quality === 'light'; this.group = new THREE.Group(); this.group.name = 'trees';
     const needle = needleTexture(), leaf = leafTexture();
     const kinds = [
@@ -341,7 +343,10 @@ export class TreeField {
       if (!set) continue;
       const k = set.leaf.count;
       this.q.setFromAxisAngle(this.up, d.rot[i]);
-      this.s.setScalar(d.s[i]); this.p.set(d.x[i], d.y[i] - 0.15, d.z[i]);
+      const tv = d.tint[i], f1 = (tv * 7.31) % 1, f2 = (tv * 3.17) % 1, f3 = (tv * 11.9) % 1;
+      // 遠景は幅・高さ・色をばらつかせる（同じ形の型押しに見えない）。幅広に重ねて地面をのぞかせない
+      if (level === 2) this.s.set(d.s[i] * (1.2 + 0.8 * f1), d.s[i] * (0.9 + 0.55 * f2), d.s[i] * (1.2 + 0.8 * f1)); else this.s.setScalar(d.s[i]);
+      this.p.set(d.x[i], d.y[i] - 0.15, d.z[i]);
       this.m.compose(this.p, this.q, this.s);
       set.leaf.setMatrixAt(k, this.m);
       if (set.wood) set.wood.setMatrixAt(k, this.m);
@@ -353,6 +358,7 @@ export class TreeField {
         else this.color.setRGB(0.85 + t * 0.4, 0.8 + t * 0.15, 0.5 + t * 0.25);
         set.leaf.setColorAt(k, this.color);
       }
+      else if (level === 2) { const v = 0.55 + 0.9 * f3; this.color.setRGB(v * (0.9 + 0.2 * f1), v, v * (0.8 + 0.4 * f2)); set.leaf.setColorAt(k, this.color); }
       else { const v = 0.85 + d.tint[i] * 0.3; this.color.setRGB(v, v * 1.02, v * 0.95); set.leaf.setColorAt(k, this.color); }
       set.leaf.count = k + 1; if (set.wood) set.wood.count = k + 1;
       this.stats[level === 0 ? 'near' : level === 1 ? 'mid' : 'far']++;
@@ -366,7 +372,7 @@ export class TreeField {
 
 // 草・稲：近くだけ見える（距離で縮めて消す）。空間の区画ごとに InstancedMesh を分け、視錐台と距離で区画ごと描かない。
 export function makeTufts({ data, geometry, wind, height, fadeStart, fadeEnd, tintA, tintB, flutter = 0, chunk = 24 }) {
-  const material = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, side: THREE.DoubleSide, alphaToCoverage: false });
+  const material = new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide, alphaToCoverage: false, emissive: 0x24351c });
   patchWind(material, wind, { height, flutter: flutter + 0.01, fadeStart, fadeEnd });
   const n = data.x.length, buckets = new Map();
   for (let i = 0; i < n; i++) {
@@ -403,7 +409,7 @@ export function buildVegetation({ scatter, quality = 'standard' }) {
   const grass = makeTufts({ data: scatter.grass, geometry: grassGeometry(), wind, height: 0.3, fadeStart: quality === 'light' ? 16 : 28, fadeEnd: quality === 'light' ? 26 : 46, tintA: '#4a6a2a', tintB: '#8c8c45' });
   const rice = makeTufts({ data: scatter.rice, geometry: riceGeometry(), wind, height: 1.0, fadeStart: 60, fadeEnd: 95, tintA: '#b8963c', tintB: '#d6b658', flutter: 0.02 });
   group.add(grass, rice);
-  const crops = scatter.crops?.x.length ? makeTufts({ data: scatter.crops, geometry: cropGeometry(), wind, height: 0.4, fadeStart: 55, fadeEnd: 90, tintA: '#3b5a26', tintB: '#6a8438', flutter: 0.01 }) : null;   // 家のそばの野菜畑
+  const crops = scatter.crops?.x.length ? makeTufts({ data: scatter.crops, geometry: cropGeometry(), wind, height: 0.4, fadeStart: 55, fadeEnd: 90, tintA: '#34502a', tintB: '#5c7a3a', flutter: 0.01 }) : null;   // 家のそばの野菜畑
   if (crops) group.add(crops);
   return { group, trees, grass, rice, crops, wind };
 }

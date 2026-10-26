@@ -31,7 +31,7 @@ export async function loadModels({ onProgress, anisotropy = 8 } = {}) {
     });
     // 岩は暗い青に寄って見えるので、明るく少し暖かい灰色へ寄せる（夕日の下で他の地面と並ぶように）
     if (name === 'boulder' || name === 'boulder_lo') gltf.scene.traverse(o => { if (o.isMesh) { const ms = Array.isArray(o.material) ? o.material : [o.material]; for (const m of ms) { m.color.multiply(new THREE.Color(1.7, 1.55, 1.35)); m.roughness = Math.max(m.roughness ?? 0.9, 0.92); } } });
-    if (name !== 'boulder' && name !== 'boulder_lo') gradeModel(gltf.scene, name === 'dozo' ? { whiteMax: 0.36, mossFix: 0.7 } : { whiteMax: 0.46 });          // 青い礎石・白い壁の照り・蛍光の苔を、夕景の中で他と並ぶ色へ
+    if (name !== 'boulder' && name !== 'boulder_lo') gradeModel(gltf.scene, name === 'dozo' ? { whiteMax: 0.27, mossFix: 0.8, satMax: 0.7 } : { whiteMax: 0.46 });          // 青い礎石・白い壁の照り・蛍光の苔を、夕景の中で他と並ぶ色へ
     out[name] = EXTRA_FILES.includes(name) && name !== 'boulder_lo' ? fitToUnitWidth(gltf.scene) : gltf.scene;
     onProgress?.(++done / (FILES.length + EXTRA_FILES.length));
   }));

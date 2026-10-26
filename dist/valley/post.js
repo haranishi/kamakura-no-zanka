@@ -22,7 +22,7 @@ export class Post {
     this.quad = new THREE.Mesh(FULLSCREEN, null); this.quad.frustumCulled = false;
     this.scene = new THREE.Scene(); this.scene.add(this.quad);
     this.levels = []; this.target = null;
-    this.params = { exposure: 1.0, bloomStrength: 0.34, bloomThreshold: 0.95, vignette: 0.26, saturation: 1.08, contrast: 1.06, warmth: 1.3, grain: 0.012 };
+    this.params = { exposure: 1.0, bloomStrength: 0.34, bloomThreshold: 0.95, vignette: 0.26, saturation: 0.95, contrast: 1.06, warmth: 0.8, grain: 0.012 };
 
     this.matDown = pass(`varying vec2 vUv; uniform sampler2D tex; uniform vec2 texel; uniform float threshold; uniform float first; ${TONEMAP}
       vec3 s(vec2 o){ return texture2D(tex, vUv + o * texel).rgb; }

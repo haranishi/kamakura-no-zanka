@@ -1,7 +1,7 @@
 // terrain.js — 地形メッシュ（近景1m・遠景8m）と、6層の質感を重ねる材質（view層）。
 // 高さ・路面の重みは terrain-height.js（純関数）から取る。近景と遠景は縁で縫合して、継ぎ目に割れを出さない。
 import * as THREE from 'three';
-import { smooth } from './terrain-height.js';
+import { smooth, fbm } from './terrain-height.js';
 
 const LAYERS = ['grass', 'dirt', 'rock', 'gravel', 'mud', 'litter'];
 // 1回繰り返しあたりのメートル数
@@ -116,7 +116,7 @@ function terrainMaterial(textures, quality) {
         float rk = score[2] / max(total, 1e-5);
         float macro = th_noise(wxz * 0.045) * 0.5 + th_noise(wxz * 0.19 + 7.1) * 0.35 + th_noise(wxz * 0.9) * 0.15;
         albedo *= 0.82 + macro * 0.36;
-        albedo = mix(albedo, albedo * vec3(0.88, 1.1, 0.7), clamp(w[0] * 1.2, 0.0, 1.0));
+        albedo = mix(albedo, albedo * vec3(0.92, 1.05, 0.85), clamp(w[0] * 1.2, 0.0, 1.0));
         diffuseColor.rgb *= albedo;
         gRough = clamp(rough, 0.35, 1.0);
         // UDN 合成（世界座標）。上向きの面は xz 平面、岩は三面。
@@ -214,7 +214,9 @@ export function buildTerrain({ terrain, textures, quality = 'standard' }) {
     fs0[k * 3] = (1 - rock) * (1 - forest) * (1 - water); fs0[k * 3 + 2] = rock; fs1[k * 3] = water * 0.8; fs1[k * 3 + 2] = (1 - rock) * forest * (1 - water);
     const f = forest * (1 - rock) * (1 - water);
     const ff = Math.min(1, f * 1.5);
-    fcol[k * 3] = 1 - ff * 0.74; fcol[k * 3 + 1] = 1 - ff * 0.58; fcol[k * 3 + 2] = 1 - ff * 0.78;
+    // 遠景の森の地面は樹冠の面として暗く（元の地面色の1〜1.5割）。60m前後のむら（±25%）で尾根と谷筋に段を付ける
+    const patch = 0.78 + 0.44 * fbm(x * 0.016, z * 0.016, terrain.seed + 77, 3);
+    fcol[k * 3] = 1 - ff * (1 - 0.1 * patch); fcol[k * 3 + 1] = 1 - ff * (1 - 0.14 * patch); fcol[k * 3 + 2] = 1 - ff * (1 - 0.11 * patch);
   }
   const fidx = [];
   for (let j = 0; j < fn - 1; j++) for (let i = 0; i < fn - 1; i++) {

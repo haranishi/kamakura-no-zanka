@@ -153,9 +153,11 @@ export class Battle {
       if (gl.t <= 0 || !w || !w.holder.visible || !gl.actor.fighter.alive) { this.glints.splice(i, 1); continue; }
       const len = w === gl.actor.character.weapons.naginata ? 1.7 : 0.95;
       w.holder.updateWorldMatrix(true, false);
-      for (const t of [0.4, 0.6, 0.8, 1.0]) {
+      // 細かい光の粒を刃に沿って詰める（丸い大きな玉だと「白い玉が3つ浮く」に見えた）。切先ほど明るく太い
+      for (let k = 0; k < 11; k++) {
+        const t = 0.22 + k * 0.08;
         _a.set(0, t * len, 0); w.holder.localToWorld(_a);
-        g.fx.add.emit({ pos: [_a.x, _a.y, _a.z], vel: [0, 0, 0], life: 0.13, size: 0.12 + 0.22 * t, sizeEnd: 0.04, color: [1, 0.9, 0.62], alpha: 0.9 });
+        g.fx.add.emit({ pos: [_a.x, _a.y, _a.z], vel: [0, 0, 0], life: 0.12, size: 0.07 + 0.1 * t, sizeEnd: 0.03, color: [1, 0.92, 0.68], alpha: 0.55 + 0.4 * t });
       }
     }
   }
