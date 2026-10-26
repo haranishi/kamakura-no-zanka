@@ -87,12 +87,13 @@ export function reduce(state, event) {
   }
   return { state: s, effects };
 }
-// 結果の文の境目は、実際に遊んで出る幅に合わせてある（正面で食糧33〜45・信頼44〜47、静かな脇道で食糧50前後・信頼55前後）
+// 結果の文の境目は、実際に遊んで出る幅に合わせてある（正面で食糧33〜45・信頼44〜47、静かな脇道で食糧50前後・信頼55前後）。
+// 脇道でも食糧が50を割った（見つかって荒らされた）ときは、1行目も「里は傷つかなかった」と言わない。
 export function summarize(s) {
   const { food, morale } = s.resources, approach = s.flags.approach, r = s.story.results;
   return { saved: s.flags.archerJoined ? 4 : 3, food, morale, trust: s.trust, approach,
-    lines: [r[approach || 'none'], r[food >= 50 ? 'plentiful' : food >= 35 ? 'meager' : 'scarce'],
-      morale >= 75 ? r.moraleHigh : morale >= 60 ? r.moraleMid : r.moraleLow, s.trust >= 58 ? r.trustHigh : s.trust >= 48 ? r.trustMid : r.trustLow] };
+    lines: [approach === 'flank' && food < 50 ? r.flankLoud : r[approach || 'none'], r[food >= 50 ? 'plentiful' : food >= 35 ? 'meager' : 'scarce'],
+      morale >= 72 ? r.moraleHigh : morale >= 60 ? r.moraleMid : r.moraleLow, s.trust >= 58 ? r.trustHigh : s.trust >= 48 ? r.trustMid : r.trustLow] };
 }
 export function exportProgress(state) {
   // 戦闘中の保存は、消費された資源を含め直前の区切りへ戻す。

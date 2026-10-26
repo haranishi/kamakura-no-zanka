@@ -67,7 +67,7 @@ export function buildProps({ world, terrain, models }) {
     // 足もとを地面へ。モデルの底（原点）が地面に付く前提で、少し沈めて浮きを防ぐ
     place(o, p.x, p.z, p.rotY || 0, p.scale || 1, p.kind === 'shrine' ? -0.06 : -0.04);
     if (p.kind === 'bonfire') {
-      const light = new THREE.PointLight(0xff9a4a, 9, 16, 1.6); light.position.set(p.x, terrain.heightAt(p.x, p.z) + 0.9, p.z); light.castShadow = false; group.add(light); lights.push({ light, base: 9, seed: p.x });
+      const light = new THREE.PointLight(0xffb070, 9, 16, 1.6); light.position.set(p.x, terrain.heightAt(p.x, p.z) + 0.9, p.z); light.castShadow = false; group.add(light); lights.push({ light, base: 9, seed: p.x });
     }
   }
   // 遠景（関所・砦・馬防柵）。橋は buildings.js が置く

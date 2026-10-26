@@ -16,13 +16,19 @@ export function propColliders(world) {
 
 // 散らした岩の当たり（円）。岩の模型は幅約2.7m・奥行き約2m・高さ約1.5m（boulder.glb）。幅が1.4mを超える岩だけに付ける。
 // 付けないと、里の入口の大岩の中に主人公も敵も入って見えなくなった（第2周の評価）。
+// 細長い岩（長辺が短辺の1.4倍以上）は、長い軸に沿って円を並べる。1つの円だと、長い軸の端で見た目の端から1.4mほど岩の中へ入れた（第3周の評価）。
+// 向きは buildings.js の置き方（Y軸まわりに rot 回し、x を s*sx、z を s*sz に伸ばす）と同じ。各円の rock は岩の番号。
 export { ROCK_MODEL };
 export function rockColliders(rocks) {
   const circles = [];
   for (let i = 0; i < rocks.x.length; i++) {
-    const w = ROCK_MODEL.width * rocks.s[i] * rocks.sx[i], d = ROCK_MODEL.depth * rocks.s[i] * rocks.sz[i];
-    if (Math.max(w, d) < 1.4) continue;
-    circles.push({ x: rocks.x[i], z: rocks.z[i], r: Math.min(w, d) * 0.42 + Math.max(w, d) * 0.08, height: ROCK_MODEL.height * rocks.s[i] * 0.8, id: 'rock' });
+    const w = ROCK_MODEL.width * rocks.s[i] * rocks.sx[i], d = ROCK_MODEL.depth * rocks.s[i] * rocks.sz[i], L = Math.max(w, d), S = Math.min(w, d);
+    if (L < 1.4) continue;
+    const height = ROCK_MODEL.height * rocks.s[i] * 0.8, x = rocks.x[i], z = rocks.z[i];
+    if (L / S < 1.4) { circles.push({ x, z, r: S * 0.42 + L * 0.08, height, id: 'rock', rock: i }); continue; }
+    const rr = S * 0.46, n = Math.min(8, Math.max(2, Math.ceil((L - 2 * rr) / (rr * 1.3)) + 1)), rot = rocks.rot[i];
+    const along = w >= d ? [Math.cos(rot), -Math.sin(rot)] : [Math.sin(rot), Math.cos(rot)];
+    for (let k = 0; k < n; k++) { const t = (k / (n - 1) - 0.5) * (L - 2 * rr); circles.push({ x: x + along[0] * t, z: z + along[1] * t, r: rr, height, id: 'rock', rock: i }); }
   }
   return circles;
 }

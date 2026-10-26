@@ -56,7 +56,7 @@ export class Battle {
     const pan = g.pan(def.pos), heroDef = def === g.hero, heroAtt = att === g.hero;
     switch (res.outcome) {
       case 'hit': case 'stealth': {
-        if (res.outcome === 'stealth' && heroAtt) g.stats.stealth++;
+        if (res.outcome === 'stealth' && heroAtt) { g.stats.stealth++; if (!res.dead) def.stealthStruck = true; }       // 闇討ちで倒れなかった侍大将が気づく反応は、「見つかった」に数えない
         const strong = res.moveId === 'heavy' || res.moveId === 'finisher' || res.outcome === 'stealth' || res.damage >= 20;
         g.fx.hit(pos, dir, { strong });
         g.audio.play(arrow ? 'arrow_hit' : strong ? 'hit_heavy' : 'hit', { pan });
@@ -101,7 +101,7 @@ export class Battle {
   // ---------------------------------------------------------------- 敵の反応
   onEnemyAlerted(e) {
     const g = this.g;
-    if (e.group === 'village_enemies') g.dispatch({ type: 'noticed' });
+    if (e.group === 'village_enemies' && !e.stealthStruck) g.dispatch({ type: 'noticed' });
     g.audio.play('alert', { gain: 0.7, pan: g.pan(e.pos) });
     if (g.time - this.lastAlertAt > 25) g.audio.play('taiko', { gain: 0.7, pan: g.pan(e.pos) });
     this.lastAlertAt = g.time;

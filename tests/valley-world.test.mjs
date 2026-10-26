@@ -99,13 +99,23 @@ test('no big rock stands in the village flat, on a road shoulder or in a story z
   }
   // 幅1.4m以上の岩には当たりが付く（岩の中へ入れない）
   const circles = rockColliders(rocks), bigCount = rocks.x.filter((_, i) => wide(i) >= 1.4).length;
-  assert.equal(circles.length, bigCount); assert(circles.length > 20, 'the valley should have rocks that block');
-  // 実際に止まる：いちばん大きな岩へ向かって歩くと、中心の手前で止まる（半径を0にしても、game から登録を外しても、ここで落ちる）
-  const big = [...rocks.x.keys()].sort((a, b) => wide(b) - wide(a))[0], c = circles.find(o => o.x === rocks.x[big] && o.z === rocks.z[big]);
-  assert(c && c.r > 0.5, 'the biggest rock needs a collider of real size');
-  let pos = { x: c.x + 4, y: terrain.heightAt(c.x + 4, c.z), z: c.z };
-  for (let g = 0; g < 80; g++) { const r = moveActor(col, terrain, pos, -0.1, 0, 0.3); pos = { x: r.x, y: r.y, z: r.z }; }
-  assert(Math.hypot(pos.x - c.x, pos.z - c.z) > c.r * 0.8, `walked into the biggest rock (${Math.hypot(pos.x - c.x, pos.z - c.z).toFixed(2)} m from its center, r ${c.r.toFixed(2)})`);
+  assert.equal(new Set(circles.map(o => o.rock)).size, bigCount, 'every big rock has a collider'); assert(circles.length > 20, 'the valley should have rocks that block');
+  // 実際に止まる：大きく細長い岩の長い軸の端から、中心へ向かって歩くと、見た目の端で止まる（半径を0にしても、game から登録を外しても、円を1つに戻しても、ここで落ちる）。
+  // 端の外が歩けない場所（谷の外・急な斜面）では検査にならないので、反対へ歩けることを確かめた岩だけを数える。
+  const order = [...rocks.x.keys()].filter(i => wide(i) >= 3 && wide(i) / Math.min(ROCK_MODEL.width * rocks.s[i] * rocks.sx[i], ROCK_MODEL.depth * rocks.s[i] * rocks.sz[i]) >= 1.4).sort((a, b) => wide(b) - wide(a));
+  let checked = 0;
+  for (const big of order) {
+    const w = ROCK_MODEL.width * rocks.s[big] * rocks.sx[big], d = ROCK_MODEL.depth * rocks.s[big] * rocks.sz[big], L = Math.max(w, d), rot = rocks.rot[big];
+    const along = w >= d ? [Math.cos(rot), -Math.sin(rot)] : [Math.sin(rot), Math.cos(rot)], cx = rocks.x[big], cz = rocks.z[big];
+    const start = { x: cx + along[0] * (L / 2 + 4), z: cz + along[1] * (L / 2 + 4) }; start.y = terrain.heightAt(start.x, start.z);
+    const walk = (dir, n) => { let p = { ...start }; for (let g = 0; g < n; g++) { const r = moveActor(col, terrain, p, dir[0] * 0.1, dir[1] * 0.1, 0.3); p = { x: r.x, y: r.y, z: r.z }; } return p; };
+    const away = walk(along, 30);
+    if (Math.hypot(away.x - start.x, away.z - start.z) < 2.5) continue;                         // そこは歩けない
+    const p = walk([-along[0], -along[1]], 80), t = Math.abs((p.x - cx) * along[0] + (p.z - cz) * along[1]);
+    assert(t >= L / 2 - 0.4, `walked ${(L / 2 - t).toFixed(2)} m into the rock at (${cx.toFixed(0)},${cz.toFixed(0)}) (${L.toFixed(1)} m long) along its long axis`);
+    if (++checked >= 3) break;
+  }
+  assert(checked >= 1, 'no big elongated rock had walkable ground at its end to test against');
 });
 
 test('people who come out of their houses can walk from the door to their spot and along their route', () => {
@@ -244,4 +254,29 @@ test('the bow shot segment lands the release on the combat active phase', () => 
   const m = MOVES.archer_shot, seg = segmentFor(meta, { windup: m.windup, active: m.active, recover: m.recover }, CLIP_SEGMENTS.Archery_Shot);
   const releaseAt = seg.from + m.windup * seg.speed;                  // 当たり（放ち）の時刻のクリップ内の秒
   assert(Math.abs(releaseAt - CLIP_SEGMENTS.Archery_Shot.release) < 1e-6, `release at ${releaseAt}`);
+});
+
+// 「入れるのに戻れない」所が無い：5m格子（4方向）で、出発点から行ける所のうち、出発点へ戻れない所を数える（操作と同じ移動の規則）。
+// 下りだけ急な斜面を降りられる規則や、地形・岩・建物の置き換えで、はまり込む穴ができていないかを見る。
+test('nowhere the hero can walk to is a one-way trap: every reachable cell can return to the start', () => {
+  const G = 5, b = WORLD.bounds, W = Math.floor((b.maxX - b.minX) / G), H = Math.floor((b.maxZ - b.minZ) / G);
+  const px = i => b.minX + (i % W + 0.5) * G, pz = i => b.minZ + (Math.floor(i / W) + 0.5) * G;
+  const ok = i => terrain.walkable(px(i), pz(i));
+  const fwd = Array.from({ length: W * H }, () => []), rev = Array.from({ length: W * H }, () => []);
+  for (let i = 0; i < W * H; i++) {
+    if (!ok(i)) continue;
+    const x = px(i), z = pz(i), y = terrain.heightAt(x, z);
+    for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const nx = (i % W) + dx, nz = Math.floor(i / W) + dz; if (nx < 0 || nz < 0 || nx >= W || nz >= H) continue;
+      const j = nz * W + nx; if (!ok(j)) continue;
+      const r = moveActor(col, terrain, { x, y, z }, dx * G, dz * G, 0.3);
+      if (Math.hypot(r.x - px(j), r.z - pz(j)) < 0.5) { fwd[i].push(j); rev[j].push(i); }
+    }
+  }
+  const s = Math.floor((WORLD.start.z - b.minZ) / G) * W + Math.floor((WORLD.start.x - b.minX) / G);
+  const reach = adj => { const seen = new Uint8Array(W * H), q = [s]; seen[s] = 1; for (let k = 0; k < q.length; k++) for (const j of adj[q[k]]) if (!seen[j]) { seen[j] = 1; q.push(j); } return seen; };
+  const A = reach(fwd), B = reach(rev), traps = [];
+  let nA = 0; for (let i = 0; i < W * H; i++) { if (A[i]) nA++; if (A[i] && !B[i]) traps.push(`(${px(i).toFixed(0)},${pz(i).toFixed(0)})`); }
+  assert(nA > 2000, `only ${nA} cells are reachable from the start`);
+  assert.equal(traps.length, 0, `one-way traps: ${traps.slice(0, 8).join(' ')}`);
 });

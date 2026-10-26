@@ -51,7 +51,7 @@ export class HeroActor extends Actor {
   }
   resetState() {
     this.drawn = false; this.sheatheIn = 0; this.crouch = false; this.lunge = null; this.queued = null; this.dodge = null; this.dash = null;
-    this.stepDist = 0; this.deadT = 0; this.lockTarget = null; this.lockT = 0; this.speed = 0; this.blockPosed = false; this.dead = false;
+    this.stepDist = 0; this.steepT = 0; this.deadT = 0; this.lockTarget = null; this.lockT = 0; this.speed = 0; this.blockPosed = false; this.dead = false;
     this.scripted = false;               // 演出中は動作を外から決める（冒頭の目覚めなど）
     this.recoverT = 0;
   }
@@ -266,8 +266,11 @@ export class HeroActor extends Actor {
     if (this.speed > 0.01 && ax.active) {
       this.yaw = turnToward(this.yaw, ctl.moveYaw, f.blocking ? 6 : sprint ? 9 : 14, dt);
       const before = this.pos;
-      this.step(-Math.sin(this.yaw) * this.speed * dt, -Math.cos(this.yaw) * this.speed * dt);
+      const moved = this.step(-Math.sin(this.yaw) * this.speed * dt, -Math.cos(this.yaw) * this.speed * dt);
       this.stepDist += Math.hypot(this.pos.x - before.x, this.pos.z - before.z);
+      // 急な斜面に阻まれて進めないまま歩き続けたら、理由を案内する（見えない壁に感じる。第3周の評価：斜面の縁で身動きが取れなかった）
+      if (moved.blocked === 'slope' && Math.hypot(this.pos.x - before.x, this.pos.z - before.z) < 0.01) { this.steepT += dt; if (this.steepT > 1.1) this.game.hud.hint('steep', '斜面が急で進めない。別の向きへ回り込もう', 4500); }
+      else this.steepT = Math.max(0, this.steepT - dt * 2);
       const stride = this.crouch ? 0.95 : sprint ? 2.1 : 1.45;
       if (this.stepDist > stride) { this.stepDist = 0; this.footstep(sprint); }
     } else if (this.lockTarget && this.lockTarget.fighter.alive) this.yaw = turnToward(this.yaw, yawOf(this.lockTarget.pos.x - this.pos.x, this.lockTarget.pos.z - this.pos.z), 8, dt);

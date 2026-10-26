@@ -28,7 +28,7 @@ test('MOVES retains all contract fields and freezes each row', () => {
   for (const [id, values] of Object.entries({
     heavy: [.42, .12, .55, 30, 36, 2, 90], finisher: [.25, .10, .65, 60, 0, 1.6, 90],
     soldier_slash: [.55, .12, .70, 10, 12, 1.7, 100], soldier_thrust: [.70, .10, .80, 12, 14, 2.6, 40],
-    officer_a: [.35, .12, .30, 14, 14, 2, 110], officer_b: [.34, .12, .30, 14, 14, 2, 110],
+    officer_a: [.35, .12, .30, 14, 14, 2, 110], officer_b: [.40, .12, .30, 14, 14, 2, 110],
     officer_c: [.45, .14, .80, 22, 24, 2.2, 120], counter: [.12, .10, .42, 26, 32, 2, 110],
   })) {
     const m = MOVES[id];
@@ -81,7 +81,7 @@ test('chain window accepts officer transitions and rejects wrong/completed prede
   const f = fighter('officer', {kind: 'officer'});
   startMove(f, 'officer_a'); tick(f, .47);
   assert.equal(startMove(f, 'officer_b'), true);
-  tick(f, .45);
+  tick(f, .51);
   assert.equal(startMove(f, 'officer_c'), false);                 // 二段目の戻りの窓はまだ開かない
   tick(f, .01);
   assert.equal(startMove(f, 'officer_c'), true);
@@ -430,4 +430,36 @@ test('cancelMove stops a swing that has not landed, so a soldier who turns to fl
   assert.equal(startMove(a, 'soldier_slash'), true, 'and the soldier can act again');
   const dead = fighter('dead'); applyDamage(dead, dead.hp, 0);
   assert.equal(cancelMove(dead), false);
+});
+
+test('the hero is not hit while performing a finisher, and the finisher still lands', () => {
+  const [a, d] = pair(); broken(d);
+  assert.equal(finish(a, d), true); tick(a, MOVES.finisher.windup);
+  const hit = createFighter({id: 'officer', team: 'enemy', kind: 'officer', z: 1, yaw: 0});
+  startMove(hit, 'officer_a'); tick(hit, MOVES.officer_a.windup);
+  assert.equal(strike(hit, a).outcome, 'evaded', 'a swing during the finisher does not hurt');
+  assert.equal(projectileHit(a, {damage: 12, posture: 8, fromYaw: 0}).outcome, 'evaded', 'neither does an arrow');
+  assert.equal(strike(a, d).outcome, 'hit'); assert.equal(d.alive, false);
+  tick(a, MOVES.finisher.active + MOVES.finisher.recover + .01);
+  assert.equal(a.state, 'idle');
+  const next = createFighter({id: 'officer2', team: 'enemy', kind: 'officer', z: 1, yaw: 0});
+  startMove(next, 'officer_a'); tick(next, MOVES.officer_a.windup);
+  assert.equal(strike(next, a).outcome, 'hit', 'protection ends with the finisher');
+});
+test('the hero can cancel the second half of a swing\'s recovery into a block (and so into a parry); enemies cannot', () => {
+  const f = fighter(); startMove(f, 'light1');
+  const m = MOVES.light1; tick(f, m.windup + m.active + m.recover * .4);
+  assert.equal(f.move.phase, 'recover'); assert.equal(setBlock(f, true), false, 'the first half of the recovery is committed');
+  tick(f, m.recover * .1 + .005);
+  assert.equal(setBlock(f, true), true); assert.equal(f.state, 'idle'); assert.equal(f.blocking, true); assert.ok(f.parryT > 0);
+  assert.equal(f.move, null);
+  // 弾き：光を見てからの押しで、戻りから出した受けも弾きになる
+  const h = fighter(), s = createFighter({id: 's', team: 'enemy', kind: 'soldier', z: -1, yaw: Math.PI});
+  startMove(h, 'light1'); tick(h, m.windup + m.active + m.recover * .6); assert.equal(setBlock(h, true), true);
+  startMove(s, 'soldier_slash'); tick(s, MOVES.soldier_slash.windup);
+  assert.equal(strike(s, h).outcome, 'parried');
+  // 弱い斬りの戻りの前半・強斬り前の予備動作・敵は切り替えられない
+  const g = fighter(); startMove(g, 'light1'); tick(g, m.windup / 2); assert.equal(setBlock(g, true), false);
+  const e = createFighter({id: 'e', team: 'enemy', kind: 'soldier'}); startMove(e, 'soldier_slash'); tick(e, MOVES.soldier_slash.windup + MOVES.soldier_slash.active + MOVES.soldier_slash.recover * .9);
+  assert.equal(setBlock(e, true), false);
 });

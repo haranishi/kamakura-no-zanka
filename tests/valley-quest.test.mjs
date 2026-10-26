@@ -156,7 +156,7 @@ test('result text has three tiers each, cut where real play lands (front: food 3
   const lines = (food, morale, trust) => { const s = escort(); Object.assign(s.resources, { food, morale }); s.trust = trust; return summarize(s).lines; };
   const L = STORY.results;
   assert.deepEqual([50, 49, 35, 34].map(f => lines(f, 65, 40)[1]), [L.plentiful, L.meager, L.meager, L.scarce]);
-  assert.deepEqual([75, 74, 60, 59].map(m => lines(60, m, 40)[2]), [L.moraleHigh, L.moraleMid, L.moraleMid, L.moraleLow]);
+  assert.deepEqual([72, 71, 60, 59].map(m => lines(60, m, 40)[2]), [L.moraleHigh, L.moraleMid, L.moraleMid, L.moraleLow]);
   assert.deepEqual([58, 57, 48, 47].map(t => lines(60, 65, t)[3]), [L.trustHigh, L.trustMid, L.trustMid, L.trustLow]);
   assert.ok(L.plentiful.includes('冬を越せる') && L.meager.includes('蓄えは半分') && L.scarce.includes('次は匿えない'));
 });
@@ -199,4 +199,10 @@ test('being noticed before the village entrance still counts: no unseen bonus', 
   assert.equal(clear(false).seen, false); assert.equal(clear(true).seen, true);
   assert.ok(clear(false).trust >= clear(true).trust + 8);
   assert.equal(run(createQuest(STORY), 'noticed').seen, false, 'only the viewpoint and the village count');
+});
+test('the first result line does not say the village was unharmed when a flank was seen and the stores were raided', () => {
+  const first = (approach, food) => { const s = escort(); s.flags.approach = approach; s.resources.food = food; return summarize(s).lines[0]; };
+  const L = STORY.results;
+  assert.equal(first('flank', 57), L.flank); assert.equal(first('flank', 49), L.flankLoud);
+  assert.equal(first('front', 30), L.front, 'a front approach never claims to be quiet');
 });

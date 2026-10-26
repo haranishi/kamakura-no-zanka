@@ -75,12 +75,19 @@ function penetration(o, x, z, radius) {
   }
   return { x: pu * o.c + pv * o.s, z: -pu * o.s + pv * o.c };
 }
-function reason(col, terrain, x, z, r, y, opts) {
+function reason(col, terrain, x, z, r, y, opts, from = null) {
   if (!inBounds(col.bounds, x, z, r) || !inBounds(terrain.bounds, x, z, r)) return 'bounds';
   const water = terrain.waterAt(x, z), slope = terrain.slopeAt(x, z), h = terrain.heightAt(x, z);
   finite(water, slope, h);
   if (water > 0.45) return 'water';
-  if (slope > (opts.maxSlope ?? 42)) return 'slope';
+  // 歩けるのは46度まで（地面の質感が岩に変わる47度の手前）。下りだけは、それより急な斜面（既定56度まで）も降りられる。
+  // 42度だと、道の縁の土手（41〜46度）が見えない壁になり、待ち伏せの斜面の弓兵を追った主人公が道へ戻れなくなった（第3周の評価）。
+  if (slope > (opts.maxSlope ?? 46)) {
+    const descending = y !== null && h < y - 0.005;
+    // 46度を超える急な帯の上に立っているとき（敵に押し出された・下りで入った）は、いまの斜度以下の所へなら、上りでも歩いて出られる。出られないと、林道のS字の縁で身動きが取れなくなった
+    const escaping = from !== null && slope <= terrain.slopeAt(from.x, from.z);
+    if (!((descending && slope <= (opts.maxDownSlope ?? 56)) || escaping)) return 'slope';
+  }
   if (y !== null && h - y > (opts.maxStep ?? 0.55) + EPS) return 'step';
   return null;
 }
@@ -100,6 +107,7 @@ function resolve(col, x, z, r) {
 export function moveActor(col, terrain, pos, dx, dz, radius = 0.3, opts = {}) {
   finite(pos.x, pos.y, pos.z, dx, dz); size(radius);
   if (opts.maxSlope !== undefined) size(opts.maxSlope);
+  if (opts.maxDownSlope !== undefined) size(opts.maxDownSlope);
   if (opts.maxStep !== undefined) size(opts.maxStep);
   let x = pos.x, z = pos.z, y = terrain.heightAt(x, z), blocked = null, slid = false;
   finite(y);
@@ -108,21 +116,22 @@ export function moveActor(col, terrain, pos, dx, dz, radius = 0.3, opts = {}) {
   for (let i = 0; i < n; i++) {
     const ox = x, oz = z, oy = y;
     let nx = x + sx, nz = z + sz;
-    let why = reason(col, terrain, nx, nz, radius, oy, opts);
+    const from = { x: ox, z: oz };
+    let why = reason(col, terrain, nx, nz, radius, oy, opts, from);
     if (why) {
       blocked = why; nx = x; nz = z;
       if (sx !== 0) {
-        why = reason(col, terrain, x + sx, z, radius, oy, opts);
+        why = reason(col, terrain, x + sx, z, radius, oy, opts, from);
         if (why) blocked = why; else nx += sx;
       }
       if (sz !== 0) {
-        why = reason(col, terrain, nx, z + sz, radius, oy, opts);
+        why = reason(col, terrain, nx, z + sz, radius, oy, opts, from);
         if (why) blocked = why; else nz += sz;
       }
     }
     const p = resolve(col, nx, nz, radius);
     if (p.hit) blocked = 'wall';
-    why = reason(col, terrain, p.x, p.z, radius, oy, opts);
+    why = reason(col, terrain, p.x, p.z, radius, oy, opts, from);
     if (why) { blocked = why; } else if (!p.overlap) { x = p.x; z = p.z; }
     if ((p.hit || nx !== ox + sx || nz !== oz + sz) && Math.abs(sx * (z - oz) - sz * (x - ox)) > EPS) slid = true;
     y = terrain.heightAt(x, z); finite(y);

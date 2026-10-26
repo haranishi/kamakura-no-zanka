@@ -599,7 +599,7 @@ export class Game {
     if (this.pillageT < 0.5) return;
     const dtp = this.pillageT; this.pillageT = 0;
     let raiders = 0, loud = false;
-    for (const e of this.enemies) if (e.group === 'village_enemies' && e.fighter.alive && !e.departed && !['retreat', 'surrendered'].includes(e.brain.state)) { raiders++; if (e.brain.state === 'combat') loud = true; }
+    for (const e of this.enemies) if (e.group === 'village_enemies' && e.fighter.alive && !e.departed && !['retreat', 'surrendered'].includes(e.brain.state)) { raiders++; if (e.brain.state === 'combat' && !e.stealthStruck) loud = true; }
     this.dispatch({ type: 'pillage_tick', dt: dtp * FEEL.pillageScale, pillagers: raiders, loud });
   }
 

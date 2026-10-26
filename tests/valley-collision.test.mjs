@@ -47,10 +47,31 @@ test('water stops only the blocked axis and allows exactly 0.45m', () => {
   assert.ok(out.x <= 0); near(out.z, 1);
   assert.equal(out.blocked, 'water'); assert.equal(out.slid, true);
 });
-test('slope threshold defaults to 42 degrees and can be overridden', () => {
-  const t = flat({ slopeAt: x => x > 0 ? 43 : 0 }), c = colliders();
+test('slope threshold defaults to 46 degrees and can be overridden', () => {
+  const t = flat({ slopeAt: x => x > 0 ? 47 : 0 }), c = colliders();
   assert.equal(moveActor(c, t, pos(-0.1, 0), 0.5, 0).blocked, 'slope');
-  near(moveActor(c, t, pos(-0.1, 0), 0.5, 0, 0.3, { maxSlope: 43 }).x, 0.4);
+  near(moveActor(c, t, pos(-0.1, 0), 0.5, 0, 0.3, { maxSlope: 47 }).x, 0.4);
+  near(moveActor(c, flat({ slopeAt: x => x > 0 ? 46 : 0 }), pos(-0.1, 0), 0.5, 0).x, 0.4);                   // 46度ちょうどは歩ける（道の縁の土手）
+});
+test('ground steeper than 46 degrees (up to 56) can be walked down but never up', () => {
+  // 0<x<3 が50度の土手。x<0 は上の平地、x>3 は下の平地
+  const bank = flat({ heightAt: x => x <= 0 ? 0 : x < 3 ? -x * 1.19 : -3.57, slopeAt: x => x > 0 && x < 3 ? 50 : 0 }), c = colliders();
+  const down = moveActor(c, bank, pos(-0.1, 0), 4.5, 0);
+  assert.equal(down.blocked, null); near(down.x, 4.4); near(down.y, -3.57);                                   // 降りられる
+  const up = moveActor(c, bank, pos(4, 0, -3.57), -3, 0);
+  assert.equal(up.blocked, 'slope'); assert.ok(up.x >= 2.9, `climbed into the bank (${up.x})`);              // 下の平地からは登れない
+  const cliff = flat({ heightAt: x => x > 0 ? -x * 1.7 : 0, slopeAt: x => x > 0 ? 60 : 0 });                  // 60度は降りられない
+  assert.equal(moveActor(c, cliff, pos(-0.1, 0), 1.2, 0).blocked, 'slope');
+  assert.equal(moveActor(c, bank, pos(-0.1, 0), 1.2, 0, 0.3, { maxDownSlope: 45 }).blocked, 'slope');         // 上限は変えられる
+});
+test('standing on a band steeper than 46 degrees, the hero can walk out toward gentler ground, but not into steeper ground', () => {
+  // x<0 は平ら、-3<x<0 は50度の帯（押し出されて立った所）、x<-3 は 30度。0付近の高さは緩やかに上がる
+  const slopeAt = x => x < -3 ? 30 : x < 0 ? 50 : 0, heightAt = x => x < -3 ? 0 : x < 0 ? (x + 3) * 1.19 : 3.57;
+  const band = flat({ slopeAt, heightAt }), c = colliders();
+  const out = moveActor(c, band, pos(-1.5, 0, heightAt(-1.5)), 3, 0);                                         // 帯から平らな所（上り）へ出られる
+  assert.equal(out.blocked, null); assert.ok(out.x > 1);
+  const steeper = flat({ slopeAt: x => x < -2 ? 40 : x < 0 ? 52 : 40, heightAt: x => x * 1.2 });             // いまの帯(40度未満の側)から、より急な所へは入れない
+  assert.equal(moveActor(c, steeper, pos(-4, 0, -4.8), 3, 0).blocked, 'slope');
 });
 test('steps block uphill only, obey maxStep, and follow the ground', () => {
   const t = flat({ heightAt: x => x >= 0 ? 0.6 : 0 }), c = colliders();

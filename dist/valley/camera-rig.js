@@ -58,7 +58,7 @@ export class CameraRig {
     // 手前へ寄せるときは即座に、戻すときはゆっくり
     this.clipped = t < this.clipped ? t : damp(this.clipped, t, 5, dt);
     this.lift = damp(this.lift, lift, lift > this.lift ? 18 : 4, dt);
-    const px = this.focus.x + (desired.x - this.focus.x) * this.clipped, py = this.focus.y + (desired.y - this.focus.y) * this.clipped + this.lift * LIFT, pz = this.focus.z + (desired.z - this.focus.z) * this.clipped;
+    const px = this.focus.x + (desired.x - this.focus.x) * this.clipped, py = this.focus.y + (desired.y - this.focus.y) * this.clipped + this.lift * LIFT * (1 - 0.4 * lb), pz = this.focus.z + (desired.z - this.focus.z) * this.clipped;
     this.camera.position.set(px, py, pz);
     // 揺れ（減衰する）
     this.shake = damp(this.shake, 0, 7, dt); this.shakeSeed += dt * 60;
@@ -69,8 +69,12 @@ export class CameraRig {
     let lx = this.focus.x + right.x * shoulder * 0.4 + forward.x * 2.0, lz = this.focus.z + right.z * shoulder * 0.4 + forward.z * 2.0;
     if (lockTarget) { const m = 0.55 * lb; lx += ((this.focus.x + lockTarget.x) / 2 - lx) * m; lz += ((this.focus.z + lockTarget.z) / 2 - lz) * m; }   // 注視点を主人公と敵のあいだへ
     let ly = this.focus.y - 0.1 - sp * 0.5;
+    // 上へ逃げているときは視線を主人公の頭へ寄せる。狙っている敵がいるなら、主人公と敵のあいだへ寄せる（頭だけだと、敵が画面の端へ追いやられた）
     const toHero = Math.min(1, this.lift) * 0.7;
-    if (toHero > 0.001) { lx += (this.focus.x - lx) * toHero; lz += (this.focus.z - lz) * toHero; ly += (this.focus.y - ly) * toHero; }
+    if (toHero > 0.001) {
+      const ax = lockTarget ? (this.focus.x + lockTarget.x) / 2 : this.focus.x, az = lockTarget ? (this.focus.z + lockTarget.z) / 2 : this.focus.z;
+      lx += (ax - lx) * toHero; lz += (az - lz) * toHero; ly += (this.focus.y - ly) * toHero;
+    }
     this.camera.lookAt(lx, ly, lz);
     this.fovPunch = damp(this.fovPunch, 0, 8, dt);
     const fov = this.baseFov + this.fovPunch;

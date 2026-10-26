@@ -30,8 +30,8 @@ export const MOVES = freezeRows({
   soldier_thrust: move('soldier_thrust', .70, .10, .80, 12, 14, 2.6, 40, 'Katana_Thrust', {telegraph: .70}),
   officer_a: move('officer_a', .35, .12, .30, 14, 14, 2, 110, 'Officer_Attack', {telegraph: .35}),
   // 二段目の威力・間合いは未記載のため一段目を引き継ぐ。
-  officer_b: move('officer_b', .34, .12, .30, 14, 14, 2, 110, 'Officer_Attack',
-    {telegraph: .34, chainFrom: 'officer_a', chainWindow: .30}),
+  officer_b: move('officer_b', .40, .12, .30, 14, 14, 2, 110, 'Officer_Attack',
+    {telegraph: .40, chainFrom: 'officer_a', chainWindow: .30}),
   officer_c: move('officer_c', .45, .14, .80, 22, 24, 2.2, 120, 'Officer_Attack',
     {telegraph: .45, chainFrom: 'officer_b', chainWindow: .30}),
   // 弾きの直後だけ出せる反撃（RULES.counterWindow）。受け止めた勢いで斬り返すので、予備が短く構え削りが大きい。
@@ -89,6 +89,11 @@ export function startMove(f, moveId) {
 export function setBlock(f, on) {
   if (!f.alive) return false;
   if (!on) { f.blocking = false; f.parryT = 0; return true; }
+  // 主人公は、斬りの戻りの後半から受けへ切り替えられる（戻りの終わりを待つと、侍大将の刃の光を見ても間に合わなかった）。転がりへの切り替えは前から戻りの途中で出せる
+  if (f.team === 'hero' && f.state === 'attack' && f.move?.phase === 'recover') {
+    const m = MOVES[f.move.id];
+    if (m.kind !== 'shot' && m.id !== 'finisher' && f.move.t + EPS >= m.windup + m.active + m.recover * 0.5) { interrupt(f); f.state = 'idle'; }
+  }
   if (f.state !== 'idle') return false;
   // 押しっぱなしで毎フレーム弾き窓を再装填しない。
   if (!f.blocking) f.parryT = RULES.parry;
@@ -191,7 +196,10 @@ function inArc(yaw, dx, dz, arc) {
 const inReach = (a, d, reach, arc) =>
   Math.hypot(d.x - a.x, d.z - a.z) <= reach + STATS[d.kind].radius + EPS &&
   inArc(a.yaw, d.x - a.x, d.z - a.z, arc);
-const invulnerable = f => f.state === 'dodge' && f.dodgeT + EPS >= RULES.invStart && f.dodgeT <= RULES.invEnd + EPS;
+// 転がりの無敵に加えて、とどめを刺している最中（崩れた敵に集中する1.0秒）は、斬りも矢も当たらない。
+// 無いと、侍大将の一段目をとどめの最中に受け、そのまま続けて斬られて倒れた（第3周の評価。倒れた8回の受けた63発のうち65%が侍大将）。
+const invulnerable = f => (f.state === 'dodge' && f.dodgeT + EPS >= RULES.invStart && f.dodgeT <= RULES.invEnd + EPS) ||
+  (f.state === 'attack' && f.move?.id === 'finisher');
 const result = (outcome, damage, postureDamage, def, moveId = null, attackerId = null) =>
   ({outcome, damage, postureDamage, staggered: def.state === 'stagger', dead: !def.alive,
     moveId, attackerId, defenderId: def.id});
