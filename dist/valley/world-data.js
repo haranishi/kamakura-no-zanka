@@ -129,6 +129,13 @@ export const WORLD = {
       { id: 'v_work2', who: 'villager_f', x: -22, z: 58, yaw: 5.0, role: 'rice' },
     ],
     captive: { id: 'archer', who: 'archer', x: -10, z: 6, yaw: 3.0 },
+    // 里を取り戻したあと、家から出てくる人々（door から spot へ歩く）。route があれば里の道を往復する。
+    revived: [
+      { id: 'r_man', who: 'villager_m', door: [-13.1, 13.1], spot: [-3.4, 2.6], yaw: 0.6, role: 'chat', face: 'r_woman' },
+      { id: 'r_woman', who: 'villager_f', door: [-16.5, -7.2], spot: [-1.6, 3.6], yaw: -2.4, role: 'talk', face: 'r_man' },
+      { id: 'r_walker', who: 'villager_m', door: [14.7, 11.1], spot: [14.7, 11.1], yaw: 3.0, role: 'walker', route: [[14.7, 11.1], [4, 9.5], [-8, 11]] },
+      { id: 'r_child', who: 'child', door: [10.9, -13.1], spot: [5.2, -5.4], yaw: 0.8, role: 'child' },
+    ],
   },
 
   // 森の濃さ（0〜1）を決める中心と半径の足し合わせ。里・道・平場は scatter が別に避ける。

@@ -18,7 +18,7 @@ const BUSY = ['attack', 'hit', 'stagger', 'recoil', 'dodge'];
 
 // 技ごとの踏み込み（m）。動作の根の移動は取り除いてあるので、ここで前へ出す。
 const LUNGE = { light1: 0.55, light2: 0.45, light3: 0.85, heavy: 0.6, finisher: 0.3, counter: 0.75, soldier_slash: 0.5, soldier_thrust: 0.9, officer_a: 0.5, officer_b: 0.4, officer_c: 0.8 };
-export const SPEED = { walk: 2.5, sprint: 5.0, crouch: 1.3, guard: 1.5, patrol: 1.3, orbit: 0.95, run: 3.6, officerRun: 3.2, ally: 2.0, child: 4.2 };
+export const SPEED = { walk: 2.5, sprint: 5.0, crouch: 1.3, guard: 1.5, patrol: 1.3, orbit: 0.95, run: 3.6, officerRun: 3.2, ally: 2.0, child: 4.2, villager: 1.2 };
 
 class Actor {
   constructor(game, { id, who, x, z, yaw = 0, scale = 1, tint = null, style = 'relaxed', radius = 0.3 }) {
@@ -573,17 +573,20 @@ export class NpcActor extends Actor {
     this.def = def; this.role = def.role; this.goal = null; this.speedNow = 0; this.mode = 'idle'; this.clipT = 0; this.facePoint = null;
     this.character.time = (hashId(def.id) % 40) / 10;
   }
-  runTo(x, z, then) { this.goal = { x, z, then }; this.mode = 'run'; this.clipT = 0; }
+  runTo(x, z, then, speed = SPEED.child) { this.goal = { x, z, then, speed }; this.mode = 'run'; this.clipT = 0; }
   setCower(on) { this.mode = on ? 'cower' : 'idle'; this.clipT = 0; this.character.locoName = null; }
   lookAt(p) { this.facePoint = p; }
   idleClip() {
     switch (this.role) {
       case 'rice': return 'Pull_Radish';
-      case 'old': return 'Stand_and_Chat';
-      case 'tsubaki': return 'Talk_with_Hands_Open';
+      case 'old': case 'chat': return 'Stand_and_Chat';
+      case 'tsubaki': case 'talk': return 'Talk_with_Hands_Open';
+      case 'walker': return 'Stand_and_Chat';
       default: return 'Long_Breathe_and_Look_Around';
     }
   }
+  // 里の道を往復する（着くたびに少し立ち止まる）
+  setRoute(points, from = 0) { this.route = points.map(([x, z]) => ({ x, z })); this.routeI = from; this.routeDir = 1; this.mode = 'route'; this.waitT = 0; }
   update(dt) {
     const ch = this.character;
     if (this.mode === 'run' && this.goal) {
@@ -591,9 +594,18 @@ export class NpcActor extends Actor {
       if (d < 0.9) { const then = this.goal.then; this.goal = null; this.mode = 'idle'; this.speedNow = 0; this.clipT = 0; then?.(this); }
       else {
         this.yaw = turnToward(this.yaw, yawOf(dx, dz), 9, dt);
-        this.speedNow = approach(this.speedNow, d < 3 ? 2.4 : SPEED.child, 14, dt);
+        this.speedNow = approach(this.speedNow, d < 3 ? Math.min(2.4, this.goal.speed) : this.goal.speed, 14, dt);
         this.step(dx / d * this.speedNow * dt, dz / d * this.speedNow * dt);
         ch.locomote(this.speedNow, 'villager');
+      }
+    } else if (this.mode === 'route' && this.route) {
+      if (this.waitT > 0) {
+        this.waitT -= dt; this.speedNow = approach(this.speedNow, 0, 6, dt);
+        const clip = this.idleClip(); if (ch.currentName !== clip) { ch.play(clip, { fade: 0.35 }); ch.locoName = null; }
+      } else {
+        const p = this.route[this.routeI], dx = p.x - this.pos.x, dz = p.z - this.pos.z, d = Math.hypot(dx, dz);
+        if (d < 0.8) { if (this.routeI + this.routeDir < 0 || this.routeI + this.routeDir >= this.route.length) this.routeDir = -this.routeDir; this.routeI += this.routeDir; this.waitT = 2.5 + (hashId(this.id) % 30) / 10; }
+        else { this.yaw = turnToward(this.yaw, yawOf(dx, dz), 5, dt); this.speedNow = approach(this.speedNow, SPEED.villager, 4, dt); this.step(dx / d * this.speedNow * dt, dz / d * this.speedNow * dt); ch.locomote(this.speedNow, 'villager'); }
       }
     } else if (this.mode === 'cower') {
       if (ch.currentName !== 'Sit_Cross_Legged_on_Floor') { ch.play('Sit_Cross_Legged_on_Floor', { fade: 0.5 }); ch.locoName = null; }

@@ -5,7 +5,7 @@ import { WORLD } from './world-data.js';
 import { buildColliders, rayClip } from './collision.js';
 import { createAIWorld } from './ai-world.js';
 import { propColliders } from './world-colliders.js';
-import { HeroActor, EnemyActor, AllyActor, NpcActor, yawOf, dist2 } from './actors.js';
+import { HeroActor, EnemyActor, AllyActor, NpcActor, SPEED, yawOf, dist2 } from './actors.js';
 import { Battle } from './battle.js';
 import { CameraRig } from './camera-rig.js';
 import { FX } from './fx.js';
@@ -80,6 +80,21 @@ export class Game {
     if (!def || this.npcs.has(id)) return this.npcs.get(id);
     const n = new NpcActor(this, def); this.npcs.set(id, n); return n;
   }
+  // 里を取り戻したあと家から出てくる人々。walk=true なら戸口から持ち場へ歩く、false ならもう持ち場にいる（つづき・やり直し）
+  makeRevived(walk) {
+    const made = [];
+    for (const d of WORLD.spawns.revived) {
+      if (this.npcs.has(d.id)) continue;
+      const from = walk ? d.door : d.route ? d.route[1] : d.spot;
+      const n = new NpcActor(this, { id: d.id, who: d.who, x: from[0], z: from[1], yaw: d.yaw, role: d.role });
+      this.npcs.set(d.id, n); made.push([n, d]);
+    }
+    for (const [n, d] of made) {                                    // 相手が揃ってから向きを決める
+      const settle = () => { if (d.route) n.setRoute(d.route, 2); else if (d.face) n.lookAt(this.npcs.get(d.face)?.pos || null); };
+      const goal = d.route ? d.route[1] : d.spot;
+      if (walk) n.runTo(goal[0], goal[1], settle, SPEED.villager); else settle();
+    }
+  }
   makeCaptive(joined = false) {
     if (this.ally) return;
     const c = WORLD.spawns.captive;
@@ -101,6 +116,7 @@ export class Game {
     // 敵
     if (at === 2) this.makeEnemies('road_scout', { alert: 'unaware' });
     if (at <= 4) this.makeEnemies('village_enemies', { alert: at === 4 && flags.approach === 'front' ? 'high' : 'unaware', dormant: at < 3 });
+    if (at >= 5 && at <= 6) this.makeRevived(false);
     if (at <= 5 && !flags.archerJoined) this.makeCaptive(false);
     if (flags.archerJoined || at >= 6) {
       this.makeCaptive(true); this.ally.join(true);
@@ -318,7 +334,7 @@ export class Game {
     if (id === 'viewpoint_overlook') this.after(0.2, () => this.clearCine());
     if (id === 'boy_arrives') { const boy = this.npcs.get('boy'); if (boy) boy.runTo(-88.4, -74.5, b => { b.setCower(true); }); }
     if (id === 'viewpoint_overlook') this.showChoice();
-    if (id === 'village_cleared') for (const n of ['v_old', 'v_tsubaki']) this.npcs.get(n)?.setCower(false);
+    if (id === 'village_cleared') { for (const n of ['v_old', 'v_tsubaki']) this.npcs.get(n)?.setCower(false); this.after(1.2, () => { if (this.quest.beat === 'b5_archer' || this.quest.beat === 'b6_escort') this.makeRevived(true); }); }
     if (id === 'archer_joins') {
       this.ally?.join(false);
       this.after(2.6, () => { this.dispatch({ type: 'party_joined', id: 'archer' }); this.hud.setParty(true, this.modeLabel('follow')); this.hud.hint('command', STORY.hints.command, 7000); });

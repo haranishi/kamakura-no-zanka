@@ -24,7 +24,10 @@ const inBounds = p => p.x >= WORLD.bounds.minX && p.x <= WORLD.bounds.maxX && p.
 test('every spawn, zone center, checkpoint, start and exit is inside the walkable bounds and not inside an obstacle', () => {
   const points = [['start', WORLD.start], ['exit', WORLD.exit]];
   for (const [id, z] of Object.entries(WORLD.checkpoints)) points.push([id, z]);
-  for (const [group, list] of Object.entries(WORLD.spawns)) for (const s of [].concat(list)) points.push([group + ':' + s.id, s]);
+  for (const [group, list] of Object.entries(WORLD.spawns)) for (const s of [].concat(list)) {
+    if (s.door) { for (const [k, v] of [['door', s.door], ['spot', s.spot], ...(s.route || []).map((r, i) => ['route' + i, r])]) points.push([`${group}:${s.id} ${k}`, { x: v[0], z: v[1] }]); }   // 家から出てくる人は戸口・持ち場・巡る道の点で見る
+    else points.push([group + ':' + s.id, s]);
+  }
   for (const [name, z] of Object.entries(WORLD.zones)) points.push(['zone ' + name, z]);
   for (const [name, p] of points) {
     assert(inBounds(p), `${name} is outside the bounds`);
@@ -65,6 +68,24 @@ test('an enemy can reach the exit from every village spawn (else it would surren
     const path = ai.pathTo({ id: s.id, x: s.x, z: s.z }, WORLD.exit);
     assert(path && path.length, `${s.id} cannot reach the exit`);
   }
+});
+
+test('people who come out of their houses can walk from the door to their spot and along their route', () => {
+  assert(WORLD.spawns.revived.length >= 3, 'the revived village needs people');
+  for (const r of WORLD.spawns.revived) {
+    const legs = [[r.door, r.spot], ...(r.route ? r.route.slice(1).map((p, i) => [r.route[i], p]) : [])];
+    for (const [a, b] of legs) {
+      if (a[0] === b[0] && a[1] === b[1]) continue;
+      ai.clear();
+      const path = ai.pathTo({ id: r.id, x: a[0], z: a[1] }, { x: b[0], z: b[1] });
+      assert(path && path.length, `${r.id}: no path ${a} → ${b}`);
+      const end = path[path.length - 1];
+      assert(Math.hypot(end.x - b[0], end.z - b[1]) < 1.5, `${r.id}: path ends ${Math.hypot(end.x - b[0], end.z - b[1]).toFixed(1)} m short of ${b}`);
+    }
+    if (r.face) assert(WORLD.spawns.revived.some(o => o.id === r.face), `${r.id} faces nobody (${r.face})`);
+  }
+  const ids = WORLD.spawns.revived.map(r => r.id).concat(WORLD.spawns.villagers.map(v => v.id));
+  assert.equal(new Set(ids).size, ids.length, 'villager ids must be unique');
 });
 
 test('decorations do not overlap buildings, and fences stay clear of roads the hero must use', () => {
