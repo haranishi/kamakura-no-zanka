@@ -2,7 +2,7 @@
 // 規則は論理モジュールが持つ。ここでは「入力→意図→論理の呼び出し→動作・音・演出」の結線だけを書く。
 import { Character } from './characters.js';
 import { GRIP } from './config.js';
-import { makeYumi, makeArrow, makeQuiver } from './weapons.js';
+import { makeYumi, makeArrow, makeQuiver, makeRopes } from './weapons.js';
 import { moveActor } from './collision.js';
 import { MOVES, createFighter, startMove, setBlock, startDodge, tick, finish, stealthStrike } from './combat.js';
 import { createBrain, think } from './enemy-ai.js';
@@ -473,7 +473,7 @@ export class AllyActor extends Actor {
     this.character.attachBow(GRIP, makeArrow());
     this.role = captive ? 'captive' : 'party';
     this.speedNow = 0; this.stepDist = 0; this.lunge = null; this.down = false; this.standT = 0; this.shootTarget = null;
-    if (captive) { this.character.weapons.yumi.holder.visible = false; this.character.play('Sit_Cross_Legged_on_Floor', { fade: 0 }); }
+    if (captive) { this.character.weapons.yumi.holder.visible = false; this.character.play('Sit_Cross_Legged_on_Floor', { fade: 0 }); this.character.attach('rope', makeRopes(), { bone: 'Spine01', pos: [0, 0.0, 0] }); }
   }
   get inParty() { return this.role === 'party'; }
   get alive() { return !this.down; }
@@ -481,6 +481,7 @@ export class AllyActor extends Actor {
   // 縄を解かれて立ち、仲間に加わる
   join(instant = false) {
     this.role = 'party'; this.standT = instant ? 0 : 2.4; this.character.weapons.yumi.holder.visible = true;
+    if (this.character.weapons.rope) this.character.weapons.rope.holder.visible = false;     // 縄は解かれる
     if (!instant) this.character.play('Kneel_on_One_Knee_and_Stand', { fade: 0.25, timeScale: 1.1, restart: true });
     else this.character.locoName = null;
   }

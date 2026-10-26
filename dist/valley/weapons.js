@@ -183,3 +183,13 @@ export function makeQuiver() {
 
 export const WEAPON_KINDS = { tachi: makeTachi, naginata: makeNaginata, yumi: makeYumi, arrow: makeArrow, quiver: makeQuiver };
 export { TAU };
+
+// 縛めの縄（捕虜の胴と腕に巻く）。輪は骨のローカル Y 軸まわり。色は藁縄。
+export function makeRopes() {
+  const g = new THREE.Group(), mat = new THREE.MeshStandardMaterial({ color: 0xb59a6a, roughness: 0.95, metalness: 0 });
+  for (const [y, r] of [[-0.1, 0.2], [-0.035, 0.215], [0.03, 0.215], [0.095, 0.2]]) {          // Spine01（胸）の位置を中心に。座っているときの胴は幅約0.4m
+    const geo = new THREE.TorusGeometry(r, 0.013, 6, 28); geo.rotateX(Math.PI / 2);
+    const m = new THREE.Mesh(geo, mat); m.position.y = y; m.scale.z = 0.75; m.castShadow = true; g.add(m);
+  }
+  return g;
+}

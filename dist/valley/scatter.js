@@ -14,6 +14,15 @@ export function insideFootprint(b, x, z, margin = 0) {
   return Math.abs(u) <= b.footprint.w / 2 + margin && Math.abs(v) <= b.footprint.d / 2 + margin;
 }
 
+// 見通しの帯（world.sightlines）の内側か。木を置かない。
+export function inSightline(world, x, z) {
+  for (const l of world.sightlines || []) {
+    const [x0, z0] = l.from, [x1, z1] = l.to, dx = x1 - x0, dz = z1 - z0, t = Math.max(0, Math.min(1, ((x - x0) * dx + (z - z0) * dz) / (dx * dx + dz * dz)));
+    if (Math.hypot(x - (x0 + dx * t), z - (z0 + dz * t)) < l.halfWidth) return true;
+  }
+  return false;
+}
+
 // 畑の長方形（半幅 hx,hz・回転 rot）に点が入るか
 export function insidePlot(f, x, z, margin = 0) {
   const c = Math.cos(-f.rot), sn = Math.sin(-f.rot), dx = x - f.x, dz = z - f.z;
@@ -50,10 +59,11 @@ export function scatterTrees(world, terrain, { seed = 7, step = 4.5, farStep = 1
     const p = Math.pow(Math.max(0, Math.min(1, (density - 0.22) / 0.55)), 1.15);
     if (rand() > p) return;
     if (terrain.waterAt(x, z) > 0.02) return;
+    if (inSightline(world, x, z)) return;
     const ri = terrain.riverInfo(x, z);
     if (ri.d < 13) return;
     const slope = terrain.slopeAt(x, z, 1.5);
-    if (slope > 52) return;
+    if (slope > (inNear ? 52 : 66)) return;                  // 遠くの急な山（烏峰の裾など）にも木を立てる（はげ山に見えない）
     if (inNear && blockedByWorld(world, terrain, x, z, 4.5)) return;
     const surf = inNear ? terrain.surfaceAt(x, z, slope) : null;
     const r = rand();

@@ -55,6 +55,11 @@ export const WORLD = {
     { id: 'naya3', kind: 'naya', x: 7, z: 28, rotY: 0.2, width: 6.4, footprint: { w: 6.4, d: 5.8 } },
   ],
 
+  // 見通しの帯。木を置かない（歩ける東の端から、川・橋・関所が見えるように）。from→to の線分から halfWidth の内側は木が無い。
+  sightlines: [
+    { id: 'east_bridge', from: [90, -2], to: [150, -46], halfWidth: 10 },
+  ],
+
   // 畑（家のそばの野菜畑）。hx,hz は半幅。rot は世界の y 回り。地面は耕した土（mud）になり、畝に沿って菜が植わる（scatter.js scatterCrops）。
   plots: [
     { id: 'plot_h5', x: -4, z: 25.5, hx: 5, hz: 3, rot: 0.15 },
