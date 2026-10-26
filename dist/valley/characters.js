@@ -3,7 +3,8 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
-import { LOCOMOTION, MOVE_CLIPS, ACTION_CLIPS, pickGait, locomotionTimeScale, segmentFor } from './anim-data.js';
+import { LOCOMOTION, MOVE_CLIPS, ACTION_CLIPS, CLIP_SEGMENTS, pickGait, locomotionTimeScale, segmentFor } from './anim-data.js';
+import { BowRig } from './bow.js';
 import { makeTachi, makeNaginata, makeYumi, makeArrow, makeQuiver } from './weapons.js';
 
 const DIR = new URL('../assets/characters/', import.meta.url).href;
@@ -131,7 +132,7 @@ export class Character {
     if (!def) return null;
     const meta = this.meta(def.clip);
     if (!meta) return null;
-    const seg = segmentFor(meta, timing);
+    const seg = segmentFor(meta, timing, CLIP_SEGMENTS[def.clip]);
     this.play(def.clip, { fade, timeScale: seg.speed, from: seg.from, to: seg.to, restart: true, onEnd });
     return { ...seg, clip: def.clip, root: this.tpl.roots.get(def.clip) || null };
   }
@@ -176,6 +177,15 @@ export class Character {
     return holder;
   }
 
+  // 弓：左手に持ち、矢筒を背負う。構えの間は両手の位置から弓・弦・矢を作る（bow.js）
+  attachBow(grips, arrow) {
+    this.attach('yumi', makeYumi(), grips.yumi);
+    this.attach('quiver', makeQuiver(), grips.quiver);
+    this.bow = new BowRig(this);
+    if (arrow) this.bow.setArrow(arrow);
+    return this.bow;
+  }
+
   setTachi(grips, drawn) {
     if (!this.weapons.tachiDrawn) {
       const t = makeTachi();
@@ -206,6 +216,7 @@ export class Character {
       for (const name of FLINCH_BONES) this.bones.get(name)?.quaternion.premultiply(FLINCH_Q);
     }
     if (this.armRelax) this.relaxArms(dt);
+    if (this.bow) this.bow.update();
   }
 
   // 下がった腕の「体からの開き」を詰める（モデル空間の前向きの軸まわりに、上腕の骨を回す）
@@ -228,5 +239,5 @@ export class Character {
     }
   }
 
-  dispose() { this.mixer.stopAllAction(); this.root.removeFromParent(); }
+  dispose() { this.bow?.dispose(); this.mixer.stopAllAction(); this.root.removeFromParent(); }
 }

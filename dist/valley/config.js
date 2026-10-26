@@ -9,8 +9,7 @@ export const GRIP = {
   tachiHip: { bone: 'Hips', pos: [0.19, 0.0, 0.12], axes: { y: [0.08, -0.55, -0.83], z: [0, -1, 0] } },
   naginata: { bone: 'RightHand', pos: [0, 0, 0], rot: [0, 0, 0] },
   yumi: { bone: 'LeftHand', pos: [0, 0, 0], rot: [0, 0, 0] },
-  // 矢は右手（弦を引く手）につがえる。矢筒は背中の上（Spine02）に斜めに背負う。ラボで構えの動作を見ながら合わせる。
-  nock: { bone: 'RightHand', pos: [0, 0, 0], rot: [0, 0, 0] },
+  // 矢は構えの間だけ、両手の位置から bow.js が作る（骨には付けない）。矢筒は背中の上（Spine02）に斜めに背負う。
   quiver: { bone: 'Spine02', pos: [0.0, 0.06, -0.2], rot: [0, 0, 0] },
 };
 

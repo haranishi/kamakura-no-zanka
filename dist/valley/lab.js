@@ -4,7 +4,7 @@
 import * as THREE from 'three';
 import { loadRoster, Character, ROSTER } from './characters.js';
 import { GRIP } from './config.js';
-import { makeNaginata, makeYumi, makeArrow } from './weapons.js';
+import { makeNaginata, makeYumi, makeArrow, makeQuiver } from './weapons.js';
 
 const q = new URLSearchParams(location.search);
 const get = (k, d) => q.get(k) ?? d;
@@ -68,7 +68,7 @@ function spawn(who) {
   const w = get('weapon', 'none');
   if (w === 'drawn' || w === 'sheathed') ch.setTachi(GRIP, w === 'drawn');
   if (w === 'naginata') ch.attach('naginata', makeNaginata(), GRIP.naginata);
-  if (w === 'yumi') { ch.attach('yumi', makeYumi(), GRIP.yumi); }
+  if (w === 'yumi') ch.attachBow(GRIP, makeArrow());
   if (q.get('axes')) for (const b of ['RightHand', 'LeftHand', 'Hips']) axesAt(ch.bone(b));
 }
 function setClip(name, t) {

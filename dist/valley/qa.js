@@ -30,10 +30,25 @@ export function installQA(game, ctl) {
     look(yaw, pitch) { if (yaw != null) game.rig.yaw = yaw; if (pitch != null) game.rig.pitch = pitch; },
     teleport(x, z, yaw = game.hero.yaw) { game.hero.place(x, z, yaw); game.rig.yaw = yaw; game.rig.snap(); },
     dispatch(event) { game.dispatch(event); return api.state(); },
-    camera(pos, look, fov) { game.camOverride = pos ? { pos, look, fov } : null; },
+    // 固定カメラ。y は地面からの高さ（m）で渡す（abs=true なら世界の高さ）
+    camera(pos, look, fov, abs = false) {
+      if (!pos) { game.camOverride = null; return; }
+      const h = (x, z) => abs ? 0 : game.terrain.heightAt(x, z);
+      game.camOverride = { pos: [pos[0], pos[1] + h(pos[0], pos[2]), pos[2]], look: [look[0], look[1] + h(look[0], look[2]), look[2]], fov };
+    },
     god(on = true) { game.god = on; },
     advanceDialogue(all = true) { let n = 0; while (game.hud.talking && n++ < 20) { game.hud.advanceDialogue(); if (!all) break; } },
     quality(q) { ctl.quality(q); },
+    // 1コマの重さ（ms）。1画素を読み戻してGPUの完了まで待つので、描画の実コストに近い
+    perf(n = 120, dt = 1 / 60) {
+      const gl = game.renderer.getContext(), px = new Uint8Array(4); let tu = 0, tr = 0, tt = 0, worst = 0;
+      for (let i = 0; i < n; i++) {
+        const a = performance.now(); game.update(dt); const b = performance.now(); game.render(dt); const c = performance.now(); gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px); const d = performance.now();
+        tu += b - a; tr += c - b; tt += d - a; worst = Math.max(worst, d - a);
+      }
+      const i = game.renderer.info.render, m = game.renderer.info.memory;
+      return { updateMs: num(tu / n), renderSubmitMs: num(tr / n), frameMs: num(tt / n), worstMs: num(worst), fps: Math.round(1000 / (tt / n)), calls: i.calls, tris: i.triangles, geometries: m.geometries, textures: m.textures };
+    },
   };
   window.__valley = api;
   return api;

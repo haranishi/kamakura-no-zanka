@@ -61,6 +61,10 @@ export const ACTION_CLIPS = {
 
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 
+// 手首の速さの山が「当たり／放ち」と一致しない動作は、使う区間を決め打ちにする（秒）。
+// Archery_Shot：矢筒から矢を取る動きが速さの山になるので、つがえ（from）〜放ち（release）〜下ろし（end）を直接指定する。
+export const CLIP_SEGMENTS = { Archery_Shot: { from: 2.0, release: 4.0, end: 4.95 } };
+
 // 移動の速さから、歩き・小走り・走りのどれを再生するかと再生速度を決める（pure）。
 export function pickGait(prev, speed) {
   let gait = prev;
@@ -83,8 +87,12 @@ export function locomotionTimeScale(speed, avgSpeed) {
 
 // 技の時間割（予備・当たり・戻り・秒）に合わせて、動作のどの区間をどの速さで再生するかを決める（pure）。
 // meta は clips.json の1動作。active は手首の速さの山（秒）。足りない動作は先頭から全体を再生する。
-export function segmentFor(meta, { windup, active, recover }) {
+export function segmentFor(meta, { windup, active, recover }, override = null) {
   const total = meta.seconds;
+  if (override) {
+    const speed = clamp((override.release - override.from) / Math.max(0.2, windup), 0.7, 2.4);
+    return { from: override.from, to: Math.min(override.end ?? total, override.release + recover * speed), speed, approximate: false };
+  }
   if (!meta.active) return { from: 0, to: total, speed: total / Math.max(0.2, windup + active + recover), approximate: true };
   const [a, b] = meta.active;
   let speed = clamp((b - a) / Math.max(0.02, active), 1.1, 2.2);

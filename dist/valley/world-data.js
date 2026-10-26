@@ -51,16 +51,29 @@ export const WORLD = {
     { id: 'granary', kind: 'granary', x: -34, z: 10, rotY: 1.57, footprint: { w: 7, d: 6 } },
   ],
 
-  // 置き物（当たりは小さい）。kind は props を作る側が読む。
+  // 置き物（当たりは小さい）。kind は props.js が読む（井戸・荷車・灯籠・稲架・地蔵・焚き火は Meshy のモデル）。scale はモデルの大きさ合わせ。
   props: [
-    { id: 'well', kind: 'well', x: 0, z: 0, r: 1.1 },
-    { id: 'cart', kind: 'cart', x: -26, z: 4, rotY: 0.5, r: 1.4 },
-    { id: 'lantern_temple', kind: 'stone_lantern', x: -84, z: -76, r: 0.5 },
-    { id: 'bonfire', kind: 'bonfire', x: -88, z: -80, r: 0.8 },
-    { id: 'drying1', kind: 'drying_rack', x: 22, z: 4, rotY: 0.4, r: 1.2 },
-    { id: 'drying2', kind: 'drying_rack', x: -6, z: 30, rotY: -0.2, r: 1.2 },
+    { id: 'well', kind: 'well', x: 0, z: 0, r: 1.1, scale: 1.0 },
+    { id: 'cart', kind: 'cart', x: -26, z: 4, rotY: 0.5, r: 1.4, scale: 1.3 },
+    { id: 'lantern_temple', kind: 'stone_lantern', x: -84, z: -76, r: 0.5, scale: 0.8 },
+    { id: 'lantern_steps', kind: 'stone_lantern', x: -72.5, z: -69.5, r: 0.5, scale: 0.8 },
+    { id: 'bonfire', kind: 'bonfire', x: -88, z: -80, r: 0.8, scale: 1.0 },
+    { id: 'drying1', kind: 'drying_rack', x: 22, z: 4, rotY: 0.4, r: 1.3, scale: 1.25 },
+    { id: 'drying2', kind: 'drying_rack', x: -6, z: 30, rotY: -0.2, r: 1.3, scale: 1.25 },
+    { id: 'jizo_view', kind: 'jizo', x: -47.5, z: -31.5, r: 0.35, scale: 0.47 },
+    { id: 'jizo_road', kind: 'jizo', x: -66.5, z: -61, r: 0.35, scale: 0.47 },
     { id: 'viewpoint_rock', kind: 'boulder_big', x: -52, z: -37, r: 2.1, vr: 3.5 },
     { id: 'ambush_rock', kind: 'boulder_big', x: -66, z: -26, r: 1.6, vr: 2.5 },
+  ],
+
+  // 飾り（当たりは props.js の propColliders が作る）。柵は線の両端を結ぶ。幟は敵の陣の目印。
+  dress: [
+    { kind: 'banner', x: -29.5, z: 0.5, rotY: 0.4 }, { kind: 'banner', x: -29.5, z: 8.5, rotY: 0.5, color: '#1b2230' }, { kind: 'banner', x: -22.5, z: 7.5, rotY: 0.3 },
+    { kind: 'fence_line', from: [-24, -19.5], to: [-12, -19] }, { kind: 'fence_line', from: [-23, 24], to: [-23, 13] },
+    { kind: 'fence_line', from: [26, 10], to: [26, 22] }, { kind: 'fence_line', from: [11, -26], to: [22, -27] }, { kind: 'fence_line', from: [-40, 17.5], to: [-30, 17.5] },
+    { kind: 'firewood', x: -12.5, z: -9.5, rotY: 0.3 }, { kind: 'firewood', x: 18, z: -14.8, rotY: -0.2 }, { kind: 'firewood', x: 20.5, z: 12.5, rotY: 3.4 },
+    { kind: 'firewood', x: -9.5, z: 15, rotY: 2.9 }, { kind: 'firewood', x: -30, z: 13, rotY: 1.57 },
+    { kind: 'firewood', x: -91.5, z: -83, rotY: 0.6, scale: 1.3 }, { kind: 'firewood', x: -85.5, z: -84, rotY: -0.4, scale: 1.0 },
   ],
 
   // 遠景の建物（入れない）

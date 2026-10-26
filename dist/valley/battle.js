@@ -16,7 +16,7 @@ export class Battle {
   constructor(game) {
     this.g = game; this.arrows = []; this.barkAt = -9; this.lastAlertAt = -99; this.aimLines = [];
     this.arrowModel = makeArrow();
-    const geo = new THREE.BoxGeometry(0.035, 0.035, 1);
+    const geo = new THREE.BoxGeometry(0.012, 0.012, 1);
     for (let i = 0; i < 4; i++) {
       const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: 0xff9650, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending }));
       m.visible = false; m.frustumCulled = false; m.renderOrder = 6; game.scene.add(m); this.aimLines.push(m);
@@ -54,6 +54,7 @@ export class Battle {
     const pan = g.pan(def.pos), heroDef = def === g.hero, heroAtt = att === g.hero;
     switch (res.outcome) {
       case 'hit': case 'stealth': {
+        if (res.outcome === 'stealth' && heroAtt) g.stats.stealth++;
         const strong = res.moveId === 'heavy' || res.moveId === 'finisher' || res.outcome === 'stealth' || res.damage >= 20;
         g.fx.hit(pos, dir, { strong });
         g.audio.play(arrow ? 'arrow_hit' : strong ? 'hit_heavy' : 'hit', { pan });
@@ -69,6 +70,7 @@ export class Battle {
         if (heroDef) { g.rig.kick(0.35); g.hud.hint('parry', STORY.hints.parry); }
         break;
       case 'parried':
+        if (heroDef) g.stats.parries++;
         g.fx.parry(pos);
         g.audio.play('parry', { pan });
         g.hitStop(FEEL.hitStop.parry);
@@ -208,7 +210,8 @@ export class Battle {
       _a.set(from.x, from.y, from.z); _b.set(to.x, to.y, to.z);
       const len = _a.distanceTo(_b);
       line.position.copy(_a).lerp(_b, 0.5); line.lookAt(_b); line.scale.set(1, 1, len);
-      line.material.opacity = 0.12 + 0.55 * Math.min(1, f.move.t / m.windup);
+      const near = Math.min(1, Math.max(0.15, (len - 2) / 8));      // 射手の手前では細く薄く（画面いっぱいに伸びる線にならないよう）
+      line.material.opacity = (0.10 + 0.5 * Math.min(1, f.move.t / m.windup)) * near;
       line.visible = true;
     }
     for (let i = n; i < this.aimLines.length; i++) this.aimLines[i].visible = false;

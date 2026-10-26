@@ -197,19 +197,21 @@ function pineGeometry(level) {
 }
 
 function grassGeometry() {
+  // 低く細い葉をたくさん。根もとは暗く、先は明るい（風で先ほど大きく揺れる）。
   const rnd = mulberry32(8101);
   const m = new Mesher();
-  const blades = 7;
+  const blades = 11;
   for (let b = 0; b < blades; b++) {
-    const th = rnd() * TAU, lean = 0.3 + rnd() * 0.4, h = 0.28 + rnd() * 0.26, w = 0.03 + rnd() * 0.014;
-    const cx = Math.cos(th) * 0.09 * rnd(), cz = Math.sin(th) * 0.09 * rnd();
-    const dir = [Math.cos(th + 1.2), Math.sin(th + 1.2)];
+    const th = rnd() * TAU, lean = 0.25 + rnd() * 0.5, h = 0.13 + rnd() * 0.17, w = 0.011 + rnd() * 0.008;
+    const r = 0.035 + rnd() * 0.05;
+    const cx = Math.cos(th) * r, cz = Math.sin(th) * r;
+    const dir = [Math.cos(th + 1.2 + (rnd() - 0.5) * 0.8), Math.sin(th + 1.2 + (rnd() - 0.5) * 0.8)];
     const first = m.pos.length / 3, segs = 3;
     for (let s = 0; s <= segs; s++) {
-      const t = s / segs, bend = lean * t * t * h, ww = w * (1 - t * 0.9);
+      const t = s / segs, bend = lean * t * t * h, ww = w * (1 - t * 0.92);
       const y = t * h, px = cx + dir[0] * bend, pz = cz + dir[1] * bend;
       const sx = -Math.sin(th), sz = Math.cos(th);
-      const shade = 0.55 + 0.55 * t;
+      const shade = 0.42 + 0.7 * t;
       for (const sd of [-1, 1]) m.vert([px + sx * ww * sd, y, pz + sz * ww * sd], [0, 1, 0.2], [shade, shade, shade], [sd < 0 ? 0 : 1, t]);
     }
     for (let s = 0; s < segs; s++) { const a = first + s * 2; m.quad(a, a + 1, a + 3, a + 2); }
@@ -330,20 +332,35 @@ export class TreeField {
   }
 }
 
-// 草・稲：近くだけ見える（距離で縮めて消す）。全体は1つの InstancedMesh。
-export function makeTufts({ data, geometry, wind, height, fadeStart, fadeEnd, tintA, tintB, flutter = 0 }) {
+// 草・稲：近くだけ見える（距離で縮めて消す）。空間の区画ごとに InstancedMesh を分け、視錐台と距離で区画ごと描かない。
+export function makeTufts({ data, geometry, wind, height, fadeStart, fadeEnd, tintA, tintB, flutter = 0, chunk = 24 }) {
   const material = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, side: THREE.DoubleSide, alphaToCoverage: false });
   patchWind(material, wind, { height, flutter: flutter + 0.01, fadeStart, fadeEnd });
-  const n = data.x.length, mesh = new THREE.InstancedMesh(geometry, material, n);
-  const m = new THREE.Matrix4(), q = new THREE.Quaternion(), s = new THREE.Vector3(), p = new THREE.Vector3(), up = new THREE.Vector3(0, 1, 0), c = new THREE.Color(), a = new THREE.Color(tintA), b = new THREE.Color(tintB);
+  const n = data.x.length, buckets = new Map();
   for (let i = 0; i < n; i++) {
-    q.setFromAxisAngle(up, data.rot[i]); s.setScalar(data.s[i]); p.set(data.x[i], data.y[i] - 0.02, data.z[i]);
-    m.compose(p, q, s); mesh.setMatrixAt(i, m);
-    c.copy(a).lerp(b, data.tint[i]); mesh.setColorAt(i, c);
+    const key = Math.floor(data.x[i] / chunk) + ',' + Math.floor(data.z[i] / chunk);
+    if (!buckets.has(key)) buckets.set(key, []);
+    buckets.get(key).push(i);
   }
-  mesh.instanceMatrix.needsUpdate = true; mesh.instanceColor.needsUpdate = true;
-  mesh.frustumCulled = false; mesh.castShadow = false; mesh.receiveShadow = true;
-  return mesh;
+  const m = new THREE.Matrix4(), q = new THREE.Quaternion(), s = new THREE.Vector3(), p = new THREE.Vector3(), up = new THREE.Vector3(0, 1, 0), c = new THREE.Color(), a = new THREE.Color(tintA), b = new THREE.Color(tintB);
+  const group = new THREE.Group(), chunks = [];
+  for (const idx of buckets.values()) {
+    const mesh = new THREE.InstancedMesh(geometry, material, idx.length);
+    idx.forEach((i, k) => {
+      q.setFromAxisAngle(up, data.rot[i]); s.setScalar(data.s[i]); p.set(data.x[i], data.y[i] - 0.02, data.z[i]);
+      m.compose(p, q, s); mesh.setMatrixAt(k, m);
+      c.copy(a).lerp(b, data.tint[i]); mesh.setColorAt(k, c);
+    });
+    mesh.instanceMatrix.needsUpdate = true; mesh.instanceColor.needsUpdate = true;
+    mesh.castShadow = false; mesh.receiveShadow = true; mesh.frustumCulled = true;
+    mesh.computeBoundingSphere();
+    chunks.push({ mesh, x: mesh.boundingSphere.center.x, z: mesh.boundingSphere.center.z, r: mesh.boundingSphere.radius });
+    group.add(mesh);
+  }
+  // カメラから fadeEnd より遠い区画は、縮んで見えないので描かない
+  group.update = camera => { const cx = camera.position.x, cz = camera.position.z; for (const k of chunks) k.mesh.visible = Math.hypot(k.x - cx, k.z - cz) - k.r < fadeEnd; };
+  group.userData.instances = n;
+  return group;
 }
 
 export function buildVegetation({ scatter, quality = 'standard' }) {
@@ -351,7 +368,7 @@ export function buildVegetation({ scatter, quality = 'standard' }) {
   const group = new THREE.Group(); group.name = 'vegetation';
   const trees = new TreeField({ data: scatter.trees, wind, quality });
   group.add(trees.group);
-  const grass = makeTufts({ data: scatter.grass, geometry: grassGeometry(), wind, height: 0.5, fadeStart: quality === 'light' ? 22 : 38, fadeEnd: quality === 'light' ? 34 : 58, tintA: '#5d6a2c', tintB: '#a89a48' });
+  const grass = makeTufts({ data: scatter.grass, geometry: grassGeometry(), wind, height: 0.3, fadeStart: quality === 'light' ? 16 : 28, fadeEnd: quality === 'light' ? 26 : 46, tintA: '#4f6a2a', tintB: '#9a9647' });
   const rice = makeTufts({ data: scatter.rice, geometry: riceGeometry(), wind, height: 1.0, fadeStart: 60, fadeEnd: 95, tintA: '#d5b348', tintB: '#f1d36a', flutter: 0.02 });
   group.add(grass, rice);
   return { group, trees, grass, rice, wind };

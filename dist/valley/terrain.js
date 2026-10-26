@@ -73,28 +73,37 @@ function terrainMaterial(textures, quality) {
         float w[6]; w[0] = vS0.x; w[1] = vS0.y; w[2] = vS0.z; w[3] = vS1.x; w[4] = vS1.y; w[5] = vS1.z;
         float edgeNoise = th_noise(wxz * 0.7) - 0.5;
         for (int i = 0; i < 6; i++) w[i] = max(0.0, w[i] + edgeNoise * 0.22 * (w[i] > 0.02 ? 1.0 : 0.0));
+        // 重みのほぼ無い層は読まない（影響はゼロ）。分岐の中でも段差が出ないよう、微分は分岐の外で作って textureGrad に渡す。
+        vec2 dWx = dFdx(wxz), dWy = dFdy(wxz);
+        float farMix = smoothstep(70.0, 260.0, length(vViewPosition));
+        float fade = (1.0 - smoothstep(35.0, 140.0, length(vViewPosition))) * uDetail;
         vec4 c[6]; vec3 nn[6];
         for (int i = 0; i < 6; i++) {
-          if (i == 2) continue;
-          float lf = float(i);
-          vec2 uv = wxz / uTile[i];
-          c[i] = th_c(lf, uv); nn[i] = th_n(lf, uv);
-        }
-        // 遠くでは質感の繰り返しが格子に見えるので、各層の平均色（低いミップ）へ寄せる
-        float farMix = smoothstep(70.0, 260.0, length(vViewPosition));
-        if (farMix > 0.001) {
-          for (int i = 0; i < 6; i++) {
-            if (i == 2) continue;
-            c[i].rgb = mix(c[i].rgb, textureLod(uTexC, vec3(wxz / uTile[i], float(i)), 7.0).rgb, farMix);
-          }
+          c[i] = vec4(0.0); nn[i] = vec3(0.0);
+          if (i == 2 || w[i] < 0.004) continue;
+          float lf = float(i); vec2 uv = wxz / uTile[i]; vec2 gx = dWx / uTile[i], gy = dWy / uTile[i];
+          c[i] = textureGrad(uTexC, vec3(uv, lf), gx, gy);
+          if (fade > 0.001) nn[i] = textureGrad(uTexN, vec3(uv, lf), gx, gy).xyz * 2.0 - 1.0;
+          // 遠くでは質感の繰り返しが格子に見えるので、各層の平均色（低いミップ）へ寄せる
+          if (farMix > 0.001) c[i].rgb = mix(c[i].rgb, textureLod(uTexC, vec3(uv, lf), 7.0).rgb, farMix);
         }
         // 岩は三平面投影（急な面でも伸びない）
         vec3 bw = pow(abs(nW), vec3(4.0)); bw /= (bw.x + bw.y + bw.z);
         float rt = uTile[2];
-        vec4 rX = th_c(2.0, vWorldPos.zy / rt), rY = th_c(2.0, wxz / rt), rZ = th_c(2.0, vWorldPos.xy / rt);
-        c[2] = rX * bw.x + rY * bw.y + rZ * bw.z;
-        c[2].rgb = mix(c[2].rgb, textureLod(uTexC, vec3(wxz / rt, 2.0), 7.0).rgb, farMix);
-        vec3 nX = th_n(2.0, vWorldPos.zy / rt), nY = th_n(2.0, wxz / rt), nZ = th_n(2.0, vWorldPos.xy / rt);
+        vec3 nX = vec3(0.0), nY = vec3(0.0), nZ = vec3(0.0);
+        if (w[2] >= 0.004) {
+          vec2 uX = vWorldPos.zy / rt, uY = wxz / rt, uZ = vWorldPos.xy / rt;
+          vec2 dPzy = vec2(dFdx(vWorldPos.z), dFdx(vWorldPos.y)), dPzyY = vec2(dFdy(vWorldPos.z), dFdy(vWorldPos.y));
+          vec2 dPxy = vec2(dFdx(vWorldPos.x), dFdx(vWorldPos.y)), dPxyY = vec2(dFdy(vWorldPos.x), dFdy(vWorldPos.y));
+          vec4 rX = textureGrad(uTexC, vec3(uX, 2.0), dPzy / rt, dPzyY / rt), rY = textureGrad(uTexC, vec3(uY, 2.0), dWx / rt, dWy / rt), rZ = textureGrad(uTexC, vec3(uZ, 2.0), dPxy / rt, dPxyY / rt);
+          c[2] = rX * bw.x + rY * bw.y + rZ * bw.z;
+          c[2].rgb = mix(c[2].rgb, textureLod(uTexC, vec3(uY, 2.0), 7.0).rgb, farMix);
+          if (fade > 0.001) {
+            nX = textureGrad(uTexN, vec3(uX, 2.0), dPzy / rt, dPzyY / rt).xyz * 2.0 - 1.0;
+            nY = textureGrad(uTexN, vec3(uY, 2.0), dWx / rt, dWy / rt).xyz * 2.0 - 1.0;
+            nZ = textureGrad(uTexN, vec3(uZ, 2.0), dPxy / rt, dPxyY / rt).xyz * 2.0 - 1.0;
+          }
+        }
         // 高さ合成：質感の明るさを凹凸の代わりにして、境目をぎざつかせる
         float total = 0.0; float score[6];
         for (int i = 0; i < 6; i++) { float lum = dot(c[i].rgb, vec3(0.3, 0.55, 0.15)); score[i] = w[i] * pow(0.30 + lum, 2.0); total += score[i]; }
@@ -111,7 +120,6 @@ function terrainMaterial(textures, quality) {
         diffuseColor.rgb *= albedo;
         gRough = clamp(rough, 0.35, 1.0);
         // UDN 合成（世界座標）。上向きの面は xz 平面、岩は三面。
-        float fade = (1.0 - smoothstep(35.0, 140.0, length(vViewPosition))) * uDetail;
         vec3 nw = nW;
         nw.xz += txy * (1.0 - rk) * 0.85 * fade;
         nw.xz += (nY.xy * bw.y) * rk * fade; nw.yz += (nX.xy * bw.x) * rk * fade; nw.xy += (nZ.xy * bw.z) * rk * fade;

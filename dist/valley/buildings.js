@@ -18,6 +18,8 @@ export async function loadModels({ onProgress, anisotropy = 8 } = {}) {
       const mats = Array.isArray(o.material) ? o.material : [o.material];
       for (const m of mats) for (const k of ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'aoMap']) if (m[k]) m[k].anisotropy = anisotropy;
     });
+    // 岩は暗い青に寄って見えるので、明るく少し暖かい灰色へ寄せる（夕日の下で他の地面と並ぶように）
+    if (name === 'boulder') gltf.scene.traverse(o => { if (o.isMesh) { const ms = Array.isArray(o.material) ? o.material : [o.material]; for (const m of ms) { m.color.multiply(new THREE.Color(1.7, 1.55, 1.35)); m.roughness = Math.max(m.roughness ?? 0.9, 0.92); } } });
     out[name] = gltf.scene;
     onProgress?.(++done / FILES.length);
   }));
@@ -67,18 +69,28 @@ export function buildBuildings({ world, terrain, models }) {
   return { group, placed };
 }
 
-// 岩を配置どおりに（InstancedMesh）
-export function buildRocks({ data, model }) {
+// 岩を配置どおりに。空間の区画ごとに InstancedMesh を分け、視錐台の外は描かない（影の描画も同じ）。
+export function buildRocks({ data, model, chunk = 48 }) {
   let geometry = null, material = null;
   model.traverse(o => { if (o.isMesh && !geometry) { geometry = o.geometry; material = o.material; } });
-  const mesh = new THREE.InstancedMesh(geometry, material, data.x.length);
-  const m = new THREE.Matrix4(), q = new THREE.Quaternion(), s = new THREE.Vector3(), p = new THREE.Vector3(), up = new THREE.Vector3(0, 1, 0);
+  const buckets = new Map();
   for (let i = 0; i < data.x.length; i++) {
-    q.setFromAxisAngle(up, data.rot[i]); s.set(data.s[i] * data.sx[i], data.s[i] * 0.8, data.s[i] * data.sz[i]);
-    p.set(data.x[i], data.y[i] - data.sink[i] * data.s[i], data.z[i]);
-    m.compose(p, q, s); mesh.setMatrixAt(i, m);
+    const key = Math.floor(data.x[i] / chunk) + ',' + Math.floor(data.z[i] / chunk);
+    if (!buckets.has(key)) buckets.set(key, []);
+    buckets.get(key).push(i);
   }
-  mesh.instanceMatrix.needsUpdate = true; mesh.castShadow = true; mesh.receiveShadow = true; mesh.frustumCulled = false;
-  mesh.name = 'rocks';
-  return mesh;
+  const group = new THREE.Group(); group.name = 'rocks';
+  const m = new THREE.Matrix4(), q = new THREE.Quaternion(), s = new THREE.Vector3(), p = new THREE.Vector3(), up = new THREE.Vector3(0, 1, 0);
+  for (const idx of buckets.values()) {
+    const mesh = new THREE.InstancedMesh(geometry, material, idx.length);
+    idx.forEach((i, k) => {
+      q.setFromAxisAngle(up, data.rot[i]); s.set(data.s[i] * data.sx[i], data.s[i] * 0.8, data.s[i] * data.sz[i]);
+      p.set(data.x[i], data.y[i] - data.sink[i] * data.s[i], data.z[i]);
+      m.compose(p, q, s); mesh.setMatrixAt(k, m);
+    });
+    mesh.instanceMatrix.needsUpdate = true; mesh.castShadow = true; mesh.receiveShadow = true; mesh.frustumCulled = true;
+    mesh.computeBoundingSphere();
+    group.add(mesh);
+  }
+  return group;
 }

@@ -4,6 +4,7 @@ import * as THREE from 'three';
 import { WORLD } from './world-data.js';
 import { buildColliders, rayClip } from './collision.js';
 import { createAIWorld } from './ai-world.js';
+import { propColliders } from './props.js';
 import { HeroActor, EnemyActor, AllyActor, NpcActor, yawOf, dist2 } from './actors.js';
 import { Battle } from './battle.js';
 import { CameraRig } from './camera-rig.js';
@@ -18,14 +19,15 @@ const PLACE_ZONES = ['viewpoint', 'temple_steps'];
 const GROUP_KINDS = { boy: 'npc', road_scout: 'enemy', village_enemies: 'enemy', escort_ambush: 'enemy' };
 
 export class Game {
-  constructor({ scene, camera, renderer, post, atmosphere, veg, terrain, scatter, roster, hud, audio, input, storage, seed = 1333 }) {
-    Object.assign(this, { scene, camera, renderer, post, atmosphere, veg, terrain, scatter, roster, hud, audio, input, storage });
+  constructor({ scene, camera, renderer, post, atmosphere, veg, props, terrain, scatter, roster, hud, audio, input, storage, seed = 1333 }) {
+    Object.assign(this, { scene, camera, renderer, post, atmosphere, veg, props, terrain, scatter, roster, hud, audio, input, storage });
     this.world = WORLD; this.rng = mulberry32(seed);
     this.time = 0; this.stopT = 0; this.timers = []; this.paused = false; this.aiPaused = false;
     this.flow = 'idle';                       // idle | play | choice | dead | result
     this.enemies = []; this.npcs = new Map(); this.ally = null; this.noises = [];
     this.exitPoint = { ...WORLD.exit };
-    this.col = buildColliders({ buildings: WORLD.buildings, props: WORLD.props, trees: scatter.trees, bounds: WORLD.bounds });
+    const extra = propColliders(WORLD);
+    this.col = buildColliders({ buildings: WORLD.buildings, props: WORLD.props, trees: scatter.trees, bounds: WORLD.bounds, extraCircles: extra.circles, extraBoxes: extra.boxes });
     this.aiWorld = createAIWorld({ terrain, col: this.col, bounds: WORLD.bounds, now: () => this.time });
     this.tokens = this.aiWorld.createTokens(2);
     this.rig = new CameraRig(camera);
@@ -363,7 +365,7 @@ export class Game {
   // 世界の見た目の更新（大気・風・木の近さ・影の追従・環境音）
   updateWorld(dt) {
     this.atmosphere.update(this.camera, dt);
-    this.veg.wind.uTime.value += dt; this.veg.trees.update(this.camera);
+    this.veg.wind.uTime.value += dt; this.veg.trees.update(this.camera); this.veg.grass.update(this.camera); this.veg.rice.update(this.camera); this.props?.update(this.time);
     const h = this.hero.pos;
     this.atmosphere.follow(new THREE.Vector3(h.x - Math.sin(this.rig.yaw) * 8, h.y, h.z - Math.cos(this.rig.yaw) * 8));
     this.listenerT -= dt;

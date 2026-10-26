@@ -95,7 +95,7 @@ export function scatterRocks(world, terrain, { seed = 13, nearBox = [-150, 170, 
 }
 
 // 草の株（近景の草地）。surface の草の重みと森の薄さで決める。戻りは {x,y,z,s,rot,tint}
-export function scatterGrass(world, terrain, { seed = 17, box = [-135, 105, -135, 115], step = 0.85 } = {}) {
+export function scatterGrass(world, terrain, { seed = 17, box = [-135, 105, -135, 115], step = 0.55 } = {}) {
   const rand = mulberry32(world.seed + seed * 307);
   const out = { x: [], y: [], z: [], s: [], rot: [], tint: [] };
   for (let gz = box[2]; gz <= box[3]; gz += step) for (let gx = box[0]; gx <= box[1]; gx += step) {
@@ -114,7 +114,7 @@ export function scatterGrass(world, terrain, { seed = 17, box = [-135, 105, -135
     const slope = terrain.slopeAt(x, z, 1.0);
     if (slope > 35) continue;
     if (rand() > (1 - forest * 0.9) * 0.95) continue;
-    out.x.push(x); out.z.push(z); out.y.push(terrain.heightAt(x, z)); out.s.push(0.7 + rand() * 0.8); out.rot.push(rand() * Math.PI); out.tint.push(rand());
+    out.x.push(x); out.z.push(z); out.y.push(terrain.heightAt(x, z)); out.s.push(0.8 + rand() * 0.55); out.rot.push(rand() * Math.PI); out.tint.push(rand());
   }
   return out;
 }

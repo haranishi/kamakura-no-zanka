@@ -301,11 +301,8 @@ export class EnemyActor extends Actor {
     this.brain = createBrain(def.kind, { id: def.id, home: { x: def.x, z: def.z }, patrol: (def.patrol || []).map(([x, z]) => ({ x, z })), seed: h, exit: def.exit || game.exitPoint });
     if (alert === 'high') { this.brain.state = 'combat'; this.brain.awareness = 1; this.brain.lastSeen = { x: game.hero.pos.x, z: game.hero.pos.z }; }
     this.lunge = null; this.speedNow = 0; this.stepDist = 0; this.deadT = 0; this.idleT = 0; this.departed = false; this.reported = null; this.surrendered = false; this.dormant = false;
-    if (isArcher) {
-      this.character.attach('yumi', makeYumi(), GRIP.yumi);
-      this.nock = makeArrow(); this.nock.visible = false; this.character.attach('nock', this.nock, GRIP.nock);
-      this.character.attach('quiver', makeQuiver(), GRIP.quiver);
-    } else this.character.setTachi(GRIP, true);
+    if (isArcher) this.character.attachBow(GRIP, makeArrow());
+    else this.character.setTachi(GRIP, true);
     this.character.rate = 0.94 + (h % 9) * 0.015;
     this.character.time = (h % 50) / 10;
   }
@@ -322,7 +319,6 @@ export class EnemyActor extends Actor {
     if (e.type === 'phase' && e.phase === 'active') {
       if (m.kind === 'shot') g.battle.fireArrow(this, e.moveId);
       else g.audio.play(e.moveId === 'officer_c' ? 'swing_heavy' : 'swing', { pan: g.pan(this.pos), gain: 0.8 });
-      if (this.nock) this.nock.visible = false;
     }
     if (e.type === 'phase' && e.phase === 'windup' && m.telegraph > 0) g.battle.telegraph(this, m);
     if (e.type === 'phase' && e.phase === 'end') this.lunge = null;
@@ -404,7 +400,7 @@ export class EnemyActor extends Actor {
     this.character.playMove(id, { windup: m.windup, active: m.active, recover: m.recover }, { fade: 0.1 });
     const dur = m.windup + m.active, d = LUNGE[id] || 0;
     this.lunge = { rate: d / dur, t: 0, dur };
-    if (m.kind === 'shot') { if (this.nock) this.nock.visible = true; g.audio.play('bow_draw', { pan: g.pan(this.pos), gain: 0.8 }); g.battle.bark(this, 'archer'); }
+    if (m.kind === 'shot') { g.audio.play('bow_draw', { pan: g.pan(this.pos), gain: 0.8 }); g.battle.bark(this, 'archer'); }
   }
 
   animateFree(dt) {
@@ -436,7 +432,7 @@ export class EnemyActor extends Actor {
     this.character.playAction(this.game.rng() < 0.5 ? 'die' : 'die2', { timeScale: 1.25 });
     this.game.audio.play('die', { pan: this.game.pan(this.pos) });
     this.game.fx.dust(this.pos, 8);
-    if (this.nock) this.nock.visible = false;
+    if (this.character.bow) this.character.bow.rest();
   }
   surrender() {
     this.surrendered = true;
@@ -452,8 +448,7 @@ export class AllyActor extends Actor {
     super(game, { id: 'archer', who: 'archer', x, z, yaw, style: 'injured' });
     this.fighter = createFighter({ id: 'archer', team: 'ally', kind: 'archer_ally', x, z, yaw });
     this.companion = createCompanion({ id: 'archer', mode: 'follow' });
-    this.character.attach('yumi', makeYumi(), GRIP.yumi);
-    this.nock = makeArrow(); this.nock.visible = false; this.character.attach('nock', this.nock, GRIP.nock);
+    this.character.attachBow(GRIP, makeArrow());
     this.role = captive ? 'captive' : 'party';
     this.speedNow = 0; this.stepDist = 0; this.lunge = null; this.down = false; this.standT = 0; this.shootTarget = null;
     if (captive) { this.character.weapons.yumi.holder.visible = false; this.character.play('Sit_Cross_Legged_on_Floor', { fade: 0 }); }
@@ -482,7 +477,7 @@ export class AllyActor extends Actor {
   }
 
   onCombatEvent(e) {
-    if (e.type === 'phase' && e.phase === 'active' && MOVES[e.moveId].kind === 'shot') { this.game.battle.fireArrow(this, e.moveId); if (this.nock) this.nock.visible = false; }
+    if (e.type === 'phase' && e.phase === 'active' && MOVES[e.moveId].kind === 'shot') this.game.battle.fireArrow(this, e.moveId);
     if (e.type === 'phase' && e.phase === 'end') this.lunge = null;
   }
 
@@ -530,7 +525,7 @@ export class AllyActor extends Actor {
       if (startMove(f, intent.startMove)) {
         const m = MOVES[intent.startMove];
         this.character.playMove(intent.startMove, { windup: m.windup, active: m.active, recover: m.recover }, { fade: 0.1 });
-        if (this.nock) this.nock.visible = true; g.audio.play('bow_draw', { pan: g.pan(this.pos), gain: 0.7 });
+        g.audio.play('bow_draw', { pan: g.pan(this.pos), gain: 0.7 });
         this.speedNow = 0; dir = null;
       }
     }
