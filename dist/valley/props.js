@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
 const DIR = new URL('../assets/valley/models/', import.meta.url).href;
-export const PROP_FILES = ['well', 'cart', 'lantern', 'hasa', 'jizo', 'firepit'];
+export const PROP_FILES = ['well', 'cart', 'lantern', 'hasa', 'jizo', 'firepit', 'gatehouse', 'fort', 'barricade'];
 
 export async function loadPropModels({ anisotropy = 8 } = {}) {
   const loader = new GLTFLoader(), out = {};
@@ -66,6 +66,13 @@ export function buildProps({ world, terrain, models }) {
       const light = new THREE.PointLight(0xff9a4a, 9, 16, 1.6); light.position.set(p.x, terrain.heightAt(p.x, p.z) + 0.9, p.z); light.castShadow = false; group.add(light); lights.push({ light, base: 9, seed: p.x });
     }
   }
+  // 遠景（関所・砦・馬防柵）。橋は buildings.js が置く
+  for (const d of world.distant || []) {
+    const o = ['gatehouse', 'fort', 'barricade'].includes(d.kind) && cloneOf(d.kind);
+    if (!o) continue;
+    place(o, d.x, d.z, d.rotY || 0, d.scale || 1, d.lift ?? -0.15);
+    o.traverse(m => { if (m.isMesh) { m.castShadow = d.kind === 'barricade'; m.receiveShadow = d.kind !== 'fort'; } });
+  }
   // 飾り（柵・薪・幟）
   for (const d of world.dress || []) {
     if (d.kind === 'fence_line') {
@@ -107,5 +114,6 @@ export function propColliders(world) {
     } else if (d.kind === 'firewood') circles.push({ x: d.x, z: d.z, r: 0.55, height: 0.6, id: 'firewood' });
     else if (d.kind === 'banner') circles.push({ x: d.x, z: d.z, r: 0.12, height: 3.6, id: 'banner' });
   }
+  for (const d of world.distant || []) if (d.collider) boxes.push({ x: d.x, z: d.z, rotY: d.rotY || 0, w: d.collider.w, d: d.collider.d, height: d.collider.height, id: d.id });
   return { circles, boxes };
 }

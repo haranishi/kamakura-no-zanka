@@ -76,12 +76,12 @@ export const WORLD = {
     { kind: 'firewood', x: -91.5, z: -83, rotY: 0.6, scale: 1.3 }, { kind: 'firewood', x: -85.5, z: -84, rotY: -0.4, scale: 1.0 },
   ],
 
-  // 遠景の建物（入れない）
+  // 遠景の建物（入れない）。scale は Meshy のモデル（約1.9m）を実寸へ伸ばす倍率。橋は川を横切り、関所は橋の東、砦は峰の頂、馬防柵は谷の東の口の道をふさぐ。
   distant: [
     { id: 'bridge', kind: 'bridge', x: 128.4, z: -44.5, rotY: -0.17, scale: [3.7, 2.2, 2.0] },
-    { id: 'gatehouse', kind: 'gatehouse', x: 156, z: -46, rotY: 1.35 },
-    { id: 'fort', kind: 'fort', x: 262, z: -140, rotY: 3.6 },
-    { id: 'barricade', kind: 'barricade', x: 100, z: -8, rotY: 1.2 },
+    { id: 'gatehouse', kind: 'gatehouse', x: 158, z: -46, rotY: -1.45, scale: 6.4 },
+    { id: 'fort', kind: 'fort', x: 262, z: -140, rotY: 3.6, scale: 26, lift: -0.6 },
+    { id: 'barricade', kind: 'barricade', x: 99, z: -10, rotY: -0.72, scale: 4.4, collider: { w: 8.2, d: 1.1, height: 2.4 } },
   ],
 
   // 場面のきっかけの範囲（円）と到達点。quest.js の zone / place 名と一致させる。
@@ -135,7 +135,7 @@ export const WORLD = {
   forest: {
     base: 0.55,
     clearings: [
-      { x: 0, z: 6, r: 56 }, { x: -98, z: -86, r: 36 }, { x: 4, z: 70, r: 62 }, { x: 60, z: 10, r: 44 }, { x: -78, z: -62, r: 22 }, { x: -56, z: -42, r: 20 },
+      { x: 0, z: 6, r: 56 }, { x: -98, z: -86, r: 36 }, { x: 4, z: 70, r: 62 }, { x: 60, z: 10, r: 44 }, { x: -78, z: -62, r: 22 }, { x: -56, z: -42, r: 20 }, { x: -30, z: -16, r: 26 },
     ],
     dense: [{ x: -70, z: -20, r: 60 }, { x: -20, z: -60, r: 50 }, { x: -120, z: 20, r: 60 }],
   },
