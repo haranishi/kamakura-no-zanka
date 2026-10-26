@@ -52,6 +52,7 @@ export class HeroActor extends Actor {
   resetState() {
     this.drawn = false; this.sheatheIn = 0; this.crouch = false; this.lunge = null; this.queued = null; this.dodge = null; this.dash = null;
     this.stepDist = 0; this.deadT = 0; this.lockTarget = null; this.lockT = 0; this.speed = 0; this.blockPosed = false; this.dead = false;
+    this.scripted = false;               // 演出中は動作を外から決める（冒頭の目覚めなど）
   }
   get alive() { return this.fighter.alive; }
 
@@ -179,6 +180,7 @@ export class HeroActor extends Actor {
     for (const e of tick(f, dt)) this.onCombatEvent(e);
     f.x = this.pos.x; f.z = this.pos.z; f.yaw = this.yaw;
     if (!f.alive) { this.updateDead(dt); this.character.update(dt); this.sync(); return; }
+    if (this.scripted) { this.character.update(dt); this.sync(); return; }
     this.lockT = Math.max(0, this.lockT - dt);
     this.sheatheIn = Math.max(0, this.sheatheIn - dt);
     const inCombat = g.alertedEnemies() > 0;
