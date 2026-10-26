@@ -117,6 +117,8 @@ function terrainMaterial(textures, quality) {
         float macro = th_noise(wxz * 0.045) * 0.5 + th_noise(wxz * 0.19 + 7.1) * 0.35 + th_noise(wxz * 0.9) * 0.15;
         albedo *= 0.82 + macro * 0.36;
         albedo = mix(albedo, albedo * vec3(0.92, 1.05, 0.85), clamp(w[0] * 1.2, 0.0, 1.0));
+        // 彩度を少し落とす（日なたの地面が橙一色に飽和し、土や草の粒の明暗が潰れた。第2周の評価）
+        { float al = dot(albedo, vec3(0.3, 0.55, 0.15)); albedo = mix(vec3(al), albedo, 0.78); }
         diffuseColor.rgb *= albedo;
         gRough = clamp(rough, 0.35, 1.0);
         // UDN 合成（世界座標）。上向きの面は xz 平面、岩は三面。
@@ -127,7 +129,7 @@ function terrainMaterial(textures, quality) {
       .replace('#include <roughnessmap_fragment>', `float roughnessFactor = gRough;`)
       .replace('#include <normal_fragment_maps>', `normal = normalize((viewMatrix * vec4(gN, 0.0)).xyz);`);
   };
-  material.customProgramCacheKey = () => 'valley-terrain-v2';     // 品質は uniform（uDetail）で切り替えるので、プログラムは1つ
+  material.customProgramCacheKey = () => 'valley-terrain-v3';     // 品質は uniform（uDetail）で切り替えるので、プログラムは1つ
   return material;
 }
 

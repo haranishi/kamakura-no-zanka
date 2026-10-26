@@ -23,7 +23,7 @@ function needleTexture() {
       const k = Math.max(0.15, Math.min(1, depth ? t : 0.25 + t * 0.6));            // 内側は暗く、先は明るく
       for (const side of [-1, 1]) {
         const a = ang + side * (0.55 + rnd() * 0.55), l = (depth ? 8 : 12) * (0.55 + rnd() * 0.6) * (1 - t * 0.25);
-        const r = 16 + 26 * k + rnd() * 9, gr = 28 + 46 * k + rnd() * 12, b = 12 + 15 * k + rnd() * 6;
+        const r = 15 + 22 * k + rnd() * 8, gr = 26 + 36 * k + rnd() * 10, b = 15 + 14 * k + rnd() * 6;
         g.strokeStyle = `rgb(${r | 0},${gr | 0},${b | 0})`; g.lineWidth = 1.9;
         g.beginPath(); g.moveTo(px, py); g.lineTo(px + Math.cos(a) * l, py + Math.sin(a) * l); g.stroke();
       }
@@ -286,12 +286,12 @@ function patchWind(material, uniforms, { height = 20, flutter = 0, fadeStart = 0
 // 葉・幹・草は艶消しの Lambert にする。標準の材質（PBR）だと、低い太陽に向かって見る遠景の木が、
 // 掠める角度のフレネル反射（日なたの面ほど強い）で琥珀色に光り、暗い樹冠が明るい「型押しの壁紙」に見えた（第2周の評価・材質を黒にしても残った）。
 function foliageMaterial(map, uniforms, { height, flutter = 0.03, alphaTest = 0.42 }) {
-  const m = new THREE.MeshLambertMaterial({ map, vertexColors: true, side: THREE.DoubleSide, alphaTest, alphaToCoverage: true, emissive: 0x253823 });   // emissive：Lambert は環境光の拡散を受けないので、日陰の葉が真っ黒にならない下駄
+  const m = new THREE.MeshLambertMaterial({ map, vertexColors: true, side: THREE.DoubleSide, alphaTest, alphaToCoverage: true, emissive: 0x242f20 });   // emissive：Lambert は環境光の拡散を受けないので、日陰の葉が真っ黒にならない下駄
   patchWind(m, uniforms, { height, flutter });
   return m;
 }
 function solidMaterial(uniforms, { height, color = 0xffffff }) {
-  const m = new THREE.MeshLambertMaterial({ color, vertexColors: true, emissive: 0x1d2a18 });
+  const m = new THREE.MeshLambertMaterial({ color, vertexColors: true, emissive: 0x1b2217 });
   patchWind(m, uniforms, { height, flutter: 0 });
   return m;
 }
