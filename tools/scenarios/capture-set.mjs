@@ -24,7 +24,7 @@ export default async function ({ st, step, call, v, shot, freeze, start, log, ta
   await call('teleport', -51, -34, -2.3); await call('look', -2.1, 0.05); await step(20); await shot('06-viewpoint-dialogue'); await adv();
   await shot('07-viewpoint-choice');
   await v("document.getElementById('choice-front').click()"); await step(5);
-  await call('camera', [-58, 2.2, -42], [10, 4, 6], 54); await step(4); await v("document.body.classList.add('hide-hud')"); await shot('08-overlook-village'); await v("document.body.classList.remove('hide-hud')");
+  await call('camera', [-46, 2.4, -30], [20, 8, 2], 56); await step(4); await v("document.body.classList.add('hide-hud')"); await shot('08-overlook-village'); await v("document.body.classList.remove('hide-hud')");
   // 6 里：入口と戦闘
   await call('camera', null); await call('teleport', -33, -3, 1.6); await call('look', 2.0, 0.18); await step(40); await shot('09-village-front');
   let a = 0;

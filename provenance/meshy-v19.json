@@ -1,0 +1,199 @@
+{
+  "schema": "kamakura-no-zanka/provenance/meshy",
+  "version": 1,
+  "generated": "2026-10-27",
+  "service": "Meshy AI (API)",
+  "credits": {
+    "start": 1219,
+    "floor": 500,
+    "spent_note": "キャラクター一式＋小道具6＋遠景3。残高は台帳（作業用）で管理"
+  },
+  "terms_note": "Meshy の生成物の公開・商用利用条件は、公開前に契約プラン（有料プランの所有権・商用可否）を本人が確認する。未確認の間は非公開リポジトリのみに置く。",
+  "assets": [
+    {
+      "file": "dist/assets/characters/hero.glb",
+      "kind": "character",
+      "label": "榊三郎景継（主人公）",
+      "task_id": "01a178c2-5e68-74b6-a314-be31ce417326",
+      "rig_task_id": "01a178c9-6258-7256-8a76-12c40ae08fed",
+      "route": "multi-image-to-3d meshy-7 4k pbr 32k",
+      "height_m": 1.66,
+      "sha256": "49dec49f4614a08c0e021ef2bc61d825f2ab8bba64fc5103bf16a60eb73777bf",
+      "bytes": 8262348,
+      "pipeline": "Meshy image-to-3D/multi-image → rig(24 bones, 5cr) → Blender retarget/bake (tools/blender/build_valley_character.py) → GLB(WebP textures)",
+      "design_task_id": "01a178bf-a418-7755-850a-52230d8e397c"
+    },
+    {
+      "file": "dist/assets/characters/archer.glb",
+      "kind": "character",
+      "label": "梓弥十郎（弓手）",
+      "task_id": "01a178c2-6409-770e-a7f4-5318ef2d09f2",
+      "rig_task_id": "01a178c9-771d-72b1-a9d2-039460cc33ac",
+      "route": "multi-image-to-3d meshy-7 4k pbr 30k",
+      "height_m": 1.62,
+      "sha256": "c8f43d66c3df4cc4a0079ccfe5320b6b52fd5a58c55988003519060b499d8baa",
+      "bytes": 7801280,
+      "pipeline": "Meshy image-to-3D/multi-image → rig(24 bones, 5cr) → Blender retarget/bake (tools/blender/build_valley_character.py) → GLB(WebP textures)",
+      "design_task_id": "01a178bf-a8b9-74e3-8c02-9b4080fbf923"
+    },
+    {
+      "file": "dist/assets/characters/soldier.glb",
+      "kind": "character",
+      "label": "追手の雑兵",
+      "task_id": "01a178bf-ac86-773c-86bf-b639b9f034e7",
+      "rig_task_id": "01a178c9-8dca-701d-a5eb-be55a42311c3",
+      "route": "image-to-3d meshy-7 4k pbr 30k",
+      "height_m": 1.62,
+      "sha256": "eb5f7a709a643b5d369d7a8eeff1e832ee1778bae15074178fa95a398fcedc89",
+      "bytes": 9539044,
+      "pipeline": "Meshy image-to-3D/multi-image → rig(24 bones, 5cr) → Blender retarget/bake (tools/blender/build_valley_character.py) → GLB(WebP textures)"
+    },
+    {
+      "file": "dist/assets/characters/officer.glb",
+      "kind": "character",
+      "label": "追手の侍大将",
+      "task_id": "01a178bf-b21b-77cd-89ca-8a13609e051a",
+      "rig_task_id": "01a178c9-a460-71f8-8f88-bea440f86001",
+      "route": "image-to-3d meshy-7 ultra 4k pbr 40k",
+      "height_m": 1.72,
+      "sha256": "8ef8c2534903dfe8207d736f3045e83dc941678eaa2f6a13f38a8e28e6a3dcde",
+      "bytes": 11104372,
+      "pipeline": "Meshy image-to-3D/multi-image → rig(24 bones, 5cr) → Blender retarget/bake (tools/blender/build_valley_character.py) → GLB(WebP textures)"
+    },
+    {
+      "file": "dist/assets/characters/villager_m.glb",
+      "kind": "character",
+      "label": "水穂の里の男",
+      "task_id": "01a178bf-b772-771e-af0a-55f1c88882aa",
+      "rig_task_id": "01a178c9-bbfa-757c-afa5-43361f518264",
+      "route": "image-to-3d meshy-7 4k pbr",
+      "height_m": 1.58,
+      "sha256": "921b008b72fca50e18f158ef5fbb8850f6021c973f9273de9b4646a07e5b1060",
+      "bytes": 8394544,
+      "pipeline": "Meshy image-to-3D/multi-image → rig(24 bones, 5cr) → Blender retarget/bake (tools/blender/build_valley_character.py) → GLB(WebP textures)"
+    },
+    {
+      "file": "dist/assets/characters/villager_f.glb",
+      "kind": "character",
+      "label": "水穂の里の女",
+      "task_id": "01a178bf-bc98-70f2-b047-ba84a45284f5",
+      "rig_task_id": "01a178c9-cfd7-74b2-a0d0-51a52147130d",
+      "route": "image-to-3d meshy-7 4k pbr",
+      "height_m": 1.48,
+      "sha256": "e1457e21a94410a220ab9365383e85566a942db551dbdc382d8314277bdc2311",
+      "bytes": 8563364,
+      "pipeline": "Meshy image-to-3D/multi-image → rig(24 bones, 5cr) → Blender retarget/bake (tools/blender/build_valley_character.py) → GLB(WebP textures)"
+    },
+    {
+      "file": "dist/assets/characters/child.glb",
+      "kind": "character",
+      "label": "水穂の里の子",
+      "task_id": "01a178bf-c1e2-74da-9987-0f233871da37",
+      "rig_task_id": "01a178c9-e6a1-7744-930c-db60828f699a",
+      "route": "image-to-3d meshy-7 4k pbr 24k",
+      "height_m": 1.2,
+      "sha256": "1bf0caacb7d9b418378553750706db1b56672411730ea342f579c802b27b150e",
+      "bytes": 8302588,
+      "pipeline": "Meshy image-to-3D/multi-image → rig(24 bones, 5cr) → Blender retarget/bake (tools/blender/build_valley_character.py) → GLB(WebP textures)"
+    },
+    {
+      "file": "dist/assets/valley/models/well.glb",
+      "kind": "prop",
+      "label": "井戸",
+      "task_id": "01a17918-a230-7354-a7c8-7a3e529202d3",
+      "preview_task_id": "01a17916-88be-7464-aca4-49ae35523fc1",
+      "route": "text-to-3d meshy-6 (preview 20cr + refine PBR 2k 10cr)",
+      "sha256": "9db09b99ca48b54aa36bcea19ab64c43cb877cd3f15c5a98b2cd60c2a6636939",
+      "bytes": 1170796,
+      "pipeline": "Meshy text-to-3D → tools/blender/optimize_asset.py (WebP, max 1280px) → GLB"
+    },
+    {
+      "file": "dist/assets/valley/models/cart.glb",
+      "kind": "prop",
+      "label": "荷車（俵つき）",
+      "task_id": "01a17918-a2e8-77ae-b393-d4bb1d33c77c",
+      "preview_task_id": "01a17916-9091-77c1-bacf-1d9a74877d14",
+      "route": "text-to-3d meshy-6 (preview 20cr + refine PBR 2k 10cr)",
+      "sha256": "e6c5d36aff158c2e3a10f9766fe7e060c54f1a013a2e2a8fe600e13744ec2736",
+      "bytes": 1338216,
+      "pipeline": "Meshy text-to-3D → tools/blender/optimize_asset.py (WebP, max 1280px) → GLB"
+    },
+    {
+      "file": "dist/assets/valley/models/lantern.glb",
+      "kind": "prop",
+      "label": "石灯籠",
+      "task_id": "01a17918-a387-71de-9383-d90224b83298",
+      "preview_task_id": "01a17916-98e8-709c-970e-c2b2c0177040",
+      "route": "text-to-3d meshy-6 (preview 20cr + refine PBR 2k 10cr)",
+      "sha256": "4f53abef14254b728335de31207e2bfd2cb7b8e3a62bcb13fd6d052984dca705",
+      "bytes": 979412,
+      "pipeline": "Meshy text-to-3D → tools/blender/optimize_asset.py (WebP, max 1280px) → GLB"
+    },
+    {
+      "file": "dist/assets/valley/models/hasa.glb",
+      "kind": "prop",
+      "label": "稲架（わら干し）",
+      "task_id": "01a17919-3e40-7391-a739-3697f16b9196",
+      "preview_task_id": "01a17916-a313-7081-b9e2-da0a214372f8",
+      "route": "text-to-3d meshy-6 (preview 20cr + refine PBR 2k 10cr)",
+      "sha256": "729c8485f6fd906d3d77b03fcd8b832d557dc12590dcabe968202d85d9c2a669",
+      "bytes": 1259088,
+      "pipeline": "Meshy text-to-3D → tools/blender/optimize_asset.py (WebP, max 1280px) → GLB"
+    },
+    {
+      "file": "dist/assets/valley/models/jizo.glb",
+      "kind": "prop",
+      "label": "地蔵",
+      "task_id": "01a17918-a4a6-70f6-b65c-f055cc26b18c",
+      "preview_task_id": "01a17916-aa7f-7583-a1d4-7723690dd979",
+      "route": "text-to-3d meshy-6 (preview 20cr + refine PBR 2k 10cr)",
+      "sha256": "6a29f5a6f4df0c0467ffa055ba5191f3babffa785975be78bded28abe061db7e",
+      "bytes": 798500,
+      "pipeline": "Meshy text-to-3D → tools/blender/optimize_asset.py (WebP, max 1280px) → GLB"
+    },
+    {
+      "file": "dist/assets/valley/models/firepit.glb",
+      "kind": "prop",
+      "label": "焚き火の石組み",
+      "task_id": "01a17919-3eef-74f8-864c-2a96ca70ff95",
+      "preview_task_id": "01a17916-b1fd-77c7-804c-9bd038b3ab37",
+      "route": "text-to-3d meshy-6 (preview 20cr + refine PBR 2k 10cr)",
+      "sha256": "201245deb82d17b86756ae1e4d97faec0d70e378d8d268782599d266118a91f0",
+      "bytes": 972544,
+      "pipeline": "Meshy text-to-3D → tools/blender/optimize_asset.py (WebP, max 1280px) → GLB"
+    },
+    {
+      "file": "dist/assets/valley/models/fort.glb",
+      "kind": "prop",
+      "label": "山砦",
+      "task_id": "01a17927-a8c3-7041-ade5-003287e0e1d5",
+      "preview_task_id": "01a17924-87d5-70c6-87e4-0c20a90e05ea",
+      "route": "text-to-3d meshy-6 (preview 20cr + refine PBR 2k 10cr)",
+      "sha256": "84df2a12a6ced71022f5874151d7bee000b65ffb58ee956401e2c6a18c02e124",
+      "bytes": 1589156,
+      "pipeline": "Meshy text-to-3D → tools/blender/optimize_asset.py (WebP, max 1280px) → GLB"
+    },
+    {
+      "file": "dist/assets/valley/models/gatehouse.glb",
+      "kind": "prop",
+      "label": "関所",
+      "task_id": "01a17928-03f1-777b-847e-57f0898ee58c",
+      "preview_task_id": "01a17924-8ed5-7045-86f9-c941b08bfbeb",
+      "route": "text-to-3d meshy-6 (preview 20cr + refine PBR 2k 10cr)",
+      "sha256": "506daa73538166da73c666ba58d11675d27b6791211d36e45a9072f369046796",
+      "bytes": 1277372,
+      "pipeline": "Meshy text-to-3D → tools/blender/optimize_asset.py (WebP, max 1280px) → GLB"
+    },
+    {
+      "file": "dist/assets/valley/models/barricade.glb",
+      "kind": "prop",
+      "label": "馬防柵",
+      "task_id": "01a17928-50a7-73e3-83ff-9ea6549cac7a",
+      "preview_task_id": "01a17924-9879-7614-b273-c16e64338ef3",
+      "route": "text-to-3d meshy-6 (preview 20cr + refine PBR 2k 10cr)",
+      "sha256": "8ec247a1e00731d4a71966ab84c3ae740bb455c6b533bfbf1171973c954fc015",
+      "bytes": 1332768,
+      "pipeline": "Meshy text-to-3D → tools/blender/optimize_asset.py (WebP, max 1280px) → GLB"
+    }
+  ]
+}

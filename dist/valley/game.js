@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import { WORLD } from './world-data.js';
 import { buildColliders, rayClip } from './collision.js';
 import { createAIWorld } from './ai-world.js';
-import { propColliders } from './props.js';
+import { propColliders } from './world-colliders.js';
 import { HeroActor, EnemyActor, AllyActor, NpcActor, yawOf, dist2 } from './actors.js';
 import { Battle } from './battle.js';
 import { CameraRig } from './camera-rig.js';
