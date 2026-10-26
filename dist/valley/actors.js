@@ -53,6 +53,7 @@ export class HeroActor extends Actor {
     this.drawn = false; this.sheatheIn = 0; this.crouch = false; this.lunge = null; this.queued = null; this.dodge = null; this.dash = null;
     this.stepDist = 0; this.deadT = 0; this.lockTarget = null; this.lockT = 0; this.speed = 0; this.blockPosed = false; this.dead = false;
     this.scripted = false;               // 演出中は動作を外から決める（冒頭の目覚めなど）
+    this.recoverT = 0;
   }
   get alive() { return this.fighter.alive; }
 
@@ -178,7 +179,12 @@ export class HeroActor extends Actor {
   onCombatEvent(e) {
     if (e.type === 'phase' && e.phase === 'active') this.game.audio.play(e.moveId === 'heavy' || e.moveId === 'finisher' ? 'swing_heavy' : 'swing');
     if (e.type === 'phase' && e.phase === 'end') this.lunge = null;
-    if (e.type === 'stagger_start') { this.character.playAction('stagger', { timeScale: 1.6 }); this.game.hud.toast('構えが崩れた', 1200); }
+    if (e.type === 'stagger_start') {
+      this.character.play('Kneel_on_One_Knee_and_Stand', { fade: 0.08, from: 0, to: 0.95, timeScale: 1.6, onEnd: c => { if (c.current) c.current.paused = true; }, restart: true });
+      this.blockPosed = false; this.game.hud.toast('構えが崩れた', 1200);
+    }
+    // 崩れが解けたら、膝をついた姿勢から立ち上がる動作をそのまま続ける（寝た姿勢から立ち姿へ急に切り替えない）
+    if (e.type === 'stagger_end') { this.character.play('Kneel_on_One_Knee_and_Stand', { fade: 0.06, from: 1.0, timeScale: 1.8, restart: true }); this.recoverT = 0.55; }
   }
 
   update(dt, ctl) {
@@ -250,6 +256,7 @@ export class HeroActor extends Actor {
   }
 
   updateLocomotion(dt, ctl, locked) {
+    if (this.recoverT > 0) { this.recoverT -= dt; this.speed = approach(this.speed, 0, 30, dt); this.blockPosed = false; return; }   // 立ち上がる間は歩かない
     const f = this.fighter, ax = locked ? { active: false } : ctl.axis;
     const sprint = !locked && (ctl.input.down('ShiftLeft') || ctl.input.down('ShiftRight')) && !this.crouch && !f.blocking && ax.active;
     if (sprint) this.crouch = false;
@@ -309,7 +316,7 @@ export class EnemyActor extends Actor {
     this.fighter.aware = alert === 'high';
     this.brain = createBrain(def.kind, { id: def.id, home: { x: def.x, z: def.z }, patrol: (def.patrol || []).map(([x, z]) => ({ x, z })), seed: h, exit: def.exit || game.exitPoint });
     if (alert === 'high') { this.brain.state = 'combat'; this.brain.awareness = 1; this.brain.lastSeen = { x: game.hero.pos.x, z: game.hero.pos.z }; }
-    this.lunge = null; this.speedNow = 0; this.stepDist = 0; this.deadT = 0; this.idleT = 0; this.departed = false; this.reported = null; this.surrendered = false; this.dormant = false;
+    this.lunge = null; this.speedNow = 0; this.stepDist = 0; this.deadT = 0; this.idleT = 0; this.departed = false; this.reported = null; this.surrendered = false; this.dormant = false; this.recoverT = 0;
     if (isArcher) this.character.attachBow(GRIP, makeArrow());
     else this.character.setTachi(GRIP, true);
     this.character.rate = 0.94 + (h % 9) * 0.015;
@@ -335,7 +342,7 @@ export class EnemyActor extends Actor {
       this.character.play('Kneel_on_One_Knee_and_Stand', { fade: 0.08, from: 0, to: 0.95, timeScale: 1.5, onEnd: c => { if (c.current) c.current.paused = true; }, restart: true });
       this.lunge = null;
     }
-    if (e.type === 'stagger_end') this.character.locoName = null;
+    if (e.type === 'stagger_end') { this.character.play('Kneel_on_One_Knee_and_Stand', { fade: 0.06, from: 1.0, timeScale: 1.8, restart: true }); this.recoverT = 0.55; }
   }
 
   update(dt) {
@@ -378,6 +385,7 @@ export class EnemyActor extends Actor {
         target = intent.speed === 'run' ? (this.kind === 'officer' ? SPEED.officerRun : SPEED.run) : brain.state === 'combat' ? SPEED.orbit : SPEED.patrol;
       }
     }
+    if (this.recoverT > 0) { target = 0; dir = null; }
     this.speedNow = approach(this.speedNow, target, 14, dt);
     if (!busy) {
       let want = this.yaw;
@@ -413,6 +421,7 @@ export class EnemyActor extends Actor {
   }
 
   animateFree(dt) {
+    if (this.recoverT > 0) { this.recoverT -= dt; return; }
     const brain = this.brain, ch = this.character, style = this.kind === 'archer' ? 'relaxed' : brain.state === 'combat' ? 'guard' : 'relaxed';
     if (this.speedNow > 0.15) { this.idleT = 0; ch.locomote(this.speedNow, style); return; }
     if (brain.state === 'patrol' && this.def.idleClip) {
