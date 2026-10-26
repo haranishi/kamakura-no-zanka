@@ -1,0 +1,73 @@
+{
+  "schemaVersion": 1,
+  "checkedAt": "2026-10-26T23:10:56.365595+00:00",
+  "decision": "BLOCKED_EXTERNAL",
+  "pullRequest": "https://github.com/haranishi/kamakura-no-zanka/pull/4",
+  "run": "https://github.com/haranishi/kamakura-no-zanka/actions/runs/40400146617",
+  "headSha": "d84c135980aacc5439b9819cd731b19d00f573bf",
+  "nodes": [
+    22,
+    24
+  ],
+  "runnerStarted": false,
+  "stepsExecuted": 0,
+  "reason": "GitHub reports recent account payments failed or spending limit needs to be increased. No job was started (runner name empty, 0 steps, 2-3 s). Every push of this branch failed the same way, including the first v19 commit, so the failures are not caused by the code.",
+  "accountSettingsChanged": false,
+  "localFallback": {
+    "checkout": "git archive of d84c135 extracted into an empty folder (no node_modules), the same three commands as .github/workflows/verify.yml",
+    "node22": {
+      "runtime": "v22.23.4",
+      "platform": "macOS arm64",
+      "source": "https://nodejs.org/dist/v22.23.4/node-v22.23.4-darwin-arm64.tar.gz",
+      "archiveSha256": "c9e1dbc748b33ed2d14f42445191ecaf14c56259c7a9a26d0042c49ec2b66428",
+      "sha256MatchedPublishedList": true,
+      "results": [
+        {
+          "command": "npm test",
+          "exitCode": 0,
+          "tests": 184,
+          "pass": 184,
+          "fail": 0
+        },
+        {
+          "command": "npm run check",
+          "exitCode": 0
+        },
+        {
+          "command": "npm run smoke",
+          "exitCode": 0
+        }
+      ],
+      "limits": "Local fallback only; GitHub Linux CI has not run"
+    },
+    "node24": {
+      "runtime": "v24.22.1",
+      "platform": "macOS arm64",
+      "results": [
+        {
+          "command": "npm test",
+          "exitCode": 0,
+          "tests": 184,
+          "pass": 184,
+          "fail": 0
+        },
+        {
+          "command": "npm run check",
+          "exitCode": 0
+        },
+        {
+          "command": "npm run smoke",
+          "exitCode": 0
+        }
+      ],
+      "allPassed": true
+    }
+  },
+  "mergeProtection": {
+    "mainProtected": false,
+    "requiredChecks": [],
+    "rulesets": [],
+    "adminOverrideUsed": false
+  },
+  "limits": "Local macOS checks are evidence for the delivered code, not a substitute for a successful GitHub Ubuntu CI run. CI stays pending until the account billing is fixed; the billing settings were not changed."
+}

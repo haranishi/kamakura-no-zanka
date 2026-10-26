@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#171e1b"><title>残火の鎌倉 | 第一章 隠れ谷の灯</title>
+<meta name="description" content="谷の廃寺から村を救い、負傷した旧臣と帰る。三人称アクションの縦切り。">
+<link rel="icon" href="data:,"><link rel="stylesheet" href="./valley.css">
+<script type="importmap">{"imports":{"three":"../vendor/three.module.min.js","three/addons/":"../vendor/"}}</script>
+</head>
+<body data-state="loading">
+<main id="view" tabindex="-1" aria-label="隠れ谷の3Dシーン"></main>
+<div id="vignette" class="vignette" aria-hidden="true"></div>
+<div id="hurt" class="hurt" aria-hidden="true"></div>
+
+<section id="title" class="title hidden" aria-label="タイトル">
+  <div class="title-in">
+    <div class="kicker"><span class="seal" aria-hidden="true">残火</span><span>第一章　隠れ谷の灯</span></div>
+    <h1>残火の鎌倉</h1><p class="en" aria-hidden="true">THE EMBERS OF KAMAKURA</p>
+    <p class="sub">人を集める前に、暮らしを守る。</p>
+    <nav class="menu" aria-label="メインメニュー">
+      <button id="btn-start" class="primary">はじめる<span aria-hidden="true">→</span></button>
+      <button id="btn-continue" class="hidden">つづきから<span aria-hidden="true">→</span></button>
+      <button id="btn-howto">操作</button>
+    </nav>
+    <p class="note">架空の谷を舞台にした創作です（鎌倉幕府の滅亡後・1333年ごろ）。キーボードとマウスで遊びます。</p>
+  </div>
+  <div class="title-foot"><span>信濃・隠れ谷</span><span>縦切り v19</span></div>
+</section>
+
+<section id="loading" class="loading" aria-live="polite">
+  <div class="load-in"><p class="kicker2">残火の鎌倉</p><h2 id="load-title">谷をひらいています</h2>
+    <div class="load-bar"><span id="load-fill"></span></div><p id="load-note">地形・人物・建物を読み込んでいます</p></div>
+</section>
+
+<div id="hud" class="hud hidden">
+  <div class="obj"><span class="obj-tag">目的</span><p id="obj-text">庭へ降りる</p><div class="compass" id="compass"><i id="compass-needle" aria-hidden="true">↑</i><span id="compass-dist"></span></div></div>
+  <div class="bars" aria-label="体力と構え">
+    <div class="bar hp"><label>体力</label><div class="track"><span id="bar-hp"></span></div></div>
+    <div class="bar posture"><label>構え</label><div class="track"><span id="bar-posture"></span></div></div>
+  </div>
+  <div id="granary" class="granary hidden"><label>倉の米</label><div class="track"><span id="granary-fill"></span></div></div>
+  <div id="party" class="party hidden"><span class="party-name">梓 弥十郎</span><span id="party-mode">同行</span><kbd>Q</kbd></div>
+  <div id="boss" class="boss hidden"><span id="boss-name">追手の侍大将</span><div class="track"><span id="boss-hp"></span></div></div>
+  <div id="markers" class="markers" aria-hidden="true"></div>
+  <div id="prompt" class="prompt hidden"><kbd>E</kbd><span id="prompt-text">調べる</span></div>
+  <div id="hint" class="hint hidden" role="status"></div>
+  <div id="subtitle" class="subtitle hidden" role="status"></div>
+  <button id="menu-btn" class="menu-btn" aria-label="メニューを開く"><span>メニュー</span><kbd>Esc</kbd></button>
+</div>
+
+<section id="dialogue" class="dialogue hidden" aria-live="polite">
+  <div class="dlg-name" id="dlg-name"></div><p class="dlg-text" id="dlg-text"></p><span class="dlg-next" aria-hidden="true">E ▸</span>
+</section>
+
+<section id="choice" class="choice hidden" aria-label="里への入り方">
+  <h3>里へ、どう入る。</h3>
+  <div class="choice-row">
+    <button id="choice-front"><b>正面から</b><span>早く着く。倉の米が荒らされやすい。</span></button>
+    <button id="choice-flank"><b>脇道から</b><span>遅いが、背後に出られる。見つかる危険がある。</span></button>
+  </div>
+  <p class="choice-note">どちらを選んでも、歩いて途中で変えられる。</p>
+</section>
+
+<section id="result" class="result hidden" aria-label="帰還の結果">
+  <div class="result-in"><p class="kicker2">第一章　隠れ谷の灯</p><h2>灯は、まだ消えていない。</h2>
+    <ul class="result-lines" id="result-lines"></ul>
+    <dl class="result-nums" id="result-nums"></dl>
+    <div class="result-actions"><button id="result-again">もう一度（最初から）</button><button id="result-title">タイトルへ</button></div></div>
+</section>
+
+<section id="death" class="death hidden" aria-live="assertive">
+  <div class="death-in"><h2>倒れた。</h2><p>直前の区切りから、やり直せる。</p><button id="death-retry" class="primary">やり直す<span aria-hidden="true">→</span></button></div>
+</section>
+
+<dialog id="pause" aria-labelledby="pause-head">
+  <div class="pause-in"><h2 id="pause-head">ひと休み</h2>
+    <div class="pause-cols">
+      <nav class="pause-nav"><button id="pause-resume" class="primary">つづける</button><button id="pause-checkpoint">直前の区切りへ戻る</button><button id="pause-title">タイトルへ</button></nav>
+      <div class="pause-main">
+        <h3>操作</h3>
+        <dl class="keys"><div><dt>W A S D</dt><dd>歩く</dd></div><div><dt>マウス</dt><dd>見回す</dd></div><div><dt>Shift</dt><dd>走る</dd></div><div><dt>C</dt><dd>屈む（気づかれにくい）</dd></div>
+          <div><dt>左クリック</dt><dd>斬る（続けて三連）</dd></div><div><dt>F</dt><dd>強く斬る</dd></div><div><dt>右クリック</dt><dd>受ける（光を見て押すと弾く）</dd></div><div><dt>Space</dt><dd>転がって避ける</dd></div>
+          <div><dt>E</dt><dd>調べる・話す・とどめ・闇討ち</dd></div><div><dt>Tab</dt><dd>敵を狙う</dd></div><div><dt>Q / 1〜4</dt><dd>弥十郎へ指示</dd></div><div><dt>H</dt><dd>画面の表示を隠す</dd></div></dl>
+        <h3>設定</h3>
+        <div class="settings">
+          <label>描画品質<select id="set-quality"><option value="standard">標準</option><option value="light">軽量</option></select></label>
+          <label>視点の感度<input id="set-sens" type="range" min="0.4" max="2" step="0.05" value="1"></label>
+          <label>視点の上下反転<input id="set-invert" type="checkbox"></label>
+          <label>画面の揺れ・衝撃<input id="set-shake" type="range" min="0" max="1" step="0.1" value="1"></label>
+          <label>音量<input id="set-volume" type="range" min="0" max="1" step="0.05" value="0.8"></label>
+          <label>字幕<input id="set-subs" type="checkbox" checked></label>
+        </div>
+      </div>
+    </div></div>
+</dialog>
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+<div id="fade" class="fade" aria-hidden="true"></div>
+<script type="module" src="./main.js"></script>
+</body></html>

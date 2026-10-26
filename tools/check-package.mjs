@@ -30,4 +30,5 @@ for(const asset of catalogue.assets){
  }
 }
 assert.equal(textureBytes,catalogue.totalBytes);assert(textureBytes<=8*1024*1024,'Texture budget');
+{const r=spawnSync(process.execPath,[path.join(root,'tools/check-valley.mjs')],{encoding:'utf8'});assert.equal(r.status,0,r.stderr||r.stdout);console.log(r.stdout.trim());}
 console.log(`Package check passed: ${required.length} required files, ${scripts.length} JS syntax checks, embedded GLB images.`);
