@@ -1,0 +1,126 @@
+{
+  "total": 24,
+  "killed": 24,
+  "results": [
+    {
+      "name": "route bearing",
+      "killed": true,
+      "failed": 1
+    },
+    {
+      "name": "mandatory points",
+      "killed": true,
+      "failed": 2
+    },
+    {
+      "name": "road corridor",
+      "killed": true,
+      "failed": 1
+    },
+    {
+      "name": "correction log",
+      "killed": true,
+      "failed": 1
+    },
+    {
+      "name": "25m boundary",
+      "killed": true,
+      "failed": 2
+    },
+    {
+      "name": "30s window",
+      "killed": true,
+      "failed": 11
+    },
+    {
+      "name": "10m boundary",
+      "killed": true,
+      "failed": 2
+    },
+    {
+      "name": "mode clears history",
+      "killed": true,
+      "failed": 3
+    },
+    {
+      "name": "mode clock stops",
+      "killed": true,
+      "failed": 3
+    },
+    {
+      "name": "objective reset",
+      "killed": true,
+      "failed": 1
+    },
+    {
+      "name": "plan reset",
+      "killed": true,
+      "failed": 1
+    },
+    {
+      "name": "restart reset",
+      "killed": true,
+      "failed": 1
+    },
+    {
+      "name": "result clears emphasis",
+      "killed": true,
+      "failed": 1
+    },
+    {
+      "name": "release needs distance AND progress",
+      "killed": true,
+      "failed": 6
+    },
+    {
+      "name": "20m release boundary",
+      "killed": true,
+      "failed": 1
+    },
+    {
+      "name": "emphasis keeps samples",
+      "killed": true,
+      "failed": 1
+    },
+    {
+      "name": "crossing projection order",
+      "killed": true,
+      "failed": 1
+    },
+    {
+      "name": "passed progress preserved",
+      "killed": true,
+      "failed": 1
+    },
+    {
+      "name": "recovery unpassed only",
+      "killed": true,
+      "failed": 1
+    },
+    {
+      "name": "fixed baseline off-road",
+      "killed": true,
+      "failed": 3
+    },
+    {
+      "name": "finite state rejection",
+      "killed": true,
+      "failed": 1
+    },
+    {
+      "name": "physical obstacle check",
+      "killed": true,
+      "failed": 4
+    },
+    {
+      "name": "center target data",
+      "killed": true,
+      "failed": 2
+    },
+    {
+      "name": "objective text",
+      "killed": true,
+      "failed": 1
+    }
+  ]
+}

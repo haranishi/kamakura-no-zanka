@@ -1,0 +1,1750 @@
+{
+  "note": "Node通行検査。開始点は前測定を継承。roadMは旧nav最短路、新lengthは必須点を順守。connectionは道路データの空白・庭・里内の接続。ブラウザ未検証。",
+  "rows": [
+    {
+      "beat": "b0_temple",
+      "variant": "default",
+      "start": {
+        "x": -100.5,
+        "z": -89
+      },
+      "roadM": 23.69071548096427,
+      "length": 23.69071548096427,
+      "differenceM": 0,
+      "baseline": {
+        "id": "[\"b0_temple\",\"front\",-100.5,-89,[{\"x\":-100.5,\"z\":-89},{\"x\":-84,\"z\":-72}]]",
+        "objectiveId": "b0_temple",
+        "plan": "front",
+        "from": {
+          "x": -100.5,
+          "z": -89
+        },
+        "points": [
+          {
+            "x": -100.5,
+            "z": -89
+          },
+          {
+            "x": -84,
+            "z": -72
+          }
+        ],
+        "cumulative": [
+          0,
+          23.69071548096427
+        ],
+        "length": 23.69071548096427,
+        "mandatory": [],
+        "corrections": [],
+        "legs": [
+          {
+            "kind": "connection",
+            "road": null,
+            "startIndex": 0,
+            "endIndex": 1
+          }
+        ]
+      }
+    },
+    {
+      "beat": "b1_boy",
+      "variant": "default",
+      "start": {
+        "x": -84,
+        "z": -72
+      },
+      "roadM": 4.123105625617661,
+      "length": 4.123105625617661,
+      "differenceM": 0,
+      "baseline": {
+        "id": "[\"b1_boy\",\"front\",-84,-72,[{\"x\":-84,\"z\":-72},{\"x\":-88,\"z\":-73}]]",
+        "objectiveId": "b1_boy",
+        "plan": "front",
+        "from": {
+          "x": -84,
+          "z": -72
+        },
+        "points": [
+          {
+            "x": -84,
+            "z": -72
+          },
+          {
+            "x": -88,
+            "z": -73
+          }
+        ],
+        "cumulative": [
+          0,
+          4.123105625617661
+        ],
+        "length": 4.123105625617661,
+        "mandatory": [],
+        "corrections": [],
+        "legs": [
+          {
+            "kind": "connection",
+            "road": null,
+            "startIndex": 0,
+            "endIndex": 1
+          }
+        ]
+      }
+    },
+    {
+      "beat": "b2_road",
+      "variant": "default",
+      "start": {
+        "x": -80.5,
+        "z": -68.5
+      },
+      "roadM": 53.64048866932197,
+      "length": 74.28213323990701,
+      "differenceM": 20.641644570585044,
+      "baseline": {
+        "id": "[\"b2_road\",\"front\",-80.5,-68.5,[{\"x\":-80.5,\"z\":-68.5},{\"x\":-76,\"z\":-68},{\"x\":-74,\"z\":-66},{\"x\":-62,\"z\":-60},{\"x\":-48,\"z\":-55},{\"x\":-36,\"z\":-48},{\"x\":-38,\"z\":-38},{\"x\":-50,\"z\":-34},{\"x\":-49.25,\"z\":-35.75}]]",
+        "objectiveId": "b2_road",
+        "plan": "front",
+        "from": {
+          "x": -80.5,
+          "z": -68.5
+        },
+        "points": [
+          {
+            "x": -80.5,
+            "z": -68.5
+          },
+          {
+            "x": -76,
+            "z": -68
+          },
+          {
+            "x": -74,
+            "z": -66
+          },
+          {
+            "x": -62,
+            "z": -60
+          },
+          {
+            "x": -48,
+            "z": -55
+          },
+          {
+            "x": -36,
+            "z": -48
+          },
+          {
+            "x": -38,
+            "z": -38
+          },
+          {
+            "x": -50,
+            "z": -34
+          },
+          {
+            "x": -49.25,
+            "z": -35.75
+          }
+        ],
+        "cumulative": [
+          0,
+          4.527692569068709,
+          7.3561196938148985,
+          20.772527558813636,
+          35.63859630613214,
+          49.531040295581946,
+          59.72907932276752,
+          72.37818996344103,
+          74.28213323990701
+        ],
+        "length": 74.28213323990701,
+        "mandatory": [
+          {
+            "road": "temple",
+            "index": 1,
+            "point": {
+              "x": -76,
+              "z": -68
+            },
+            "corrected": {
+              "x": -76,
+              "z": -68
+            },
+            "pathIndex": 1
+          },
+          {
+            "road": "temple",
+            "index": 2,
+            "point": {
+              "x": -74,
+              "z": -66
+            },
+            "corrected": {
+              "x": -74,
+              "z": -66
+            },
+            "pathIndex": 2
+          },
+          {
+            "road": "forest",
+            "index": 0,
+            "point": {
+              "x": -74,
+              "z": -66
+            },
+            "corrected": {
+              "x": -74,
+              "z": -66
+            },
+            "pathIndex": 2
+          },
+          {
+            "road": "forest",
+            "index": 1,
+            "point": {
+              "x": -62,
+              "z": -60
+            },
+            "corrected": {
+              "x": -62,
+              "z": -60
+            },
+            "pathIndex": 3
+          },
+          {
+            "road": "forest",
+            "index": 2,
+            "point": {
+              "x": -48,
+              "z": -55
+            },
+            "corrected": {
+              "x": -48,
+              "z": -55
+            },
+            "pathIndex": 4
+          },
+          {
+            "road": "forest",
+            "index": 3,
+            "point": {
+              "x": -36,
+              "z": -48
+            },
+            "corrected": {
+              "x": -36,
+              "z": -48
+            },
+            "pathIndex": 5
+          },
+          {
+            "road": "forest",
+            "index": 4,
+            "point": {
+              "x": -38,
+              "z": -38
+            },
+            "corrected": {
+              "x": -38,
+              "z": -38
+            },
+            "pathIndex": 6
+          },
+          {
+            "road": "forest",
+            "index": 5,
+            "point": {
+              "x": -50,
+              "z": -34
+            },
+            "corrected": {
+              "x": -50,
+              "z": -34
+            },
+            "pathIndex": 7
+          }
+        ],
+        "corrections": [
+          {
+            "road": "forest",
+            "index": null,
+            "original": {
+              "x": -50,
+              "z": -36
+            },
+            "corrected": {
+              "x": -49.25,
+              "z": -35.75
+            },
+            "meters": 0.7905694150420949
+          }
+        ],
+        "legs": [
+          {
+            "kind": "road",
+            "road": "temple",
+            "startIndex": 0,
+            "endIndex": 1
+          },
+          {
+            "kind": "road",
+            "road": "temple",
+            "startIndex": 1,
+            "endIndex": 2
+          },
+          {
+            "kind": "road",
+            "road": "forest",
+            "startIndex": 2,
+            "endIndex": 2
+          },
+          {
+            "kind": "road",
+            "road": "forest",
+            "startIndex": 2,
+            "endIndex": 3
+          },
+          {
+            "kind": "road",
+            "road": "forest",
+            "startIndex": 3,
+            "endIndex": 4
+          },
+          {
+            "kind": "road",
+            "road": "forest",
+            "startIndex": 4,
+            "endIndex": 5
+          },
+          {
+            "kind": "road",
+            "road": "forest",
+            "startIndex": 5,
+            "endIndex": 6
+          },
+          {
+            "kind": "road",
+            "road": "forest",
+            "startIndex": 6,
+            "endIndex": 7
+          },
+          {
+            "kind": "road",
+            "road": "forest",
+            "startIndex": 7,
+            "endIndex": 8
+          }
+        ]
+      }
+    },
+    {
+      "beat": "b3_viewpoint",
+      "variant": "front",
+      "start": {
+        "x": -49,
+        "z": -33
+      },
+      "roadM": 48.87005768508882,
+      "length": 72.07513945835159,
+      "differenceM": 23.20508177326277,
+      "baseline": {
+        "id": "[\"b3_viewpoint\",\"front\",-49,-33,[{\"x\":-49,\"z\":-33},{\"x\":-50,\"z\":-34},{\"x\":-60,\"z\":-28},{\"x\":-56,\"z\":-20},{\"x\":-44,\"z\":-14},{\"x\":-32,\"z\":-8},{\"x\":-22,\"z\":-3},{\"x\":-34,\"z\":-4}]]",
+        "objectiveId": "b3_viewpoint",
+        "plan": "front",
+        "from": {
+          "x": -49,
+          "z": -33
+        },
+        "points": [
+          {
+            "x": -49,
+            "z": -33
+          },
+          {
+            "x": -50,
+            "z": -34
+          },
+          {
+            "x": -60,
+            "z": -28
+          },
+          {
+            "x": -56,
+            "z": -20
+          },
+          {
+            "x": -44,
+            "z": -14
+          },
+          {
+            "x": -32,
+            "z": -8
+          },
+          {
+            "x": -22,
+            "z": -3
+          },
+          {
+            "x": -34,
+            "z": -4
+          }
+        ],
+        "cumulative": [
+          0,
+          1.4142135623730951,
+          13.076117352063696,
+          22.020389262062857,
+          35.436797127061595,
+          48.853204992060334,
+          60.03354487955929,
+          72.07513945835159
+        ],
+        "length": 72.07513945835159,
+        "mandatory": [
+          {
+            "road": "forest",
+            "index": 5,
+            "point": {
+              "x": -50,
+              "z": -34
+            },
+            "corrected": {
+              "x": -50,
+              "z": -34
+            },
+            "pathIndex": 1
+          },
+          {
+            "road": "forest",
+            "index": 6,
+            "point": {
+              "x": -60,
+              "z": -28
+            },
+            "corrected": {
+              "x": -60,
+              "z": -28
+            },
+            "pathIndex": 2
+          },
+          {
+            "road": "forest",
+            "index": 7,
+            "point": {
+              "x": -56,
+              "z": -20
+            },
+            "corrected": {
+              "x": -56,
+              "z": -20
+            },
+            "pathIndex": 3
+          },
+          {
+            "road": "forest",
+            "index": 8,
+            "point": {
+              "x": -44,
+              "z": -14
+            },
+            "corrected": {
+              "x": -44,
+              "z": -14
+            },
+            "pathIndex": 4
+          },
+          {
+            "road": "forest",
+            "index": 9,
+            "point": {
+              "x": -32,
+              "z": -8
+            },
+            "corrected": {
+              "x": -32,
+              "z": -8
+            },
+            "pathIndex": 5
+          },
+          {
+            "road": "forest",
+            "index": 10,
+            "point": {
+              "x": -22,
+              "z": -3
+            },
+            "corrected": {
+              "x": -22,
+              "z": -3
+            },
+            "pathIndex": 6
+          },
+          {
+            "road": "lane",
+            "index": 0,
+            "point": {
+              "x": -22,
+              "z": -3
+            },
+            "corrected": {
+              "x": -22,
+              "z": -3
+            },
+            "pathIndex": 6
+          }
+        ],
+        "corrections": [],
+        "legs": [
+          {
+            "kind": "road",
+            "road": "forest",
+            "startIndex": 0,
+            "endIndex": 1
+          },
+          {
+            "kind": "road",
+            "road": "forest",
+            "startIndex": 1,
+            "endIndex": 2
+          },
+          {
+            "kind": "road",
+            "road": "forest",
+            "startIndex": 2,
+            "endIndex": 3
+          },
+          {
+            "kind": "road",
+            "road": "forest",
+            "startIndex": 3,
+            "endIndex": 4
+          },
+          {
+            "kind": "road",
+            "road": "forest",
+            "startIndex": 4,
+            "endIndex": 5
+          },
+          {
+            "kind": "road",
+            "road": "forest",
+            "startIndex": 5,
+            "endIndex": 6
+          },
+          {
+            "kind": "road",
+            "road": "lane",
+            "startIndex": 6,
+            "endIndex": 6
+          },
+          {
+            "kind": "connection",
+            "road": null,
+            "startIndex": 6,
+            "endIndex": 7
+          }
+        ]
+      }
+    },
+    {
+      "beat": "b4_village",
+      "variant": "front",
+      "start": {
+        "x": -34,
+        "z": -4
+      },
+      "roadM": 34.92849839314596,
+      "length": 34.92849839314596,
+      "differenceM": 0,
+      "baseline": {
+        "id": "[\"b4_village\",\"front\",-34,-4,[{\"x\":-34,\"z\":-4},{\"x\":0,\"z\":4}]]",
+        "objectiveId": "b4_village",
+        "plan": "front",
+        "from": {
+          "x": -34,
+          "z": -4
+        },
+        "points": [
+          {
+            "x": -34,
+            "z": -4
+          },
+          {
+            "x": 0,
+            "z": 4
+          }
+        ],
+        "cumulative": [
+          0,
+          34.92849839314596
+        ],
+        "length": 34.92849839314596,
+        "mandatory": [],
+        "corrections": [],
+        "legs": [
+          {
+            "kind": "connection",
+            "road": null,
+            "startIndex": 0,
+            "endIndex": 1
+          }
+        ]
+      }
+    },
+    {
+      "beat": "b3_viewpoint",
+      "variant": "north",
+      "start": {
+        "x": -49,
+        "z": -33
+      },
+      "roadM": 73.61954724139409,
+      "length": 126.31682718868309,
+      "differenceM": 52.697279947289005,
+      "baseline": {
+        "id": "[\"b3_viewpoint\",\"north\",-49,-33,[{\"x\":-49,\"z\":-33},{\"x\":-50,\"z\":-34},{\"x\":-60,\"z\":-28},{\"x\":-56,\"z\":-20},{\"x\":-44,\"z\":-14},{\"x\":-40,\"z\":-18},{\"x\":-30,\"z\":-30},{\"x\":-14,\"z\":-38},{\"x\":2,\"z\":-42},{\"x\":5,\"z\":-30},{\"x\":4.950000000000003,\"z\":-24.049999999999997},{\"x\":4.450000000000003,\"z\":-23.549999999999997},{\"x\":3.950000000000003,\"z\":-20.549999999999997},{\"x\":3,\"z\":-18},{\"x\":4.25,\"z\":-22.75},{\"x\":4.25,\"z\":-25.25},{\"x\":3,\"z\":-28}]]",
+        "objectiveId": "b3_viewpoint",
+        "plan": "north",
+        "from": {
+          "x": -49,
+          "z": -33
+        },
+        "points": [
+          {
+            "x": -49,
+            "z": -33
+          },
+          {
+            "x": -50,
+            "z": -34
+          },
+          {
+            "x": -60,
+            "z": -28
+          },
+          {
+            "x": -56,
+            "z": -20
+          },
+          {
+            "x": -44,
+            "z": -14
+          },
+          {
+            "x": -40,
+            "z": -18
+          },
+          {
+            "x": -30,
+            "z": -30
+          },
+          {
+            "x": -14,
+            "z": -38
+          },
+          {
+            "x": 2,
+            "z": -42
+          },
+          {
+            "x": 5,
+            "z": -30
+          },
+          {
+            "x": 4.950000000000003,
+            "z": -24.049999999999997
+          },
+          {
+            "x": 4.450000000000003,
+            "z": -23.549999999999997
+          },
+          {
+            "x": 3.950000000000003,
+            "z": -20.549999999999997
+          },
+          {
+            "x": 3,
+            "z": -18
+          },
+          {
+            "x": 4.25,
+            "z": -22.75
+          },
+          {
+            "x": 4.25,
+            "z": -25.25
+          },
+          {
+            "x": 3,
+            "z": -28
+          }
+        ],
+        "cumulative": [
+          0,
+          1.4142135623730951,
+          13.076117352063696,
+          22.020389262062857,
+          35.436797127061595,
+          41.09365137655398,
+          56.71415072836729,
+          74.6026945483656,
+          91.09511705083625,
+          103.46443392768923,
+          109.41464400801412,
+          110.12175078920068,
+          113.16313205434979,
+          115.88434501918734,
+          120.79606569528445,
+          123.29606569528445,
+          126.31682718868309
+        ],
+        "length": 126.31682718868309,
+        "mandatory": [
+          {
+            "road": "forest",
+            "index": 5,
+            "point": {
+              "x": -50,
+              "z": -34
+            },
+            "corrected": {
+              "x": -50,
+              "z": -34
+            },
+            "pathIndex": 1
+          },
+          {
+            "road": "forest",
+            "index": 6,
+            "point": {
+              "x": -60,
+              "z": -28
+            },
+            "corrected": {
+              "x": -60,
+              "z": -28
+            },
+            "pathIndex": 2
+          },
+          {
+            "road": "forest",
+            "index": 7,
+            "point": {
+              "x": -56,
+              "z": -20
+            },
+            "corrected": {
+              "x": -56,
+              "z": -20
+            },
+            "pathIndex": 3
+          },
+          {
+            "road": "forest",
+            "index": 8,
+            "point": {
+              "x": -44,
+              "z": -14
+            },
+            "corrected": {
+              "x": -44,
+              "z": -14
+            },
+            "pathIndex": 4
+          },
+          {
+            "road": "north",
+            "index": 0,
+            "point": {
+              "x": -40,
+              "z": -18
+            },
+            "corrected": {
+              "x": -40,
+              "z": -18
+            },
+            "pathIndex": 5
+          },
+          {
+            "road": "north",
+            "index": 1,
+            "point": {
+              "x": -30,
+              "z": -30
+            },
+            "corrected": {
+              "x": -30,
+              "z": -30
+            },
+            "pathIndex": 6
+          },
+          {
+            "road": "north",
+            "index": 2,
+            "point": {
+              "x": -14,
+              "z": -38
+            },
+            "corrected": {
+              "x": -14,
+              "z": -38
+            },
+            "pathIndex": 7
+          },
+          {
+            "road": "north",
+            "index": 3,
+            "point": {
+              "x": 2,
+              "z": -42
+            },
+            "corrected": {
+              "x": 2,
+              "z": -42
+            },
+            "pathIndex": 8
+          },
+          {
+            "road": "north",
+            "index": 4,
+            "point": {
+              "x": 5,
+              "z": -30
+            },
+            "corrected": {
+              "x": 5,
+              "z": -30
+            },
+            "pathIndex": 9
+          },
+          {
+            "road": "north",
+            "index": 5,
+            "point": {
+              "x": 3,
+              "z": -18
+            },
+            "corrected": {
+              "x": 3,
+              "z": -18
+            },
+            "pathIndex": 13
+          }
+        ],
+        "corrections": [],
+        "legs": [
+          {
+            "kind": "road",
+            "road": "forest",
+            "startIndex": 0,
+            "endIndex": 1
+          },
+          {
+            "kind": "road",
+            "road": "forest",
+            "startIndex": 1,
+            "endIndex": 2
+          },
+          {
+            "kind": "road",
+            "road": "forest",
+            "startIndex": 2,
+            "endIndex": 3
+          },
+          {
+            "kind": "road",
+            "road": "forest",
+            "startIndex": 3,
+            "endIndex": 4
+          },
+          {
+            "kind": "connection",
+            "road": null,
+            "startIndex": 4,
+            "endIndex": 5
+          },
+          {
+            "kind": "road",
+            "road": "north",
+            "startIndex": 5,
+            "endIndex": 6
+          },
+          {
+            "kind": "road",
+            "road": "north",
+            "startIndex": 6,
+            "endIndex": 7
+          },
+          {
+            "kind": "road",
+            "road": "north",
+            "startIndex": 7,
+            "endIndex": 8
+          },
+          {
+            "kind": "road",
+            "road": "north",
+            "startIndex": 8,
+            "endIndex": 9
+          },
+          {
+            "kind": "road",
+            "road": "north",
+            "startIndex": 9,
+            "endIndex": 13
+          },
+          {
+            "kind": "connection",
+            "road": null,
+            "startIndex": 13,
+            "endIndex": 16
+          }
+        ]
+      }
+    },
+    {
+      "beat": "b4_village",
+      "variant": "north",
+      "start": {
+        "x": 3,
+        "z": -28
+      },
+      "roadM": 32.805998461887214,
+      "length": 33.661121205783104,
+      "differenceM": 0.8551227438958904,
+      "baseline": {
+        "id": "[\"b4_village\",\"north\",3,-28,[{\"x\":3,\"z\":-28},{\"x\":4.25,\"z\":-24.25},{\"x\":4.25,\"z\":-9.75},{\"x\":3.25,\"z\":-2.75},{\"x\":1.75,\"z\":0.75},{\"x\":1.25,\"z\":2.75},{\"x\":0.25,\"z\":3.75},{\"x\":0.25,\"z\":4.25},{\"x\":0,\"z\":4}]]",
+        "objectiveId": "b4_village",
+        "plan": "north",
+        "from": {
+          "x": 3,
+          "z": -28
+        },
+        "points": [
+          {
+            "x": 3,
+            "z": -28
+          },
+          {
+            "x": 4.25,
+            "z": -24.25
+          },
+          {
+            "x": 4.25,
+            "z": -9.75
+          },
+          {
+            "x": 3.25,
+            "z": -2.75
+          },
+          {
+            "x": 1.75,
+            "z": 0.75
+          },
+          {
+            "x": 1.25,
+            "z": 2.75
+          },
+          {
+            "x": 0.25,
+            "z": 3.75
+          },
+          {
+            "x": 0.25,
+            "z": 4.25
+          },
+          {
+            "x": 0,
+            "z": 4
+          }
+        ],
+        "cumulative": [
+          0,
+          3.9528470752104745,
+          18.452847075210475,
+          25.52391488707595,
+          29.331801440007904,
+          31.393354252816735,
+          32.80756781518983,
+          33.30756781518983,
+          33.661121205783104
+        ],
+        "length": 33.661121205783104,
+        "mandatory": [],
+        "corrections": [],
+        "legs": [
+          {
+            "kind": "connection",
+            "road": null,
+            "startIndex": 0,
+            "endIndex": 8
+          }
+        ]
+      }
+    },
+    {
+      "beat": "b3_viewpoint",
+      "variant": "south",
+      "start": {
+        "x": -49,
+        "z": -33
+      },
+      "roadM": 94.46803743153544,
+      "length": 152.82946540080388,
+      "differenceM": 58.36142796926845,
+      "baseline": {
+        "id": "[\"b3_viewpoint\",\"south\",-49,-33,[{\"x\":-49,\"z\":-33},{\"x\":-50,\"z\":-34},{\"x\":-60,\"z\":-28},{\"x\":-56,\"z\":-20},{\"x\":-55.75,\"z\":5.25},{\"x\":-55.75,\"z\":17.75},{\"x\":-52,\"z\":30},{\"x\":-40,\"z\":44},{\"x\":-30,\"z\":52},{\"x\":-18,\"z\":46},{\"x\":-14,\"z\":36},{\"x\":-10,\"z\":24},{\"x\":-12,\"z\":36}]]",
+        "objectiveId": "b3_viewpoint",
+        "plan": "south",
+        "from": {
+          "x": -49,
+          "z": -33
+        },
+        "points": [
+          {
+            "x": -49,
+            "z": -33
+          },
+          {
+            "x": -50,
+            "z": -34
+          },
+          {
+            "x": -60,
+            "z": -28
+          },
+          {
+            "x": -56,
+            "z": -20
+          },
+          {
+            "x": -55.75,
+            "z": 5.25
+          },
+          {
+            "x": -55.75,
+            "z": 17.75
+          },
+          {
+            "x": -52,
+            "z": 30
+          },
+          {
+            "x": -40,
+            "z": 44
+          },
+          {
+            "x": -30,
+            "z": 52
+          },
+          {
+            "x": -18,
+            "z": 46
+          },
+          {
+            "x": -14,
+            "z": 36
+          },
+          {
+            "x": -10,
+            "z": 24
+          },
+          {
+            "x": -12,
+            "z": 36
+          }
+        ],
+        "cumulative": [
+          0,
+          1.4142135623730951,
+          13.076117352063696,
+          22.020389262062857,
+          47.27162685549578,
+          59.77162685549578,
+          72.58275483081474,
+          91.0218437454005,
+          103.8280922202662,
+          117.24450008526495,
+          128.01482969953395,
+          140.66394034020746,
+          152.82946540080388
+        ],
+        "length": 152.82946540080388,
+        "mandatory": [
+          {
+            "road": "forest",
+            "index": 5,
+            "point": {
+              "x": -50,
+              "z": -34
+            },
+            "corrected": {
+              "x": -50,
+              "z": -34
+            },
+            "pathIndex": 1
+          },
+          {
+            "road": "forest",
+            "index": 6,
+            "point": {
+              "x": -60,
+              "z": -28
+            },
+            "corrected": {
+              "x": -60,
+              "z": -28
+            },
+            "pathIndex": 2
+          },
+          {
+            "road": "forest",
+            "index": 7,
+            "point": {
+              "x": -56,
+              "z": -20
+            },
+            "corrected": {
+              "x": -56,
+              "z": -20
+            },
+            "pathIndex": 3
+          },
+          {
+            "road": "south",
+            "index": 0,
+            "point": {
+              "x": -52,
+              "z": 30
+            },
+            "corrected": {
+              "x": -52,
+              "z": 30
+            },
+            "pathIndex": 6
+          },
+          {
+            "road": "south",
+            "index": 1,
+            "point": {
+              "x": -40,
+              "z": 44
+            },
+            "corrected": {
+              "x": -40,
+              "z": 44
+            },
+            "pathIndex": 7
+          },
+          {
+            "road": "south",
+            "index": 2,
+            "point": {
+              "x": -30,
+              "z": 52
+            },
+            "corrected": {
+              "x": -30,
+              "z": 52
+            },
+            "pathIndex": 8
+          },
+          {
+            "road": "south",
+            "index": 3,
+            "point": {
+              "x": -18,
+              "z": 46
+            },
+            "corrected": {
+              "x": -18,
+              "z": 46
+            },
+            "pathIndex": 9
+          },
+          {
+            "road": "south",
+            "index": 4,
+            "point": {
+              "x": -14,
+              "z": 36
+            },
+            "corrected": {
+              "x": -14,
+              "z": 36
+            },
+            "pathIndex": 10
+          },
+          {
+            "road": "south",
+            "index": 5,
+            "point": {
+              "x": -10,
+              "z": 24
+            },
+            "corrected": {
+              "x": -10,
+              "z": 24
+            },
+            "pathIndex": 11
+          }
+        ],
+        "corrections": [],
+        "legs": [
+          {
+            "kind": "road",
+            "road": "forest",
+            "startIndex": 0,
+            "endIndex": 1
+          },
+          {
+            "kind": "road",
+            "road": "forest",
+            "startIndex": 1,
+            "endIndex": 2
+          },
+          {
+            "kind": "road",
+            "road": "forest",
+            "startIndex": 2,
+            "endIndex": 3
+          },
+          {
+            "kind": "connection",
+            "road": null,
+            "startIndex": 3,
+            "endIndex": 6
+          },
+          {
+            "kind": "road",
+            "road": "south",
+            "startIndex": 6,
+            "endIndex": 7
+          },
+          {
+            "kind": "road",
+            "road": "south",
+            "startIndex": 7,
+            "endIndex": 8
+          },
+          {
+            "kind": "road",
+            "road": "south",
+            "startIndex": 8,
+            "endIndex": 9
+          },
+          {
+            "kind": "road",
+            "road": "south",
+            "startIndex": 9,
+            "endIndex": 10
+          },
+          {
+            "kind": "road",
+            "road": "south",
+            "startIndex": 10,
+            "endIndex": 11
+          },
+          {
+            "kind": "connection",
+            "road": null,
+            "startIndex": 11,
+            "endIndex": 12
+          }
+        ]
+      }
+    },
+    {
+      "beat": "b4_village",
+      "variant": "south",
+      "start": {
+        "x": -12,
+        "z": 36
+      },
+      "roadM": 34.17601498127012,
+      "length": 34.17601498127012,
+      "differenceM": 0,
+      "baseline": {
+        "id": "[\"b4_village\",\"south\",-12,36,[{\"x\":-12,\"z\":36},{\"x\":0,\"z\":4}]]",
+        "objectiveId": "b4_village",
+        "plan": "south",
+        "from": {
+          "x": -12,
+          "z": 36
+        },
+        "points": [
+          {
+            "x": -12,
+            "z": 36
+          },
+          {
+            "x": 0,
+            "z": 4
+          }
+        ],
+        "cumulative": [
+          0,
+          34.17601498127012
+        ],
+        "length": 34.17601498127012,
+        "mandatory": [],
+        "corrections": [],
+        "legs": [
+          {
+            "kind": "connection",
+            "road": null,
+            "startIndex": 0,
+            "endIndex": 1
+          }
+        ]
+      }
+    },
+    {
+      "beat": "b5_archer",
+      "variant": "default",
+      "start": {
+        "x": 0,
+        "z": 4
+      },
+      "roadM": 10.19803902718557,
+      "length": 10.19803902718557,
+      "differenceM": 0,
+      "baseline": {
+        "id": "[\"b5_archer\",\"front\",0,4,[{\"x\":0,\"z\":4},{\"x\":-10,\"z\":6}]]",
+        "objectiveId": "b5_archer",
+        "plan": "front",
+        "from": {
+          "x": 0,
+          "z": 4
+        },
+        "points": [
+          {
+            "x": 0,
+            "z": 4
+          },
+          {
+            "x": -10,
+            "z": 6
+          }
+        ],
+        "cumulative": [
+          0,
+          10.19803902718557
+        ],
+        "length": 10.19803902718557,
+        "mandatory": [],
+        "corrections": [],
+        "legs": [
+          {
+            "kind": "connection",
+            "road": null,
+            "startIndex": 0,
+            "endIndex": 1
+          }
+        ]
+      }
+    },
+    {
+      "beat": "b6_escort",
+      "variant": "default",
+      "start": {
+        "x": -14,
+        "z": 3
+      },
+      "roadM": 97.2816357161654,
+      "length": 167.77781278649937,
+      "differenceM": 70.49617707033397,
+      "baseline": {
+        "id": "[\"b6_escort\",\"front\",-14,3,[{\"x\":-14,\"z\":3},{\"x\":-10,\"z\":1},{\"x\":-22,\"z\":-3},{\"x\":-32,\"z\":-8},{\"x\":-44,\"z\":-14},{\"x\":-56,\"z\":-20},{\"x\":-60,\"z\":-28},{\"x\":-50,\"z\":-34},{\"x\":-38,\"z\":-38},{\"x\":-36,\"z\":-48},{\"x\":-48,\"z\":-55},{\"x\":-62,\"z\":-60},{\"x\":-74,\"z\":-66},{\"x\":-76,\"z\":-68},{\"x\":-86,\"z\":-72},{\"x\":-74,\"z\":-66}]]",
+        "objectiveId": "b6_escort",
+        "plan": "front",
+        "from": {
+          "x": -14,
+          "z": 3
+        },
+        "points": [
+          {
+            "x": -14,
+            "z": 3
+          },
+          {
+            "x": -10,
+            "z": 1
+          },
+          {
+            "x": -22,
+            "z": -3
+          },
+          {
+            "x": -32,
+            "z": -8
+          },
+          {
+            "x": -44,
+            "z": -14
+          },
+          {
+            "x": -56,
+            "z": -20
+          },
+          {
+            "x": -60,
+            "z": -28
+          },
+          {
+            "x": -50,
+            "z": -34
+          },
+          {
+            "x": -38,
+            "z": -38
+          },
+          {
+            "x": -36,
+            "z": -48
+          },
+          {
+            "x": -48,
+            "z": -55
+          },
+          {
+            "x": -62,
+            "z": -60
+          },
+          {
+            "x": -74,
+            "z": -66
+          },
+          {
+            "x": -76,
+            "z": -68
+          },
+          {
+            "x": -86,
+            "z": -72
+          },
+          {
+            "x": -74,
+            "z": -66
+          }
+        ],
+        "cumulative": [
+          0,
+          4.47213595499958,
+          17.1212465956731,
+          28.30158648317205,
+          41.71799434817079,
+          55.13440221316953,
+          64.0786741231687,
+          75.7405779128593,
+          88.3896885535328,
+          98.58772758071838,
+          112.48017157016818,
+          127.34624031748669,
+          140.76264818248544,
+          143.59107530723162,
+          154.36140492150062,
+          167.77781278649937
+        ],
+        "length": 167.77781278649937,
+        "mandatory": [
+          {
+            "road": "forest",
+            "index": 11,
+            "point": {
+              "x": -10,
+              "z": 1
+            },
+            "corrected": {
+              "x": -10,
+              "z": 1
+            },
+            "pathIndex": 1
+          },
+          {
+            "road": "forest",
+            "index": 10,
+            "point": {
+              "x": -22,
+              "z": -3
+            },
+            "corrected": {
+              "x": -22,
+              "z": -3
+            },
+            "pathIndex": 2
+          },
+          {
+            "road": "forest",
+            "index": 9,
+            "point": {
+              "x": -32,
+              "z": -8
+            },
+            "corrected": {
+              "x": -32,
+              "z": -8
+            },
+            "pathIndex": 3
+          },
+          {
+            "road": "forest",
+            "index": 8,
+            "point": {
+              "x": -44,
+              "z": -14
+            },
+            "corrected": {
+              "x": -44,
+              "z": -14
+            },
+            "pathIndex": 4
+          },
+          {
+            "road": "forest",
+            "index": 7,
+            "point": {
+              "x": -56,
+              "z": -20
+            },
+            "corrected": {
+              "x": -56,
+              "z": -20
+            },
+            "pathIndex": 5
+          },
+          {
+            "road": "forest",
+            "index": 6,
+            "point": {
+              "x": -60,
+              "z": -28
+            },
+            "corrected": {
+              "x": -60,
+              "z": -28
+            },
+            "pathIndex": 6
+          },
+          {
+            "road": "forest",
+            "index": 5,
+            "point": {
+              "x": -50,
+              "z": -34
+            },
+            "corrected": {
+              "x": -50,
+              "z": -34
+            },
+            "pathIndex": 7
+          },
+          {
+            "road": "forest",
+            "index": 4,
+            "point": {
+              "x": -38,
+              "z": -38
+            },
+            "corrected": {
+              "x": -38,
+              "z": -38
+            },
+            "pathIndex": 8
+          },
+          {
+            "road": "forest",
+            "index": 3,
+            "point": {
+              "x": -36,
+              "z": -48
+            },
+            "corrected": {
+              "x": -36,
+              "z": -48
+            },
+            "pathIndex": 9
+          },
+          {
+            "road": "forest",
+            "index": 2,
+            "point": {
+              "x": -48,
+              "z": -55
+            },
+            "corrected": {
+              "x": -48,
+              "z": -55
+            },
+            "pathIndex": 10
+          },
+          {
+            "road": "forest",
+            "index": 1,
+            "point": {
+              "x": -62,
+              "z": -60
+            },
+            "corrected": {
+              "x": -62,
+              "z": -60
+            },
+            "pathIndex": 11
+          },
+          {
+            "road": "forest",
+            "index": 0,
+            "point": {
+              "x": -74,
+              "z": -66
+            },
+            "corrected": {
+              "x": -74,
+              "z": -66
+            },
+            "pathIndex": 12
+          },
+          {
+            "road": "temple",
+            "index": 2,
+            "point": {
+              "x": -74,
+              "z": -66
+            },
+            "corrected": {
+              "x": -74,
+              "z": -66
+            },
+            "pathIndex": 12
+          },
+          {
+            "road": "temple",
+            "index": 1,
+            "point": {
+              "x": -76,
+              "z": -68
+            },
+            "corrected": {
+              "x": -76,
+              "z": -68
+            },
+            "pathIndex": 13
+          },
+          {
+            "road": "temple",
+            "index": 0,
+            "point": {
+              "x": -86,
+              "z": -72
+            },
+            "corrected": {
+              "x": -86,
+              "z": -72
+            },
+            "pathIndex": 14
+          }
+        ],
+        "corrections": [],
+        "legs": [
+          {
+            "kind": "connection",
+            "road": null,
+            "startIndex": 0,
+            "endIndex": 1
+          },
+          {
+            "kind": "road",
+            "road": "forest",
+            "startIndex": 1,
+            "endIndex": 2
+          },
+          {
+            "kind": "road",
+            "road": "forest",
+            "startIndex": 2,
+            "endIndex": 3
+          },
+          {
+            "kind": "road",
+            "road": "forest",
+            "startIndex": 3,
+            "endIndex": 4
+          },
+          {
+            "kind": "road",
+            "road": "forest",
+            "startIndex": 4,
+            "endIndex": 5
+          },
+          {
+            "kind": "road",
+            "road": "forest",
+            "startIndex": 5,
+            "endIndex": 6
+          },
+          {
+            "kind": "road",
+            "road": "forest",
+            "startIndex": 6,
+            "endIndex": 7
+          },
+          {
+            "kind": "road",
+            "road": "forest",
+            "startIndex": 7,
+            "endIndex": 8
+          },
+          {
+            "kind": "road",
+            "road": "forest",
+            "startIndex": 8,
+            "endIndex": 9
+          },
+          {
+            "kind": "road",
+            "road": "forest",
+            "startIndex": 9,
+            "endIndex": 10
+          },
+          {
+            "kind": "road",
+            "road": "forest",
+            "startIndex": 10,
+            "endIndex": 11
+          },
+          {
+            "kind": "road",
+            "road": "forest",
+            "startIndex": 11,
+            "endIndex": 12
+          },
+          {
+            "kind": "road",
+            "road": "temple",
+            "startIndex": 12,
+            "endIndex": 12
+          },
+          {
+            "kind": "road",
+            "road": "temple",
+            "startIndex": 12,
+            "endIndex": 13
+          },
+          {
+            "kind": "road",
+            "road": "temple",
+            "startIndex": 13,
+            "endIndex": 14
+          },
+          {
+            "kind": "road",
+            "road": "temple",
+            "startIndex": 14,
+            "endIndex": 15
+          }
+        ]
+      }
+    }
+  ]
+}
