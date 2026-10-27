@@ -6,7 +6,7 @@ import { adjustMorale, alertFromAlly } from './enemy-ai.js';
 import { segmentBlocked } from './collision.js';
 import { makeArrow } from './weapons.js';
 import { STORY } from './story-data.js';
-import { FEEL } from './config.js';
+import { FEEL, AUDIO_NOISE } from './config.js';
 import { yawOf, dist2 } from './actors.js';
 
 const GRAVITY = 9.8;
@@ -86,7 +86,7 @@ export class Battle {
       if (att.brain) adjustMorale(att.brain, FEEL.parriedMorale, 'parried');
     }
     // 闇討ちは静かな技。周りを呼ぶ音は3m（普通に斬る12m、受け・弾きの金属音18m）
-    g.emitNoise(def.pos.x, def.pos.z, res.outcome === 'stealth' ? 3 : res.outcome === 'hit' ? 12 : 18, 'clash');
+    g.emitNoise(def.pos.x, def.pos.z, AUDIO_NOISE[res.outcome === 'stealth' ? 'stealth' : res.outcome === 'hit' ? 'hit' : 'clash'].radius, 'clash');
     if (res.dead) this.onDeath(def, att, res);
   }
 

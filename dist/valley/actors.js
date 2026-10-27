@@ -1,7 +1,7 @@
 // actors.js — 主人公・敵・仲間・村人（app層）。論理（combat / enemy-ai / companion-ai）の状態を読み、動作と位置を決める。
 // 規則は論理モジュールが持つ。ここでは「入力→意図→論理の呼び出し→動作・音・演出」の結線だけを書く。
 import { Character } from './characters.js';
-import { GRIP } from './config.js';
+import { GRIP, AUDIO_NOISE } from './config.js';
 import { makeYumi, makeArrow, makeQuiver, makeRopes } from './weapons.js';
 import { moveActor } from './collision.js';
 import { MOVES, createFighter, startMove, setBlock, startDodge, tick, finish, stealthStrike } from './combat.js';
@@ -286,7 +286,7 @@ export class HeroActor extends Actor {
     const g = this.game, s = g.terrain.surfaceAt(this.pos.x, this.pos.z);
     const kind = s.gravel > 0.4 ? 'step_gravel' : s.dirt > 0.45 ? 'step_dirt' : 'step_grass';
     g.audio.play(kind, { gain: this.crouch ? 0.5 : sprint ? 1.25 : 0.9, pitch: 0.9 + g.rng() * 0.2 });
-    g.emitNoise(this.pos.x, this.pos.z, this.crouch ? 1.5 : sprint ? 11 : 5, 'step');
+    g.emitNoise(this.pos.x, this.pos.z, AUDIO_NOISE[this.crouch ? 'crouch' : sprint ? 'run' : 'walk'].radius, 'step');
     if (sprint && kind !== 'step_grass') g.fx.dust(this.pos, 1);
   }
 
