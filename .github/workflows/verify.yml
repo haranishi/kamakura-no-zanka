@@ -8,7 +8,8 @@ permissions:
 jobs:
   verify:
     name: Node ${{ matrix.node }}
-    runs-on: ubuntu-latest
+    # ubuntu-latest is moving to Ubuntu 26 (announced for 2026-10-19 onward); stay on the image the checks were verified on.
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     strategy:
       matrix:
