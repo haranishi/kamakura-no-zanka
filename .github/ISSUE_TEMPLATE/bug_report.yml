@@ -1,0 +1,30 @@
+name: 不具合
+description: 動かない・おかしい・止まる、を報告する
+labels: ["bug"]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: 何が起きたか
+      description: 期待した動きと、実際の動きを書いてください。
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: 再現の手順
+      description: どこから始めて、何をしたか。任務の段（廃寺・林道・見晴らし・里・待ち伏せ・帰り道）が分かると助かります。
+      placeholder: "1. /valley/index.html を開く\n2. ..."
+    validations:
+      required: true
+  - type: input
+    id: env
+    attributes:
+      label: ブラウザと OS
+      placeholder: "Chrome 130 / macOS 15 / Apple M3"
+    validations:
+      required: true
+  - type: textarea
+    id: extra
+    attributes:
+      label: 画面の写真・Console の表示（あれば）

@@ -11,7 +11,7 @@ v16の実モデルを引き継ぎ、v18でしごとの続き・景色の変化�
 Space 転がり／E 調べる・とどめ・闇討ち／Tab 狙い／Q 弥十郎へ指示／Esc 休止。構え（体力とは別のゲージ）が尽きた敵にはとどめを刺せます。
 - 設計：[要件・設計・タスク](.kiro/specs/hidden-valley-slice/)（物語は [docs/10_STORY_AND_DESIGN_JA.md](docs/10_STORY_AND_DESIGN_JA.md)）。
 - 自動プレイと固定画角の撮影：[tools/README-valley-qa.md](tools/README-valley-qa.md)（`tools/valley-play.mjs`、Playwright は `PLAYWRIGHT_MODULE` で指定）。
-- 出所：人物・小道具は Meshy AI で生成（[provenance/meshy-v19.json](provenance/meshy-v19.json)）。**公開・配布の前に、Meshy の契約プランの商用・公開条件を確認する**。非公開リポジトリのみに置く。
+- 出所とライセンス：人物・小道具は Meshy AI で生成（[provenance/meshy-v19.json](provenance/meshy-v19.json)）。コードは MIT、素材と物語は CC BY 4.0（[NOTICE.md](NOTICE.md)）。
 - 検査：`npm test`（規則・世界の整合）、`npm run check`（配布検査。`/valley/` を含む）、`npm run smoke`。
 - 検証記録：[reports/VERIFICATION_V19_JA.md](reports/VERIFICATION_V19_JA.md)（独立評価の周回・実測・未確認）。
 - 遊びの設計判断と、踏んだ罠：[.kiro/specs/hidden-valley-slice/design-app.md](.kiro/specs/hidden-valley-slice/design-app.md)。回帰の検査（矢で倒れても止まらない・やり直しで資源が増えない・会話中に被弾しない・つづきから・岩と土手・効果音の音量）は `tools/scenarios/regress-*.mjs`（`--strict` で回す）。
@@ -65,7 +65,7 @@ node tools/browser-check.mjs
 node tools/measure-frame-time.mjs
 ```
 
-[画面比較](reports/graphics-comparison.html)・[検証記録](reports/VERIFICATION_JA.md)と[改善ループ](.agent-harness/runs/2026-10-22-valley-life-v18.md)に根拠を残します。
+[画面比較](reports/graphics-comparison.html)・[検証記録](reports/VERIFICATION_JA.md)に根拠を残します。
 SDDは[要件](.kiro/specs/valley-water-carry/requirements.md)・[設計追補](.kiro/specs/valley-water-carry/v18-design.md)・[タスク](.kiro/specs/valley-water-carry/v18-tasks.md)を参照してください。
 
 ## 素材と現在の範囲
@@ -75,7 +75,7 @@ Three.js 0.180.0はMIT、追加の土・林床・枝葉画像はCC0です。
 [元素材](docs/05_ASSETS_AND_LICENSES_JA.md)と[追加素材](docs/06_TERRAIN_ASSETS_JA.md)に出典と扱いを記録しています。
 独自モデルやプロジェクト全体のライセンスは変更していません。
 
-歩けるのは庭と道です。室内、縁側、田、水路、戦闘、人物、全5章の物語は含みません。
+庭（`/`）で歩けるのは庭と道です。室内、縁側、田、水路、戦闘、人物、全5章の物語は含みません。戦闘と人物は `/valley/`（v19）にあります。
 標準品質は自然光・影・水と風、軽量は影や装飾負荷を抑えます。
 OSの「動きを減らす」設定も反映します。性能は検証記録の測定条件を参照してください。
 
@@ -87,6 +87,6 @@ OSの「動きを減らす」設定も反映します。性能は検証記録の
 
 ## 引き継ぎ資料
 
-`docs/01〜04`、`PROMPT_FOR_CLAUDE_CODE_OR_CODEX.md`と`reports/baseline/`はv16時点の資料です。
+`docs/01〜04`と`reports/baseline/`はv16時点の資料です。
 当時の「未実装」と現在の状態を区別し、このREADMEと今回の検証記録を正とします。
 Web公開用の設定や認証情報は含みません。HTTPサーバーはループバックだけで待ち受けます。

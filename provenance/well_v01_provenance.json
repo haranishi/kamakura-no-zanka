@@ -1,5 +1,5 @@
 {
-  "source_drive_url": "https://drive.google.com/file/d/1AWMmVnugL0BiQ5kdbC5kDztyf5_jToey/view",
+  "source_drive_url": null,
   "source_zip": "01_kamakura_models.zip",
   "original_asset": "models/timber_well.glb",
   "object_node": "timber_well",
@@ -27,5 +27,6 @@
     0.9676,
     3.0868
   ],
-  "placement_note": "Origin ground centre; lower stones extend 0.0726 m below ground as intended. Import without scale conversion."
+  "placement_note": "Origin ground centre; lower stones extend 0.0726 m below ground as intended. Import without scale conversion.",
+  "source_note": "private source (the original is not published)"
 }
