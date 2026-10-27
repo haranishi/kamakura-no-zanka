@@ -70,10 +70,12 @@
       "rig_task_id": "01a178c9-6258-7256-8a76-12c40ae08fed",
       "route": "multi-image-to-3d meshy-7 4k pbr 32k",
       "height_m": 1.66,
-      "sha256": "49dec49f4614a08c0e021ef2bc61d825f2ab8bba64fc5103bf16a60eb73777bf",
-      "bytes": 8262348,
+      "sha256": "b8a87fbaa3c9c482de521e5f140411098f573a452a58ec05651d3197ad0e5c6d",
+      "bytes": 4921564,
       "pipeline": "Meshy image-to-3D/multi-image → rig(24 bones, 5cr) → Blender retarget/bake (tools/blender/build_valley_character.py) → GLB(WebP textures)",
-      "design_task_id": "01a178bf-a418-7755-850a-52230d8e397c"
+      "design_task_id": "01a178bf-a418-7755-850a-52230d8e397c",
+      "source_sha256": "49dec49f4614a08c0e021ef2bc61d825f2ab8bba64fc5103bf16a60eb73777bf",
+      "derived_by": "tools/compress-characters.mjs: remove unreferenced clips; normalized SHORT rotations; normalized BYTE normals/tangents, UBYTE weights (sum 255), USHORT UVs; deduplicate identical accessor storage and repack. Images and POSITION unchanged."
     },
     {
       "file": "dist/assets/characters/archer.glb",
@@ -83,10 +85,12 @@
       "rig_task_id": "01a178c9-771d-72b1-a9d2-039460cc33ac",
       "route": "multi-image-to-3d meshy-7 4k pbr 30k",
       "height_m": 1.62,
-      "sha256": "c8f43d66c3df4cc4a0079ccfe5320b6b52fd5a58c55988003519060b499d8baa",
-      "bytes": 7801280,
+      "sha256": "e1e9dc570a2784ed5f1479de77fddb153bb981d8d76bb88ad77a739462cfab7d",
+      "bytes": 4748768,
       "pipeline": "Meshy image-to-3D/multi-image → rig(24 bones, 5cr) → Blender retarget/bake (tools/blender/build_valley_character.py) → GLB(WebP textures)",
-      "design_task_id": "01a178bf-a8b9-74e3-8c02-9b4080fbf923"
+      "design_task_id": "01a178bf-a8b9-74e3-8c02-9b4080fbf923",
+      "source_sha256": "c8f43d66c3df4cc4a0079ccfe5320b6b52fd5a58c55988003519060b499d8baa",
+      "derived_by": "tools/compress-characters.mjs: remove unreferenced clips; normalized SHORT rotations; normalized BYTE normals/tangents, UBYTE weights (sum 255), USHORT UVs; deduplicate identical accessor storage and repack. Images and POSITION unchanged."
     },
     {
       "file": "dist/assets/characters/soldier.glb",
@@ -96,9 +100,11 @@
       "rig_task_id": "01a178c9-8dca-701d-a5eb-be55a42311c3",
       "route": "image-to-3d meshy-7 4k pbr 30k",
       "height_m": 1.62,
-      "sha256": "eb5f7a709a643b5d369d7a8eeff1e832ee1778bae15074178fa95a398fcedc89",
-      "bytes": 9539044,
-      "pipeline": "Meshy image-to-3D/multi-image → rig(24 bones, 5cr) → Blender retarget/bake (tools/blender/build_valley_character.py) → GLB(WebP textures)"
+      "sha256": "4301492e586611f6862c9ab3ff6acba4416750f5997413959a70b305d37402a2",
+      "bytes": 5598372,
+      "pipeline": "Meshy image-to-3D/multi-image → rig(24 bones, 5cr) → Blender retarget/bake (tools/blender/build_valley_character.py) → GLB(WebP textures)",
+      "source_sha256": "eb5f7a709a643b5d369d7a8eeff1e832ee1778bae15074178fa95a398fcedc89",
+      "derived_by": "tools/compress-characters.mjs: remove unreferenced clips; normalized SHORT rotations; normalized BYTE normals/tangents, UBYTE weights (sum 255), USHORT UVs; deduplicate identical accessor storage and repack. Images and POSITION unchanged."
     },
     {
       "file": "dist/assets/characters/officer.glb",
@@ -108,9 +114,11 @@
       "rig_task_id": "01a178c9-a460-71f8-8f88-bea440f86001",
       "route": "image-to-3d meshy-7 ultra 4k pbr 40k",
       "height_m": 1.72,
-      "sha256": "8ef8c2534903dfe8207d736f3045e83dc941678eaa2f6a13f38a8e28e6a3dcde",
-      "bytes": 11104372,
-      "pipeline": "Meshy image-to-3D/multi-image → rig(24 bones, 5cr) → Blender retarget/bake (tools/blender/build_valley_character.py) → GLB(WebP textures)"
+      "sha256": "175d57d27d77cc0b19a6cade3e9c0a24f4067123befbb4dd76552281308758d5",
+      "bytes": 6792964,
+      "pipeline": "Meshy image-to-3D/multi-image → rig(24 bones, 5cr) → Blender retarget/bake (tools/blender/build_valley_character.py) → GLB(WebP textures)",
+      "source_sha256": "8ef8c2534903dfe8207d736f3045e83dc941678eaa2f6a13f38a8e28e6a3dcde",
+      "derived_by": "tools/compress-characters.mjs: remove unreferenced clips; normalized SHORT rotations; normalized BYTE normals/tangents, UBYTE weights (sum 255), USHORT UVs; deduplicate identical accessor storage and repack. Images and POSITION unchanged."
     },
     {
       "file": "dist/assets/characters/villager_m.glb",
@@ -120,9 +128,11 @@
       "rig_task_id": "01a178c9-bbfa-757c-afa5-43361f518264",
       "route": "image-to-3d meshy-7 4k pbr",
       "height_m": 1.58,
-      "sha256": "921b008b72fca50e18f158ef5fbb8850f6021c973f9273de9b4646a07e5b1060",
-      "bytes": 8394544,
-      "pipeline": "Meshy image-to-3D/multi-image → rig(24 bones, 5cr) → Blender retarget/bake (tools/blender/build_valley_character.py) → GLB(WebP textures)"
+      "sha256": "c0c578030cadeaaff132727c129dd60a5e6a4bb72d5849649ea3db09a9e0aef2",
+      "bytes": 5086548,
+      "pipeline": "Meshy image-to-3D/multi-image → rig(24 bones, 5cr) → Blender retarget/bake (tools/blender/build_valley_character.py) → GLB(WebP textures)",
+      "source_sha256": "921b008b72fca50e18f158ef5fbb8850f6021c973f9273de9b4646a07e5b1060",
+      "derived_by": "tools/compress-characters.mjs: remove unreferenced clips; normalized SHORT rotations; normalized BYTE normals/tangents, UBYTE weights (sum 255), USHORT UVs; deduplicate identical accessor storage and repack. Images and POSITION unchanged."
     },
     {
       "file": "dist/assets/characters/villager_f.glb",
@@ -132,9 +142,11 @@
       "rig_task_id": "01a178c9-cfd7-74b2-a0d0-51a52147130d",
       "route": "image-to-3d meshy-7 4k pbr",
       "height_m": 1.48,
-      "sha256": "e1457e21a94410a220ab9365383e85566a942db551dbdc382d8314277bdc2311",
-      "bytes": 8563364,
-      "pipeline": "Meshy image-to-3D/multi-image → rig(24 bones, 5cr) → Blender retarget/bake (tools/blender/build_valley_character.py) → GLB(WebP textures)"
+      "sha256": "e79665a466aea08a4a90a46864f7aad95bdb0bcb189b4070bcc2e8edae36941c",
+      "bytes": 5191800,
+      "pipeline": "Meshy image-to-3D/multi-image → rig(24 bones, 5cr) → Blender retarget/bake (tools/blender/build_valley_character.py) → GLB(WebP textures)",
+      "source_sha256": "e1457e21a94410a220ab9365383e85566a942db551dbdc382d8314277bdc2311",
+      "derived_by": "tools/compress-characters.mjs: remove unreferenced clips; normalized SHORT rotations; normalized BYTE normals/tangents, UBYTE weights (sum 255), USHORT UVs; deduplicate identical accessor storage and repack. Images and POSITION unchanged."
     },
     {
       "file": "dist/assets/characters/child.glb",
@@ -144,9 +156,11 @@
       "rig_task_id": "01a178c9-e6a1-7744-930c-db60828f699a",
       "route": "image-to-3d meshy-7 4k pbr 24k",
       "height_m": 1.2,
-      "sha256": "1bf0caacb7d9b418378553750706db1b56672411730ea342f579c802b27b150e",
-      "bytes": 8302588,
-      "pipeline": "Meshy image-to-3D/multi-image → rig(24 bones, 5cr) → Blender retarget/bake (tools/blender/build_valley_character.py) → GLB(WebP textures)"
+      "sha256": "1ce4a22cd6578b162ec1b35553b31b2ac8612661d7d48ba79c1671a2a3d61c2d",
+      "bytes": 4978756,
+      "pipeline": "Meshy image-to-3D/multi-image → rig(24 bones, 5cr) → Blender retarget/bake (tools/blender/build_valley_character.py) → GLB(WebP textures)",
+      "source_sha256": "1bf0caacb7d9b418378553750706db1b56672411730ea342f579c802b27b150e",
+      "derived_by": "tools/compress-characters.mjs: remove unreferenced clips; normalized SHORT rotations; normalized BYTE normals/tangents, UBYTE weights (sum 255), USHORT UVs; deduplicate identical accessor storage and repack. Images and POSITION unchanged."
     },
     {
       "file": "dist/assets/valley/models/well.glb",

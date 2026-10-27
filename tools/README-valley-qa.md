@@ -94,3 +94,7 @@ PLAYWRIGHT_MODULE=… node tools/measure-perf.mjs --out .captures/perf-before
 PLAYWRIGHT_MODULE=… node tools/valley-play.mjs tools/scenarios/capture-set.mjs --w 1280 --h 720 --seed 1333 --out .captures/polish2-before
 ```
 既存番号の撮影手順は維持。新3枚は2026-10-27に撮影して構図を確かめた。紅葉の色は現行の樹種では出ない（楓は未実装）。
+
+人物GLBの圧縮と独立検算（未完了）：
+`node tools/compress-characters.mjs --in .work/original-characters --out dist/assets/characters --report reports/character-compression/compression.json`（`--dry-run` はGLBを書かない）。
+`node tools/verify-compressed-characters.mjs --original .work/original-characters --compressed dist/assets/characters`。再現・実測・目標未達は [検証記録](../reports/character-compression/README.md)。

@@ -5,6 +5,7 @@ import path from 'node:path';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
+import { referencedClips } from './lib/character-clips.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const dir = path.join(root, 'dist/valley');
@@ -70,9 +71,13 @@ const glbInfo = f => {
 };
 const characters = ['hero', 'archer', 'soldier', 'officer', 'villager_m', 'villager_f', 'child'];
 let total = 0; const shas = {};
+const requiredClips = referencedClips(root);
+const characterMeta = JSON.parse(read('dist/assets/characters/clips.json'));
 for (const c of characters) {
   const f = path.join(root, 'dist/assets/characters', c + '.glb'), g = glbInfo(f);
-  assert((g.json.animations || []).length >= 30, `${c}.glb has too few clips`); assert(g.json.skins?.length === 1, `${c}.glb needs one skin`);
+  const shippedClips = new Set((g.json.animations || []).map(a => a.name));
+  for (const name of characterMeta.characters[c].clips.filter(requiredClips.keep)) assert(shippedClips.has(name), `${c}.glb missing referenced clip: ${name}`);
+  assert(g.json.skins?.length === 1, `${c}.glb needs one skin`);
   assert(g.bytes <= 12 * 1024 * 1024, `${c}.glb over 12 MB`); total += g.bytes; shas['dist/assets/characters/' + c + '.glb'] = g.sha256;
 }
 const clips = JSON.parse(read('dist/assets/characters/clips.json'));

@@ -31,6 +31,10 @@ CMU は、商品に含めてよい一方、データそのものを転売しな�
 Meshy は、有料プランの利用者が生成物を所有できるとしています。条件は、Meshy のコミュニティへ公開しないことと、入力に他人の著作物を使わないことです。コミュニティへ公開した物はありません（2026-10-27 に確認）。
 タスクの識別子・設定・SHA256 は `provenance/meshy-v19.json` にあります。
 
+人物GLBは元データを量子化し、使われないクリップを削除して小さくした派生物です。元の著作権・ライセンスは変わりません。元ハッシュは台帳の `source_sha256`、処理は `derived_by` に記録しています。
+再現：`node tools/compress-characters.mjs --in .work/original-characters --out dist/assets/characters --report reports/character-compression/compression.json`。
+結果と未達項目は [圧縮の検証](reports/character-compression/README.md)。
+
 ### 人物の元になった画像
 
 人物7体の入力は、作者が OpenAI の画像生成（ChatGPT）で作った全身の参考画像です。画像には、生成元を示す出所情報（C2PA）が付いています。主人公と弓手は、その画像から Meshy で正面・側面・背面の絵を作り、複数枚から3Dにしました。小道具14点は、文章の指示だけで作りました。
