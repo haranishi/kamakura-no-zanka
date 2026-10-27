@@ -42,3 +42,55 @@ b0 庭へ降りる（`temple_yard` に入る）→ b1 穂太の話 → b2 林道
 - `tools/scenarios/regress-rock-colliders.mjs`：当たりの表に岩が登録され（20個以上）、岩へ向かって歩くと岩の縁で止まる（歩ける場所で比べる）。
 - `tools/scenarios/regress-audio-levels.mjs`：効果音24種のピークが −32〜−3dBFS、全種類を2回ずつ重ねても 0dBFS 未満（音の出ない環境では測れず何も確かめない）。
 - 検査の流れの見本：`tools/scenarios/` のシナリオ。
+
+## 第2弾の前測定（7.0・7.0b）
+Nodeだけで実行（リポジトリのルート）。本数は杉・広葉・松の順。
+```
+node tools/measure-trees.mjs --json
+node tools/measure-trees.mjs --baseline reports/baseline/polish2-trees-before.json
+node tools/measure-load-budget.mjs --json --max 110
+node tools/measure-guide-starts.mjs --json
+```
+`--max` はMiB、超過時は終了コード1。容量棚卸しは未使用物を含む上界で、実読み込みではない。
+保存済みの前値は `reports/baseline/polish2-{trees,load-inventory,guide-starts}-before.json`。
+案内表のmarkerは現行の静的初期値。nav距離は新guideの道路必須点を守る距離とは異なる。
+ブラウザ測定の条件・出力・未確認点は [README-polish2-measure.md](README-polish2-measure.md)。
+```
+PLAYWRIGHT_MODULE=… node tools/measure-load-bytes.mjs --out .captures/load-before.json
+PLAYWRIGHT_MODULE=… node tools/measure-perf.mjs --out .captures/perf-before
+```
+実読み込みはURLごとの本体バイトを重複なしで収集。84.5MiB以下なら削減不要、総枠90MiBと比較する。
+性能は600コマ暖機→初期化→1800コマを8試行。標本・環境・入力・位置・判定を保存する。
+
+## 固定13画角（FIXED_13）
+既存の撮影から植生が主に写る10枚を、画像を見て選んだ（2026-10-27）。会話の枠が大きく被る03・06と、14にほぼ同じ15は外した。
+
+|番号|名前・選定理由|
+|---|---|
+|01|start-thirdperson：廃寺と周囲の樹林を三人称で比べる|
+|04|forest-road-scout：林道の路肩と林床|
+|08|overlook-village：里と森の広域のまとまり|
+|09|village-front：里の入口と森の境目|
+|11|village-fight-wide：里の広場の草と背景の杉|
+|12|captive-prompt：里の草と背景の杉林|
+|14|ambush：帰路の林内と斜面|
+|19|cart-banners：里の端と森の境目|
+|20|valley-river-distance：川岸と対岸の遠景植生|
+|21|far-mountains：山腹の遠景の樹林|
+|22|grass-closeup：低い視点の草近景（株がまばら）|
+|23|cedar-interior：杉林の暗い塊（葉の抜けが黒い穴になる）|
+|24|maple-broadleaf：広葉樹の樹冠（現行kind1はケヤキ・栗、楓は未実装）|
+
+新3枚はseed1333・時刻12秒から6コマ・乱数固定。高さは地面から。主人公は視線の4m後ろに置き、体は写らない。撮影設計値はすべて未測定。
+座標はNodeで世界のデータを調べて候補を出し、画像を見て選んだ。
+
+|番号|カメラ[x,高さ,z] → 注視点[x,高さ,z]・FOV|選んだ理由|
+|---|---|---|
+|22|[66,.7,-9] → [54,.4,-8.6]・54°|6m内の草が最多（153株）の平地。建物（house3）が背景に入る|
+|23|[-36,1.7,-48] → [-33.6,1.8,-59.8]・58°|林道の中心から道なりに見る。左右に杉の列|
+|24|[-17.3,2,-91.2] → [-34.6,6.5,-95.9]・50°|周りの杉が少ない広葉樹の固まりを、18m離れた開けた側から見る|
+
+```
+PLAYWRIGHT_MODULE=… node tools/valley-play.mjs tools/scenarios/capture-set.mjs --w 1280 --h 720 --seed 1333 --out .captures/polish2-before
+```
+既存番号の撮影手順は維持。新3枚は2026-10-27に撮影して構図を確かめた。紅葉の色は現行の樹種では出ない（楓は未実装）。

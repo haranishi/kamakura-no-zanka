@@ -1,5 +1,7 @@
 // 固定画角の撮影セット（画面の採点・改善の前後比較に使う）。乱数・カメラ・時刻は固定。
 // 使い方: PLAYWRIGHT_MODULE=… node tools/valley-play.mjs tools/scenarios/capture-set.mjs --out .captures/set-r1
+// design-validation.mdの既存10＋新3。画像を見て選んだ（会話の枠が被る03・06と、14に近い15は外した）。
+export const FIXED_13 = [1, 4, 8, 9, 11, 12, 14, 19, 20, 21, 22, 23, 24];
 const yawTo = (dx, dz) => Math.atan2(-dx, -dz);
 export default async function ({ st, step, call, v, shot, freeze, start, log, tap, click, key, release }) {
   const adv = async () => { for (let i = 0; i < 60; i++) { const s = await st(); if (s.talking) { await call('advanceDialogue', true); await step(10); } else if (s.pending) await step(30); else break; } };
@@ -50,5 +52,26 @@ export default async function ({ st, step, call, v, shot, freeze, start, log, ta
   await call('teleport', -34, 1, 0); await call('camera', [-34, 2.2, 1], [-27, 1.0, 5], 46); await step(6); await shot('19-cart-banners');
   await call('teleport', 20, 40, 0); await call('camera', [20, 6.0, 40], [120, 14, -20], 42); await step(6); await shot('20-valley-river-distance');
   await call('teleport', -30, 20, 0); await call('camera', [-30, 4, 20], [260, 50, -140], 34); await step(6); await shot('21-far-mountains');
+  // 以下だけ追加。座標・FOV・時刻12秒・seed1333・待機6コマは未測定の撮影設計値。
+  // scatter/terrainのNode調査で決定。選定条件と密度はREADME-valley-qa.md。
+  const vegetation = [
+    // 座標はNodeで世界のデータから計算し、画像を見て確かめた。草は6m内の草が最多の平地・杉は林道の中心から道なりに見る（左右に杉の列）・広葉樹は周りの杉が少ない固まりを18m離れた開けた側から見る。
+    ['22-grass-closeup', [66, 0.7, -9], [54, 0.4, -8.6], 54],
+    ['23-cedar-interior', [-36, 1.7, -48], [-33.6, 1.8, -59.8], 58],
+    ['24-maple-broadleaf', [-17.3, 2, -91.2], [-34.6, 6.5, -95.9], 50],
+  ];
+  for (const [name, pos, look, fov] of vegetation) {
+    await v(`(async()=>{
+      const {mulberry32}=await import('/valley/scatter.js');
+      const {createWind}=await import('/valley/wind.js');
+      const g=__valley.game; window.__captureRandom=Math.random;
+      Math.random=mulberry32(1333); g.rng=mulberry32(1333); g.time=12; g.wind=createWind();
+      g.aiPaused=true; g.fxT=0; g.chimneyT=0; g.fx.add.count=0; g.fx.norm.count=0;
+    })()`);
+    // 主人公は、カメラの4m後ろ（向きは視線と同じ）に置く。影は主人公に追従するが、体は画面に入らない。
+    const dx = look[0] - pos[0], dz = look[2] - pos[2], len = Math.hypot(dx, dz) || 1;
+    try { await call('teleport', pos[0] - 4 * dx / len, pos[2] - 4 * dz / len, yawTo(dx, dz)); await cam(name, pos, look, fov, 6); }
+    finally { await v('Math.random=window.__captureRandom; delete window.__captureRandom'); }
+  }
   log('capture set done');
 }

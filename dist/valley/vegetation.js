@@ -262,7 +262,7 @@ function riceGeometry() {
 }
 
 // 風：時間・向き・揺れの強さを uniforms で受ける。高さの2乗で揺れ、葉は細かくはためく。
-export function windUniforms() { return { uTime: { value: 0 }, uWind: { value: 1 } }; }
+export function windUniforms() { return { uTime: { value: 0 }, uWind: { value: 1 }, uWindDir: { value: new THREE.Vector2(1, 0) }, uGuideMix: { value: 0 } }; }
 function patchWind(material, uniforms, { height = 20, flutter = 0, fadeStart = 0, fadeEnd = 0 }) {
   material.onBeforeCompile = shader => {
     Object.assign(shader.uniforms, uniforms);
