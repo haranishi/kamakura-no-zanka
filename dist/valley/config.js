@@ -42,7 +42,8 @@ export const AUDIO_NOISE = Object.freeze(Object.fromEntries(Object.entries({
 // R14 placement only. Smaller tiles bound the circle's overhang without camera-dependent leaves.
 export const GRASS = Object.freeze({
   box: [-135, 105, -135, 115], padding: 8, nearSize: 1, midSize: 2,
-  nearRadius: 8, midRadius: 25, nearDensity: 100, midDensity: 20, cardLeaves: 14,
+  nearRadius: 8, midRadius: 25, nearDensity: 100, midDensity: 20, cardLeaves: 14, midCardRate: 2.0, midMaxCards: 3,
+  card: { size: 0.55, aspect: 0.25 },
   quality: { standard: { density: 1, distance: 1 }, light: { density: 0.4, distance: 0.6 } },
   minHeight: 0.15, maxHeight: 0.6, sink: 0.02, maxDensity: 1.24,
   clearingFraction: 0.10, clearingScale: 1 / 25,
@@ -51,10 +52,10 @@ export const GRASS = Object.freeze({
   heightScale: 0.09, speciesScale: 0.055, tallThreshold: 0.30, fernThreshold: -0.10, susukiThreshold: -0.14,
   fernForest: 0.52, susukiForest: 0.3,
   species: [
-    { h: [0.15, 0.28], w: [0.015, 0.022], lean: [0.06, 0.25] },
-    { h: [0.32, 0.55], w: [0.018, 0.026], lean: [0.10, 0.35] },
+    { h: [0.22, 0.40], w: [0.022, 0.032], lean: [0.12, 0.40] },
+    { h: [0.38, 0.58], w: [0.025, 0.035], lean: [0.18, 0.50] },
     { h: [0.42, 0.6], w: [0.02, 0.03], lean: [0.08, 0.30] },
-    { h: [0.23, 0.45], w: [0.022, 0.03], lean: [0.12, 0.40] },
+    { h: [0.28, 0.50], w: [0.030, 0.040], lean: [0.20, 0.55] },
     { h: [0.25, 0.48], w: [0.015, 0.023], lean: [0.04, 0.20] },
   ],
   susukiRate: 0.25, flowerRate: 0.8,

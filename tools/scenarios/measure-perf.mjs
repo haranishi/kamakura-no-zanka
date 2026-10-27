@@ -117,7 +117,7 @@ export default async function ({ page, out, start, freeze, log }) {
         const h = g.hero.pos, moved = Math.hypot(h.x - previousPos.x, h.z - previousPos.z);
         if (scene === 'move') { stalled = moved < 0.001 ? stalled + 1 : 0; if (stalled >= STALL_FRAMES) throw Error(`movement stalled at waypoint ${target}`); }
         previousPos = { ...h };
-        const visible = new Set(g.veg.grass.children.filter(m => m.visible).map(m => m.id));
+        const visible = new Set((g.veg.grass.group ?? g.veg.grass).children.filter(m => m.visible).map(m => m.id));
         if (frame > 0) { for (const id of visible) if (!previousVisible.has(id)) swaps.entered++; for (const id of previousVisible) if (!visible.has(id)) swaps.exited++; }
         previousVisible = visible;
         positions.push({ frame, x: h.x, y: h.y, z: h.z, target, direction, activeEnemies: g.enemies.filter(e => e.group === 'village_enemies' && e.fighter.alive && !e.dormant).length });

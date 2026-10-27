@@ -40,7 +40,6 @@ export function createGrassField(world, terrain, { box = GRASS.box, padding = GR
     if (world.buildings.some(b => insideFootprint(b, x, z, 0.4 + halfDiagonal))) continue;
     if ((world.plots || []).some(p => insidePlot(p, x, z, 0.4 + halfDiagonal))) continue;
     if (world.props.some(p => Math.hypot(x - p.x, z - p.z) < (p.r || 1) + 0.4 + halfDiagonal)) continue;
-    if (Math.hypot(x - world.start.x, z - world.start.z) < 3 + halfDiagonal) continue;
     if (circles.some(r => Math.hypot(x - r.x, z - r.z) < r.r + halfDiagonal)) continue;
     if (terrain.slopeAt(x, z, 1) > 32) continue;
     // Corner gradients catch steep changes hidden by the centre's averaged slope.
@@ -70,6 +69,28 @@ export function createGrassField(world, terrain, { box = GRASS.box, padding = GR
     if (edge >= 3 && edge <= 6) kind = FLOWER;
     field.species[k] = kind;
   }
+  // Centre per placeable cell: card count is independent of near-leaf density.
+  // cardLeaves is represented-leaf accounting only, never a card-count divisor.
+  field.midPatch = new Float32Array(n);
+  let weight = 0, sum = 0, lo = Infinity, hi = -Infinity;
+  for (const k of candidates) if (field.placeable[k]) {
+    const x = x0 + k % nx + .5, z = z0 + Math.floor(k / nx) + .5;
+    const v = noise(world.seed, x, z, 1 / 3, 593) + noise(world.seed, x, z, 1 / 14, 599);
+    field.midPatch[k] = v; weight++; sum += v;
+    lo = Math.min(lo, v); hi = Math.max(hi, v);
+  }
+  const mean = weight ? sum / weight : 0, span = Math.max(mean - lo, hi - mean, 1e-6);
+  for (const k of candidates) if (field.placeable[k]) field.midPatch[k] = 1 + .8 * (field.midPatch[k] - mean) / span;
+  // Centre the two-scale field at one, keeping its .2–1.8 envelope.
+  // The independent three-card cap is applied only during stochastic rounding.
+  let low = -.8, high = .8;
+  for (let pass = 0; pass < 24; pass++) {
+    const shift = (low + high) / 2;
+    let total = 0;
+    for (const k of candidates) if (field.placeable[k]) total += clamp(field.midPatch[k] + shift, .2, 1.8);
+    if (total < weight) low = shift; else high = shift;
+  }
+  for (const k of candidates) if (field.placeable[k]) field.midPatch[k] = clamp(field.midPatch[k] + (low + high) / 2, .2, 1.8);
   field.stats = { eligible: candidates.length, clearCount, clearingThreshold };
   return field;
 }
@@ -111,11 +132,12 @@ export function nearTile(field, tx, tz, { quality = 'standard', size = GRASS.nea
   for (const e of entries) {
     const { x, z, k, n, kind } = e, species = kind === SUSUKI || kind === FLOWER ? SHORT : kind;
     const spec = GRASS.species[species], rng = cellRand(field.seed + GRASS.seed, x, z);
+    const longRng = cellRand(field.seed + GRASS.seed + 1, x, z);
     for (let j = 0; j < n; j++, i++) {
       const px = x + 0.001 + rng() * 0.998, pz = z + 0.001 + rng() * 0.998;
       out.x[i] = px; out.z[i] = pz; out.y[i] = bilinear(field, field.heights, px, pz, true) - GRASS.sink;
-      out.h[i] = clamp(lerp(...spec.h, rng()) * (0.8 + field.height[k] * 0.55 / 255) * (0.9 + 0.2 * rng()), GRASS.minHeight, GRASS.maxHeight);
-      out.w[i] = lerp(...spec.w, rng()); out.lean[i] = lerp(...spec.lean, rng()); out.yaw[i] = rng() * Math.PI * 2; out.hue[i] = rng(); out.species[i] = species;
+      out.h[i] = clamp(lerp(...spec.h, rng()) * (0.8 + field.height[k] * 0.55 / 255) * (0.75 + 0.55 * rng()) * (longRng() < .08 ? 1.5 : 1), GRASS.minHeight, GRASS.maxHeight);
+      out.w[i] = lerp(...spec.w, rng()); out.lean[i] = lerp(...spec.lean, .5 + .5 * Math.sin((rng() - .5) * Math.PI)); out.yaw[i] = rng() * Math.PI * 2; out.hue[i] = rng(); out.species[i] = species;
     }
     if (e.cn) {
       const rng = cellRand(field.seed + GRASS.clumpSeed + 1, x, z), cl = out.clumps;
@@ -130,17 +152,27 @@ export function nearTile(field, tx, tz, { quality = 'standard', size = GRASS.nea
 export function midTile(field, tx, tz, { quality = 'standard', size = GRASS.midSize } = {}) {
   const q = qualityOf(quality), entries = []; let count = 0;
   cells(field, tx, tz, size, (x, z, k) => {
-    const n = Math.ceil(Math.ceil(GRASS.midDensity * field.density[k] * 2 / 255 / GRASS.cardLeaves) * q.density);
+    const rng = cellRand(field.seed + GRASS.midSeed, x, z);
+    const average = GRASS.midCardRate * q.density;
+    const patch = field.midPatch?.[k] ?? 1;
+    const n = Math.min(GRASS.midMaxCards, Math.floor(average * patch + rng()));
     entries.push({ x, z, k, n }); count += n;
   });
-  const out = { key: `mid:${tx},${tz}`, count, ...arrays(['x', 'y', 'z', 's', 'yaw', 'hue', 'species'], count, 'species') };
+  const out = { key: `mid:${tx},${tz}`, count, ...arrays(['x', 'y', 'z', 's', 'sx', 'sy', 'flip', 'yaw', 'hue', 'brightness', 'tilt', 'tiltYaw', 'species'], count, 'species') };
   let i = 0;
   for (const { x, z, k, n } of entries) {
-    const rng = cellRand(field.seed + GRASS.midSeed, x, z);
+    const rng = cellRand(field.seed + GRASS.midSeed, x, z); rng(); // count draw
     for (let j = 0; j < n; j++, i++) {
       out.x[i] = x + 0.001 + rng() * 0.998; out.z[i] = z + 0.001 + rng() * 0.998;
       out.y[i] = bilinear(field, field.heights, out.x[i], out.z[i], true) - GRASS.sink;
-      out.s[i] = 0.8 + field.height[k] * 0.55 / 255; out.yaw[i] = rng() * Math.PI * 2; out.hue[i] = rng(); out.species[i] = field.species[k];
+      const u = rng();
+      out.s[i] = .5 + 1.4 * u * u;
+      out.sx[i] = 1 + GRASS.card.aspect * (2 * rng() - 1);
+      out.sy[i] = (1 + GRASS.card.aspect * (2 * rng() - 1)) * (rng() < .12 ? 1.5 : 1);
+      out.flip[i] = rng() < .5 ? -1 : 1; out.yaw[i] = rng() * Math.PI * 2;
+      out.hue[i] = rng(); out.brightness[i] = .8 + .4 * rng();
+      out.tilt[i] = (2 * rng() - 1) * Math.PI / 15; out.tiltYaw[i] = rng() * Math.PI * 2;
+      out.species[i] = field.species[k];
     }
   }
   return out;
@@ -169,7 +201,7 @@ export function grassBudget(quality = 'standard') {
   // Expand the outer circle and shrink the inner circle by that amount: a true upper bound.
   for (const [name, size, inner, outer, perCell, triangles] of [
     ['near', GRASS.nearSize, 0, GRASS.nearRadius * q.distance, Math.ceil(Math.round(GRASS.nearDensity * Math.ceil(GRASS.maxDensity * 255 / 2) * 2 / 255) * q.density), 6],
-    ['mid', GRASS.midSize, GRASS.nearRadius * q.distance * 0.8, GRASS.midRadius * q.distance, Math.ceil(Math.ceil(GRASS.midDensity * Math.ceil(GRASS.maxDensity * 255 / 2) * 2 / 255 / GRASS.cardLeaves) * q.density), 4],
+    ['mid', GRASS.midSize, GRASS.nearRadius * q.distance * 0.8, GRASS.midRadius * q.distance, Math.min(GRASS.midMaxCards, Math.ceil(GRASS.midCardRate * q.density * 1.8)), 6],
   ]) {
     let max = 0; const error = Math.SQRT2 * size / 32;
     for (let i = 0; i < 16; i++) for (let j = 0; j < 16; j++) max = Math.max(max, tileList(i * size / 16, j * size / 16, size, Math.max(0, inner - error), outer + error).length);

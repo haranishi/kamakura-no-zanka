@@ -1,12 +1,13 @@
 // main.js — 縦切りの起動（app層）。読み込み → タイトル → 遊び。描画器・操作・音・UI・設定・一時停止・各ボタンを組み立てる。
 import * as THREE from 'three';
 import { WORLD } from './world-data.js';
+import { createGrassField } from './grass-field.js';
 import { createTerrain } from './terrain-height.js';
 import { buildTerrain, loadGroundTextures } from './terrain.js';
 import { installFog, createAtmosphere } from './atmosphere.js';
 import { Post } from './post.js';
 import { SHOTS, applyShot } from './shots.js';
-import { scatterTrees, scatterRocks, scatterGrass, scatterRice, scatterCrops } from './scatter.js';
+import { scatterTrees, scatterRocks, scatterRice, scatterCrops } from './scatter.js';
 import { buildRidges } from './ridges.js';
 import { buildVegetation } from './vegetation.js';
 import { loadModels, buildBuildings, buildRocks } from './buildings.js';
@@ -88,11 +89,12 @@ async function boot() {
   await step(0.12, '谷の地形を組み立てています');
   const built = buildTerrain({ terrain, textures, quality }); scene.add(built.group); live.built = built;
   await step(0.2, '木と岩を植えています');
-  const scatter = { trees: scatterTrees(WORLD, terrain), rocks: scatterRocks(WORLD, terrain), grass: scatterGrass(WORLD, terrain), rice: scatterRice(WORLD, terrain), crops: scatterCrops(WORLD, terrain) };
+  const scatter = { trees: scatterTrees(WORLD, terrain), rocks: scatterRocks(WORLD, terrain), rice: scatterRice(WORLD, terrain), crops: scatterCrops(WORLD, terrain) };
   await step(0.28, '建物を読み込んでいます');
   const aniso = renderer.capabilities.getMaxAnisotropy();
   const [models, propModels] = await Promise.all([loadModels({ anisotropy: aniso }), loadPropModels({ anisotropy: aniso })]);
-  const veg = buildVegetation({ scatter, quality }); scene.add(veg.group); live.scatter = scatter; live.scene = scene;
+  const field = createGrassField(WORLD, terrain); live.grassField = field;
+  const veg = buildVegetation({ scatter, quality, field, sunDir: ATMOS.sunDir }); scene.add(veg.group); live.scatter = scatter; live.scene = scene;
   scene.add(buildBuildings({ world: WORLD, terrain, models }).group);
   scene.add(buildRocks({ data: scatter.rocks, model: models.boulder_lo || models.boulder }));
   const props = buildProps({ world: WORLD, terrain, models: { ...models, ...propModels } }); scene.add(props.group);
@@ -109,6 +111,8 @@ async function boot() {
   applySettings(saved);
   await step(0.98, '道しるべを用意しています');
   game.warmGuide();
+  applyShot(camera, SHOTS.title, terrain);
+  game.veg.grass.warm(camera);
   await step(1, '準備ができました');
   wire();
   if (QA) installQA(game, { setFrozen: v => { frozen = v; }, start, quality: setQuality });
@@ -137,7 +141,9 @@ function setQuality(v) {
   live.built?.setQuality(v);
   if (live.scatter && game.veg) {
     const old = game.veg; live.scene.remove(old.group);
-    const veg = buildVegetation({ scatter: live.scatter, quality: v }); live.scene.add(veg.group); game.veg = veg;
+    const veg = buildVegetation({ scatter: live.scatter, quality: v, field: live.grassField, sunDir: ATMOS.sunDir }); live.scene.add(veg.group); game.veg = veg;
+    old.grass.dispose();
+    veg.grass.warm(camera);
     old.group.traverse(o => {                                                  // 作り直す前の GPU 資源を解放する（切り替えのたびに増えない）
       if (!o.isMesh) return;
       if (o.isInstancedMesh) o.dispose();

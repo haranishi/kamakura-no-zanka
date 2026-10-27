@@ -1,12 +1,13 @@
 // なぜ失敗したか: [density]は母数/品質、[exclusion]は禁止域への侵入、[seed]はセル系列、
 // [height]は補間/倍率、[species]は種の帯/群れ、[budget]は円外区画、[legacy]は既存配置の変更。
 import test from 'node:test';
+import fs from 'node:fs';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { performance } from 'node:perf_hooks';
 import { WORLD } from '../dist/valley/world-data.js';
 import { GRASS } from '../dist/valley/config.js';
-import { createTerrain } from '../dist/valley/terrain-height.js';
+import { fbm, createTerrain } from '../dist/valley/terrain-height.js';
 import { cellRand, mulberry32, insideFootprint, insidePlot, scatterTrees, scatterRocks, scatterGrass, scatterRice, scatterCrops, ROCK_MODEL } from '../dist/valley/scatter.js';
 import { createGrassField, sampleGrass, nearTile, midTile, tilesAround, grassBudget, SHORT, TALL, SUSUKI, FERN, FLOWER } from '../dist/valley/grass-field.js';
 const terrain = createTerrain(WORLD), start = performance.now(), field = createGrassField(WORLD, terrain);
@@ -23,7 +24,7 @@ function tileAt(x, z, mid = false, quality = 'standard') {
   return cache.get(key);
 }
 
-test('eligible square metres meet local density and light retains at least 40% [density]', () => {
+test('landmark samples retain near density and allow mid stochastic variation [density]', () => {
   assert.equal(points.length, 6, '[density] six independent world landmarks');
   for (const p of points) {
     let nn = 0, mn = 0, leaves = 0, cards = 0, lightN = 0, lightM = 0;
@@ -38,8 +39,8 @@ test('eligible square metres meet local density and light retains at least 40% [
     }
     assert(nn > 8 && mn > 8, '[density] landmark must have eligible grassland');
     assert(leaves / nn >= 100, `[density] near ${p.x},${p.z}: ${leaves / nn}`);
-    assert(cards * 14 / mn >= 20, `[density] mid ${p.x},${p.z}: ${cards * 14 / mn}`);
-    assert(lightN >= leaves * .4 && lightM >= cards * .4, '[density] light lost more than 60% on identical area');
+    assert(cards * GRASS.cardLeaves / mn >= 16, `[density] mid ${p.x},${p.z}: ${cards * GRASS.cardLeaves / mn}`);
+    assert(lightN >= leaves * .4 && lightM >= cards * .30, '[density] near light floor or mid local sampling tolerance violated');
   }
   const mean = eligible.reduce((s, k) => s + field.density[k] * 2 / 255, 0) / eligible.length;
   assert(mean >= 1, '[density] placeable-cell mean below one');
@@ -84,7 +85,6 @@ function checkRoot(x, z) {
   assert(!WORLD.buildings.some(b => insideFootprint(b, x, z, .4)), '[exclusion:footprint] root in building');
   assert(!WORLD.plots.some(b => insidePlot(b, x, z, .4)), '[exclusion:plot] root in plot');
   assert(!WORLD.props.some(p => Math.hypot(x - p.x, z - p.z) < (p.r || 1) + .4), '[exclusion:prop] root in prop');
-  assert(Math.hypot(x - WORLD.start.x, z - WORLD.start.z) >= 3, '[exclusion:start] start disk');
   assert(Math.hypot(x - 4, z - 6) >= 7, '[exclusion:yard] garden disk');
   const T = WORLD.terraces;
   assert(!(x > T.x0 - 2 && x < T.x1 + 2 && z > T.z0 - 2 && z < T.z1 + 2), '[exclusion:terrace] root in rice field');
@@ -103,13 +103,15 @@ test('all roots at six landmarks plus 200 fixed random tiles avoid prohibited gr
 });
 
 test('height, width and lean remain in species ranges; corner interpolation stays grounded [height]', () => {
-  let sum = 0, max = 0, n = 0; const rng = mulberry32(340);
-  for (let k = 0; k < 500; k++) {
-    const p = at(eligible[Math.floor(rng() * eligible.length)]), a = tileAt(p.x, p.z);
+  // Freeze the original 500 world cells so adding start cells cannot replace the regression corpus.
+  const cells = JSON.parse(fs.readFileSync(new URL('./fixtures/grass-grounding-cells.json', import.meta.url)));
+  let sum = 0, max = 0, n = 0;
+  for (const [x,z] of cells) {
+    const a = tileAt(x,z);
     for (let i = 0; i < a.count; i++) {
       assert(a.h[i] >= .15 - 1e-7 && a.h[i] <= .6 + 1e-7, '[height] multiplied leaf height out of range');
       const spec = GRASS.species[a.species[i]];
-      assert(a.w[i] >= .015 - 1e-7 && a.w[i] <= .03 + 1e-7, '[width] ribbon outside 1.5–3cm');
+      assert(a.w[i] >= .015 - 1e-7 && a.w[i] <= .04 + 1e-7, '[width] ribbon outside 2.2–4cm');
       assert(a.w[i] >= spec.w[0] - 1e-7 && a.w[i] <= spec.w[1] + 1e-7, '[width] wrong ribbon width');
       assert(a.lean[i] >= spec.lean[0] - 1e-7 && a.lean[i] <= spec.lean[1] + 1e-7, '[lean] wrong bend');
       assert([SHORT, TALL, FERN].includes(a.species[i]), '[species] clump rendered as ribbon');
@@ -138,7 +140,7 @@ test('independent forbidden fixtures reject every cell [exclusion]', () => {
 test('cell streams reproduce exactly and survive tile rebatching and reversed requests [seed]', () => {
   const originalHeightAt = terrain.heightAt;
   const copy = createGrassField(WORLD, terrain);
-  for (const k of ['placeable', 'density', 'height', 'species', 'heights']) assert.deepEqual(field[k], copy[k], `[seed] field changed ${k}`);
+  for (const k of ['placeable', 'density', 'height', 'species', 'heights', 'midPatch']) assert.deepEqual(field[k], copy[k], `[seed] field changed ${k}`);
   // A tile must work after all source terrain queries become unavailable.
   terrain.heightAt = () => { throw Error('[seed] tile called heightAt'); };
   try { nearTile(field, -92, -88); midTile(field, -46, -44); } finally { terrain.heightAt = originalHeightAt; }
@@ -147,7 +149,7 @@ test('cell streams reproduce exactly and survive tile rebatching and reversed re
     make(field, 11, 17); assert.deepEqual(a, make(field, -23, -22, { size: 4 }), '[seed] request order changes arrays');
     const children = [];
     for (let z = -88; z < -84; z++) for (let x = -92; x < -88; x++) children.push(make(field, x, z, { size: 1 }));
-    const props = make === nearTile ? ['x', 'y', 'z', 'h', 'w', 'lean', 'yaw', 'hue', 'species'] : ['x', 'y', 'z', 's', 'yaw', 'hue', 'species'];
+    const props = make === nearTile ? ['x', 'y', 'z', 'h', 'w', 'lean', 'yaw', 'hue', 'species'] : ['x', 'y', 'z', 's', 'sx', 'sy', 'flip', 'yaw', 'hue', 'brightness', 'tilt', 'tiltYaw', 'species'];
     for (const key of props) assert.deepEqual([...a[key]], children.flatMap(t => [...t[key]]), `[seed] rebatching changed ${key}`);
     if (a.clumps) for (const key of ['x', 'y', 'z', 'h', 'yaw', 'hue', 'kind']) assert.deepEqual([...a.clumps[key]], children.flatMap(t => [...t.clumps[key]]), `[seed] rebatching clumps ${key}`);
   }
@@ -175,7 +177,8 @@ test('camera lists use rectangle-circle overlap and budgets bound every offset [
   for (const quality of ['standard', 'light']) {
     const budget = grassBudget(quality); result.push(budget);
     assert(budget.near.triangles <= (quality === 'standard' ? 200000 : 80000), '[budget] near triangle cap');
-    assert(budget.mid.triangles <= 20000, '[budget] mid triangle cap');
+    assert(budget.mid.triangles <= (quality === 'standard' ? 40000 : 15000), '[budget] mid triangle cap');
+    assert.equal(budget.mid.triangles, budget.mid.count * 6, '[budget] three card plates omitted');
     const q = GRASS.quality[quality], rng = mulberry32(789);
     for (let i = 0; i < 51; i++) {
       const x = i === 0 ? 0 : rng() * 16 - 8, z = i === 0 ? 0 : rng() * 16 - 8, lists = tilesAround(full, x, z, { quality });
@@ -236,9 +239,120 @@ test('explicit quality coefficients, cell heights and clump rates [contract]', (
     const f = { seed: 1333, x0: 0, z0: 0, nx: 1, nz: 1, placeable: new Uint8Array([1]), density: new Uint8Array([128]), height: new Uint8Array([multiplier]), species: new Uint8Array([species]), heights: new Float32Array([1, 2, 3, 4]) };
     const a = nearTile(f, 0, 0, { size: 1 }), rng = cellRand(1333 + GRASS.seed, 0, 0), spec = GRASS.species[species === SUSUKI || species === FLOWER ? SHORT : species];
     const px = .001 + rng() * .998, pz = .001 + rng() * .998;
-    const h = Math.max(.15, Math.min(.6, (spec.h[0] + (spec.h[1] - spec.h[0]) * rng()) * (.8 + multiplier * .55 / 255) * (.9 + .2 * rng())));
+    const h = Math.max(.15, Math.min(.6, (spec.h[0] + (spec.h[1] - spec.h[0]) * rng()) * (.8 + multiplier * .55 / 255) * (.75 + .55 * rng()) * (cellRand(1333 + GRASS.seed + 1, 0, 0)() < .08 ? 1.5 : 1)));
     assert.equal(a.h[0], Math.fround(h), '[height] cell height multiplier omitted or applied incorrectly');
     assert.equal(a.y[0], Math.fround(1 + px + pz * 2 - .02), '[height] roots must use corner heights, sunk 2cm');
     assert(a.h.every(h => h >= .15 - 1e-7 && h <= .6 + 1e-7), '[height] extreme multiplier');
   }
+});
+
+// なぜ失敗したか: [mid-density]は全母数の平均低下、[mid-patch]は場の偏り、[mid-shape]は苗の反復。
+test('mid stochastic cell counts preserve the population mean, bounds and independent shapes [mid-density]', () => {
+  let weighted = 0, density = 0, cards = 0, light = 0, empty = 0, expected = 0;
+  const scales = [], widths = [], heights = [], flips = new Set();
+  for (const k of eligible) {
+    const { x, z } = at(k), patch = field.midPatch[k], d = field.density[k] * 2 / 255;
+    assert(patch >= .2 - 1e-6 && patch <= 1.8 + 1e-6, '[mid-patch] outside .2–1.8');
+    weighted += patch; density++;
+    const a = midTile(field, x, z, { size: 1 }), b = midTile(field, x, z, { size: 1, quality: 'light' });
+    const average = GRASS.midCardRate;
+    const rng = cellRand(field.seed + GRASS.midSeed, x, z);
+    assert.equal(a.count, Math.min(GRASS.midMaxCards, Math.floor(average * patch + rng())), '[mid-count] count is not stochastic rounding');
+    assert(a.count <= 4 && a.count <= Math.ceil(average * 1.8), '[budget] mid cell exceeded maximum');
+    cards += a.count; light += b.count; empty += a.count === 0; expected += Math.min(GRASS.midMaxCards, average * patch);
+    for (let i = 0; i < a.count; i++) {
+      assert(a.s[i] >= .5 - 1e-6 && a.s[i] <= 1.9, '[mid-shape] scale outside .5–1.9');
+      assert(a.sx[i] >= .75 - 1e-6 && a.sx[i] <= 1.25 + 1e-6, '[mid-shape] width outside .75–1.25');
+      assert(a.sy[i] >= .75 - 1e-6 && a.sy[i] <= 1.875 + 1e-6, '[mid-shape] height outside .75–1.875');
+      scales.push(a.s[i]); widths.push(a.sx[i]); heights.push(a.sy[i]); flips.add(a.flip[i]);
+    }
+  }
+  assert(Math.abs(weighted / density - 1) < 1e-6, '[mid-patch] cell mean changed');
+  assert(Math.abs(cards / expected - 1) < .025, '[mid-density] population expectation drift');
+  assert(cards * GRASS.cardLeaves / eligible.length >= 20, '[mid-density] below 20 represented leaves/m²');
+  assert(Math.abs(light / cards - .4) < .025, '[mid-density] light population ratio drift');
+  assert(empty > 0 && cards / eligible.length > 1.94 && cards / eligible.length < 2.03, '[mid-count] mean must remain near 2.0 cards/m² under the cap');
+  assert.equal(GRASS.midCardRate, 2, '[mid-density] expected 2 cards/m²');
+  assert.equal(GRASS.midMaxCards, 3, '[budget] three-card cell cap required');
+  assert.deepEqual(GRASS.card, { size:.55, aspect:.25 }, '[mid-shape] square card contract changed');
+  assert.equal(GRASS.cardLeaves, 14, '[mid-density] accounting must remain 14 leaves/card');
+  assert.equal(GRASS.midDensity, 20, '[mid-density] represented-leaf target changed');
+  for (const [values, range] of [[scales,1.35],[widths,.49],[heights,1.1]])
+    assert(Math.max(...values) - Math.min(...values) > range, '[mid-shape] missing individual variation');
+  assert.deepEqual([...flips].sort(), [-1,1], '[mid-shape] missing reflection');
+  console.log('mid population', { cells: eligible.length, cards, light, representedDensity: cards * GRASS.cardLeaves / eligible.length });
+});
+
+// なぜ失敗したか: 枚数を葉相当会計や近景密度に連動させると、中景が再び疎になる。
+test('mid card rate ignores near density and keeps its extreme patch bound [mid-count]', () => {
+  const n = 256, f = { seed: 1333, x0: 0, z0: 0, nx: n, nz: 1, placeable: new Uint8Array(n).fill(1), density: new Uint8Array(n), species: new Uint8Array(n), heights: new Float32Array((n+1)*2), midPatch: new Float32Array(n).fill(1.6) };
+  const a = midTile(f, 0, 0, { size: n });
+  f.density.fill(255);
+  assert.deepEqual(midTile(f, 0, 0, { size: n }), a, '[mid-count] near density changed card count');
+  const counts = new Map();
+  for (const x of a.x) counts.set(Math.floor(x), (counts.get(Math.floor(x)) || 0)+1);
+  assert.equal(Math.max(...counts.values()), 3, '[mid-count] extreme patch did not exercise three-card maximum');
+});
+
+// なぜ失敗したか: 開始地点だけ旧配置の半径3m除外が残り、足もとが円形に抜けていた。
+test('start permits grass in the old disk and changing start never changes placement [start-placement]', () => {
+  const w = { ...smallWorld, start: { x: 84, z: 84 } };
+  const f = createGrassField(w, flat, options), control = createGrassField(smallWorld, flat, options);
+  assert.deepEqual(f.placeable, control.placeable, '[start-placement] start still affects placeable cells');
+  for (const make of [nearTile, midTile]) {
+    const a = make(f, 10, 10, { size: 8 });
+    assert(a.x.some((x,i) => Math.hypot(x-84,a.z[i]-84)<3), '[start-placement] no roots inside old start disk');
+  }
+  let roots = 0;
+  for (let z = Math.floor(WORLD.start.z)-3; z <= WORLD.start.z+3; z++)
+    for (let x = Math.floor(WORLD.start.x)-3; x <= WORLD.start.x+3; x++) {
+      const a = nearTile(field,x,z,{size:1});
+      roots += a.x.filter((px,i)=>Math.hypot(px-WORLD.start.x,a.z[i]-WORLD.start.z)<3).length;
+    }
+  assert(roots>0, '[start-placement] actual world has no grass inside start disk');
+});
+
+// なぜ失敗したか: 一様な株と葉の丈・倒れが揃い、株は水玉、近景は植毛に見えた。
+test('cell streams encode skewed scale, tall tufts, tilt, brightness and long leaves [variation]', () => {
+  let midCount=0,tall=0,small=0,long=0,nearCount=0; const bends=[];
+  for (const k of eligible.filter((_,i)=>i%20===0)) {
+    const {x,z}=at(k), a=midTile(field,x,z,{size:1}), r=cellRand(field.seed+GRASS.midSeed,x,z); r();
+    for(let i=0;i<a.count;i++) {
+      r(); r(); const u=r();
+      assert.equal(a.s[i],Math.fround(.5+1.4*u*u),'[variation:scale] squared distribution lost');
+      assert.equal(a.sx[i],Math.fround(1+GRASS.card.aspect*(2*r()-1)),'[variation:aspect] width range lost');
+      const sy=1+GRASS.card.aspect*(2*r()-1), isTall=r()<.12;
+      assert.equal(a.sy[i],Math.fround(sy*(isTall?1.5:1)),'[variation:tall] tall multiplier lost');
+      r();r();r();
+      assert.equal(a.brightness[i],Math.fround(.8+.4*r()),'[variation:brightness] brightness lost');
+      assert.equal(a.tilt[i],Math.fround((2*r()-1)*Math.PI/15),'[variation:tilt] tilt lost');
+      assert.equal(a.tiltYaw[i],Math.fround(r()*Math.PI*2),'[variation:tilt] direction lost');
+      midCount++;tall+=isTall;small+=a.s[i]<1;
+    }
+    const b=nearTile(field,x,z,{size:1}), nr=cellRand(field.seed+GRASS.seed,x,z), lr=cellRand(field.seed+GRASS.seed+1,x,z);
+    for(let i=0;i<b.count;i++) {
+      nr();nr();const spec=GRASS.species[b.species[i]],base=spec.h[0]+(spec.h[1]-spec.h[0])*nr();
+      const factor=.75+.55*nr(), isLong=lr()<.08;
+      const h=Math.max(.15,Math.min(.6,base*(.8+field.height[k]*.55/255)*factor*(isLong?1.5:1)));
+      assert.equal(b.h[i],Math.fround(h),'[variation:height] height factor or long blade lost');
+      nr();const t=.5+.5*Math.sin((nr()-.5)*Math.PI);
+      assert.equal(b.lean[i],Math.fround(spec.lean[0]+(spec.lean[1]-spec.lean[0])*t),'[variation:lean] wider bend distribution lost');
+      nr();nr();bends.push(t);nearCount++;long+=isLong;
+    }
+  }
+  assert(tall/midCount>.10 && tall/midCount<.14,'[variation:tall] expected 12% tall tufts');
+  assert(small/midCount>.57 && small/midCount<.63,'[variation:scale] small tufts must predominate');
+  assert(long/nearCount>.075 && long/nearCount<.085,'[variation:height] expected 8% long leaves');
+  assert(bends.filter(v=>v<.1||v>.9).length/bends.length>.39,'[variation:lean] bend range not broadened');
+});
+
+// なぜ失敗したか: ひとつの大きな斑だけでは、短い距離の株数が揃って水玉になる。
+test('patch ordering follows both three and fourteen metre fields [mid-patch]', () => {
+  const samples=eligible.filter((_,i)=>i%17===0).map(k=>{
+    const {x,z}=at(k);
+    return {v:fbm((x+.5)/3,(z+.5)/3,WORLD.seed+593,2)+fbm((x+.5)/14,(z+.5)/14,WORLD.seed+599,2),p:field.midPatch[k]};
+  }).sort((a,b)=>a.v-b.v);
+  for(let i=1;i<samples.length;i++) assert(samples[i].p>=samples[i-1].p-1e-6,'[mid-patch:scales] two-scale spatial ordering lost');
+  const values=eligible.map(k=>field.midPatch[k]);
+  assert(Math.max(...values)-Math.min(...values)>1.2,'[mid-patch:range] patch contrast narrowed');
 });

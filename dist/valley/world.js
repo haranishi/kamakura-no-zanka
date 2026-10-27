@@ -2,12 +2,13 @@
 //   world.html?shot=veranda&w=1400&h=800&q=standard   ?fly=1 で WASD＋ドラッグで移動
 import * as THREE from 'three';
 import { WORLD } from './world-data.js';
+import { createGrassField } from './grass-field.js';
 import { createTerrain } from './terrain-height.js';
 import { buildTerrain, loadGroundTextures } from './terrain.js';
-import { installFog, createAtmosphere } from './atmosphere.js';
+import { installFog, createAtmosphere, ATMOS } from './atmosphere.js';
 import { Post } from './post.js';
 import { SHOTS, applyShot } from './shots.js';
-import { scatterTrees, scatterRocks, scatterGrass, scatterRice } from './scatter.js';
+import { scatterTrees, scatterRocks, scatterRice } from './scatter.js';
 import { buildVegetation } from './vegetation.js';
 import { loadModels, buildBuildings, buildRocks } from './buildings.js';
 
@@ -37,10 +38,10 @@ async function main() {
   built = buildTerrain({ terrain, textures, quality });
   scene.add(built.group);
   const t2 = performance.now();
-  const scatter = { trees: scatterTrees(WORLD, terrain), rocks: scatterRocks(WORLD, terrain), grass: scatterGrass(WORLD, terrain), rice: scatterRice(WORLD, terrain) };
+  const scatter = { trees: scatterTrees(WORLD, terrain), rocks: scatterRocks(WORLD, terrain), rice: scatterRice(WORLD, terrain) };
   const t3 = performance.now();
   const models = await loadModels({});
-  const veg = buildVegetation({ scatter, quality }); scene.add(veg.group);
+  const veg = buildVegetation({ scatter, quality, field: createGrassField(WORLD, terrain), sunDir: ATMOS.sunDir }); scene.add(veg.group);
   const bld = buildBuildings({ world: WORLD, terrain, models }); scene.add(bld.group);
   scene.add(buildRocks({ data: scatter.rocks, model: models.boulder_lo || models.boulder }));
   const t4 = performance.now();
@@ -60,10 +61,11 @@ async function main() {
     addEventListener('pointermove', ev => { if (!drag) return; yaw -= ev.movementX * 0.003; pitch = Math.max(-1.5, Math.min(1.5, pitch - ev.movementY * 0.003)); });
   }
   if (q.get('sun')) { const [sx, sy, sz] = q.get('sun').split(',').map(Number); atmosphere.params.sunDir.set(sx, sy, sz).normalize(); atmosphere.sky.material.uniforms.sunDir.value.copy(atmosphere.params.sunDir); }
+  veg.grass.setSun(atmosphere.params.sunDir); veg.grass.warm(camera);
   if (q.get('bloom') != null) post.params.bloomStrength = Number(q.get('bloom'));
   const clock = new THREE.Clock();
   let frames = 0; const need = Number(q.get('frames') || 6);
-  document.getElementById('info').textContent = `textures ${(t1 - t0).toFixed(0)}ms terrain ${built.buildMs.toFixed(0)}ms scatter ${(t3 - t2).toFixed(0)}ms models+veg ${(t4 - t3).toFixed(0)}ms | trees ${scatter.trees.x.length} grass ${scatter.grass.x.length} rice ${scatter.rice.x.length}`;
+  document.getElementById('info').textContent = `textures ${(t1 - t0).toFixed(0)}ms terrain ${built.buildMs.toFixed(0)}ms scatter ${(t3 - t2).toFixed(0)}ms models+veg ${(t4 - t3).toFixed(0)}ms | trees ${scatter.trees.x.length} grass ${veg.grass.stats().nearBlades} rice ${scatter.rice.x.length}`;
   renderer.setAnimationLoop(() => {
     const dt = Math.min(clock.getDelta(), 0.1);
     if (fly) {
@@ -74,7 +76,7 @@ async function main() {
       if (keys.has('KeyE')) camera.position.y += sp; if (keys.has('KeyQ')) camera.position.y -= sp;
     }
     atmosphere.update(camera, dt);
-    veg.wind.uTime.value += dt; veg.trees.update(camera);
+    veg.wind.uTime.value += dt; veg.trees.update(camera); veg.grass.update(camera);
     atmosphere.follow(new THREE.Vector3(camera.position.x + (-Math.sin(yaw) * 20), camera.position.y - 10, camera.position.z + (-Math.cos(yaw) * 20)));
     post.render(scene, camera, dt);
     frames++;
