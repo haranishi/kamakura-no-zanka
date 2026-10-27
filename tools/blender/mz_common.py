@@ -1,10 +1,10 @@
 # mz_common.py — 骨へ動作を写し替える Blender の道具の共通部分。
-# 出所：本人の制作物 minato-web/tools/blender/mz_common.py（assets-r1・2026-10-01）を、残火の鎌倉 v19 で写して使う。
+# 出所：作者の別作品（非公開）の Blender 道具（assets-r1・2026-10-01）を、残火の鎌倉 v19 で写して使う。
 # 変更：動作キャッシュの場所を環境変数 KAMAKURA_MOTION_CACHE で指定でき、出力先を dist/assets/characters にした。
 #
 # 何を：FBX/BVH の読み込み、一番長いテイクの選択、骨の休みの姿勢と動作の世界座標での取り出し、
 #       四元数の計算、骨の対応表（Meshy 24本・CMU 31本）をまとめる。
-# どの素材から：/Users/hara/Projects/minato-no-zanka の Meshy の FBX と CMU の BVH（読むだけ）。
+# どの素材から：Meshy の骨入り FBX と CMU の BVH から作った動作キャッシュ（読むだけ。この公開物には含まれない。KAMAKURA_MOTION_CACHE で場所を指定する）。
 # 版：r1。Blender 5.2.2 で確かめた（Action はスロット付き＝layers/strips/channelbags の API）。
 #
 # 座標の約束（この道具の中だけ）：Blender の世界座標。Z が上、人物は -Y を向く、単位は m。
@@ -18,11 +18,10 @@ import sys
 from pathlib import Path
 from mathutils import Matrix, Quaternion, Vector
 
-UNITY_ROOT = Path('/Users/hara/Projects/minato-no-zanka')
 WEB_ROOT = Path(__file__).resolve().parents[2]
-# 動作キャッシュは湊の extract_motions.py が作った npz/json（181ファイル）。本作では読むだけ。
-CACHE_DIR = Path(os.environ.get('KAMAKURA_MOTION_CACHE', '/Volumes/Projects-SSD/Projects/minato-web/captures/assets/cache'))
 CAPTURE_DIR = WEB_ROOT / '.captures' / 'assets'
+# 動作キャッシュは別作品の抽出道具が作った npz/json（181ファイル）。本作では読むだけ。既定は .captures/assets/cache/
+CACHE_DIR = Path(os.environ.get('KAMAKURA_MOTION_CACHE', str(CAPTURE_DIR / 'cache')))
 CHAR_OUT = WEB_ROOT / 'dist' / 'assets' / 'characters'
 
 from mz_skel import *  # noqa: F401,F403  骨の表（MESHY_BONES・CMU_TO_MESHY など）

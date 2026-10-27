@@ -1,0 +1,23 @@
+name: 提案・相談
+description: 新しい機能・操作・バランスの変更などを、実装の前に相談する
+labels: ["proposal"]
+body:
+  - type: textarea
+    id: who
+    attributes:
+      label: 誰のどんな困りごとか
+      description: 遊ぶ人にとって何が良くなるか。いまの遊びのどの場面か。
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: 案
+      description: 変えたい中身。代わりの案や、見送った案があれば。
+    validations:
+      required: true
+  - type: textarea
+    id: impact
+    attributes:
+      label: 影響するもの
+      description: セーブの互換、操作、難しさ、依存、素材。分かる範囲で。

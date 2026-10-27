@@ -1,9 +1,9 @@
 # mz_clips.py — 動作ごとの扱い（繰り返すか・進む向き・攻撃か・注意）（assets-r1・2026-10-01）
-# （出所：本人の制作物 minato-web/tools/blender/mz_clips.py を残火の鎌倉 v19 で写して使う。内容は変更していない）
+# （出所：作者の別作品（非公開）の Blender 道具を残火の鎌倉 v19 で写して使う。内容は変更していない）
 #
 # 何を：ループにする動作と、その切り方。攻撃として右手の速さの山を測る動作。一覧に書く注意。
 # どの素材から：動作の名前は extract_motions.py の一覧（ArtSources/Meshy の動作ファイルの名前）。
-#   注意は Unity版の記録（minato-no-zanka/.agent-harness/runs/combat-feel-v11.md・ride-loco-v1.md・meshy-characters-v10.md）。
+#   注意は別作品（Unity版・非公開）の記録にある。
 # 版：r1。
 #
 # kind：cycle＝歩き・走りなど進む繰り返し（1周を選んで前へそろえ、その場にする）、idle＝その場の繰り返し。

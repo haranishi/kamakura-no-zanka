@@ -1,5 +1,5 @@
 # build_valley_character.py — 1体を「皮付きの形・骨・必要な動作」の GLB にする（残火の鎌倉 v19・2026-10-27）
-# 出所：本人の制作物 minato-web/tools/blender/build_character.py（assets-r1）を写して、本作の人物表・入れる動作・出力先に変えた。
+# 出所：作者の別作品（非公開）の Blender 道具（assets-r1）を写して、本作の人物表・入れる動作・出力先に変えた。
 # 変更点：人物表（Meshy v19 の骨入りFBX）、役割ごとの動作表（valley_clips.json）、草摺の重み直しなし、出力先 dist/assets/characters。
 #
 # 何を：
@@ -12,7 +12,7 @@
 #      繰り返しの動作はその場の1周にする（mz_clips.LOOPS）。
 #   6. GLB に書き出す（Y が上・人物は +Z を向く・Draco なし・WebP は EXT_texture_webp）。
 #   7. 動作ごとの計測を .captures/assets/manifest_<人物>.json に書く（make_manifest.py がまとめる）。
-# どの素材から（読むだけ）：minato-no-zanka の骨入れ FBX（下の CHARS）、cache の動作、stage の WebP。
+# どの素材から（読むだけ）：Meshy の骨入り FBX（下の CHARS）、cache の動作、stage の WebP。いずれもこの公開物には含まれない。
 # 版：r1。
 #
 # 実行：Blender --background --factory-startup --python tools/blender/build_valley_character.py -- <hero|archer|soldier|officer|villager_m|villager_f|child> [--only 名前,名前|--all] [--no-normals-fix] [--out パス]

@@ -1,8 +1,8 @@
 # mz_skel.py — 骨の名前・対応表（bpy を使わない。Blender の外でも読める）（assets-r1・2026-10-01）
-# （出所：本人の制作物 minato-web/tools/blender/mz_skel.py を残火の鎌倉 v19 で写して使う。内容は変更していない）
+# （出所：作者の別作品（非公開）の Blender 道具を残火の鎌倉 v19 で写して使う。内容は変更していない）
 #
 # 何を：Meshy 24本の骨の並び、骨の向きを決める先の点、CMU→Meshy の対応表。
-# どの素材から：骨の名前は minato-no-zanka の Meshy の骨入れFBXと CMU の BVH を調べて決めた（inspect_rigs.py）。
+# どの素材から：骨の名前は Meshy の骨入れFBXと CMU の BVH を調べて決めた（inspect_rigs.py）。
 # 版：r1。
 
 # Meshy の自動リグの24本（4体とも名前と並びが同じ）。背骨は腰側が Spine02。
