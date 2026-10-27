@@ -63,7 +63,7 @@
 `createTerrain(world)` → `{heightAt, slopeAt, normalAt, waterAt, surfaceAt, walkable, bounds}`。`world` は `world-data.js`。
 地形の高さ・傾斜・通行・道の連続（廃寺から里まで歩ける）・建物と木の足跡が通行可能な点に重ならないことをNodeで検査する。
 
-## guide.js（第2弾・R16。未実装）
+## guide.js（第2弾・R16。純粋層実装済・view未結線）
 
 - 基準路は目的・選んだ道・開始地点で一度固定する。現在位置から引き直さない。
   `world.roads` の折れ点を必須点として順に接続する。navの最短路は点間の通行検証に使う。

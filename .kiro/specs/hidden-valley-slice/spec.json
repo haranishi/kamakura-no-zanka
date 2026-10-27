@@ -26,7 +26,7 @@
       "design-wayfinding.md"
     ],
     "tasks": "tasks.md §7",
-    "implementation": "7.0・7.0aの純粋ロジックと検査口から着手。測定・撮影・文書整備は別依頼",
+    "implementation": "7.0・7.0aの既存範囲を継承。7.1と7.2のデータ部分を実装。viewは別依頼",
     "validation": "design-validation.md",
     "review": "2026-10-27の独立レビュー（15件）を仕様へ反映。実装と実機検証は未実施",
     "ready_for_implementation": true
@@ -45,7 +45,7 @@
   "resolved": [
     "Meshy生成物の公開時の扱い：有料Proの期間内の生成・コミュニティ公開0件を2026-10-27に確認。出所は NOTICE.md と provenance"
   ],
-  "ready_for_implementation_scope": "既存v19を継承。2026-10-27の本人決定により第2弾の実装開始を承認。今回は7.0・7.0aの指定範囲のみ",
+  "ready_for_implementation_scope": "本人の今回依頼: 7.1（案内の純粋層）と7.2の目的文・中心区域・設定データのみ。view・Git反映は対象外",
   "decisions": [
     {
       "topic": "里の中心到達後",

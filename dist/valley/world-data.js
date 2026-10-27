@@ -118,6 +118,9 @@ export const WORLD = {
     village_front: { x: -34, z: -4, r: 9 },
     village_north: { x: 3, z: -28, r: 10 },
     village_south: { x: -12, z: 36, r: 10 },
+    // 未測定の設計値 (0,4), r=3m。倉(-34,10)の東、家1/5の間を抜けた lane 沿い。
+    // 井戸(0,0)の南で建物・倉の間の広場へ着ける。三入口からの到達をNodeで検査。敵位置は使わない。
+    village_center: { x: 0, z: 4, r: 3 },
     ambush_trigger: { x: -56, z: -22, r: 12 },
     temple_steps: { x: -74, z: -66, r: 6 },
   },

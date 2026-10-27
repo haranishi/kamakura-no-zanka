@@ -32,6 +32,7 @@ test('every spawn, zone center, checkpoint, start and exit is inside the walkabl
   }
   for (const [name, z] of Object.entries(WORLD.zones)) points.push(['zone ' + name, z]);
   for (const [name, p] of points) {
+    if (name === 'zone village_center') assert(free(p), 'village_center must be clear at the exact center');
     assert(inBounds(p), `${name} is outside the bounds`);
     assert(terrain.walkable(p.x, p.z), `${name} is not walkable terrain`);
     // 区画の中心が岩や建物の中にある場合だけは、近くに歩ける所があればよい（見晴らし岩の中心など）
@@ -42,7 +43,7 @@ test('every spawn, zone center, checkpoint, start and exit is inside the walkabl
 
 test('the whole route can be walked: temple → yard → viewpoint → village (3 entrances) → captive → ambush → temple steps', () => {
   const legs = [['start', 'temple_yard'], ['temple_yard', 'viewpoint'], ['viewpoint', 'village_front'], ['viewpoint', 'village_north'], ['viewpoint', 'village_south'],
-    ['village_front', 'captive'], ['village_north', 'captive'], ['village_south', 'captive'], ['captive', 'ambush_trigger'], ['ambush_trigger', 'temple_steps']];
+    ['village_front', 'village_center'], ['village_north', 'village_center'], ['village_south', 'village_center'], ['village_center', 'captive'], ['village_front', 'captive'], ['village_north', 'captive'], ['village_south', 'captive'], ['captive', 'ambush_trigger'], ['ambush_trigger', 'temple_steps']];
   const at = n => n === 'start' ? WORLD.start : n === 'captive' ? WORLD.spawns.captive : WORLD.zones[n];
   for (const [a, b] of legs) {
     const from = nearestFree(col, terrain, at(a).x, at(a).z, 0.45, 10), to = nearestFree(col, terrain, at(b).x, at(b).z, 0.45, 10);

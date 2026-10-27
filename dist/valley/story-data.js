@@ -2,14 +2,18 @@
 // 物語の根拠は docs/10_STORY_AND_DESIGN_JA.md。台詞は一画面40字以内。旧臣の負い目と、村の「武士はもう要らない」の距離から始まり、
 // 守られた結果で変わる。quest.js が id と結果文の表を読む。語句 '冬を越せる' '蓄えは半分' '次は匿えない' は検査が見る（変えない）。
 const beats = [
-  ['b0_temple', '庭へ降りる'], ['b1_boy', '穂太の話を聞く'],
-  ['b2_road', '水穂の里へ向かう'], ['b3_viewpoint', '里へ入る道を選ぶ'],
-  ['b4_village', '里を守る'], ['b5_archer', '縛られた弥十郎を解く'],
-  ['b6_escort', '廃寺へ戻る'], ['b7_result', '帰還の報せを聞く'], ['done', '谷の灯を守った'],
+  ['b0_temple', '庭へ降りる——縁側の前へ'], ['b1_boy', '穂太の話を聞く——駆け上がる子のそばへ'],
+  ['b2_road', '見晴らし岩へ——石段を下り、林道を南東へ'], ['b3_viewpoint', '里へ——正面は南の林道、北は斜面道、南は畦道'],
+  ['b4_village', '里を守る——倉と家のあいだへ'], ['b5_archer', '縛られた弥十郎を解く——縄のそばへ'],
+  ['b6_escort', '廃寺へ戻る——林道を北西へ、石段の上まで'], ['b7_result', '帰還の報せを聞く'], ['done', '谷の灯を守った'],
 ];
+// R16.6 / design-wayfinding.md。view未結線。結果中は移動目的なし。
+const guideTargets = { b0_temple: 'temple_yard', b1_boy: 'boy', b2_road: 'viewpoint',
+  b3_viewpoint: { front: 'village_front', north: 'village_north', south: 'village_south' },
+  b4_village: 'village_center', b5_archer: 'captive', b6_escort: 'temple_steps', b7_result: null, done: null };
 const hero = '榊三郎景継', boy = '穂太', old = '久作', tsubaki = 'つばき', yajuro = '梓弥十郎';
 export const STORY = {
-  beats: Object.fromEntries(beats.map(([id, objective]) => [id, { id, objective }])),
+  beats: Object.fromEntries(beats.map(([id, objective]) => [id, { id, objective, guideTarget: guideTargets[id] }])),
   dialogues: {
     boy_arrives: [
       { speaker: boy, text: 'お侍さま……っ。里に、兵が来た。' },
