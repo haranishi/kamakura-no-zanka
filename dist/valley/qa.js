@@ -44,6 +44,7 @@ export function installQA(game, ctl) {
     setGuidePlan(plan) { game.setGuidePlan(plan); return game.guideView(); },
     setWaymarks(level) { game.setWaymarks(level); return game.guideView(); },
     pressGuide() { return game.pressGuide(); },
+    meadowCover() { return ctl.meadowCover(); },
     grassStats() { return game.veg.grass.stats(); },
     windState() { return JSON.parse(JSON.stringify(game.wind)); },
     guideWind(dir) {
