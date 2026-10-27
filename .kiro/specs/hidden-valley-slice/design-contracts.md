@@ -84,11 +84,30 @@
 - 強調は道外れ<20mかつ直近30秒で10m以上進んだら解除。解除まで履歴は続ける。
   20mは25mから5mの余裕を引いた未測定の設計値。境界での点滅を避ける。
 
-## audio-rules.js（第2弾・R15。未実装）
+## audio-rules.js（第2弾・R15。7.5実装済み、合成への結線は7.6・7.7）
 
-- `pickStep({surface, gait, role, foot}, rng, last)` → `{recipe, pitch, gain, seed}`。直前と同じ組み合わせを返さない。揺らぎは範囲内（高さ±6%・大きさ±2dB）。
-- `noiseRadius(gait)` → m。`config.js` の表（走り11・歩き5・屈み1.5・刃の打ち合い18）。`gain` は同じ表から出す。
-- `pickVariant(kind, rng, last)` → 変種の番号。直前と同じ変種を続けない。
+- 凍結データ `STEP_TABLE` に7面（dirt/grass/gravel/leaves/wood/stone/water）の衝撃 `[gain, Hz, decayMs]`、粒 `[count, [lowHz, highHz], decayMs, spreadMs, jitter]`、5役割のcloth/equipment/weight、5歩容のnoise/density、左右のpitch差を集める。`SURFACES/GAITS/ROLES/FEET` は選択キーの配列。数値は試聴前の初期値。
+- `pickStep({surface, gait, role, foot}, rng, last?)` → `{recipe, pitch, gain, seed}`。recipeは面・歩容・役割・足とmaterial/equipment/density。pitchは基準1の±6%（左右±1%＋乱数±5%）、gainは共通表の基準±2dB。seedは左右で偶奇を分け、直前と同じなら2増やす（32bit周回）。固定rngでも同じ組み合わせを続けない。
+- `noiseRadius(kind)` / `noiseGain(kind)` → m / 線形gain。`config.js` の凍結 `AUDIO_NOISE` が正本。run=11/.8、walk=5/.45、crouch=1.5/.18、clash=18/1、hit=12/.85、stealth=3/.3。既存actors/battleの発見距離だけを同値で置換。configの画面側関数は呼ばない。
+- `VARIANTS` は blade/hit/block/parry/hurt/fall/bow/arrow 各3。`pickVariant(kind, rng, last?)` → 0起点の番号、直前と同じなら次へ送る。`HIT_MATERIAL` はarmor/flesh/wood/rockのresonanceHz/decayMs。合成の層は後続タスク。
+- `distanceRule(distance)` → `{audible, gain, lowpassHz}`。0以上のm、22m以上は不可聴・gain=0。内側は `(1-distance/22)^2`、高域は20kHzから1.2kHzへ線形減衰（22mで止まる）。
+- `panOf(source:{x,z}, listener:{x,z,yaw})` → -1〜1。yaw前方は `(-sin,-cos)`、右が正、同座標は0。
+- `BUSES` はambient=.7/steps=.8/combat=.9/ui=.65。`KIND_LEVELS` は種類→`[bus, baseGain]`。戦闘のbaseGainは共通AUDIO_NOISE表を参照（刃・受け・弾き=clash、命中・被弾・倒れ・矢=hit、弓=walk）。足の基準はpickStepが出すgainを掛ける。
+- `duckAmbient({combat=false, dialogue=false}={})` → 通常1/戦闘.55/会話.35（重複時は.35）。`mixGain(kind, {effects=1, ambient=1, combat=false, dialogue=false}={})` → 種類基準×バス倍率×設定倍率、環境のみduckを掛ける。設定は0〜1。`PEAK_LIMIT=.98` はリミッター後の全標本の検査上限。実音の保証は7.7で測る。
+- 未知の列挙値・不正rng（関数以外、0以上1未満以外）・非有限の数値はTypeError。距離負値と設定範囲外も拒否する。乱数は引数のみ。
+
+## voice-bank.js（第2弾・R15。7.5実装済み）
+
+- `VOICE_LIMIT=28`、`PRIORITY={otherStep:0,heroStep:1,otherCombat:2,heroCombat:3,ui:4}`、`AMBIENT_KINDS=[canopy,wind,river,insects,crow,fire,village]` は凍結データ。
+- `createVoiceBank({limit=28, waitLimit=28, fadeMs=10}={})` → JSON化できる状態。状態機械はその状態だけを変更し、入力オプションや外部オブジェクトを保持しない。limitは1〜28、waitLimitは0〜28、fadeMsは正の有限値。
+- `request(bank,{id,priority,kind,now,ambient=false,children=1})` → `{accepted,action:'start'|'steal'|'wait'|'reject',startAt?,victim?,events}`。now/startAt/eventsのat/endは**ミリ秒**、nowは単調非減少。idは全枠で一意な文字列。priorityは0〜4の整数。非有限時刻・不正優先度等は変更前にTypeError。
+- eventsはadapter向けの`{action:'start'|'stop',id,at}`／`{action:'fade',id,at,end}`。受理したstartAtを実音へ予約する。満杯時は同順以下の最古（実際の開始時刻、同時なら要求順）を10msで絞り終了後に開始。フェード中もactiveに数える。予約済みの枠を再利用しない。
+- フェード対象をすべて予約済みなら、同順以下の未置換の待機束へ予約を連鎖し、その開始からfadeMs後に次を開始（action=wait）。対象なし・待機満杯は拒否。成功は実際に確定した予約の数で、キャンセル後も累積数から引かない。
+- `tick(bank,now)` → 期日までのstop/start/fadeを時刻順で返す。同時刻はstop後start。呼出側は返された時刻を音の時計へ対応させる。環境は種類ごと1束、28枠から除外する。
+- `endChild(bank,id)` / `endTail(bank,id)` → 両条件完了時に解放しtrue（それ以外false）。最後の子の終了と響きの末尾を別々に通知する。`release(bank,id)` → booleanはadapterが両方完了を保証する場合、または明示停止・予約取消用。後続予約の開始時刻を早めない。
+- `clear(bank)` → 全active/pending/ambientのid配列、登録を全消去。停止・ミュート・破棄で必ず使い、adapterもそのidの予約と音源を止める。壁時計タイマーは持たない。
+- `stats(bank)` → `{requested,started,rejected,stolen,active,pending,ambient}`。startedは確定した予約成功数、stolenは置換予約数（待機連鎖を含む）。requested=started+rejected。active≤28、pending≤28、ambient≤7。
+- 検証：追加単体20件、逐次変異12/12検出・全復元。全体の実行結果はtasks.mdの7.5メモ。
 
 ## 風（第2弾・植生と案内の共有契約。未実装）
 

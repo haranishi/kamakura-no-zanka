@@ -11,7 +11,7 @@ const dir = path.join(root, 'dist/valley');
 const read = f => fs.readFileSync(path.join(root, f), 'utf8');
 
 // 1 入口・主要なモジュールと素材がある
-const modules = ['actors', 'ai-world', 'anim-data', 'atmosphere', 'audio-valley', 'battle', 'bow', 'buildings', 'camera-rig', 'characters', 'collision', 'combat', 'companion-ai', 'config',
+const modules = ['actors', 'ai-world', 'anim-data', 'atmosphere', 'audio-valley', 'audio-rules', 'voice-bank', 'battle', 'bow', 'buildings', 'camera-rig', 'characters', 'collision', 'combat', 'companion-ai', 'config',
   'enemy-ai', 'fx', 'game', 'guide-nav', 'guide-view', 'guide-renderer', 'guide', 'grade', 'hud', 'input', 'main', 'nav', 'perf-stats', 'wind', 'post', 'props', 'qa', 'quest', 'ridges', 'save', 'scatter', 'shots', 'story-data', 'terrain-height', 'terrain', 'vegetation', 'water', 'weapons', 'world-colliders', 'world-data'];
 for (const m of modules) assert(fs.statSync(path.join(dir, m + '.js')).size > 0, `missing dist/valley/${m}.js`);
 for (const f of ['index.html', 'valley.css']) assert(fs.statSync(path.join(dir, f)).size > 0, `missing dist/valley/${f}`);
@@ -32,10 +32,10 @@ for (const [file, src] of Object.entries(sources)) {
 }
 
 // 3 純粋な層（規則・データ）は Three.js・DOM・乱数・時計に触れない
-const pure = ['guide-nav', 'guide-view', 'guide', 'perf-stats', 'wind', 'combat', 'enemy-ai', 'companion-ai', 'quest', 'save', 'nav', 'terrain-height', 'scatter', 'collision', 'anim-data', 'world-data', 'world-colliders', 'story-data', 'ai-world'];
+const pure = ['audio-rules', 'voice-bank', 'guide-nav', 'guide-view', 'guide', 'perf-stats', 'wind', 'combat', 'enemy-ai', 'companion-ai', 'quest', 'save', 'nav', 'terrain-height', 'scatter', 'collision', 'anim-data', 'world-data', 'world-colliders', 'story-data', 'ai-world'];
 for (const m of pure) {
   const code = sources[m + '.js'].replace(/\/\/.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, '');
-  for (const bad of [/from\s+'three/, /\bMath\.random\b/, /\bDate\.now\b/, /\bperformance\.now\b/, /\bdocument\./, /\bwindow\./, /\blocalStorage\b/]) assert(!bad.test(code), `${m}.js (pure layer) uses ${bad}`);
+  for (const bad of [/from\s+'three/, /\bMath\.random\b/, /\bDate\.now\b/, /\bperformance\.now\b/, /\bdocument\./, /\bwindow\./, /\blocalStorage\b/, /\b(?:AudioContext|OfflineAudioContext|webkitAudioContext)\b/]) assert(!bad.test(code), `${m}.js (pure layer) uses ${bad}`);
 }
 
 // 植生4種は同じ一組の風uniformを共有する。生成を各材質へ分散させない。

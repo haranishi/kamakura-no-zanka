@@ -1,5 +1,5 @@
 // config.js — 見た目と手触りの調整値（暫定の初期値）。?lk=キー:値,... で書き換えずに試せる。
-// 規則の数値（技の時間・ダメージ）は combat.js の MOVES/STATS が正本。ここには見た目と操作の値だけを置く。
+// 規則の数値（技の時間・ダメージ）は combat.js の MOVES/STATS が正本。音の発見半径と音量は AUDIO_NOISE を共有する。
 
 // 武器を骨へ付ける位置と向き（骨のローカル座標。回転は度）。ラボ（lab.html）で動作を見ながら合わせる。
 export const GRIP = {
@@ -32,3 +32,9 @@ export function applyLookOverrides(search = location.search) {
     if (key && Number.isFinite(n)) LOOK[key] = n;
   }
 }
+
+// 発見距離(m)と合成用gainの共通表。gainは試聴前の初期値。
+export const AUDIO_NOISE = Object.freeze(Object.fromEntries(Object.entries({
+  run: { radius: 11, gain: 0.8 }, walk: { radius: 5, gain: 0.45 }, crouch: { radius: 1.5, gain: 0.18 },
+  clash: { radius: 18, gain: 1 }, hit: { radius: 12, gain: 0.85 }, stealth: { radius: 3, gain: 0.3 },
+}).map(([key, value]) => [key, Object.freeze(value)])));
