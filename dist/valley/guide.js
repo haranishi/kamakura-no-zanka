@@ -54,19 +54,33 @@ function gridFor(nav, band = () => true, road = null) {
   return buildNavGrid({ ...bounds, cell, walkable: (x, z) => clear(x, z) &&
     [-1, 1].every(dx => [-1, 1].every(dz => clear(x + dx * cell / 2, z + dz * cell / 2))) });
 }
-function connect(nav, a, b, band, grid) {
+// 道の帯の外（接続区間・目的地の補正）は、世界全体でなく、点のまわりだけの格子で探す。足りなければ広げ、最後は世界全体。
+// 世界全体の格子（0.5m・約17万セル）は、最初の1回に約10秒かかった（実測。通れる判定が約110万回）。
+const LOCAL_MARGINS = [6, 24];
+function gridAround(nav, a, b, margin) {
+  const w = nav.bounds;
+  const bounds = { minX: Math.max(w.minX, Math.min(a.x, b.x) - margin), maxX: Math.min(w.maxX, Math.max(a.x, b.x) + margin),
+    minZ: Math.max(w.minZ, Math.min(a.z, b.z) - margin), maxZ: Math.min(w.maxZ, Math.max(a.z, b.z) + margin) };
+  if (!(bounds.maxX > bounds.minX && bounds.maxZ > bounds.minZ)) return gridFor(nav);
+  return gridFor({ bounds, cell: nav.cell, walkable: (x, z) => nav.walkable(x, z) });
+}
+// 狭い格子から順に。最後（world）は世界全体で、呼出側が使い回せるように渡す。
+const looseGrids = (nav, a, b, world = () => gridFor(nav)) => [...LOCAL_MARGINS.map(m => () => gridAround(nav, a, b, m)), world];
+function connect(nav, a, b, band, grids) {
   const clear = (x, z) => inside(nav, { x, z }) && band(x, z) && nav.walkable(x, z);
   if (losClear(clear, a, b, STEP)) return dist(a, b) ? [a, b] : [a];
-  const g = grid();
-  let path = findPath(g, a, b);
-  if (!path) {
-    const end = nearestWalkable(g, b);
-    path = end && findPath(g, a, end);
+  for (const grid of grids) {
+    const g = grid();
+    let path = findPath(g, a, b);
+    if (!path) {
+      const end = nearestWalkable(g, b);
+      path = end && findPath(g, a, end);
+    }
+    if (!path) continue;
+    path = [a, ...path, b].filter((p, i, ps) => !i || dist(p, ps[i - 1]) > EPS);
+    if (path.slice(1).every((p, i) => losClear(clear, path[i], p, STEP))) return path;
   }
-  if (!path) return null;
-  path = [a, ...path, b].filter((p, i, ps) => !i || dist(p, ps[i - 1]) > EPS);
-  if (path.slice(1).some((p, i) => !losClear(clear, path[i], p, STEP))) return null;
-  return path;
+  return null;
 }
 function target(world, objectiveId, plan) {
   const spec = STORY.beats[objectiveId]?.guideTarget;
@@ -138,13 +152,23 @@ export function buildBaseline(world, nav, options) {
     }
     return grids.get(id);
   };
+  // 帯の外は、狭い格子から順に（最後は世界全体）。
+  const loose = (a, b) => looseGrids(nav, a, b, () => getGrid(null));
+  const snap = (id, p) => {
+    if (id) return nearestWalkable(getGrid(id), p);
+    for (const grid of inside(nav, p) ? loose(p, p) : [() => getGrid(null)]) {
+      const q = nearestWalkable(grid(), p);
+      if (q) return q;
+    }
+    return null;
+  };
   let prevRoad = null;
   for (const stop of stops) {
     let to = stop.point;
     const r = stop.road && world.roads[stop.road];
     const band = r ? (x, z) => roadDistance(r, { x, z }) <= r.halfWidth + HERO_RADIUS : () => true;
     if (!inside(nav, to) || !nav.walkable(to.x, to.z)) {
-      to = nearestWalkable(getGrid(stop.road), to);
+      to = snap(stop.road, to);
       if (!to) return null;
       corrections.push({ road: stop.road, index: stop.index, original: stop.point, corrected: to, meters: dist(to, stop.point) });
     }
@@ -153,7 +177,7 @@ export function buildBaseline(world, nav, options) {
     const inRoad = r && (prevRoad === stop.road || band(a.x, a.z));
     const useBand = inRoad ? band : () => true;
     const id = inRoad ? stop.road : null;
-    const path = connect(nav, a, to, useBand, () => getGrid(id));
+    const path = connect(nav, a, to, useBand, id ? [() => getGrid(id)] : loose(a, to));
     if (!path) return null;
     const startIndex = paths.length - 1;
     for (const p of path.slice(1)) if (dist(paths.at(-1), p) > EPS) paths.push(copyPoint(p));
@@ -213,8 +237,7 @@ export function buildRecovery(baseline, nav, { pos, progress = 0 }) {
   if (!Number.isFinite(progress) || progress < 0 || progress > baseline.length) throw new TypeError('Invalid guide progress');
   const p = projection(baseline, pos, 0, baseline.points.length - 2, progress);
   if (!p) return null;
-  let grid;
-  const path = connect(nav, pos, p.point, () => true, () => grid ||= gridFor(nav));
+  const path = connect(nav, pos, p.point, () => true, looseGrids(nav, pos, p.point));
   return path ? { points: [...path, ...baseline.points.slice(p.segment + 1).map(copyPoint)], join: p.point, segment: p.segment, progress: p.s } : null;
 }
 // state=nullで開始。入力・状態を変更しない。返り値は {state, offRoad, remaining, stalled, emphasized, direction, ...}。

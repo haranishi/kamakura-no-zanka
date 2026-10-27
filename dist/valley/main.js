@@ -16,6 +16,7 @@ import { loadRoster } from './characters.js';
 import { HUD } from './hud.js';
 import { Input } from './input.js';
 import { ValleyAudio } from './audio-valley.js';
+import { normalizeWaymarks } from './guide-view.js';
 import { Game } from './game.js';
 import { loadValley } from './save.js';
 import { applyLookOverrides, LOOK } from './config.js';
@@ -106,6 +107,8 @@ async function boot() {
   game = new Game({ scene, camera, renderer, post, atmosphere, veg, props, water, terrain, scatter, roster, hud, audio, input, storage: (() => { try { return localStorage; } catch { return null; } })(), seed: Number(q.get('seed') || 1333) });
   game.skipIntro = q.get('intro') === '0';
   applySettings(saved);
+  await step(0.98, '道しるべを用意しています');
+  game.warmGuide();
   await step(1, '準備ができました');
   wire();
   if (QA) installQA(game, { setFrozen: v => { frozen = v; }, start, quality: setQuality });
@@ -118,6 +121,9 @@ async function boot() {
 // 設定（感度・反転・揺れ・音量・字幕・品質）。保存は端末の中だけ。
 function applySettings(s) {
   const set = { quality, sens: 1, invert: false, shake: 1, volume: 0.8, subs: true, ...s };
+  set.waymarks = normalizeWaymarks(set.waymarks);
+  game.settings.waymarks = set.waymarks; $('set-waymarks').value = set.waymarks;
+  game.setWaymarks = level => { saved.waymarks = normalizeWaymarks(level); game.settings.waymarks = saved.waymarks; $('set-waymarks').value = saved.waymarks; persist(); game.updateGuide(0); };
   game.rig.sensitivity = set.sens; game.rig.invert = set.invert; game.rig.shakeScale = set.shake; game.settings.shake = set.shake;
   audio.setVolume(set.volume); hud.subsOn = set.subs;
   $('set-quality').value = set.quality; $('set-sens').value = set.sens; $('set-invert').checked = set.invert; $('set-shake').value = set.shake; $('set-volume').value = set.volume; $('set-subs').checked = set.subs;
@@ -177,6 +183,7 @@ function wire() {
   $('death-retry').onclick = () => game.retry();
   input.onLockChange = locked => { if (!locked && game.flow === 'play' && !dlg.open && !QA) openPause(); };
   addEventListener('keydown', e => { if (e.code === 'KeyP' && game?.flow === 'play' && !dlg.open) openPause(); });
+  $('set-waymarks').onchange = e => game.setWaymarks(e.target.value);
   $('set-quality').onchange = e => { setQuality(e.target.value); };
   $('set-sens').oninput = e => { saved.sens = Number(e.target.value); game.rig.sensitivity = saved.sens; persist(); };
   $('set-invert').onchange = e => { saved.invert = e.target.checked; game.rig.invert = saved.invert; persist(); };

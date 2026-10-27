@@ -40,6 +40,10 @@ export function installQA(game, ctl) {
     god(on = true) { game.god = on; },
     advanceDialogue(all = true) { let n = 0; while (game.hud.talking && n++ < 20) { game.hud.advanceDialogue(); if (!all) break; } },
     quality(q) { ctl.quality(q); },
+    guideView() { return game.guideView(); },
+    setGuidePlan(plan) { game.setGuidePlan(plan); return game.guideView(); },
+    setWaymarks(level) { game.setWaymarks(level); return game.guideView(); },
+    pressGuide() { return game.pressGuide(); },
     windState() { return JSON.parse(JSON.stringify(game.wind)); },
     guideWind(dir) {
       if (dir === null) return { state: api.windState(), accepted: false, reason: '指定なし' };

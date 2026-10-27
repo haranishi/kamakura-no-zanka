@@ -14,8 +14,13 @@ import { STORY } from './story-data.js';
 import { loadValley, saveValley } from './save.js';
 import { FEEL } from './config.js';
 import { mulberry32 } from './scatter.js';
-import { createWind, stepWind, toUniforms } from './wind.js';
+import { createWind, stepWind, toUniforms, requestGuide, particleCount } from './wind.js';
 import { SHOTS } from './shots.js';
+
+import { buildBaseline, buildRecovery, assess, roadDistance } from './guide.js';
+import { createGuideNav } from './guide-nav.js';
+import { normalizeWaymarks, switchGuidePlan, nearestGuideEntrance, sampleGuidePath, guideRouteHead } from './guide-view.js';
+import { GuideRenderer } from './guide-renderer.js';
 
 const PLACE_ZONES = ['viewpoint', 'temple_steps'];
 const GROUP_KINDS = { boy: 'npc', road_scout: 'enemy', village_enemies: 'enemy', escort_ambush: 'enemy' };
@@ -43,7 +48,11 @@ export class Game {
     this.lock = null; this.listenerT = 0; this.markerT = 0; this.enemySnaps = null; this.enemySnapsAt = -1;
     this.cine = null; this.intro = null;
     this.stats = { kills: 0, parries: 0, stealth: 0 };
-    this.settings = { sens: 1, invert: false, shake: 1, subs: true };
+    this.guideNav = createGuideNav({ world: WORLD, terrain, col: this.col });
+    this.guideRenderer = new GuideRenderer(scene, terrain);
+    this.guideMotion = globalThis.matchMedia?.('(prefers-reduced-motion: reduce)');
+    this.guideTime = 0; this.guideEpoch = 0; this.guide = null;
+    this.settings = { waymarks: 'bold', sens: 1, invert: false, shake: 1, subs: true };
   }
 
   // ------------------------------------------------------------------ 時間・小道具
@@ -133,6 +142,7 @@ export class Game {
 
   // ------------------------------------------------------------------ 開始・つづき・やり直し
   placeHeroAt(p, hpRatio = 1) {
+    this.guideEpoch++; this.guide = null; this.guideEntrance = null;
     this.hero.reset(p.x, p.z, p.yaw ?? 0, hpRatio);
     this.rig.yaw = p.yaw ?? 0; this.rig.pitch = 0.2; this.rig.snap();
     this.rig.update(0.016, this.hero.pos, { rayClip: null });
@@ -253,6 +263,7 @@ export class Game {
     }
   }
   onBeatChange(prev, next) {
+    if (next === 'b4_village') this.guideEntrance = nearestGuideEntrance(WORLD.zones, this.hero.pos);
     if (next === 'b3_viewpoint') for (const e of this.enemies) if (e.group === 'village_enemies') e.dormant = false;
     if (next === 'b6_escort') this.makeEnemies('escort_ambush', { alert: 'unaware', dormant: true });
     if (next === 'b7_result') this.setupResultScene(false);
@@ -444,7 +455,8 @@ export class Game {
 
   update(rawDt) {
     let dt = Math.min(rawDt, 0.05);
-    if (this.paused) return;
+    if (this.paused) { this.updateGuide(0); return; }
+    this.guideTime += rawDt;
     // 命中の停止：時間を完全には止めず、ごく遅くする
     if (this.stopT > 0) { this.stopT -= dt; dt *= FEEL.hitStopScale; }
     this.time += dt;
@@ -477,6 +489,7 @@ export class Game {
     this.updateLock(input);
     this.updateCamera(dt);
     this.updatePrompt();
+    this.updateGuide(rawDt);
     this.updateHud(dt);
     this.updateDeath(dt);
     this.fx.update(dt, this.camera, this.renderer.domElement.clientHeight || 800);
@@ -511,8 +524,9 @@ export class Game {
     if (this.windUniforms !== this.veg.wind) {
       this.wind = { ...this.wind, t: this.veg.wind.uTime.value }; this.windUniforms = this.veg.wind;
     }
-    this.wind = stepWind(this.wind, dt);
-    const wind = toUniforms(this.wind);
+    this.wind = stepWind(this.wind, this.guideWindDt ?? dt, { reduced: this.reducedMotion() });
+    this.guideWindDt = null;
+    const wind = toUniforms(this.wind, { reduced: this.reducedMotion() });
     this.veg.wind.uTime.value = wind.uTime; this.veg.wind.uWind.value = wind.uWind;
     this.veg.wind.uWindDir.value.set(...wind.uWindDir); this.veg.wind.uGuideMix.value = wind.uGuideMix;
     this.veg.trees.update(this.camera); this.veg.grass.update(this.camera); this.veg.rice.update(this.camera); this.veg.crops?.update(this.camera); this.props?.update(this.time); this.water?.update(this.time);
@@ -540,6 +554,7 @@ export class Game {
       return;
     }
     if (this.flow !== 'play') return;
+    if (input.wasPressed('KeyG')) this.pressGuide();
     if (input.wasPressed('Tab')) this.toggleLock();
     if (input.wasPressed('KeyQ')) this.commandAlly('next');
     for (const [k, m] of [['Digit1', 'follow'], ['Digit2', 'hold'], ['Digit3', 'cover'], ['Digit4', 'retreat']]) if (input.wasPressed(k)) this.commandAlly(m);
@@ -615,18 +630,121 @@ export class Game {
 
   // ------------------------------------------------------------------ HUD
   objectiveTarget() {
-    const z = WORLD.zones, b = this.quest.beat;
-    switch (b) {
-      case 'b0_temple': return z.temple_yard;
-      case 'b1_boy': return this.npcs.get('boy')?.pos || null;
-      case 'b2_road': return z.viewpoint;
-      case 'b3_viewpoint': return this.quest.flags.plan === 'flank' ? z.village_north : z.village_front;
-      case 'b4_village': { let best = null, bd = 1e9; for (const e of this.enemies) if (e.group === 'village_enemies' && e.fighter.alive && !e.departed) { const d = dist2(e.pos, this.hero.pos); if (d < bd) { bd = d; best = e.pos; } } return best; }
-      case 'b5_archer': return this.ally?.role === 'captive' ? this.ally.pos : null;
-      case 'b6_escort': return z.temple_steps;
-      default: return null;
+    const spec = STORY.beats[this.quest.beat]?.guideTarget;
+    const id = spec && typeof spec === 'object' ? spec[this.guide?.plan || 'front'] : spec;
+    return WORLD.zones[id] || (id === 'boy' ? WORLD.spawns.villagers.find(n => n.id === 'boy') : WORLD.spawns[id]) || null;
+  }
+  reducedMotion() { return this.settings.reducedMotion ?? this.guideMotion?.matches ?? false; }
+  guideMode() {
+    if (this.paused) return 'paused';
+    if (this.hud.talking) return 'dialogue';
+    if (this.flow !== 'play' || !this.hero.alive || this.hud.el.fade.classList.contains('on')) return 'result';
+    return this.enemies.some(e => e.fighter.alive && e.brain.state === 'combat') ? 'combat' : 'free';
+  }
+  rebuildGuide(plan, from = this.hero.pos) {
+    const started = performance.now(), objectiveId = this.quest.beat;
+    const baseline = buildBaseline(WORLD, this.guideNav, { objectiveId, plan, from: { x: from.x, z: from.z } });
+    if (objectiveId === 'b4_village') this.guideEntrance = plan;
+    this.guideRenderer.startParticles([]);
+    this.guide = { objectiveId, plan, epoch: this.guideEpoch, baseline, state: null, assessment: null, recovery: null,
+      recoveryAt: -Infinity, baselineMs: performance.now()-started, recoveryMs: 0, reached: false, switchState: null, variants: {} };
+    // b3の両側の固定路を同じ開始位置で用意する。毎コマ探索しない。
+    if (objectiveId === 'b3_viewpoint') {
+      const start = performance.now();
+      for (const side of ['north','south']) this.guide.variants[side] = side === plan ? baseline : buildBaseline(WORLD,this.guideNav,{objectiveId,plan:side,from:{x:from.x,z:from.z}});
+      this.guide.variantRoads = Object.fromEntries(Object.entries(this.guide.variants).filter(([,b])=>b).map(([key,b])=>[key,{points:b.points.map(p=>[p.x,p.z])}]));
+      this.guide.baselineMs += performance.now()-start;
     }
   }
+  updateGuide(rawDt) {
+    this.guideWindDt = rawDt;
+    const objectiveId = this.quest.beat, mode = this.guideMode();
+    if (this.flow === 'idle') { this.guideRenderer.hide(); return; }
+    const selected = objectiveId === 'b3_viewpoint' ? (this.quest.flags.plan === 'flank' ? 'north' : 'front') :
+      objectiveId === 'b4_village' ? (this.guideEntrance || nearestGuideEntrance(WORLD.zones,this.hero.pos)) : 'front';
+    if (!this.guide || this.guide.objectiveId !== objectiveId || this.guide.epoch !== this.guideEpoch ||
+        this.guide.selection !== selected) { this.rebuildGuide(selected); this.guide.selection = selected; }
+    const g = this.guide, pos = this.hero.pos;
+    if (objectiveId === 'b3_viewpoint' && ['north','south'].includes(g.plan)) {
+      const other = g.plan === 'north' ? 'south' : 'north', a = g.variants[g.plan], b = g.variants[other];
+      if (a && b && (g.mode !== mode || this.guideTime-(g.switchAt ?? -Infinity)>=1/30)) {
+        g.switchAt=this.guideTime;
+        const next = switchGuidePlan(g.plan,g.switchState,{currentDistance:roadDistance(g.variantRoads[g.plan],pos),
+          otherDistance:roadDistance(g.variantRoads[other],pos),t:this.guideTime,active:mode==='free'});
+        g.switchState=next.state;
+        if(next.plan!==g.plan) { g.plan=next.plan; g.baseline=g.variants[g.plan]; g.state=null; g.recovery=null; g.recoveryAt=-Infinity; }
+      }
+    }
+    const baseline = g.baseline;
+    if (!baseline) { this.guideRenderer.hide(); return; }
+    // assessは30Hz以下。mode境界は待たずに履歴を消す。
+    if (!g.state || !g.assessment || this.guideTime-(g.assessedAt ?? -Infinity)>=1/30 || g.mode!==mode) {
+      g.assessment=assess(baseline,g.state,{t:this.guideTime,pos:{x:pos.x,z:pos.z},mode,objectiveId,plan:g.plan,baselineId:baseline.id});
+      g.state=g.assessment.state; g.assessedAt=this.guideTime;
+    }
+    g.mode=mode;
+    const center=WORLD.zones.village_center;
+    if(objectiveId==='b4_village' && Math.hypot(pos.x-center.x,pos.z-center.z)<=center.r) g.reached=true;
+    const helping=g.assessment.emphasized && normalizeWaymarks(this.settings.waymarks)!=='off';
+    if ((helping || this.wind.guideElapsed!==null) && (mode==='free' || mode==='combat') && !g.reached && this.guideTime-g.recoveryAt>=.5) this.refreshGuideRecovery();
+    if (!helping && this.wind.guideElapsed===null) g.recovery=null;
+    let direction=g.assessment.direction;
+    if(g.recovery) {
+      const head=guideRouteHead(g.recovery.points,pos,g.recoverySegment || 0);
+      g.recoverySegment=head.segment; direction=head.direction;
+    }
+    g.direction=direction;
+    // 縁は基準路の前方15m。復帰中は復帰路の曲がりにも従う。
+    if(!g.ahead || this.guideTime-(g.aheadAt ?? -Infinity)>=.1) { g.ahead=sampleGuidePath(this.guidePath(),2,15).at(-1); g.aheadAt=this.guideTime; }
+    this.guideRenderer.update({pos,direction,target:baseline.points.at(-1),ahead:g.ahead,remaining:g.assessment.remaining,
+      level:this.settings.waymarks,mode,emphasized:helping,reached:g.reached,reduced:this.reducedMotion(),hidden:document.body.classList.contains('hide-hud'),t:this.guideTime,wind:this.wind,camera:this.camera});
+    if(mode==='free' && ['b0_temple','b1_boy','b2_road'].includes(objectiveId) && !this.hud.hintBusy()) this.hud.hint('guide-g','迷ったら G で、導きの風を呼べます');
+  }
+  guidePath() {
+    const g=this.guide, pos=this.hero.pos;
+    return [{x:pos.x,z:pos.z},...(g.recovery?.points.slice((g.recoverySegment || 0)+1) || g.baseline.points.slice((g.state?.segment || 0)+1))];
+  }
+  refreshGuideRecovery() {
+    const g=this.guide, start=performance.now();
+    g.recovery=buildRecovery(g.baseline,this.guideNav,{pos:{x:this.hero.pos.x,z:this.hero.pos.z},progress:g.state?.progress || 0});
+    g.recoverySegment=0; g.recoveryMs=performance.now()-start; g.recoveryAt=this.guideTime;
+  }
+  pressGuide() {
+    if(!['free','combat'].includes(this.guideMode())) return false;
+    this.updateGuide(0);
+    const g=this.guide;
+    if(!g?.baseline || g.reached || this.wind.guideElapsed!==null || this.wind.cooldown>0) return false;
+    this.refreshGuideRecovery();
+    const path=this.guidePath(), pos=this.hero.pos, next=path.find(p=>Math.hypot(p.x-pos.x,p.z-pos.z)>.05);
+    const dir=next ? [next.x-pos.x,next.z-pos.z] : [g.assessment.direction.x,g.assessment.direction.z];
+    const result=requestGuide(this.wind,dir); this.wind=result.state;
+    if(result.accepted) { this.guideRenderer.startParticles(sampleGuidePath(path,particleCount(120,{reduced:this.reducedMotion()}))); this.updateGuide(0); }
+    return result.accepted;
+  }
+  setGuidePlan(plan) {
+    if(!['front','north','south'].includes(plan)) throw new TypeError('Invalid guide plan');
+    this.rebuildGuide(plan); this.guide.selection=this.quest.beat==='b3_viewpoint'?(this.quest.flags.plan==='flank'?'north':'front'):
+      this.quest.beat==='b4_village'?(this.guideEntrance || nearestGuideEntrance(WORLD.zones,this.hero.pos)):'front';
+    this.updateGuide(0);
+  }
+  // 道しるべの探索が使う「通れる判定」を、読み込み中に温める。冷えた最初の1回が数百msかかり、b3の開始で固まるため。
+  // 結果は捨てる（キャッシュだけを残す）。入口・区切りの位置は、実際の遊びと同じ点を使う。
+  warmGuide() {
+    const started = performance.now(), z = WORLD.zones, cp = WORLD.checkpoints;
+    for (const [objectiveId, plan, p] of [['b2_road', 'front', cp.cp_leave_temple], ['b3_viewpoint', 'north', cp.cp_viewpoint], ['b3_viewpoint', 'south', cp.cp_viewpoint],
+      ['b4_village', 'front', z.village_front], ['b4_village', 'north', z.village_north], ['b4_village', 'south', z.village_south], ['b6_escort', 'front', z.village_center]]) {
+      buildBaseline(WORLD, this.guideNav, { objectiveId, plan, from: { x: p.x, z: p.z } });
+    }
+    return this.guideWarmMs = performance.now() - started;
+  }
+  guideView() {
+    const g=this.guide, a=g?.assessment;
+    return { enabled:!!g?.baseline && !g?.reached, level:normalizeWaymarks(this.settings.waymarks),objectiveId:this.quest.beat,
+      plan:g?.plan || 'front',baselineId:g?.baseline?.id || null,remaining:a?.remaining ?? 0,direction:g?.direction || {x:0,z:0},
+      emphasized:!!a?.emphasized,offRoad:!!a?.offRoad,stalled:!!a?.stalled,mode:this.guideMode(),reached:!!g?.reached,
+      baselineMs:g?.baselineMs || 0,recoveryMs:g?.recoveryMs || 0,warmMs:this.guideWarmMs || 0,...this.guideRenderer.snapshot };
+  }
+
   updatePrompt() {
     let text = '';
     if (this.flow === 'play' && !this.hud.talking && this.hero.alive) {
@@ -649,12 +767,7 @@ export class Game {
   updateHud(dt) {
     const f = this.hero.fighter;
     this.hud.setBars(f.hp, f.hpMax, f.posture, f.postureMax);
-    const t = this.objectiveTarget();
-    if (t && this.flow === 'play') {
-      const dx = t.x - this.hero.pos.x, dz = t.z - this.hero.pos.z;
-      const rel = Math.atan2(Math.sin(this.rig.yaw - yawOf(dx, dz)), Math.cos(this.rig.yaw - yawOf(dx, dz)));
-      this.hud.setCompass(rel, Math.hypot(dx, dz), true);
-    } else this.hud.setCompass(0, 0, false);
+    this.hud.setCompass(0, this.guide?.assessment?.remaining ?? 0, !!this.guide?.baseline);
     // 官名つきの体力帯（侍大将）
     const off = this.enemies.find(e => e.kind === 'officer' && e.fighter.alive && !e.departed && !e.dormant && e.brain.state === 'combat');
     this.hud.setBoss(!!off, '追手の侍大将', off ? off.fighter.hp / off.fighter.hpMax : 0);

@@ -26,7 +26,7 @@
       "design-wayfinding.md"
     ],
     "tasks": "tasks.md §7",
-    "implementation": "7.0・7.0aの既存範囲を継承。7.1と7.2のデータ部分を実装。viewは別依頼",
+    "implementation": "7.1完了。2026-10-27の本人依頼で7.2・7.3の画面側を実装、親のブラウザ検証待ち。草木・音・容量は対象外",
     "validation": "design-validation.md",
     "review": "2026-10-27の独立レビュー（15件）を仕様へ反映。実装と実機検証は未実施",
     "ready_for_implementation": true
@@ -101,5 +101,6 @@
       "reason": "上界のみで削減せず、実際の読み込み量を測る。予算拡大は採らない",
       "decided_on": "2026-10-27"
     }
-  ]
+  ],
+  "implementation_scope": "本人の今回依頼: 7.2・7.3（道しるべの画面・G・設定・QA・純粋検査）と7.1の決定記録。git add/commit/pushは禁止。ブラウザ確認は親"
 }

@@ -33,7 +33,8 @@
 </section>
 
 <div id="hud" class="hud hidden">
-  <div class="obj"><span class="obj-tag">目的</span><p id="obj-text">庭へ降りる</p><div class="compass" id="compass"><i id="compass-needle" aria-hidden="true">↑</i><span id="compass-dist"></span></div></div>
+  <div id="guide-edge" hidden aria-hidden="true"><i>↑</i><span></span></div>
+  <div class="obj"><span class="obj-tag">目的</span><p id="obj-text">庭へ降りる</p><div class="compass" id="compass"><i hidden id="compass-needle" aria-hidden="true">↑</i><span id="compass-dist"></span></div><p id="guide-help" hidden>矢の向きへ進むと、道へ戻れます</p></div>
   <div class="bars" aria-label="体力と構え">
     <div class="bar hp"><label>体力</label><div class="track"><span id="bar-hp"></span></div></div>
     <div class="bar posture"><label>構え</label><div class="track"><span id="bar-posture"></span></div></div>
@@ -80,7 +81,7 @@
         <h3>操作</h3>
         <dl class="keys"><div><dt>W A S D</dt><dd>歩く</dd></div><div><dt>マウス</dt><dd>見回す</dd></div><div><dt>Shift</dt><dd>走る</dd></div><div><dt>C</dt><dd>屈む（気づかれにくい）</dd></div>
           <div><dt>左クリック</dt><dd>斬る（続けて三連）</dd></div><div><dt>F</dt><dd>強く斬る</dd></div><div><dt>右クリック</dt><dd>受ける（光を見て押すと弾く）</dd></div><div><dt>Space</dt><dd>転がって避ける</dd></div>
-          <div><dt>E</dt><dd>調べる・話す・とどめ・闇討ち</dd></div><div><dt>Tab</dt><dd>敵を狙う</dd></div><div><dt>Q / 1〜4</dt><dd>弥十郎へ指示</dd></div><div><dt>H</dt><dd>画面の表示を隠す</dd></div></dl>
+          <div><dt>E</dt><dd>調べる・話す・とどめ・闇討ち</dd></div><div><dt>Tab</dt><dd>敵を狙う</dd></div><div><dt>Q / 1〜4</dt><dd>弥十郎へ指示</dd></div><div><dt>G</dt><dd>導きの風</dd></div><div><dt>H</dt><dd>画面の表示を隠す</dd></div></dl>
         <h3>設定</h3>
         <div class="settings">
           <label>描画品質<select id="set-quality"><option value="standard">標準</option><option value="light">軽量</option></select></label>
@@ -88,6 +89,7 @@
           <label>視点の上下反転<input id="set-invert" type="checkbox"></label>
           <label>画面の揺れ・衝撃<input id="set-shake" type="range" min="0" max="1" step="0.1" value="1"></label>
           <label>音量<input id="set-volume" type="range" min="0" max="1" step="0.05" value="0.8"></label>
+          <label>道しるべ<select id="set-waymarks"><option value="bold">はっきり</option><option value="subtle">ひかえめ</option><option value="off">なし</option></select></label>
           <label>字幕<input id="set-subs" type="checkbox" checked></label>
         </div>
       </div>
