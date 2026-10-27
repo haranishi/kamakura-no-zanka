@@ -11,7 +11,56 @@
     "breakdown": "人物7体（画像→3D・骨入れ）と画像生成＋小道具6（各30）＋遠景3（各30）＋里の変化5（土蔵・納屋・藁塚・案山子・祠。各30）。text-to-3d は preview 20 ＋ refine（PBR 2k）10。",
     "note": "2026-10-27 時点の残高。ユーザーの許可は「残高500まで使ってよい」。台帳（task_id 一覧）は assets の各項目にある。"
   },
-  "terms_note": "Meshy の公式ヘルプ（2026-10-27 確認）：有料プランの生成物は利用者が所有し商用利用できる（Meshy のコミュニティへ公開しないこと、参照画像が他者の著作権を侵さないことが条件）。無料プランは CC BY 4.0（表記が必要）。公開・配布の前に、本人の契約プランが有料であることと、コミュニティへ公開していないことを確認する。",
+  "terms_note": "Meshy の公式ヘルプ（2026-10-27 確認）：有料プランの生成物は利用者が所有し商用利用できる（Meshy のコミュニティへ公開しないこと、参照画像が他者の著作権を侵さないことが条件）。無料プランは CC BY 4.0（表記が必要）。公開前の確認（2026-10-27）：契約は有料の Pro プランで、生成はその契約期間内。Meshy のコミュニティへ公開した生成物は0件（meshy_list_models の published で確認）。",
+  "input_images": {
+    "origin": "作者が OpenAI の画像生成（ChatGPT）で作った全身の参考画像。PNG に出所情報（C2PA）が付いている。画像そのものはこのリポジトリに含めない。",
+    "prompts_recorded": false,
+    "note": "小道具14点は文章の指示だけで作った（text-to-3d）ので、入力画像はない。第三者の写真や作品を入力に使った記録はないが、画像を作ったときの指示文は残っていない。",
+    "files": [
+      {
+        "id": "ref-01",
+        "used_for": "dist/assets/characters/hero.glb",
+        "via": "Meshy image-to-image（nano-banana-pro・正面/側面/背面の3枚）→ multi-image-to-3d",
+        "sha256": "9c1cd019a647fb5a3d3124905a32f43a3ee564d326d025289a74b00fba76fcc6"
+      },
+      {
+        "id": "ref-02",
+        "used_for": "dist/assets/characters/soldier.glb",
+        "via": "Meshy image-to-3d",
+        "sha256": "bf27f62c473b12b40e38f11c09bef885f20217deb24e9b939aa9838b48ec65b9"
+      },
+      {
+        "id": "ref-03",
+        "used_for": "dist/assets/characters/officer.glb",
+        "via": "Meshy image-to-3d（ultra）",
+        "sha256": "0ebd0bd4275ae3239ed60f6cf20fc93a394e75afcf42908ff48e036de8aa3843"
+      },
+      {
+        "id": "ref-04",
+        "used_for": "dist/assets/characters/villager_m.glb",
+        "via": "Meshy image-to-3d",
+        "sha256": "ebef114117d82d03024a17a3fa4b3697655f526afa765414ad44131ce6e289f6"
+      },
+      {
+        "id": "ref-05",
+        "used_for": "dist/assets/characters/villager_f.glb",
+        "via": "Meshy image-to-3d",
+        "sha256": "530949568602a627ff0b4d0a5730a1dcf15e327e5b6f299c90f33ccec376ba9d"
+      },
+      {
+        "id": "ref-06",
+        "used_for": "dist/assets/characters/child.glb",
+        "via": "Meshy image-to-3d",
+        "sha256": "a9b2bb2781bb0394f14283a828b2ad3c04bdec5641ff090b36e00ef89a8fa5b2"
+      },
+      {
+        "id": "ref-04",
+        "used_for": "dist/assets/characters/archer.glb",
+        "via": "Meshy image-to-image（04 を画風の見本に、別人として生成した3枚）→ multi-image-to-3d",
+        "sha256": "ebef114117d82d03024a17a3fa4b3697655f526afa765414ad44131ce6e289f6"
+      }
+    ]
+  },
   "assets": [
     {
       "file": "dist/assets/characters/hero.glb",
