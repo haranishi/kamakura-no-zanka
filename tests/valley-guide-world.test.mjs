@@ -2,11 +2,13 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { measurementWorld as guideWorldWithoutCenter } from '../tools/lib/measurement-world.mjs';
 import { guideWorld, measureGuideBaselines } from '../tools/measure-guide-baselines.mjs';
-import { buildBaseline, roadDistance } from '../dist/valley/guide.js';
+import { createGuideNav } from '../dist/valley/guide-nav.js';
+import { buildBaseline, buildRecovery, roadDistance } from '../dist/valley/guide.js';
 import { nearestFree } from '../dist/valley/collision.js';
 import { STORY } from '../dist/valley/story-data.js';
 import { createQuest, reduce } from '../dist/valley/quest.js';
-const data = guideWorld(), { world, nav } = data;
+const data = guideWorld(), { world } = data;
+const nav = createGuideNav(data);
 const measured = measureGuideBaselines(data);
 const distance = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
 const range = (a, b) => Array.from({ length: Math.abs(b - a) + 1 }, (_, i) => a + Math.sign(b - a) * i);
@@ -91,4 +93,25 @@ test('guide-only center zone does not change existing tree or rock placement', (
   const before = structuredClone(world); delete before.zones.village_center;
   const old = guideWorldWithoutCenter(before);
   assert.deepEqual(data.trees, old.trees); assert.deepEqual(data.rocks, old.rocks);
+});
+
+// なぜ失敗したか（2026-10-27 の実ブラウザ測定）: 道の帯の外の接続区間（forest[8]→north[0] など）で見通しが塞がれると、
+// 世界全体（約17万セル）の格子を作り、通れる判定を約110万回呼んだ。最初の1回に約10秒かかり、b3の開始でゲームが固まった。
+// 復帰路（Gと迷いの助けが0.5秒ごとに呼ぶ）も、同じ作りで同じ重さだった。純粋な検査では結果が正しいので、遅さに気づけなかった。
+// 速さは環境で変わるので、通れる判定の呼び出し回数で縛る（決定的）。区間のまわりだけの格子で探すと、
+// north 約9千回・south 約2万回・front 約700回・復帰路（庭の道から）約1万回（実測）。上限は実測の約3倍。
+test('baseline and recovery searches stay local (no world-sized grid): cold call budget', () => {
+  const fresh = createGuideNav(data);
+  let calls = 0;
+  const counted = { bounds: fresh.bounds, walkable(x, z) { calls++; return fresh.walkable(x, z); } };
+  const from = { x: -49, z: -33 };
+  for (const [plan, limit] of [['north', 30000], ['south', 60000], ['front', 3000]]) {
+    calls = 0;
+    assert(buildBaseline(world, counted, { objectiveId: 'b3_viewpoint', plan, from }), `${plan} baseline exists`);
+    assert(calls <= limit, `${plan}: ${calls} walkable calls > ${limit}. 型: 帯の外の接続区間で、世界全体の格子を作っている（実機で約10秒固まる）`);
+  }
+  const north = buildBaseline(world, counted, { objectiveId: 'b3_viewpoint', plan: 'north', from });
+  calls = 0;
+  assert(buildRecovery(north, counted, { pos: { x: 0, z: 3 }, progress: 0 }), 'recovery from the lane exists');
+  assert(calls <= 30000, `recovery: ${calls} walkable calls > 30000. 型: 復帰路の探索が世界全体の格子を作っている（Gと迷いの助けのたびに固まる）`);
 });

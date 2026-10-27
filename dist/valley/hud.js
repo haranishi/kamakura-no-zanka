@@ -21,8 +21,8 @@ export class HUD {
   setObjective(text) { this.el['obj-text'].textContent = text; }
   setCompass(angle, dist, visible = true) {
     this.el.compass.classList.toggle('hidden-compass', !visible);
-    this.el['compass-needle'].style.transform = `rotate(${angle}rad)`;
-    this.el['compass-dist'].textContent = dist >= 1 ? Math.round(dist) + ' m' : '';
+    this.el['compass-needle'].hidden = true;
+    this.el['compass-dist'].textContent = Math.round(Math.max(0, dist)) + ' m';
   }
   setBars(hp, hpMax, posture, postureMax) {
     this.el['bar-hp'].style.transform = `scaleX(${Math.max(0, Math.min(1, hp / hpMax))})`;

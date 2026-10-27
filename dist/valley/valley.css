@@ -69,3 +69,13 @@ body.talking .subtitle{bottom:calc(clamp(20px,6vh,58px) + 168px)}
 .fade{position:fixed;inset:0;background:#05080a;opacity:0;pointer-events:none;transition:opacity .55s;z-index:30}.fade.on{opacity:1}
 .granary{position:absolute;left:clamp(16px,2.6vw,38px);bottom:calc(clamp(18px,3vw,40px) + 48px);width:min(260px,40vw);display:grid;grid-template-columns:44px 1fr;gap:8px;align-items:center;font-size:11px;letter-spacing:.18em;color:var(--muted)}.granary .track span{display:block;height:100%;width:100%;transform-origin:left;background:var(--gold);transition:transform .4s}
 body.hide-hud .hud{opacity:0}
+
+/* 道しるべは形と数字で読む。距離の文字は回転しない。 */
+.compass i{display:none}
+#guide-edge{position:fixed;z-index:12;pointer-events:none;transform:translate(-50%,-50%);text-align:center;color:#e9d8a4;text-shadow:-1px -1px 0 #1b1510,1px 1px 0 #1b1510,0 0 5px #1b1510}
+#guide-edge[hidden]{display:none}
+#guide-edge i{display:block;font-size:32px;font-style:normal;line-height:1.2}
+#guide-edge span{font-size:13px;font-variant-numeric:tabular-nums}
+
+#guide-help{margin:8px 0 0;color:#e9d8a4;font-size:13px;letter-spacing:.08em;text-shadow:0 1px 6px #000}
+#guide-help[hidden]{display:none}

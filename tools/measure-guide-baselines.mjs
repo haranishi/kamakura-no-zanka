@@ -3,17 +3,11 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { measurementWorld } from './lib/measurement-world.mjs';
-import { nearestFree } from '../dist/valley/collision.js';
+import { createGuideNav } from '../dist/valley/guide-nav.js';
 import { buildBaseline } from '../dist/valley/guide.js';
 export function guideWorld() {
   const data = measurementWorld();
-  const cache = new Map();
-  const nav = { bounds: data.world.bounds, walkable(x, z) {
-    const key = `${x},${z}`;
-    // 0.3mはguide契約の主人公半径。木・岩・建物・置物・柵・地形すべてを含む。
-    if (!cache.has(key)) cache.set(key, nearestFree(data.col, data.terrain, x, z, 0.3, 0) !== null);
-    return cache.get(key);
-  } };
+  const nav = createGuideNav(data);
   return { ...data, nav };
 }
 export function measureGuideBaselines(data = guideWorld()) {

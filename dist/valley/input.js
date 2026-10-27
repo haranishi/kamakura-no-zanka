@@ -1,7 +1,7 @@
 // input.js — キーボード・マウス入力（app層）。押した瞬間（エッジ）と押しっぱなしを分け、ポインターロックで視点を回す。
 // UI入力中・画面外・押しっぱなしの残りはゲームへ渡さない（requirements 11.3）。
 const MOVE_KEYS = ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'];
-const GAME_KEYS = new Set([...MOVE_KEYS, 'ShiftLeft', 'ShiftRight', 'Space', 'KeyC', 'KeyE', 'KeyQ', 'KeyF', 'Tab', 'KeyH', 'KeyI', 'KeyJ', 'KeyK', 'KeyL', 'Digit1', 'Digit2', 'Digit3', 'Digit4', 'ControlLeft']);
+const GAME_KEYS = new Set([...MOVE_KEYS, 'ShiftLeft', 'ShiftRight', 'Space', 'KeyC', 'KeyE', 'KeyQ', 'KeyG', 'KeyF', 'Tab', 'KeyH', 'KeyI', 'KeyJ', 'KeyK', 'KeyL', 'Digit1', 'Digit2', 'Digit3', 'Digit4', 'ControlLeft']);
 const uiTarget = t => !!t?.closest?.('button,input,select,textarea,dialog,[contenteditable="true"]');
 
 export class Input {
