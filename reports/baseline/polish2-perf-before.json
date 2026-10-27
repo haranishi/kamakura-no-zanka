@@ -1,0 +1,4302 @@
+{
+ "note": "性能の前測定（2026-10-27・第2弾の実装前）。生標本（約3.5MB）は保存しない。`tools/measure-perf.mjs` で再生成できる。この端末の値で、他の端末へ当てはめない（design-validation.md）。",
+ "environment": {
+  "chrome": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/156.0.0.0 Safari/537.36",
+  "gpu": "ANGLE (Apple, ANGLE Metal Renderer: Apple M4 Pro, Unspecified Version)",
+  "viewport": {
+   "width": 1280,
+   "height": 720
+  },
+  "css": {
+   "width": 1280,
+   "height": 720
+  },
+  "dpr": 1,
+  "query": "?qa=1&w=1280&h=720&q=light&seed=1333&intro=0",
+  "os": {
+   "platform": "darwin",
+   "release": "27.0.0",
+   "arch": "arm64",
+   "cpu": "Apple M4 Pro"
+  },
+  "chromeVersion": "156.0.8078.48",
+  "power": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=省略)\t100%; charged; 0:00 remaining present: true"
+ },
+ "judgement": {
+  "scope": "記録した環境のみ。他端末へ当てはめない。",
+  "pass": true,
+  "runs": [
+   {
+    "pass": true,
+    "p95": 14.599999994039536,
+    "maxCalls": 645,
+    "maxTris": 4892556,
+    "reasons": []
+   },
+   {
+    "pass": true,
+    "p95": 14.199999988079071,
+    "maxCalls": 645,
+    "maxTris": 4396395,
+    "reasons": []
+   },
+   {
+    "pass": true,
+    "p95": 12.299999982118607,
+    "maxCalls": 575,
+    "maxTris": 4621945,
+    "reasons": []
+   },
+   {
+    "pass": true,
+    "p95": 12.300000011920929,
+    "maxCalls": 594,
+    "maxTris": 4661716,
+    "reasons": []
+   },
+   {
+    "pass": true,
+    "p95": 8.300000011920929,
+    "maxCalls": 630,
+    "maxTris": 3864629,
+    "reasons": []
+   },
+   {
+    "pass": true,
+    "p95": 8.099999994039536,
+    "maxCalls": 630,
+    "maxTris": 3451592,
+    "reasons": []
+   },
+   {
+    "pass": true,
+    "p95": 8.300000011920929,
+    "maxCalls": 562,
+    "maxTris": 3646966,
+    "reasons": []
+   },
+   {
+    "pass": true,
+    "p95": 8.199999988079071,
+    "maxCalls": 582,
+    "maxTris": 3669643,
+    "reasons": []
+   }
+  ],
+  "reasons": []
+ },
+ "runs": [
+  {
+   "name": "light-combat-1",
+   "scene": "combat",
+   "run": 1,
+   "quality": "light",
+   "seed": 1333,
+   "initial": {
+    "hero": {
+     "x": -34,
+     "y": 2.775409039076335,
+     "z": -4
+    },
+    "beat": "b4_village",
+    "route": [
+     {
+      "x": -74,
+      "z": -66
+     },
+     {
+      "x": -74,
+      "z": -66
+     },
+     {
+      "x": -62,
+      "z": -60
+     },
+     {
+      "x": -48,
+      "z": -55
+     },
+     {
+      "x": -36,
+      "z": -48
+     },
+     {
+      "x": -38,
+      "z": -38
+     },
+     {
+      "x": -50,
+      "z": -34
+     },
+     {
+      "x": -60,
+      "z": -28
+     },
+     {
+      "x": -56,
+      "z": -20
+     },
+     {
+      "x": -44,
+      "z": -14
+     },
+     {
+      "x": -32,
+      "z": -8
+     },
+     {
+      "x": -22,
+      "z": -3
+     },
+     {
+      "x": -10,
+      "z": 1
+     },
+     {
+      "x": -34,
+      "z": -4
+     }
+    ],
+    "initialIndex": 0,
+    "direction": 1,
+    "enemies": [
+     {
+      "def": {
+       "id": "village_soldier_1",
+       "kind": "soldier",
+       "x": -24,
+       "z": 2,
+       "yaw": 1.6,
+       "idleClip": "Male_Bend_Over_Pick_Up",
+       "group": "village_enemies"
+      },
+      "fighter": {
+       "id": "village_soldier_1",
+       "team": "enemy",
+       "kind": "soldier",
+       "x": -24,
+       "z": 2,
+       "yaw": 1.6,
+       "hp": 60,
+       "hpMax": 60,
+       "posture": 50,
+       "postureMax": 50,
+       "radius": 0.3,
+       "armor": "light",
+       "alive": true,
+       "state": "idle",
+       "blocking": false,
+       "parryT": 0,
+       "counterT": 0,
+       "move": null,
+       "dodgeT": 0,
+       "staggerT": 0,
+       "hitT": 0,
+       "recoilT": 0,
+       "noRegenT": 0,
+       "telegraphing": false,
+       "aware": true,
+       "pendingEvents": []
+      },
+      "brain": {
+       "id": "village_soldier_1",
+       "kind": "soldier",
+       "home": {
+        "x": -24,
+        "z": 2
+       },
+       "position": {
+        "x": -24,
+        "z": 2
+       },
+       "exit": {
+        "x": 92,
+        "z": -6
+       },
+       "patrol": [],
+       "patrolIndex": 0,
+       "state": "combat",
+       "awareness": 1,
+       "lastSeen": {
+        "x": -34,
+        "z": -4
+       },
+       "searchTimer": 0,
+       "morale": 100,
+       "isolated": false,
+       "seed": 3882267014,
+       "randomCounter": 0,
+       "allyAlert": null,
+       "orbitTimer": 0,
+       "orbitDirection": 1,
+       "orbitRadius": null,
+       "aimTimer": 0,
+       "tokenHeld": false,
+       "attackObserved": false,
+       "combo": 0,
+       "comboTimer": 0,
+       "rallied": false,
+       "departed": false,
+       "heard": false,
+       "noiseKeys": []
+      }
+     },
+     {
+      "def": {
+       "id": "village_soldier_2",
+       "kind": "soldier",
+       "x": -20,
+       "z": 10,
+       "yaw": 2.4,
+       "idleClip": "Stand_and_Chat",
+       "group": "village_enemies"
+      },
+      "fighter": {
+       "id": "village_soldier_2",
+       "team": "enemy",
+       "kind": "soldier",
+       "x": -20,
+       "z": 10,
+       "yaw": 2.4,
+       "hp": 60,
+       "hpMax": 60,
+       "posture": 50,
+       "postureMax": 50,
+       "radius": 0.3,
+       "armor": "light",
+       "alive": true,
+       "state": "idle",
+       "blocking": false,
+       "parryT": 0,
+       "counterT": 0,
+       "move": null,
+       "dodgeT": 0,
+       "staggerT": 0,
+       "hitT": 0,
+       "recoilT": 0,
+       "noRegenT": 0,
+       "telegraphing": false,
+       "aware": true,
+       "pendingEvents": []
+      },
+      "brain": {
+       "id": "village_soldier_2",
+       "kind": "soldier",
+       "home": {
+        "x": -20,
+        "z": 10
+       },
+       "position": {
+        "x": -20,
+        "z": 10
+       },
+       "exit": {
+        "x": 92,
+        "z": -6
+       },
+       "patrol": [],
+       "patrolIndex": 0,
+       "state": "combat",
+       "awareness": 1,
+       "lastSeen": {
+        "x": -34,
+        "z": -4
+       },
+       "searchTimer": 0,
+       "morale": 100,
+       "isolated": false,
+       "seed": 3865489395,
+       "randomCounter": 0,
+       "allyAlert": null,
+       "orbitTimer": 0,
+       "orbitDirection": 1,
+       "orbitRadius": null,
+       "aimTimer": 0,
+       "tokenHeld": false,
+       "attackObserved": false,
+       "combo": 0,
+       "comboTimer": 0,
+       "rallied": false,
+       "departed": false,
+       "heard": false,
+       "noiseKeys": []
+      }
+     },
+     {
+      "def": {
+       "id": "village_soldier_3",
+       "kind": "soldier",
+       "x": 2,
+       "z": 8,
+       "yaw": 3.1,
+       "idleClip": "Long_Breathe_and_Look_Around",
+       "group": "village_enemies"
+      },
+      "fighter": {
+       "id": "village_soldier_3",
+       "team": "enemy",
+       "kind": "soldier",
+       "x": 2,
+       "z": 8,
+       "yaw": 3.1,
+       "hp": 60,
+       "hpMax": 60,
+       "posture": 50,
+       "postureMax": 50,
+       "radius": 0.3,
+       "armor": "light",
+       "alive": true,
+       "state": "idle",
+       "blocking": false,
+       "parryT": 0,
+       "counterT": 0,
+       "move": null,
+       "dodgeT": 0,
+       "staggerT": 0,
+       "hitT": 0,
+       "recoilT": 0,
+       "noRegenT": 0,
+       "telegraphing": false,
+       "aware": true,
+       "pendingEvents": []
+      },
+      "brain": {
+       "id": "village_soldier_3",
+       "kind": "soldier",
+       "home": {
+        "x": 2,
+        "z": 8
+       },
+       "position": {
+        "x": 2,
+        "z": 8
+       },
+       "exit": {
+        "x": 92,
+        "z": -6
+       },
+       "patrol": [],
+       "patrolIndex": 0,
+       "state": "combat",
+       "awareness": 1,
+       "lastSeen": {
+        "x": -34,
+        "z": -4
+       },
+       "searchTimer": 0,
+       "morale": 100,
+       "isolated": false,
+       "seed": 3848711776,
+       "randomCounter": 0,
+       "allyAlert": null,
+       "orbitTimer": 0,
+       "orbitDirection": 1,
+       "orbitRadius": null,
+       "aimTimer": 0,
+       "tokenHeld": false,
+       "attackObserved": false,
+       "combo": 0,
+       "comboTimer": 0,
+       "rallied": false,
+       "departed": false,
+       "heard": false,
+       "noiseKeys": []
+      }
+     },
+     {
+      "def": {
+       "id": "village_archer",
+       "kind": "archer",
+       "x": -16,
+       "z": 6,
+       "yaw": 2,
+       "idleClip": "Long_Breathe_and_Look_Around",
+       "group": "village_enemies"
+      },
+      "fighter": {
+       "id": "village_archer",
+       "team": "enemy",
+       "kind": "archer",
+       "x": -16,
+       "z": 6,
+       "yaw": 2,
+       "hp": 40,
+       "hpMax": 40,
+       "posture": 40,
+       "postureMax": 40,
+       "radius": 0.3,
+       "armor": "none",
+       "alive": true,
+       "state": "idle",
+       "blocking": false,
+       "parryT": 0,
+       "counterT": 0,
+       "move": null,
+       "dodgeT": 0,
+       "staggerT": 0,
+       "hitT": 0,
+       "recoilT": 0,
+       "noRegenT": 0,
+       "telegraphing": false,
+       "aware": true,
+       "pendingEvents": []
+      },
+      "brain": {
+       "id": "village_archer",
+       "kind": "archer",
+       "home": {
+        "x": -16,
+        "z": 6
+       },
+       "position": {
+        "x": -16,
+        "z": 6
+       },
+       "exit": {
+        "x": 92,
+        "z": -6
+       },
+       "patrol": [],
+       "patrolIndex": 0,
+       "state": "combat",
+       "awareness": 1,
+       "lastSeen": {
+        "x": -34,
+        "z": -4
+       },
+       "searchTimer": 0,
+       "morale": 100,
+       "isolated": false,
+       "seed": 1650828475,
+       "randomCounter": 0,
+       "allyAlert": null,
+       "orbitTimer": 0,
+       "orbitDirection": 1,
+       "orbitRadius": null,
+       "aimTimer": 0,
+       "tokenHeld": false,
+       "attackObserved": false,
+       "combo": 0,
+       "comboTimer": 0,
+       "rallied": false,
+       "departed": false,
+       "heard": false,
+       "noiseKeys": []
+      }
+     },
+     {
+      "def": {
+       "id": "officer",
+       "kind": "officer",
+       "x": -6,
+       "z": 4,
+       "yaw": 1.6,
+       "idleClip": "Sword_Shout",
+       "group": "village_enemies"
+      },
+      "fighter": {
+       "id": "officer",
+       "team": "enemy",
+       "kind": "officer",
+       "x": -6,
+       "z": 4,
+       "yaw": 1.6,
+       "hp": 200,
+       "hpMax": 200,
+       "posture": 120,
+       "postureMax": 120,
+       "radius": 0.3,
+       "armor": "heavy",
+       "alive": true,
+       "state": "idle",
+       "blocking": false,
+       "parryT": 0,
+       "counterT": 0,
+       "move": null,
+       "dodgeT": 0,
+       "staggerT": 0,
+       "hitT": 0,
+       "recoilT": 0,
+       "noRegenT": 0,
+       "telegraphing": false,
+       "aware": true,
+       "pendingEvents": []
+      },
+      "brain": {
+       "id": "officer",
+       "kind": "officer",
+       "home": {
+        "x": -6,
+        "z": 4
+       },
+       "position": {
+        "x": -6,
+        "z": 4
+       },
+       "exit": {
+        "x": 92,
+        "z": -6
+       },
+       "patrol": [],
+       "patrolIndex": 0,
+       "state": "combat",
+       "awareness": 1,
+       "lastSeen": {
+        "x": -34,
+        "z": -4
+       },
+       "searchTimer": 0,
+       "morale": 100,
+       "isolated": false,
+       "seed": 3249485689,
+       "randomCounter": 0,
+       "allyAlert": null,
+       "orbitTimer": 0,
+       "orbitDirection": 1,
+       "orbitRadius": null,
+       "aimTimer": 0,
+       "tokenHeld": false,
+       "attackObserved": false,
+       "combo": 0,
+       "comboTimer": 0,
+       "rallied": false,
+       "departed": false,
+       "heard": false,
+       "noiseKeys": []
+      }
+     }
+    ]
+   },
+   "variation": "基準開始点・正順",
+   "warmupFrames": {
+    "frames": 600,
+    "seconds": 4.705699999988079,
+    "excluded": true
+   },
+   "seconds": 13.4,
+   "summary": {
+    "ms": {
+     "n": 1800,
+     "mean": 7.420888888869052,
+     "min": 5.899999976158142,
+     "p50": 7.300000011920929,
+     "p95": 8.300000011920929,
+     "p99": 9.099999994039536,
+     "max": 72.09999999403954
+    },
+    "calls": {
+     "n": 1800,
+     "mean": 504.61000000000064,
+     "min": 385,
+     "p50": 511,
+     "p95": 552,
+     "p99": 555,
+     "max": 562
+    },
+    "tris": {
+     "n": 1800,
+     "mean": 3419808.144444448,
+     "min": 2643347,
+     "p50": 3516939,
+     "p95": 3619616,
+     "p99": 3624436,
+     "max": 3646966
+    }
+   },
+   "judgement": {
+    "pass": true,
+    "p95": 8.300000011920929,
+    "maxCalls": 562,
+    "maxTris": 3646966,
+    "reasons": []
+   },
+   "counts": {
+    "samples": 9,
+    "inputs": 96,
+    "positions": 1800,
+    "refills": 3,
+    "chunkSwaps": 2,
+    "endpointTurns": 0
+   },
+   "scope": "このOS・Chrome・GPU・電源・ヘッドレスの条件だけ。他端末へ当てはめない。"
+  },
+  {
+   "name": "light-combat-2",
+   "scene": "combat",
+   "run": 2,
+   "quality": "light",
+   "seed": 1333,
+   "initial": {
+    "hero": {
+     "x": -32,
+     "y": 2.721961096564896,
+     "z": -8
+    },
+    "beat": "b4_village",
+    "route": [
+     {
+      "x": -74,
+      "z": -66
+     },
+     {
+      "x": -74,
+      "z": -66
+     },
+     {
+      "x": -62,
+      "z": -60
+     },
+     {
+      "x": -48,
+      "z": -55
+     },
+     {
+      "x": -36,
+      "z": -48
+     },
+     {
+      "x": -38,
+      "z": -38
+     },
+     {
+      "x": -50,
+      "z": -34
+     },
+     {
+      "x": -60,
+      "z": -28
+     },
+     {
+      "x": -56,
+      "z": -20
+     },
+     {
+      "x": -44,
+      "z": -14
+     },
+     {
+      "x": -32,
+      "z": -8
+     },
+     {
+      "x": -22,
+      "z": -3
+     },
+     {
+      "x": -10,
+      "z": 1
+     },
+     {
+      "x": -34,
+      "z": -4
+     }
+    ],
+    "initialIndex": 7,
+    "direction": -1,
+    "enemies": [
+     {
+      "def": {
+       "id": "village_soldier_1",
+       "kind": "soldier",
+       "x": -24,
+       "z": 2,
+       "yaw": 1.6,
+       "idleClip": "Male_Bend_Over_Pick_Up",
+       "group": "village_enemies"
+      },
+      "fighter": {
+       "id": "village_soldier_1",
+       "team": "enemy",
+       "kind": "soldier",
+       "x": -24,
+       "z": 2,
+       "yaw": 1.6,
+       "hp": 60,
+       "hpMax": 60,
+       "posture": 50,
+       "postureMax": 50,
+       "radius": 0.3,
+       "armor": "light",
+       "alive": true,
+       "state": "idle",
+       "blocking": false,
+       "parryT": 0,
+       "counterT": 0,
+       "move": null,
+       "dodgeT": 0,
+       "staggerT": 0,
+       "hitT": 0,
+       "recoilT": 0,
+       "noRegenT": 0,
+       "telegraphing": false,
+       "aware": true,
+       "pendingEvents": []
+      },
+      "brain": {
+       "id": "village_soldier_1",
+       "kind": "soldier",
+       "home": {
+        "x": -24,
+        "z": 2
+       },
+       "position": {
+        "x": -24,
+        "z": 2
+       },
+       "exit": {
+        "x": 92,
+        "z": -6
+       },
+       "patrol": [],
+       "patrolIndex": 0,
+       "state": "combat",
+       "awareness": 1,
+       "lastSeen": {
+        "x": -32,
+        "z": -8
+       },
+       "searchTimer": 0,
+       "morale": 100,
+       "isolated": false,
+       "seed": 3882267014,
+       "randomCounter": 0,
+       "allyAlert": null,
+       "orbitTimer": 0,
+       "orbitDirection": 1,
+       "orbitRadius": null,
+       "aimTimer": 0,
+       "tokenHeld": false,
+       "attackObserved": false,
+       "combo": 0,
+       "comboTimer": 0,
+       "rallied": false,
+       "departed": false,
+       "heard": false,
+       "noiseKeys": []
+      }
+     },
+     {
+      "def": {
+       "id": "village_soldier_2",
+       "kind": "soldier",
+       "x": -20,
+       "z": 10,
+       "yaw": 2.4,
+       "idleClip": "Stand_and_Chat",
+       "group": "village_enemies"
+      },
+      "fighter": {
+       "id": "village_soldier_2",
+       "team": "enemy",
+       "kind": "soldier",
+       "x": -20,
+       "z": 10,
+       "yaw": 2.4,
+       "hp": 60,
+       "hpMax": 60,
+       "posture": 50,
+       "postureMax": 50,
+       "radius": 0.3,
+       "armor": "light",
+       "alive": true,
+       "state": "idle",
+       "blocking": false,
+       "parryT": 0,
+       "counterT": 0,
+       "move": null,
+       "dodgeT": 0,
+       "staggerT": 0,
+       "hitT": 0,
+       "recoilT": 0,
+       "noRegenT": 0,
+       "telegraphing": false,
+       "aware": true,
+       "pendingEvents": []
+      },
+      "brain": {
+       "id": "village_soldier_2",
+       "kind": "soldier",
+       "home": {
+        "x": -20,
+        "z": 10
+       },
+       "position": {
+        "x": -20,
+        "z": 10
+       },
+       "exit": {
+        "x": 92,
+        "z": -6
+       },
+       "patrol": [],
+       "patrolIndex": 0,
+       "state": "combat",
+       "awareness": 1,
+       "lastSeen": {
+        "x": -32,
+        "z": -8
+       },
+       "searchTimer": 0,
+       "morale": 100,
+       "isolated": false,
+       "seed": 3865489395,
+       "randomCounter": 0,
+       "allyAlert": null,
+       "orbitTimer": 0,
+       "orbitDirection": 1,
+       "orbitRadius": null,
+       "aimTimer": 0,
+       "tokenHeld": false,
+       "attackObserved": false,
+       "combo": 0,
+       "comboTimer": 0,
+       "rallied": false,
+       "departed": false,
+       "heard": false,
+       "noiseKeys": []
+      }
+     },
+     {
+      "def": {
+       "id": "village_soldier_3",
+       "kind": "soldier",
+       "x": 2,
+       "z": 8,
+       "yaw": 3.1,
+       "idleClip": "Long_Breathe_and_Look_Around",
+       "group": "village_enemies"
+      },
+      "fighter": {
+       "id": "village_soldier_3",
+       "team": "enemy",
+       "kind": "soldier",
+       "x": 2,
+       "z": 8,
+       "yaw": 3.1,
+       "hp": 60,
+       "hpMax": 60,
+       "posture": 50,
+       "postureMax": 50,
+       "radius": 0.3,
+       "armor": "light",
+       "alive": true,
+       "state": "idle",
+       "blocking": false,
+       "parryT": 0,
+       "counterT": 0,
+       "move": null,
+       "dodgeT": 0,
+       "staggerT": 0,
+       "hitT": 0,
+       "recoilT": 0,
+       "noRegenT": 0,
+       "telegraphing": false,
+       "aware": true,
+       "pendingEvents": []
+      },
+      "brain": {
+       "id": "village_soldier_3",
+       "kind": "soldier",
+       "home": {
+        "x": 2,
+        "z": 8
+       },
+       "position": {
+        "x": 2,
+        "z": 8
+       },
+       "exit": {
+        "x": 92,
+        "z": -6
+       },
+       "patrol": [],
+       "patrolIndex": 0,
+       "state": "combat",
+       "awareness": 1,
+       "lastSeen": {
+        "x": -32,
+        "z": -8
+       },
+       "searchTimer": 0,
+       "morale": 100,
+       "isolated": false,
+       "seed": 3848711776,
+       "randomCounter": 0,
+       "allyAlert": null,
+       "orbitTimer": 0,
+       "orbitDirection": 1,
+       "orbitRadius": null,
+       "aimTimer": 0,
+       "tokenHeld": false,
+       "attackObserved": false,
+       "combo": 0,
+       "comboTimer": 0,
+       "rallied": false,
+       "departed": false,
+       "heard": false,
+       "noiseKeys": []
+      }
+     },
+     {
+      "def": {
+       "id": "village_archer",
+       "kind": "archer",
+       "x": -16,
+       "z": 6,
+       "yaw": 2,
+       "idleClip": "Long_Breathe_and_Look_Around",
+       "group": "village_enemies"
+      },
+      "fighter": {
+       "id": "village_archer",
+       "team": "enemy",
+       "kind": "archer",
+       "x": -16,
+       "z": 6,
+       "yaw": 2,
+       "hp": 40,
+       "hpMax": 40,
+       "posture": 40,
+       "postureMax": 40,
+       "radius": 0.3,
+       "armor": "none",
+       "alive": true,
+       "state": "idle",
+       "blocking": false,
+       "parryT": 0,
+       "counterT": 0,
+       "move": null,
+       "dodgeT": 0,
+       "staggerT": 0,
+       "hitT": 0,
+       "recoilT": 0,
+       "noRegenT": 0,
+       "telegraphing": false,
+       "aware": true,
+       "pendingEvents": []
+      },
+      "brain": {
+       "id": "village_archer",
+       "kind": "archer",
+       "home": {
+        "x": -16,
+        "z": 6
+       },
+       "position": {
+        "x": -16,
+        "z": 6
+       },
+       "exit": {
+        "x": 92,
+        "z": -6
+       },
+       "patrol": [],
+       "patrolIndex": 0,
+       "state": "combat",
+       "awareness": 1,
+       "lastSeen": {
+        "x": -32,
+        "z": -8
+       },
+       "searchTimer": 0,
+       "morale": 100,
+       "isolated": false,
+       "seed": 1650828475,
+       "randomCounter": 0,
+       "allyAlert": null,
+       "orbitTimer": 0,
+       "orbitDirection": 1,
+       "orbitRadius": null,
+       "aimTimer": 0,
+       "tokenHeld": false,
+       "attackObserved": false,
+       "combo": 0,
+       "comboTimer": 0,
+       "rallied": false,
+       "departed": false,
+       "heard": false,
+       "noiseKeys": []
+      }
+     },
+     {
+      "def": {
+       "id": "officer",
+       "kind": "officer",
+       "x": -6,
+       "z": 4,
+       "yaw": 1.6,
+       "idleClip": "Sword_Shout",
+       "group": "village_enemies"
+      },
+      "fighter": {
+       "id": "officer",
+       "team": "enemy",
+       "kind": "officer",
+       "x": -6,
+       "z": 4,
+       "yaw": 1.6,
+       "hp": 200,
+       "hpMax": 200,
+       "posture": 120,
+       "postureMax": 120,
+       "radius": 0.3,
+       "armor": "heavy",
+       "alive": true,
+       "state": "idle",
+       "blocking": false,
+       "parryT": 0,
+       "counterT": 0,
+       "move": null,
+       "dodgeT": 0,
+       "staggerT": 0,
+       "hitT": 0,
+       "recoilT": 0,
+       "noRegenT": 0,
+       "telegraphing": false,
+       "aware": true,
+       "pendingEvents": []
+      },
+      "brain": {
+       "id": "officer",
+       "kind": "officer",
+       "home": {
+        "x": -6,
+        "z": 4
+       },
+       "position": {
+        "x": -6,
+        "z": 4
+       },
+       "exit": {
+        "x": 92,
+        "z": -6
+       },
+       "patrol": [],
+       "patrolIndex": 0,
+       "state": "combat",
+       "awareness": 1,
+       "lastSeen": {
+        "x": -32,
+        "z": -8
+       },
+       "searchTimer": 0,
+       "morale": 100,
+       "isolated": false,
+       "seed": 3249485689,
+       "randomCounter": 0,
+       "allyAlert": null,
+       "orbitTimer": 0,
+       "orbitDirection": 1,
+       "orbitRadius": null,
+       "aimTimer": 0,
+       "tokenHeld": false,
+       "attackObserved": false,
+       "combo": 0,
+       "comboTimer": 0,
+       "rallied": false,
+       "departed": false,
+       "heard": false,
+       "noiseKeys": []
+      }
+     }
+    ]
+   },
+   "variation": "正面入口内側(-32,-8)開始",
+   "warmupFrames": {
+    "frames": 600,
+    "seconds": 4.5145,
+    "excluded": true
+   },
+   "seconds": 13.2,
+   "summary": {
+    "ms": {
+     "n": 1800,
+     "mean": 7.321444444457704,
+     "min": 6.0999999940395355,
+     "p50": 7.199999988079071,
+     "p95": 8.199999988079071,
+     "p99": 8.900000005960464,
+     "max": 69.19999998807907
+    },
+    "calls": {
+     "n": 1800,
+     "mean": 525.6316666666675,
+     "min": 399,
+     "p50": 523,
+     "p95": 570,
+     "p99": 575,
+     "max": 582
+    },
+    "tris": {
+     "n": 1800,
+     "mean": 3463383.036111127,
+     "min": 2556040,
+     "p50": 3554509,
+     "p95": 3634693,
+     "p99": 3643198,
+     "max": 3669643
+    }
+   },
+   "judgement": {
+    "pass": true,
+    "p95": 8.199999988079071,
+    "maxCalls": 582,
+    "maxTris": 3669643,
+    "reasons": []
+   },
+   "counts": {
+    "samples": 9,
+    "inputs": 101,
+    "positions": 1800,
+    "refills": 7,
+    "chunkSwaps": 2,
+    "endpointTurns": 0
+   },
+   "scope": "このOS・Chrome・GPU・電源・ヘッドレスの条件だけ。他端末へ当てはめない。"
+  },
+  {
+   "name": "light-move-1",
+   "scene": "move",
+   "run": 1,
+   "quality": "light",
+   "seed": 1333,
+   "initial": {
+    "hero": {
+     "x": -74,
+     "y": 20.48813453580084,
+     "z": -66
+    },
+    "beat": "b2_road",
+    "route": [
+     {
+      "x": -74,
+      "z": -66
+     },
+     {
+      "x": -74,
+      "z": -66
+     },
+     {
+      "x": -62,
+      "z": -60
+     },
+     {
+      "x": -48,
+      "z": -55
+     },
+     {
+      "x": -36,
+      "z": -48
+     },
+     {
+      "x": -38,
+      "z": -38
+     },
+     {
+      "x": -50,
+      "z": -34
+     },
+     {
+      "x": -60,
+      "z": -28
+     },
+     {
+      "x": -56,
+      "z": -20
+     },
+     {
+      "x": -44,
+      "z": -14
+     },
+     {
+      "x": -32,
+      "z": -8
+     },
+     {
+      "x": -22,
+      "z": -3
+     },
+     {
+      "x": -10,
+      "z": 1
+     },
+     {
+      "x": -34,
+      "z": -4
+     }
+    ],
+    "initialIndex": 0,
+    "direction": 1,
+    "enemies": [
+     {
+      "def": {
+       "id": "village_soldier_1",
+       "kind": "soldier",
+       "x": -24,
+       "z": 2,
+       "yaw": 1.6,
+       "idleClip": "Male_Bend_Over_Pick_Up",
+       "group": "village_enemies"
+      },
+      "fighter": {
+       "id": "village_soldier_1",
+       "team": "enemy",
+       "kind": "soldier",
+       "x": -24,
+       "z": 2,
+       "yaw": 1.6,
+       "hp": 60,
+       "hpMax": 60,
+       "posture": 50,
+       "postureMax": 50,
+       "radius": 0.3,
+       "armor": "light",
+       "alive": true,
+       "state": "idle",
+       "blocking": false,
+       "parryT": 0,
+       "counterT": 0,
+       "move": null,
+       "dodgeT": 0,
+       "staggerT": 0,
+       "hitT": 0,
+       "recoilT": 0,
+       "noRegenT": 0,
+       "telegraphing": false,
+       "aware": false,
+       "pendingEvents": []
+      },
+      "brain": {
+       "id": "village_soldier_1",
+       "kind": "soldier",
+       "home": {
+        "x": -24,
+        "z": 2
+       },
+       "position": {
+        "x": -24,
+        "z": 2
+       },
+       "exit": {
+        "x": 92,
+        "z": -6
+       },
+       "patrol": [],
+       "patrolIndex": 0,
+       "state": "patrol",
+       "awareness": 0,
+       "lastSeen": null,
+       "searchTimer": 0,
+       "morale": 100,
+       "isolated": false,
+       "seed": 3882267014,
+       "randomCounter": 0,
+       "allyAlert": null,
+       "orbitTimer": 0,
+       "orbitDirection": 1,
+       "orbitRadius": null,
+       "aimTimer": 0,
+       "tokenHeld": false,
+       "attackObserved": false,
+       "combo": 0,
+       "comboTimer": 0,
+       "rallied": false,
+       "departed": false,
+       "heard": false,
+       "noiseKeys": []
+      }
+     },
+     {
+      "def": {
+       "id": "village_soldier_2",
+       "kind": "soldier",
+       "x": -20,
+       "z": 10,
+       "yaw": 2.4,
+       "idleClip": "Stand_and_Chat",
+       "group": "village_enemies"
+      },
+      "fighter": {
+       "id": "village_soldier_2",
+       "team": "enemy",
+       "kind": "soldier",
+       "x": -20,
+       "z": 10,
+       "yaw": 2.4,
+       "hp": 60,
+       "hpMax": 60,
+       "posture": 50,
+       "postureMax": 50,
+       "radius": 0.3,
+       "armor": "light",
+       "alive": true,
+       "state": "idle",
+       "blocking": false,
+       "parryT": 0,
+       "counterT": 0,
+       "move": null,
+       "dodgeT": 0,
+       "staggerT": 0,
+       "hitT": 0,
+       "recoilT": 0,
+       "noRegenT": 0,
+       "telegraphing": false,
+       "aware": false,
+       "pendingEvents": []
+      },
+      "brain": {
+       "id": "village_soldier_2",
+       "kind": "soldier",
+       "home": {
+        "x": -20,
+        "z": 10
+       },
+       "position": {
+        "x": -20,
+        "z": 10
+       },
+       "exit": {
+        "x": 92,
+        "z": -6
+       },
+       "patrol": [],
+       "patrolIndex": 0,
+       "state": "patrol",
+       "awareness": 0,
+       "lastSeen": null,
+       "searchTimer": 0,
+       "morale": 100,
+       "isolated": false,
+       "seed": 3865489395,
+       "randomCounter": 0,
+       "allyAlert": null,
+       "orbitTimer": 0,
+       "orbitDirection": 1,
+       "orbitRadius": null,
+       "aimTimer": 0,
+       "tokenHeld": false,
+       "attackObserved": false,
+       "combo": 0,
+       "comboTimer": 0,
+       "rallied": false,
+       "departed": false,
+       "heard": false,
+       "noiseKeys": []
+      }
+     },
+     {
+      "def": {
+       "id": "village_soldier_3",
+       "kind": "soldier",
+       "x": 2,
+       "z": 8,
+       "yaw": 3.1,
+       "idleClip": "Long_Breathe_and_Look_Around",
+       "group": "village_enemies"
+      },
+      "fighter": {
+       "id": "village_soldier_3",
+       "team": "enemy",
+       "kind": "soldier",
+       "x": 2,
+       "z": 8,
+       "yaw": 3.1,
+       "hp": 60,
+       "hpMax": 60,
+       "posture": 50,
+       "postureMax": 50,
+       "radius": 0.3,
+       "armor": "light",
+       "alive": true,
+       "state": "idle",
+       "blocking": false,
+       "parryT": 0,
+       "counterT": 0,
+       "move": null,
+       "dodgeT": 0,
+       "staggerT": 0,
+       "hitT": 0,
+       "recoilT": 0,
+       "noRegenT": 0,
+       "telegraphing": false,
+       "aware": false,
+       "pendingEvents": []
+      },
+      "brain": {
+       "id": "village_soldier_3",
+       "kind": "soldier",
+       "home": {
+        "x": 2,
+        "z": 8
+       },
+       "position": {
+        "x": 2,
+        "z": 8
+       },
+       "exit": {
+        "x": 92,
+        "z": -6
+       },
+       "patrol": [],
+       "patrolIndex": 0,
+       "state": "patrol",
+       "awareness": 0,
+       "lastSeen": null,
+       "searchTimer": 0,
+       "morale": 100,
+       "isolated": false,
+       "seed": 3848711776,
+       "randomCounter": 0,
+       "allyAlert": null,
+       "orbitTimer": 0,
+       "orbitDirection": 1,
+       "orbitRadius": null,
+       "aimTimer": 0,
+       "tokenHeld": false,
+       "attackObserved": false,
+       "combo": 0,
+       "comboTimer": 0,
+       "rallied": false,
+       "departed": false,
+       "heard": false,
+       "noiseKeys": []
+      }
+     },
+     {
+      "def": {
+       "id": "village_archer",
+       "kind": "archer",
+       "x": -16,
+       "z": 6,
+       "yaw": 2,
+       "idleClip": "Long_Breathe_and_Look_Around",
+       "group": "village_enemies"
+      },
+      "fighter": {
+       "id": "village_archer",
+       "team": "enemy",
+       "kind": "archer",
+       "x": -16,
+       "z": 6,
+       "yaw": 2,
+       "hp": 40,
+       "hpMax": 40,
+       "posture": 40,
+       "postureMax": 40,
+       "radius": 0.3,
+       "armor": "none",
+       "alive": true,
+       "state": "idle",
+       "blocking": false,
+       "parryT": 0,
+       "counterT": 0,
+       "move": null,
+       "dodgeT": 0,
+       "staggerT": 0,
+       "hitT": 0,
+       "recoilT": 0,
+       "noRegenT": 0,
+       "telegraphing": false,
+       "aware": false,
+       "pendingEvents": []
+      },
+      "brain": {
+       "id": "village_archer",
+       "kind": "archer",
+       "home": {
+        "x": -16,
+        "z": 6
+       },
+       "position": {
+        "x": -16,
+        "z": 6
+       },
+       "exit": {
+        "x": 92,
+        "z": -6
+       },
+       "patrol": [],
+       "patrolIndex": 0,
+       "state": "patrol",
+       "awareness": 0,
+       "lastSeen": null,
+       "searchTimer": 0,
+       "morale": 100,
+       "isolated": false,
+       "seed": 1650828475,
+       "randomCounter": 0,
+       "allyAlert": null,
+       "orbitTimer": 0,
+       "orbitDirection": 1,
+       "orbitRadius": null,
+       "aimTimer": 0,
+       "tokenHeld": false,
+       "attackObserved": false,
+       "combo": 0,
+       "comboTimer": 0,
+       "rallied": false,
+       "departed": false,
+       "heard": false,
+       "noiseKeys": []
+      }
+     },
+     {
+      "def": {
+       "id": "officer",
+       "kind": "officer",
+       "x": -6,
+       "z": 4,
+       "yaw": 1.6,
+       "idleClip": "Sword_Shout",
+       "group": "village_enemies"
+      },
+      "fighter": {
+       "id": "officer",
+       "team": "enemy",
+       "kind": "officer",
+       "x": -6,
+       "z": 4,
+       "yaw": 1.6,
+       "hp": 200,
+       "hpMax": 200,
+       "posture": 120,
+       "postureMax": 120,
+       "radius": 0.3,
+       "armor": "heavy",
+       "alive": true,
+       "state": "idle",
+       "blocking": false,
+       "parryT": 0,
+       "counterT": 0,
+       "move": null,
+       "dodgeT": 0,
+       "staggerT": 0,
+       "hitT": 0,
+       "recoilT": 0,
+       "noRegenT": 0,
+       "telegraphing": false,
+       "aware": false,
+       "pendingEvents": []
+      },
+      "brain": {
+       "id": "officer",
+       "kind": "officer",
+       "home": {
+        "x": -6,
+        "z": 4
+       },
+       "position": {
+        "x": -6,
+        "z": 4
+       },
+       "exit": {
+        "x": 92,
+        "z": -6
+       },
+       "patrol": [],
+       "patrolIndex": 0,
+       "state": "patrol",
+       "awareness": 0,
+       "lastSeen": null,
+       "searchTimer": 0,
+       "morale": 100,
+       "isolated": false,
+       "seed": 3249485689,
+       "randomCounter": 0,
+       "allyAlert": null,
+       "orbitTimer": 0,
+       "orbitDirection": 1,
+       "orbitRadius": null,
+       "aimTimer": 0,
+       "tokenHeld": false,
+       "attackObserved": false,
+       "combo": 0,
+       "comboTimer": 0,
+       "rallied": false,
+       "departed": false,
+       "heard": false,
+       "noiseKeys": []
+      }
+     }
+    ]
+   },
+   "variation": "基準開始点・正順",
+   "warmupFrames": {
+    "frames": 600,
+    "seconds": 4.679400000005961,
+    "excluded": true
+   },
+   "seconds": 12.7,
+   "summary": {
+    "ms": {
+     "n": 1800,
+     "mean": 7.066555555545648,
+     "min": 4.5999999940395355,
+     "p50": 7.199999988079071,
+     "p95": 8.300000011920929,
+     "p99": 9.800000011920929,
+     "max": 86.09999999403954
+    },
+    "calls": {
+     "n": 1800,
+     "mean": 517.0011111111116,
+     "min": 287,
+     "p50": 558,
+     "p95": 625,
+     "p99": 628,
+     "max": 630
+    },
+    "tris": {
+     "n": 1800,
+     "mean": 3210853.069444442,
+     "min": 2439662,
+     "p50": 3321008,
+     "p95": 3765876,
+     "p99": 3859871,
+     "max": 3864629
+    }
+   },
+   "judgement": {
+    "pass": true,
+    "p95": 8.300000011920929,
+    "maxCalls": 630,
+    "maxTris": 3864629,
+    "reasons": []
+   },
+   "counts": {
+    "samples": 9,
+    "inputs": 14,
+    "positions": 1800,
+    "refills": 0,
+    "chunkSwaps": 2,
+    "endpointTurns": 0
+   },
+   "scope": "このOS・Chrome・GPU・電源・ヘッドレスの条件だけ。他端末へ当てはめない。"
+  },
+  {
+   "name": "light-move-2",
+   "scene": "move",
+   "run": 2,
+   "quality": "light",
+   "seed": 1333,
+   "initial": {
+    "hero": {
+     "x": -60,
+     "y": 7.728269756169154,
+     "z": -28
+    },
+    "beat": "b2_road",
+    "route": [
+     {
+      "x": -74,
+      "z": -66
+     },
+     {
+      "x": -74,
+      "z": -66
+     },
+     {
+      "x": -62,
+      "z": -60
+     },
+     {
+      "x": -48,
+      "z": -55
+     },
+     {
+      "x": -36,
+      "z": -48
+     },
+     {
+      "x": -38,
+      "z": -38
+     },
+     {
+      "x": -50,
+      "z": -34
+     },
+     {
+      "x": -60,
+      "z": -28
+     },
+     {
+      "x": -56,
+      "z": -20
+     },
+     {
+      "x": -44,
+      "z": -14
+     },
+     {
+      "x": -32,
+      "z": -8
+     },
+     {
+      "x": -22,
+      "z": -3
+     },
+     {
+      "x": -10,
+      "z": 1
+     },
+     {
+      "x": -34,
+      "z": -4
+     }
+    ],
+    "initialIndex": 7,
+    "direction": -1,
+    "enemies": [
+     {
+      "def": {
+       "id": "village_soldier_1",
+       "kind": "soldier",
+       "x": -24,
+       "z": 2,
+       "yaw": 1.6,
+       "idleClip": "Male_Bend_Over_Pick_Up",
+       "group": "village_enemies"
+      },
+      "fighter": {
+       "id": "village_soldier_1",
+       "team": "enemy",
+       "kind": "soldier",
+       "x": -24,
+       "z": 2,
+       "yaw": 1.6,
+       "hp": 60,
+       "hpMax": 60,
+       "posture": 50,
+       "postureMax": 50,
+       "radius": 0.3,
+       "armor": "light",
+       "alive": true,
+       "state": "idle",
+       "blocking": false,
+       "parryT": 0,
+       "counterT": 0,
+       "move": null,
+       "dodgeT": 0,
+       "staggerT": 0,
+       "hitT": 0,
+       "recoilT": 0,
+       "noRegenT": 0,
+       "telegraphing": false,
+       "aware": false,
+       "pendingEvents": []
+      },
+      "brain": {
+       "id": "village_soldier_1",
+       "kind": "soldier",
+       "home": {
+        "x": -24,
+        "z": 2
+       },
+       "position": {
+        "x": -24,
+        "z": 2
+       },
+       "exit": {
+        "x": 92,
+        "z": -6
+       },
+       "patrol": [],
+       "patrolIndex": 0,
+       "state": "patrol",
+       "awareness": 0,
+       "lastSeen": null,
+       "searchTimer": 0,
+       "morale": 100,
+       "isolated": false,
+       "seed": 3882267014,
+       "randomCounter": 0,
+       "allyAlert": null,
+       "orbitTimer": 0,
+       "orbitDirection": 1,
+       "orbitRadius": null,
+       "aimTimer": 0,
+       "tokenHeld": false,
+       "attackObserved": false,
+       "combo": 0,
+       "comboTimer": 0,
+       "rallied": false,
+       "departed": false,
+       "heard": false,
+       "noiseKeys": []
+      }
+     },
+     {
+      "def": {
+       "id": "village_soldier_2",
+       "kind": "soldier",
+       "x": -20,
+       "z": 10,
+       "yaw": 2.4,
+       "idleClip": "Stand_and_Chat",
+       "group": "village_enemies"
+      },
+      "fighter": {
+       "id": "village_soldier_2",
+       "team": "enemy",
+       "kind": "soldier",
+       "x": -20,
+       "z": 10,
+       "yaw": 2.4,
+       "hp": 60,
+       "hpMax": 60,
+       "posture": 50,
+       "postureMax": 50,
+       "radius": 0.3,
+       "armor": "light",
+       "alive": true,
+       "state": "idle",
+       "blocking": false,
+       "parryT": 0,
+       "counterT": 0,
+       "move": null,
+       "dodgeT": 0,
+       "staggerT": 0,
+       "hitT": 0,
+       "recoilT": 0,
+       "noRegenT": 0,
+       "telegraphing": false,
+       "aware": false,
+       "pendingEvents": []
+      },
+      "brain": {
+       "id": "village_soldier_2",
+       "kind": "soldier",
+       "home": {
+        "x": -20,
+        "z": 10
+       },
+       "position": {
+        "x": -20,
+        "z": 10
+       },
+       "exit": {
+        "x": 92,
+        "z": -6
+       },
+       "patrol": [],
+       "patrolIndex": 0,
+       "state": "patrol",
+       "awareness": 0,
+       "lastSeen": null,
+       "searchTimer": 0,
+       "morale": 100,
+       "isolated": false,
+       "seed": 3865489395,
+       "randomCounter": 0,
+       "allyAlert": null,
+       "orbitTimer": 0,
+       "orbitDirection": 1,
+       "orbitRadius": null,
+       "aimTimer": 0,
+       "tokenHeld": false,
+       "attackObserved": false,
+       "combo": 0,
+       "comboTimer": 0,
+       "rallied": false,
+       "departed": false,
+       "heard": false,
+       "noiseKeys": []
+      }
+     },
+     {
+      "def": {
+       "id": "village_soldier_3",
+       "kind": "soldier",
+       "x": 2,
+       "z": 8,
+       "yaw": 3.1,
+       "idleClip": "Long_Breathe_and_Look_Around",
+       "group": "village_enemies"
+      },
+      "fighter": {
+       "id": "village_soldier_3",
+       "team": "enemy",
+       "kind": "soldier",
+       "x": 2,
+       "z": 8,
+       "yaw": 3.1,
+       "hp": 60,
+       "hpMax": 60,
+       "posture": 50,
+       "postureMax": 50,
+       "radius": 0.3,
+       "armor": "light",
+       "alive": true,
+       "state": "idle",
+       "blocking": false,
+       "parryT": 0,
+       "counterT": 0,
+       "move": null,
+       "dodgeT": 0,
+       "staggerT": 0,
+       "hitT": 0,
+       "recoilT": 0,
+       "noRegenT": 0,
+       "telegraphing": false,
+       "aware": false,
+       "pendingEvents": []
+      },
+      "brain": {
+       "id": "village_soldier_3",
+       "kind": "soldier",
+       "home": {
+        "x": 2,
+        "z": 8
+       },
+       "position": {
+        "x": 2,
+        "z": 8
+       },
+       "exit": {
+        "x": 92,
+        "z": -6
+       },
+       "patrol": [],
+       "patrolIndex": 0,
+       "state": "patrol",
+       "awareness": 0,
+       "lastSeen": null,
+       "searchTimer": 0,
+       "morale": 100,
+       "isolated": false,
+       "seed": 3848711776,
+       "randomCounter": 0,
+       "allyAlert": null,
+       "orbitTimer": 0,
+       "orbitDirection": 1,
+       "orbitRadius": null,
+       "aimTimer": 0,
+       "tokenHeld": false,
+       "attackObserved": false,
+       "combo": 0,
+       "comboTimer": 0,
+       "rallied": false,
+       "departed": false,
+       "heard": false,
+       "noiseKeys": []
+      }
+     },
+     {
+      "def": {
+       "id": "village_archer",
+       "kind": "archer",
+       "x": -16,
+       "z": 6,
+       "yaw": 2,
+       "idleClip": "Long_Breathe_and_Look_Around",
+       "group": "village_enemies"
+      },
+      "fighter": {
+       "id": "village_archer",
+       "team": "enemy",
+       "kind": "archer",
+       "x": -16,
+       "z": 6,
+       "yaw": 2,
+       "hp": 40,
+       "hpMax": 40,
+       "posture": 40,
+       "postureMax": 40,
+       "radius": 0.3,
+       "armor": "none",
+       "alive": true,
+       "state": "idle",
+       "blocking": false,
+       "parryT": 0,
+       "counterT": 0,
+       "move": null,
+       "dodgeT": 0,
+       "staggerT": 0,
+       "hitT": 0,
+       "recoilT": 0,
+       "noRegenT": 0,
+       "telegraphing": false,
+       "aware": false,
+       "pendingEvents": []
+      },
+      "brain": {
+       "id": "village_archer",
+       "kind": "archer",
+       "home": {
+        "x": -16,
+        "z": 6
+       },
+       "position": {
+        "x": -16,
+        "z": 6
+       },
+       "exit": {
+        "x": 92,
+        "z": -6
+       },
+       "patrol": [],
+       "patrolIndex": 0,
+       "state": "patrol",
+       "awareness": 0,
+       "lastSeen": null,
+       "searchTimer": 0,
+       "morale": 100,
+       "isolated": false,
+       "seed": 1650828475,
+       "randomCounter": 0,
+       "allyAlert": null,
+       "orbitTimer": 0,
+       "orbitDirection": 1,
+       "orbitRadius": null,
+       "aimTimer": 0,
+       "tokenHeld": false,
+       "attackObserved": false,
+       "combo": 0,
+       "comboTimer": 0,
+       "rallied": false,
+       "departed": false,
+       "heard": false,
+       "noiseKeys": []
+      }
+     },
+     {
+      "def": {
+       "id": "officer",
+       "kind": "officer",
+       "x": -6,
+       "z": 4,
+       "yaw": 1.6,
+       "idleClip": "Sword_Shout",
+       "group": "village_enemies"
+      },
+      "fighter": {
+       "id": "officer",
+       "team": "enemy",
+       "kind": "officer",
+       "x": -6,
+       "z": 4,
+       "yaw": 1.6,
+       "hp": 200,
+       "hpMax": 200,
+       "posture": 120,
+       "postureMax": 120,
+       "radius": 0.3,
+       "armor": "heavy",
+       "alive": true,
+       "state": "idle",
+       "blocking": false,
+       "parryT": 0,
+       "counterT": 0,
+       "move": null,
+       "dodgeT": 0,
+       "staggerT": 0,
+       "hitT": 0,
+       "recoilT": 0,
+       "noRegenT": 0,
+       "telegraphing": false,
+       "aware": false,
+       "pendingEvents": []
+      },
+      "brain": {
+       "id": "officer",
+       "kind": "officer",
+       "home": {
+        "x": -6,
+        "z": 4
+       },
+       "position": {
+        "x": -6,
+        "z": 4
+       },
+       "exit": {
+        "x": 92,
+        "z": -6
+       },
+       "patrol": [],
+       "patrolIndex": 0,
+       "state": "patrol",
+       "awareness": 0,
+       "lastSeen": null,
+       "searchTimer": 0,
+       "morale": 100,
+       "isolated": false,
+       "seed": 3249485689,
+       "randomCounter": 0,
+       "allyAlert": null,
+       "orbitTimer": 0,
+       "orbitDirection": 1,
+       "orbitRadius": null,
+       "aimTimer": 0,
+       "tokenHeld": false,
+       "attackObserved": false,
+       "combo": 0,
+       "comboTimer": 0,
+       "rallied": false,
+       "departed": false,
+       "heard": false,
+       "noiseKeys": []
+      }
+     }
+    ]
+   },
+   "variation": "道筋の中点・逆順開始",
+   "warmupFrames": {
+    "frames": 600,
+    "seconds": 3.7625,
+    "excluded": true
+   },
+   "seconds": 11.7,
+   "summary": {
+    "ms": {
+     "n": 1800,
+     "mean": 6.52633333333666,
+     "min": 4.5,
+     "p50": 6.200000017881393,
+     "p95": 8.099999994039536,
+     "p99": 8.5,
+     "max": 87.40000000596046
+    },
+    "calls": {
+     "n": 1800,
+     "mean": 454.023888888888,
+     "min": 292,
+     "p50": 409,
+     "p95": 623,
+     "p99": 628,
+     "max": 630
+    },
+    "tris": {
+     "n": 1800,
+     "mean": 2895966.9766666414,
+     "min": 2449101,
+     "p50": 2871914,
+     "p95": 3376863,
+     "p99": 3431241,
+     "max": 3451592
+    }
+   },
+   "judgement": {
+    "pass": true,
+    "p95": 8.099999994039536,
+    "maxCalls": 630,
+    "maxTris": 3451592,
+    "reasons": []
+   },
+   "counts": {
+    "samples": 9,
+    "inputs": 15,
+    "positions": 1800,
+    "refills": 0,
+    "chunkSwaps": 2,
+    "endpointTurns": 1
+   },
+   "scope": "このOS・Chrome・GPU・電源・ヘッドレスの条件だけ。他端末へ当てはめない。"
+  },
+  {
+   "name": "standard-combat-1",
+   "scene": "combat",
+   "run": 1,
+   "quality": "standard",
+   "seed": 1333,
+   "initial": {
+    "hero": {
+     "x": -34,
+     "y": 2.775409039076335,
+     "z": -4
+    },
+    "beat": "b4_village",
+    "route": [
+     {
+      "x": -74,
+      "z": -66
+     },
+     {
+      "x": -74,
+      "z": -66
+     },
+     {
+      "x": -62,
+      "z": -60
+     },
+     {
+      "x": -48,
+      "z": -55
+     },
+     {
+      "x": -36,
+      "z": -48
+     },
+     {
+      "x": -38,
+      "z": -38
+     },
+     {
+      "x": -50,
+      "z": -34
+     },
+     {
+      "x": -60,
+      "z": -28
+     },
+     {
+      "x": -56,
+      "z": -20
+     },
+     {
+      "x": -44,
+      "z": -14
+     },
+     {
+      "x": -32,
+      "z": -8
+     },
+     {
+      "x": -22,
+      "z": -3
+     },
+     {
+      "x": -10,
+      "z": 1
+     },
+     {
+      "x": -34,
+      "z": -4
+     }
+    ],
+    "initialIndex": 0,
+    "direction": 1,
+    "enemies": [
+     {
+      "def": {
+       "id": "village_soldier_1",
+       "kind": "soldier",
+       "x": -24,
+       "z": 2,
+       "yaw": 1.6,
+       "idleClip": "Male_Bend_Over_Pick_Up",
+       "group": "village_enemies"
+      },
+      "fighter": {
+       "id": "village_soldier_1",
+       "team": "enemy",
+       "kind": "soldier",
+       "x": -24,
+       "z": 2,
+       "yaw": 1.6,
+       "hp": 60,
+       "hpMax": 60,
+       "posture": 50,
+       "postureMax": 50,
+       "radius": 0.3,
+       "armor": "light",
+       "alive": true,
+       "state": "idle",
+       "blocking": false,
+       "parryT": 0,
+       "counterT": 0,
+       "move": null,
+       "dodgeT": 0,
+       "staggerT": 0,
+       "hitT": 0,
+       "recoilT": 0,
+       "noRegenT": 0,
+       "telegraphing": false,
+       "aware": true,
+       "pendingEvents": []
+      },
+      "brain": {
+       "id": "village_soldier_1",
+       "kind": "soldier",
+       "home": {
+        "x": -24,
+        "z": 2
+       },
+       "position": {
+        "x": -24,
+        "z": 2
+       },
+       "exit": {
+        "x": 92,
+        "z": -6
+       },
+       "patrol": [],
+       "patrolIndex": 0,
+       "state": "combat",
+       "awareness": 1,
+       "lastSeen": {
+        "x": -34,
+        "z": -4
+       },
+       "searchTimer": 0,
+       "morale": 100,
+       "isolated": false,
+       "seed": 3882267014,
+       "randomCounter": 0,
+       "allyAlert": null,
+       "orbitTimer": 0,
+       "orbitDirection": 1,
+       "orbitRadius": null,
+       "aimTimer": 0,
+       "tokenHeld": false,
+       "attackObserved": false,
+       "combo": 0,
+       "comboTimer": 0,
+       "rallied": false,
+       "departed": false,
+       "heard": false,
+       "noiseKeys": []
+      }
+     },
+     {
+      "def": {
+       "id": "village_soldier_2",
+       "kind": "soldier",
+       "x": -20,
+       "z": 10,
+       "yaw": 2.4,
+       "idleClip": "Stand_and_Chat",
+       "group": "village_enemies"
+      },
+      "fighter": {
+       "id": "village_soldier_2",
+       "team": "enemy",
+       "kind": "soldier",
+       "x": -20,
+       "z": 10,
+       "yaw": 2.4,
+       "hp": 60,
+       "hpMax": 60,
+       "posture": 50,
+       "postureMax": 50,
+       "radius": 0.3,
+       "armor": "light",
+       "alive": true,
+       "state": "idle",
+       "blocking": false,
+       "parryT": 0,
+       "counterT": 0,
+       "move": null,
+       "dodgeT": 0,
+       "staggerT": 0,
+       "hitT": 0,
+       "recoilT": 0,
+       "noRegenT": 0,
+       "telegraphing": false,
+       "aware": true,
+       "pendingEvents": []
+      },
+      "brain": {
+       "id": "village_soldier_2",
+       "kind": "soldier",
+       "home": {
+        "x": -20,
+        "z": 10
+       },
+       "position": {
+        "x": -20,
+        "z": 10
+       },
+       "exit": {
+        "x": 92,
+        "z": -6
+       },
+       "patrol": [],
+       "patrolIndex": 0,
+       "state": "combat",
+       "awareness": 1,
+       "lastSeen": {
+        "x": -34,
+        "z": -4
+       },
+       "searchTimer": 0,
+       "morale": 100,
+       "isolated": false,
+       "seed": 3865489395,
+       "randomCounter": 0,
+       "allyAlert": null,
+       "orbitTimer": 0,
+       "orbitDirection": 1,
+       "orbitRadius": null,
+       "aimTimer": 0,
+       "tokenHeld": false,
+       "attackObserved": false,
+       "combo": 0,
+       "comboTimer": 0,
+       "rallied": false,
+       "departed": false,
+       "heard": false,
+       "noiseKeys": []
+      }
+     },
+     {
+      "def": {
+       "id": "village_soldier_3",
+       "kind": "soldier",
+       "x": 2,
+       "z": 8,
+       "yaw": 3.1,
+       "idleClip": "Long_Breathe_and_Look_Around",
+       "group": "village_enemies"
+      },
+      "fighter": {
+       "id": "village_soldier_3",
+       "team": "enemy",
+       "kind": "soldier",
+       "x": 2,
+       "z": 8,
+       "yaw": 3.1,
+       "hp": 60,
+       "hpMax": 60,
+       "posture": 50,
+       "postureMax": 50,
+       "radius": 0.3,
+       "armor": "light",
+       "alive": true,
+       "state": "idle",
+       "blocking": false,
+       "parryT": 0,
+       "counterT": 0,
+       "move": null,
+       "dodgeT": 0,
+       "staggerT": 0,
+       "hitT": 0,
+       "recoilT": 0,
+       "noRegenT": 0,
+       "telegraphing": false,
+       "aware": true,
+       "pendingEvents": []
+      },
+      "brain": {
+       "id": "village_soldier_3",
+       "kind": "soldier",
+       "home": {
+        "x": 2,
+        "z": 8
+       },
+       "position": {
+        "x": 2,
+        "z": 8
+       },
+       "exit": {
+        "x": 92,
+        "z": -6
+       },
+       "patrol": [],
+       "patrolIndex": 0,
+       "state": "combat",
+       "awareness": 1,
+       "lastSeen": {
+        "x": -34,
+        "z": -4
+       },
+       "searchTimer": 0,
+       "morale": 100,
+       "isolated": false,
+       "seed": 3848711776,
+       "randomCounter": 0,
+       "allyAlert": null,
+       "orbitTimer": 0,
+       "orbitDirection": 1,
+       "orbitRadius": null,
+       "aimTimer": 0,
+       "tokenHeld": false,
+       "attackObserved": false,
+       "combo": 0,
+       "comboTimer": 0,
+       "rallied": false,
+       "departed": false,
+       "heard": false,
+       "noiseKeys": []
+      }
+     },
+     {
+      "def": {
+       "id": "village_archer",
+       "kind": "archer",
+       "x": -16,
+       "z": 6,
+       "yaw": 2,
+       "idleClip": "Long_Breathe_and_Look_Around",
+       "group": "village_enemies"
+      },
+      "fighter": {
+       "id": "village_archer",
+       "team": "enemy",
+       "kind": "archer",
+       "x": -16,
+       "z": 6,
+       "yaw": 2,
+       "hp": 40,
+       "hpMax": 40,
+       "posture": 40,
+       "postureMax": 40,
+       "radius": 0.3,
+       "armor": "none",
+       "alive": true,
+       "state": "idle",
+       "blocking": false,
+       "parryT": 0,
+       "counterT": 0,
+       "move": null,
+       "dodgeT": 0,
+       "staggerT": 0,
+       "hitT": 0,
+       "recoilT": 0,
+       "noRegenT": 0,
+       "telegraphing": false,
+       "aware": true,
+       "pendingEvents": []
+      },
+      "brain": {
+       "id": "village_archer",
+       "kind": "archer",
+       "home": {
+        "x": -16,
+        "z": 6
+       },
+       "position": {
+        "x": -16,
+        "z": 6
+       },
+       "exit": {
+        "x": 92,
+        "z": -6
+       },
+       "patrol": [],
+       "patrolIndex": 0,
+       "state": "combat",
+       "awareness": 1,
+       "lastSeen": {
+        "x": -34,
+        "z": -4
+       },
+       "searchTimer": 0,
+       "morale": 100,
+       "isolated": false,
+       "seed": 1650828475,
+       "randomCounter": 0,
+       "allyAlert": null,
+       "orbitTimer": 0,
+       "orbitDirection": 1,
+       "orbitRadius": null,
+       "aimTimer": 0,
+       "tokenHeld": false,
+       "attackObserved": false,
+       "combo": 0,
+       "comboTimer": 0,
+       "rallied": false,
+       "departed": false,
+       "heard": false,
+       "noiseKeys": []
+      }
+     },
+     {
+      "def": {
+       "id": "officer",
+       "kind": "officer",
+       "x": -6,
+       "z": 4,
+       "yaw": 1.6,
+       "idleClip": "Sword_Shout",
+       "group": "village_enemies"
+      },
+      "fighter": {
+       "id": "officer",
+       "team": "enemy",
+       "kind": "officer",
+       "x": -6,
+       "z": 4,
+       "yaw": 1.6,
+       "hp": 200,
+       "hpMax": 200,
+       "posture": 120,
+       "postureMax": 120,
+       "radius": 0.3,
+       "armor": "heavy",
+       "alive": true,
+       "state": "idle",
+       "blocking": false,
+       "parryT": 0,
+       "counterT": 0,
+       "move": null,
+       "dodgeT": 0,
+       "staggerT": 0,
+       "hitT": 0,
+       "recoilT": 0,
+       "noRegenT": 0,
+       "telegraphing": false,
+       "aware": true,
+       "pendingEvents": []
+      },
+      "brain": {
+       "id": "officer",
+       "kind": "officer",
+       "home": {
+        "x": -6,
+        "z": 4
+       },
+       "position": {
+        "x": -6,
+        "z": 4
+       },
+       "exit": {
+        "x": 92,
+        "z": -6
+       },
+       "patrol": [],
+       "patrolIndex": 0,
+       "state": "combat",
+       "awareness": 1,
+       "lastSeen": {
+        "x": -34,
+        "z": -4
+       },
+       "searchTimer": 0,
+       "morale": 100,
+       "isolated": false,
+       "seed": 3249485689,
+       "randomCounter": 0,
+       "allyAlert": null,
+       "orbitTimer": 0,
+       "orbitDirection": 1,
+       "orbitRadius": null,
+       "aimTimer": 0,
+       "tokenHeld": false,
+       "attackObserved": false,
+       "combo": 0,
+       "comboTimer": 0,
+       "rallied": false,
+       "departed": false,
+       "heard": false,
+       "noiseKeys": []
+      }
+     }
+    ]
+   },
+   "variation": "基準開始点・正順",
+   "warmupFrames": {
+    "frames": 600,
+    "seconds": 6.82609999999404,
+    "excluded": true
+   },
+   "seconds": 20.2,
+   "summary": {
+    "ms": {
+     "n": 1800,
+     "mean": 11.226722222252036,
+     "min": 9.800000011920929,
+     "p50": 11.099999994039536,
+     "p95": 12.299999982118607,
+     "p99": 12.900000005960464,
+     "max": 74.19999998807907
+    },
+    "calls": {
+     "n": 1800,
+     "mean": 516.7200000000003,
+     "min": 394,
+     "p50": 523,
+     "p95": 565,
+     "p99": 569,
+     "max": 575
+    },
+    "tris": {
+     "n": 1800,
+     "mean": 4425376.441666685,
+     "min": 3626092,
+     "p50": 4544993,
+     "p95": 4596415,
+     "p99": 4602375,
+     "max": 4621945
+    }
+   },
+   "judgement": {
+    "pass": true,
+    "p95": 12.299999982118607,
+    "maxCalls": 575,
+    "maxTris": 4621945,
+    "reasons": []
+   },
+   "counts": {
+    "samples": 9,
+    "inputs": 96,
+    "positions": 1800,
+    "refills": 3,
+    "chunkSwaps": 2,
+    "endpointTurns": 0
+   },
+   "scope": "このOS・Chrome・GPU・電源・ヘッドレスの条件だけ。他端末へ当てはめない。"
+  },
+  {
+   "name": "standard-combat-2",
+   "scene": "combat",
+   "run": 2,
+   "quality": "standard",
+   "seed": 1333,
+   "initial": {
+    "hero": {
+     "x": -32,
+     "y": 2.721961096564896,
+     "z": -8
+    },
+    "beat": "b4_village",
+    "route": [
+     {
+      "x": -74,
+      "z": -66
+     },
+     {
+      "x": -74,
+      "z": -66
+     },
+     {
+      "x": -62,
+      "z": -60
+     },
+     {
+      "x": -48,
+      "z": -55
+     },
+     {
+      "x": -36,
+      "z": -48
+     },
+     {
+      "x": -38,
+      "z": -38
+     },
+     {
+      "x": -50,
+      "z": -34
+     },
+     {
+      "x": -60,
+      "z": -28
+     },
+     {
+      "x": -56,
+      "z": -20
+     },
+     {
+      "x": -44,
+      "z": -14
+     },
+     {
+      "x": -32,
+      "z": -8
+     },
+     {
+      "x": -22,
+      "z": -3
+     },
+     {
+      "x": -10,
+      "z": 1
+     },
+     {
+      "x": -34,
+      "z": -4
+     }
+    ],
+    "initialIndex": 7,
+    "direction": -1,
+    "enemies": [
+     {
+      "def": {
+       "id": "village_soldier_1",
+       "kind": "soldier",
+       "x": -24,
+       "z": 2,
+       "yaw": 1.6,
+       "idleClip": "Male_Bend_Over_Pick_Up",
+       "group": "village_enemies"
+      },
+      "fighter": {
+       "id": "village_soldier_1",
+       "team": "enemy",
+       "kind": "soldier",
+       "x": -24,
+       "z": 2,
+       "yaw": 1.6,
+       "hp": 60,
+       "hpMax": 60,
+       "posture": 50,
+       "postureMax": 50,
+       "radius": 0.3,
+       "armor": "light",
+       "alive": true,
+       "state": "idle",
+       "blocking": false,
+       "parryT": 0,
+       "counterT": 0,
+       "move": null,
+       "dodgeT": 0,
+       "staggerT": 0,
+       "hitT": 0,
+       "recoilT": 0,
+       "noRegenT": 0,
+       "telegraphing": false,
+       "aware": true,
+       "pendingEvents": []
+      },
+      "brain": {
+       "id": "village_soldier_1",
+       "kind": "soldier",
+       "home": {
+        "x": -24,
+        "z": 2
+       },
+       "position": {
+        "x": -24,
+        "z": 2
+       },
+       "exit": {
+        "x": 92,
+        "z": -6
+       },
+       "patrol": [],
+       "patrolIndex": 0,
+       "state": "combat",
+       "awareness": 1,
+       "lastSeen": {
+        "x": -32,
+        "z": -8
+       },
+       "searchTimer": 0,
+       "morale": 100,
+       "isolated": false,
+       "seed": 3882267014,
+       "randomCounter": 0,
+       "allyAlert": null,
+       "orbitTimer": 0,
+       "orbitDirection": 1,
+       "orbitRadius": null,
+       "aimTimer": 0,
+       "tokenHeld": false,
+       "attackObserved": false,
+       "combo": 0,
+       "comboTimer": 0,
+       "rallied": false,
+       "departed": false,
+       "heard": false,
+       "noiseKeys": []
+      }
+     },
+     {
+      "def": {
+       "id": "village_soldier_2",
+       "kind": "soldier",
+       "x": -20,
+       "z": 10,
+       "yaw": 2.4,
+       "idleClip": "Stand_and_Chat",
+       "group": "village_enemies"
+      },
+      "fighter": {
+       "id": "village_soldier_2",
+       "team": "enemy",
+       "kind": "soldier",
+       "x": -20,
+       "z": 10,
+       "yaw": 2.4,
+       "hp": 60,
+       "hpMax": 60,
+       "posture": 50,
+       "postureMax": 50,
+       "radius": 0.3,
+       "armor": "light",
+       "alive": true,
+       "state": "idle",
+       "blocking": false,
+       "parryT": 0,
+       "counterT": 0,
+       "move": null,
+       "dodgeT": 0,
+       "staggerT": 0,
+       "hitT": 0,
+       "recoilT": 0,
+       "noRegenT": 0,
+       "telegraphing": false,
+       "aware": true,
+       "pendingEvents": []
+      },
+      "brain": {
+       "id": "village_soldier_2",
+       "kind": "soldier",
+       "home": {
+        "x": -20,
+        "z": 10
+       },
+       "position": {
+        "x": -20,
+        "z": 10
+       },
+       "exit": {
+        "x": 92,
+        "z": -6
+       },
+       "patrol": [],
+       "patrolIndex": 0,
+       "state": "combat",
+       "awareness": 1,
+       "lastSeen": {
+        "x": -32,
+        "z": -8
+       },
+       "searchTimer": 0,
+       "morale": 100,
+       "isolated": false,
+       "seed": 3865489395,
+       "randomCounter": 0,
+       "allyAlert": null,
+       "orbitTimer": 0,
+       "orbitDirection": 1,
+       "orbitRadius": null,
+       "aimTimer": 0,
+       "tokenHeld": false,
+       "attackObserved": false,
+       "combo": 0,
+       "comboTimer": 0,
+       "rallied": false,
+       "departed": false,
+       "heard": false,
+       "noiseKeys": []
+      }
+     },
+     {
+      "def": {
+       "id": "village_soldier_3",
+       "kind": "soldier",
+       "x": 2,
+       "z": 8,
+       "yaw": 3.1,
+       "idleClip": "Long_Breathe_and_Look_Around",
+       "group": "village_enemies"
+      },
+      "fighter": {
+       "id": "village_soldier_3",
+       "team": "enemy",
+       "kind": "soldier",
+       "x": 2,
+       "z": 8,
+       "yaw": 3.1,
+       "hp": 60,
+       "hpMax": 60,
+       "posture": 50,
+       "postureMax": 50,
+       "radius": 0.3,
+       "armor": "light",
+       "alive": true,
+       "state": "idle",
+       "blocking": false,
+       "parryT": 0,
+       "counterT": 0,
+       "move": null,
+       "dodgeT": 0,
+       "staggerT": 0,
+       "hitT": 0,
+       "recoilT": 0,
+       "noRegenT": 0,
+       "telegraphing": false,
+       "aware": true,
+       "pendingEvents": []
+      },
+      "brain": {
+       "id": "village_soldier_3",
+       "kind": "soldier",
+       "home": {
+        "x": 2,
+        "z": 8
+       },
+       "position": {
+        "x": 2,
+        "z": 8
+       },
+       "exit": {
+        "x": 92,
+        "z": -6
+       },
+       "patrol": [],
+       "patrolIndex": 0,
+       "state": "combat",
+       "awareness": 1,
+       "lastSeen": {
+        "x": -32,
+        "z": -8
+       },
+       "searchTimer": 0,
+       "morale": 100,
+       "isolated": false,
+       "seed": 3848711776,
+       "randomCounter": 0,
+       "allyAlert": null,
+       "orbitTimer": 0,
+       "orbitDirection": 1,
+       "orbitRadius": null,
+       "aimTimer": 0,
+       "tokenHeld": false,
+       "attackObserved": false,
+       "combo": 0,
+       "comboTimer": 0,
+       "rallied": false,
+       "departed": false,
+       "heard": false,
+       "noiseKeys": []
+      }
+     },
+     {
+      "def": {
+       "id": "village_archer",
+       "kind": "archer",
+       "x": -16,
+       "z": 6,
+       "yaw": 2,
+       "idleClip": "Long_Breathe_and_Look_Around",
+       "group": "village_enemies"
+      },
+      "fighter": {
+       "id": "village_archer",
+       "team": "enemy",
+       "kind": "archer",
+       "x": -16,
+       "z": 6,
+       "yaw": 2,
+       "hp": 40,
+       "hpMax": 40,
+       "posture": 40,
+       "postureMax": 40,
+       "radius": 0.3,
+       "armor": "none",
+       "alive": true,
+       "state": "idle",
+       "blocking": false,
+       "parryT": 0,
+       "counterT": 0,
+       "move": null,
+       "dodgeT": 0,
+       "staggerT": 0,
+       "hitT": 0,
+       "recoilT": 0,
+       "noRegenT": 0,
+       "telegraphing": false,
+       "aware": true,
+       "pendingEvents": []
+      },
+      "brain": {
+       "id": "village_archer",
+       "kind": "archer",
+       "home": {
+        "x": -16,
+        "z": 6
+       },
+       "position": {
+        "x": -16,
+        "z": 6
+       },
+       "exit": {
+        "x": 92,
+        "z": -6
+       },
+       "patrol": [],
+       "patrolIndex": 0,
+       "state": "combat",
+       "awareness": 1,
+       "lastSeen": {
+        "x": -32,
+        "z": -8
+       },
+       "searchTimer": 0,
+       "morale": 100,
+       "isolated": false,
+       "seed": 1650828475,
+       "randomCounter": 0,
+       "allyAlert": null,
+       "orbitTimer": 0,
+       "orbitDirection": 1,
+       "orbitRadius": null,
+       "aimTimer": 0,
+       "tokenHeld": false,
+       "attackObserved": false,
+       "combo": 0,
+       "comboTimer": 0,
+       "rallied": false,
+       "departed": false,
+       "heard": false,
+       "noiseKeys": []
+      }
+     },
+     {
+      "def": {
+       "id": "officer",
+       "kind": "officer",
+       "x": -6,
+       "z": 4,
+       "yaw": 1.6,
+       "idleClip": "Sword_Shout",
+       "group": "village_enemies"
+      },
+      "fighter": {
+       "id": "officer",
+       "team": "enemy",
+       "kind": "officer",
+       "x": -6,
+       "z": 4,
+       "yaw": 1.6,
+       "hp": 200,
+       "hpMax": 200,
+       "posture": 120,
+       "postureMax": 120,
+       "radius": 0.3,
+       "armor": "heavy",
+       "alive": true,
+       "state": "idle",
+       "blocking": false,
+       "parryT": 0,
+       "counterT": 0,
+       "move": null,
+       "dodgeT": 0,
+       "staggerT": 0,
+       "hitT": 0,
+       "recoilT": 0,
+       "noRegenT": 0,
+       "telegraphing": false,
+       "aware": true,
+       "pendingEvents": []
+      },
+      "brain": {
+       "id": "officer",
+       "kind": "officer",
+       "home": {
+        "x": -6,
+        "z": 4
+       },
+       "position": {
+        "x": -6,
+        "z": 4
+       },
+       "exit": {
+        "x": 92,
+        "z": -6
+       },
+       "patrol": [],
+       "patrolIndex": 0,
+       "state": "combat",
+       "awareness": 1,
+       "lastSeen": {
+        "x": -32,
+        "z": -8
+       },
+       "searchTimer": 0,
+       "morale": 100,
+       "isolated": false,
+       "seed": 3249485689,
+       "randomCounter": 0,
+       "allyAlert": null,
+       "orbitTimer": 0,
+       "orbitDirection": 1,
+       "orbitRadius": null,
+       "aimTimer": 0,
+       "tokenHeld": false,
+       "attackObserved": false,
+       "combo": 0,
+       "comboTimer": 0,
+       "rallied": false,
+       "departed": false,
+       "heard": false,
+       "noiseKeys": []
+      }
+     }
+    ]
+   },
+   "variation": "正面入口内側(-32,-8)開始",
+   "warmupFrames": {
+    "frames": 600,
+    "seconds": 7.155599999994039,
+    "excluded": true
+   },
+   "seconds": 20.2,
+   "summary": {
+    "ms": {
+     "n": 1800,
+     "mean": 11.233833333320106,
+     "min": 9.599999994039536,
+     "p50": 11.099999994039536,
+     "p95": 12.300000011920929,
+     "p99": 13.099999994039536,
+     "max": 74.2999999821186
+    },
+    "calls": {
+     "n": 1800,
+     "mean": 537.3827777777805,
+     "min": 409,
+     "p50": 535,
+     "p95": 582,
+     "p99": 587,
+     "max": 594
+    },
+    "tris": {
+     "n": 1800,
+     "mean": 4460771.321666668,
+     "min": 3534601,
+     "p50": 4565957,
+     "p95": 4619563,
+     "p99": 4633073,
+     "max": 4661716
+    }
+   },
+   "judgement": {
+    "pass": true,
+    "p95": 12.300000011920929,
+    "maxCalls": 594,
+    "maxTris": 4661716,
+    "reasons": []
+   },
+   "counts": {
+    "samples": 9,
+    "inputs": 101,
+    "positions": 1800,
+    "refills": 7,
+    "chunkSwaps": 2,
+    "endpointTurns": 0
+   },
+   "scope": "このOS・Chrome・GPU・電源・ヘッドレスの条件だけ。他端末へ当てはめない。"
+  },
+  {
+   "name": "standard-move-1",
+   "scene": "move",
+   "run": 1,
+   "quality": "standard",
+   "seed": 1333,
+   "initial": {
+    "hero": {
+     "x": -74,
+     "y": 20.48813453580084,
+     "z": -66
+    },
+    "beat": "b2_road",
+    "route": [
+     {
+      "x": -74,
+      "z": -66
+     },
+     {
+      "x": -74,
+      "z": -66
+     },
+     {
+      "x": -62,
+      "z": -60
+     },
+     {
+      "x": -48,
+      "z": -55
+     },
+     {
+      "x": -36,
+      "z": -48
+     },
+     {
+      "x": -38,
+      "z": -38
+     },
+     {
+      "x": -50,
+      "z": -34
+     },
+     {
+      "x": -60,
+      "z": -28
+     },
+     {
+      "x": -56,
+      "z": -20
+     },
+     {
+      "x": -44,
+      "z": -14
+     },
+     {
+      "x": -32,
+      "z": -8
+     },
+     {
+      "x": -22,
+      "z": -3
+     },
+     {
+      "x": -10,
+      "z": 1
+     },
+     {
+      "x": -34,
+      "z": -4
+     }
+    ],
+    "initialIndex": 0,
+    "direction": 1,
+    "enemies": [
+     {
+      "def": {
+       "id": "village_soldier_1",
+       "kind": "soldier",
+       "x": -24,
+       "z": 2,
+       "yaw": 1.6,
+       "idleClip": "Male_Bend_Over_Pick_Up",
+       "group": "village_enemies"
+      },
+      "fighter": {
+       "id": "village_soldier_1",
+       "team": "enemy",
+       "kind": "soldier",
+       "x": -24,
+       "z": 2,
+       "yaw": 1.6,
+       "hp": 60,
+       "hpMax": 60,
+       "posture": 50,
+       "postureMax": 50,
+       "radius": 0.3,
+       "armor": "light",
+       "alive": true,
+       "state": "idle",
+       "blocking": false,
+       "parryT": 0,
+       "counterT": 0,
+       "move": null,
+       "dodgeT": 0,
+       "staggerT": 0,
+       "hitT": 0,
+       "recoilT": 0,
+       "noRegenT": 0,
+       "telegraphing": false,
+       "aware": false,
+       "pendingEvents": []
+      },
+      "brain": {
+       "id": "village_soldier_1",
+       "kind": "soldier",
+       "home": {
+        "x": -24,
+        "z": 2
+       },
+       "position": {
+        "x": -24,
+        "z": 2
+       },
+       "exit": {
+        "x": 92,
+        "z": -6
+       },
+       "patrol": [],
+       "patrolIndex": 0,
+       "state": "patrol",
+       "awareness": 0,
+       "lastSeen": null,
+       "searchTimer": 0,
+       "morale": 100,
+       "isolated": false,
+       "seed": 3882267014,
+       "randomCounter": 0,
+       "allyAlert": null,
+       "orbitTimer": 0,
+       "orbitDirection": 1,
+       "orbitRadius": null,
+       "aimTimer": 0,
+       "tokenHeld": false,
+       "attackObserved": false,
+       "combo": 0,
+       "comboTimer": 0,
+       "rallied": false,
+       "departed": false,
+       "heard": false,
+       "noiseKeys": []
+      }
+     },
+     {
+      "def": {
+       "id": "village_soldier_2",
+       "kind": "soldier",
+       "x": -20,
+       "z": 10,
+       "yaw": 2.4,
+       "idleClip": "Stand_and_Chat",
+       "group": "village_enemies"
+      },
+      "fighter": {
+       "id": "village_soldier_2",
+       "team": "enemy",
+       "kind": "soldier",
+       "x": -20,
+       "z": 10,
+       "yaw": 2.4,
+       "hp": 60,
+       "hpMax": 60,
+       "posture": 50,
+       "postureMax": 50,
+       "radius": 0.3,
+       "armor": "light",
+       "alive": true,
+       "state": "idle",
+       "blocking": false,
+       "parryT": 0,
+       "counterT": 0,
+       "move": null,
+       "dodgeT": 0,
+       "staggerT": 0,
+       "hitT": 0,
+       "recoilT": 0,
+       "noRegenT": 0,
+       "telegraphing": false,
+       "aware": false,
+       "pendingEvents": []
+      },
+      "brain": {
+       "id": "village_soldier_2",
+       "kind": "soldier",
+       "home": {
+        "x": -20,
+        "z": 10
+       },
+       "position": {
+        "x": -20,
+        "z": 10
+       },
+       "exit": {
+        "x": 92,
+        "z": -6
+       },
+       "patrol": [],
+       "patrolIndex": 0,
+       "state": "patrol",
+       "awareness": 0,
+       "lastSeen": null,
+       "searchTimer": 0,
+       "morale": 100,
+       "isolated": false,
+       "seed": 3865489395,
+       "randomCounter": 0,
+       "allyAlert": null,
+       "orbitTimer": 0,
+       "orbitDirection": 1,
+       "orbitRadius": null,
+       "aimTimer": 0,
+       "tokenHeld": false,
+       "attackObserved": false,
+       "combo": 0,
+       "comboTimer": 0,
+       "rallied": false,
+       "departed": false,
+       "heard": false,
+       "noiseKeys": []
+      }
+     },
+     {
+      "def": {
+       "id": "village_soldier_3",
+       "kind": "soldier",
+       "x": 2,
+       "z": 8,
+       "yaw": 3.1,
+       "idleClip": "Long_Breathe_and_Look_Around",
+       "group": "village_enemies"
+      },
+      "fighter": {
+       "id": "village_soldier_3",
+       "team": "enemy",
+       "kind": "soldier",
+       "x": 2,
+       "z": 8,
+       "yaw": 3.1,
+       "hp": 60,
+       "hpMax": 60,
+       "posture": 50,
+       "postureMax": 50,
+       "radius": 0.3,
+       "armor": "light",
+       "alive": true,
+       "state": "idle",
+       "blocking": false,
+       "parryT": 0,
+       "counterT": 0,
+       "move": null,
+       "dodgeT": 0,
+       "staggerT": 0,
+       "hitT": 0,
+       "recoilT": 0,
+       "noRegenT": 0,
+       "telegraphing": false,
+       "aware": false,
+       "pendingEvents": []
+      },
+      "brain": {
+       "id": "village_soldier_3",
+       "kind": "soldier",
+       "home": {
+        "x": 2,
+        "z": 8
+       },
+       "position": {
+        "x": 2,
+        "z": 8
+       },
+       "exit": {
+        "x": 92,
+        "z": -6
+       },
+       "patrol": [],
+       "patrolIndex": 0,
+       "state": "patrol",
+       "awareness": 0,
+       "lastSeen": null,
+       "searchTimer": 0,
+       "morale": 100,
+       "isolated": false,
+       "seed": 3848711776,
+       "randomCounter": 0,
+       "allyAlert": null,
+       "orbitTimer": 0,
+       "orbitDirection": 1,
+       "orbitRadius": null,
+       "aimTimer": 0,
+       "tokenHeld": false,
+       "attackObserved": false,
+       "combo": 0,
+       "comboTimer": 0,
+       "rallied": false,
+       "departed": false,
+       "heard": false,
+       "noiseKeys": []
+      }
+     },
+     {
+      "def": {
+       "id": "village_archer",
+       "kind": "archer",
+       "x": -16,
+       "z": 6,
+       "yaw": 2,
+       "idleClip": "Long_Breathe_and_Look_Around",
+       "group": "village_enemies"
+      },
+      "fighter": {
+       "id": "village_archer",
+       "team": "enemy",
+       "kind": "archer",
+       "x": -16,
+       "z": 6,
+       "yaw": 2,
+       "hp": 40,
+       "hpMax": 40,
+       "posture": 40,
+       "postureMax": 40,
+       "radius": 0.3,
+       "armor": "none",
+       "alive": true,
+       "state": "idle",
+       "blocking": false,
+       "parryT": 0,
+       "counterT": 0,
+       "move": null,
+       "dodgeT": 0,
+       "staggerT": 0,
+       "hitT": 0,
+       "recoilT": 0,
+       "noRegenT": 0,
+       "telegraphing": false,
+       "aware": false,
+       "pendingEvents": []
+      },
+      "brain": {
+       "id": "village_archer",
+       "kind": "archer",
+       "home": {
+        "x": -16,
+        "z": 6
+       },
+       "position": {
+        "x": -16,
+        "z": 6
+       },
+       "exit": {
+        "x": 92,
+        "z": -6
+       },
+       "patrol": [],
+       "patrolIndex": 0,
+       "state": "patrol",
+       "awareness": 0,
+       "lastSeen": null,
+       "searchTimer": 0,
+       "morale": 100,
+       "isolated": false,
+       "seed": 1650828475,
+       "randomCounter": 0,
+       "allyAlert": null,
+       "orbitTimer": 0,
+       "orbitDirection": 1,
+       "orbitRadius": null,
+       "aimTimer": 0,
+       "tokenHeld": false,
+       "attackObserved": false,
+       "combo": 0,
+       "comboTimer": 0,
+       "rallied": false,
+       "departed": false,
+       "heard": false,
+       "noiseKeys": []
+      }
+     },
+     {
+      "def": {
+       "id": "officer",
+       "kind": "officer",
+       "x": -6,
+       "z": 4,
+       "yaw": 1.6,
+       "idleClip": "Sword_Shout",
+       "group": "village_enemies"
+      },
+      "fighter": {
+       "id": "officer",
+       "team": "enemy",
+       "kind": "officer",
+       "x": -6,
+       "z": 4,
+       "yaw": 1.6,
+       "hp": 200,
+       "hpMax": 200,
+       "posture": 120,
+       "postureMax": 120,
+       "radius": 0.3,
+       "armor": "heavy",
+       "alive": true,
+       "state": "idle",
+       "blocking": false,
+       "parryT": 0,
+       "counterT": 0,
+       "move": null,
+       "dodgeT": 0,
+       "staggerT": 0,
+       "hitT": 0,
+       "recoilT": 0,
+       "noRegenT": 0,
+       "telegraphing": false,
+       "aware": false,
+       "pendingEvents": []
+      },
+      "brain": {
+       "id": "officer",
+       "kind": "officer",
+       "home": {
+        "x": -6,
+        "z": 4
+       },
+       "position": {
+        "x": -6,
+        "z": 4
+       },
+       "exit": {
+        "x": 92,
+        "z": -6
+       },
+       "patrol": [],
+       "patrolIndex": 0,
+       "state": "patrol",
+       "awareness": 0,
+       "lastSeen": null,
+       "searchTimer": 0,
+       "morale": 100,
+       "isolated": false,
+       "seed": 3249485689,
+       "randomCounter": 0,
+       "allyAlert": null,
+       "orbitTimer": 0,
+       "orbitDirection": 1,
+       "orbitRadius": null,
+       "aimTimer": 0,
+       "tokenHeld": false,
+       "attackObserved": false,
+       "combo": 0,
+       "comboTimer": 0,
+       "rallied": false,
+       "departed": false,
+       "heard": false,
+       "noiseKeys": []
+      }
+     }
+    ]
+   },
+   "variation": "基準開始点・正順",
+   "warmupFrames": {
+    "frames": 600,
+    "seconds": 8.210200000017881,
+    "excluded": true
+   },
+   "seconds": 21.1,
+   "summary": {
+    "ms": {
+     "n": 1800,
+     "mean": 11.723499999990107,
+     "min": 8.899999976158142,
+     "p50": 11.5,
+     "p95": 14.599999994039536,
+     "p99": 15.400000005960464,
+     "max": 86.59999999403954
+    },
+    "calls": {
+     "n": 1800,
+     "mean": 529.8222222222214,
+     "min": 298,
+     "p50": 571,
+     "p95": 638,
+     "p99": 643,
+     "max": 645
+    },
+    "tris": {
+     "n": 1800,
+     "mean": 4184147.8966666777,
+     "min": 3337455,
+     "p50": 4308191,
+     "p95": 4774607,
+     "p99": 4892556,
+     "max": 4892556
+    }
+   },
+   "judgement": {
+    "pass": true,
+    "p95": 14.599999994039536,
+    "maxCalls": 645,
+    "maxTris": 4892556,
+    "reasons": []
+   },
+   "counts": {
+    "samples": 9,
+    "inputs": 14,
+    "positions": 1800,
+    "refills": 0,
+    "chunkSwaps": 2,
+    "endpointTurns": 0
+   },
+   "scope": "このOS・Chrome・GPU・電源・ヘッドレスの条件だけ。他端末へ当てはめない。"
+  },
+  {
+   "name": "standard-move-2",
+   "scene": "move",
+   "run": 2,
+   "quality": "standard",
+   "seed": 1333,
+   "initial": {
+    "hero": {
+     "x": -60,
+     "y": 7.728269756169154,
+     "z": -28
+    },
+    "beat": "b2_road",
+    "route": [
+     {
+      "x": -74,
+      "z": -66
+     },
+     {
+      "x": -74,
+      "z": -66
+     },
+     {
+      "x": -62,
+      "z": -60
+     },
+     {
+      "x": -48,
+      "z": -55
+     },
+     {
+      "x": -36,
+      "z": -48
+     },
+     {
+      "x": -38,
+      "z": -38
+     },
+     {
+      "x": -50,
+      "z": -34
+     },
+     {
+      "x": -60,
+      "z": -28
+     },
+     {
+      "x": -56,
+      "z": -20
+     },
+     {
+      "x": -44,
+      "z": -14
+     },
+     {
+      "x": -32,
+      "z": -8
+     },
+     {
+      "x": -22,
+      "z": -3
+     },
+     {
+      "x": -10,
+      "z": 1
+     },
+     {
+      "x": -34,
+      "z": -4
+     }
+    ],
+    "initialIndex": 7,
+    "direction": -1,
+    "enemies": [
+     {
+      "def": {
+       "id": "village_soldier_1",
+       "kind": "soldier",
+       "x": -24,
+       "z": 2,
+       "yaw": 1.6,
+       "idleClip": "Male_Bend_Over_Pick_Up",
+       "group": "village_enemies"
+      },
+      "fighter": {
+       "id": "village_soldier_1",
+       "team": "enemy",
+       "kind": "soldier",
+       "x": -24,
+       "z": 2,
+       "yaw": 1.6,
+       "hp": 60,
+       "hpMax": 60,
+       "posture": 50,
+       "postureMax": 50,
+       "radius": 0.3,
+       "armor": "light",
+       "alive": true,
+       "state": "idle",
+       "blocking": false,
+       "parryT": 0,
+       "counterT": 0,
+       "move": null,
+       "dodgeT": 0,
+       "staggerT": 0,
+       "hitT": 0,
+       "recoilT": 0,
+       "noRegenT": 0,
+       "telegraphing": false,
+       "aware": false,
+       "pendingEvents": []
+      },
+      "brain": {
+       "id": "village_soldier_1",
+       "kind": "soldier",
+       "home": {
+        "x": -24,
+        "z": 2
+       },
+       "position": {
+        "x": -24,
+        "z": 2
+       },
+       "exit": {
+        "x": 92,
+        "z": -6
+       },
+       "patrol": [],
+       "patrolIndex": 0,
+       "state": "patrol",
+       "awareness": 0,
+       "lastSeen": null,
+       "searchTimer": 0,
+       "morale": 100,
+       "isolated": false,
+       "seed": 3882267014,
+       "randomCounter": 0,
+       "allyAlert": null,
+       "orbitTimer": 0,
+       "orbitDirection": 1,
+       "orbitRadius": null,
+       "aimTimer": 0,
+       "tokenHeld": false,
+       "attackObserved": false,
+       "combo": 0,
+       "comboTimer": 0,
+       "rallied": false,
+       "departed": false,
+       "heard": false,
+       "noiseKeys": []
+      }
+     },
+     {
+      "def": {
+       "id": "village_soldier_2",
+       "kind": "soldier",
+       "x": -20,
+       "z": 10,
+       "yaw": 2.4,
+       "idleClip": "Stand_and_Chat",
+       "group": "village_enemies"
+      },
+      "fighter": {
+       "id": "village_soldier_2",
+       "team": "enemy",
+       "kind": "soldier",
+       "x": -20,
+       "z": 10,
+       "yaw": 2.4,
+       "hp": 60,
+       "hpMax": 60,
+       "posture": 50,
+       "postureMax": 50,
+       "radius": 0.3,
+       "armor": "light",
+       "alive": true,
+       "state": "idle",
+       "blocking": false,
+       "parryT": 0,
+       "counterT": 0,
+       "move": null,
+       "dodgeT": 0,
+       "staggerT": 0,
+       "hitT": 0,
+       "recoilT": 0,
+       "noRegenT": 0,
+       "telegraphing": false,
+       "aware": false,
+       "pendingEvents": []
+      },
+      "brain": {
+       "id": "village_soldier_2",
+       "kind": "soldier",
+       "home": {
+        "x": -20,
+        "z": 10
+       },
+       "position": {
+        "x": -20,
+        "z": 10
+       },
+       "exit": {
+        "x": 92,
+        "z": -6
+       },
+       "patrol": [],
+       "patrolIndex": 0,
+       "state": "patrol",
+       "awareness": 0,
+       "lastSeen": null,
+       "searchTimer": 0,
+       "morale": 100,
+       "isolated": false,
+       "seed": 3865489395,
+       "randomCounter": 0,
+       "allyAlert": null,
+       "orbitTimer": 0,
+       "orbitDirection": 1,
+       "orbitRadius": null,
+       "aimTimer": 0,
+       "tokenHeld": false,
+       "attackObserved": false,
+       "combo": 0,
+       "comboTimer": 0,
+       "rallied": false,
+       "departed": false,
+       "heard": false,
+       "noiseKeys": []
+      }
+     },
+     {
+      "def": {
+       "id": "village_soldier_3",
+       "kind": "soldier",
+       "x": 2,
+       "z": 8,
+       "yaw": 3.1,
+       "idleClip": "Long_Breathe_and_Look_Around",
+       "group": "village_enemies"
+      },
+      "fighter": {
+       "id": "village_soldier_3",
+       "team": "enemy",
+       "kind": "soldier",
+       "x": 2,
+       "z": 8,
+       "yaw": 3.1,
+       "hp": 60,
+       "hpMax": 60,
+       "posture": 50,
+       "postureMax": 50,
+       "radius": 0.3,
+       "armor": "light",
+       "alive": true,
+       "state": "idle",
+       "blocking": false,
+       "parryT": 0,
+       "counterT": 0,
+       "move": null,
+       "dodgeT": 0,
+       "staggerT": 0,
+       "hitT": 0,
+       "recoilT": 0,
+       "noRegenT": 0,
+       "telegraphing": false,
+       "aware": false,
+       "pendingEvents": []
+      },
+      "brain": {
+       "id": "village_soldier_3",
+       "kind": "soldier",
+       "home": {
+        "x": 2,
+        "z": 8
+       },
+       "position": {
+        "x": 2,
+        "z": 8
+       },
+       "exit": {
+        "x": 92,
+        "z": -6
+       },
+       "patrol": [],
+       "patrolIndex": 0,
+       "state": "patrol",
+       "awareness": 0,
+       "lastSeen": null,
+       "searchTimer": 0,
+       "morale": 100,
+       "isolated": false,
+       "seed": 3848711776,
+       "randomCounter": 0,
+       "allyAlert": null,
+       "orbitTimer": 0,
+       "orbitDirection": 1,
+       "orbitRadius": null,
+       "aimTimer": 0,
+       "tokenHeld": false,
+       "attackObserved": false,
+       "combo": 0,
+       "comboTimer": 0,
+       "rallied": false,
+       "departed": false,
+       "heard": false,
+       "noiseKeys": []
+      }
+     },
+     {
+      "def": {
+       "id": "village_archer",
+       "kind": "archer",
+       "x": -16,
+       "z": 6,
+       "yaw": 2,
+       "idleClip": "Long_Breathe_and_Look_Around",
+       "group": "village_enemies"
+      },
+      "fighter": {
+       "id": "village_archer",
+       "team": "enemy",
+       "kind": "archer",
+       "x": -16,
+       "z": 6,
+       "yaw": 2,
+       "hp": 40,
+       "hpMax": 40,
+       "posture": 40,
+       "postureMax": 40,
+       "radius": 0.3,
+       "armor": "none",
+       "alive": true,
+       "state": "idle",
+       "blocking": false,
+       "parryT": 0,
+       "counterT": 0,
+       "move": null,
+       "dodgeT": 0,
+       "staggerT": 0,
+       "hitT": 0,
+       "recoilT": 0,
+       "noRegenT": 0,
+       "telegraphing": false,
+       "aware": false,
+       "pendingEvents": []
+      },
+      "brain": {
+       "id": "village_archer",
+       "kind": "archer",
+       "home": {
+        "x": -16,
+        "z": 6
+       },
+       "position": {
+        "x": -16,
+        "z": 6
+       },
+       "exit": {
+        "x": 92,
+        "z": -6
+       },
+       "patrol": [],
+       "patrolIndex": 0,
+       "state": "patrol",
+       "awareness": 0,
+       "lastSeen": null,
+       "searchTimer": 0,
+       "morale": 100,
+       "isolated": false,
+       "seed": 1650828475,
+       "randomCounter": 0,
+       "allyAlert": null,
+       "orbitTimer": 0,
+       "orbitDirection": 1,
+       "orbitRadius": null,
+       "aimTimer": 0,
+       "tokenHeld": false,
+       "attackObserved": false,
+       "combo": 0,
+       "comboTimer": 0,
+       "rallied": false,
+       "departed": false,
+       "heard": false,
+       "noiseKeys": []
+      }
+     },
+     {
+      "def": {
+       "id": "officer",
+       "kind": "officer",
+       "x": -6,
+       "z": 4,
+       "yaw": 1.6,
+       "idleClip": "Sword_Shout",
+       "group": "village_enemies"
+      },
+      "fighter": {
+       "id": "officer",
+       "team": "enemy",
+       "kind": "officer",
+       "x": -6,
+       "z": 4,
+       "yaw": 1.6,
+       "hp": 200,
+       "hpMax": 200,
+       "posture": 120,
+       "postureMax": 120,
+       "radius": 0.3,
+       "armor": "heavy",
+       "alive": true,
+       "state": "idle",
+       "blocking": false,
+       "parryT": 0,
+       "counterT": 0,
+       "move": null,
+       "dodgeT": 0,
+       "staggerT": 0,
+       "hitT": 0,
+       "recoilT": 0,
+       "noRegenT": 0,
+       "telegraphing": false,
+       "aware": false,
+       "pendingEvents": []
+      },
+      "brain": {
+       "id": "officer",
+       "kind": "officer",
+       "home": {
+        "x": -6,
+        "z": 4
+       },
+       "position": {
+        "x": -6,
+        "z": 4
+       },
+       "exit": {
+        "x": 92,
+        "z": -6
+       },
+       "patrol": [],
+       "patrolIndex": 0,
+       "state": "patrol",
+       "awareness": 0,
+       "lastSeen": null,
+       "searchTimer": 0,
+       "morale": 100,
+       "isolated": false,
+       "seed": 3249485689,
+       "randomCounter": 0,
+       "allyAlert": null,
+       "orbitTimer": 0,
+       "orbitDirection": 1,
+       "orbitRadius": null,
+       "aimTimer": 0,
+       "tokenHeld": false,
+       "attackObserved": false,
+       "combo": 0,
+       "comboTimer": 0,
+       "rallied": false,
+       "departed": false,
+       "heard": false,
+       "noiseKeys": []
+      }
+     }
+    ]
+   },
+   "variation": "道筋の中点・逆順開始",
+   "warmupFrames": {
+    "frames": 600,
+    "seconds": 6.385299999982118,
+    "excluded": true
+   },
+   "seconds": 20.5,
+   "summary": {
+    "ms": {
+     "n": 1800,
+     "mean": 11.385277777728165,
+     "min": 8.699999988079071,
+     "p50": 10.900000005960464,
+     "p95": 14.199999988079071,
+     "p99": 15,
+     "max": 86.19999998807907
+    },
+    "calls": {
+     "n": 1800,
+     "mean": 467.03055555555346,
+     "min": 303,
+     "p50": 421,
+     "p95": 637,
+     "p99": 643,
+     "max": 645
+    },
+    "tris": {
+     "n": 1800,
+     "mean": 3842793.6933333236,
+     "min": 3356219,
+     "p50": 3827965,
+     "p95": 4323906,
+     "p99": 4382257,
+     "max": 4396395
+    }
+   },
+   "judgement": {
+    "pass": true,
+    "p95": 14.199999988079071,
+    "maxCalls": 645,
+    "maxTris": 4396395,
+    "reasons": []
+   },
+   "counts": {
+    "samples": 9,
+    "inputs": 15,
+    "positions": 1800,
+    "refills": 0,
+    "chunkSwaps": 2,
+    "endpointTurns": 1
+   },
+   "scope": "このOS・Chrome・GPU・電源・ヘッドレスの条件だけ。他端末へ当てはめない。"
+  }
+ ]
+}

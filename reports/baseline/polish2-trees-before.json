@@ -1,0 +1,26 @@
+{
+  "all": [
+    13778,
+    258,
+    1794
+  ],
+  "walkable": [
+    501,
+    87,
+    83
+  ],
+  "reachable": [
+    484,
+    85,
+    76
+  ],
+  "total": {
+    "all": 15830,
+    "walkable": 671,
+    "reachable": 645
+  },
+  "ratios": {
+    "reachableNonCedarPct": 24.96124031007752,
+    "reachableBroadleafPct": 13.178294573643413
+  }
+}

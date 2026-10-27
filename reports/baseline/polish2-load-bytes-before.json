@@ -1,0 +1,575 @@
+{
+ "note": "URLごとの非圧縮の本体バイト。重複なし・data:とHTTPヘッダーは除く。URLは配信元相対。 2026-10-27の前測定（実ブラウザ・通しの遊び）。blob: は通信ではないので除く。",
+ "complete": true,
+ "stages": [
+  "b0_temple",
+  "b1_boy",
+  "b2_road",
+  "b3_viewpoint",
+  "b4_village",
+  "b5_archer",
+  "b6_escort",
+  "b7_result",
+  "done"
+ ],
+ "bytes": 105390183,
+ "MiB": 100.50791072845459,
+ "files": [
+  {
+   "url": "/assets/characters/officer.glb",
+   "bytes": 11104372,
+   "MiB": 10.589954376220703
+  },
+  {
+   "url": "/assets/characters/soldier.glb",
+   "bytes": 9539044,
+   "MiB": 9.09714126586914
+  },
+  {
+   "url": "/assets/characters/villager_f.glb",
+   "bytes": 8563364,
+   "MiB": 8.16666030883789
+  },
+  {
+   "url": "/assets/characters/villager_m.glb",
+   "bytes": 8394544,
+   "MiB": 8.005661010742188
+  },
+  {
+   "url": "/assets/characters/child.glb",
+   "bytes": 8302588,
+   "MiB": 7.917964935302734
+  },
+  {
+   "url": "/assets/characters/hero.glb",
+   "bytes": 8262348,
+   "MiB": 7.879589080810547
+  },
+  {
+   "url": "/assets/characters/archer.glb",
+   "bytes": 7801280,
+   "MiB": 7.43988037109375
+  },
+  {
+   "url": "/assets/valley/models/temple.glb",
+   "bytes": 5452120,
+   "MiB": 5.199546813964844
+  },
+  {
+   "url": "/assets/valley/models/farmhouse.glb",
+   "bytes": 3539308,
+   "MiB": 3.375347137451172
+  },
+  {
+   "url": "/assets/valley/models/fort.glb",
+   "bytes": 1589156,
+   "MiB": 1.5155372619628906
+  },
+  {
+   "url": "/assets/valley/terrain/litter_n.jpg",
+   "bytes": 1587102,
+   "MiB": 1.5135784149169922
+  },
+  {
+   "url": "/assets/valley/terrain/mud_n.jpg",
+   "bytes": 1397011,
+   "MiB": 1.3322935104370117
+  },
+  {
+   "url": "/assets/valley/terrain/gravel_n.jpg",
+   "bytes": 1365737,
+   "MiB": 1.3024682998657227
+  },
+  {
+   "url": "/assets/valley/models/cart.glb",
+   "bytes": 1338216,
+   "MiB": 1.2762222290039062
+  },
+  {
+   "url": "/assets/valley/models/barricade.glb",
+   "bytes": 1332768,
+   "MiB": 1.271026611328125
+  },
+  {
+   "url": "/assets/valley/terrain/grass_n.jpg",
+   "bytes": 1310516,
+   "MiB": 1.2498054504394531
+  },
+  {
+   "url": "/assets/valley/models/gatehouse.glb",
+   "bytes": 1277372,
+   "MiB": 1.2181968688964844
+  },
+  {
+   "url": "/assets/valley/models/hasa.glb",
+   "bytes": 1259088,
+   "MiB": 1.2007598876953125
+  },
+  {
+   "url": "/assets/valley/models/naya.glb",
+   "bytes": 1238004,
+   "MiB": 1.1806526184082031
+  },
+  {
+   "url": "/assets/valley/models/wara.glb",
+   "bytes": 1191000,
+   "MiB": 1.1358261108398438
+  },
+  {
+   "url": "/assets/valley/terrain/rock_n.jpg",
+   "bytes": 1177932,
+   "MiB": 1.1233634948730469
+  },
+  {
+   "url": "/assets/valley/models/well.glb",
+   "bytes": 1170796,
+   "MiB": 1.1165580749511719
+  },
+  {
+   "url": "/assets/valley/terrain/dirt_n.jpg",
+   "bytes": 1167485,
+   "MiB": 1.1134004592895508
+  },
+  {
+   "url": "/assets/valley/terrain/gravel_c.jpg",
+   "bytes": 1028735,
+   "MiB": 0.9810781478881836
+  },
+  {
+   "url": "/assets/valley/models/dozo.glb",
+   "bytes": 1027640,
+   "MiB": 0.9800338745117188
+  },
+  {
+   "url": "/assets/valley/models/lantern.glb",
+   "bytes": 979412,
+   "MiB": 0.9340400695800781
+  },
+  {
+   "url": "/assets/valley/models/firepit.glb",
+   "bytes": 972544,
+   "MiB": 0.927490234375
+  },
+  {
+   "url": "/assets/valley/models/hokora.glb",
+   "bytes": 938548,
+   "MiB": 0.8950691223144531
+  },
+  {
+   "url": "/assets/valley/terrain/dirt_c.jpg",
+   "bytes": 903417,
+   "MiB": 0.8615655899047852
+  },
+  {
+   "url": "/assets/valley/terrain/grass_c.jpg",
+   "bytes": 876584,
+   "MiB": 0.8359756469726562
+  },
+  {
+   "url": "/assets/valley/terrain/litter_c.jpg",
+   "bytes": 821191,
+   "MiB": 0.7831487655639648
+  },
+  {
+   "url": "/assets/valley/models/jizo.glb",
+   "bytes": 798500,
+   "MiB": 0.7615089416503906
+  },
+  {
+   "url": "/assets/valley/terrain/rock_c.jpg",
+   "bytes": 785923,
+   "MiB": 0.7495145797729492
+  },
+  {
+   "url": "/assets/valley/models/bridge.glb",
+   "bytes": 671588,
+   "MiB": 0.6404762268066406
+  },
+  {
+   "url": "/assets/valley/terrain/gravel_r.jpg",
+   "bytes": 642685,
+   "MiB": 0.6129121780395508
+  },
+  {
+   "url": "/assets/valley/terrain/mud_c.jpg",
+   "bytes": 527741,
+   "MiB": 0.5032930374145508
+  },
+  {
+   "url": "/assets/valley/models/kakashi.glb",
+   "bytes": 461616,
+   "MiB": 0.4402313232421875
+  },
+  {
+   "url": "/assets/valley/terrain/mud_r.jpg",
+   "bytes": 422119,
+   "MiB": 0.40256404876708984
+  },
+  {
+   "url": "/assets/valley/terrain/litter_r.jpg",
+   "bytes": 418230,
+   "MiB": 0.39885520935058594
+  },
+  {
+   "url": "/assets/valley/models/fence.glb",
+   "bytes": 412864,
+   "MiB": 0.39373779296875
+  },
+  {
+   "url": "/assets/valley/terrain/dirt_r.jpg",
+   "bytes": 389725,
+   "MiB": 0.3716707229614258
+  },
+  {
+   "url": "/assets/valley/terrain/rock_r.jpg",
+   "bytes": 381745,
+   "MiB": 0.3640604019165039
+  },
+  {
+   "url": "/vendor/three.core.min.js",
+   "bytes": 381124,
+   "MiB": 0.3634681701660156
+  },
+  {
+   "url": "/assets/valley/models/boulder.glb",
+   "bytes": 376480,
+   "MiB": 0.359039306640625
+  },
+  {
+   "url": "/vendor/three.module.min.js",
+   "bytes": 338908,
+   "MiB": 0.3232078552246094
+  },
+  {
+   "url": "/assets/valley/terrain/grass_r.jpg",
+   "bytes": 328190,
+   "MiB": 0.3129863739013672
+  },
+  {
+   "url": "/assets/valley/models/boulder_lo.glb",
+   "bytes": 326048,
+   "MiB": 0.310943603515625
+  },
+  {
+   "url": "/assets/valley/models/firewood.glb",
+   "bytes": 207156,
+   "MiB": 0.19755935668945312
+  },
+  {
+   "url": "/vendor/loaders/GLTFLoader.js",
+   "bytes": 114739,
+   "MiB": 0.10942363739013672
+  },
+  {
+   "url": "/valley/game.js",
+   "bytes": 43298,
+   "MiB": 0.04129219055175781
+  },
+  {
+   "url": "/valley/actors.js",
+   "bytes": 37639,
+   "MiB": 0.035895347595214844
+  },
+  {
+   "url": "/vendor/utils/BufferGeometryUtils.js",
+   "bytes": 35539,
+   "MiB": 0.03389263153076172
+  },
+  {
+   "url": "/valley/vegetation.js",
+   "bytes": 26343,
+   "MiB": 0.025122642517089844
+  },
+  {
+   "url": "/assets/characters/clips.json",
+   "bytes": 18161,
+   "MiB": 0.017319679260253906
+  },
+  {
+   "url": "/valley/terrain.js",
+   "bytes": 16269,
+   "MiB": 0.015515327453613281
+  },
+  {
+   "url": "/valley/combat.js",
+   "bytes": 15245,
+   "MiB": 0.014538764953613281
+  },
+  {
+   "url": "/valley/characters.js",
+   "bytes": 15137,
+   "MiB": 0.014435768127441406
+  },
+  {
+   "url": "/valley/battle.js",
+   "bytes": 14803,
+   "MiB": 0.014117240905761719
+  },
+  {
+   "url": "/valley/main.js",
+   "bytes": 14189,
+   "MiB": 0.013531684875488281
+  },
+  {
+   "url": "/valley/scatter.js",
+   "bytes": 13861,
+   "MiB": 0.013218879699707031
+  },
+  {
+   "url": "/valley/valley.css",
+   "bytes": 13744,
+   "MiB": 0.0131072998046875
+  },
+  {
+   "url": "/valley/terrain-height.js",
+   "bytes": 12849,
+   "MiB": 0.012253761291503906
+  },
+  {
+   "url": "/valley/world-data.js",
+   "bytes": 12500,
+   "MiB": 0.011920928955078125
+  },
+  {
+   "url": "/valley/enemy-ai.js",
+   "bytes": 11842,
+   "MiB": 0.011293411254882812
+  },
+  {
+   "url": "/valley/atmosphere.js",
+   "bytes": 11188,
+   "MiB": 0.010669708251953125
+  },
+  {
+   "url": "/valley/weapons.js",
+   "bytes": 11068,
+   "MiB": 0.010555267333984375
+  },
+  {
+   "url": "/vendor/utils/SkeletonUtils.js",
+   "bytes": 11062,
+   "MiB": 0.010549545288085938
+  },
+  {
+   "url": "/valley/collision.js",
+   "bytes": 10930,
+   "MiB": 0.010423660278320312
+  },
+  {
+   "url": "/valley/audio-valley.js",
+   "bytes": 9820,
+   "MiB": 0.009365081787109375
+  },
+  {
+   "url": "/valley/quest.js",
+   "bytes": 9711,
+   "MiB": 0.009261131286621094
+  },
+  {
+   "url": "/valley/hud.js",
+   "bytes": 8175,
+   "MiB": 0.007796287536621094
+  },
+  {
+   "url": "/valley/post.js",
+   "bytes": 7798,
+   "MiB": 0.0074367523193359375
+  },
+  {
+   "url": "/valley/fx.js",
+   "bytes": 7574,
+   "MiB": 0.0072231292724609375
+  },
+  {
+   "url": "/valley/buildings.js",
+   "bytes": 7519,
+   "MiB": 0.007170677185058594
+  },
+  {
+   "url": "/valley/props.js",
+   "bytes": 7380,
+   "MiB": 0.007038116455078125
+  },
+  {
+   "url": "/valley/nav.js",
+   "bytes": 7135,
+   "MiB": 0.006804466247558594
+  },
+  {
+   "url": "/audio.js",
+   "bytes": 7056,
+   "MiB": 0.0067291259765625
+  },
+  {
+   "url": "/valley/index.html?qa=1&intro=0&seed=1333&w=1280&h=720",
+   "bytes": 7017,
+   "MiB": 0.006691932678222656
+  },
+  {
+   "url": "/valley/anim-data.js",
+   "bytes": 6594,
+   "MiB": 0.0062885284423828125
+  },
+  {
+   "url": "/valley/camera-rig.js",
+   "bytes": 6511,
+   "MiB": 0.006209373474121094
+  },
+  {
+   "url": "/valley/qa.js",
+   "bytes": 6390,
+   "MiB": 0.0060939788818359375
+  },
+  {
+   "url": "/valley/grade.js",
+   "bytes": 6088,
+   "MiB": 0.00580596923828125
+  },
+  {
+   "url": "/valley/story-data.js",
+   "bytes": 6082,
+   "MiB": 0.0058002471923828125
+  },
+  {
+   "url": "/valley/water.js",
+   "bytes": 5672,
+   "MiB": 0.00540924072265625
+  },
+  {
+   "url": "/valley/bow.js",
+   "bytes": 5339,
+   "MiB": 0.005091667175292969
+  },
+  {
+   "url": "/valley/save.js",
+   "bytes": 4681,
+   "MiB": 0.004464149475097656
+  },
+  {
+   "url": "/valley/companion-ai.js",
+   "bytes": 4273,
+   "MiB": 0.004075050354003906
+  },
+  {
+   "url": "/valley/input.js",
+   "bytes": 3879,
+   "MiB": 0.0036993026733398438
+  },
+  {
+   "url": "/valley/wind.js",
+   "bytes": 3145,
+   "MiB": 0.0029993057250976562
+  },
+  {
+   "url": "/valley/world-colliders.js",
+   "bytes": 2871,
+   "MiB": 0.0027379989624023438
+  },
+  {
+   "url": "/valley/ai-world.js",
+   "bytes": 2845,
+   "MiB": 0.0027132034301757812
+  },
+  {
+   "url": "/valley/config.js",
+   "bytes": 2213,
+   "MiB": 0.0021104812622070312
+  },
+  {
+   "url": "/valley/ridges.js",
+   "bytes": 2175,
+   "MiB": 0.0020742416381835938
+  },
+  {
+   "url": "/valley/shots.js",
+   "bytes": 1970,
+   "MiB": 0.0018787384033203125
+  }
+ ],
+ "top15": [
+  {
+   "url": "/assets/characters/officer.glb",
+   "bytes": 11104372,
+   "MiB": 10.589954376220703
+  },
+  {
+   "url": "/assets/characters/soldier.glb",
+   "bytes": 9539044,
+   "MiB": 9.09714126586914
+  },
+  {
+   "url": "/assets/characters/villager_f.glb",
+   "bytes": 8563364,
+   "MiB": 8.16666030883789
+  },
+  {
+   "url": "/assets/characters/villager_m.glb",
+   "bytes": 8394544,
+   "MiB": 8.005661010742188
+  },
+  {
+   "url": "/assets/characters/child.glb",
+   "bytes": 8302588,
+   "MiB": 7.917964935302734
+  },
+  {
+   "url": "/assets/characters/hero.glb",
+   "bytes": 8262348,
+   "MiB": 7.879589080810547
+  },
+  {
+   "url": "/assets/characters/archer.glb",
+   "bytes": 7801280,
+   "MiB": 7.43988037109375
+  },
+  {
+   "url": "/assets/valley/models/temple.glb",
+   "bytes": 5452120,
+   "MiB": 5.199546813964844
+  },
+  {
+   "url": "/assets/valley/models/farmhouse.glb",
+   "bytes": 3539308,
+   "MiB": 3.375347137451172
+  },
+  {
+   "url": "/assets/valley/models/fort.glb",
+   "bytes": 1589156,
+   "MiB": 1.5155372619628906
+  },
+  {
+   "url": "/assets/valley/terrain/litter_n.jpg",
+   "bytes": 1587102,
+   "MiB": 1.5135784149169922
+  },
+  {
+   "url": "/assets/valley/terrain/mud_n.jpg",
+   "bytes": 1397011,
+   "MiB": 1.3322935104370117
+  },
+  {
+   "url": "/assets/valley/terrain/gravel_n.jpg",
+   "bytes": 1365737,
+   "MiB": 1.3024682998657227
+  },
+  {
+   "url": "/assets/valley/models/cart.glb",
+   "bytes": 1338216,
+   "MiB": 1.2762222290039062
+  },
+  {
+   "url": "/assets/valley/models/barricade.glb",
+   "bytes": 1332768,
+   "MiB": 1.271026611328125
+  }
+ ],
+ "comparison": {
+  "reserveLimitMiB": 84.5,
+  "limitMiB": 90,
+  "overReserveMiB": 16.00791072845459,
+  "overLimitMiB": 10.50791072845459
+ },
+ "decision": "84.5MiB超過。90MiBを維持して圧縮を先行",
+ "failures": [],
+ "pageErrors": []
+}
