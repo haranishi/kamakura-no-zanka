@@ -4,11 +4,33 @@
   "language": "ja",
   "phase": "implementation",
   "approvals": {
-    "requirements": { "generated": true, "approved": true },
-    "design": { "generated": true, "approved": true },
-    "tasks": { "generated": true, "approved": true }
+    "requirements": {
+      "generated": true,
+      "approved": true
+    },
+    "design": {
+      "generated": true,
+      "approved": true
+    },
+    "tasks": {
+      "generated": true,
+      "approved": true
+    }
   },
-  "approval_basis": "2026-10-27の本人依頼（続きの制作・Meshy予算・SDD・ハーネス反復）と、2026-10-19の自律実行指示を継承",
+  "approval_basis": "2026-10-27の本人依頼（続きの制作・Meshy予算・SDD・ハーネス反復）と、2026-10-19の自律実行指示を継承。第2弾（草木・音・道しるべ）は、同日のプレイ後の本人の指示（SDDに加える・実装は止める）",
+  "polish_round2": {
+    "requirements": "requirements-polish.md（R14〜R16）",
+    "design": [
+      "design-vegetation.md",
+      "design-audio.md",
+      "design-wayfinding.md"
+    ],
+    "tasks": "tasks.md §7",
+    "implementation": "未着手（本人の指示で一旦止める）",
+    "validation": "design-validation.md",
+    "review": "2026-10-27の独立レビュー（15件）を仕様へ反映。実装と実機検証は未実施",
+    "ready_for_implementation": false
+  },
   "ready_for_implementation": true,
   "parent_spec": "valley-water-carry",
   "budget": {
@@ -18,6 +40,16 @@
   "open_questions": [
     "見た目は写実寄りの夕景でよいか（企画書は『絵画的なスタイライズド3D』）",
     "主人公の姓名の重複確認",
-    "Meshy生成物の公開時の扱い"
-  ]
+    "音：合成の試聴を先行（推奨）／不足ならCC0録音≤3MiBを追加。本人が聴いて決める（R15.9）",
+    "道しるべ：矢は控えめ／強め、G継続／別キー、地図なし／あり。控えめ・G継続・地図なしを推奨。既定「はっきり」は確定（R16）",
+    "草木：楓の彩度は低め（推奨）／鮮やか。企画の「絵画的」との折り合いを本人が確認（R14）",
+    "読み込み：同梱全量100.5223MiBは上界。実際に読む合計を先に測り、84.5MiBを超えるときだけ、90MiBを維持して圧縮を先行（推奨）／予算を拡大（R14.9）",
+    "里の中心到達後：人物・物音・戦況で戦闘目的を伝える（推奨）／敵位置の直接表示も許す。中心到達で任務は達成しない（R16）",
+    "草木：60m以遠は質感のみ（推奨）／立体の株も残す。本人の画面確認で決める",
+    "里の生活音：桶・戸（推奨）／鶏も含む。本人の試聴で決める"
+  ],
+  "resolved": [
+    "Meshy生成物の公開時の扱い：有料Proの期間内の生成・コミュニティ公開0件を2026-10-27に確認。出所は NOTICE.md と provenance"
+  ],
+  "ready_for_implementation_scope": "既存v19の承認。第2弾はpolish_round2の未着手・実装停止を優先する"
 }
