@@ -14,6 +14,7 @@ import { STORY } from './story-data.js';
 import { loadValley, saveValley } from './save.js';
 import { FEEL } from './config.js';
 import { mulberry32 } from './scatter.js';
+import { createWind, stepWind, toUniforms } from './wind.js';
 import { SHOTS } from './shots.js';
 
 const PLACE_ZONES = ['viewpoint', 'temple_steps'];
@@ -22,6 +23,7 @@ const GROUP_KINDS = { boy: 'npc', road_scout: 'enemy', village_enemies: 'enemy',
 export class Game {
   constructor({ scene, camera, renderer, post, atmosphere, veg, props, water, terrain, scatter, roster, hud, audio, input, storage, seed = 1333 }) {
     Object.assign(this, { scene, camera, renderer, post, atmosphere, veg, props, water, terrain, scatter, roster, hud, audio, input, storage });
+    this.wind = createWind(); this.windUniforms = veg.wind;
     this.world = WORLD; this.rng = mulberry32(seed);
     this.time = 0; this.stopT = 0; this.timers = []; this.paused = false; this.aiPaused = false;
     this.flow = 'idle';                       // idle | play | choice | dead | result
@@ -505,7 +507,15 @@ export class Game {
   // 世界の見た目の更新（大気・風・木の近さ・影の追従・環境音）
   updateWorld(dt) {
     this.atmosphere.update(this.camera, dt);
-    this.veg.wind.uTime.value += dt; this.veg.trees.update(this.camera); this.veg.grass.update(this.camera); this.veg.rice.update(this.camera); this.veg.crops?.update(this.camera); this.props?.update(this.time); this.water?.update(this.time);
+    // 品質切替で植生を作り直したときも、既存同様に新uniformの時刻から始める。
+    if (this.windUniforms !== this.veg.wind) {
+      this.wind = { ...this.wind, t: this.veg.wind.uTime.value }; this.windUniforms = this.veg.wind;
+    }
+    this.wind = stepWind(this.wind, dt);
+    const wind = toUniforms(this.wind);
+    this.veg.wind.uTime.value = wind.uTime; this.veg.wind.uWind.value = wind.uWind;
+    this.veg.wind.uWindDir.value.set(...wind.uWindDir); this.veg.wind.uGuideMix.value = wind.uGuideMix;
+    this.veg.trees.update(this.camera); this.veg.grass.update(this.camera); this.veg.rice.update(this.camera); this.veg.crops?.update(this.camera); this.props?.update(this.time); this.water?.update(this.time);
     const h = this.hero.pos;
     this.atmosphere.follow(new THREE.Vector3(h.x - Math.sin(this.rig.yaw) * 8, h.y, h.z - Math.cos(this.rig.yaw) * 8));
     this.listenerT -= dt;

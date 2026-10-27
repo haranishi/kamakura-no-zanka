@@ -1,3 +1,4 @@
+import { requestGuide } from './wind.js';
 // qa.js — 検査用のフック window.__valley（?qa=1 のときだけ入る）。遊びの規則は変えず、状態の読み出し・1コマ送り・入力の注入だけ。
 // 自動操作（Playwright）と固定画角の撮影が使う。見えない所で勝敗を書き換える口は置かない（god のみ明示の検査用）。
 export function installQA(game, ctl) {
@@ -39,6 +40,28 @@ export function installQA(game, ctl) {
     god(on = true) { game.god = on; },
     advanceDialogue(all = true) { let n = 0; while (game.hud.talking && n++ < 20) { game.hud.advanceDialogue(); if (!all) break; } },
     quality(q) { ctl.quality(q); },
+    windState() { return JSON.parse(JSON.stringify(game.wind)); },
+    guideWind(dir) {
+      if (dir === null) return { state: api.windState(), accepted: false, reason: '指定なし' };
+      const result = requestGuide(game.wind, dir);
+      game.wind = result.state;
+      return { ...result, state: api.windState() };
+    },
+    // R14.8 の仕様の値：1800コマ・活動時間1/60秒。暖機・集計は呼出側が担う。
+    perfSamples(frames = 1800, dt = 1 / 60) {
+      if (!Number.isInteger(frames) || frames <= 0 || !Number.isFinite(dt) || dt <= 0) throw new RangeError('測定コマ数とdtは正の有限値が必要です');
+      const renderer = game.renderer, gl = renderer.getContext(), px = new Uint8Array(4);
+      const ms = new Float64Array(frames), calls = new Uint32Array(frames), tris = new Uint32Array(frames);
+      for (let i = 0; i < frames; i++) {
+        const start = performance.now();
+        game.update(dt); game.render(dt);
+        calls[i] = renderer.info.render.calls; tris[i] = renderer.info.render.triangles;
+        gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px);
+        ms[i] = performance.now() - start;
+      }
+      return { frames, dt, ms: Array.from(ms), calls: Array.from(calls), tris: Array.from(tris),
+        quality: game.post.quality, w: renderer.domElement.width, h: renderer.domElement.height, dpr: renderer.getPixelRatio() };
+    },
     // 1コマの重さ（ms）。1画素を読み戻してGPUの完了まで待つので、描画の実コストに近い
     perf(n = 120, dt = 1 / 60) {
       const gl = game.renderer.getContext(), px = new Uint8Array(4); let tu = 0, tr = 0, tt = 0, worst = 0;

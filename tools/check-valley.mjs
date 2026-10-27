@@ -12,7 +12,7 @@ const read = f => fs.readFileSync(path.join(root, f), 'utf8');
 
 // 1 入口・主要なモジュールと素材がある
 const modules = ['actors', 'ai-world', 'anim-data', 'atmosphere', 'audio-valley', 'battle', 'bow', 'buildings', 'camera-rig', 'characters', 'collision', 'combat', 'companion-ai', 'config',
-  'enemy-ai', 'fx', 'game', 'grade', 'hud', 'input', 'main', 'nav', 'post', 'props', 'qa', 'quest', 'ridges', 'save', 'scatter', 'shots', 'story-data', 'terrain-height', 'terrain', 'vegetation', 'water', 'weapons', 'world-colliders', 'world-data'];
+  'enemy-ai', 'fx', 'game', 'grade', 'hud', 'input', 'main', 'nav', 'perf-stats', 'wind', 'post', 'props', 'qa', 'quest', 'ridges', 'save', 'scatter', 'shots', 'story-data', 'terrain-height', 'terrain', 'vegetation', 'water', 'weapons', 'world-colliders', 'world-data'];
 for (const m of modules) assert(fs.statSync(path.join(dir, m + '.js')).size > 0, `missing dist/valley/${m}.js`);
 for (const f of ['index.html', 'valley.css']) assert(fs.statSync(path.join(dir, f)).size > 0, `missing dist/valley/${f}`);
 
@@ -32,10 +32,19 @@ for (const [file, src] of Object.entries(sources)) {
 }
 
 // 3 純粋な層（規則・データ）は Three.js・DOM・乱数・時計に触れない
-const pure = ['combat', 'enemy-ai', 'companion-ai', 'quest', 'save', 'nav', 'terrain-height', 'scatter', 'collision', 'anim-data', 'world-data', 'world-colliders', 'story-data', 'ai-world'];
+const pure = ['perf-stats', 'wind', 'combat', 'enemy-ai', 'companion-ai', 'quest', 'save', 'nav', 'terrain-height', 'scatter', 'collision', 'anim-data', 'world-data', 'world-colliders', 'story-data', 'ai-world'];
 for (const m of pure) {
   const code = sources[m + '.js'].replace(/\/\/.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, '');
   for (const bad of [/from\s+'three/, /\bMath\.random\b/, /\bDate\.now\b/, /\bperformance\.now\b/, /\bdocument\./, /\bwindow\./, /\blocalStorage\b/]) assert(!bad.test(code), `${m}.js (pure layer) uses ${bad}`);
+}
+
+// 植生4種は同じ一組の風uniformを共有する。生成を各材質へ分散させない。
+const vegetation = sources['vegetation.js'].replace(/\/\/.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, '');
+assert.equal([...vegetation.matchAll(/(?<!function\s)\bwindUniforms\s*\(/g)].length, 1, 'vegetation must call windUniforms once');
+assert.match(vegetation, /const wind = windUniforms\(\)/, 'vegetation must bind the shared wind');
+for (const [name, factory] of [['trees', 'new TreeField'], ['grass', 'makeTufts'], ['rice', 'makeTufts'], ['crops', 'makeTufts']]) {
+  const line = vegetation.split('\n').find(line => line.includes(`const ${name} =`));
+  assert(line?.includes(factory) && /\bwind\s*[,}]/.test(line) && !/\bwind\s*:/.test(line), `${name} must receive the shared wind`);
 }
 
 // 4 index.html：id の重複なし。hud.js・main.js が引く id がすべて存在する
