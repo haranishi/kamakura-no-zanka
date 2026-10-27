@@ -1,6 +1,6 @@
 # Design: 純粋ロジックの契約（Nodeで単体検査する層）
 
-対象は `dist/valley/` の `combat.js` `enemy-ai.js` `companion-ai.js` `nav.js` `quest.js` `save.js`（と `terrain-height.js`）。
+対象は `dist/valley/` の `combat.js` `enemy-ai.js` `companion-ai.js` `nav.js` `quest.js` `save.js`（と `terrain-height.js`）。第2弾で `guide.js` と `audio-rules.js` を足す（実装時に `tools/check-valley.mjs` の純粋層の一覧へ入れる）。
 全モジュール共通：ES Modules・Three.js/DOM/Math.random/Date.now を使わない・状態はJSON化できる素の
 オブジェクト・乱数は `rng()`（0以上1未満を返す関数）を引数で受ける・時刻は引数で受ける・NaNを出さない。
 座標は design.md の約束（Y上、X東、Z南、yaw前方 `(-sin,0,-cos)`）。テストは `tests/valley-*.test.mjs`（`node --test`）。
@@ -62,3 +62,38 @@
 
 `createTerrain(world)` → `{heightAt, slopeAt, normalAt, waterAt, surfaceAt, walkable, bounds}`。`world` は `world-data.js`。
 地形の高さ・傾斜・通行・道の連続（廃寺から里まで歩ける）・建物と木の足跡が通行可能な点に重ならないことをNodeで検査する。
+
+## guide.js（第2弾・R16。未実装）
+
+- 基準路は目的・選んだ道・開始地点で一度固定する。現在位置から引き直さない。
+  `world.roads` の折れ点を必須点として順に接続する。navの最短路は点間の通行検証に使う。
+  b2はtemple→forestの見晴らしまで、b3正面はforest→lane、北/南迂回はnorth/southを経る。
+  b6はforest→templeの逆順。里内と庭の短い接続だけnavで補う。
+- 道区間内の探索は道路半幅＋主人公半径0.3mの帯へ制限する。点を飛ばす平滑化は禁止。
+  通れない必須点は無条件に寄せず、同じ帯の通行可能点へ補正し、補正量を検査ログへ出す。
+  帯内で到達不能なら経路なしを返し、別の道を黙って選ばない。
+- 復帰用経路だけを0.5秒ごとに現在地から未通過区間の最寄り点へ引く。
+  復帰後は基準路を続ける。復帰路を道外れと進捗の判定には使わない。
+- `assess` の観測は `{t, pos, mode, objectiveId, plan, baselineId}`。
+  modeはfree/combat/dialogue/paused/result。tはヒットストップ前の活動時間を呼出側から渡す。
+- 道外れは基準路へのXZ最短距離≥25m。残距離は順序を守る投影点から終点までの長さ。
+  九十九折の交差では前回区間か隣接区間へ投影し、遠い区間へ飛ばさない。
+- freeの標本だけ30秒貯め、窓の始終の残距離の差<10mで立ち往生。30秒未満は判定しない。
+  combat/dialogue/pausedへ入ると履歴を消し、時計を止める。復帰後は新たに30秒貯める。
+  目的・道の変更、再開地点の変更、resultでも履歴・強調状態を消す。目的なしはnull。
+- 強調は道外れ<20mかつ直近30秒で10m以上進んだら解除。解除まで履歴は続ける。
+  20mは25mから5mの余裕を引いた未測定の設計値。境界での点滅を避ける。
+
+## audio-rules.js（第2弾・R15。未実装）
+
+- `pickStep({surface, gait, role, foot}, rng, last)` → `{recipe, pitch, gain, seed}`。直前と同じ組み合わせを返さない。揺らぎは範囲内（高さ±6%・大きさ±2dB）。
+- `noiseRadius(gait)` → m。`config.js` の表（走り11・歩き5・屈み1.5・刃の打ち合い18）。`gain` は同じ表から出す。
+- `pickVariant(kind, rng, last)` → 変種の番号。直前と同じ変種を続けない。
+
+## 風（第2弾・植生と案内の共有契約。未実装）
+
+- 時刻・強さ・基底向き・導き向き・導きの混合率を一つの風状態で共有する。
+  向きは世界XZの単位ベクトル。純粋なguideは数値だけ返し、viewがuniformへ渡す。
+- 通常風を基底に保ち、Gで1秒かけて次の道区間へ混合し、開始4秒から1秒で基底へ戻す。
+  1秒は既存案の遷移時間を往復へ適用（全体5秒に含む）。連打は終了後2秒待つ。休止中は進めない。
+- 草・樹冠・導きの粒は同じ値を読む。動きを減らす設定は振幅と粒数だけ下げる。
