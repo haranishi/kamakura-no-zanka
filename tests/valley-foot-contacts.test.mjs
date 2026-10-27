@@ -125,6 +125,33 @@ test('resetによる前進/後退の時刻飛び・休止復帰 [reset]', () => 
   const tr = tracker(); tr.at(0.1); tr.at(0.25);
   tr.at(0.1, { reset: true }); eq(tr.at(0.25), [], 'reset-consumed-identity');
 });
+test('1周に満たない走りを何度繰り返しても、毎回の接地が鳴る [restart]', () => {
+  // なぜ失敗したか（2026-10-27）: 実ブラウザで走りを短く繰り返すと、2回目以降の最初の接地が鳴らなかった。台帳は「同じ周の足は再通知しない」ので、
+  // play() が0秒から再生し直した別の走り出しも、同じ周番号の既通知として隠していた（1周に満たない走りは周番号が進まない）。巻き戻しの印で新しい走り出しにする。
+  const tr = tracker(), all = [];
+  for (let play = 0; play < 3; play++) {
+    tr.at(0, { sources: [{ ...src('run', 0.01), restart: true }] });          // 走り出しのコマは起点だけ
+    for (let t = 0.01 + 1 / 60; t < 0.3; t += 1 / 60) all.push(...tr.at(0, { sources: [src('run', t)] }));
+    tr.at(0, { sources: [] });                                                 // 重みが0になって外れる
+  }
+  eq(all.length, 6, 'restart-missing-contact');
+  eq(new Set(ids(all)).size, 6, 'restart-duplicate-identity');
+  eq(all.map(c => c.foot), ['left', 'right', 'left', 'right', 'left', 'right'], 'restart-alternation');
+  eq(all.map(c => c.contactTime), [...all.map(c => c.contactTime)].sort((a, b) => a - b), 'restart-monotonic');
+});
+test('巻き戻した動作だけを新しい走り出しにする。出ていく動作の接地は同じコマでも落とさない [restart-scope]', () => {
+  // 切り替えのコマで全動作の起点を捨てると、まだ9割の重みで動いている出ていく動作の接地が、そのコマに当たったとき落ちた（実ブラウザで5/6回）。
+  const tr = tracker(); tr.at(0, { sources: [src('run', 0.03, 1, true)] });
+  const cs = tr.at(0, { sources: [src('run', 0.05, 0.9, false), { ...src('walk', 0.01, 0.1, true), restart: true }] });
+  eq(ids(cs), ['run/0/left'], 'restart-outgoing-contact');
+  eq(tr.at(0, { sources: [src('run', 0.07, 0.8, false), src('walk', 0.02, 0.2, true)] }), [], 'restart-incoming-backlog');
+});
+test('動作の途中で巻き戻されたら、そのコマは起点だけで過去を追わない [restart-baseline]', () => {
+  // 巻き戻した動作が重みを持ったまま残っていても（まだ外れていない）、前の時刻から今回までを「進んだ」とみなして接地を数えてはいけない。
+  const tr = tracker(); tr.at(0, { sources: [src('run', 0.3)] });
+  eq(tr.at(0, { sources: [{ ...src('run', 0.05), restart: true }] }), [], 'restart-backlog');
+  eq(ids(tr.at(0, { sources: [src('run', 0.25)] })), ['run/1/right'], 'restart-next-contact');
+});
 test('画面外でcursorを消し、復帰は現在時刻から [near]', () => {
   const tr = tracker(); tr.at(0.1);
   eq(tr.at(0.15, { near: false }), [], 'far-silent');
@@ -155,7 +182,7 @@ test('非有限値・未知clip・不正な表はTypeError、状態を壊さな�
   const state = freeze(createContactTracker());
   const fails = (o, t = table) => assert.throws(() => observeContacts(state, o, t), TypeError, '[invalid-input]');
   for (const key of ['time', 'weight', 'speed']) for (const n of [NaN, Infinity, -Infinity, '1']) fails(obs(0, { sources: [{ ...src('walk', 0), [key]: n }] }));
-  for (const s of [src('unknown', 0), src('walk', -0.1), src('walk', 1.1), src('walk', 0, -1), { ...src('walk', 0), target: 1 }]) fails(obs(0, { sources: [s] }));
+  for (const s of [src('unknown', 0), src('walk', -0.1), src('walk', 1.1), src('walk', 0, -1), { ...src('walk', 0), target: 1 }, { ...src('walk', 0), restart: 1 }]) fails(obs(0, { sources: [s] }));
   fails(obs(0, { sources: [src('walk', 0), src('walk', 0)] }));
   for (const o of [null, {}, obs(0, { actor: '' }), obs(0, { moving: 1 }), obs(0, { sources: null })]) fails(o);
   for (const t of [null, [], { walk: null }, { walk: { ...table.walk, duration: 0 } }, { walk: { ...table.walk, duration: Infinity } }, { walk: { ...table.walk, loop: false } }, { walk: { ...table.walk, contacts: null } }]) fails(obs(0), t);

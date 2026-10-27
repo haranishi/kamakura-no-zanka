@@ -1,10 +1,13 @@
 // audio-valley.js — 縦切りの音（合成のみ・外部素材なし）。庭のしごとの GameAudio（解錠・停止・ミュートの安全な遷移）を継承し、
 // 風・川・虫・焚き火の環境音と、刃・被弾・受け・弓・足音・鐘・太鼓の効果音を足す。音量は master 1か所で調整する。
 import { GameAudio } from '../audio.js';
+import { stepLayers } from './step-synth.js';
+import { mulberry32 } from './scatter.js';
 
 // 音ごとの音量の補正（実測のピーク dBFS で、強い音は -6〜-10・弱い音は -15〜-22 に寄せる。以前は命中・弾きが -4〜-6、足音・振りが -23〜-33 で、
 // 足音と振りがほとんど聞こえず、強い音は同時に鳴ると 0 dBFS を超えて割れた）。tools/scenarios/regress-audio-levels.mjs が守る。
 const LEVEL = { swing: 2.3, swing_heavy: 1.2, hit: 0.7, hit_heavy: 0.6, clash: 0.75, block: 0.65, parry: 0.65, hurt: 2.5, die: 1.0, bow_draw: 2.5, bow_release: 0.9, arrow_hit: 0.85, taiko: 0.65,
+  step: 0.65, // 全面の共通の補正。圧縮器が暖まった状態の実測で決める（regress-step-levels.mjs が守る）。
   bell: 1.0, alert: 1.6, step_grass: 3.2, step_dirt: 3.2, step_gravel: 3.2, step_wood: 2.0, roll: 2.2, draw: 2.5, sheathe: 2.5, ui: 2.0, dialogue: 2.0 };
 
 export class ValleyAudio extends GameAudio {
@@ -33,6 +36,76 @@ export class ValleyAudio extends GameAudio {
     let low = 0; const edge = loop ? Math.max(1, Math.floor(ctx.sampleRate * 0.05)) : 1;
     for (let i = 0; i < data.length; i++) { low = (1 - color) * low + color * (Math.random() * 2 - 1); data[i] = low * (loop ? Math.min(1, i / edge, (data.length - i - 1) / edge) : 1); }
     const s = ctx.createBufferSource(); s.buffer = buffer; s.loop = loop; return s;
+  }
+
+  // A step bundle occupies one source slot. A silent audio-time tail owns cleanup.
+  playStep(step, { pan = 0, lowpassHz = 20000, gainScale = 1 } = {}) {
+    const layers = stepLayers(step);
+    if (![pan, lowpassHz, gainScale].every(Number.isFinite) || lowpassHz <= 0 || gainScale < 0) throw new TypeError('Invalid step output');
+    const ctx = this.context;
+    this.stepRejectReason = null;
+    if (!ctx || this.paused || this.muted || ctx.state !== 'running') return false;
+    if (this.sources.size >= 28) { this.stepRejectReason = 'limit'; return false; }
+    const nodes = [], children = [], voice = { stepNodes: nodes, children };
+    try {
+      const t = ctx.currentTime, bus = ctx.createGain();
+      nodes.push(bus); voice.gain = bus;
+      const filter = ctx.createBiquadFilter(); nodes.push(filter);
+      bus.gain.value = LEVEL.step * gainScale;
+      filter.type = 'lowpass'; filter.frequency.value = Math.min(lowpassHz, ctx.sampleRate * 0.49);
+      bus.connect(filter);
+      const panner = ctx.createStereoPanner(); panner.pan.value = Math.max(-1, Math.min(1, pan));
+      nodes.push(panner); filter.connect(panner); panner.connect(this.ensureMaster());
+      const rng = mulberry32(step.seed);
+      for (const l of layers) {
+        const start = t + l.startMs / 1000, duration = l.durationMs / 1000;
+        const g = ctx.createGain(); nodes.push(g);
+        g.gain.setValueAtTime(0, start);
+        if (l.gain > 0) {
+          g.gain.linearRampToValueAtTime(l.gain, start + 0.001);
+          g.gain.exponentialRampToValueAtTime(Math.max(1e-8, l.gain * 0.0001), start + Math.max(0.002, duration));
+        }
+        g.connect(bus);
+        let source;
+        if (l.type === 'weight') {
+          source = ctx.createOscillator(); nodes.push(source); children.push(source); source.type = 'sine'; source.frequency.value = Math.min(l.freq, ctx.sampleRate * 0.49);
+        } else {
+          source = ctx.createBufferSource(); nodes.push(source); children.push(source);
+          const size = Math.max(1, Math.ceil(ctx.sampleRate * duration));
+          source.buffer = ctx.createBuffer(1, size, ctx.sampleRate);
+          const data = source.buffer.getChannelData(0);
+          // Impact excites a resonator with a short impulse; other layers are seeded bursts.
+          for (let i = 0; i < size; i++) data[i] = l.type === 'impact' ? (i < ctx.sampleRate * 0.002 ? 1 - i / (ctx.sampleRate * 0.002) : 0) : rng() * 2 - 1;
+        }
+        if (l.filter) {
+          const f = ctx.createBiquadFilter(); nodes.push(f); f.type = l.filter;
+          f.frequency.value = Math.min(l.freq, ctx.sampleRate * 0.49); f.Q.value = l.q;
+          source.connect(f); f.connect(g);
+        } else source.connect(g);
+        source.start(start); source.stop(start + duration + 0.004);
+      }
+      const end = t + Math.max(...layers.map(l => l.startMs + l.durationMs)) / 1000 + 0.04;
+      const tail = ctx.createBufferSource(); nodes.push(tail); children.push(tail); voice.source = tail;
+      tail.buffer = ctx.createBuffer(1, 1, ctx.sampleRate); tail.loop = true;
+      tail.connect(bus); tail.onended = () => this.release(voice);
+      this.sources.set(tail, voice); tail.start(t); tail.stop(end);
+      return true;
+    } catch {
+      this.stop(voice); return false;
+    }
+  }
+  release(voice) {
+    if (!voice.stepNodes) return super.release(voice);
+    if (voice.released) return;
+    voice.released = true;
+    this.sources.delete(voice.source);
+    for (const n of voice.stepNodes) { if ('onended' in n) n.onended = null; try { n.disconnect(); } catch {} }
+    voice.stepNodes.length = 0; voice.children.length = 0;
+  }
+  stop(voice) {
+    if (!voice.stepNodes) return super.stop(voice);
+    for (const source of voice.children) { try { source.stop(); } catch {} }
+    this.release(voice);
   }
 
   // 環境音：風・川・虫・焚き火

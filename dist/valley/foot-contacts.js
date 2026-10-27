@@ -20,6 +20,7 @@ function validate(obs, table) {
     if (!object(s) || typeof s.clip !== 'string' || !Object.hasOwn(table, s.clip)) invalid('unknown clip');
     if (![s.time, s.weight, s.speed].every(Number.isFinite)) invalid('non-finite source');
     if (s.time < 0 || s.time > table[s.clip].duration || s.weight < 0 || typeof s.target !== 'boolean' || clips.has(s.clip)) invalid('source range/target/duplicate clip');
+    if (s.restart !== undefined && typeof s.restart !== 'boolean') invalid('restart');
     clips.add(s.clip);
   }
 }
@@ -45,6 +46,8 @@ export function observeContacts(state, obs, table) {
   for (const s of obs.sources) {
     let cursor = actor.clips.find(c => c.clip === s.clip);
     if (!cursor) { cursor = { clip: s.clip, time: null, loop: 0, emitted: {} }; actor.clips.push(cursor); }
+    // The caller rewound this action to start a new stride (play()): fresh identities and a new baseline. An unflagged rewind stays silent via the ledger.
+    else if (s.restart) { cursor.loop++; cursor.time = null; }
     const duration = table[s.clip].duration;
     const previous = cursor.time === null ? null : cursor.loop * duration + cursor.time;
     // A reverse action is silent and must not turn every backwards tick into a loop.

@@ -130,7 +130,7 @@
 - 足もとは前方1.6m・地面+0.06m、淡い金と暗い縁。脈打ちは1.1秒・±5%、動きを減らす場合は停止。縁は道の前方15mを見る。柱は高さ20m、30m付近で薄れる。描画追加は矢・柱・Pointsの最大3呼出（透過両面はforceSinglePass）。左上のsetCompass APIは保ち針を隠す。
 - 初回はb0〜b2でhintキーguide-gを一度だけ表示。基準路は目的・plan・再開/復活でのみ変更、assessは30Hz以下（mode境界は即時）、復帰探索は強調/G中のみ0.5秒ごと。構築と復帰探索はperformance.nowで計りQAへ出す。実ブラウザの測定・撮影・理解試験は親が行う。
 
-## foot-contacts.js（第2弾・R15。7.6の純粋な接地通知のみ）
+## foot-contacts.js（第2弾・R15。7.6の接地通知）
 
 - `createContactTracker()` → `{actors: []}`。`observeContacts(state, obs, table)` → `{state, contacts}`。返されたstateを次回へ渡す。入力state・obs・tableを変更せず、時計・乱数・画面・音源を読まない。複数actorの観測を交互に渡せる。
 - `table = {[clip]: {duration, loop: true, contacts: [{foot, t}]}}`。秒、durationは正の有限値、tは `[0,duration)` の昇順、footはleft/right。同じ足が1周に複数回着いてよい（村人の歩きは4.2秒に左右3回ずつ）。通知の識別は、表の中の接地の番号 `index` で行う。空の接地列は許す。実データは `anim-contacts.js`（`tools/build-foot-contacts.mjs` が、`clips.json` の contacts を、実際の骨の動きから測った境界で挟んで作る）に置き、このモジュールは持たない。
@@ -140,5 +140,23 @@
 - `contacts = [{actor,clip,loop,index,foot,contactTime,ago}]`。`index` は表の `contacts` の添字。loopは最初の観測を0として観測した周回数、contactTimeは `loop*duration+t` 秒。agoは `(今回の単調再生時刻-contactTime)/今回のspeed` の実秒。観測間の速度変化を積分した値ではなく、今回の実効速度による換算値。速度が変わる際は変更後の更新区間で観測する。
 - moving=false・airborne=true・speed<=0では通知しないが時刻は更新し、再開で遡らない。逆再生の時刻減少は周回に数えない。resetは全clipの前回時刻と選択を捨てて今回を起点にする。near=falseでは観測せず前回時刻と選択を消し、次のnear=trueで起点を作る。sourceから消えたclipも前回時刻を消す。
 - **通知済みの識別子は起点を消しても保持する**。各actor/clip/接地番号（index）の通知済み最大loopだけを保存し、同じ識別子 `(actor, clip, loop, index)` は一度だけ。reset・画面外の間の実周回数は復元せず、次に観測した戻りから周回を続ける。同じ周を巻き戻して再生した足は再通知しない。別個体にactor識別子を再利用せず、追跡を全廃するときだけ新規trackerを作る。
-- 結線手順：動作選択と速度・ヒットストップを反映 → mixerを進める → 全移動Actionのtime・getEffectiveWeight()・getEffectiveTimeScale()を採取 → observeContacts → 通知を音へ渡す。現在のcharactersは `mixer.update(dt * this.rate)` なので、speedにはActionの実効倍率にthis.rate（およびMixer側の倍率を使うならそれも）を掛け、実時間との倍率にする。targetは現在の移行先Action。Actionのreset/time書換え、休止復帰をresetで伝える。22m内は描画15Hzの間引きから分けて観測する。
-- Nodeの接地テストと逐次変異検査で確認。実データは測定済み（`tools/scenarios/measure-foot-contacts.mjs`・`reports/audio/foot-contacts-measured.json`）。characters/actors/audio-valleyとの結線、合成と出力遅延・動画・聴感の同期確認は未実施。
+- **巻き戻しの印**：sourceの任意の `restart`（boolean）。trueのclipだけ、前回時刻を捨てて周回を1つ進める（`play()` が0秒から再生し直した別の走り出し）。識別子が新しくなり、同じ周番号の通知済みに隠されない。印のないreset・時刻の乱れは従来どおり台帳で再通知しない。実ブラウザで、走りを1周に満たず繰り返すと2回目以降の最初の接地が鳴らなかったため追加（2026-10-27）。
+- 結線手順：動作選択と速度・ヒットストップを反映 → mixerを進める → 全移動Actionのtime・getEffectiveWeight()・getEffectiveTimeScale()を採取 → observeContacts → 通知を音へ渡す。現在のcharactersは `mixer.update(dt * this.rate)` なので、speedにはActionの実効倍率にthis.rate（およびMixer側の倍率を使うならそれも）を掛け、実時間との倍率にする。targetは現在の移行先Action。Actionのtime書換えは、そのclipだけrestartで、休止復帰・テレポートは全clipのresetで伝える。22m内は描画15Hzの間引きから分けて観測する。
+- Nodeの接地テストと逐次変異検査で確認。実データは測定済み（`tools/scenarios/measure-foot-contacts.mjs`・`reports/audio/foot-contacts-measured.json`）。characters/actors/audio-valleyとの結線と合成は後述の7.6節。出力遅延・動画・聴感の同期確認は未実施。
+
+## step-surface.js / step-synth.js（7.6、純粋層）
+
+- `classifySurface(weights,{water=0,wood=false,stone=false}={})` → SURFACESの1種。weightsはgrass/dirt/rock/gravel/mud/litterの有限な0〜1。waterは非負の水深、wood/stoneはboolean。不正入力はTypeError。優先・境界値はdesign-audio.mdの7.6節。
+- `stepSurfaceAt(x,z,{terrain,world})` → surface。有限座標、terrain.surfaceAt/waterAtとworld.buildings[].{x,z,rotY,footprint:{w,d}}、world.zones.temple_steps.{x,z,r}を読む薄いadapter。建物は逆Y回転・各辺に1mのmargin、円区域は境界を含む。Three.jsは使わない。
+- `roleOf(who)` → hero/ally/enemy_light/enemy_heavy/villager。7体の対応はhero/archer/soldier/officer/villager_m/villager_f/child。未知はTypeError。
+- `gaitOfClip(clip)` → CMU_Run/CMU_Jogはrun、Cautious_Crouch_Walk_Forwardはcrouch、他の非空文字列はwalk。不正型・空文字列はTypeError。
+- `stepLayers({recipe,pitch,gain,seed})` → `{type,startMs,durationMs,gain,freq,q,filter}[]`。入力はpickStepの返り値。全層にgain/pitchを適用し、densityで粒数をroundする。seedはuint32、乱数は既存mulberry32。filterはbandpass/lowpass/highpass/null。recipeや範囲の不正はTypeError、入力を変更しない。
+- 規則の検査対象へ両ファイルを追加。音声ノードと時計はaudio-valley/qaだけが扱う。
+
+## 7.6 のview/app側の接続
+
+- `Character.resetContacts()`は次回観測のresetを立てる。`play(name,options)`はrestartまたはfrom指定を同じActionでも反映し、巻き戻したActionの名前だけ`contactRestart`に積む（他のActionの起点は捨てない。出ていく動作の接地は切り替えのコマでも続ける）。`update(dt)`はmixer更新後にFOOT_CONTACTS内の正weightの全ActionをobserveContactsへ渡し（積んだ名前はrestart）、resetとrestartを消費、`onContact({actor,clip,loop,index,foot,contactTime,ago})`へ通知。actorは各Character生成時の一意文字列で、再生成した個体に同じ追跡IDを使わない。
+- `Actor.tickCharacter(dt)`でnear/airborne/contactTimeScaleを設定する。全てのHero/Enemy/Ally/NpcのCharacter更新を集約。`Actor.onFootContact(c)`で面・役割・歩容を選び、lastStepによる連続回避、他者の距離減衰・定位、主人公の発見ノイズとdustを行う。古い距離積算とstep_*発音は除去。
+- gameのヒットストップはdtを縮め、Character.rateは個体の動作速度。contactTimeScale=dt/rawDtを追加で掛け、agoを実時間へ換算する。更新間隔が50msを超す場合と休止中は全個体の起点をresetする。
+- `ValleyAudio.playStep(step,options)` → boolean。optionsはpan/lowpassHz/gainScale。1束を1枠としsources上限28でfalse、stepRejectReason='limit'。休止・ミュート・context未準備・生成失敗でもfalseだが上限拒否には数えない。release/stopは束の全子を処理し、通常終了は最長層+40msの音声時刻のonendedで解放する。
+- QAのみgame.footQAを作る。`__valley.footLog(on)`と`stepStats()`の記録契約はdesign-audio.md。Nodeのノード代役による結線検査は実ブラウザ・音の検査の代用にしない。

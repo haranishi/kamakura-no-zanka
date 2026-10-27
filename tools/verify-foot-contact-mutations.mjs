@@ -18,6 +18,9 @@ const cases = [
   ['speed conversion', '(now - contactTime) / s.speed', '(now - contactTime)'],
   ['wrap detection', 'cursor.loop++', 'cursor.loop += 0'],
   ['nonpositive speed', '&& s.speed > 0) {', '&& true) {'],
+  ['restart ignored', 'else if (s.restart)', 'else if (false)'],
+  ['restart keeps old baseline', '{ cursor.loop++; cursor.time = null; }', '{ cursor.loop++; }'],
+  ['restart without new identities', '{ cursor.loop++; cursor.time = null; }', '{ cursor.time = null; }'],
 ];
 const run = () => spawnSync(process.execPath, ['--test', test.pathname], { encoding: 'utf8', timeout: 30000 });
 const baseline = run();
