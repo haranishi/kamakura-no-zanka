@@ -129,3 +129,16 @@
 - Gは共有requestGuideで5秒、終了後2秒待つ。120点（動きを減らす場合48点）のPoints一つを、現在地から道なりに最大40mへ流す。残経路が40m未満なら終点までとし、目的地を越えて粒を伸ばさない。自動では風を呼ばない。
 - 足もとは前方1.6m・地面+0.06m、淡い金と暗い縁。脈打ちは1.1秒・±5%、動きを減らす場合は停止。縁は道の前方15mを見る。柱は高さ20m、30m付近で薄れる。描画追加は矢・柱・Pointsの最大3呼出（透過両面はforceSinglePass）。左上のsetCompass APIは保ち針を隠す。
 - 初回はb0〜b2でhintキーguide-gを一度だけ表示。基準路は目的・plan・再開/復活でのみ変更、assessは30Hz以下（mode境界は即時）、復帰探索は強調/G中のみ0.5秒ごと。構築と復帰探索はperformance.nowで計りQAへ出す。実ブラウザの測定・撮影・理解試験は親が行う。
+
+## foot-contacts.js（第2弾・R15。7.6の純粋な接地通知のみ）
+
+- `createContactTracker()` → `{actors: []}`。`observeContacts(state, obs, table)` → `{state, contacts}`。返されたstateを次回へ渡す。入力state・obs・tableを変更せず、時計・乱数・画面・音源を読まない。複数actorの観測を交互に渡せる。
+- `table = {[clip]: {duration, loop: true, contacts: [{foot, t}]}}`。秒、durationは正の有限値、tは `[0,duration)` の昇順、footはleft/right。同じ足が1周に複数回着いてよい（村人の歩きは4.2秒に左右3回ずつ）。通知の識別は、表の中の接地の番号 `index` で行う。空の接地列は許す。実データは `anim-contacts.js`（`tools/build-foot-contacts.mjs` が、`clips.json` の contacts を、実際の骨の動きから測った境界で挟んで作る）に置き、このモジュールは持たない。
+- `obs = {actor, sources: [{clip,time,weight,speed,target}], moving, airborne, near, reset}`。actorは空でない文字列、4フラグとtargetはboolean。sourcesには表にある移動クリップのみを重複なしで渡す。timeは `[0,duration]` 秒、weightは非負の実効値、speedは符号付き実効再生倍率。未知clip・非有限値・範囲外・不正な表は変更前にTypeError（画面外でも検査）。
+- 正のweightの最大だけを選ぶ。同率ならtargetを優先し、それでも同率なら入力順。全て0またはsourceなしなら選択なし。発音元が変わる観測は起点だけを作り、過去を鳴らさない。発音元以外の時刻も追い、混合を往復しても通知済みの周・足を再通知しない。
+- 正転でtimeが前回より戻れば1周を加え、単調時刻の `(前回, 今回]` にある接地を時刻順に全列挙する。初回観測は起点のみ。durationちょうどは次周の0と同じ接地時刻で、続く0で二重にしない。観測間に丸1周以上進むとtimeだけでは復元不能なので、結線側は60Hzを保ち、休止や飛びではresetを渡す。
+- `contacts = [{actor,clip,loop,index,foot,contactTime,ago}]`。`index` は表の `contacts` の添字。loopは最初の観測を0として観測した周回数、contactTimeは `loop*duration+t` 秒。agoは `(今回の単調再生時刻-contactTime)/今回のspeed` の実秒。観測間の速度変化を積分した値ではなく、今回の実効速度による換算値。速度が変わる際は変更後の更新区間で観測する。
+- moving=false・airborne=true・speed<=0では通知しないが時刻は更新し、再開で遡らない。逆再生の時刻減少は周回に数えない。resetは全clipの前回時刻と選択を捨てて今回を起点にする。near=falseでは観測せず前回時刻と選択を消し、次のnear=trueで起点を作る。sourceから消えたclipも前回時刻を消す。
+- **通知済みの識別子は起点を消しても保持する**。各actor/clip/接地番号（index）の通知済み最大loopだけを保存し、同じ識別子 `(actor, clip, loop, index)` は一度だけ。reset・画面外の間の実周回数は復元せず、次に観測した戻りから周回を続ける。同じ周を巻き戻して再生した足は再通知しない。別個体にactor識別子を再利用せず、追跡を全廃するときだけ新規trackerを作る。
+- 結線手順：動作選択と速度・ヒットストップを反映 → mixerを進める → 全移動Actionのtime・getEffectiveWeight()・getEffectiveTimeScale()を採取 → observeContacts → 通知を音へ渡す。現在のcharactersは `mixer.update(dt * this.rate)` なので、speedにはActionの実効倍率にthis.rate（およびMixer側の倍率を使うならそれも）を掛け、実時間との倍率にする。targetは現在の移行先Action。Actionのreset/time書換え、休止復帰をresetで伝える。22m内は描画15Hzの間引きから分けて観測する。
+- Nodeの接地テストと逐次変異検査で確認。実データは測定済み（`tools/scenarios/measure-foot-contacts.mjs`・`reports/audio/foot-contacts-measured.json`）。characters/actors/audio-valleyとの結線、合成と出力遅延・動画・聴感の同期確認は未実施。
