@@ -2,6 +2,7 @@
 // 配置は scatter.js（純関数）から受ける。外部素材なし。形と葉の絵は手続きで作る。
 import * as THREE from 'three';
 import { mulberry32 } from './scatter.js';
+import { buildGrass } from './grass-view.js';
 
 const TAU = Math.PI * 2;
 
@@ -204,28 +205,6 @@ function pineGeometry(level) {
   return { wood: wood.build(), leaf: leaf.build() };
 }
 
-function grassGeometry() {
-  // 低く細い葉をたくさん。根もとは暗く、先は明るい（風で先ほど大きく揺れる）。
-  const rnd = mulberry32(8101);
-  const m = new Mesher();
-  const blades = 11;
-  for (let b = 0; b < blades; b++) {
-    const th = rnd() * TAU, lean = 0.25 + rnd() * 0.5, h = 0.13 + rnd() * 0.17, w = 0.011 + rnd() * 0.008;
-    const r = 0.035 + rnd() * 0.05;
-    const cx = Math.cos(th) * r, cz = Math.sin(th) * r;
-    const dir = [Math.cos(th + 1.2 + (rnd() - 0.5) * 0.8), Math.sin(th + 1.2 + (rnd() - 0.5) * 0.8)];
-    const first = m.pos.length / 3, segs = 3;
-    for (let s = 0; s <= segs; s++) {
-      const t = s / segs, bend = lean * t * t * h, ww = w * (1 - t * 0.92);
-      const y = t * h, px = cx + dir[0] * bend, pz = cz + dir[1] * bend;
-      const sx = -Math.sin(th), sz = Math.cos(th);
-      const shade = 0.5 + 0.55 * t;
-      for (const sd of [-1, 1]) m.vert([px + sx * ww * sd, y, pz + sz * ww * sd], [0, 1, 0.2], [shade, shade, shade], [sd < 0 ? 0 : 1, t]);
-    }
-    for (let s = 0; s < segs; s++) { const a = first + s * 2; m.quad(a, a + 1, a + 3, a + 2); }
-  }
-  return m.build();
-}
 
 function cropGeometry() {
   // 野菜の株：根もとから広がる幅広の葉を輪にする（畝に並べる）。内側は暗く、先は明るい緑。
@@ -401,14 +380,14 @@ export function makeTufts({ data, geometry, wind, height, fadeStart, fadeEnd, ti
   return group;
 }
 
-export function buildVegetation({ scatter, quality = 'standard' }) {
+export function buildVegetation({ scatter, quality = 'standard', field, sunDir }) {
   const wind = windUniforms();
   const group = new THREE.Group(); group.name = 'vegetation';
   const trees = new TreeField({ data: scatter.trees, wind, quality });
   group.add(trees.group);
-  const grass = makeTufts({ data: scatter.grass, geometry: grassGeometry(), wind, height: 0.3, fadeStart: quality === 'light' ? 16 : 28, fadeEnd: quality === 'light' ? 26 : 46, tintA: '#4a6a2a', tintB: '#8c8c45' });
+  const grass = buildGrass({ field, wind, quality, sunDir });
   const rice = makeTufts({ data: scatter.rice, geometry: riceGeometry(), wind, height: 1.0, fadeStart: 60, fadeEnd: 95, tintA: '#b8963c', tintB: '#d6b658', flutter: 0.02 });
-  group.add(grass, rice);
+  group.add(grass.group, rice);
   const crops = scatter.crops?.x.length ? makeTufts({ data: scatter.crops, geometry: cropGeometry(), wind, height: 0.4, fadeStart: 55, fadeEnd: 90, tintA: '#3d5230', tintB: '#617548', flutter: 0.01 }) : null;   // 家のそばの野菜畑
   if (crops) group.add(crops);
   return { group, trees, grass, rice, crops, wind };

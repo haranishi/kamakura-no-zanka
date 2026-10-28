@@ -62,6 +62,7 @@ export function installQA(game, ctl) {
     setGuidePlan(plan) { game.setGuidePlan(plan); return game.guideView(); },
     setWaymarks(level) { game.setWaymarks(level); return game.guideView(); },
     pressGuide() { return game.pressGuide(); },
+    grassStats() { return game.veg.grass.stats(); },
     windState() { return JSON.parse(JSON.stringify(game.wind)); },
     guideWind(dir) {
       if (dir === null) return { state: api.windState(), accepted: false, reason: '指定なし' };
