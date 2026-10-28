@@ -2,6 +2,7 @@ import { requestGuide } from './wind.js';
 // qa.js — 検査用のフック window.__valley（?qa=1 のときだけ入る）。遊びの規則は変えず、状態の読み出し・1コマ送り・入力の注入だけ。
 // 自動操作（Playwright）と固定画角の撮影が使う。見えない所で勝敗を書き換える口は置かない（god のみ明示の検査用）。
 export function installQA(game, ctl) {
+  let specimens = null, specimenRequest = 0;
   const input = game.input;
   const num = v => Math.round(v * 100) / 100;
   game.log = [];
@@ -62,6 +63,30 @@ export function installQA(game, ctl) {
     setGuidePlan(plan) { game.setGuidePlan(plan); return game.guideView(); },
     setWaymarks(level) { game.setWaymarks(level); return game.guideView(); },
     pressGuide() { return game.pressGuide(); },
+    async treeSpecimens(opts = {}) {
+      const request = ++specimenRequest;
+      const [{ buildSpecimens }, { ATMOS }] = await Promise.all([import('./tree-view.js'), import('./atmosphere.js')]);
+      if (request !== specimenRequest) return { items: [] };
+      const next = buildSpecimens({ ...opts, terrain: game.terrain, wind: game.veg.wind, sunDir: ATMOS.sunDir, quality: game.post.quality });
+      specimens?.dispose(); specimens = next; game.scene.add(next.group);
+      return { items: next.items };
+    },
+    clearTreeSpecimens() { specimenRequest++; specimens?.dispose(); specimens = null; },
+    treeStats() {
+      const trees = game.veg.trees, bySpecies = {}, byShape = {}, tris = {};
+      let total = 0;
+      for (const set of trees.sets) {
+        const key = ['cedar', 'zelkova', 'pine', 'maple', 'sapling', 'shrub'][set.species];
+        bySpecies[key] ??= [0, 0, 0]; tris[key] ??= [0, 0, 0];
+        bySpecies[key][set.level] += set.leaf.count;
+        byShape[key] ??= {}; byShape[key][set.shape ?? 0] ??= [0, 0, 0];
+        byShape[key][set.shape ?? 0][set.level] += set.leaf.count;
+        let count = 0;
+        for (const mesh of [set.leaf, set.wood]) if (mesh) count += mesh.count * (mesh.geometry.index ? mesh.geometry.index.count : mesh.geometry.attributes.position.count) / 3;
+        tris[key][set.level] += count; total += count;
+      }
+      return { stats: { ...trees.stats }, bySpecies, byShape, tris, total };
+    },
     meadowCover() { return ctl.meadowCover(); },
     grassStats() { return game.veg.grass.stats(); },
     windState() { return JSON.parse(JSON.stringify(game.wind)); },

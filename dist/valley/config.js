@@ -60,3 +60,24 @@ export const GRASS = Object.freeze({
   ],
   susukiRate: 0.25, flowerRate: 0.8,
 });
+
+// Tree species are derived; legacy placement and collision keep using kind.
+export const TREES = Object.freeze({
+  palette: Object.freeze({
+    cedar: Object.freeze(['#b1bca5']), pine: Object.freeze(['#7f9e91']),
+    zelkova: Object.freeze(['#6a7f3a', '#a09a45', '#c2a040', '#96683a']),
+    maple: Object.freeze(['#5d7a35', '#b88a30', '#c2652c', '#a2412c']),
+    shrub: Object.freeze(['#4a6234', '#6f7a3c', '#85603a']),
+  }),
+  seeds: Object.freeze({ grove: 51001, detail: 51031, maple: 51061, stage: 51091, individual: 51131, sapling: 51169, shrub: 51203 }),
+  fields: Object.freeze({ grove: 70, detail: 26, maple: 38, stage: 30, threshold: 0.755, mapleThreshold: 0.50 }),
+  conversion: Object.freeze({ probability: 0.97, habitatWeight: 0.30, valleyRadius: 240 }),
+  // crown: widest drawn shell radius per metre of height, at the largest instance scale and tilt.
+  sapling: Object.freeze({ step: 3.2, probability: 0.15, maxCount: 1200, split: 18, distance: 45, lightDistance: 30, crown: 0.5 }),
+  shrub: Object.freeze({ step: 2.2, probability: 0.20, maxCount: 4000, split: 13, distance: 32, lightDistance: 22, crown: 1.1 }),
+  lod: Object.freeze({ standard: [48, 150], light: [32, 100], blend: { standard: 4, light: 3 } }),
+  variants: Object.freeze({ cedar: 5, zelkova: 3, pine: 2, maple: 3 }),
+  leafGain: 1.25,
+  understoryLeafGain: 1.1,
+  budget: Object.freeze({ cedar: [1500, 260, 40], zelkova: [2600, 560, 160], pine: [600, 140, 96], maple: [2600, 560, 160], sapling: [1400, 200], shrub: [1200, 180] }),
+});

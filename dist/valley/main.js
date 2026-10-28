@@ -1,3 +1,4 @@
+import { assignTreeSpecies, scatterUnderstory } from './tree-species.js';
 // main.js — 縦切りの起動（app層）。読み込み → タイトル → 遊び。描画器・操作・音・UI・設定・一時停止・各ボタンを組み立てる。
 import * as THREE from 'three';
 import { WORLD } from './world-data.js';
@@ -89,7 +90,10 @@ async function boot() {
   await step(0.12, '谷の地形を組み立てています');
   const built = buildTerrain({ terrain, textures, quality }); scene.add(built.group); live.built = built;
   await step(0.2, '木と岩を植えています');
-  const scatter = { trees: scatterTrees(WORLD, terrain), rocks: scatterRocks(WORLD, terrain), rice: scatterRice(WORLD, terrain), crops: scatterCrops(WORLD, terrain) };
+  const trees = scatterTrees(WORLD, terrain);
+  const species = assignTreeSpecies(WORLD, terrain, trees);
+  const understory = scatterUnderstory(WORLD, terrain, trees);
+  const scatter = { trees, species, understory, rocks: scatterRocks(WORLD, terrain), rice: scatterRice(WORLD, terrain), crops: scatterCrops(WORLD, terrain) };
   await step(0.28, '建物を読み込んでいます');
   const aniso = renderer.capabilities.getMaxAnisotropy();
   const [models, propModels] = await Promise.all([loadModels({ anisotropy: aniso }), loadPropModels({ anisotropy: aniso })]);
@@ -144,6 +148,7 @@ function setQuality(v) {
     const old = game.veg; live.scene.remove(old.group);
     const veg = buildVegetation({ scatter: live.scatter, quality: v, field: live.grassField, sunDir: ATMOS.sunDir }); live.scene.add(veg.group); game.veg = veg;
     old.grass.dispose();
+    old.trees.dispose();
     veg.grass.warm(camera);
     old.group.traverse(o => {                                                  // 作り直す前の GPU 資源を解放する（切り替えのたびに増えない）
       if (!o.isMesh) return;
