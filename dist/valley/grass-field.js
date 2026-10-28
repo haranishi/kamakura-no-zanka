@@ -18,6 +18,27 @@ const qualityOf = quality => {
 const index = (f, x, z) => x < f.x0 || z < f.z0 || x >= f.x0 + f.nx || z >= f.z0 + f.nz ? -1 : (z - f.z0) * f.nx + x - f.x0;
 const noise = (seed, x, z, scale, offset) => fbm(x * scale, z * scale, seed + offset, 2);
 
+// One texel per metre, centred at (x0 + i + .5, z0 + j + .5).
+// Ineligible sources are zero; one zero-padded box pass may spill into their edges.
+export function coverMap(field) {
+  const { x0, z0, nx, nz, placeable, density } = field;
+  const source = new Uint8Array(nx * nz), data = new Uint8Array(nx * nz);
+  let maxDensity = 0;
+  for (let k = 0; k < source.length; k++) if (placeable[k]) maxDensity = Math.max(maxDensity, density[k]);
+  for (let k = 0; k < source.length; k++) {
+    if (placeable[k] && density[k] > 0) source[k] = Math.round(255 * clamp(0.6 + 0.4 * density[k] / maxDensity, 0, 1));
+  }
+  for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) {
+    let sum = 0;
+    for (let dz = -1; dz <= 1; dz++) for (let dx = -1; dx <= 1; dx++) {
+      const x = i + dx, z = j + dz;
+      if (x >= 0 && x < nx && z >= 0 && z < nz) sum += source[z * nx + x];
+    }
+    data[j * nx + i] = Math.round(sum / 9);
+  }
+  return { data, x0, z0, nx, nz };
+}
+
 export function createGrassField(world, terrain, { box = GRASS.box, padding = GRASS.padding } = {}) {
   const x0 = Math.floor(box[0] - padding), z0 = Math.floor(box[2] - padding);
   const nx = Math.ceil(box[1] + padding) - x0, nz = Math.ceil(box[3] + padding) - z0, n = nx * nz;
