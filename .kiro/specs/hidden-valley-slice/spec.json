@@ -38,12 +38,13 @@
     "meshy_credits_floor": 500
   },
   "open_questions": [
-    "見た目は写実寄りの夕景でよいか（企画書は『絵画的なスタイライズド3D』）",
     "主人公の姓名の重複確認",
-    "容量（条件つきの決定・2026-10-27）：実測が84.5MiBを超えるときだけ、90MiBを維持して圧縮を先行。実際に読む合計は未測定（R14.9）"
+    "容量（条件つきの決定・2026-10-27）：実測が84.5MiBを超えるときだけ、90MiBを維持して圧縮を先行。実際に読む合計は未測定（R14.9）",
+    "血や衝撃の表現（R11.2・design-gameplay.md の設定「血表現」）は未実装。現行は血を使わず火花・光・土煙で重さを出す。血の表現を足すか、設定項目を仕様から外すかは本人の確認待ち（第3弾の設計には入れない）"
   ],
   "resolved": [
-    "Meshy生成物の公開時の扱い：有料Proの期間内の生成・コミュニティ公開0件を2026-10-27に確認。出所は NOTICE.md と provenance"
+    "Meshy生成物の公開時の扱い：有料Proの期間内の生成・コミュニティ公開0件を2026-10-27に確認。出所は NOTICE.md と provenance",
+    "2026-10-28 本人の指示で、見た目を写実寄りの夕景という解釈から、絵画的で高品質（絵本と商業の大作の水準）へ改める"
   ],
   "ready_for_implementation_scope": "本人の今回依頼: 7.1（案内の純粋層）と7.2の目的文・中心区域・設定データのみ。view・Git反映は対象外",
   "decisions": [
@@ -100,7 +101,27 @@
       "adopted": "実測が84.5MiBを超えるときだけ、90MiBを維持して圧縮を先行",
       "reason": "上界のみで削減せず、実際の読み込み量を測る。予算拡大は採らない",
       "decided_on": "2026-10-27"
+    },
+    {
+      "topic": "第3弾の画づくりの水準",
+      "adopted": "絵画的で高品質（絵本と商業の大作の水準）へ改める",
+      "reason": "2026-10-28の本人の評価と指示。特定作品への模倣を目標にしない",
+      "decided_on": "2026-10-28"
     }
   ],
-  "implementation_scope": "本人の今回依頼: 7.2・7.3（道しるべの画面・G・設定・QA・純粋検査）と7.1の決定記録。git add/commit/pushは禁止。ブラウザ確認は親"
+  "implementation_scope": "本人の今回依頼: 7.2・7.3（道しるべの画面・G・設定・QA・純粋検査）と7.1の決定記録。git add/commit/pushは禁止。ブラウザ確認は親",
+  "polish_round3": {
+    "requirements": "requirements-polish3.md（R17・R18）",
+    "design": [
+      "design-graphics.md",
+      "design-combat-presentation.md"
+    ],
+    "tasks": "tasks-polish3.md §8",
+    "validation": "design-validation-polish3.md",
+    "research": "research-polish3.md",
+    "status": "設計のみ・実装は未着手",
+    "date": "2026-10-28",
+    "ready_for_implementation": false,
+    "implementation_scope": "設計のみ。コード・素材・設定は変更しない"
+  }
 }
