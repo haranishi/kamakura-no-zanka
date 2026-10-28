@@ -1,4 +1,5 @@
 # Requirements（追補）: 草木・音・道しるべ（第2弾の磨き）
+第3弾（画づくり・戦闘）は requirements-polish3.md（R17・R18）。
 
 requirements.md の続き。2026-10-27、本人がプレイしたあとの評価から起こした。決定（2026-10-27）：推奨案を採用し、7.0・7.0aの指定範囲から実装を始める。
 設計は design-vegetation.md（R14）・design-audio.md（R15）・design-wayfinding.md（R16）。作業は tasks.md の §7。各条件の担当・合否・測定手順は design-validation.md を正とする。

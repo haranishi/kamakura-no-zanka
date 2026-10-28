@@ -2,6 +2,7 @@
 
 詳細は design-world.md（地形・風景）・design-characters.md（人物・動作）・design-gameplay.md（戦闘・判断・任務）・
 design-contracts.md（純粋ロジックの契約）。第2弾の磨き（2026-10-27）は design-vegetation.md（草）・design-trees.md（木）・design-audio.md（音）・design-wayfinding.md（道しるべ）。
+第3弾（設計のみ）は design-graphics.md・design-combat-presentation.md・requirements-polish3.md。
 ここには全体の構造と、コードを消すと失われる判断だけを書く。
 
 ## 位置づけ
