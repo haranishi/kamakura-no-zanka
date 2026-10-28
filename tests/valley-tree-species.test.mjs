@@ -105,7 +105,7 @@ test('caps, stream separation, budget and purity [budget purity]', () => {
   assert(TREES.conversion.probability > .9 && TREES.conversion.probability < 1, '[ratio] conversion must preserve a small individual remainder');
   const seeds=Object.values(TREES.seeds), old=[101,211,307,401,503,7*101,13*211,17*307,19*401,23*503,GRASS.seed,GRASS.midSeed,GRASS.clumpSeed];
   assert(seeds.every(Number.isInteger)&&new Set(seeds).size===seeds.length&&seeds.every(s=>!old.includes(s)),'[purity] overlapping random streams');
-  assert.deepEqual(TREES.budget,{cedar:[1500,260,40],zelkova:[1100,260,112],pine:[600,140,72],maple:[1100,260,112],sapling:[260,90],shrub:[220,80]},'[budget] triangle ceilings');
+  assert.deepEqual(TREES.budget,{cedar:[1500,260,40],zelkova:[1100,260,160],pine:[600,140,96],maple:[1100,260,160],sapling:[600,160],shrub:[500,140]},'[budget] triangle ceilings');
   const src=fs.readFileSync(new URL('../dist/valley/tree-species.js',import.meta.url),'utf8');
   assert(!/Math\.random|Date\.|performance\.|document\.|window\.|from ['"]three/.test(src),'[purity] impure layer');
 });
@@ -116,3 +116,16 @@ test('fields remain bounded and spatially shared [cluster]', () => {
   assert(spread/values.length<.04&&Math.max(...values)-Math.min(...values)>.3,'[cluster] stage field constant or independent');
 });
 test('report Node CPU timings [timing]',()=>console.log('trees timing (Node CPU only)',{assignMs,understoryMs,saplings:under.species.filter(s=>s===4).length,shrubs:under.species.filter(s=>s===5).length}));
+
+// なぜ失敗したか: 小さい独立揺らぎでは紅葉が一色になり、配置変更とは別に退行を検出する必要があった。
+test('only stage changes, with twenty-byte seasonal jitter [stage-jitter/placement]',()=>{
+  const hash=v=>createHash('sha256').update(JSON.stringify(v)).digest('hex');
+  assert.equal(hash(Array.from(assigned.species)),'3317a697e1001c87048c40147123273116bc73077810a79920ea58d8c2554b8f','[species-placement] adult species changed');
+  assert.equal(hash(Object.fromEntries(Object.entries(under).filter(([k])=>k!=='stage'))),'42291a08795c4f08e616cb651813dd8b8d292766520f894a098f13ef24e98c5b','[understory-placement] coordinates/count/species or random stream changed');
+  assert.equal(hash([Array.from(assigned.stage),under.stage]),'9e4eae85ea904fb581745a17408e6af5d217c5a577b4db98680d3e606e6ce7e4','[stage-jitter] seasonal jitter must remain +/-20/255');
+  const residual=trees.x.map((x,i)=>{
+    const f=treeFieldsAt(WORLD,x,trees.z[i]),season=Math.max(0,Math.min(1,.5+1.6*(f.stage-.5)));
+    return assigned.stage[i]-(assigned.species[i]===3?.45+.55*season:season)*255;
+  });
+  assert(Math.min(...residual)<-19 && Math.max(...residual)>19 && residual.every(v=>Math.abs(v)<=20.5),'[stage-jitter] independent spread outside +/-20');
+});

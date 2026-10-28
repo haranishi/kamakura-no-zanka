@@ -16,13 +16,13 @@ export function treeMaterials({ wind, sunDir, quality = 'standard' }) {
   const textures = [needleTexture(), zelkovaLeafTexture(), mapleLeafTexture(), needleFringeTexture()], owned = [], sets = new Map();
   const means = textures.map(meanColor);
   const sun = { value: sunDir }, disabled = () => ({ value: new THREE.Vector4(-1, -1, -1, -1) });
-  function material(species, level, leaf, variant) {
+  function material(species, level, leaf, variant, shape) {
     const conifer = species === 0 || species === 2;
     const map = !leaf || level === 2 ? null : textures[conifer ? (species === 2 || level === 0 ? 0 : 3) : species === 3 || species === 4 && variant === 1 ? 2 : 1];
     const m = new THREE.MeshLambertMaterial({ map, vertexColors: true, side: leaf ? THREE.DoubleSide : THREE.FrontSide,
       alphaTest: map ? .3 : 0, alphaToCoverage: !!map && quality !== 'light', emissive: 0x000000 });
     if (leaf && level === 2) m.color.copy(means[conifer ? 0 : species === 3 ? 2 : 1]);
-    if (leaf && !conifer && level < 2) m.color.multiplyScalar(TREES.leafGain);
+    if (leaf && !conifer && level < 2) m.color.multiplyScalar(species >= 4 ? TREES.understoryLeafGain : TREES.leafGain);
     const lod = disabled(); m.userData.uLod = lod;
     m.onBeforeCompile = shader => {
       Object.assign(shader.uniforms, wind, { uSunDir: sun, uLod: lod });
@@ -84,15 +84,15 @@ export function treeMaterials({ wind, sunDir, quality = 'standard' }) {
         backlight *= 1.0-smoothstep(30.0,100.0,vTreeDistance);
         totalEmissiveRadiance += min(vec3(.35),diffuseColor.rgb*vec3(1.0,.82,.52)*backlight*${conifer ? '.2' : '1.0'});` : ''}`);
     };
-    m.customProgramCacheKey = () => `tree-specimen-v1-${species}-${level}-${leaf}-${variant}-${quality}`;
+    m.customProgramCacheKey = () => `tree-specimen-v1-${species}-${level}-${leaf}-${variant}-${shape}-${quality}`;
     owned.push(m); return m;
   }
   let disposed = false;
   return {
-    get(species, level, variant = 0) {
+    get(species, level, variant = 0, shape = 0) {
       if (disposed) throw new Error('tree materials disposed');
-      const key = `${species}/${level}/${variant}`;
-      if (!sets.has(key)) sets.set(key, { leaf: material(species, level, true, variant), wood: material(species, level, false, variant) });
+      const key = `${species}/${level}/${variant}/${shape}`;
+      if (!sets.has(key)) sets.set(key, { leaf: material(species, level, true, variant, shape), wood: material(species, level, false, variant, shape) });
       return sets.get(key);
     },
     dispose() { if (disposed) return; disposed = true; for (const m of owned) m.dispose(); for (const t of textures) t.dispose(); sets.clear(); },

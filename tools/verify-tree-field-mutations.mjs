@@ -5,11 +5,11 @@ import { spawnSync } from 'node:child_process';
 const config = 'dist/valley/config.js';
 const view = 'dist/valley/tree-view.js', lod = 'dist/valley/tree-lod.js', qa = 'dist/valley/qa.js';
 const cases = [
-  ['wide standard dither band', config, 'blend: { standard: 7, light: 6 }', 'blend: { standard: 10, light: 6 }'],
-  ['wide light dither band', config, 'blend: { standard: 7, light: 6 }', 'blend: { standard: 7, light: 8 }'],
+  ['wide standard dither band', config, 'blend: { standard: 4, light: 3 }', 'blend: { standard: 10, light: 3 }'],
+  ['wide light dither band', config, 'blend: { standard: 4, light: 3 }', 'blend: { standard: 4, light: 8 }'],
   ['only one level in overlap', view, 'if (membership[level]) {', 'if (membership[level] && !membership[level - 1]) {'],
   ['omit movement margin', lod, 'margin = 6', 'margin = 0'],
-  ['different scale at each level', view, 'baseScale * (.92 + .28 * f2)', 'baseScale * (.92 + .28 * f2) * (1 + level * .2)'],
+  ['different scale at each level', view, 'baseScale * (.85 + .45 * f2)', 'baseScale * (.85 + .45 * f2) * (1 + level * .2)'],
   ['remove light far thinning', view, 'this.light && level === 2 && (i & 1)', 'false'],
   ['remove understory outer cull', view, 'if (fadeWeight(distance - 6, range, this.policy.blend) <= 0) continue;', '/* missing outer cull */'],
   ['remove understory shader fade', view, 'if (cfg) shader.vertexShader =', 'if (false) shader.vertexShader ='],
@@ -25,6 +25,12 @@ const cases = [
   ['unnormalized weights', lod, '[1 - enter, enter * (1 - far), far]', '[1 - enter, enter, far]'],
   ['shader distance differs from allocation', view, "'distance(treeOrigin.xz,cameraPosition.xz)'", "'distance(treeOrigin,cameraPosition)'"],
   ['QA drops total', qa, 'total += count;', 'total += 0;'],
+  ['ignore tint family', view, 'return Math.min(count - 1, Math.floor(clamp(tint) * count));', 'return 0;'],
+  ['remove root shrink', view, 'transformed *= treeShrink;', 'transformed *= 1.0;'],
+  ['restore understory blend', view, 'step(${cfg.split.toFixed(1)},vTreeDistance)', 'smoothstep(${(cfg.split-blend).toFixed(1)},${(cfg.split+blend).toFixed(1)},vTreeDistance)'],
+  ['expand hard split reserve', view, 'lod: [cfg.split, Infinity], blend: 0', 'lod: [cfg.split, Infinity], blend: this.policy.blend'],
+  ['remove individual tilt', view, "this.euler.set(tiltX, d.rot[i], tiltZ, 'YXZ')", "this.euler.set(0, d.rot[i], 0, 'YXZ')"],
+  ['QA overwrites families', qa, 'bySpecies[key][set.level] += set.leaf.count;', 'bySpecies[key][set.level] = set.leaf.count;'],
   ...[
     ['start', 'cx === -100.5 && cz === -89'],
     ['village road', 'cx === -5 && cz === 2.2'],

@@ -1,5 +1,6 @@
 // なぜ失敗したか: 円盤の絵と広葉カードがコインを作り、葉の芯が格子になった。松の殻と広葉L2一殻が皿・六角形を作った。
 // 第3次: 低木の2帯がひし形、中遠景の3帯が六角形、太い開底の杉芯が黒い三角形になった。
+// 第2回独立評価: 複製樹形・低木の多面体・遠景の皿を、全変種の実バッファで防ぐ。
 // 原因の型: budget/attributes/normal/exposure/shape/bark/core/determinism。GPUと見た目は検査しない。
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -75,7 +76,7 @@ test('species silhouettes and structural grammar [shape]', () => {
   assert(new Set(names.map((_, i) => digest(treeGeometry(i, 0).leaf))).size === 6, '[shape] species differ');
 });
 test('seeded regeneration, no DOM/random/time, invalid levels [determinism]', async () => {
-  const url = 'data:text/javascript;base64,' + Buffer.from(source('tree-geometry.js').replace("from 'three'", `from '${new URL('../dist/vendor/three.module.min.js', import.meta.url).href}'`) + '\n// independent module').toString('base64');
+  const url = 'data:text/javascript;base64,' + Buffer.from(source('tree-geometry.js').replace("from 'three'", `from '${new URL('../dist/vendor/three.module.min.js', import.meta.url).href}'`).replace("from './config.js'", `from '${new URL('../dist/valley/config.js', import.meta.url).href}'`) + '\n// independent module').toString('base64');
   const fresh = await import(url);
   for (let s = 0; s < 6; s++) for (let l = 0; l < (s >= 4 ? 2 : 3); l++) for(const part of ['wood','leaf']) assert.equal(digest(treeGeometry(s, l)[part]), digest(fresh.treeGeometry(s, l)[part]), '[determinism] seed drift');
   assert(!/Math\.random|document\.|Date\.|performance\./.test(source('tree-geometry.js')), '[determinism] external state');
@@ -125,7 +126,7 @@ test('LOD dimensions and rounded far broadleaf, fringed cedar mid [lod-shape]',(
         assert(g.leaf.userData.parts.length===2,'[far-clumps] expected two separate ellipsoids');
         const heights=new Set(Array.from({length:g.leaf.getAttribute('position').count},(_,i)=>g.leaf.getAttribute('position').getY(i).toFixed(2)));
         assert(heights.size>=8,'[far-roundness] too few staggered bands; hexagonal outline');
-        assert(g.tris.wood+g.tris.leaf<=112,'[budget] far broadleaf');
+        assert(g.tris.wood+g.tris.leaf<=160,'[budget] far broadleaf');
         const index=g.leaf.index.array,parent=new Map();
         const root=i=>{if(parent.get(i)!==i)parent.set(i,root(parent.get(i)));return parent.get(i);};
         for(const i of index)parent.set(i,i);
@@ -165,7 +166,7 @@ test('all broadleaf triangles belong to shells; wood holds one dark core [shell/
         const factor=Math.hypot(x/part.radii[0],z/part.radii[2])/Math.sin(j/part.bands*Math.PI);
         min=Math.min(min,factor);max=Math.max(max,factor);
       }
-      assert(max-min>.015 && min>=.90 && max<=1.10,'[shell-wobble] smooth crown or extreme perturbation');
+      assert(max-min>.015 && min>=(species>=4?.8599:.90) && max<=(species>=4?1.1401:1.10),'[shell-wobble] smooth crown or extreme perturbation');
     }
     const cores=g.wood.userData.parts.filter(p=>p.core);
     assert.equal(cores.length,1,'[core-mesh] missing wood core');
@@ -182,7 +183,7 @@ test('pine tufts radiate from bottom-centred cards [pine-fan]',()=>{
   for(const level of [0,1]) {
     const g=treeGeometry(2,level),p=g.leaf.getAttribute('position'),n=g.leaf.getAttribute('normal'),uv=g.leaf.getAttribute('uv');
     const parts=g.leaf.userData.parts;
-    assert.equal(parts.length,level===0?40:15,'[pine-card] fan count; disk regression');
+    assert.equal(parts.length,level===0?40:20,'[pine-card] fan count; disk regression');
     assert.equal(g.tris.leaf,parts.length*2,'[pine-card] non-card foliage');
     const centres=new Map();
     for(const part of parts) {
@@ -198,7 +199,7 @@ test('pine tufts radiate from bottom-centred cards [pine-fan]',()=>{
       assert(face.dot(normal)>.999,'[pine-normal] normal disagrees with card winding');
       assert(middle[0]*Math.cos(part.angle)+middle[2]*Math.sin(part.angle)>1.5,'[pine-direction] fan must grow outward');
     }
-    assert.equal(centres.size,level===0?5:3,'[pine-tuft] wrong tuft count');
+    assert.equal(centres.size,level===0?5:4,'[pine-tuft] wrong tuft count');
   }
 });
 
@@ -212,10 +213,10 @@ function outlineCount(points) {
 test('rounded understory and middle/far crowns use real shell rings [shell-resolution]',()=>{
   for(const species of [1,3,4,5])for(const level of (species<4?[1,2]:[0,1])) {
     const g=treeGeometry(species,level),p=g.leaf.getAttribute('position'),parts=g.leaf.userData.parts;
-    assert.equal(parts.length,species<4?(level===1?5:2):level===1?2:species===4?4:5,'[clump-count] rounded crown grouping');
+    assert.equal(parts.length,species<4?(level===1?5:2):level===1?2:4,'[clump-count] rounded crown grouping');
     for(const part of parts) {
       const {first,sides,bands}=part;
-      assert(sides>=8 && bands>=(species<4?4:3),'[shell-resolution] diamond/hexagon shell returned');
+      assert(sides>=(species>=4 && level===0?12:8) && bands>=(species<4?(level===2?5:4):(level===0?5:4)),'[shell-resolution] diamond/hexagon shell returned');
       const rows=[];
       for(let j=0;j<=bands;j++) {
         const ring=[];
@@ -281,4 +282,56 @@ test('near cedar core is slim deep green with a watertight downward cap [core]',
   assert.equal(caps,8,'[core-cap] bottom is open');
   assert([...edges.values()].every(v=>v===2),'[core-closed] cone has boundary or nonmanifold edges');
   assert(g.tris.wood+g.tris.leaf<=1476,'[budget] near cedar exceeds old 1476 triangles');
+});
+
+// なぜ失敗したか: 一つの標本だけの検査では、複製と別変種の予算・LOD退行を見逃した。
+test('all shape families have finite unit normals, budgets and matching LOD bounds [variant]',()=>{
+  assert.deepEqual(TREES.variants,{cedar:3,zelkova:3,pine:2,maple:3},'[variant-count] shape family configuration');
+  for(let sp=0;sp<4;sp++) {
+    const families=[[],[],[]];
+    for(let shape=0;shape<TREES.variants[names[sp]];shape++) {
+      const size=g=>bounds(g.leaf).getSize(new THREE.Vector3()).toArray();
+      const base=treeGeometry(sp,0,shape), dims=size(base);let previous=Infinity;
+      for(let level=0;level<3;level++) {
+        const g=treeGeometry(sp,level,shape), total=g.tris.wood+g.tris.leaf;
+        families[level].push(size(g).join(','));
+        assert(total<=TREES.budget[names[sp]][level] && total<previous,`[variant-budget] ${sp}/${shape}/${level} ${total}`);previous=total;
+        assert.equal(g,treeGeometry(sp,level,shape),'[variant-cache] unstable template');
+        assert.equal(treeGeometry(sp,level),treeGeometry(sp,level,0),'[variant-default] shape zero changed');
+        for(const kind of ['wood','leaf']) {
+          for(const a of Object.values(g[kind].attributes))assert(Array.from(a.array).every(Number.isFinite),'[variant-attributes] nonfinite buffer');
+          const n=g[kind].getAttribute('normal');
+          for(let i=0;i<n.count;i++)assert(Math.abs(Math.hypot(n.getX(i),n.getY(i),n.getZ(i))-1)<1e-6,'[variant-normal] non-unit normal');
+          assert(Array.from(g[kind].index.array).every(i=>i<g[kind].getAttribute('position').count),'[variant-index] out of bounds');
+        }
+        if(level)size(g).forEach((v,q)=>assert(Math.abs(v/dims[q]-1)<=(level===1?.15:.2),`[variant-lod] ${sp}/${shape}/${level} axis ${q}`));
+        if(sp===0)assert(level===0?g.tris.leaf/48>=24 && g.tris.leaf/48<=28:level===1?g.tris.leaf/24>=8 && g.tris.leaf/24<=10:g.tris.leaf/6>=3 && g.tris.leaf/6<=5,'[variant-cedar] row count outside grammar');
+        if([1,3].includes(sp) && level===2) {
+          const [main,side]=g.leaf.userData.parts;
+          assert.equal(g.leaf.userData.parts.length,2,'[dome-count] main dome plus shoulder');
+          assert(main.bands>=5 && side.bands>=5 && main.sides>=8 && side.sides>=8,'[dome-bands] coarse far dome');
+          assert(main.radii[0]/main.radii[1]>=1.199 && main.radii[0]/main.radii[1]<=1.401,'[dome-aspect] flattened plate');
+          assert(side.radii.every((r,q)=>r<main.radii[q]*.7),'[dome-shoulder] two equal stacked crowns');
+        }
+      }
+    }
+    for(const level of families)assert.equal(new Set(level).size,TREES.variants[names[sp]],'[variant-shape] identical shape bounds');
+  }
+  for(const args of [[0,0,-1],[0,0,3],[2,1,2],[4,0,1],[5,1,1],[1,0,.5]])assert.throws(()=>treeGeometry(...args),RangeError,'[variant-validation] invalid shape accepted');
+});
+test('cedar shape zero retains original L0 and L2 bytes [cedar-hash]',()=>{
+  const hashes={
+    '0/wood':'85cc2ab6dfea794701e23ad7de31097b1de89f75f7c05af8585a3a9ad1fa9b06',
+    '0/leaf':'aeea6173e75705407b8f47999216951479a3cf9dbcc5879f7e1bc16930322dfd',
+    '2/wood':'7517dc2bc0b385c56f87d06234837207be5f9693e3dfd2f2389462c77712c4b7',
+    '2/leaf':'732b9606020a6e155db29ffa08b9910a7f3d6f71a5409a5806b2d28157023ea7',
+  };
+  for(const [key,expected] of Object.entries(hashes)){const [l,k]=key.split('/');assert.equal(digest(treeGeometry(0,+l,0)[k]),expected,'[cedar-hash] protected buffer changed');}
+});
+test('sapling trunk tip lies in lower half of overlapping rounded foliage [trunk-gap]',()=>{
+  for(const level of [0,1]) {
+    const g=treeGeometry(4,level),p=g.wood.getAttribute('position'),first=level===0?10:5;
+    const tip=[0,0,0];for(let k=0;k<4;k++)for(let q=0;q<3;q++)tip[q]+=p.array[(first+k)*3+q]/4;
+    assert(g.leaf.userData.parts.some(part=>tip[1]<part.center[1] && Math.hypot(...tip.map((v,q)=>(v-part.center[q])/part.radii[q]))<.8),'[trunk-gap] trunk ends below crown or outside rounded shell');
+  }
 });

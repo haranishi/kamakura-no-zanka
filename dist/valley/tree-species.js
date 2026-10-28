@@ -38,7 +38,7 @@ export function assignTreeSpecies(world, terrain, trees) {
     } else if (kind === SPECIES.zelkova && f.maple > TREES.fields.mapleThreshold) kind = SPECIES.maple;
     species[i] = kind;
     // Independent draw count for stage, regardless of conversion.
-    stage[i] = stageAt(f, kind, (positionRand(world, x, z)() - 0.5) * 24 / 255);
+    stage[i] = stageAt(f, kind, (positionRand(world, x, z)() - 0.5) * 40 / 255);
   }
   return { species, stage };
 }
@@ -100,7 +100,7 @@ export function scatterUnderstory(world, terrain, trees, { box = [-210, 240, -21
       out.x.push(x); out.z.push(z); out.y.push(terrain.heightAt(x, z));
       out.s.push(name === 'sapling' ? 2 + 2 * rng() : 0.8 + 0.8 * rng());
       out.rot.push(rng() * Math.PI * 2); out.species.push(species); out.variant.push(variant);
-      out.stage.push(stageAt(f, variant ? SPECIES.maple : SPECIES.zelkova, (rng() - 0.5) * 24 / 255)); out.tint.push(rng());
+      out.stage.push(stageAt(f, variant ? SPECIES.maple : SPECIES.zelkova, (rng() - 0.5) * 40 / 255)); out.tint.push(rng());
       count++;
     }
   }

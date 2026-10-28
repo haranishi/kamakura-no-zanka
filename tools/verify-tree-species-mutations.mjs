@@ -22,6 +22,8 @@ const cases = [
   ['shrub cap raised', config, 'maxCount: 4000', 'maxCount: 40000'],
   ['random stream overlaps grass', config, 'grove: 51001', 'grove: 19391'],
   ['plot exclusion removed', rules, 'if ((world.plots || []).some(p => insidePlot(p, x, z, 1.5)))', 'if (false)'],
+  ['remove adult seasonal jitter', rules, '(positionRand(world, x, z)() - 0.5) * 40 / 255', '0'],
+  ['remove understory seasonal jitter', rules, '(rng() - 0.5) * 40 / 255', '0'],
 ];
 const run = () => spawnSync(process.execPath, ['--test', 'tests/valley-tree-species.test.mjs'], {encoding:'utf8',timeout:30000});
 const originals = new Map([rules,config].map(file=>[file,fs.readFileSync(file)]));

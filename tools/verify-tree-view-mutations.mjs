@@ -14,7 +14,7 @@ const cases = [
   ['remove transparent leaf separation', texture, "g.globalCompositeOperation = 'destination-out'", "g.globalCompositeOperation = 'source-over'"],
   ['opaque disk under leaves', texture, "g.lineJoin = 'round'; g.lineCap = 'round';", "g.fillStyle='rgb(190,190,190)'; g.beginPath(); for(let i=0;i<=64;i++){const a=i/64*TAU; if(i===0)g.moveTo(128+120*Math.cos(a),128+120*Math.sin(a));else g.lineTo(128+120*Math.cos(a),128+120*Math.sin(a));}g.closePath();g.fill();g.lineJoin = 'round'; g.lineCap = 'round';"],
   ['reserved opaque corner', texture, 'const map = repeat(c, g); map.userData.leafCount', "g.fillStyle='rgb(158,158,158)';g.fillRect(0,240,16,16);const map = repeat(c, g); map.userData.leafCount"],
-  ['omit leaf gain', material, 'm.color.multiplyScalar(TREES.leafGain)', 'm.color.multiplyScalar(1)'],
+  ['omit leaf gain', material, 'm.color.multiplyScalar(species >= 4 ? TREES.understoryLeafGain : TREES.leafGain)', 'm.color.multiplyScalar(1)'],
   ['gain applied to conifers', material, 'leaf && !conifer && level < 2', 'leaf && level < 2'],
   ['unscaled wind', material, '*flutter)*uWind;', '*flutter);'],
   ['gust without threshold', material, '*step(.5,uWind)', '*1.0'],
@@ -27,6 +27,8 @@ const cases = [
   ['no transmission attenuation', material, '1.0-smoothstep(30.0,100.0,vTreeDistance)', '1.0'],
   ['light coverage enabled', material, "quality !== 'light'", "quality === 'light'"],
   ['sapling texture variant ignored', material, 'species === 4 && variant === 1', 'species === 4 && variant === 9'],
+  ['understory adult gain', material, 'species >= 4 ? TREES.understoryLeafGain : TREES.leafGain', 'TREES.leafGain'],
+  ['narrow tint spread', 'dist/valley/tree-view.js', '.88 + .24 * clamp(tint)', '.9 + .2 * clamp(tint)'],
 ];
 const originals = new Map([...new Set(cases.map(c => c[1]))].map(f => [f, fs.readFileSync(f)]));
 const run = () => spawnSync(process.execPath, ['--test', 'tests/valley-tree-view.test.mjs'], { encoding: 'utf8', timeout: 30000, maxBuffer: 8 * 1024 * 1024 });

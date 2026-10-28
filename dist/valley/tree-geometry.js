@@ -1,5 +1,7 @@
 // Deterministic specimen geometry. Cached templates are borrowed; views clone them.
 import * as THREE from 'three';
+import { TREES } from './config.js';
+const names = ['cedar', 'zelkova', 'pine', 'maple', 'sapling', 'shrub'];
 
 const TAU = Math.PI * 2, cache = new Map();
 const heights = [20, 12, 13, 8, 3, 1.2];
@@ -82,22 +84,29 @@ function cone(m, y0, y1, radius, sides, offset, color = null, capped = false) {
     for (let k = 0; k < sides; k++) m.tri(bottom, first + 1 + k, first + 2 + k);
   }
 }
-function cedar(wood, leaf, level, rnd) {
-  tube(wood, [0, -.1, 0], [.25, level === 2 ? 3 : 19, 0], .45, level === 0 ? 8 : 4, level === 0 ? 6 : 1, true, [.12, .083, .05], .97);
+function cedar(wood, leaf, level, rnd, shape) {
+  tube(wood, [0, -.1, 0], [.25 + shape * .16, level === 2 ? 3 : 19, shape * -.12], .45, level === 0 ? 8 : 4, level === 0 ? 6 : 1, true, [.12, .083, .05], .97);
   if (level === 2) {
-    for (let i = 0; i < 4; i++) cone(leaf, 2.8 + i * 3.8, 11 + i * 3, 3.565 - i * .7475, 6, i * 1.7);
+    if (shape === 0) for (let i = 0; i < 4; i++) cone(leaf, 2.8 + i * 3.8, 11 + i * 3, 3.565 - i * .7475, 6, i * 1.7);
+    else {
+      const rows = shape === 1 ? 3 : 4;
+      for (let i = 0; i < rows; i++) {
+        const t = i / (rows - 1);
+        cone(leaf, 2.8 + t * 11.4, 11 + t * 9, (3.565 - t * 2.2425) * (shape === 1 ? 1.06 : .94), 6, i * 1.7 + shape * .43);
+      }
+    }
     return;
   }
   if (level === 1) {
     // Nine overlapping fringed skirts; upper UV is dense, lower UV is cut out.
-    const rows = 9, sides = 12;
+    const rows = [9, 8, 10][shape], sides = 12;
     for (let i = 0; i < rows; i++) {
-      const t = i / (rows - 1), y = 3 + t * 16.8, r = .25 + 3.2 * Math.pow(1 - t, .85) * (.9 + .1 * Math.cos(t * Math.PI * 6));
+      const t = i / (rows - 1), y = 3 + t * 16.8, r = .25 + 3.2 * (shape === 1 ? 1.06 : shape === 2 ? .94 : 1) * Math.pow(1 - t, .85) * (.9 + .1 * Math.cos(t * Math.PI * 6));
       const first = leaf.s.length, rotation = i * 2.399;
       for (let j = 0; j < 2; j++) for (let k = 0; k <= sides; k++) {
         const a = rotation + k / sides * TAU, radius = r * (j ? 1 : .24) * (1 + .12 * Math.sin((k % sides) * 2.3 + i));
         const e = j ? .48 : .85;
-        leaf.vert([Math.cos(a) * radius, y + (j ? -.65 : 1.0), Math.sin(a) * radius], [Math.cos(a), .5, Math.sin(a)], [e,e,e], [k / sides * 3, j ? 0 : 1], j ? 1 : .4);
+        leaf.vert([Math.cos(a) * radius, y + (j ? -.65 - shape * .08 : 1.0), Math.sin(a) * radius], [Math.cos(a), .5, Math.sin(a)], [e,e,e], [k / sides * 3, j ? 0 : 1], j ? 1 : .4);
       }
       for (let k = 0; k < sides; k++) { const v = first + k; leaf.quad(v, v + 1, v + sides + 2, v + sides + 1); }
     }
@@ -106,12 +115,12 @@ function cedar(wood, leaf, level, rnd) {
   }
   // Deep green core: slightly darker than the average needles, never a black void.
   cone(wood, 3, 19.7, 1.35, 8, .3, [.04, .075, .035], true);
-  const rows = level === 0 ? 26 : 12, branches = level === 0 ? 6 : 8;
+  const rows = [26, 24, 28][shape], branches = 6;
   for (let i = 0; i < rows; i++) {
-    const t = i / (rows - 1), y = 3 + t * 16.8, length = .25 + 3.2 * Math.pow(1 - t, .85) * (.9 + .1 * Math.cos(t * Math.PI * 6));
+    const t = i / (rows - 1), y = 3 + t * 16.8, length = .25 + 3.2 * (shape === 1 ? 1.06 : shape === 2 ? .94 : 1) * Math.pow(1 - t, .85) * (.9 + .1 * Math.cos(t * Math.PI * 6));
     for (let b = 0; b < branches; b++) {
       const a = i * 2.399 + b / branches * TAU + (rnd() - .5) * .3;
-      const reach = length * (.85 + rnd() * .3), drop = .2 + .15 * (1 - t);
+      const reach = length * (.85 + rnd() * .3), drop = .2 + .15 * (1 - t) + shape * .025;
       // Folded crossed fronds, evolved from the old addFrond grammar.
       for (let plate = 0; plate < (level === 0 ? 2 : 1); plate++) {
         const start = leaf.s.length;
@@ -128,33 +137,38 @@ function cedar(wood, leaf, level, rnd) {
   }
   if (level === 0) for (let i = 0; i < 5; i++) { const a = i * 2.399; tube(wood, [0, 1 + i * .3, 0], [Math.cos(a) * .9, 1 + i * .3, Math.sin(a) * .9], .06, 4, 1, false, [.12, .083, .05], .97); }
 }
-function broad(wood, leaf, species, level, rnd) {
+function broad(wood, leaf, species, level, rnd, shape) {
   const maple = species === 3, small = species >= 4, shrub = species === 5, h = heights[species];
   const center = [0, small ? (shrub ? .7 : 2.1) : maple ? 5.2 : 8, 0];
   const radii = small ? (shrub ? [.85,.65,.8] : [1.05,1.0,1]) : maple ? [3.9,2.9,3.9] : [4.2,3.6,4.2];
-  const fork = shrub ? .18 : small ? .9 : maple ? 2 : 3.5;
+  // Keep each shape's proportions through all distance levels.
+  const aspect = [1, .94, 1.06][shape];
+  if (!small) { radii[0] *= aspect; radii[2] *= aspect; radii[1] /= aspect; }
+  const fork = shrub ? .18 : small ? 1.8 : maple ? 2 : 3.5;
   tube(wood, [0, -.1, 0], [.12, fork, .1], small ? (shrub ? .025 : .05) : .48, level === 0 ? (small ? 4 : 8) : 4, level === 0 ? (small ? (shrub ? 1 : 2) : 4) : 1, true);
   if (level === 2) {
-    // Two rounded, staggered crowns, with independent axes and slight lean.
-    for (const [x,y,z,rx,ry,rz,rotation,tilt] of [[-.32,-.12,-.10,.78,.83,.94,.24,.09],[.31,.16,.12,.82,.87,.91,1.13,-.12]]) {
-      clump(leaf, center.map((v,q) => v + radii[q] * [x,y,z][q]), radii.map((v,q) => v * [rx,ry,rz][q]), 8, 4, 1, false, rotation, tilt, .12);
-    }
+    // One full rounded dome and a smaller shoulder, rather than stacked plates.
+    const phase = shape * .73;
+    const dome = radii.map(v => v * .97);
+    dome[1] = Math.max(dome[0] / 1.4, Math.min(dome[0] / 1.2, radii[1] * .99));
+    clump(leaf, center, dome, 8, 5, 1, false, .24 + phase, .07, .12);
+    clump(leaf, [center[0] + radii[0] * .59, center[1] - radii[1] * .12, center[2] - radii[2] * .2], radii.map(v => v * .49), 8, 5, 1, false, 1.13 + phase, -.09, .12);
     return;
   }
-  const branches = small ? (shrub ? 5 : 4) : 4;
+  const branches = small ? (shrub ? 5 : 4) : [4, 3, 5][shape];
   wood.tips = [];
   for (let b = 0; b < branches; b++) {
-    const a = b * 2.399, spread = small ? .3 : 1.8 + b * .32;
+    const a = b * 2.399 + shape * .73, spread = small ? .3 : (1.8 + b * .32) * aspect;
     const tip = [Math.cos(a) * spread, small ? center[1] : center[1] - 1.4 + b * .65, Math.sin(a) * spread];
     wood.tips.push(tip);
     if (level === 0) tube(wood, [.08, fork, .05], tip, small ? .018 : .23, level === 0 ? 4 : 3, level === 0 && !small ? 2 : 1);
   }
-  const count = small ? (level === 0 ? (shrub ? 5 : 4) : 2) : level === 0 ? (maple ? 11 : 13) : 5;
+  const count = small ? (level === 0 ? 4 : 2) : level === 0 ? (maple ? [11, 12, 10][shape] : [13, 12, 13][shape]) : 5;
   for (let i = 0; i < count; i++) {
-    const y = 1 - 2 * (i + .5) / count, a = i * 2.399, radial = Math.sqrt(1 - y * y);
-    const c = center.map((v,q) => v + radii[q] * (q === 1 ? y : radial * (q === 0 ? Math.cos(a) : Math.sin(a)) * (species === 1 ? 1 + .45 * y : 1)) * (small ? .28 : .56));
-    const r = small ? radii.map(v => v * (level === 0 ? .78 : .84)) : radii.map((v,q) => v * (level === 0 ? .49 : .64 + .035 * Math.sin(i * 2.3 + q)));
-    clump(leaf, c, r, small ? 8 : level === 0 ? 10 : 8, small ? 3 : 4, small ? .6 : 1, false, !small && level === 1 ? i * .73 : 0);
+    const y = 1 - 2 * (i + .5) / count, a = i * 2.399 + shape * .73, radial = Math.sqrt(1 - y * y);
+    const c = center.map((v,q) => v + radii[q] * (q === 1 ? y : radial * (q === 0 ? Math.cos(a) : Math.sin(a)) * (species === 1 ? 1 + .45 * y : 1)) * (small ? .22 : .56));
+    const r = small ? radii.map(v => v * (level === 0 ? .78 : .84)) : radii.map((v,q) => v * (level === 0 ? .49 : (.64 + .035 * Math.sin(i * 2.3 + q)) * (shape === 2 ? .97 : 1)));
+    clump(leaf, c, r, small ? (level === 0 ? 12 : 8) : level === 0 ? 10 : 8, small ? (level === 0 ? 5 : 4) : 4, small ? .6 : 1, false, !small && level === 1 ? i * .73 : 0, 0, small ? .14 : .09);
   }
   if (!small && level === 0) for (const y of [-.35, 0]) clump(leaf, [0, center[1] + y * radii[1], 0], radii.map(v => v * .5), 10, 4);
   clump(wood, center, radii.map(v => v * .55), small ? 3 : 6, 2, 1, true);
@@ -174,29 +188,30 @@ function pineFan(leaf, center, angle, tilt) {
   if (sign > 0) leaf.quad(first, first+3, first+2, first+1);
   else leaf.quad(first, first+1, first+2, first+3);
 }
-function pine(wood, leaf, level, rnd) {
-  tube(wood, [0, -.1, 0], [1.4, level === 2 ? 5 : 11.8, .5], .4, level === 0 ? 7 : 4, level === 0 ? 5 : 1, true, [.16, .09, .045]);
+function pine(wood, leaf, level, rnd, shape) {
+  tube(wood, [0, -.1, 0], [1.4 - shape * .5, level === 2 ? 5 : 11.8, .5 + shape * .35], .4, level === 0 ? 7 : 4, level === 0 ? 5 : 1, true, [.16, .09, .045]);
   if (level === 2) {
-    clump(leaf, [.4,11.7,.4], [3.65,2.05,3.3], 8, 3);
-    clump(leaf, [1.1,8.4,-.4], [3.5,1.65,3.2], 8, 3);
+    clump(leaf, [.4,10.5,.1], [3.8,2.78,3.7], 8, 4, 1, false, shape * .4, 0, .12);
+    clump(leaf, [1.5 - shape * .5,8.0,-.5], [2.7,1.8,2.6], 6, 4, 1, false, .8, 0, .12);
     return;
   }
   const tufts = [[1.4,11.6,.5],[-1.3,9.4,1],[1.8,7.8,-1.2],[-.8,8,-.9],[1.0,10.1,-1.4]];
-  const count = level === 0 ? 5 : 3, cards = level === 0 ? 8 : 5;
+  const count = level === 0 ? 5 : 4, cards = level === 0 ? 8 : 5;
   for (let i = 0; i < count; i++) {
-    const center = tufts[i];
+    const center = tufts[i].map((v,q) => v + shape * (q === 0 ? Math.sin(i * 2.399) * .45 : q === 1 ? Math.cos(i) * .25 : Math.cos(i * 2.399) * .4));
     tube(wood, [.6,center[1]-1.8,0], center, .12, level === 0 ? 4 : 3, 2);
-    for (let k = 0; k < cards; k++) pineFan(leaf, center, k / cards * TAU + i * 2.399, k % 5 === 0 ? -.25 : .55 + .15 * Math.sin(k * 2.399 + i));
+    for (let k = 0; k < cards; k++) pineFan(leaf, center, k / cards * TAU + i * 2.399 + shape * .7, k % 5 === 0 ? -.25 : .55 + .15 * Math.sin(k * 2.399 + i));
   }
 }
 
-export function treeGeometry(species, level) {
+export function treeGeometry(species, level, shape = 0) {
   if (!Number.isInteger(species) || species < 0 || species > 5 || !Number.isInteger(level) || level < 0 || level > (species >= 4 ? 1 : 2)) throw new RangeError('tree geometry species/level');
-  const key = `${species}/${level}`; if (cache.has(key)) return cache.get(key);
-  const wood = new Mesher(), leaf = new Mesher(), rnd = seeded(62011 + species * 307 + level * 17);
-  if (species === 0) cedar(wood, leaf, level, rnd);
-  else if (species === 2) pine(wood, leaf, level, rnd);
-  else broad(wood, leaf, species, level, rnd);
+  if (!Number.isInteger(shape) || shape < 0 || shape >= (TREES.variants[names[species]] ?? 1)) throw new RangeError('tree geometry shape');
+  const key = `${species}/${level}/${shape}`; if (cache.has(key)) return cache.get(key);
+  const wood = new Mesher(), leaf = new Mesher(), rnd = seeded(62011 + species * 307 + level * 17 + shape * 113);
+  if (species === 0) cedar(wood, leaf, level, rnd, shape);
+  else if (species === 2) pine(wood, leaf, level, rnd, shape);
+  else broad(wood, leaf, species, level, rnd, shape);
   const result = { wood: wood.build(), leaf: leaf.build(), height: heights[species], tris: { wood: wood.i.length / 3, leaf: leaf.i.length / 3 } };
   cache.set(key, result); return result;
 }

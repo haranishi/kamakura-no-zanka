@@ -204,9 +204,20 @@ test('needle routing, untextured core and diffuse gain [texture-routing/core/col
   for(let species=0;species<6;species++)for(let level=0;level<(species>=4?2:3);level++) {
     const pair=m.get(species,level);
     assert.equal(pair.wood.map,null,'[core] wood core must be untextured');
-    if(level<2)assert.equal(pair.leaf.color.r,[1,3,4,5].includes(species)?TREES.leafGain:1,'[color-gain] gain only on near/mid broadleaf');
+    if(level<2)assert.equal(pair.leaf.color.r,species>=4?1.1:[1,3].includes(species)?1.25:1,'[color-gain] gain only on near/mid broadleaf');
     assert.equal(pair.wood.color.r,1,'[color-gain] wood tinted by gain');
     if(level===2)assert.equal(pair.leaf.map,null,'[texture-routing] far uses mean');
   }
   m.dispose();
+});
+
+// なぜ失敗したか: ライムと色玉が夕景から浮いた。段階表と個体の明度幅を分けて固定する。
+test('muted seasonal palettes and twelve percent brightness spread [palette/tint]',()=>{
+  assert.deepEqual(TREES.palette.zelkova,['#6a7f3a','#a09a45','#c2a040','#96683a'],'[palette] saturated zelkova');
+  assert.deepEqual(TREES.palette.shrub,['#4a6234','#6f7a3c','#85603a'],'[palette] saturated shrub');
+  assert.deepEqual(TREES.palette.maple,['#5d7a35','#b88a30','#c2652c','#a2412c'],'[palette] protected maple');
+  for(const sp of [1,3,4,5])for(const tint of [0,.25,.5,1]) {
+    const base=stageColor(sp,.53,.5).toArray(),actual=stageColor(sp,.53,tint).toArray();
+    actual.forEach((v,i)=>assert(Math.abs(v/base[i]-(.88+.24*tint))<1e-6,'[tint] brightness spread must be .88–1.12'));
+  }
 });

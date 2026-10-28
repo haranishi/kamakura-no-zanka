@@ -65,16 +65,18 @@ export const GRASS = Object.freeze({
 export const TREES = Object.freeze({
   palette: Object.freeze({
     cedar: Object.freeze(['#b1bca5']), pine: Object.freeze(['#7f9e91']),
-    zelkova: Object.freeze(['#5f7d34', '#a7a23c', '#c9a43a', '#9a6a2c']),
+    zelkova: Object.freeze(['#6a7f3a', '#a09a45', '#c2a040', '#96683a']),
     maple: Object.freeze(['#5d7a35', '#b88a30', '#c2652c', '#a2412c']),
-    shrub: Object.freeze(['#4f6f33', '#7d8a3a', '#8a5a30']),
+    shrub: Object.freeze(['#4a6234', '#6f7a3c', '#85603a']),
   }),
   seeds: Object.freeze({ grove: 51001, detail: 51031, maple: 51061, stage: 51091, individual: 51131, sapling: 51169, shrub: 51203 }),
   fields: Object.freeze({ grove: 70, detail: 26, maple: 38, stage: 30, threshold: 0.755, mapleThreshold: 0.50 }),
   conversion: Object.freeze({ probability: 0.97, habitatWeight: 0.30, valleyRadius: 240 }),
   sapling: Object.freeze({ step: 3.2, probability: 0.15, maxCount: 1200, split: 18, distance: 45, lightDistance: 30 }),
   shrub: Object.freeze({ step: 2.2, probability: 0.20, maxCount: 4000, split: 13, distance: 32, lightDistance: 22 }),
-  lod: Object.freeze({ standard: [48, 150], light: [32, 100], blend: { standard: 7, light: 6 } }),
+  lod: Object.freeze({ standard: [48, 150], light: [32, 100], blend: { standard: 4, light: 3 } }),
+  variants: Object.freeze({ cedar: 3, zelkova: 3, pine: 2, maple: 3 }),
   leafGain: 1.25,
-  budget: Object.freeze({ cedar: [1500, 260, 40], zelkova: [1100, 260, 112], pine: [600, 140, 72], maple: [1100, 260, 112], sapling: [260, 90], shrub: [220, 80] }),
+  understoryLeafGain: 1.1,
+  budget: Object.freeze({ cedar: [1500, 260, 40], zelkova: [1100, 260, 160], pine: [600, 140, 96], maple: [1100, 260, 160], sapling: [600, 160], shrub: [500, 140] }),
 });
