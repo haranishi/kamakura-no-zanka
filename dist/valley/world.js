@@ -1,3 +1,4 @@
+import { assignTreeSpecies, scatterUnderstory } from './tree-species.js';
 // world.js — 地形・大気・後処理を単独で確認する開発用ページ。固定画角を撮る / 飛んで見る。
 //   world.html?shot=veranda&w=1400&h=800&q=standard   ?fly=1 で WASD＋ドラッグで移動
 import * as THREE from 'three';
@@ -38,7 +39,10 @@ async function main() {
   built = buildTerrain({ terrain, textures, quality });
   scene.add(built.group);
   const t2 = performance.now();
-  const scatter = { trees: scatterTrees(WORLD, terrain), rocks: scatterRocks(WORLD, terrain), rice: scatterRice(WORLD, terrain) };
+  const trees = scatterTrees(WORLD, terrain);
+  const species = assignTreeSpecies(WORLD, terrain, trees);
+  const understory = scatterUnderstory(WORLD, terrain, trees);
+  const scatter = { trees, species, understory, rocks: scatterRocks(WORLD, terrain), rice: scatterRice(WORLD, terrain) };
   const t3 = performance.now();
   const models = await loadModels({});
   const veg = buildVegetation({ scatter, quality, field: createGrassField(WORLD, terrain), sunDir: ATMOS.sunDir }); scene.add(veg.group);
