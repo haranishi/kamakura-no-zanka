@@ -5,7 +5,7 @@ import { spawnSync } from 'node:child_process';
 const config = 'dist/valley/config.js';
 const view = 'dist/valley/tree-view.js', lod = 'dist/valley/tree-lod.js', qa = 'dist/valley/qa.js';
 const cases = [
-  ['equal cedar family frequencies', view, 'if (species === 0) return tint < .45 ?', 'if (false) return tint < .45 ?'],
+  ['equal cedar family frequencies', view, 'if (species === 0) return h < .45 ?', 'if (false) return h < .45 ?'],
   ['QA loses new cedar families', qa, 'byShape[key][set.shape ?? 0][set.level] += set.leaf.count;', 'byShape[key][set.shape ?? 0][set.level] += 0;'],
   ['symmetric normalized transition returned', lod, 'return [1 - smooth(a, a + 2 * w, distance), smooth(a - 2 * w, a, distance) * (1 - smooth(b, b + 2 * w, distance)), smooth(b - 2 * w, b, distance)];', 'const enter = smooth(a-w,a+w,distance), far = smooth(b-w,b+w,distance); return [1-enter,enter*(1-far),far];'],
 
@@ -29,12 +29,22 @@ const cases = [
   ['gap between levels', lod, 'smooth(a - 2 * w, a, distance)', 'smooth(a, a + 4 * w, distance)'],
   ['shader distance differs from allocation', view, "'distance(treeOrigin.xz,cameraPosition.xz)'", "'distance(treeOrigin,cameraPosition)'"],
   ['QA drops total', qa, 'total += count;', 'total += 0;'],
-  ['ignore tint family', view, 'return Math.min(count - 1, Math.floor(clamp(tint) * count));', 'return 0;'],
+  ['ignore tint family', view, 'return Math.min(count - 1, Math.floor(h * count));', 'return 0;'],
   ['remove root shrink', view, 'transformed *= treeShrink;', 'transformed *= 1.0;'],
   ['restore understory blend', view, 'step(${cfg.split.toFixed(1)},vTreeDistance)', 'smoothstep(${(cfg.split-blend).toFixed(1)},${(cfg.split+blend).toFixed(1)},vTreeDistance)'],
   ['expand hard split reserve', view, 'lod: [cfg.split, Infinity], blend: 0', 'lod: [cfg.split, Infinity], blend: this.policy.blend'],
   ['remove individual tilt', view, "this.euler.set(tiltX, d.rot[i], tiltZ, 'YXZ')", "this.euler.set(0, d.rot[i], 0, 'YXZ')"],
   ['QA overwrites families', qa, 'bySpecies[key][set.level] += set.leaf.count;', 'bySpecies[key][set.level] = set.leaf.count;'],
+  // 独立レビューが写しで通してしまった退行と、その修正の戻し。
+  ['trunk matrix not written', view, 'set.wood.setMatrixAt(k, this.m);', '/* trunk matrix omitted */'],
+  ['trunk brightness not written', view, 'set.wood.setColorAt(k, this.color);', '/* trunk colour omitted */'],
+  ['light thinning on every level', view, 'this.light && level === 2 && (i & 1)', 'this.light && (i & 1)'],
+  ['field program key equals specimen', view, '${cacheKey}-field-xz-${range}-${blend}', '${cacheKey}'],
+  ['field program key loses ground tag', view, '${cacheKey}-field-xz-${range}-${blend}', '${cacheKey}-${range}-${blend}'],
+  ['shape from tint bands', view, 'h = shapeHash(tint);', 'h = clamp(tint);'],
+  ['separate far conifer brightness', view, 'const v = (.85 + tv * .3) * (.88 + .24 * f3);', 'const v = .55 + .9 * f3;'],
+  ['mid level without received shadow', view, 'm.receiveShadow = level < 2;', 'm.receiveShadow = level === 0;'],
+  ['far level receives shadow', view, 'm.receiveShadow = level < 2;', 'm.receiveShadow = true;'],
   ...[
     ['start', 'cx === -100.5 && cz === -89'],
     ['village road', 'cx === -5 && cz === 2.2'],

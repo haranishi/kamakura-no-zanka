@@ -1,19 +1,27 @@
 // なぜ失敗したか: species/overlap/margin/scale/fade/light/cadence/capacity/dispose/budget/qa の原因別に落とす。
 // 第3次: 丸い殻の増分と狭い溶かし帯に合わせ、4地点の実バッファ総数を固定する。
+// 独立レビュー後: 初期値のままでも通る検査（幹の行列・明るさ、容量の上限）を、失敗し得る形に直した。
 // GPU・GLSL・実機コマ時間はこのNode試験では確認しない。
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { field, data, camera, setAt, THREE, treeShape } from './helpers/tree-field.mjs';
+import { field, data, camera, setAt, THREE, treeShape, wind } from './helpers/tree-field.mjs';
+import { load } from './helpers/tree-modules.mjs';
 import { TREES } from '../dist/valley/config.js';
 import { installQA } from '../dist/valley/qa.js';
 import { WORLD } from '../dist/valley/world-data.js';
 import { createTerrain } from '../dist/valley/terrain-height.js';
 import { scatterTrees } from '../dist/valley/scatter.js';
 import { assignTreeSpecies, scatterUnderstory } from '../dist/valley/tree-species.js';
+import { lodMembership } from '../dist/valley/tree-lod.js';
+const { buildSpecimens } = await load('tree-view.js');
 const count = f => f.sets.reduce((n,s)=>n+s.leaf.count,0);
 const qa = f => { globalThis.window = {}; return installQA({ veg: { trees: f }, input: {} }, {}); };
 const matrix = (s,k=0) => { const m=new THREE.Matrix4();s.leaf.getMatrixAt(k,m);return m.elements; };
+let realScatter;
+const real = () => { if (!realScatter) { const terrain=createTerrain(WORLD),trees=scatterTrees(WORLD,terrain); realScatter={terrain,trees,species:assignTreeSpecies(WORLD,terrain,trees),understory:scatterUnderstory(WORLD,terrain,trees)}; } return realScatter; };
+// The first tint on a fine grid that selects each family, so one tree stands for each family.
+const tintFor = (sp, shape) => { for (let k=0;k<1000;k++) { const t=(k+.5)/1000; if (treeShape(sp,t)===shape) return t; } throw new Error('[shape-selection] unreachable family'); };
 test('derived species capacity, variants, color and shadow [species]',()=>{
   const d=data([{x:0,kind:0},{x:0,kind:0},{x:0,kind:2},{x:0,kind:1}]);
   const f=field([], {data:d,species:{species:new Uint8Array([0,1,2,3]),stage:new Uint8Array([0,85,170,255])},understory:data([{species:4,s:3},{species:4,variant:1,s:3},{species:5,s:1.2}])});
@@ -23,9 +31,12 @@ test('derived species capacity, variants, color and shadow [species]',()=>{
     assert.equal(sets.length,sp===4?4:sp===5?2:3,'[species] missing level or variant');
     for(const s of sets) {
       assert.equal(s.capacity,1,'[capacity] allocation must match species/variant count');
-      assert(s.leaf.count<=s.capacity,'[capacity] instances exceed buffer');
-      assert.equal(s.leaf.castShadow,s.level===0,'[shadow] distant shadow');
-      assert.equal(s.leaf.receiveShadow,s.level===0,'[shadow] adapter setting changed');
+      // Every tree stands at the camera: exactly one near instance per set, none in the other levels.
+      assert.equal(s.leaf.count,s.level===0?1:0,'[capacity] derived tree missing from or duplicated across its levels');
+      for(const mesh of [s.leaf,s.wood]) {
+        assert.equal(mesh.castShadow,s.level===0,'[shadow] distant shadow');
+        assert.equal(mesh.receiveShadow,s.level<2,'[shadow] near/mid levels must receive shadows, far must not');
+      }
       const shader={uniforms:{},vertexShader:'#include <common>\n#include <begin_vertex>',fragmentShader:'#include <common>'};
       s.leaf.material.onBeforeCompile(shader);
       assert(shader.vertexShader.includes('distance(treeOrigin.xz,cameraPosition.xz)'), '[distance] CPU and shader disagree on slopes');
@@ -33,8 +44,9 @@ test('derived species capacity, variants, color and shadow [species]',()=>{
   }
   const a=setAt(f,4,0,0).leaf.material,b=setAt(f,4,0,1).leaf.material;
   assert.notEqual(a.map,b.map,'[species] sapling variants use same texture');
+  // The initial instance colour is white: an unwritten trunk would still pass a grey-only check.
   const c=new THREE.Color();setAt(f,3,0).wood.getColorAt(0,c);
-  assert.equal(c.r,c.g,'[color] trunk tinted');assert.equal(c.g,c.b,'[color] trunk tinted');
+  assert(c.r===c.g && c.g===c.b && Math.abs(c.r-(.85+.3*.43))<1e-6,'[color] trunk tinted or individual brightness not written');
   assert.equal(qa(f).treeStats().bySpecies.maple[0],1,'[qa] derived species not counted');
   f.dispose();
 });
@@ -77,9 +89,17 @@ test('understory heights, split and outer reserve in both qualities [fade]',()=>
     assert.equal(f.stats.understory,0,'[stats] removed understory counted');f.dispose();
   }
 });
+// なぜ失敗したか: 名前は「近景を保つ」なのに遠景の本数しか見ず、間引きを全段にかけて近景の半数が消えても通った。
 test('light keeps half of far instances while keeping near overlap [light]',()=>{
-  const f=field(Array.from({length:10},()=>({x:400})),{quality:'light'});f.update(camera());
-  assert.equal(f.stats.far,5,'[light] far thinning removed');
+  // Ten trees in each light band, overlap bands included; every level membership comes from the shared rule.
+  const xs=[0,20,30,33,60,90,99,104,400], points=xs.flatMap(x=>Array.from({length:10},()=>({x})));
+  const f=field(points,{quality:'light'});f.update(camera());
+  const policy={lod:[32,100],blend:3}, members=[0,1,2].map(l=>points.map((p,i)=>lodMembership(p.x,policy)[l]?i:-1).filter(i=>i>=0));
+  const levels=[0,1,2].map(l=>f.sets.filter(s=>s.level===l).reduce((n,s)=>n+s.leaf.count,0));
+  assert(members[0].length>=20 && members[1].length>=20,'[light] vacuous near/mid fixture');
+  assert.deepEqual(levels.slice(0,2),[members[0].length,members[1].length],'[light] thinning reached the near or mid level');
+  assert.equal(levels[2],members[2].filter(i=>!(i&1)).length,'[light] far thinning removed or changed');
+  assert(levels[2]<members[2].length,'[light] far level not thinned');
   assert.deepEqual(f.lod,[32,100],'[light] wrong distances');
   assert.deepEqual(setAt(f,0,0).leaf.material.userData.uLod.value.toArray(),[-1,-1,32,38],'[uniform] light material policy');f.dispose();
 });
@@ -117,9 +137,11 @@ test('vegetation and quality switch wiring [wiring]',()=>{
   assert(!read('vegetation.js').includes('function cedarGeometry'),'[wiring] legacy tree code retained');
 });
 test('real scatter, four site budgets, QA accounting and capacities [budget]',()=>{
-  const terrain=createTerrain(WORLD),trees=scatterTrees(WORLD,terrain),species=assignTreeSpecies(WORLD,terrain,trees),understory=scatterUnderstory(WORLD,terrain,trees);
+  const {trees,species,understory}=real();
   const f=field([],{data:trees,species,understory});const api=qa(f);
-  const sites=[[WORLD.start.x,WORLD.start.z,1438000,1286424],[-5,2.2,1387000,1070338],[-6,20,1344000,1053350],[-36,-48,1394000,1242604]];
+  // Hashed shape families and the terrace/tread/dress understory exclusions moved the four totals.
+  const sites=[[WORLD.start.x,WORLD.start.z,1438000,1285672],[-5,2.2,1387000,1069778],[-6,20,1344000,1046796],[-36,-48,1394000,1242466]];
+  const at=new Map();for(const d of [trees,understory])d.x.forEach((x,i)=>at.set(`${Math.fround(x)},${Math.fround(d.z[i])}`,d.tint[i]));
   assert.deepEqual(sites.map(p=>p.slice(0,2)),[[-100.5,-89],[-5,2.2],[-6,20],[-36,-48]],'[budget-sites] four evaluation sites changed');
   assert.equal(f.sets.length,3*Object.values(TREES.variants).reduce((a,b)=>a+b,0)+6,'[sets] wrong species/variant level count');assert(f.group.children.length<=90,'[sets] draw set budget exceeded');
   for(const [x,z,old,expected] of sites) {
@@ -130,9 +152,16 @@ test('real scatter, four site budgets, QA accounting and capacities [budget]',()
     assert.equal(result.total,expected,'[budget-site] real scatter triangle count changed');
     const sum=Object.values(result.tris).flat().reduce((a,b)=>a+b,0);assert.equal(sum,result.total,'[qa] species triangles differ from total');
     for(let sp=0;sp<4;sp++)for(const s of f.sets.filter(s=>s.species===sp))assert.equal(s.capacity,Array.from(species.species).filter((v,i)=>v===sp && treeShape(sp,trees.tint[i])===s.shape).length,'[capacity] real species/shape count mismatch');
-    for(const s of f.sets)for(const m of [s.leaf,s.wood])if(m) {
-      assert(m.count<=m.instanceMatrix.count,'[capacity] real instances exceed GPU buffer');
-      assert.equal(m.instanceMatrix.count,s.capacity,'[capacity] actual allocation differs');
+    for(const s of f.sets) {
+      for(const m of [s.leaf,s.wood])assert.equal(m.instanceMatrix.count,s.capacity,'[capacity] actual allocation differs');
+      assert.equal(s.wood.count,s.leaf.count,'[instance-wood] trunk count differs from crown');
+      const leaf=s.leaf.instanceMatrix.array,wood=s.wood.instanceMatrix.array,colors=s.wood.instanceColor.array;
+      for(let k=0;k<s.leaf.count;k++) {
+        for(let e=0;e<16;e++)if(wood[k*16+e]!==leaf[k*16+e])assert.fail(`[instance-wood] trunk matrix differs from crown at ${s.leaf.name}#${k}`);
+        const tint=at.get(`${leaf[k*16+12]},${leaf[k*16+14]}`);
+        assert(tint!==undefined,'[instance-wood] instance not at an individual position (identity matrix)');
+        assert(colors[k*3]===colors[k*3+1]&&colors[k*3+1]===colors[k*3+2]&&Math.abs(colors[k*3]-(.85+.3*tint))<1e-6,'[wood-color] trunk brightness not written per individual');
+      }
     }
     assert.equal(result.stats.near+result.stats.mid+result.stats.far+result.stats.understory,count(f),'[stats] counts lost or duplicated');
     assert.equal(Object.values(result.bySpecies).flat().reduce((a,b)=>a+b,0),count(f),'[qa] instance counts incorrect');
@@ -143,7 +172,7 @@ test('real scatter, four site budgets, QA accounting and capacities [budget]',()
 // なぜ失敗したか: 変種を段ごとに選び直すと樹形が跳ね、同じ材質の多重パッチでLODが壊れる。
 test('tint selects one stable family across all levels and QA sums families [shape-selection]',()=>{
   const points=[];
-  for(let sp=0;sp<4;sp++)for(let k=0;k<TREES.variants[['cedar','zelkova','pine','maple'][sp]];k++)points.push({x:48,kind:sp,tint:sp===0?[.075,.225,.375,.575,.85][k]:(k+.5)/TREES.variants[['cedar','zelkova','pine','maple'][sp]],rot:.6});
+  for(let sp=0;sp<4;sp++)for(let k=0;k<TREES.variants[['cedar','zelkova','pine','maple'][sp]];k++)points.push({x:48,kind:sp,tint:tintFor(sp,k),rot:.6});
   const f=field(points);f.update(camera());
   assert.equal(f.sets.length,39,'[shape-sets] missing adult family');
   for(const s of f.sets) {
@@ -200,6 +229,70 @@ test('understory hard switches with movement reserve and shrinks vertices instea
 test('cedar tint allocation is 45/25/30 and QA includes five families [cedar-frequency/qa]',()=>{
   const counts=[0,0,0,0,0];for(let i=0;i<1000;i++)counts[treeShape(0,(i+.5)/1000)]++;
   assert.deepEqual(counts,[150,150,150,250,300],'[cedar-frequency] weighted allocation');
-  const f=field([.075,.225,.375,.575,.85].map(tint=>({x:48,tint})));f.update(camera());
+  const {trees,species}=real(),cedar=Array.from(trees.tint).filter((_,i)=>species.species[i]===0),actual=[0,0,0,0,0];
+  for(const t of cedar)actual[treeShape(0,t)]++;
+  actual.forEach((n,k)=>assert(Math.abs(n/cedar.length-[.15,.15,.15,.25,.30][k])<.01,'[cedar-frequency] real scatter family share drifted'));
+  const f=field([0,1,2,3,4].map(k=>({x:48,tint:tintFor(0,k)})));f.update(camera());
   assert.deepEqual(qa(f).treeStats().byShape.cedar,{'0':[1,1,0],'1':[1,1,0],'2':[1,1,0],'3':[1,1,0],'4':[1,1,0]},'[qa-cedar] missing family or level');f.dispose();
+});
+
+// なぜ失敗したか: 幹の行列・明るさを書き忘れても、InstancedMeshの初期値（単位行列・白）のまま全試験が通り、全ての幹が原点に重なった。
+test('trunk instances follow their crowns and carry individual brightness [instance-wood/wood-color]',()=>{
+  const adults=[{x:5,z:3,y:2,kind:0,tint:.1,rot:.4},{x:100,z:-7,kind:1,tint:.6,rot:1.1},{x:400,z:9,kind:2,tint:.9},{x:30,z:20,kind:0,tint:.33}];
+  const plants=[{x:4,z:-2,species:4,s:3,tint:.2},{x:20,z:1,species:5,s:1.2,tint:.8}];
+  const f=field(adults,{understory:data(plants)});f.update(camera());
+  const items=[...adults,...plants],seen=new Set();
+  for(const s of f.sets) {
+    assert.equal(s.wood.count,s.leaf.count,'[instance-wood] trunk count differs from crown');
+    for(let k=0;k<s.leaf.count;k++) {
+      const trunk=new THREE.Matrix4();s.wood.getMatrixAt(k,trunk);
+      assert.deepEqual(trunk.elements,matrix(s,k),'[instance-wood] trunk matrix differs from crown');
+      const item=items.find(p=>Math.abs(p.x-trunk.elements[12])<1e-4&&Math.abs(p.z-trunk.elements[14])<1e-4);
+      assert(item&&!trunk.equals(new THREE.Matrix4()),'[instance-wood] trunk left at the identity matrix');
+      const c=new THREE.Color();s.wood.getColorAt(k,c);
+      assert(c.r===c.g&&c.g===c.b&&Math.abs(c.r-(.85+.3*item.tint))<1e-6,'[wood-color] trunk brightness not written per individual');
+      seen.add(item);
+    }
+  }
+  assert.equal(seen.size,items.length,'[instance-wood] fixture tree missing from every level');f.dispose();
+});
+
+// なぜ失敗したか: 群の材質のキャッシュ鍵がQA標本と同じだと、先にコンパイルした方のシェーダー（地面距離・縮みの置換の有無）を両方が使う。
+test('field programs never share a cache key with QA specimens [cache-key]',()=>{
+  const f=field([{x:0},{x:0,kind:1},{x:0,kind:2}],{understory:data([{species:4,s:3},{species:4,variant:1,s:3},{species:5,s:1.2}])});
+  const spec=buildSpecimens({terrain:{heightAt:()=>0},wind,sunDir:new THREE.Vector3(1,1,1),items:f.sets.map(s=>({species:s.species,level:s.level,variant:s.variant,shape:s.shape}))});
+  f.sets.forEach((s,k)=>{
+    for(const [j,mesh] of [[0,s.leaf],[1,s.wood]]) {
+      const key=mesh.material.customProgramCacheKey(),other=spec.group.children[k*2+j].material.customProgramCacheKey();
+      assert(key.includes('-field-xz-'),'[cache-key] field program key lost its ground-distance tag');
+      assert.notEqual(key,other,'[cache-key] field and QA specimen compile to one program');
+    }
+  });
+  spec.dispose();f.dispose();
+});
+
+// なぜ失敗したか: 形を tint の帯で選んだため、明るさ(.85+.3*tint)と背丈も同じ tint から出て、形ごとに明るさの帯が分かれた。
+test('shape families span the whole tint-driven brightness range [shape-brightness]',()=>{
+  const {trees,species}=real();
+  for(let sp=0;sp<4;sp++) {
+    const tints=Array.from(trees.tint).filter((_,i)=>species.species[i]===sp),lo=Math.min(...tints),hi=Math.max(...tints),ranges=new Map();
+    for(const t of tints){const s=treeShape(sp,t),r=ranges.get(s)??[1,0];ranges.set(s,[Math.min(r[0],t),Math.max(r[1],t)]);}
+    assert.equal(ranges.size,TREES.variants[['cedar','zelkova','pine','maple'][sp]],'[shape-brightness] family missing from the real scatter');
+    for(const [s,[a,b]] of ranges)assert((b-a)/(hi-lo)>=.8,`[shape-brightness] family ${sp}/${s} confined to one brightness band`);
+  }
+});
+
+// なぜ失敗したか: 針葉樹のL2だけ明るさを別の式(.55+.9*f3)で決め、溶かし帯で半数の木の明るさが±20%以上跳ねた。
+test('far conifers keep their mid brightness [far-brightness]',()=>{
+  const {trees,species}=real(),pick=[...trees.x.keys()].filter(i=>species.species[i]===0||species.species[i]===2);
+  const d=Object.fromEntries(Object.entries(trees).map(([k,a])=>[k,pick.map(i=>k==='x'||k==='z'?0:a[i])]));
+  const f=field([],{data:d,species:{species:Uint8Array.from(pick,i=>species.species[i]),stage:new Uint8Array(pick.length)}});
+  // Colours depend on the individual, not on position: the same trees seen mid-only, then far-only.
+  const luma=level=>{const out=new Map();for(const s of f.sets)if(s.level===level){const a=s.leaf.instanceColor.array;out.set(`${s.species}/${s.shape}`,Array.from({length:s.leaf.count},(_,k)=>.2126*a[k*3]+.7152*a[k*3+1]+.0722*a[k*3+2]));}return out;};
+  f.update(camera(100),true);const mid=luma(1);f.update(camera(400),true);const far=luma(2);
+  let inside=0,total=0;
+  for(const [key,values] of mid){const other=far.get(key);assert.equal(other.length,values.length,'[far-brightness] individuals lost between levels');values.forEach((v,k)=>{total++;if(Math.abs(other[k]/v-1)<=.25)inside++;});}
+  assert(total===pick.length&&total>10000,'[far-brightness] vacuous conifer fixture');
+  assert(inside/total>=.95,`[far-brightness] only ${(100*inside/total).toFixed(1)}% of conifers keep L2/L1 brightness within 25%`);
+  f.dispose();
 });

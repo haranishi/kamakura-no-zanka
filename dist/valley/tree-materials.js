@@ -3,14 +3,16 @@ import * as THREE from 'three';
 import { TREES } from './config.js';
 import { needleTexture, needleFringeTexture, mapleLeafTexture, zelkovaLeafTexture } from './tree-textures.js';
 const heights = [20, 12, 13, 8, 3, 1.2];
-// A solid far crown keeps the alpha-weighted mean of its near texture, not white.
+// A solid far crown keeps the alpha-weighted mean of its near texture, not white. Each sRGB
+// byte decodes to linear light first, as the GPU samples it; averaging bytes was about 5% dark.
+const linear = Array.from({ length: 256 }, (_, k) => new THREE.Color().setRGB(k / 255, k / 255, k / 255, THREE.SRGBColorSpace).r);
 function meanColor(texture) {
   const a = texture.image.data, sum = [0, 0, 0]; let weight = 0;
   for (let i = 0; i < a.length; i += 4) if (a[i + 3] >= 77) {
     const w = a[i + 3] / 255; weight += w;
-    for (let k = 0; k < 3; k++) sum[k] += a[i + k] / 255 * w;
+    for (let k = 0; k < 3; k++) sum[k] += linear[a[i + k]] * w;
   }
-  return new THREE.Color().setRGB(...sum.map(v => v / (weight || 1)), THREE.SRGBColorSpace);
+  return new THREE.Color().setRGB(...sum.map(v => v / (weight || 1)), THREE.LinearSRGBColorSpace);
 }
 export function treeMaterials({ wind, sunDir, quality = 'standard' }) {
   const textures = [needleTexture(), zelkovaLeafTexture(), mapleLeafTexture(), needleFringeTexture()], owned = [], sets = new Map();
@@ -22,7 +24,8 @@ export function treeMaterials({ wind, sunDir, quality = 'standard' }) {
     const m = new THREE.MeshLambertMaterial({ map, vertexColors: true, side: leaf ? THREE.DoubleSide : THREE.FrontSide,
       alphaTest: map ? .3 : 0, alphaToCoverage: quality !== 'light', emissive: 0x000000 });
     if (leaf && level === 2) m.color.copy(means[conifer ? 0 : species === 3 ? 2 : 1]);
-    if (leaf && !conifer && level < 2) m.color.multiplyScalar(species >= 4 ? TREES.understoryLeafGain : TREES.leafGain);
+    // Far broadleaf keeps the near gain so the dissolve band has no brightness step; conifers have none.
+    if (leaf && !conifer) m.color.multiplyScalar(species >= 4 ? TREES.understoryLeafGain : TREES.leafGain);
     const fadeMode = quality === 'light' ? 'dither' : 'coverage';
     const lod = disabled(); m.userData.uLod = lod;
     m.onBeforeCompile = shader => {

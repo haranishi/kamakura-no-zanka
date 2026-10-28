@@ -2,6 +2,7 @@
 import { TREES } from './config.js';
 import { cellRand, insideFootprint, insidePlot, inSightline, scatterRocks, ROCK_MODEL } from './scatter.js';
 import { fbm, smooth } from './terrain-height.js';
+import { propColliders } from './world-colliders.js';
 
 export const SPECIES = Object.freeze({ cedar: 0, zelkova: 1, pine: 2, maple: 3, sapling: 4, shrub: 5 });
 const clamp = v => Math.max(0, Math.min(1, v));
@@ -37,16 +38,25 @@ export function assignTreeSpecies(world, terrain, trees) {
       }
     } else if (kind === SPECIES.zelkova && f.maple > TREES.fields.mapleThreshold) kind = SPECIES.maple;
     species[i] = kind;
-    // Independent draw count for stage, regardless of conversion.
-    stage[i] = stageAt(f, kind, (positionRand(world, x, z)() - 0.5) * 40 / 255);
+    // Conversion owns the first value of the position stream; the jitter always takes the second,
+    // so converted and remaining cedars share one jitter distribution.
+    const draws = positionRand(world, x, z); draws();
+    stage[i] = stageAt(f, kind, (draws() - 0.5) * 40 / 255);
   }
   return { species, stage };
 }
 
+// Same local axes as insideFootprint and the collider boxes.
+const boxDistance = (b, x, z) => {
+  const c = Math.cos(b.rotY ?? 0), s = Math.sin(b.rotY ?? 0), dx = x - b.x, dz = z - b.z;
+  return Math.hypot(Math.max(0, Math.abs(dx * c - dz * s) - b.w / 2), Math.max(0, Math.abs(dx * s + dz * c) - b.d / 2));
+};
 export function scatterUnderstory(world, terrain, trees, { box = [-210, 240, -210, 200] } = {}) {
   const out = { x: [], y: [], z: [], s: [], rot: [], species: [], stage: [], tint: [], variant: [] };
   const rocks = scatterRocks(world, terrain);
   const rockCircles = rocks.x.map((x, i) => ({ x, z: rocks.z[i], r: Math.hypot(ROCK_MODEL.width * rocks.s[i] * rocks.sx[i], ROCK_MODEL.depth * rocks.s[i] * rocks.sz[i]) / 2 }));
+  // Fences, firewood, banners and distant barriers, in the shapes the hero collides with.
+  const dress = propColliders(world), T = world.terraces;
   // Spatial bins avoid scanning all 15,830 trunks per candidate. Radius is the legacy collision radius.
   const bins = new Map(), size = 4;
   for (let i = 0; i < trees.x.length; i++) {
@@ -91,14 +101,22 @@ export function scatterUnderstory(world, terrain, trees, { box = [-210, 240, -21
       if (terrain.slopeAt(x, z, 1.5) > 40) continue;
       if (world.buildings.some(b => insideFootprint(b, x, z, 2))) continue;
       if ((world.plots || []).some(p => insidePlot(p, x, z, 1.5))) continue;
+      // Rice keeps 2.5m inside the terrace rectangle; keep the same band clear outside it.
+      if (T && x >= T.x0 - 2.5 && x <= T.x1 + 2.5 && z >= T.z0 - 2.5 && z <= T.z1 + 2.5) continue;
       if (world.props.some(p => Math.hypot(x - p.x, z - p.z) < (p.r || 1) + 0.5)) continue;
       if ((world.peaks || []).some(p => Math.hypot(x - p.x, z - p.z) < p.flatR * 1.9)) continue;
       if (species === SPECIES.sapling && inSightline(world, x, z)) continue;
       if (rockCircles.some(r => Math.hypot(x - r.x, z - r.z) < r.r + 0.5)) continue;
       if (nearTrunk(x, z)) continue;
+      // Height keeps its place in the stream; the drawn crown (cfg.crown per metre) then stays
+      // 0.3m clear of each road's own tread and of the dress.
+      const s = name === 'sapling' ? 2 + 2 * rng() : 0.8 + 0.8 * rng(), clear = cfg.crown * s + 0.3;
+      if (terrain.roads ? terrain.roads.some(r => r.index.nearest(x, z, 32).d < r.half + clear) : road && road.dist < clear) continue;
+      if (dress.circles.some(c => Math.hypot(x - c.x, z - c.z) < c.r + clear)) continue;
+      if (dress.boxes.some(b => boxDistance(b, x, z) < clear)) continue;
       const variant = f.maple > TREES.fields.mapleThreshold ? 1 : 0;
       out.x.push(x); out.z.push(z); out.y.push(terrain.heightAt(x, z));
-      out.s.push(name === 'sapling' ? 2 + 2 * rng() : 0.8 + 0.8 * rng());
+      out.s.push(s);
       out.rot.push(rng() * Math.PI * 2); out.species.push(species); out.variant.push(variant);
       out.stage.push(stageAt(f, variant ? SPECIES.maple : SPECIES.zelkova, (rng() - 0.5) * 40 / 255)); out.tint.push(rng());
       count++;

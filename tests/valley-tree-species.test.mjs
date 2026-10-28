@@ -1,5 +1,6 @@
 // なぜ失敗したか: legacy=既存配置、determinism=位置キー、ratio/cluster/habitat=林の構成、
 // understory-exclusion=禁止域、budget=上限、purity=乱数系列・純粋層の退行を区別する。
+// 独立レビュー後: rice/terrace/tread/dress/crown=描画する殻と実物の照合、jitter-independence=乱数の共有。
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -7,10 +8,12 @@ import { createHash } from 'node:crypto';
 import { WORLD } from '../dist/valley/world-data.js';
 import { TREES, GRASS } from '../dist/valley/config.js';
 import { createTerrain } from '../dist/valley/terrain-height.js';
-import { scatterTrees, scatterRocks, ROCK_MODEL, insideFootprint, insidePlot, inSightline } from '../dist/valley/scatter.js';
+import { scatterTrees, scatterRocks, scatterRice, ROCK_MODEL, insideFootprint, insidePlot, inSightline } from '../dist/valley/scatter.js';
 import { SPECIES, treeFieldsAt, assignTreeSpecies, scatterUnderstory } from '../dist/valley/tree-species.js';
 import { measurementWorld } from '../tools/lib/measurement-world.mjs';
 import { measureTrees } from '../tools/measure-trees.mjs';
+import { TreeField, wind, THREE } from './helpers/tree-field.mjs';
+import { load } from './helpers/tree-modules.mjs';
 const terrain = createTerrain(WORLD), trees = scatterTrees(WORLD, terrain);
 let t = performance.now();
 const assigned = assignTreeSpecies(WORLD, terrain, trees), assignMs = performance.now() - t;
@@ -85,6 +88,19 @@ test('isolated forbidden habitats reject all candidates [understory-exclusion]',
     assert.equal(scatterUnderstory(bareWorld,{...flat,...override},empty).x.length,0,'[understory-exclusion] terrain exclusion omitted');
   const building={x:0,z:0,rotY:0,footprint:{w:2000,d:2000}};
   assert.equal(scatterUnderstory({...bareWorld,buildings:[building]},flat,empty).x.length,0,'[understory-exclusion] building exclusion omitted');
+  // Each of these fixtures blocks the whole small box only through its own rule.
+  const box={box:[-40,40,-40,40]};
+  assert(scatterUnderstory(bareWorld,flat,empty,box).x.length>0,'[understory-exclusion] vacuous small fixture');
+  assert.equal(scatterUnderstory({...bareWorld,terraces:{x0:-500,x1:500,z0:-500,z1:500}},flat,empty,box).x.length,0,'[terrace] terrace exclusion omitted');
+  const firewood=[];for(let x=-40;x<=40;x++)for(let z=-40;z<=40;z++)firewood.push({kind:'firewood',x,z});
+  assert.equal(scatterUnderstory({...bareWorld,dress:firewood},flat,empty,box).x.length,0,'[dress] firewood exclusion omitted');
+  assert.equal(scatterUnderstory({...bareWorld,distant:[{x:0,z:0,collider:{w:100,d:100,height:2}}]},flat,empty,box).x.length,0,'[dress] distant collider exclusion omitted');
+  // A road 3m away with a 2m half width passes the old 2.2m centreline rule but meets every crown.
+  const road={...flat,roads:[{half:2,index:{nearest:()=>({d:3})}}]};
+  assert(scatterUnderstory(bareWorld,{...flat,roads:[{half:2,index:{nearest:()=>({d:9})}}]},empty,box).x.length>0,'[road-crown] vacuous road fixture');
+  assert.equal(scatterUnderstory(bareWorld,road,empty,box).x.length,0,'[road-crown] crown may overhang the tread');
+  // Beside a zero-width path the crown rule alone admits small crowns at 2m; the legacy 2.2m centreline floor must not.
+  assert.equal(scatterUnderstory(bareWorld,{...flat,roads:[{half:0,index:{nearest:()=>({d:2})}}]},empty,box).x.length,0,'[understory-exclusion] 2.2m centreline floor omitted');
   const trunks={x:[],z:[],s:[],kind:[]};
   for(let x=-212;x<=242;x++)for(let z=-212;z<=202;z++){trunks.x.push(x);trunks.z.push(z);trunks.s.push(3);trunks.kind.push(0);}
   assert.equal(scatterUnderstory(bareWorld,flat,trunks).x.length,0,'[understory-exclusion] trunk exclusion omitted');
@@ -100,7 +116,8 @@ test('caps, stream separation, budget and purity [budget purity]', () => {
   const dense=scatterUnderstory(bareWorld,flat,empty,{box:[-600,600,-600,600]});
   for(const [s,name,max] of [[4,'sapling',1200],[5,'shrub',4000]]){
     assert(under.species.filter(v=>v===s).length>0,'[budget] missing understory');
-    assert(dense.species.filter(v=>v===s).length<=max && TREES[name].maxCount<=max,'[budget] cap omitted');
+    // The dense fixture must reach the cap, or the cap check is vacuous.
+    assert(dense.species.filter(v=>v===s).length===TREES[name].maxCount && TREES[name].maxCount<=max,'[budget] cap omitted');
   }
   assert(TREES.conversion.probability > .9 && TREES.conversion.probability < 1, '[ratio] conversion must preserve a small individual remainder');
   const seeds=Object.values(TREES.seeds), old=[101,211,307,401,503,7*101,13*211,17*307,19*401,23*503,GRASS.seed,GRASS.midSeed,GRASS.clumpSeed];
@@ -121,11 +138,107 @@ test('report Node CPU timings [timing]',()=>console.log('trees timing (Node CPU 
 test('only stage changes, with twenty-byte seasonal jitter [stage-jitter/placement]',()=>{
   const hash=v=>createHash('sha256').update(JSON.stringify(v)).digest('hex');
   assert.equal(hash(Array.from(assigned.species)),'3317a697e1001c87048c40147123273116bc73077810a79920ea58d8c2554b8f','[species-placement] adult species changed');
-  assert.equal(hash(Object.fromEntries(Object.entries(under).filter(([k])=>k!=='stage'))),'42291a08795c4f08e616cb651813dd8b8d292766520f894a098f13ef24e98c5b','[understory-placement] coordinates/count/species or random stream changed');
-  assert.equal(hash([Array.from(assigned.stage),under.stage]),'9e4eae85ea904fb581745a17408e6af5d217c5a577b4db98680d3e606e6ce7e4','[stage-jitter] seasonal jitter must remain +/-20/255');
+  // Terrace, crown-to-tread and dress exclusions removed 30 saplings and 95 shrubs; survivors keep every value.
+  assert.equal(hash(Object.fromEntries(Object.entries(under).filter(([k])=>k!=='stage'))),'ed9715df180594c72f8145c2fd927081be51107da6a979aee097f0f4143df672','[understory-placement] coordinates/count/species or random stream changed');
+  // Adult jitter now takes the second position draw (conversion keeps the first).
+  assert.equal(hash([Array.from(assigned.stage),under.stage]),'4403081aba853a5f604b131b0af42bcbea3f44848f5b756d8fc94217257ee05a','[stage-jitter] seasonal jitter must remain +/-20/255');
   const residual=trees.x.map((x,i)=>{
     const f=treeFieldsAt(WORLD,x,trees.z[i]),season=Math.max(0,Math.min(1,.5+1.6*(f.stage-.5)));
     return assigned.stage[i]-(assigned.species[i]===3?.45+.55*season:season)*255;
   });
   assert(Math.min(...residual)<-19 && Math.max(...residual)>19 && residual.every(v=>Math.abs(v)<=20.5),'[stage-jitter] independent spread outside +/-20');
+});
+
+// なぜ失敗したか: 転換の判定と色づきの揺らぎが位置の乱数の同じ1つ目を使い、転換に漏れた杉の揺らぎが常に+19/255付近に張り付いた。
+test('conversion and seasonal jitter are independent draws [jitter-independence]',()=>{
+  // Habitat is >= .8 everywhere here, so grove alone decides candidacy; candidates convert by draw only.
+  const rich={...flat,forestDensity:()=>0,riverInfo:()=>({d:20})},cedars={...trees,kind:trees.kind.map(()=>0)};
+  const r=assignTreeSpecies(WORLD,rich,cedars),groups={converted:[],cedar:[]};
+  cedars.x.forEach((x,i)=>{
+    const f=treeFieldsAt(WORLD,x,cedars.z[i]),sp=r.species[i];
+    if(f.grove+TREES.conversion.habitatWeight*.8<=TREES.fields.threshold)return;
+    const season=Math.max(0,Math.min(1,.5+1.6*(f.stage-.5))),base=(sp===3?.45+.55*season:season)*255;
+    if(base>21&&base<234)groups[sp===0?'cedar':'converted'].push(r.stage[i]-base);
+  });
+  const mean=a=>a.reduce((s,v)=>s+v,0)/a.length,sd=a=>Math.sqrt(mean(a.map(v=>(v-mean(a))**2)));
+  assert(groups.cedar.length>=100&&groups.converted.length>=1000,'[jitter-independence] vacuous candidate fixture');
+  assert(Math.abs(mean(groups.cedar)-mean(groups.converted))<4,'[jitter-independence] remaining cedars reuse the conversion draw (mean shift)');
+  assert(Math.min(...groups.cedar)<-15&&Math.max(...groups.cedar)>15&&Math.abs(sd(groups.cedar)-sd(groups.converted))<3,'[jitter-independence] remaining cedars confined to one jitter band');
+});
+
+// なぜ失敗したか: 若木・灌木の除外が畑だけで棚田を見ず、稲の中に立った。実装と同じ除外表で照合する試験では、表の抜けを検出できなかった。
+test('understory keeps clear of the planted terraces [rice/terrace]',()=>{
+  const rice=scatterRice(WORLD,terrain),T=WORLD.terraces,bins=new Map(),near=new Set();
+  rice.x.forEach((x,i)=>{const k=`${Math.floor(x)},${Math.floor(rice.z[i])}`;if(!bins.has(k))bins.set(k,[]);bins.get(k).push(i);});
+  under.x.forEach((x,i)=>{
+    const z=under.z[i];
+    for(let dx=-1;dx<=1;dx++)for(let dz=-1;dz<=1;dz++)for(const j of bins.get(`${Math.floor(x)+dx},${Math.floor(z)+dz}`)??[])if(Math.hypot(x-rice.x[j],z-rice.z[j])<=1)near.add(i);
+  });
+  assert(rice.x.length>10000,'[rice] vacuous rice fixture');
+  assert.deepEqual([...near],[],'[rice] understory stands within 1m of planted rice');
+  const inside=under.x.flatMap((x,i)=>x>=T.x0-2.5&&x<=T.x1+2.5&&under.z[i]>=T.z0-2.5&&under.z[i]<=T.z1+2.5?[i]:[]);
+  assert.deepEqual(inside,[],'[terrace] understory inside the terrace rectangle or its 2.5m rim');
+});
+
+// Widest drawn radius of every understory shell: the field's own instance matrix applied to the
+// L0/L1 leaf and wood buffers. Both levels share one matrix, so each item is placed once at L0.
+async function drawnCrowns(u) {
+  const {treeGeometry}=await load('tree-geometry.js'), zero=u.x.map(()=>0), none={x:[],y:[],z:[],s:[],rot:[],kind:[],tint:[]};
+  const f=new TreeField({data:none,species:{species:new Uint8Array(0),stage:new Uint8Array(0)},understory:{...u,x:zero,z:zero},wind,sunDir:new THREE.Vector3(1,1,1)});
+  f.update({position:{x:0,z:0}},true);
+  const points=new Map(),radius=new Float64Array(u.x.length),next=new Map();
+  for(const sp of [4,5]) {
+    const seen=new Set(),list=[];
+    for(const l of [0,1])for(const kind of ['leaf','wood']) {
+      const p=treeGeometry(sp,l)[kind].getAttribute('position');
+      for(let i=0;i<p.count;i++){const k=`${p.getX(i)},${p.getY(i)},${p.getZ(i)}`;if(!seen.has(k)){seen.add(k);list.push(p.getX(i),p.getY(i),p.getZ(i));}}
+    }
+    points.set(sp,list);
+  }
+  for(let i=0;i<u.x.length;i++) {
+    const sp=u.species[i],variant=sp===4?u.variant[i]:0,key=`${sp}/${variant}`,k=next.get(key)??0;next.set(key,k+1);
+    const set=f.sets.find(s=>s.species===sp&&s.variant===variant&&s.level===0),e=set.leaf.instanceMatrix.array,o=k*16,list=points.get(sp);
+    assert(k<set.leaf.count,'[crown] understory item not drawn at L0');
+    let r=0;
+    for(let j=0;j<list.length;j+=3)r=Math.max(r,Math.hypot(e[o]*list[j]+e[o+4]*list[j+1]+e[o+8]*list[j+2],e[o+2]*list[j]+e[o+6]*list[j+1]+e[o+10]*list[j+2]));
+    radius[i]=r;
+  }
+  f.dispose();return radius;
+}
+function modelExtent(name) {
+  const b=fs.readFileSync(new URL(`../dist/assets/valley/models/${name}.glb`,import.meta.url)),json=JSON.parse(b.toString('utf8',20,20+b.readUInt32LE(12)));
+  assert(json.nodes.every(n=>!n.matrix&&!n.scale&&!n.rotation&&!n.translation),'[dress] model node transform not handled');
+  const min=[Infinity,Infinity,Infinity],max=[-Infinity,-Infinity,-Infinity];
+  for(const m of json.meshes)for(const p of m.primitives){const a=json.accessors[p.attributes.POSITION];for(let k=0;k<3;k++){min[k]=Math.min(min[k],a.min[k]);max[k]=Math.max(max[k],a.max[k]);}}
+  return {min,max};
+}
+// Distance from a point to a placed model's footprint rectangle (Three rotation.y, uniform x/z scale).
+function footprintDistance(o,x,z) {
+  const c=Math.cos(o.rotY),s=Math.sin(o.rotY),dx=x-o.x,dz=z-o.z,u=dx*c-dz*s,v=dx*s+dz*c;
+  return Math.hypot(Math.max(o.min[0]*o.scale-u,0,u-o.max[0]*o.scale),Math.max(o.min[2]*o.scale-v,0,v-o.max[2]*o.scale));
+}
+// なぜ失敗したか: 灌木の道の除外が全道一律の中心から2.2mで、幅2mの道では樹冠が踏み面へ張り出し、薪・柵・幟も見ていなかった。
+// 実装の除外表ではなく、描画する殻（群の行列×実バッファ）を、道の踏み面と飾りの模型の寸法で照合する。
+test('drawn understory crowns stay off road treads and dress [tread/dress/crown]',async()=>{
+  const radius=await drawnCrowns(under),wood=modelExtent('firewood'),fence=modelExtent('fence'),dress=[];
+  // props.js: firewood at d.scale||1.2; fence segments every ~2.5m scaled to their length; banners hold an 0.8m bar.
+  for(const d of WORLD.dress) {
+    if(d.kind==='firewood')dress.push({id:'firewood',x:d.x,z:d.z,rotY:d.rotY||0,scale:d.scale||1.2,...wood});
+    else if(d.kind==='fence_line'){
+      const [x0,z0]=d.from,[x1,z1]=d.to,len=Math.hypot(x1-x0,z1-z0),n=Math.max(1,Math.round(len/2.5)),rotY=Math.atan2(-(z1-z0),x1-x0);
+      for(let i=0;i<n;i++){const t=(i+.5)/n;dress.push({id:'fence',x:x0+(x1-x0)*t,z:z0+(z1-z0)*t,rotY,scale:(len/n)/2.63,...fence});}
+    } else if(d.kind==='banner')dress.push({id:'banner',x:d.x,z:d.z,rotY:d.rotY||0,scale:d.scale||1,min:[-.05,0,-.05],max:[.8,0,.05]});
+  }
+  assert(dress.filter(o=>o.id==='firewood').length===7&&dress.some(o=>o.id==='fence')&&dress.some(o=>o.id==='banner'),'[dress] vacuous dress fixture');
+  const over=[],tread=[],touch=[];
+  under.x.forEach((x,i)=>{
+    const z=under.z[i],name=under.species[i]===4?'sapling':'shrub';
+    if(radius[i]>TREES[name].crown*under.s[i])over.push([i,radius[i]/under.s[i]]);
+    for(const r of terrain.roads){const d=r.index.nearest(x,z,64).d;if(d-radius[i]<r.half)tread.push([i,r.id,+(d-r.half).toFixed(2),+radius[i].toFixed(2)]);}
+    for(const o of dress)if(footprintDistance(o,x,z)<radius[i])touch.push([i,o.id,o.x,o.z]);
+  });
+  assert(radius.every(r=>r>.3),'[crown] vacuous crown radii');
+  assert.deepEqual(over,[],'[crown] TREES crown coefficient is narrower than the drawn shell');
+  assert.deepEqual(tread,[],'[tread] understory crown reaches a road tread');
+  assert.deepEqual(touch,[],'[dress] understory crown overlaps firewood, fence or banner');
 });

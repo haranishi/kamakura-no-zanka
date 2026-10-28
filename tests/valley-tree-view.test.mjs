@@ -1,5 +1,5 @@
 // なぜ失敗したか: 円盤下地と予約隅がコイン・格子になり、灰色の針と松の絵の誤配線が白い段を作った。紙の縁の黒・固定緑の発光・風やLODの結線漏れを、GPUなしで区別する。
-// 原因の型: texture/shader/wind/lod/color/instance/dispose/specimen/qa。GLSLのコンパイルは対象外。
+// 原因の型: texture/shader/wind/lod/color/instance/dispose/specimen/qa、独立レビュー後は side/alpha-test/wind-basis/wind-height/far-mean。GLSLのコンパイルは対象外。
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
@@ -132,7 +132,7 @@ test('instance capacity and stage colors use linear palette interpolation [insta
     for (const mesh of Object.values(set)) {
       assert(mesh instanceof THREE.InstancedMesh && mesh.instanceMatrix.count===7 && mesh.instanceColor.count===7,'[instance] capacity');
       assert.equal(mesh.count,0,'[instance] initial active count');
-      assert(!mesh.frustumCulled && mesh.receiveShadow===(level===0) && mesh.castShadow===(level===0),'[instance] culling/shadow');
+      assert(!mesh.frustumCulled && mesh.receiveShadow===(level<2) && mesh.castShadow===(level===0),'[instance] culling/shadow');
       assert(mesh.instanceMatrix.usage===THREE.DynamicDrawUsage && mesh.instanceColor.usage===THREE.DynamicDrawUsage,'[instance] dynamic buffers');
       assert.notEqual(mesh.geometry,treeGeometry(1,level).leaf,'[dispose] borrowed template'); mesh.geometry.dispose(); mesh.dispose();
     }
@@ -203,7 +203,7 @@ test('needle routing, untextured core and diffuse gain [texture-routing/core/col
   for(let species=0;species<6;species++)for(let level=0;level<(species>=4?2:3);level++) {
     const pair=m.get(species,level);
     assert.equal(pair.wood.map,null,'[core] wood core must be untextured');
-    if(level<2)assert.equal(pair.leaf.color.r,species>=4?1.1:[1,3].includes(species)?1.25:1,'[color-gain] gain only on near/mid broadleaf');
+    if(level<2)assert.equal(pair.leaf.color.r,species>=4?1.1:[1,3].includes(species)?1.25:1,'[color-gain] near/mid gain must follow broadleaf/understory/conifer');
     assert.equal(pair.wood.color.r,1,'[color-gain] wood tinted by gain');
     if(level===2)assert.equal(pair.leaf.map,null,'[texture-routing] far uses mean');
   }
@@ -256,4 +256,74 @@ test('quality selects coverage after alpha test for every color material [covera
   }
   assert.match(THREE.ShaderChunk.alphatest_fragment,/ALPHA_TO_COVERAGE/,'[coverage/chunk] shipped alpha test contract');
   assert.match(THREE.ShaderChunk.opaque_fragment,/#ifdef OPAQUE/,'[coverage/opaque] shipped opaque contract');
+});
+
+// なぜ失敗したか: 葉を片面にすると殻の内側が抜けて樹冠に穴が開き、切り抜きの閾値を変えると葉の被覆が変わる。材質の値を見る試験が無かった。
+test('foliage is double-sided with a fixed .3 alpha cut; wood is front-sided and uncut [side/alpha-test]',()=>{
+  for(const quality of ['standard','light']) {
+    const {m}=make(quality);
+    for(let sp=0;sp<6;sp++)for(let l=0;l<(sp>=4?2:3);l++) {
+      const {leaf,wood}=m.get(sp,l);
+      assert.equal(leaf.side,THREE.DoubleSide,'[side] foliage must be double-sided');
+      assert.equal(wood.side,THREE.FrontSide,'[side] wood must be front-sided');
+      assert.equal(leaf.alphaTest,leaf.map?.3:0,'[alpha-test] foliage cut threshold changed');
+      assert.equal(wood.alphaTest,0,'[alpha-test] wood must not be cut');
+    }
+    m.dispose();
+  }
+});
+
+// The shipped basis block uses only mat3/vec3/dot/max; translate it to JS (instancing on) and run it.
+function windToLocal(block) {
+  const body=block.replace(/#ifdef USE_INSTANCING|#endif/g,'').replace(/\b(?:mat3|vec3) (\w+) =/g,'let $1 =')
+    .replace(/(mat3\(\w+\))\*(mat3\(\w+\))/g,'mul($1,$2)').replace(/transformed \+= ([\s\S]+);\s*$/,'transformed = add(transformed,$1);');
+  let fn;
+  try { fn=new Function('mat3','mul','vec3','dot','max','add','modelMatrix','instanceMatrix','treeMotion',`let transformed=[0,0,0];\n${body}\nreturn transformed;`); }
+  catch { assert.fail('[wind-basis] basis block is no longer the expected mat3/vec3 subset'); }
+  const mat3=m=>[0,1,2].map(c=>[0,1,2].map(r=>m.elements[c*4+r]));
+  const mul=(a,b)=>b.map(col=>[0,1,2].map(r=>a[0][r]*col[0]+a[1][r]*col[1]+a[2][r]*col[2]));
+  const vec3=(...v)=>v,dot=(a,b)=>a[0]*b[0]+a[1]*b[1]+a[2]*b[2],add=(a,b)=>a.map((v,i)=>v+b[i]);
+  return (model,instance,motion)=>fn(mat3,mul,vec3,dot,Math.max,add,model,instance,motion);
+}
+// なぜ失敗したか: 風の変位を世界のまま局所へ足すと、回した・傾けた・伸ばした個体で風向きと振幅が狂う。式の文字の有無だけでは退行を見逃した。
+test('wind displacement returns the world wind through the instance basis [wind-basis]',()=>{
+  const {m}=make();
+  for(const [sp,l] of [[0,0],[1,1],[2,2],[3,0],[5,1]]) {
+    const v=compile(m.get(sp,l).leaf).vertexShader,block=v.slice(v.indexOf('mat3 treeBasis'),v.indexOf('vec4 treeWorld'));
+    assert.match(block,/#ifdef USE_INSTANCING\s*treeBasis = mat3\(modelMatrix\)\*mat3\(instanceMatrix\);\s*#endif/,'[wind-basis] instance rotation/scale ignored');
+    const toLocal=windToLocal(block);
+    for(const yaw of [0,.7,2.4])for(const [sx,sy] of [[1,1],[1.3,.9],[.85,1.3]])for(const model of [new THREE.Matrix4(),new THREE.Matrix4().makeRotationY(.3)]) {
+      const instance=new THREE.Matrix4().compose(new THREE.Vector3(5,1,-3),new THREE.Quaternion().setFromEuler(new THREE.Euler(.05,yaw,-.04,'YXZ')),new THREE.Vector3(sx,sy,sx));
+      const local=toLocal(model,instance,{x:.3,y:-.2});
+      const world=new THREE.Vector3(...local).applyMatrix3(new THREE.Matrix3().setFromMatrix4(model.clone().multiply(instance)));
+      assert(Math.abs(world.x-.3)<1e-9&&Math.abs(world.y)<1e-9&&Math.abs(world.z+.2)<1e-9,'[wind-basis] local displacement does not reproduce the world wind');
+    }
+  }
+  m.dispose();
+});
+
+// なぜ失敗したか: 揺れの高さ比を全種で杉の20mで割ると、低木・楓・若木がほとんど揺れない。2乗の項の有無しか見ていなかった。
+test('wind height ratio uses each species height [wind-height]',()=>{
+  const {m}=make();
+  for(let sp=0;sp<6;sp++)for(let l=0;l<(sp>=4?2:3);l++)for(const kind of ['leaf','wood'])
+    assert(compile(m.get(sp,l)[kind]).vertexShader.includes(`float heightRatio = clamp(position.y/${treeGeometry(sp,l).height.toFixed(1)},0.0,1.0);`),`[wind-height] species ${sp} sways against another height`);
+  m.dispose();
+});
+
+// sRGB bytes decode to linear light (IEC 61966-2-1) before the alpha-weighted mean; .3 is the alpha cut.
+const toLinear=c=>c<=.04045?c/12.92:((c+.055)/1.055)**2.4;
+function linearMean(texture) {
+  const a=texture.image.data,sum=[0,0,0];let weight=0;
+  for(let i=0;i<a.length;i+=4)if(a[i+3]>=Math.ceil(.3*255)){const w=a[i+3]/255;weight+=w;for(let k=0;k<3;k++)sum[k]+=toLinear(a[i+k]/255)*w;}
+  return sum.map(v=>v/weight);
+}
+// なぜ失敗したか: 遠景の平均色をsRGBの値のまま平均すると約5%暗く、楓に欅の絵の平均を使っても、広葉の遠景にゲインが無くても、「0.8未満」の検査は通った。
+test('far crowns take the linear-light mean of their own near texture [far-mean/color-gain]',()=>{
+  const {m}=make();
+  for(const sp of [0,1,2,3]) {
+    const expected=linearMean(m.get(sp,0).leaf.map).map(v=>v*([1,3].includes(sp)?TREES.leafGain:1)),actual=m.get(sp,2).leaf.color.toArray();
+    assert(actual.every((v,i)=>Math.abs(v-expected[i])<1e-6),`[far-mean] species ${sp} far colour is not its near texture mean in linear light (broadleaf gain ${TREES.leafGain}, conifer none)`);
+  }
+  assert.notDeepEqual(m.get(1,2).leaf.color.toArray(),m.get(3,2).leaf.color.toArray(),'[far-mean] maple and zelkova share one far mean');
+  m.dispose();
 });

@@ -12,11 +12,13 @@ export function stageColor(species, stage = 0, tint = .5, variant = 0) {
   const t = clamp(stage) * (palette.length - 1), k = Math.min(Math.floor(t), palette.length - 1);
   return new THREE.Color(palette[k]).lerp(new THREE.Color(palette[Math.min(k + 1, palette.length - 1)]), t - k).multiplyScalar(.88 + .24 * clamp(tint));
 }
-// Shape is a stable property of an individual, independent of LOD and array order.
+// Shape is a stable property of an individual, independent of LOD and array order. Brightness and
+// height come from tint itself, so shape uses a second hash of it: tint bands tied each shape to one brightness.
+const shapeHash = tint => { const v = clamp(tint) * 97.13 + .37; return v - Math.floor(v); };
 export function treeShape(species, tint) {
-  const count = TREES.variants[names[species]] ?? 1;
-  if (species === 0) return tint < .45 ? Math.min(2, Math.floor(clamp(tint) / .15)) : tint < .70 ? 3 : 4;
-  return Math.min(count - 1, Math.floor(clamp(tint) * count));
+  const count = TREES.variants[names[species]] ?? 1, h = shapeHash(tint);
+  if (species === 0) return h < .45 ? Math.min(2, Math.floor(h / .15)) : h < .70 ? 3 : 4;
+  return Math.min(count - 1, Math.floor(h * count));
 }
 // Each set owns cloned buffers; the cached geometry templates never reach the GPU.
 // Caller owns disposal of the two cloned geometries and mesh instance buffers.
@@ -28,7 +30,9 @@ export function createTreeSet({ species, level, capacity, materials, variant = 0
     m.name = name; m.count = 0; m.frustumCulled = false;
     m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     m.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(capacity * 3).fill(1), 3).setUsage(THREE.DynamicDrawUsage);
-    m.castShadow = level === 0; m.receiveShadow = level === 0; return m;
+    // L1 starts at 13/18m (shrub/sapling) and 40m (adult), inside the ±46m shadow box:
+    // unshadowed L1 glowed in shade and popped at the split. L2 lies outside it.
+    m.castShadow = level === 0; m.receiveShadow = level < 2; return m;
   }
   return { leaf: mesh(g.leaf, pair.leaf, 'tree-specimen-leaf'), wood: g.tris.wood ? mesh(g.wood, pair.wood, 'tree-specimen-wood') : null };
 }
@@ -134,7 +138,8 @@ export class TreeField {
       const tiltZ = (((tv * 23.3) % 1) * 2 - 1) * Math.PI / 60;
       this.q.setFromEuler(this.euler.set(tiltX, d.rot[i], tiltZ, 'YXZ')); this.p.set(d.x[i], d.y[i] - .15, d.z[i]); this.m.compose(this.p, this.q, this.s);
       if (sp !== 0 && sp !== 2) this.color.copy(stageColor(sp, stage / 255, tv, variant));
-      else if (level === 2) { const v = .55 + .9 * f3; this.color.setRGB(v * (.9 + .2 * f1), v, v * (.8 + .4 * f2)); }
+      // Far conifers keep the near brightness and add only a small far-only jitter (no jump at the dissolve).
+      else if (level === 2) { const v = (.85 + tv * .3) * (.88 + .24 * f3); this.color.setRGB(v * (.9 + .2 * f1), v, v * (.8 + .4 * f2)); }
       else { const v = .85 + tv * .3; this.color.setRGB(v, v * 1.02, v * .95); }
       set.leaf.setMatrixAt(k, this.m); set.leaf.setColorAt(k, this.color); set.leaf.count++;
       if (set.wood) {

@@ -23,8 +23,19 @@ const cases = [
   ['shrub cap raised', config, 'maxCount: 4000', 'maxCount: 40000'],
   ['random stream overlaps grass', config, 'grove: 51001', 'grove: 19391'],
   ['plot exclusion removed', rules, 'if ((world.plots || []).some(p => insidePlot(p, x, z, 1.5)))', 'if (false)'],
-  ['remove adult seasonal jitter', rules, '(positionRand(world, x, z)() - 0.5) * 40 / 255', '0'],
+  ['remove adult seasonal jitter', rules, 'stageAt(f, kind, (draws() - 0.5) * 40 / 255)', 'stageAt(f, kind, 0)'],
   ['remove understory seasonal jitter', rules, '(rng() - 0.5) * 40 / 255', '0'],
+  // 独立レビューの指摘と、その修正の戻し。
+  ['jitter reuses the conversion draw', rules, 'const draws = positionRand(world, x, z); draws();', 'const draws = positionRand(world, x, z);'],
+  ['terrace exclusion removed', rules, 'if (T && x >= T.x0 - 2.5 && x <= T.x1 + 2.5 && z >= T.z0 - 2.5 && z <= T.z1 + 2.5) continue;', 'if (false) continue;'],
+  ['terrace rim omitted', rules, 'T.x0 - 2.5 && x <= T.x1 + 2.5 && z >= T.z0 - 2.5 && z <= T.z1 + 2.5', 'T.x0 && x <= T.x1 && z >= T.z0 && z <= T.z1'],
+  ['crown-to-tread exclusion removed', rules, 'if (terrain.roads ? terrain.roads.some(r => r.index.nearest(x, z, 32).d < r.half + clear) : road && road.dist < clear) continue;', 'if (false) continue;'],
+  ['one narrow half width for every road', rules, 'r.half + clear', '1 + clear'],
+  ['crown ignored beside roads and dress', rules, 'clear = cfg.crown * s + 0.3', 'clear = 0.3'],
+  ['dress circles ignored', rules, 'if (dress.circles.some(c => Math.hypot(x - c.x, z - c.z) < c.r + clear)) continue;', 'if (false) continue;'],
+  ['dress and distant boxes ignored', rules, 'if (dress.boxes.some(b => boxDistance(b, x, z) < clear)) continue;', 'if (false) continue;'],
+  ['shrub crown narrower than drawn', config, 'crown: 1.1', 'crown: 0.5'],
+  ['sapling crown narrower than drawn', config, 'lightDistance: 30, crown: 0.5', 'lightDistance: 30, crown: 0.25'],
 ];
 const run = () => spawnSync(process.execPath, ['--test', 'tests/valley-tree-species.test.mjs'], {encoding:'utf8',timeout:30000});
 const originals = new Map([rules,config].map(file=>[file,fs.readFileSync(file)]));

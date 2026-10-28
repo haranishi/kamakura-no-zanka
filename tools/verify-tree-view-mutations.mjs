@@ -30,7 +30,7 @@ const cases = [
   ['opaque disk under leaves', texture, "g.lineJoin = 'round'; g.lineCap = 'round';", "g.fillStyle='rgb(190,190,190)'; g.beginPath(); for(let i=0;i<=64;i++){const a=i/64*TAU; if(i===0)g.moveTo(128+120*Math.cos(a),128+120*Math.sin(a));else g.lineTo(128+120*Math.cos(a),128+120*Math.sin(a));}g.closePath();g.fill();g.lineJoin = 'round'; g.lineCap = 'round';"],
   ['reserved opaque corner', texture, 'const map = repeat(c, g); map.userData.leafCount', "g.fillStyle='rgb(158,158,158)';g.fillRect(0,240,16,16);const map = repeat(c, g); map.userData.leafCount"],
   ['omit leaf gain', material, 'm.color.multiplyScalar(species >= 4 ? TREES.understoryLeafGain : TREES.leafGain)', 'm.color.multiplyScalar(1)'],
-  ['gain applied to conifers', material, 'leaf && !conifer && level < 2', 'leaf && level < 2'],
+  ['gain applied to conifers', material, 'if (leaf && !conifer) m.color', 'if (leaf) m.color'],
   ['unscaled wind', material, '*flutter)*uWind;', '*flutter);'],
   ['gust without threshold', material, '*step(.5,uWind)', '*1.0'],
   ['unlimited backlight', material, 'min(vec3(.35)', 'min(vec3(3.5)'],
@@ -44,6 +44,15 @@ const cases = [
   ['sapling texture variant ignored', material, 'species === 4 && variant === 1', 'species === 4 && variant === 9'],
   ['understory adult gain', material, 'species >= 4 ? TREES.understoryLeafGain : TREES.leafGain', 'TREES.leafGain'],
   ['narrow tint spread', 'dist/valley/tree-view.js', '.88 + .24 * clamp(tint)', '.9 + .2 * clamp(tint)'],
+  // 独立レビューが写しで通してしまった退行。
+  ['single-sided foliage', material, 'side: leaf ? THREE.DoubleSide : THREE.FrontSide', 'side: THREE.FrontSide'],
+  ['wind ignores instance rotation and scale', material, 'treeBasis = mat3(modelMatrix)*mat3(instanceMatrix);', 'treeBasis = mat3(modelMatrix);'],
+  ['wind basis not divided by axis length', material, '/max(dot(treeBasis[0],treeBasis[0]),.0001)', ''],
+  ['cedar height for every species', material, '${heights[species].toFixed(1)}', '${heights[0].toFixed(1)}'],
+  ['maple far crown uses zelkova mean', material, 'means[conifer ? 0 : species === 3 ? 2 : 1]', 'means[conifer ? 0 : 1]'],
+  ['alpha cut raised to .5', material, 'alphaTest: map ? .3 : 0', 'alphaTest: map ? .5 : 0'],
+  ['far broadleaf without gain', material, 'if (leaf && !conifer) m.color', 'if (leaf && !conifer && level < 2) m.color'],
+  ['mean of sRGB bytes', material, 'sum[k] += linear[a[i + k]] * w;\n  }\n  return new THREE.Color().setRGB(...sum.map(v => v / (weight || 1)), THREE.LinearSRGBColorSpace);', 'sum[k] += a[i + k] / 255 * w;\n  }\n  return new THREE.Color().setRGB(...sum.map(v => v / (weight || 1)), THREE.SRGBColorSpace);'],
 ];
 const originals = new Map([...new Set(cases.map(c => c[1]))].map(f => [f, fs.readFileSync(f)]));
 const run = () => spawnSync(process.execPath, ['--test', 'tests/valley-tree-view.test.mjs'], { encoding: 'utf8', timeout: 30000, maxBuffer: 8 * 1024 * 1024 });
