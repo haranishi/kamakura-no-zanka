@@ -1,4 +1,5 @@
 // なぜ失敗したか: species/overlap/margin/scale/fade/light/cadence/capacity/dispose/budget/qa の原因別に落とす。
+// 第3次: 丸い殻の増分と狭い溶かし帯に合わせ、4地点の実バッファ総数を固定する。
 // GPU・GLSL・実機コマ時間はこのNode試験では確認しない。
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -38,7 +39,7 @@ test('derived species capacity, variants, color and shadow [species]',()=>{
   f.dispose();
 });
 test('overlap and margin enter both adjacent levels [overlap]',()=>{
-  for(const x of [48,63,135,150]) {
+  for(const x of [48,60,138,150]) {
     const f=field([{x}]);f.update(camera());
     const levels=f.sets.filter(s=>s.leaf.count).map(s=>s.level);
     assert.deepEqual(levels,x<100?[0,1]:[1,2],'[overlap/margin] adjacent level omitted');
@@ -80,7 +81,7 @@ test('light keeps half of far instances while keeping near overlap [light]',()=>
   const f=field(Array.from({length:10},()=>({x:400})),{quality:'light'});f.update(camera());
   assert.equal(f.stats.far,5,'[light] far thinning removed');
   assert.deepEqual(f.lod,[32,100],'[light] wrong distances');
-  assert.deepEqual(setAt(f,0,0).leaf.material.userData.uLod.value.toArray(),[-1,-1,24,40],'[uniform] light material policy');f.dispose();
+  assert.deepEqual(setAt(f,0,0).leaf.material.userData.uLod.value.toArray(),[-1,-1,26,38],'[uniform] light material policy');f.dispose();
 });
 test('force, last and five metre cadence [cadence]',()=>{
   const f=field([{x:0}]);f.update(camera());assert.equal(f.stats.near,1,'[cadence] first update skipped');
@@ -118,7 +119,7 @@ test('vegetation and quality switch wiring [wiring]',()=>{
 test('real scatter, four site budgets, QA accounting and capacities [budget]',()=>{
   const terrain=createTerrain(WORLD),trees=scatterTrees(WORLD,terrain),species=assignTreeSpecies(WORLD,terrain,trees),understory=scatterUnderstory(WORLD,terrain,trees);
   const f=field([],{data:trees,species,understory});const api=qa(f);
-  const sites=[[WORLD.start.x,WORLD.start.z,1438000,1089116],[-5,2.2,1387000,942812],[-6,20,1344000,910118],[-36,-48,1394000,1044110]];
+  const sites=[[WORLD.start.x,WORLD.start.z,1438000,1080156],[-5,2.2,1387000,935448],[-6,20,1344000,919742],[-36,-48,1394000,1041234]];
   assert.deepEqual(sites.map(p=>p.slice(0,2)),[[-100.5,-89],[-5,2.2],[-6,20],[-36,-48]],'[budget-sites] four evaluation sites changed');
   assert.equal(f.sets.length,18,'[sets] wrong species/variant level count');assert(f.group.children.length<=40,'[sets] draw set budget exceeded');
   for(const [x,z,old,expected] of sites) {

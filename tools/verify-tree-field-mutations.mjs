@@ -2,8 +2,11 @@
 // 毎回と終了時に元のバイト列を復元し、復元後の試験も実行する。
 import fs from 'node:fs';
 import { spawnSync } from 'node:child_process';
+const config = 'dist/valley/config.js';
 const view = 'dist/valley/tree-view.js', lod = 'dist/valley/tree-lod.js', qa = 'dist/valley/qa.js';
 const cases = [
+  ['wide standard dither band', config, 'blend: { standard: 7, light: 6 }', 'blend: { standard: 10, light: 6 }'],
+  ['wide light dither band', config, 'blend: { standard: 7, light: 6 }', 'blend: { standard: 7, light: 8 }'],
   ['only one level in overlap', view, 'if (membership[level]) {', 'if (membership[level] && !membership[level - 1]) {'],
   ['omit movement margin', lod, 'margin = 6', 'margin = 0'],
   ['different scale at each level', view, 'baseScale * (.92 + .28 * f2)', 'baseScale * (.92 + .28 * f2) * (1 + level * .2)'],

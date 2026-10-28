@@ -39,3 +39,8 @@ for (const quality of ['standard', 'light']) {
     assert.equal(fadeWeight(45+w,45,w),0,'[fade] end');
   });
 }
+
+// なぜ失敗したか: 広いディザ帯が杉に格子として見えた。境界の意味を保って帯だけを狭める。
+test('dither bands stay narrow in both qualities [blend-width]',()=>{
+  assert.deepEqual(TREES.lod.blend,{standard:7,light:6},'[blend-width] coarse dither spans too much distance');
+});
