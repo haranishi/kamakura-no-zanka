@@ -1,0 +1,1098 @@
+{
+ "marginMs": 40,
+ "measured": {
+  "villager_m/CMU_Walk/left": {
+   "duration": 1.0667,
+   "data": [
+    0
+   ],
+   "E": [
+    0
+   ],
+   "P": [
+    0.0667
+   ]
+  },
+  "villager_m/CMU_Walk/right": {
+   "duration": 1.0667,
+   "data": [
+    0.5333
+   ],
+   "E": [
+    0.5333
+   ],
+   "P": [
+    0.5708
+   ]
+  },
+  "villager_m/CMU_Jog/left": {
+   "duration": 0.8,
+   "data": [
+    0.0664
+   ],
+   "E": [
+    0.0042
+   ],
+   "P": [
+    0.0708
+   ]
+  },
+  "villager_m/CMU_Jog/right": {
+   "duration": 0.8,
+   "data": [
+    0.4664
+   ],
+   "E": [
+    0.4042
+   ],
+   "P": [
+    0.5
+   ]
+  },
+  "villager_m/CMU_Run/left": {
+   "duration": 0.7333,
+   "data": [
+    0.033
+   ],
+   "E": [
+    0.0042
+   ],
+   "P": [
+    0.0625
+   ]
+  },
+  "villager_m/CMU_Run/right": {
+   "duration": 0.7333,
+   "data": [
+    0.4334
+   ],
+   "E": [
+    0.3667
+   ],
+   "P": [
+    0.425
+   ]
+  },
+  "villager_m/Casual_Walk/left": {
+   "duration": 4.2,
+   "data": [
+    0.0672,
+    1.3986,
+    2.7678
+   ],
+   "E": [
+    0,
+    1.4042,
+    2.7042
+   ],
+   "P": [
+    0.0333,
+    1.4375,
+    2.8917,
+    3.3
+   ]
+  },
+  "villager_m/Casual_Walk/right": {
+   "duration": 4.2,
+   "data": [
+    0.735,
+    2.1,
+    3.5322
+   ],
+   "E": [
+    0.7,
+    2.1,
+    3.5292
+   ],
+   "P": [
+    0.7083,
+    2.1375,
+    3.5417,
+    3.6
+   ]
+  },
+  "villager_m/Cautious_Crouch_Walk_Forward/left": {
+   "duration": 1.1333,
+   "data": [
+    1.1005
+   ],
+   "E": [
+    1.1292
+   ],
+   "P": [
+    0.0958
+   ]
+  },
+  "villager_m/Cautious_Crouch_Walk_Forward/right": {
+   "duration": 1.1333,
+   "data": [
+    0.5667
+   ],
+   "E": [
+    0.5375
+   ],
+   "P": [
+    0.6
+   ]
+  },
+  "soldier/Samurai_Walk/left": {
+   "duration": 1.3333,
+   "data": [
+    0
+   ],
+   "E": [
+    1.3292
+   ],
+   "P": [
+    0.1
+   ]
+  },
+  "soldier/Samurai_Walk/right": {
+   "duration": 1.3333,
+   "data": [
+    0.7
+   ],
+   "E": [
+    0.6667
+   ],
+   "P": [
+    0.7375
+   ]
+  },
+  "soldier/CMU_Walk/left": {
+   "duration": 1.0667,
+   "data": [
+    0
+   ],
+   "E": [
+    0
+   ],
+   "P": [
+    0.0708
+   ]
+  },
+  "soldier/CMU_Walk/right": {
+   "duration": 1.0667,
+   "data": [
+    0.5333
+   ],
+   "E": [
+    0.5333
+   ],
+   "P": [
+    0.5708,
+    0.6333
+   ]
+  },
+  "soldier/CMU_Jog/left": {
+   "duration": 0.8,
+   "data": [
+    0.0664
+   ],
+   "E": [
+    0.0042
+   ],
+   "P": [
+    0.075
+   ]
+  },
+  "soldier/CMU_Jog/right": {
+   "duration": 0.8,
+   "data": [
+    0.4664
+   ],
+   "E": [
+    0.4042
+   ],
+   "P": [
+    0.5042
+   ]
+  },
+  "soldier/CMU_Run/left": {
+   "duration": 0.7333,
+   "data": [
+    0.033
+   ],
+   "E": [
+    0.0042
+   ],
+   "P": [
+    0.0667
+   ]
+  },
+  "soldier/CMU_Run/right": {
+   "duration": 0.7333,
+   "data": [
+    0.4334
+   ],
+   "E": [
+    0.3667
+   ],
+   "P": [
+    0.4125
+   ]
+  },
+  "soldier/Casual_Walk/left": {
+   "duration": 4.2,
+   "data": [
+    0.0672,
+    1.3986,
+    2.7678
+   ],
+   "E": [
+    0,
+    1.4042,
+    2.7042
+   ],
+   "P": [
+    0.0333,
+    1.4375,
+    2.9,
+    3.3
+   ]
+  },
+  "soldier/Casual_Walk/right": {
+   "duration": 4.2,
+   "data": [
+    0.735,
+    2.1,
+    3.5322
+   ],
+   "E": [
+    0.7,
+    2.1,
+    3.5292
+   ],
+   "P": [
+    0.7083,
+    2.1375,
+    3.5417,
+    3.6
+   ]
+  },
+  "soldier/Walk_Fight_Forward/left": {
+   "duration": 1.7333,
+   "data": [
+    1.7004
+   ],
+   "E": [
+    0.0292
+   ],
+   "P": [
+    0.1458
+   ]
+  },
+  "soldier/Walk_Fight_Forward/right": {
+   "duration": 1.7333,
+   "data": [
+    0.8996
+   ],
+   "E": [
+    0.9042
+   ],
+   "P": [
+    1.0708,
+    1.4667
+   ]
+  },
+  "soldier/Cautious_Crouch_Walk_Forward/left": {
+   "duration": 1.1333,
+   "data": [
+    1.1005
+   ],
+   "E": [
+    1.1292
+   ],
+   "P": [
+    0.0958
+   ]
+  },
+  "soldier/Cautious_Crouch_Walk_Forward/right": {
+   "duration": 1.1333,
+   "data": [
+    0.5667
+   ],
+   "E": [
+    0.5375
+   ],
+   "P": [
+    0.6042
+   ]
+  },
+  "hero/Samurai_Walk/left": {
+   "duration": 1.3333,
+   "data": [
+    0
+   ],
+   "E": [
+    0
+   ],
+   "P": [
+    0.1042
+   ]
+  },
+  "hero/Samurai_Walk/right": {
+   "duration": 1.3333,
+   "data": [
+    0.7
+   ],
+   "E": [
+    0.6667
+   ],
+   "P": [
+    0.7333
+   ]
+  },
+  "hero/CMU_Walk/left": {
+   "duration": 1.0667,
+   "data": [
+    0
+   ],
+   "E": [
+    0
+   ],
+   "P": [
+    0.075
+   ]
+  },
+  "hero/CMU_Walk/right": {
+   "duration": 1.0667,
+   "data": [
+    0.5333
+   ],
+   "E": [
+    0.5333
+   ],
+   "P": [
+    0.5708,
+    0.6333
+   ]
+  },
+  "hero/CMU_Jog/left": {
+   "duration": 0.8,
+   "data": [
+    0.0664
+   ],
+   "E": [
+    0.0042
+   ],
+   "P": [
+    0.075
+   ]
+  },
+  "hero/CMU_Jog/right": {
+   "duration": 0.8,
+   "data": [
+    0.4664
+   ],
+   "E": [
+    0.4042
+   ],
+   "P": [
+    0.5042
+   ]
+  },
+  "hero/CMU_Run/left": {
+   "duration": 0.7333,
+   "data": [
+    0.033
+   ],
+   "E": [
+    0.0042
+   ],
+   "P": [
+    0.0667
+   ]
+  },
+  "hero/CMU_Run/right": {
+   "duration": 0.7333,
+   "data": [
+    0.4334
+   ],
+   "E": [
+    0.3667
+   ],
+   "P": [
+    0.4125,
+    0.425
+   ]
+  },
+  "hero/Casual_Walk/left": {
+   "duration": 4.2,
+   "data": [
+    0.0672,
+    1.3986,
+    2.7678
+   ],
+   "E": [
+    0,
+    1.4042,
+    2.7042
+   ],
+   "P": [
+    0.0333,
+    1.4375,
+    2.9,
+    3.3
+   ]
+  },
+  "hero/Casual_Walk/right": {
+   "duration": 4.2,
+   "data": [
+    0.735,
+    2.1,
+    3.5322
+   ],
+   "E": [
+    0.7,
+    2.1,
+    3.5292
+   ],
+   "P": [
+    0.7083,
+    2.1375,
+    3.5417,
+    3.6
+   ]
+  },
+  "hero/Walk_Fight_Forward/left": {
+   "duration": 1.7333,
+   "data": [
+    1.7004
+   ],
+   "E": [
+    0.0292
+   ],
+   "P": [
+    0.1708
+   ]
+  },
+  "hero/Walk_Fight_Forward/right": {
+   "duration": 1.7333,
+   "data": [
+    0.8996
+   ],
+   "E": [
+    0.9042
+   ],
+   "P": [
+    1.0708,
+    1.4667
+   ]
+  },
+  "hero/Cautious_Crouch_Walk_Forward/left": {
+   "duration": 1.1333,
+   "data": [
+    1.1005
+   ],
+   "E": [
+    1.1292
+   ],
+   "P": [
+    0.0958
+   ]
+  },
+  "hero/Cautious_Crouch_Walk_Forward/right": {
+   "duration": 1.1333,
+   "data": [
+    0.5667
+   ],
+   "E": [
+    0.5375
+   ],
+   "P": [
+    0.6042
+   ]
+  },
+  "officer/Samurai_Walk/left": {
+   "duration": 1.3333,
+   "data": [
+    0
+   ],
+   "E": [
+    1.3292
+   ],
+   "P": [
+    0.1
+   ]
+  },
+  "officer/Samurai_Walk/right": {
+   "duration": 1.3333,
+   "data": [
+    0.7
+   ],
+   "E": [
+    0.6667
+   ],
+   "P": [
+    0.7333
+   ]
+  },
+  "officer/CMU_Walk/left": {
+   "duration": 1.0667,
+   "data": [
+    0
+   ],
+   "E": [
+    0
+   ],
+   "P": [
+    0.0708
+   ]
+  },
+  "officer/CMU_Walk/right": {
+   "duration": 1.0667,
+   "data": [
+    0.5333
+   ],
+   "E": [
+    0.5333
+   ],
+   "P": [
+    0.5708,
+    0.6333
+   ]
+  },
+  "officer/CMU_Jog/left": {
+   "duration": 0.8,
+   "data": [
+    0.0664
+   ],
+   "E": [
+    0.0042
+   ],
+   "P": [
+    0.075
+   ]
+  },
+  "officer/CMU_Jog/right": {
+   "duration": 0.8,
+   "data": [
+    0.4664
+   ],
+   "E": [
+    0.4042
+   ],
+   "P": [
+    0.5
+   ]
+  },
+  "officer/CMU_Run/left": {
+   "duration": 0.7333,
+   "data": [
+    0.033
+   ],
+   "E": [
+    0.0042
+   ],
+   "P": [
+    0.0667
+   ]
+  },
+  "officer/CMU_Run/right": {
+   "duration": 0.7333,
+   "data": [
+    0.4334
+   ],
+   "E": [
+    0.3667
+   ],
+   "P": [
+    0.4125
+   ]
+  },
+  "officer/Casual_Walk/left": {
+   "duration": 4.2,
+   "data": [
+    0.0672,
+    1.3986,
+    2.7678
+   ],
+   "E": [
+    0,
+    1.4042,
+    2.7042
+   ],
+   "P": [
+    0.0333,
+    1.4375,
+    2.8958,
+    3.3
+   ]
+  },
+  "officer/Casual_Walk/right": {
+   "duration": 4.2,
+   "data": [
+    0.735,
+    2.1,
+    3.5322
+   ],
+   "E": [
+    0.7,
+    2.1,
+    3.5292
+   ],
+   "P": [
+    0.7083,
+    2.1375,
+    3.5417,
+    3.6
+   ]
+  },
+  "officer/Walk_Fight_Forward/left": {
+   "duration": 1.7333,
+   "data": [
+    1.7004
+   ],
+   "E": [
+    0.0292
+   ],
+   "P": [
+    0.1417
+   ]
+  },
+  "officer/Walk_Fight_Forward/right": {
+   "duration": 1.7333,
+   "data": [
+    0.8996
+   ],
+   "E": [
+    0.9042
+   ],
+   "P": [
+    1.0708,
+    1.4667
+   ]
+  },
+  "archer/Samurai_Walk/left": {
+   "duration": 1.3333,
+   "data": [
+    0
+   ],
+   "E": [
+    1.3292
+   ],
+   "P": [
+    0.0958
+   ]
+  },
+  "archer/Samurai_Walk/right": {
+   "duration": 1.3333,
+   "data": [
+    0.7
+   ],
+   "E": [
+    0.6667
+   ],
+   "P": [
+    0.7333
+   ]
+  },
+  "archer/CMU_Walk/left": {
+   "duration": 1.0667,
+   "data": [
+    0
+   ],
+   "E": [
+    0
+   ],
+   "P": [
+    0.0708
+   ]
+  },
+  "archer/CMU_Walk/right": {
+   "duration": 1.0667,
+   "data": [
+    0.5333
+   ],
+   "E": [
+    0.5333
+   ],
+   "P": [
+    0.5708,
+    0.6292
+   ]
+  },
+  "archer/CMU_Jog/left": {
+   "duration": 0.8,
+   "data": [
+    0.0664
+   ],
+   "E": [
+    0.0042
+   ],
+   "P": [
+    0.075
+   ]
+  },
+  "archer/CMU_Jog/right": {
+   "duration": 0.8,
+   "data": [
+    0.4664
+   ],
+   "E": [
+    0.4042
+   ],
+   "P": [
+    0.5
+   ]
+  },
+  "archer/CMU_Run/left": {
+   "duration": 0.7333,
+   "data": [
+    0.033
+   ],
+   "E": [
+    0.0042
+   ],
+   "P": [
+    0.0625,
+    0.3125
+   ]
+  },
+  "archer/CMU_Run/right": {
+   "duration": 0.7333,
+   "data": [
+    0.4334
+   ],
+   "E": [
+    0.3667
+   ],
+   "P": [
+    0.4125,
+    0.425
+   ]
+  },
+  "archer/Casual_Walk/left": {
+   "duration": 4.2,
+   "data": [
+    0.0672,
+    1.3986,
+    2.7678
+   ],
+   "E": [
+    0,
+    1.4042,
+    2.7042
+   ],
+   "P": [
+    0.0333,
+    1.4375,
+    2.8917,
+    3.3
+   ]
+  },
+  "archer/Casual_Walk/right": {
+   "duration": 4.2,
+   "data": [
+    0.735,
+    2.1,
+    3.5322
+   ],
+   "E": [
+    0.7,
+    2.1,
+    3.5292
+   ],
+   "P": [
+    0.7083,
+    2.1375,
+    3.5417,
+    3.6
+   ]
+  },
+  "archer/Cautious_Crouch_Walk_Forward/left": {
+   "duration": 1.1333,
+   "data": [
+    1.1005
+   ],
+   "E": [
+    1.1292
+   ],
+   "P": [
+    0.0917
+   ]
+  },
+  "archer/Cautious_Crouch_Walk_Forward/right": {
+   "duration": 1.1333,
+   "data": [
+    0.5667
+   ],
+   "E": [
+    0.5375
+   ],
+   "P": [
+    0.6
+   ]
+  },
+  "villager_f/CMU_Walk/left": {
+   "duration": 1.0667,
+   "data": [
+    0
+   ],
+   "E": [
+    0
+   ],
+   "P": [
+    0.0667
+   ]
+  },
+  "villager_f/CMU_Walk/right": {
+   "duration": 1.0667,
+   "data": [
+    0.5333
+   ],
+   "E": [
+    0.5333
+   ],
+   "P": [
+    0.5667
+   ]
+  },
+  "villager_f/CMU_Jog/left": {
+   "duration": 0.8,
+   "data": [
+    0.0664
+   ],
+   "E": [
+    0.0042
+   ],
+   "P": [
+    0.0708
+   ]
+  },
+  "villager_f/CMU_Jog/right": {
+   "duration": 0.8,
+   "data": [
+    0.4664
+   ],
+   "E": [
+    0.4042
+   ],
+   "P": [
+    0.4958
+   ]
+  },
+  "villager_f/CMU_Run/left": {
+   "duration": 0.7333,
+   "data": [
+    0.033
+   ],
+   "E": [
+    0.0042
+   ],
+   "P": [
+    0.0625,
+    0.3083
+   ]
+  },
+  "villager_f/CMU_Run/right": {
+   "duration": 0.7333,
+   "data": [
+    0.4334
+   ],
+   "E": [
+    0.3667
+   ],
+   "P": [
+    0.425
+   ]
+  },
+  "villager_f/Casual_Walk/left": {
+   "duration": 4.2,
+   "data": [
+    0.0672,
+    1.3986,
+    2.7678
+   ],
+   "E": [
+    0,
+    1.4042,
+    2.7042
+   ],
+   "P": [
+    0.0333,
+    1.4375,
+    2.8792,
+    3.3042
+   ]
+  },
+  "villager_f/Casual_Walk/right": {
+   "duration": 4.2,
+   "data": [
+    0.735,
+    2.1,
+    3.5322
+   ],
+   "E": [
+    0.7,
+    2.1,
+    3.5292
+   ],
+   "P": [
+    0.7083,
+    2.1375,
+    3.5417,
+    3.6
+   ]
+  },
+  "villager_f/Cautious_Crouch_Walk_Forward/left": {
+   "duration": 1.1333,
+   "data": [
+    1.1005
+   ],
+   "E": [
+    1.1292
+   ],
+   "P": [
+    0.075
+   ]
+  },
+  "villager_f/Cautious_Crouch_Walk_Forward/right": {
+   "duration": 1.1333,
+   "data": [
+    0.5667
+   ],
+   "E": [
+    0.5375
+   ],
+   "P": [
+    0.6
+   ]
+  },
+  "child/CMU_Walk/left": {
+   "duration": 1.0667,
+   "data": [
+    0
+   ],
+   "E": [
+    0
+   ],
+   "P": [
+    0.0667
+   ]
+  },
+  "child/CMU_Walk/right": {
+   "duration": 1.0667,
+   "data": [
+    0.5333
+   ],
+   "E": [
+    0.5333
+   ],
+   "P": [
+    0.5708
+   ]
+  },
+  "child/CMU_Jog/left": {
+   "duration": 0.8,
+   "data": [
+    0.0664
+   ],
+   "E": [
+    0.0042
+   ],
+   "P": [
+    0.0708
+   ]
+  },
+  "child/CMU_Jog/right": {
+   "duration": 0.8,
+   "data": [
+    0.4664
+   ],
+   "E": [
+    0.4042
+   ],
+   "P": [
+    0.4958
+   ]
+  },
+  "child/CMU_Run/left": {
+   "duration": 0.7333,
+   "data": [
+    0.033
+   ],
+   "E": [
+    0.0042
+   ],
+   "P": [
+    0.0625
+   ]
+  },
+  "child/CMU_Run/right": {
+   "duration": 0.7333,
+   "data": [
+    0.4334
+   ],
+   "E": [
+    0.3667
+   ],
+   "P": [
+    0.425
+   ]
+  },
+  "child/Casual_Walk/left": {
+   "duration": 4.2,
+   "data": [
+    0.0672,
+    1.3986,
+    2.7678
+   ],
+   "E": [
+    0,
+    1.4042,
+    2.7042
+   ],
+   "P": [
+    0.0333,
+    1.4375,
+    2.8958,
+    3.3
+   ]
+  },
+  "child/Casual_Walk/right": {
+   "duration": 4.2,
+   "data": [
+    0.735,
+    2.1,
+    3.5322
+   ],
+   "E": [
+    0.7,
+    2.1,
+    3.5292
+   ],
+   "P": [
+    0.7083,
+    2.1375,
+    3.5417,
+    3.6
+   ]
+  },
+  "child/Cautious_Crouch_Walk_Forward/left": {
+   "duration": 1.1333,
+   "data": [
+    1.1005
+   ],
+   "E": [
+    1.1292
+   ],
+   "P": [
+    0.0958
+   ]
+  },
+  "child/Cautious_Crouch_Walk_Forward/right": {
+   "duration": 1.1333,
+   "data": [
+    0.5667
+   ],
+   "E": [
+    0.5375
+   ],
+   "P": [
+    0.6
+   ]
+  }
+ }
+}
