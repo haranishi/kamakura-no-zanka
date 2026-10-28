@@ -1,5 +1,7 @@
 // actors.js — 主人公・敵・仲間・村人（app層）。論理（combat / enemy-ai / companion-ai）の状態を読み、動作と位置を決める。
 // 規則は論理モジュールが持つ。ここでは「入力→意図→論理の呼び出し→動作・音・演出」の結線だけを書く。
+import { pickStep, distanceRule } from './audio-rules.js';
+import { stepSurfaceAt, roleOf, gaitOfClip } from './step-surface.js';
 import { Character } from './characters.js';
 import { GRIP, AUDIO_NOISE } from './config.js';
 import { makeYumi, makeArrow, makeQuiver, makeRopes } from './weapons.js';
@@ -26,8 +28,34 @@ class Actor {
     this.pos = { x, y: game.terrain.heightAt(x, z), z };
     this.yaw = yaw;
     this.character = new Character(game.roster, who, { tint, scale, style });
+    this.character.onContact = c => this.onFootContact(c);
     game.scene.add(this.character.root);
     this.sync();
+  }
+  tickCharacter(dt) {
+    const ch = this.character, g = this.game;
+    ch.contactNear = this.who === 'hero' || dist2(this.pos, g.hero.pos) < 22;
+    // Movement is terrain-bound; no jump/fall state currently exists.
+    ch.contactAirborne = this.airborne === true;
+    ch.contactTimeScale = g.contactTimeScale ?? 1;
+    ch.update(dt);
+  }
+  onFootContact(c) {
+    const g = this.game, hero = this.who === 'hero';
+    const record = g.footQA?.contact(c);
+    const role = roleOf(this.who), gait = hero ? (this.crouch ? 'crouch' : this.stepGait || 'walk') : gaitOfClip(c.clip);
+    const surface = stepSurfaceAt(this.pos.x, this.pos.z, { terrain: g.terrain, world: g.world });
+    const step = pickStep({ surface, gait, role, foot: c.foot }, g.rng, this.lastStep);
+    this.lastStep = step;
+    if (hero) {
+      g.emitNoise(this.pos.x, this.pos.z, AUDIO_NOISE[gait].radius, 'step');
+      if (gait === 'run' && surface !== 'grass') g.fx.dust(this.pos, 1);
+    }
+    const rule = hero ? { audible: true, gain: 1, lowpassHz: 20000 } : distanceRule(dist2(this.pos, g.hero.pos));
+    if (!rule.audible) return;
+    const before = g.footQA?.playTime();
+    const success = g.audio.playStep(step, { pan: hero ? 0 : g.pan(this.pos), lowpassHz: rule.lowpassHz, gainScale: rule.gain });
+    g.footQA?.played(record, before, { surface, gait, role, pitch: step.pitch, gain: step.gain, seed: step.seed, success, rejected: g.audio.stepRejectReason === 'limit' });
   }
   sync() { const r = this.character.root; r.position.set(this.pos.x, this.pos.y, this.pos.z); r.rotation.y = this.yaw + Math.PI; }
   step(dx, dz) {
@@ -35,7 +63,7 @@ class Actor {
     this.pos = { x: r.x, y: r.y, z: r.z };
     return r;
   }
-  place(x, z, yaw = this.yaw) { this.pos = { x, y: this.game.terrain.heightAt(x, z), z }; this.yaw = yaw; this.sync(); }
+  place(x, z, yaw = this.yaw) { this.pos = { x, y: this.game.terrain.heightAt(x, z), z }; this.yaw = yaw; this.character.resetContacts(); this.sync(); }
   chest() { return { x: this.pos.x, y: this.pos.y + this.character.height * 0.62, z: this.pos.z }; }
   head() { return { x: this.pos.x, y: this.pos.y + this.character.height * 1.02, z: this.pos.z }; }
   remove() { this.character.dispose(); }
@@ -51,7 +79,7 @@ export class HeroActor extends Actor {
   }
   resetState() {
     this.drawn = false; this.sheatheIn = 0; this.crouch = false; this.lunge = null; this.queued = null; this.dodge = null; this.dash = null;
-    this.stepDist = 0; this.steepT = 0; this.deadT = 0; this.lockTarget = null; this.lockT = 0; this.speed = 0; this.blockPosed = false; this.dead = false;
+    this.steepT = 0; this.deadT = 0; this.lockTarget = null; this.lockT = 0; this.speed = 0; this.blockPosed = false; this.dead = false;
     this.scripted = false;               // 演出中は動作を外から決める（冒頭の目覚めなど）
     this.recoverT = 0;
   }
@@ -192,8 +220,8 @@ export class HeroActor extends Actor {
     const f = this.fighter, g = this.game, input = ctl.input;
     for (const e of tick(f, dt)) this.onCombatEvent(e);
     f.x = this.pos.x; f.z = this.pos.z; f.yaw = this.yaw;
-    if (!f.alive) { this.updateDead(dt); this.character.update(dt); this.sync(); return; }
-    if (this.scripted) { this.character.update(dt); this.sync(); return; }
+    if (!f.alive) { this.updateDead(dt); this.tickCharacter(dt); this.sync(); return; }
+    if (this.scripted) { this.tickCharacter(dt); this.sync(); return; }
     this.lockT = Math.max(0, this.lockT - dt);
     this.sheatheIn = Math.max(0, this.sheatheIn - dt);
     const inCombat = g.alertedEnemies() > 0;
@@ -220,7 +248,7 @@ export class HeroActor extends Actor {
     else if (f.state === 'attack') this.updateLunge(dt);
     else if (f.state === 'idle') this.updateLocomotion(dt, ctl, locked);
     else this.speed = approach(this.speed, 0, 22, dt);
-    this.character.update(dt);
+    this.tickCharacter(dt);
     this.sync();
   }
 
@@ -260,6 +288,7 @@ export class HeroActor extends Actor {
     const f = this.fighter, ax = locked ? { active: false } : ctl.axis;
     const sprint = !locked && (ctl.input.down('ShiftLeft') || ctl.input.down('ShiftRight')) && !this.crouch && !f.blocking && ax.active;
     if (sprint) this.crouch = false;
+    this.stepGait = this.crouch ? 'crouch' : sprint ? 'run' : 'walk';
     let target = 0;
     if (ax.active) target = this.crouch ? SPEED.crouch : f.blocking ? SPEED.guard : sprint ? SPEED.sprint : SPEED.walk;
     this.speed = approach(this.speed, target, target > this.speed ? 18 : 28, dt);
@@ -267,12 +296,9 @@ export class HeroActor extends Actor {
       this.yaw = turnToward(this.yaw, ctl.moveYaw, f.blocking ? 6 : sprint ? 9 : 14, dt);
       const before = this.pos;
       const moved = this.step(-Math.sin(this.yaw) * this.speed * dt, -Math.cos(this.yaw) * this.speed * dt);
-      this.stepDist += Math.hypot(this.pos.x - before.x, this.pos.z - before.z);
       // 急な斜面に阻まれて進めないまま歩き続けたら、理由を案内する（見えない壁に感じる。第3周の評価：斜面の縁で身動きが取れなかった）
       if (moved.blocked === 'slope' && Math.hypot(this.pos.x - before.x, this.pos.z - before.z) < 0.01) { this.steepT += dt; if (this.steepT > 1.1) this.game.hud.hint('steep', '斜面が急で進めない。別の向きへ回り込もう', 4500); }
       else this.steepT = Math.max(0, this.steepT - dt * 2);
-      const stride = this.crouch ? 0.95 : sprint ? 2.1 : 1.45;
-      if (this.stepDist > stride) { this.stepDist = 0; this.footstep(sprint); }
     } else if (this.lockTarget && this.lockTarget.fighter.alive) this.yaw = turnToward(this.yaw, yawOf(this.lockTarget.pos.x - this.pos.x, this.lockTarget.pos.z - this.pos.z), 8, dt);
     if (f.blocking && this.speed < 0.3) {
       if (!this.blockPosed) { this.blockPosed = true; this.character.play('Two_Handed_Parry', { fade: 0.07, from: 0, to: 0.3, onEnd: c => { if (c.current) c.current.paused = true; }, restart: true }); }
@@ -280,14 +306,6 @@ export class HeroActor extends Actor {
     }
     this.blockPosed = false;
     this.character.locomote(this.speed, this.crouch ? 'crouch' : (this.drawn || f.blocking) ? 'guard' : 'relaxed');
-  }
-
-  footstep(sprint) {
-    const g = this.game, s = g.terrain.surfaceAt(this.pos.x, this.pos.z);
-    const kind = s.gravel > 0.4 ? 'step_gravel' : s.dirt > 0.45 ? 'step_dirt' : 'step_grass';
-    g.audio.play(kind, { gain: this.crouch ? 0.5 : sprint ? 1.25 : 0.9, pitch: 0.9 + g.rng() * 0.2 });
-    g.emitNoise(this.pos.x, this.pos.z, AUDIO_NOISE[this.crouch ? 'crouch' : sprint ? 'run' : 'walk'].radius, 'step');
-    if (sprint && kind !== 'step_grass') g.fx.dust(this.pos, 1);
   }
 
   onHit(res, att) {
@@ -319,7 +337,7 @@ export class EnemyActor extends Actor {
     this.fighter.aware = alert === 'high';
     this.brain = createBrain(def.kind, { id: def.id, home: { x: def.x, z: def.z }, patrol: (def.patrol || []).map(([x, z]) => ({ x, z })), seed: h, exit: def.exit || game.exitPoint });
     if (alert === 'high') { this.brain.state = 'combat'; this.brain.awareness = 1; this.brain.lastSeen = { x: game.hero.pos.x, z: game.hero.pos.z }; }
-    this.lunge = null; this.speedNow = 0; this.stepDist = 0; this.deadT = 0; this.idleT = 0; this.departed = false; this.reported = null; this.surrendered = false; this.dormant = false; this.recoverT = 0;
+    this.lunge = null; this.speedNow = 0; this.deadT = 0; this.idleT = 0; this.departed = false; this.reported = null; this.surrendered = false; this.dormant = false; this.recoverT = 0;
     if (isArcher) this.character.attachBow(GRIP, makeArrow());
     else this.character.setTachi(GRIP, true);
     this.character.rate = 0.94 + (h % 9) * 0.015;
@@ -356,11 +374,11 @@ export class EnemyActor extends Actor {
     if (!f.alive) {
       this.deadT += dt; g.tokens.release(this.id);
       if (this.deadT >= 0.3) this.character.dropWeapon('tachiDrawn', (x, z) => g.terrain.heightAt(x, z));   // 倒れてから、刀が手を離れて落ちる
-      this.character.update(dt); this.sync(); return;
+      this.tickCharacter(dt); this.sync(); return;
     }
-    if (this.brain.state === 'surrendered') { g.tokens.release(this.id); this.character.update(dt); this.sync(); return; }
+    if (this.brain.state === 'surrendered') { g.tokens.release(this.id); this.tickCharacter(dt); this.sync(); return; }
     if (this.brain.departed) { this.departed = true; g.tokens.release(this.id); this.character.root.visible = false; return; }
-    if (this.dormant || g.aiPaused) { this.animateFree(dt); this.character.update(dt); this.sync(); return; }
+    if (this.dormant || g.aiPaused) { this.animateFree(dt); this.tickCharacter(dt); this.sync(); return; }
     const view = g.aiView(this);
     // 侍大将の連続技：一段目・二段目の戻りの終わり際（連続の窓）だけ「手が空いた」ことにして、次の技を決めさせる。
     // 敵の頭は手が空いたときしか技を決めないので、二段目・三段目が一度も出なかった。
@@ -372,7 +390,7 @@ export class EnemyActor extends Actor {
     f.aware = !['patrol', 'suspicious', 'search'].includes(this.brain.state);
     this.handleEvents(events);
     this.apply(intent, dt);
-    this.character.update(dt);
+    this.tickCharacter(dt);
     this.sync();
   }
 
@@ -406,10 +424,7 @@ export class EnemyActor extends Actor {
       this.yaw = turnToward(this.yaw, want, brain.state === 'combat' ? 10 : 5, dt);
     }
     if (dir && this.speedNow > 0.01 && !busy) {
-      const before = this.pos;
       this.step(dir.x * this.speedNow * dt, dir.z * this.speedNow * dt);
-      this.stepDist += Math.hypot(this.pos.x - before.x, this.pos.z - before.z);
-      if (this.stepDist > 1.6) { this.stepDist = 0; if (dist2(this.pos, g.hero.pos) < 22) g.audio.play('step_grass', { gain: 0.5, pan: g.pan(this.pos) }); }
     }
     if (f.state === 'attack' && this.lunge && this.lunge.t < this.lunge.dur) {
       const l = this.lunge, k = Math.min(dt, l.dur - l.t); l.t += k;
@@ -489,7 +504,7 @@ export class AllyActor extends Actor {
     this.companion = createCompanion({ id: 'archer', mode: 'follow' });
     this.character.attachBow(GRIP, makeArrow());
     this.role = captive ? 'captive' : 'party';
-    this.speedNow = 0; this.stepDist = 0; this.lunge = null; this.down = false; this.standT = 0; this.shootTarget = null;
+    this.speedNow = 0; this.lunge = null; this.down = false; this.standT = 0; this.shootTarget = null;
     if (captive) { this.character.weapons.yumi.holder.visible = false; this.character.play('Sit_Cross_Legged_on_Floor', { fade: 0 }); this.character.attach('rope', makeRopes(), { bone: 'Spine01', pos: [0, 0.0, 0] }); }
   }
   get inParty() { return this.role === 'party'; }
@@ -525,8 +540,8 @@ export class AllyActor extends Actor {
     const f = this.fighter, g = this.game;
     for (const e of tick(f, dt)) this.onCombatEvent(e);
     f.x = this.pos.x; f.z = this.pos.z; f.yaw = this.yaw;
-    if (this.role === 'captive') { this.character.update(dt); this.sync(); return; }
-    if (this.standT > 0) { this.standT -= dt; this.character.update(dt); this.sync(); if (this.standT <= 0) this.character.locoName = null; return; }
+    if (this.role === 'captive') { this.tickCharacter(dt); this.sync(); return; }
+    if (this.standT > 0) { this.standT -= dt; this.tickCharacter(dt); this.sync(); if (this.standT <= 0) this.character.locoName = null; return; }
     // 倒れても死なない：論理側が「倒れ」を保つので、戦闘側の死亡をここで受ける
     const self = this.snapshot();
     const view = { t: g.time, self, hero: { ...g.hero.snapshot() }, enemies: g.enemies.filter(e => e.fighter.alive && !e.departed && e.brain.state !== 'surrendered').map(e => e.snapshot()), world: g.aiWorld };
@@ -542,9 +557,9 @@ export class AllyActor extends Actor {
         g.hud.toast('弥十郎が起き上がった', 1800);
       }
     }
-    if (this.down) { this.character.update(dt); this.sync(); return; }
+    if (this.down) { this.tickCharacter(dt); this.sync(); return; }
     this.apply(intent, dt);
-    this.character.update(dt);
+    this.tickCharacter(dt);
     this.sync();
   }
 
@@ -574,10 +589,7 @@ export class AllyActor extends Actor {
       else if (intent.face != null) this.yaw = turnToward(this.yaw, intent.face, 8, dt);
     }
     if (dir && this.speedNow > 0.01 && !busy) {
-      const before = this.pos;
       this.step(dir.x * this.speedNow * dt, dir.z * this.speedNow * dt);
-      this.stepDist += Math.hypot(this.pos.x - before.x, this.pos.z - before.z);
-      if (this.stepDist > 1.5) { this.stepDist = 0; g.audio.play('step_grass', { gain: 0.35, pan: g.pan(this.pos) }); }
     }
     if (!busy && f.state === 'idle') this.character.locomote(this.speedNow, 'injured');
   }
@@ -637,7 +649,7 @@ export class NpcActor extends Actor {
       const clip = this.idleClip(), meta = ch.meta(clip);
       if (ch.currentName !== clip || this.clipT <= 0) { ch.play(clip, { fade: 0.35, restart: ch.currentName !== clip }); this.clipT = (meta?.loop ? 9999 : (meta?.seconds || 5)) + 0.6; ch.locoName = null; }
     }
-    ch.update(dt);
+    this.tickCharacter(dt);
     this.sync();
   }
 }

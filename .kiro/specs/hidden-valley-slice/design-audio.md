@@ -6,7 +6,7 @@
 ## 足りない所の見立て（コードで確かめた）
 
 1. **1音がノイズ1〜2個。** 足音は短いノイズ1発で、「ざくざく」の元になる細かい粒の重なりが無い。
-2. **足音は歩いた距離で鳴る**（`actors.js` の `stepDist`）。足が着く瞬間とずれる。動作に接地位相のデータが無い（`anim-data.js`）。
+2. **足音は歩いた距離で鳴る**（`actors.js` の `stepDist`）。足が着く瞬間とずれる。接地位相のデータは `anim-data.js` には無いが、`clips.json`（Blender の焼き込み）の `contacts` にあった。実際の骨の動きと照らして、データを物理的な2つの境界の間に収めたものを `anim-contacts.js` に置いた（`reports/audio/`）。
 3. **地面は3種（草・土・砂利）。** 落ち葉・泥・石・板・水が同じ音になる。敵と仲間は常に草の音。
 4. **同じ音を毎回鳴らす。** 揺らぎはノイズの乱数だけで、高さ・大きさ・粒の並びが変わらない。
 5. **環境音が3つ（風・川・焚き火）。** 川と焚き火の距離減衰はあるが、植生・瀬・任務段階で構成が変わらない。
@@ -51,7 +51,7 @@
 - **環境音**：風は樹冠の葉ずれを木の濃さで足す。川は距離と瀬で。秋の虫は草地の近く、烏は b2、里の生活音（桶・戸）は里の中。ループは粒の位置をずらして継ぎ目を消す。
 - **ミックス**：バスを環境・足音・戦闘・UIに分ける。戦闘と会話の間は環境を下げる。設定で効果音と環境音を別にする。リミッターは残す（`regress-audio-levels.mjs` を拡張）。
 
-## 接地通知の契約（未実装）
+## 接地通知の契約（7.6で結線、実ブラウザ同期は未確認）
 
 - charactersは実際のAnimationActionの時刻を、速度変更・ヒットストップ反映後に観測する。
   前回から今回までに通過した接地を `{actor, clip, loop, foot, contactTime}` として通知する。
@@ -95,3 +95,15 @@
 
 - 7.5決定：予約はミリ秒・単調時刻、待機束への置換はその開始から10ms後へ連鎖する。予約済みの枠は早期解放後も後続開始まで保護する。純粋規則のAPIと初期値はdesign-contracts.md、実音への結線は7.6・7.7。
 - 7.5のピーク検査定数は0.98。これは初期の検査上限で、既存合成の出力を測定・変更したものではない。
+
+## 7.6 結線（2026-10-27、実音・同期は未測定）
+
+- `step-surface.js` の `classifySurface(weights, {water, wood, stone})` は水深≥0.02mまたはmud>0.5 → 板 → 石区域またはrock>0.5 → gravel>0.4 → litter>0.4 → dirt>0.45 → 草。新しいしきい値は試聴用の初期値。
+- `stepSurfaceAt(x,z,{terrain,world})` は建物のfootprintを逆Y回転した矩形で判定し、半幅・半奥行に1mずつ足す。石段はtemple_stepsの円。現在の橋は入れない遠景で、world.buildingsにfootprintがないため板の対象に含めない。橋を歩けるようにする際はfootprintを与える必要がある。
+- `step-synth.js` の `stepLayers(step)` は `pickStep` のrecipe/pitch/gain/seedから `{type,startMs,durationMs,gain,freq,q,filter}[]` を返す。typeはimpact/grain/cloth/equipment/weight（布と装備が第3層）。gainはstep.gain込み、freqはpitch込み。粒数はround(count*density)、開始・帯域・減衰・強さはmulberry32(seed)で決まる。
+- `ValleyAudio.playStep(step,{pan=0,lowpassHz=20000,gainScale=1})` はその計画だけをノードへ変換する。衝撃は2msのインパルスと共鳴bandpass、粒はbandpassノイズ、布はlowpass、装備はhighpass、体重はサイン波。出口はgainScale×LEVEL.step → lowpass → StereoPanner →既存master。LEVEL.stepは0.65。実測（48kHzのオフライン描画・捨て石の先頭1歩のあと連続した足音・regress-step-levels.mjs）で、平均ピークは歩き−21/走り−16/屈み−29dBFS（設計の目標は−22/−16/−32。屈みを−32にすると約半数が帯の下端−32を割るので−29のまま）、7面の差は1dB以内。既存step_*音は互換のため維持。
+- 一歩をsourcesの1束と数え上限28で拒否する。最長の層の終わり+40msに無音の終了用sourceを止め、onendedで全子ノードを切断する。固定壁時計待ちは使わない。stop/releaseの束対応でミュート・休止・生成途中の失敗でも子を停止・切断する。優先順位・置換・voice-bankへの移行は7.7。
+- Characterはmixer更新後の実効weight/timeScaleを毎コマ採取する。timeScale×rate×mixer.timeScale×gameのdt/rawDtを実時間の速度とする。GLBの末尾と4桁へ丸めた接地表の差は表のdurationへclampする（0.1ms未満）。描画の間引きは追加しない。
+- 全アクターがtickCharacterを経由し、主人公は常にnear、他者は距離<22m。現行は地面へ直接配置され、跳躍・落下状態なし。airborneフラグを入口で伝達できる。place・休止中・長い更新間隔(rawDt>0.05s)は全個体の起点をresetする。playの巻戻し・seekは、そのActionだけrestartで新しい走り出しにする。resetは通知済みindexを捨てない。
+- 主人公のemitNoise半径（走り11m・歩き5m・屈み1.5m）は接地時へ移した。音声がミュート・上限等で失敗しても発信する。走りかつ草以外のdustも接地時に出す。他者はdistanceRuleと既存panを使う。
+- `?qa=1` のみ `footLog(true)` で記録・統計を初期化して開始、`footLog(false)` で停止して取得、引数なしで取得。接地時perf/audioTime/outputTsと、playStep呼出直前の同時刻情報、surface/gait/role/pitch/gain/seed/success/rejectedを保存する。`stepStats()`はcontacts/played/rejected（上限拒否のみ）を返す。通常プレイには記録・統計用オブジェクトを作らない。
