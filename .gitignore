@@ -10,3 +10,5 @@ coverage/
 reports/local/
 __pycache__/
 *.pyc
+
+.work/

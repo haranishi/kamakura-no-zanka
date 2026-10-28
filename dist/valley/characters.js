@@ -4,10 +4,13 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
 import { LOCOMOTION, MOVE_CLIPS, ACTION_CLIPS, CLIP_SEGMENTS, pickGait, locomotionTimeScale, segmentFor } from './anim-data.js';
+import { createContactTracker, observeContacts } from './foot-contacts.js';
+import { FOOT_CONTACTS } from './anim-contacts.js';
 import { BowRig } from './bow.js';
 import { makeTachi, makeNaginata, makeYumi, makeArrow, makeQuiver } from './weapons.js';
 import { patchLift } from './grade.js';
 
+let contactActorId = 0;
 const DIR = new URL('../assets/characters/', import.meta.url).href;
 export const ROSTER = ['hero', 'archer', 'soldier', 'officer', 'villager_m', 'villager_f', 'child'];
 const HIPS = 'Hips';
@@ -64,6 +67,9 @@ export async function loadRoster({ names = ROSTER, onProgress, anisotropy = 8 } 
 export class Character {
   constructor(roster, who, { tint = null, scale = 1, style = 'relaxed' } = {}) {
     this.who = who; this.roster = roster;
+    this.id = `character-${++contactActorId}`;
+    this.contacts = createContactTracker(); this.onContact = null;
+    this.contactAirborne = false; this.contactNear = true; this.contactReset = false; this.contactTimeScale = 1; this.contactRestart = new Set();
     const tpl = roster.templates.get(who);
     if (!tpl) throw new Error('Unknown character ' + who);
     this.tpl = tpl;
@@ -104,11 +110,13 @@ export class Character {
   }
 
   // 動作を切り替える。fade 秒で前の動作から混ぜる。
-  play(name, { fade = 0.18, timeScale = 1, from = 0, to = null, weight = 1, onEnd = null, restart = false } = {}) {
+  play(name, options = {}) {
+    const { fade = 0.18, timeScale = 1, from = 0, to = null, weight = 1, onEnd = null, restart = false } = options;
     const next = this.action(name);
     if (!next) return null;
-    if (this.current === next && !restart && !to) { next.timeScale = timeScale; return next; }
+    if (this.current === next && !restart && !to && !Object.hasOwn(options, 'from')) { next.timeScale = timeScale; return next; }
     next.enabled = true; next.paused = false; next.setEffectiveWeight(weight); next.timeScale = timeScale;
+    this.contactRestart.add(name);   // 巻き戻した動作だけ、新しい走り出しとして扱う（出ていく動作の接地は続ける）
     next.reset(); next.time = from;
     if (this.current && this.current !== next) next.crossFadeFrom(this.current, fade, false);
     else next.fadeIn(fade);
@@ -202,9 +210,19 @@ export class Character {
   // 被弾のひるみ：動作を止めずに、背骨を打たれた向きへ一瞬しならせる（鎧で怯まない相手にも手応えを返す）
   kick(amount = 1, yawLocal = 0) { this.flinch.v += amount * 7; this.flinch.dir = yawLocal; }
 
+  resetContacts() { this.contactReset = true; }
+
   update(dt) {
     this.time += dt;
     this.mixer.update(dt * this.rate);
+    // Baked table durations are rounded to 4 decimals; clamp the sub-0.1ms GLB tail.
+    const sources = [];
+    for (const [clip, action] of this.actions) {
+      if (Object.hasOwn(FOOT_CONTACTS, clip) && action.getEffectiveWeight() > 0) sources.push({ clip, time: Math.min(action.time, FOOT_CONTACTS[clip].duration), weight: action.getEffectiveWeight(), speed: action.getEffectiveTimeScale() * this.rate * this.mixer.timeScale * this.contactTimeScale, target: action === this.current, restart: this.contactRestart.has(clip) });
+    }
+    const result = observeContacts(this.contacts, { actor: this.id, sources, moving: !!this.locoName && this.gait !== 'idle', airborne: this.contactAirborne, near: this.contactNear, reset: this.contactReset }, FOOT_CONTACTS);
+    this.contacts = result.state; this.contactReset = false; this.contactRestart.clear();
+    for (const contact of result.contacts) this.onContact?.(contact);
     if (this.segment && this.current && this.current.time >= this.segment.to) {
       const cb = this.onSegmentEnd; this.segment = null; this.onSegmentEnd = null;
       if (cb) cb(this);

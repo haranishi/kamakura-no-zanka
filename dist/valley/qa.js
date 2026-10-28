@@ -6,7 +6,25 @@ export function installQA(game, ctl) {
   const input = game.input;
   const num = v => Math.round(v * 100) / 100;
   game.log = [];
+  let recording = false, footRecords = [];
+  const counters = { contacts: 0, played: 0, rejected: 0 };
+  const timestamp = () => { const ctx = game.audio.context; return { perf: performance.now(), audioTime: ctx?.currentTime ?? null, outputTs: ctx?.getOutputTimestamp?.() ?? null }; };
+  game.footQA = {
+    contact(c) { counters.contacts++; if (!recording) return null; const record = { ...c, ...timestamp() }; footRecords.push(record); return record; },
+    playTime() { return recording ? timestamp() : null; },
+    played(record, time, details) {
+      if (details.success) counters.played++;
+      if (details.rejected) counters.rejected++;
+      if (record) Object.assign(record, details, { playStep: time });
+    },
+  };
   const api = {
+    footLog(on) {
+      if (on === true) { recording = true; footRecords = []; for (const key of Object.keys(counters)) counters[key] = 0; }
+      else if (on === false) recording = false;
+      return footRecords.map(r => ({ ...r, playStep: r.playStep ? { ...r.playStep } : null }));
+    },
+    stepStats() { return { ...counters }; },
     game,
     state() {
       const h = game.hero, f = h.fighter;

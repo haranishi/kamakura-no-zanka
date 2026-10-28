@@ -1,0 +1,32 @@
+{
+  "note": "未使用の同梱物を含む上界。実際に読む合計ではない。非圧縮・HTTPヘッダーを除く。",
+  "entries": [
+    {
+      "path": "dist/audio.js",
+      "bytes": 7056,
+      "MiB": 0.0067291259765625
+    },
+    {
+      "path": "dist/assets/characters",
+      "bytes": 37336933,
+      "MiB": 35.60727405548096
+    },
+    {
+      "path": "dist/assets/valley",
+      "bytes": 42092292,
+      "MiB": 40.142337799072266
+    },
+    {
+      "path": "dist/valley",
+      "bytes": 495130,
+      "MiB": 0.47219276428222656
+    },
+    {
+      "path": "dist/vendor",
+      "bytes": 882453,
+      "MiB": 0.8415727615356445
+    }
+  ],
+  "bytes": 80813864,
+  "MiB": 77.07010650634766
+}
