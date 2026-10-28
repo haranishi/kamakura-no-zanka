@@ -1,9 +1,9 @@
 import { load, THREE } from './tree-modules.mjs';
 export { THREE };
-// Only the needle canvas needs a DOM substitute. Broadleaf RGBA stays real.
+// Field allocation tests only need canvas API compatibility, not pixel rendering.
 globalThis.document = { createElement() {
   const c = { width: 0, height: 0 };
-  c.getContext = () => new Proxy({ getImageData: () => ({ data: new Uint8ClampedArray(c.width * c.height * 4).fill(180) }) }, { get: (o, k) => o[k] ?? (() => {}) });
+  c.getContext = () => new Proxy({ createLinearGradient: () => ({ addColorStop() {} }), getImageData: () => ({ data: new Uint8ClampedArray(c.width * c.height * 4).fill(180) }) }, { get: (o, k) => o[k] ?? (() => {}) });
   return c;
 } };
 export const { TreeField } = await load('tree-view.js');

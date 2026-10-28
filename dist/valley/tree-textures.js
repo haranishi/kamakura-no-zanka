@@ -30,85 +30,91 @@ export function needleTexture() {
   }
   return upload(c, g);
 }
-// Small software rasterizer keeps the actual RGBA testable without a browser canvas.
-function raster() {
-  const data = new Uint8ClampedArray(256 * 256 * 4);
-  const pixel = (x,y,value,alpha=255) => {
-    if(x<0 || x>=256 || y<0 || y>=256)return;
-    const i=(Math.floor(y)*256+Math.floor(x))*4;
-    data[i]=data[i+1]=data[i+2]=Math.round(value*255); data[i+3]=alpha;
-  };
-  const line = (x,y,xx,yy,value) => {
-    const steps=Math.ceil(Math.hypot(xx-x,yy-y)*2);
-    for(let i=0;i<=steps;i++)pixel(x+(xx-x)*i/steps,y+(yy-y)*i/steps,value);
-  };
-  const polygon = points => {
-    const ys=points.map(p=>p[1]);
-    for(let y=Math.max(0,Math.floor(Math.min(...ys)));y<=Math.min(255,Math.ceil(Math.max(...ys)));y++) {
-      const xs=[];
-      for(let i=0,j=points.length-1;i<points.length;j=i++) {
-        const a=points[i],b=points[j];
-        if((a[1]>y)!==(b[1]>y))xs.push(a[0]+(y-a[1])*(b[0]-a[0])/(b[1]-a[1]));
-      }
-      xs.sort((a,b)=>a-b);
-      for(let i=0;i+1<xs.length;i+=2)for(let x=Math.ceil(xs[i]);x<=xs[i+1];x++) {
-        const edge=Math.min(x-xs[i],xs[i+1]-x);
-        pixel(x,y,.66+.3*Math.exp(-edge/1.7));
-      }
-    }
-  };
-  const finish = () => {
-    const map=upload({width:256,height:256},{getImageData:()=>({data})});
-    map.wrapS=map.wrapT=THREE.RepeatWrapping; return map;
-  };
-  return {pixel,line,polygon,finish};
+const S = 256;
+const gray = v => { const n = Math.max(0, Math.min(255, Math.round(255 * v))); return `rgb(${n},${n},${n})`; };
+function eachWrap(cx, cy, r, fn) {
+  for (const ox of [-S, 0, S]) for (const oy of [-S, 0, S]) {
+    const x = cx + ox, y = cy + oy;
+    if (x < -r || x > S + r || y < -r || y > S + r) continue;
+    fn(x, y);
+  }
 }
-function broadTexture(maple) {
-  const r=raster(), count=maple ? 26 : 56;
-  // Dense overlapping interior beneath the individually drawn leaves. Its serrated
-  // perimeter is broken into leaf-sized scallops, with transparent gaps outside.
-  for(let y=0;y<256;y++)for(let x=0;x<256;x++) {
-    const a=Math.atan2(y-128,x-128), radius=Math.hypot((x-128)/122,(y-128)/124);
-    const edge=.97+.035*Math.sin(a*37)+.025*Math.sin(a*61);
-    if(radius<edge)r.pixel(x,y,.62+hash(Math.floor(x/7),Math.floor(y/8))*.16);
+function maplePath(g, R) {
+  const lobes = [-172, -131, -90, -49, -8].map(d => d * Math.PI / 180), lens = [.6, .88, 1, .88, .6];
+  g.beginPath(); g.moveTo(0, R * .06);
+  for (let k = 0; k < 5; k++) {
+    if (k) { const a = (lobes[k - 1] + lobes[k]) / 2; g.lineTo(Math.cos(a) * R * .4, Math.sin(a) * R * .4); }
+    const a = lobes[k], L = lens[k] * R;
+    for (const [offset, scale] of [[-.16,.8],[-.07,.9],[0,1],[.07,.9],[.16,.8]]) g.lineTo(Math.cos(a + offset) * L * scale, Math.sin(a + offset) * L * scale);
   }
-  // Five twigs fan through the tile; leaves overlap at staggered nodes.
-  for(let b=0;b<5;b++)r.line(128,240,30+b*49,20,.62);
-  let drawn=0;
-  for(let i=0;i<count;i++) {
-    const b=i%5,row=Math.floor(i/5),rows=Math.ceil(count/5),t=.08+row/(rows-1)*.85;
-    const bx=128+(30+b*49-128)*t, by=240-220*t;
-    const side=row%2 ? -1 : 1, x=bx+side*(12+hash(i,1)*9), y=by-5;
-    const width=maple ? 20+hash(i,3)*8 : 13+hash(i,3)*5;
-    // A slender long lamina overlaps neighboring nodes while preserving small leaf width.
-    const length=maple ? width*1.65 : width*2.7, angle=side*.5;
-    r.line(bx,by,x,y,.63);
-    const transform=(px,py)=>[x+px*Math.cos(angle)-py*Math.sin(angle), y+px*Math.sin(angle)+py*Math.cos(angle)];
-    const points=[];
-    for(let k=0;k<80;k++) {
-      const a=-Math.PI/2+k/80*TAU;
-      const lobes=maple ? .65+.35*Math.cos(5*(a+Math.PI/2)) : 1;
-      const tooth=k%2 ? .94 : 1;
-      points.push(transform(Math.cos(a)*width/2*lobes*tooth,Math.sin(a)*length/2*lobes*tooth));
-    }
-    r.polygon(points); drawn++;
-    r.line(...transform(0,length*.38),...transform(0,-length*.42),.6);
-    for(let k=0;k<5;k++)for(const s of [-1,1])r.line(...transform(0,length*(.3-k*.13)),...transform(s*width*.33,length*(.18-k*.13)),.62);
+  g.closePath();
+}
+function zelkovaPath(g, L) {
+  const W = L * .46, n = 8;
+  g.beginPath(); g.moveTo(0, 0);
+  for (let i = 1; i <= n; i++) { const t = i / n; g.lineTo(W * Math.pow(Math.sin(Math.PI * Math.pow(t, .75)), .9) * (i % 2 ? .86 : 1), -L * t); }
+  for (let i = n - 1; i >= 1; i--) { const t = i / n; g.lineTo(-W * Math.pow(Math.sin(Math.PI * Math.pow(t, .75)), .9) * (i % 2 ? .86 : 1), -L * t); }
+  g.closePath();
+}
+function darts(n, minDist, salt) {
+  const pts = [];
+  for (let k = 0; k < n * 60 && pts.length < n; k++) {
+    const x = hash(k, salt) * S, y = hash(k, salt + 1) * S;
+    let ok = true;
+    for (const p of pts) { let dx = Math.abs(p[0] - x), dy = Math.abs(p[1] - y); if (dx > S / 2) dx = S - dx; if (dy > S / 2) dy = S - dy; if (dx * dx + dy * dy < minDist * minDist) { ok = false; break; } }
+    if (ok) pts.push([x, y]);
   }
-  // flipY maps the bottom canvas rows to v≈0. Reserve the entire 0..0.06 square.
-  for(let y=240;y<256;y++)for(let x=0;x<16;x++)r.pixel(x,y,.62);
-  const map=r.finish(); map.userData.leafCount=drawn; return map;
+  return pts;
+}
+function repeat(c, g) {
+  const map = upload(c, g); map.wrapS = map.wrapT = THREE.RepeatWrapping; return map;
+}
+function leafTile(kind) {
+  const c = canvas(), g = c.getContext('2d');
+  g.lineJoin = 'round'; g.lineCap = 'round';
+  const maple = kind === 'maple', pts = darts(maple ? 300 : 215, maple ? 9.5 : 11, maple ? 31 : 47);
+  const order = pts.map((_, i) => i).sort((a, b) => hash(a, 77) - hash(b, 77));
+  for (const i of order) {
+    const [cx, cy] = pts[i];
+    const size = maple ? 22 + 8.5 * hash(i, 3) : 30 + 11.25 * hash(i, 3), rot = hash(i, 4) * TAU, v = .55 + .45 * hash(i, 5);
+    eachWrap(cx, cy, size * 1.2, (x, y) => {
+      g.save(); g.translate(x, y); g.rotate(rot);
+      const grad = g.createLinearGradient(-size * .6, 0, size * .6, 0);
+      grad.addColorStop(0, gray(v * .82)); grad.addColorStop(.5, gray(v)); grad.addColorStop(1, gray(v * .86));
+      g.fillStyle = grad; g.strokeStyle = gray(Math.min(1, v * 1.12)); g.lineWidth = .9;
+      (maple ? maplePath : zelkovaPath)(g, size);
+      // A narrow transparent outline keeps overlapping leaves individually legible.
+      // Erase before filling so the leaf itself retains its original shape and veins.
+      g.globalCompositeOperation = 'destination-out'; g.lineWidth = 3.8; g.stroke();
+      g.globalCompositeOperation = 'source-over'; g.lineWidth = .9; g.fill(); g.stroke();
+      g.strokeStyle = gray(v * .55); g.lineWidth = .8; g.beginPath();
+      if (maple) { for (const a of [-172, -131, -90, -49, -8]) { g.moveTo(0, 0); g.lineTo(Math.cos(a * Math.PI / 180) * size * .78, Math.sin(a * Math.PI / 180) * size * .78); } }
+      else { g.moveTo(0, 0); g.lineTo(0, -size * .92); for (let k = 1; k < 5; k++) for (const s of [-1, 1]) { g.moveTo(0, -size * k * .19); g.lineTo(s * size * .3, -size * (k * .19 + .13)); } }
+      g.stroke(); g.restore();
+    });
+  }
+  const map = repeat(c, g); map.userData.leafCount = pts.length; return map;
 }
 export function needleFringeTexture() {
-  const r=raster();
-  for(let x=0;x<256;x++) {
-    const end=150+Math.floor(hash(x,12)*106);
-    for(let y=0;y<end;y++) {
-      const solid=y<141, gap=!solid && hash(Math.floor(x/3),Math.floor(y/13))>.72;
-      if(!gap)r.pixel(x,y,.55+hash(x,Math.floor(y/4))*.3,solid ? 255 : 220+Math.floor(hash(x,y)*35));
+  const c = canvas(), g = c.getContext('2d'); g.lineCap = 'round';
+  const green = (t, r) => `rgb(${Math.round(30 + 40 * t + 10 * r)},${Math.round(54 + 62 * t + 12 * r)},${Math.round(26 + 30 * t + 8 * r)})`;
+  g.fillStyle = green(.15, .5); g.fillRect(0, 0, S, 150);
+  const strokes = (n, y0min, y0max, kind) => {
+    for (let i = 0; i < n; i++) {
+      const x = hash(i, kind + 1) * S, y = y0min + hash(i, kind + 2) * (y0max - y0min);
+      if (kind === 3 && hash(i, 9) > 1 - Math.max(0, (y - 150) / 110) * 1.1) continue;
+      const len = (kind === 1 ? 12 : 16) + hash(i, kind + 4) * (kind === 1 ? 16 : 30) * (.5 + (y / S)), a = Math.PI / 2 + (hash(i, kind + 5) - .5) * 1.1;
+      const t = Math.min(1, y / S + hash(i, kind + 6) * .35);
+      for (const ox of [-S, 0, S]) {
+        const px = x + ox; if (px < -len || px > S + len) continue;
+        g.strokeStyle = green(t, hash(i, kind + 7)); g.lineWidth = 1.6 + 1.2 * hash(i, kind + 8);
+        g.beginPath(); g.moveTo(px, y); g.lineTo(px + Math.cos(a) * len, y + Math.sin(a) * len); g.stroke();
+      }
     }
-  }
-  return r.finish();
+  };
+  strokes(900, 0, 150, 1);
+  strokes(1500, 100, 255, 3);
+  return repeat(c, g);
 }
-export function mapleLeafTexture() { return broadTexture(true); }
-export function zelkovaLeafTexture() { return broadTexture(false); }
+export function mapleLeafTexture() { return leafTile('maple'); }
+export function zelkovaLeafTexture() { return leafTile('zelkova'); }

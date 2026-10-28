@@ -118,7 +118,7 @@ test('vegetation and quality switch wiring [wiring]',()=>{
 test('real scatter, four site budgets, QA accounting and capacities [budget]',()=>{
   const terrain=createTerrain(WORLD),trees=scatterTrees(WORLD,terrain),species=assignTreeSpecies(WORLD,terrain,trees),understory=scatterUnderstory(WORLD,terrain,trees);
   const f=field([],{data:trees,species,understory});const api=qa(f);
-  const sites=[[WORLD.start.x,WORLD.start.z,1438000,985604],[-5,2.2,1387000,843894],[-6,20,1344000,811614],[-36,-48,1394000,940290]];
+  const sites=[[WORLD.start.x,WORLD.start.z,1438000,1089116],[-5,2.2,1387000,942812],[-6,20,1344000,910118],[-36,-48,1394000,1044110]];
   assert.deepEqual(sites.map(p=>p.slice(0,2)),[[-100.5,-89],[-5,2.2],[-6,20],[-36,-48]],'[budget-sites] four evaluation sites changed');
   assert.equal(f.sets.length,18,'[sets] wrong species/variant level count');assert(f.group.children.length<=40,'[sets] draw set budget exceeded');
   for(const [x,z,old,expected] of sites) {

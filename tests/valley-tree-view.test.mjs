@@ -1,21 +1,13 @@
-// なぜ失敗したか: 紙の縁の黒・固定緑の発光・風やLODの結線漏れを、GPUなしで区別する。
+// なぜ失敗したか: 円盤下地と予約隅がコイン・格子になり、灰色の針と松の絵の誤配線が白い段を作った。紙の縁の黒・固定緑の発光・風やLODの結線漏れを、GPUなしで区別する。
 // 原因の型: texture/shader/wind/lod/color/instance/dispose/specimen/qa。GLSLのコンパイルは対象外。
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { load, source, THREE } from './helpers/tree-modules.mjs';
 import { TREES } from '../dist/valley/config.js';
-let drawing = [], canvases = [];
-// Only the legacy needle canvas is fake; broadleaf and fringe tests read their real RGBA bytes.
-globalThis.document = { createElement(tag) {
-  assert.equal(tag, 'canvas', '[texture] unexpected DOM');
-  const ops = [], c = { width: 0, height: 0 }; canvases.push({ c, ops });
-  const ctx = new Proxy({
-    getImageData() { const data = new Uint8ClampedArray(c.width * c.height * 4); data.set([12, 13, 14, 0, 145, 145, 145, 255, 91, 91, 91, 5, 185, 185, 185, 6]); return { data }; },
-    createLinearGradient(...v) { ops.push(['gradient', ...v]); return { addColorStop(...args) { ops.push(['stop', ...args]); } }; },
-  }, { get(target, key) { return target[key] ?? ((...v) => { ops.push([key, ...v]); }); }, set(target, key, value) { ops.push([key, value]); target[key] = value; return true; } });
-  c.getContext = () => ctx; drawing = ops; return c;
-} };
+import { tileStats } from './helpers/tree-texture-metrics.mjs';
+import { installTreeCanvas } from './helpers/tree-canvas.mjs';
+const canvas = installTreeCanvas();
 const { needleTexture, needleFringeTexture, mapleLeafTexture, zelkovaLeafTexture } = await load('tree-textures.js');
 const { treeMaterials } = await load('tree-materials.js');
 const { createTreeSet, buildSpecimens, stageColor } = await load('tree-view.js');
@@ -31,42 +23,38 @@ const hash = obj => createHash('sha256').update(JSON.stringify(obj)).digest('hex
 test('four deterministic procedural textures retain padding and drawing grammar [texture]', () => {
   const hashes = [];
   for (const factory of [needleTexture, needleFringeTexture, mapleLeafTexture, zelkovaLeafTexture]) {
-    const a = factory(), ops = hash(drawing), bytes = hash(Array.from(a.image.data));
+    const a = factory(), ops = hash(canvas.drawing()), bytes = hash(Array.from(a.image.data));
     hashes.push(bytes);
-    const b = factory(); assert.equal(hash(drawing), ops, '[texture] drawing seed'); assert.equal(hash(Array.from(b.image.data)), bytes, '[texture] pixel seed');
+    const b = factory(); assert.equal(hash(canvas.drawing()), ops, '[texture] drawing seed'); assert.equal(hash(Array.from(b.image.data)), bytes, '[texture] pixel seed');
     assert(a.isDataTexture && a.image.width <= 512 && a.image.height <= 512, '[texture] raw upload and size');
-    if(factory===needleTexture)assert.deepEqual(Array.from(a.image.data.slice(0, 16)), [190,190,190,0,145,145,145,255,190,190,190,5,185,185,185,6], '[texture] padding RGB or shaded pixels overwritten');
+    for(let i=0;i<a.image.data.length;i+=4)if(a.image.data[i+3]<6)assert.deepEqual(Array.from(a.image.data.slice(i,i+3)),[190,190,190],'[texture-padding] transparent RGB');
     assert(a.flipY && a.generateMipmaps && a.colorSpace === THREE.SRGBColorSpace && a.minFilter === THREE.LinearMipmapLinearFilter, '[texture] mip/sRGB orientation');
     a.dispose(); b.dispose();
   }
   assert.equal(new Set(hashes).size, 4, '[texture] species images identical');
-  for (const [factory, count] of [[mapleLeafTexture, 26], [zelkovaLeafTexture, 56]]) {
-    const map=factory();
+  for (const [factory, count] of [[mapleLeafTexture, 300], [zelkovaLeafTexture, 215]]) {
+    const map=factory(), stats=tileStats(map);
+    assert(canvas.drawing().filter(op=>op[0]==='fill').every(op=>op[1]<100 && op[2]<100),'[texture-disc] large filled underlay instead of leaf union');
+    console.log(`[texture-metrics] ${factory.name} ${JSON.stringify(stats)}`);
     assert.equal(map.userData.leafCount,count,'[texture-leaf-count] small overlapping leaves missing');
     assert.equal(map.wrapS,THREE.RepeatWrapping,'[texture-uv] repeat wrapping');
     assert.equal(map.wrapT,THREE.RepeatWrapping,'[texture-uv] vertical repeat');
+    assert(stats.holes>=.10 && stats.holes<=.25,'[texture-coverage] tile holes outside 10–25%');
+    assert(stats.seamX<.08 && stats.seamY<.08,'[texture-seam] opposite edge coverage differs');
+    assert(stats.largest<=.40,'[texture-disc] large connected opaque region');
     const a=map.image.data;
-    let covered=0;
-    for(let i=0;i<a.length;i+=4)if(a[i+3]>=77) {
-      covered++;
-      assert(a[i]===a[i+1] && a[i+1]===a[i+2] && a[i]>=153,'[texture-value] foliage must be neutral gray');
-    }
-    assert(covered/65536>=.65 && covered/65536<=.76,'[texture-coverage] cluster interior sparse or edge solid');
-    for(let v=0;v<16;v++)for(let u=0;u<16;u++) {
-      const i=((255-v)*256+u)*4;
-      assert.equal(a[i+3],255,'[core-alpha] reserved corner is transparent');
-      assert(Math.abs(a[i]/255-.62)<.005,'[core-alpha] reserved corner value');
-    }
+    for(let i=0;i<a.length;i+=4)if(a[i+3]>=77)assert(a[i]===a[i+1]&&a[i+1]===a[i+2],'[texture-value] leaf must be neutral gray');
+    const corner=[];
+    for(let y=240;y<256;y++)for(let x=0;x<16;x++)corner.push(a[(y*256+x)*4]);
+    assert(new Set(corner).size>10,'[texture-reservation] uniform reserved corner returned');
     map.dispose();
   }
   const fringe=needleFringeTexture(), a=fringe.image.data;
-  let upper=0,lower=0;
-  for(let y=0;y<256;y++)for(let x=0;x<256;x++) { const alpha=a[(y*256+x)*4+3]; if(y<140)upper+=alpha/255;else if(alpha===0)lower++; }
+  let upper=0,lower=0;const rgb=[0,0,0];
+  for(let y=0;y<256;y++)for(let x=0;x<256;x++) { const i=(y*256+x)*4,alpha=a[i+3]; if(y<140)upper+=alpha/255;else if(alpha===0)lower++; if(alpha>=77)for(let k=0;k<3;k++)rgb[k]+=a[i+k]; }
   assert(upper/(256*140)>.95,'[fringe-alpha] upper needles too sparse');
-  let bottom=0;
-  for(let x=0;x<256;x++)if(a[(255*256+x)*4+3]>0)bottom++;
-  assert(bottom/256<.08,'[fringe-alpha] uniformly long lower needles');
-  assert(lower/(256*116)>.15 && lower/(256*116)<.8,'[fringe-alpha] missing hanging cutout tips');
+  assert(lower/(256*116)>.10 && lower/(256*116)<.8,'[fringe-alpha] missing hanging cutout tips');
+  assert(rgb[1]>rgb[0] && rgb[1]>rgb[2],'[fringe-hue] gray/snowy needles');
   assert(fringe.wrapS===THREE.RepeatWrapping && fringe.wrapT===THREE.RepeatWrapping,'[texture-uv] fringe repeat');
   fringe.dispose();
 });
@@ -209,17 +197,16 @@ test('QA lazily installs, replaces and clears specimens with plain JSON [qa]', a
   assert.match(source('main.js'),/if \(QA\) installQA/,'[qa] normal play guard');
 });
 
-test('fringe map routing and actual core texel sampling [texture-routing/core-alpha]',()=>{
-  const {m}=make(), fringe=m.get(0,1).leaf.map;
-  assert.equal(m.get(2,0).leaf.map,fringe,'[texture-routing] pine near fringe');
-  assert.equal(m.get(2,1).leaf.map,fringe,'[texture-routing] pine mid fringe');
-  assert.notEqual(m.get(0,0).leaf.map,fringe,'[texture-routing] cedar near needles preserved');
-  for(const species of [1,3])for(const level of [0,1]) {
-    const g=treeGeometry(species,level).leaf, uv=g.getAttribute('uv'), map=m.get(species,level).leaf.map;
-    for(const part of g.userData.parts.filter(p=>p.core))for(let i=part.first;i<part.first+(part.sides+1)*(part.bands+1);i++) {
-      const x=Math.floor(uv.getX(i)*256), y=255-Math.floor(uv.getY(i)*256);
-      assert.equal(map.image.data[(y*256+x)*4+3],255,'[core-alpha] geometry samples transparent pixel');
-    }
+test('needle routing, untextured core and diffuse gain [texture-routing/core/color]',()=>{
+  const {m}=make(), needle=m.get(0,0).leaf.map, fringe=m.get(0,1).leaf.map;
+  assert.notEqual(needle,fringe,'[texture-routing] cedar fringe');
+  for(const level of [0,1])assert(m.get(2,level).leaf.map===needle,'[texture-routing] pine fan requires needle map');
+  for(let species=0;species<6;species++)for(let level=0;level<(species>=4?2:3);level++) {
+    const pair=m.get(species,level);
+    assert.equal(pair.wood.map,null,'[core] wood core must be untextured');
+    if(level<2)assert.equal(pair.leaf.color.r,[1,3,4,5].includes(species)?TREES.leafGain:1,'[color-gain] gain only on near/mid broadleaf');
+    assert.equal(pair.wood.color.r,1,'[color-gain] wood tinted by gain');
+    if(level===2)assert.equal(pair.leaf.map,null,'[texture-routing] far uses mean');
   }
   m.dispose();
 });

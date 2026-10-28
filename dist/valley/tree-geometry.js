@@ -36,23 +36,24 @@ function tube(m, a, b, radius, sides = 6, rings = 3, root = false, color = [.12,
   }
   for (let j = 0; j < rings; j++) for (let k = 0; k < sides; k++) { const v = first + j * (sides + 1) + k; m.quad(v, v + 1, v + sides + 2, v + sides + 1); }
 }
-// Low polygon ellipsoid, biased toward the upper hemisphere. Outward normal + 30% up.
-function clump(m, center, radii, sides, bands, cards, rnd, tile = 1, core = false) {
+// Cylindrical tiled shells; the wood-only inner shell never samples a texture.
+function clump(m, center, radii, sides, bands, tile = 1, core = false) {
   const first = m.s.length;
   m.parts ??= [];
-  m.parts.push({ first, sides, bands, center, radii, tile, core, cards });
+  m.parts.push({ first, sides, bands, center, radii, tile, core, cards: 0 });
   const circumference = TAU * Math.sqrt((radii[0] ** 2 + radii[2] ** 2) / 2);
-  const arc = Math.PI * Math.sqrt((radii[0] ** 2 + radii[1] ** 2) / 2);
   for (let j = 0; j <= bands; j++) {
     const theta = j / bands * Math.PI;
     for (let k = 0; k <= sides; k++) {
-      const a = k / sides * TAU, unit = [Math.sin(theta) * Math.cos(a), Math.cos(theta), Math.sin(theta) * Math.sin(a)];
-      const p = center.map((v, q) => v + radii[q] * unit[q]);
+      const a = (k % sides) / sides * TAU, unit = [Math.sin(theta) * Math.cos(a), Math.cos(theta), Math.sin(theta) * Math.sin(a)];
+      // Matching seam vertices, deterministic from the unperturbed position.
+      const wobble = 1 + .09 * Math.sin((center[0] + radii[0] * unit[0]) * 7.13 + (center[1] + radii[1] * unit[1]) * 3.71 + (center[2] + radii[2] * unit[2]) * 5.37);
+      const p = center.map((v, q) => v + radii[q] * unit[q] * (q === 1 ? 1 : wobble));
       const radial = Math.hypot(center[0], center[2]);
       const outward = radial > .01 ? (unit[0] * center[0] + unit[2] * center[2]) / radial : -1;
       const shelter = 1 - .65 * (1 - Math.abs(unit[1])) * (1 - Math.max(0, outward));
       const exposure = .28 + .72 * Math.pow((unit[1] + 1) / 2, .65) * shelter;
-      m.vert(p, [unit[0] * .7, unit[1] * .7 + .3, unit[2] * .7], [core ? .3 : exposure, core ? .3 : exposure, core ? .3 : exposure], core ? [.03, .03] : [circumference / tile * k / sides, arc / tile * (1 - j / bands)], .2 + .8 * Math.sin(theta));
+      m.vert(p, [unit[0] * .7, unit[1] * .7 + .3, unit[2] * .7], core ? [.06, .05, .03] : [exposure, exposure, exposure], [circumference / tile * k / sides, p[1] / tile], core ? 0 : .2 + .8 * Math.sin(theta));
     }
   }
   for (let j = 0; j < bands; j++) for (let k = 0; k < sides; k++) {
@@ -60,19 +61,6 @@ function clump(m, center, radii, sides, bands, cards, rnd, tile = 1, core = fals
     if (j === 0) m.tri(a, a + sides + 2, a + sides + 1);
     else if (j === bands - 1) m.tri(a, a + 1, a + sides + 1);
     else m.quad(a, a + 1, a + sides + 2, a + sides + 1);
-  }
-  for (let k = 0; k < cards; k++) {
-    const a = k * 2.399, y = -.75 + rnd() * 1.65;
-    const n = norm([Math.cos(a) * Math.sqrt(1 - y * y), y, Math.sin(a) * Math.sqrt(1 - y * y)]);
-    const c = center.map((v, q) => v + radii[q] * n[q]);
-    const tangent = norm([-Math.sin(a), 0, Math.cos(a)]);
-    const up = new THREE.Vector3(...n).cross(new THREE.Vector3(...tangent)).toArray();
-    const size = .9 + rnd() * .4, v = m.s.length, shade = .85 + rnd() * .3, tint = rnd() * .08;
-    for (const [s, t] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) {
-      const e = (.72 + .28 * (t + 1) / 2) * shade;
-      m.vert(c.map((v, q) => v + size / 2 * (tangent[q] * s + up[q] * t)), n, [e, e * (1 - tint * .4), e * (1 - tint)], [(s + 1) / 2, (t + 1) / 2], 1);
-    }
-    m.quad(v, v + 3, v + 2, v + 1);
   }
 }
 function cone(m, y0, y1, radius, sides, offset, color = null) {
@@ -98,7 +86,7 @@ function cedar(wood, leaf, level, rnd) {
       const first = leaf.s.length, rotation = i * 2.399;
       for (let j = 0; j < 2; j++) for (let k = 0; k <= sides; k++) {
         const a = rotation + k / sides * TAU, radius = r * (j ? 1 : .24) * (1 + .12 * Math.sin((k % sides) * 2.3 + i));
-        const e = j ? .42 : .9;
+        const e = j ? .48 : .85;
         leaf.vert([Math.cos(a) * radius, y + (j ? -.65 : 1.0), Math.sin(a) * radius], [Math.cos(a), .5, Math.sin(a)], [e,e,e], [k / sides * 3, j ? 0 : 1], j ? 1 : .4);
       }
       for (let k = 0; k < sides; k++) { const v = first + k; leaf.quad(v, v + 1, v + sides + 2, v + sides + 1); }
@@ -137,7 +125,11 @@ function broad(wood, leaf, species, level, rnd) {
   const fork = shrub ? .18 : small ? .9 : maple ? 2 : 3.5;
   tube(wood, [0, -.1, 0], [.12, fork, .1], small ? (shrub ? .025 : .05) : .48, level === 0 ? (small ? 4 : 8) : 4, level === 0 ? (small ? 2 : 4) : 1, true);
   if (level === 2) {
-    clump(leaf, center, radii.map((v,q) => v * (q === 1 ? 1.08 : 1.15)), 12, 3, 0, rnd); return;
+    // Three offset crowns: the combined outline has more than two shoulders.
+    for (const [x,y,z,rx,ry,rz] of [[-.43,-.10,0,.70,.83,.82],[.42,.18,.12,.72,.87,.78],[.02,-.12,-.40,.79,.82,.70]]) {
+      clump(leaf, center.map((v,q) => v + radii[q] * [x,y,z][q]), radii.map((v,q) => v * [rx,ry,rz][q]), 8, 3);
+    }
+    return;
   }
   const branches = small ? (shrub ? 5 : 4) : 4;
   wood.tips = [];
@@ -147,26 +139,47 @@ function broad(wood, leaf, species, level, rnd) {
     wood.tips.push(tip);
     if (!small || level === 0) tube(wood, [.08, fork, .05], tip, small ? .018 : .23, level === 0 ? 4 : 3, level === 0 && !small ? 2 : 1);
   }
-  const count = small ? (level === 0 ? (shrub ? 5 : 4) : (shrub ? 5 : 3)) : level === 0 ? (maple ? 11 : 13) : 6;
+  const count = small ? (level === 0 ? (shrub ? 5 : 4) : 3) : level === 0 ? (maple ? 11 : 13) : 6;
   for (let i = 0; i < count; i++) {
     const y = 1 - 2 * (i + .5) / count, a = i * 2.399, radial = Math.sqrt(1 - y * y);
-    const c = center.map((v,q) => v + radii[q] * (q === 1 ? y : radial * (q === 0 ? Math.cos(a) : Math.sin(a)) * (species === 1 ? 1 + .25 * y : 1)) * (small ? .42 : .56));
-    const r = small ? radii.map(v => v * .64) : radii.map(v => v * (level === 0 ? .49 : .62));
-    clump(leaf, c, r, small ? (level === 0 && !shrub ? 6 : 3) : 8, small && (shrub || level === 1) ? 2 : 3, !small && level === 0 ? 5 : 0, rnd, small ? .6 : 1);
+    const c = center.map((v,q) => v + radii[q] * (q === 1 ? y : radial * (q === 0 ? Math.cos(a) : Math.sin(a)) * (species === 1 ? 1 + .45 * y : 1)) * (small ? .42 : .56));
+    const r = small ? radii.map(v => v * (level === 0 ? .64 : .72)) : radii.map(v => v * (level === 0 ? .49 : .62));
+    clump(leaf, c, r, level === 0 ? (small ? (shrub ? 3 : 6) : 10) : (small ? 3 : 8), level === 0 ? (small ? 2 : 4) : (small ? 2 : 3), small ? .6 : 1);
   }
-  if (!small) {
-    if (level === 0) for (const y of [-.35, 0]) clump(leaf, [0, center[1] + y * radii[1], 0], radii.map(v => v * .5), 8, 3, 3, rnd);
-    clump(leaf, center, radii.map(v => v * .6), 6, 2, 0, rnd, 1, true);
+  if (!small && level === 0) for (const y of [-.35, 0]) clump(leaf, [0, center[1] + y * radii[1], 0], radii.map(v => v * .5), 10, 4);
+  clump(wood, center, radii.map(v => v * .55), small ? 3 : 6, 2, 1, true);
+}
+// Fan cards grow from their bottom centre, with normals pointing away from each tuft.
+function pineFan(leaf, center, angle, tilt) {
+  const first = leaf.s.length, width = 2.4, length = 2.4;
+  const sign = Math.sign(tilt);
+  const n = [Math.cos(angle) * Math.sin(tilt) * sign, -Math.cos(tilt) * sign, Math.sin(angle) * Math.sin(tilt) * sign];
+  const tangent = [-Math.sin(angle), 0, Math.cos(angle)];
+  const up = [Math.cos(angle) * Math.cos(tilt), Math.sin(tilt), Math.sin(angle) * Math.cos(tilt)];
+  leaf.parts ??= []; leaf.parts.push({ first, center, angle, tilt, cards: 1 });
+  for (const [s,t] of [[-1,0],[1,0],[1,1],[-1,1]]) {
+    const e = .55 + .4 * t;
+    leaf.vert(center.map((v,q) => v + tangent[q] * s * width / 2 + up[q] * t * length), n, [e,e,e], [(s+1)/2,t], .3 + .7*t);
   }
+  if (sign > 0) leaf.quad(first, first+3, first+2, first+1);
+  else leaf.quad(first, first+1, first+2, first+3);
 }
 function pine(wood, leaf, level, rnd) {
-  tube(wood, [0, -.1, 0], [1.4, 11.8, .5], .4, level === 0 ? 7 : 4, level === 0 ? 5 : 1, true, [.16, .09, .045]);
-  const clouds = [[1.4,11.6,.5,3.3,1.35,2.6],[-1.3,9.4,1,2.8,1.6,2.5],[1.8,7.8,-1.2,2.4,1.5,2.9]];
-  for (const [x,y,z,rx,ry,rz] of clouds) {
-    clump(leaf, [x,y,z], [rx,ry,rz], level === 2 ? 6 : 8, level === 2 ? 2 : 3, level === 0 ? 4 : 0, rnd);
-    if (level === 0) tube(wood, [.6,y-1.8,0], [x,y,z], .12, 4, 2);
+  tube(wood, [0, -.1, 0], [1.4, level === 2 ? 5 : 11.8, .5], .4, level === 0 ? 7 : 4, level === 0 ? 5 : 1, true, [.16, .09, .045]);
+  if (level === 2) {
+    clump(leaf, [.4,11.7,.4], [3.65,2.05,3.3], 7, 3);
+    clump(leaf, [1.1,8.4,-.4], [3.5,1.65,3.2], 7, 3);
+    return;
+  }
+  const tufts = [[1.4,11.6,.5],[-1.3,9.4,1],[1.8,7.8,-1.2],[-.8,8,-.9],[1.0,10.1,-1.4]];
+  const count = level === 0 ? 5 : 3, cards = level === 0 ? 8 : 5;
+  for (let i = 0; i < count; i++) {
+    const center = tufts[i];
+    tube(wood, [.6,center[1]-1.8,0], center, .12, level === 0 ? 4 : 3, 2);
+    for (let k = 0; k < cards; k++) pineFan(leaf, center, k / cards * TAU + i * 2.399, k % 5 === 0 ? -.25 : .55 + .15 * Math.sin(k * 2.399 + i));
   }
 }
+
 export function treeGeometry(species, level) {
   if (!Number.isInteger(species) || species < 0 || species > 5 || !Number.isInteger(level) || level < 0 || level > (species >= 4 ? 1 : 2)) throw new RangeError('tree geometry species/level');
   const key = `${species}/${level}`; if (cache.has(key)) return cache.get(key);

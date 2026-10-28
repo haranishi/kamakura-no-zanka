@@ -1,5 +1,6 @@
 // Lambert specimen materials. Only the color pass receives distance dithering.
 import * as THREE from 'three';
+import { TREES } from './config.js';
 import { needleTexture, needleFringeTexture, mapleLeafTexture, zelkovaLeafTexture } from './tree-textures.js';
 const heights = [20, 12, 13, 8, 3, 1.2];
 // A solid far crown keeps the alpha-weighted mean of its near texture, not white.
@@ -17,10 +18,11 @@ export function treeMaterials({ wind, sunDir, quality = 'standard' }) {
   const sun = { value: sunDir }, disabled = () => ({ value: new THREE.Vector4(-1, -1, -1, -1) });
   function material(species, level, leaf, variant) {
     const conifer = species === 0 || species === 2;
-    const map = !leaf || level === 2 ? null : textures[conifer ? (species === 0 && level === 0 ? 0 : 3) : species === 3 || species === 4 && variant === 1 ? 2 : 1];
+    const map = !leaf || level === 2 ? null : textures[conifer ? (species === 2 || level === 0 ? 0 : 3) : species === 3 || species === 4 && variant === 1 ? 2 : 1];
     const m = new THREE.MeshLambertMaterial({ map, vertexColors: true, side: leaf ? THREE.DoubleSide : THREE.FrontSide,
       alphaTest: map ? .3 : 0, alphaToCoverage: !!map && quality !== 'light', emissive: 0x000000 });
     if (leaf && level === 2) m.color.copy(means[conifer ? 0 : species === 3 ? 2 : 1]);
+    if (leaf && !conifer && level < 2) m.color.multiplyScalar(TREES.leafGain);
     const lod = disabled(); m.userData.uLod = lod;
     m.onBeforeCompile = shader => {
       Object.assign(shader.uniforms, wind, { uSunDir: sun, uLod: lod });
