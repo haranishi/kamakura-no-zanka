@@ -2,7 +2,7 @@ import { assignTreeSpecies, scatterUnderstory } from './tree-species.js';
 // main.js — 縦切りの起動（app層）。読み込み → タイトル → 遊び。描画器・操作・音・UI・設定・一時停止・各ボタンを組み立てる。
 import * as THREE from 'three';
 import { WORLD } from './world-data.js';
-import { createGrassField } from './grass-field.js';
+import { createGrassField, coverMap } from './grass-field.js';
 import { createTerrain } from './terrain-height.js';
 import { buildTerrain, loadGroundTextures } from './terrain.js';
 import { installFog, createAtmosphere } from './atmosphere.js';
@@ -98,6 +98,7 @@ async function boot() {
   const aniso = renderer.capabilities.getMaxAnisotropy();
   const [models, propModels] = await Promise.all([loadModels({ anisotropy: aniso }), loadPropModels({ anisotropy: aniso })]);
   const field = createGrassField(WORLD, terrain); live.grassField = field;
+  built.setMeadowCover(coverMap(field));
   const veg = buildVegetation({ scatter, quality, field, sunDir: ATMOS.sunDir }); scene.add(veg.group); live.scatter = scatter; live.scene = scene;
   scene.add(buildBuildings({ world: WORLD, terrain, models }).group);
   scene.add(buildRocks({ data: scatter.rocks, model: models.boulder_lo || models.boulder }));
@@ -119,7 +120,7 @@ async function boot() {
   game.veg.grass.warm(camera);
   await step(1, '準備ができました');
   wire();
-  if (QA) installQA(game, { setFrozen: v => { frozen = v; }, start, quality: setQuality });
+  if (QA) installQA(game, { setFrozen: v => { frozen = v; }, start, quality: setQuality, meadowCover: () => built.meadowCover() });
   hud.setState('title'); hud.showTitle(loadValley(game.storage).hasSave);
   document.getElementById('loading').classList.add('hidden');
   window.__valleyReady = true;

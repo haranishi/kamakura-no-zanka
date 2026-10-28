@@ -42,14 +42,16 @@ export async function loadGroundTextures(base, anisotropy = 8) {
   return { color: make(colorData, true), normal: make(normalData, false) };
 }
 
-function terrainMaterial(textures, quality) {
+function terrainMaterial(textures, quality, coverUniforms) {
   const material = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1, metalness: 0, vertexColors: true });
   const tiles = LAYERS.map(l => TILE[l]);
+  const detail = material.userData.uDetailU = { value: quality === 'light' ? 0 : 1 };
   material.onBeforeCompile = shader => {
     shader.uniforms.uTexC = { value: textures.color };
     shader.uniforms.uTexN = { value: textures.normal };
     shader.uniforms.uTile = { value: tiles };
-    shader.uniforms.uDetail = material.userData.uDetailU = { value: quality === 'light' ? 0 : 1 };
+    shader.uniforms.uDetail = detail;
+    Object.assign(shader.uniforms, coverUniforms);
     shader.vertexShader = shader.vertexShader
       .replace('#include <common>', `#include <common>
         attribute vec3 aS0; attribute vec3 aS1;
@@ -60,6 +62,8 @@ function terrainMaterial(textures, quality) {
       .replace('#include <common>', `#include <common>
         precision highp sampler2DArray;
         uniform sampler2DArray uTexC; uniform sampler2DArray uTexN; uniform float uTile[6]; uniform float uDetail;
+        uniform sampler2D uCover; uniform vec2 uCoverOrigin; uniform vec2 uCoverSize;
+        uniform float uMeadow; uniform vec3 uMeadowTint;
         varying vec3 vS0; varying vec3 vS1; varying vec3 vWorldPos; varying vec3 vWorldNormal;
         float th_hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
         float th_noise(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
@@ -71,6 +75,12 @@ function terrainMaterial(textures, quality) {
         vec3 nW = normalize(vWorldNormal);
         vec2 wxz = vWorldPos.xz;
         float w[6]; w[0] = vS0.x; w[1] = vS0.y; w[2] = vS0.z; w[3] = vS1.x; w[4] = vS1.y; w[5] = vS1.z;
+        vec2 coverUV = (wxz - uCoverOrigin) / uCoverSize;
+        float cover = texture(uCover, coverUV).r;
+        if (any(lessThan(coverUV, vec2(0.0))) || any(greaterThanEqual(coverUV, vec2(1.0)))) cover = 0.0;
+        float k = cover * uMeadow;
+        w[0] = mix(w[0], 1.0, k);
+        w[1] *= (1.0 - k); w[3] *= (1.0 - k); w[4] *= (1.0 - k); w[5] *= (1.0 - k);
         float edgeNoise = th_noise(wxz * 0.7) - 0.5;
         for (int i = 0; i < 6; i++) w[i] = max(0.0, w[i] + edgeNoise * 0.22 * (w[i] > 0.02 ? 1.0 : 0.0));
         // 重みのほぼ無い層は読まない（影響はゼロ）。分岐の中でも段差が出ないよう、微分は分岐の外で作って textureGrad に渡す。
@@ -119,6 +129,7 @@ function terrainMaterial(textures, quality) {
         albedo = mix(albedo, albedo * vec3(0.92, 1.05, 0.85), clamp(w[0] * 1.2, 0.0, 1.0));
         // 彩度を少し落とす（日なたの地面が橙一色に飽和し、土や草の粒の明暗が潰れた。第2周の評価）
         { float al = dot(albedo, vec3(0.3, 0.55, 0.15)); albedo = mix(vec3(al), albedo, 0.88); }
+        albedo = mix(albedo, uMeadowTint, cover * 0.25 * smoothstep(20.0, 70.0, length(vViewPosition)));
         diffuseColor.rgb *= albedo;
         gRough = clamp(rough, 0.35, 1.0);
         // UDN 合成（世界座標）。上向きの面は xz 平面、岩は三面。
@@ -129,7 +140,7 @@ function terrainMaterial(textures, quality) {
       .replace('#include <roughnessmap_fragment>', `float roughnessFactor = gRough;`)
       .replace('#include <normal_fragment_maps>', `normal = normalize((viewMatrix * vec4(gN, 0.0)).xyz);`);
   };
-  material.customProgramCacheKey = () => 'valley-terrain-v3';     // 品質は uniform（uDetail）で切り替えるので、プログラムは1つ
+  material.customProgramCacheKey = () => 'valley-terrain-v4-meadow';     // 品質は uniform（uDetail）で切り替えるので、プログラムは1つ
   return material;
 }
 
@@ -237,12 +248,38 @@ export function buildTerrain({ terrain, textures, quality = 'standard' }) {
   farGeo.setIndex(fidx);
   farGeo.computeBoundingSphere();
 
-  const material = terrainMaterial(textures, quality);
+  const makeCover = (data, nx, nz) => {
+    const texture = new THREE.DataTexture(data, nx, nz, THREE.RedFormat, THREE.UnsignedByteType);
+    texture.minFilter = texture.magFilter = THREE.LinearFilter;
+    texture.wrapS = texture.wrapT = THREE.ClampToEdgeWrapping;
+    texture.generateMipmaps = false; texture.unpackAlignment = 1;
+    texture.needsUpdate = true;
+    return texture;
+  };
+  const coverUniforms = {
+    uCover: { value: makeCover(new Uint8Array(1), 1, 1) },
+    uCoverOrigin: { value: new THREE.Vector2() }, uCoverSize: { value: new THREE.Vector2(1, 1) },
+    uMeadow: { value: 0.85 }, uMeadowTint: { value: new THREE.Color('#6b6a35') },
+  };
+  let coverStats = { nx: 0, nz: 0, mean: 0, max: 0 };
+  const setMeadowCover = ({ data, x0, z0, nx, nz }) => {
+    const texture = makeCover(data, nx, nz);
+    coverUniforms.uCover.value.dispose();
+    coverUniforms.uCover.value = texture;
+    // x0/z0 are cell EDGES: a centre maps to (i + .5)/size, not i/size.
+    coverUniforms.uCoverOrigin.value.set(x0, z0);
+    coverUniforms.uCoverSize.value.set(nx, nz);
+    let sum = 0, max = 0;
+    for (const value of data) { sum += value; max = Math.max(max, value); }
+    coverStats = { nx, nz, mean: sum / data.length / 255, max: max / 255 };
+  };
+  const material = terrainMaterial(textures, quality, coverUniforms);
+  material.addEventListener('dispose', () => coverUniforms.uCover.value.dispose());
   const near = new THREE.Mesh(nearGeo, material); near.name = 'terrain-near'; near.receiveShadow = true; near.castShadow = false;
   const far = new THREE.Mesh(farGeo, material); far.name = 'terrain-far'; far.receiveShadow = false;
   near.frustumCulled = true; far.frustumCulled = false;
   const group = new THREE.Group(); group.name = 'terrain'; group.add(far, near);
   // 品質の切り替え（軽量は細かい法線の凹凸を読まない）
   const setQuality = q => { const u = material.userData.uDetailU; if (u) u.value = q === 'light' ? 0 : 1; };
-  return { group, near, far, material, setQuality, buildMs: performance.now() - t0, stats: { nearVertices: nx * nz, farVertices: fn * fn } };
+  return { group, near, far, material, setQuality, setMeadowCover, meadowCover: () => ({ ...coverStats }), buildMs: performance.now() - t0, stats: { nearVertices: nx * nz, farVertices: fn * fn } };
 }

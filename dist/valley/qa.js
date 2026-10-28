@@ -69,6 +69,7 @@ export function installQA(game, ctl) {
       }
       return { stats: { ...trees.stats }, bySpecies, byShape, tris, total };
     },
+    meadowCover() { return ctl.meadowCover(); },
     grassStats() { return game.veg.grass.stats(); },
     windState() { return JSON.parse(JSON.stringify(game.wind)); },
     guideWind(dir) {
