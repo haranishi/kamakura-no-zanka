@@ -18,8 +18,8 @@ const cases = [
   ['three-band middle broadleaf', 'small ? (level === 0 ? 5 : 4) : 4, small ? .6', 'small ? (level === 0 ? 5 : 4) : 3, small ? .6'],
   ['three-band far broadleaf', 'dome, 8, 5, 1, false', 'dome, 8, 3, 1, false'],
   ['thick near cedar core', '19.7, 1.35, 8', '19.7, 2.15, 8'],
-  ['open near cedar core', '[.04, .075, .035], true', '[.04, .075, .035], false'],
-  ['black near cedar core', '[.04, .075, .035]', '[.022, .045, .020]'],
+  ['open near cedar core', '[.07, .12, .055], true', '[.07, .12, .055], false'],
+  ['black near cedar core', '[.07, .12, .055]', '[.022, .045, .020]'],
   ['inward cedar bottom cap', 'm.tri(bottom, first + 1 + k, first + 2 + k)', 'm.tri(bottom, first + 2 + k, first + 1 + k)'],
 
   ['flat cedar fronds', 'const segments = level === 0 ? 2 : 1;', 'const segments = 1;'],

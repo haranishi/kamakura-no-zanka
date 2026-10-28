@@ -144,7 +144,7 @@ function cedar(wood, leaf, level, rnd, shape) {
     return;
   }
   // Deep green core: slightly darker than the average needles, never a black void.
-  cone(wood, 3, 19.7, 1.35, 8, .3, [.04, .075, .035], true);
+  cone(wood, 3, 19.7, 1.35, 8, .3, [.07, .12, .055], true);
   const rows = [26, 24, 28][shape], branches = 6;
   for (let i = 0; i < rows; i++) {
     const t = i / (rows - 1), y = 3 + t * 16.8, length = .25 + 3.2 * (shape === 1 ? 1.06 : shape === 2 ? .94 : 1) * Math.pow(1 - t, .85) * (.9 + .1 * Math.cos(t * Math.PI * 6));

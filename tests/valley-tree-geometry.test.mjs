@@ -258,7 +258,7 @@ test('near cedar core is slim deep green with a watertight downward cap [core]',
   const green=new Set();
   for(let i=0;i<c.count;i++)if(c.getY(i)>c.getX(i)*1.6) {
     green.add(i);
-    for(const [actual,expected] of [[c.getX(i),.04],[c.getY(i),.075],[c.getZ(i),.035]])assert(Math.abs(actual-expected)<1e-6,'[core-color] near core must be deep green');
+    for(const [actual,expected] of [[c.getX(i),.07],[c.getY(i),.12],[c.getZ(i),.055]])assert(Math.abs(actual-expected)<1e-6,'[core-color] near core must be deep green');
   }
   assert(green.size>=11,'[core] missing cone or cap');
   const points=[...green].map(i=>new THREE.Vector3().fromBufferAttribute(p,i));
@@ -320,7 +320,7 @@ test('all shape families have finite unit normals, budgets and matching LOD boun
 });
 test('cedar shape zero retains original L0 and L2 bytes [cedar-hash]',()=>{
   const hashes={
-    '0/wood':'85cc2ab6dfea794701e23ad7de31097b1de89f75f7c05af8585a3a9ad1fa9b06',
+    '0/wood':'e2ab19eb4fc7ed2ec778fcf023106e0e68ff6c3c53a28523926daba828d94a17',   // 芯の色を (.07,.12,.055) へ明るくした（黒い面に見えたため）ので、この1つだけ更新した
     '0/leaf':'aeea6173e75705407b8f47999216951479a3cf9dbcc5879f7e1bc16930322dfd',
     '2/wood':'7517dc2bc0b385c56f87d06234837207be5f9693e3dfd2f2389462c77712c4b7',
     '2/leaf':'732b9606020a6e155db29ffa08b9910a7f3d6f71a5409a5806b2d28157023ea7',
