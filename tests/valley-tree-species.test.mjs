@@ -139,7 +139,10 @@ test('only stage changes, with twenty-byte seasonal jitter [stage-jitter/placeme
   const hash=v=>createHash('sha256').update(JSON.stringify(v)).digest('hex');
   assert.equal(hash(Array.from(assigned.species)),'3317a697e1001c87048c40147123273116bc73077810a79920ea58d8c2554b8f','[species-placement] adult species changed');
   // Terrace, crown-to-tread and dress exclusions removed 30 saplings and 95 shrubs; survivors keep every value.
-  assert.equal(hash(Object.fromEntries(Object.entries(under).filter(([k])=>k!=='stage'))),'ed9715df180594c72f8145c2fd927081be51107da6a979aee097f0f4143df672','[understory-placement] coordinates/count/species or random stream changed');
+  // 座標は 1e-6 に丸めて照合する。Node 22 と 24 は Math の関数の最後の桁が違い、生の値のハッシュは版で割れた
+  // （CIのNode 22だけが落ちた）。個数・種・乱数の系列は丸めても同じで、割れるのは桁だけ。
+  const rounded=v=>createHash('sha256').update(JSON.stringify(v,(_,x)=>typeof x==='number'?Math.round(x*1e6)/1e6:x)).digest('hex');
+  assert.equal(rounded(Object.fromEntries(Object.entries(under).filter(([k])=>k!=='stage'))),'f1f5dbf87af01ac14b103061faa29da45bd802c2c6171bd7f263163d8f474a42','[understory-placement] coordinates/count/species or random stream changed');
   // Adult jitter now takes the second position draw (conversion keeps the first).
   assert.equal(hash([Array.from(assigned.stage),under.stage]),'4403081aba853a5f604b131b0af42bcbea3f44848f5b756d8fc94217257ee05a','[stage-jitter] seasonal jitter must remain +/-20/255');
   const residual=trees.x.map((x,i)=>{
