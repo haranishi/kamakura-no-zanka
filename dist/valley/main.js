@@ -147,6 +147,7 @@ function setQuality(v) {
     const old = game.veg; live.scene.remove(old.group);
     const veg = buildVegetation({ scatter: live.scatter, quality: v, field: live.grassField, sunDir: ATMOS.sunDir }); live.scene.add(veg.group); game.veg = veg;
     old.grass.dispose();
+    old.trees.dispose();
     veg.grass.warm(camera);
     old.group.traverse(o => {                                                  // 作り直す前の GPU 資源を解放する（切り替えのたびに増えない）
       if (!o.isMesh) return;

@@ -63,11 +63,17 @@ export const GRASS = Object.freeze({
 
 // Tree species are derived; legacy placement and collision keep using kind.
 export const TREES = Object.freeze({
+  palette: Object.freeze({
+    cedar: Object.freeze(['#b1bca5']), pine: Object.freeze(['#7f9e91']),
+    zelkova: Object.freeze(['#5f7d34', '#a7a23c', '#c9a43a', '#9a6a2c']),
+    maple: Object.freeze(['#5d7a35', '#b88a30', '#c2652c', '#a2412c']),
+    shrub: Object.freeze(['#4f6f33', '#7d8a3a', '#8a5a30']),
+  }),
   seeds: Object.freeze({ grove: 51001, detail: 51031, maple: 51061, stage: 51091, individual: 51131, sapling: 51169, shrub: 51203 }),
   fields: Object.freeze({ grove: 70, detail: 26, maple: 38, stage: 30, threshold: 0.755, mapleThreshold: 0.50 }),
   conversion: Object.freeze({ probability: 0.97, habitatWeight: 0.30, valleyRadius: 240 }),
-  sapling: Object.freeze({ step: 3.2, probability: 0.15, maxCount: 1200, distance: 45, lightDistance: 30 }),
-  shrub: Object.freeze({ step: 2.2, probability: 0.20, maxCount: 4000, distance: 32, lightDistance: 22 }),
+  sapling: Object.freeze({ step: 3.2, probability: 0.15, maxCount: 1200, split: 18, distance: 45, lightDistance: 30 }),
+  shrub: Object.freeze({ step: 2.2, probability: 0.20, maxCount: 4000, split: 13, distance: 32, lightDistance: 22 }),
   lod: Object.freeze({ standard: [48, 150], light: [32, 100], blend: { standard: 10, light: 8 } }),
-  budget: Object.freeze({ cedar: [1500, 260, 40], zelkova: [1100, 260, 40], pine: [600, 140, 32], maple: [1100, 260, 40], sapling: [220, 60], shrub: [120, 40] }),
+  budget: Object.freeze({ cedar: [1500, 260, 40], zelkova: [1100, 260, 64], pine: [600, 140, 48], maple: [1100, 260, 64], sapling: [220, 60], shrub: [120, 40] }),
 });
