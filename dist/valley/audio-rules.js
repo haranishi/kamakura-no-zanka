@@ -4,8 +4,8 @@ const freeze = value => { for (const v of Object.values(value)) if (v && typeof 
 export const STEP_TABLE = freeze({
   // impact: gain/Hz/decayMs; grains: count/bandHz/decayMs/spreadMs/jitter.
   surfaces: {
-    dirt: { impact: [0.5, 180, 35], grains: [5, [900, 3500], 18, 70, 0.3] },
-    grass: { impact: [0.2, 120, 30], grains: [7, [2000, 5000], 30, 90, 0.4] },
+    dirt: { impact: [0.5, 180, 35], grains: [10, [1500, 5500], 18, 70, 0.3] },
+    grass: { impact: [0.2, 120, 30], grains: [4, [1000, 3200], 30, 90, 0.4] },
     gravel: { impact: [0.3, 220, 25], grains: [18, [3000, 8000], 35, 140, 0.6] },
     leaves: { impact: [0.25, 160, 30], grains: [9, [4000, 9000], 25, 120, 0.8] },
     wood: { impact: [0.85, 320, 90], grains: [1, [1200, 2600], 10, 40, 0.2] },

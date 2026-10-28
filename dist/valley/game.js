@@ -455,10 +455,17 @@ export class Game {
 
   update(rawDt) {
     let dt = Math.min(rawDt, 0.05);
-    if (this.paused) { this.updateGuide(0); return; }
+    if (this.paused) {
+      for (const a of [this.hero, ...this.enemies, this.ally, ...this.npcs.values()]) a?.character.resetContacts();
+      this.updateGuide(0); return;
+    }
+    if (rawDt > 0.05) {
+      for (const a of [this.hero, ...this.enemies, this.ally, ...this.npcs.values()]) a?.character.resetContacts();
+    }
     this.guideTime += rawDt;
     // 命中の停止：時間を完全には止めず、ごく遅くする
     if (this.stopT > 0) { this.stopT -= dt; dt *= FEEL.hitStopScale; }
+    this.contactTimeScale = rawDt > 0 ? dt / rawDt : 1;
     this.time += dt;
     this.hud.tick(rawDt);
     this.runTimers();
