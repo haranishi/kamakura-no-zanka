@@ -5,6 +5,8 @@ import { spawnSync } from 'node:child_process';
 const config = 'dist/valley/config.js';
 const view = 'dist/valley/tree-view.js', lod = 'dist/valley/tree-lod.js', qa = 'dist/valley/qa.js';
 const cases = [
+  ['symmetric normalized transition returned', lod, 'return [1 - smooth(a, a + 2 * w, distance), smooth(a - 2 * w, a, distance) * (1 - smooth(b, b + 2 * w, distance)), smooth(b - 2 * w, b, distance)];', 'const enter = smooth(a-w,a+w,distance), far = smooth(b-w,b+w,distance); return [1-enter,enter*(1-far),far];'],
+
   ['wide standard dither band', config, 'blend: { standard: 4, light: 3 }', 'blend: { standard: 10, light: 3 }'],
   ['wide light dither band', config, 'blend: { standard: 4, light: 3 }', 'blend: { standard: 4, light: 8 }'],
   ['only one level in overlap', view, 'if (membership[level]) {', 'if (membership[level] && !membership[level - 1]) {'],
@@ -21,8 +23,8 @@ const cases = [
   ['ignore force', view, 'if (!force && Math.hypot', 'if (Math.hypot'],
   ['use height metres as scale', view, 'd.s[i] / treeGeometry(sp, 0).height', 'd.s[i]'],
   ['omit species assignment', view, 'this.species.species[i], this.species.stage[i]', 'd.kind[i], this.species.stage[i]'],
-  ['LOD exit uniform disabled', lod, '[-1, -1, a - w, a + w]', '[-1, -1, -1, -1]'],
-  ['unnormalized weights', lod, '[1 - enter, enter * (1 - far), far]', '[1 - enter, enter, far]'],
+  ['LOD exit uniform disabled', lod, '[-1, -1, a, a + 2 * w]', '[-1, -1, -1, -1]'],
+  ['gap between levels', lod, 'smooth(a - 2 * w, a, distance)', 'smooth(a, a + 4 * w, distance)'],
   ['shader distance differs from allocation', view, "'distance(treeOrigin.xz,cameraPosition.xz)'", "'distance(treeOrigin,cameraPosition)'"],
   ['QA drops total', qa, 'total += count;', 'total += 0;'],
   ['ignore tint family', view, 'return Math.min(count - 1, Math.floor(clamp(tint) * count));', 'return 0;'],

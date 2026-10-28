@@ -30,7 +30,7 @@ export function treeMaterials({ wind, sunDir, quality = 'standard' }) {
         attribute float aSway;
         uniform float uTime; uniform float uWind; uniform vec2 uWindDir; uniform float uGuideMix;
         uniform vec4 uLod;
-        varying vec3 vTreeWorld; varying float vTreeDistance; varying float vTreeWeight; varying float vTreeEntering;
+        varying vec3 vTreeWorld; varying float vTreeDistance; varying float vTreeWeight;
         float treeNoise(vec2 p) {
           vec2 a=floor(p), f=fract(p); f=f*f*(3.0-2.0*f);
           return mix(mix(sin(dot(a,vec2(12.9898,78.233))),sin(dot(a+vec2(1,0),vec2(12.9898,78.233))),f.x),
@@ -41,6 +41,11 @@ export function treeMaterials({ wind, sunDir, quality = 'standard' }) {
           treeOrigin = instanceMatrix[3].xyz;
         #endif
         treeOrigin = (modelMatrix*vec4(treeOrigin,1.0)).xyz;
+        ${species === 0 ? `// Position-stable cedar profile, shared by foliage and wood before wind.
+        float ph1 = fract(sin(dot(treeOrigin.xz,vec2(12.9898,78.233)))*43758.5453)*6.283185;
+        float ph2 = fract(sin(dot(treeOrigin.xz,vec2(39.346,11.135)))*24634.6345)*6.283185;
+        float prof = 1.0 + ${[.06,.12,.16][level].toFixed(2)} * (0.6*sin(ph1 + position.y*0.55) + 0.4*sin(ph2 + position.y*1.3));
+        transformed.xz *= prof;` : ''}
         float ph = treeOrigin.x*.37+treeOrigin.z*.21;
         float heightRatio = clamp(position.y/${heights[species].toFixed(1)},0.0,1.0);
         float slow = sin(uTime*.8+ph)*.12*heightRatio*heightRatio;
@@ -67,15 +72,13 @@ export function treeMaterials({ wind, sunDir, quality = 'standard' }) {
         float enter = uLod.x < 0.0 ? 1.0 : smoothstep(uLod.x,uLod.y,vTreeDistance);
         float leave = uLod.z < 0.0 ? 1.0 : 1.0-smoothstep(uLod.z,uLod.w,vTreeDistance);
         vTreeWeight = enter*leave;
-        vTreeEntering = uLod.x >= 0.0 && vTreeDistance < uLod.y ? 1.0 : 0.0;
       `);
       shader.fragmentShader = shader.fragmentShader.replace('#include <common>', `#include <common>
         uniform vec3 uSunDir;
-        varying vec3 vTreeWorld; varying float vTreeDistance; varying float vTreeWeight; varying float vTreeEntering;`)
+        varying vec3 vTreeWorld; varying float vTreeDistance; varying float vTreeWeight;`)
         .replace('#include <alphatest_fragment>', `#include <alphatest_fragment>
         float n = fract(52.9829189*fract(dot(gl_FragCoord.xy,vec2(.06711056,.00583715))));
-        if (vTreeEntering > .5) { if (n < 1.0-vTreeWeight) discard; }
-        else { if (n >= vTreeWeight) discard; }`)
+        if (n >= vTreeWeight) discard;`)
         .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
         // diffuseColor includes map, exposure vertex color and instanceColor (color_fragment).
         totalEmissiveRadiance += diffuseColor.rgb*${leaf ? '.24' : '.10'};

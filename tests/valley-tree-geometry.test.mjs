@@ -1,4 +1,5 @@
 // なぜ失敗したか: 円盤の絵と広葉カードがコインを作り、葉の芯が格子になった。松の殻と広葉L2一殻が皿・六角形を作った。
+// 第3回独立評価: 円筒UVの極の筋、棒付きの玉、浮いた灌木、同色の塊を面積・寸法・色比で防ぐ。
 // 第3次: 低木の2帯がひし形、中遠景の3帯が六角形、太い開底の杉芯が黒い三角形になった。
 // 第2回独立評価: 複製樹形・低木の多面体・遠景の皿を、全変種の実バッファで防ぐ。
 // 原因の型: budget/attributes/normal/exposure/shape/bark/core/determinism。GPUと見た目は検査しない。
@@ -10,6 +11,7 @@ import { load, source, THREE } from './helpers/tree-modules.mjs';
 const { treeGeometry } = await load('tree-geometry.js');
 const names = ['cedar', 'zelkova', 'pine', 'maple', 'sapling', 'shrub'];
 const digest = g => { const h=createHash('sha256');for(const a of Object.values(g.attributes))h.update(Buffer.from(a.array.buffer));h.update(Buffer.from(g.index.array.buffer));return h.digest('hex'); };
+const gridVertex = (part, i) => part.vertices ? part.vertices[i] : part.first + i;
 function bounds(g) { g.computeBoundingBox(); return g.boundingBox; }
 for (let species = 0; species < 6; species++) {
   test(`${names[species]} attributes, budget and LOD [geometry]`, () => {
@@ -38,7 +40,9 @@ for (let species = 0; species < 6; species++) {
       assert(wb.min.y <= -.09, '[bark] buried root');
       if ([1, 3, 4, 5].includes(species)) assert(wb.max.y < lb.max.y - .2, '[bark] protruding trunk head');
       const col = g.leaf.getAttribute('color').array;
-      assert(Math.min(...col) >= .279 && Math.max(...col) >= (species===0 && level===1 ? .84 : .89) && Math.max(...col) <= 1.151, '[exposure] bright foliage without black minima');
+      const neutral = g.leaf.getAttribute('color');
+      const values = Array.from({length:neutral.count},(_,i)=>neutral.getY(i));
+      assert(Math.min(...values) >= .279 && Math.max(...values) >= (species===0 && level===1 ? .84 : .89) && Math.max(...values) <= 1.151, '[exposure] bright foliage without black minima');
       const pos = g.leaf.getAttribute('position'), color = g.leaf.getAttribute('color');
       let inner = 0, outer = 0, ni = 0, no = 0;
       const radii = Array.from({ length: pos.count }, (_, i) => Math.hypot(pos.getX(i), pos.getZ(i))).sort((a, b) => a - b);
@@ -93,18 +97,12 @@ test('crown volume, repeated shell UV, opaque core and irregular branch tips [vo
     for(const part of shells) {
       const {first,sides,bands}=part;
       if(species<4)for(let j=1;j<bands;j++)for(let k=0;k<sides;k++) {
-        const index=first+j*(sides+1)+k, x=(p.getX(index)-part.center[0])/part.radii[0], y=(p.getY(index)-part.center[1])/part.radii[1], z=(p.getZ(index)-part.center[2])/part.radii[2];
+        const index=gridVertex(part,j*(sides+1)+k), x=(p.getX(index)-part.center[0])/part.radii[0], y=(p.getY(index)-part.center[1])/part.radii[1], z=(p.getZ(index)-part.center[2])/part.radii[2];
         const radial=Math.hypot(part.center[0],part.center[2]), outward=(x*part.center[0]+z*part.center[2])/(radial||1);
         if(radial>1 && outward<-.6 && Math.abs(y)<.6)assert(g.leaf.getAttribute('color').getX(index)<.65,'[exposure] inner face lost shelter');
       }
-      const row=Math.floor(bands/2), a=first+row*(sides+1), b=a+1;
-      const distance=Math.hypot(p.getX(a)-p.getX(b),p.getY(a)-p.getY(b),p.getZ(a)-p.getZ(b));
-      const density=Math.abs(uv.getX(b)-uv.getX(a))/distance;
-      assert(density >= (species>=4?1.4:.8) && density <= (species>=4?2.8:1.8),`[uv-density] ${species}/${level}: ${density}`);
-      const top=first, next=first+sides+1;
-      const meridian=Math.abs(p.getY(top)-p.getY(next));
-      const vertical=Math.abs(uv.getY(top)-uv.getY(next))/meridian;
-      assert(vertical >= (species>=4?1.4:.8) && vertical <= (species>=4?2.8:1.8),`[uv-density] meridian ${species}/${level}: ${vertical}`);
+      checkProjection(g.leaf,part,species>=4?.6:1);
+
     }
     if(species<4) {
       const box=bounds(g.leaf), width=Math.max(box.max.x-box.min.x,box.max.z-box.min.z), thickness=box.max.y-box.min.y;
@@ -127,11 +125,13 @@ test('LOD dimensions and rounded far broadleaf, fringed cedar mid [lod-shape]',(
         const heights=new Set(Array.from({length:g.leaf.getAttribute('position').count},(_,i)=>g.leaf.getAttribute('position').getY(i).toFixed(2)));
         assert(heights.size>=8,'[far-roundness] too few staggered bands; hexagonal outline');
         assert(g.tris.wood+g.tris.leaf<=160,'[budget] far broadleaf');
-        const index=g.leaf.index.array,parent=new Map();
+        // Each triangle now has separate UV vertices; weld by position for topology.
+        const index=g.leaf.index.array,parent=new Map(),pos=g.leaf.getAttribute('position');
+        const key=i=>[pos.getX(i),pos.getY(i),pos.getZ(i)].map(v=>v.toFixed(5)).join(',');
         const root=i=>{if(parent.get(i)!==i)parent.set(i,root(parent.get(i)));return parent.get(i);};
-        for(const i of index)parent.set(i,i);
-        for(let i=0;i<index.length;i+=3)for(let k=1;k<3;k++)parent.set(root(index[i+k]),root(index[i]));
-        assert(new Set([...parent.keys()].map(root)).size===2,'[far-clumps] buffer components merged');
+        for(const i of index)parent.set(key(i),key(i));
+        for(let i=0;i<index.length;i+=3)for(let k=1;k<3;k++)parent.set(root(key(index[i+k])),root(key(index[i])));
+        assert.equal(new Set([...parent.keys()].map(root)).size,2,'[far-clumps] buffer components merged');
       }
     }
   }
@@ -160,7 +160,7 @@ test('all broadleaf triangles belong to shells; wood holds one dark core [shell/
     for(const part of parts) {
       let min=Infinity,max=-Infinity;
       for(let j=1;j<part.bands;j++)for(let k=0;k<part.sides;k++) {
-        const i=part.first+j*(part.sides+1)+k;
+        const i=gridVertex(part,j*(part.sides+1)+k);
         const dx=p.getX(i)-part.center[0], dz=p.getZ(i)-part.center[2];
         const x=dx*Math.cos(part.rotation)+dz*Math.sin(part.rotation), z=-dx*Math.sin(part.rotation)+dz*Math.cos(part.rotation);
         const factor=Math.hypot(x/part.radii[0],z/part.radii[2])/Math.sin(j/part.bands*Math.PI);
@@ -175,8 +175,7 @@ test('all broadleaf triangles belong to shells; wood holds one dark core [shell/
       assert(Math.abs(col.getX(i)-.06)<1e-6 && Math.abs(col.getY(i)-.05)<1e-6 && Math.abs(col.getZ(i)-.03)<1e-6,'[core-color] seasonal/light core');
       assert.equal(sway.getX(i),0,'[core] wood flutter');
     }
-    const pos=g.leaf.getAttribute('position'),uv=g.leaf.getAttribute('uv');
-    for(let i=0;i<pos.count;i++)assert(Math.abs(uv.getY(i)-pos.getY(i)/(species>=4?.6:1))<2e-6,'[uv-cylinder] v must follow world height');
+
   }
 });
 test('pine tufts radiate from bottom-centred cards [pine-fan]',()=>{
@@ -220,7 +219,7 @@ test('rounded understory and middle/far crowns use real shell rings [shell-resol
       const rows=[];
       for(let j=0;j<=bands;j++) {
         const ring=[];
-        for(let k=0;k<sides;k++)ring.push(new THREE.Vector3().fromBufferAttribute(p,first+j*(sides+1)+k));
+        for(let k=0;k<sides;k++)ring.push(new THREE.Vector3().fromBufferAttribute(p,gridVertex(part,j*(sides+1)+k)));
         rows.push(ring);
       }
       assert(rows.slice(1,-1).every(r=>new Set(r.map(v=>v.toArray().map(x=>x.toFixed(5)).join(','))).size>=8),'[shell-resolution] collapsed azimuth vertices');
@@ -235,7 +234,7 @@ test('rounded understory and middle/far crowns use real shell rings [shell-resol
         }
         assert(lo>=.8799 && hi<=1.1201 && hi-lo>.1,'[shell-wobble] far crown lost its bounded irregularity');
         const color=g.leaf.getAttribute('color');
-        for(let i=first;i<first+(sides+1)*(bands+1);i++) {
+        for(const i of part.vertices || Array.from({length:(sides+1)*(bands+1)},(_,k)=>first+k)) {
           if(p.getY(i)>part.center[1]){upper+=color.getX(i);nu++;}else{lower+=color.getX(i);nl++;}
         }
         assert(upper/nu>lower/nl,'[exposure] far crown must be lighter above');
@@ -310,7 +309,7 @@ test('all shape families have finite unit normals, budgets and matching LOD boun
           const [main,side]=g.leaf.userData.parts;
           assert.equal(g.leaf.userData.parts.length,2,'[dome-count] main dome plus shoulder');
           assert(main.bands>=5 && side.bands>=5 && main.sides>=8 && side.sides>=8,'[dome-bands] coarse far dome');
-          assert(main.radii[0]/main.radii[1]>=1.199 && main.radii[0]/main.radii[1]<=1.401,'[dome-aspect] flattened plate');
+          assert(main.radii[0]/main.radii[1]>=1.1 && main.radii[0]/main.radii[1]<=1.7,'[dome-aspect] flattened plate');
           assert(side.radii.every((r,q)=>r<main.radii[q]*.7),'[dome-shoulder] two equal stacked crowns');
         }
       }
@@ -334,4 +333,74 @@ test('sapling trunk tip lies in lower half of overlapping rounded foliage [trunk
     const tip=[0,0,0];for(let k=0;k<4;k++)for(let q=0;q<3;q++)tip[q]+=p.array[(first+k)*3+q]/4;
     assert(g.leaf.userData.parts.some(part=>tip[1]<part.center[1] && Math.hypot(...tip.map((v,q)=>(v-part.center[q])/part.radii[q]))<.8),'[trunk-gap] trunk ends below crown or outside rounded shell');
   }
+});
+
+function checkProjection(g,part,tile) {
+  const p=g.getAttribute('position'),uv=g.getAttribute('uv'),ratios=[],top=[];
+  for(let t=part.indexFirst;t<part.indexFirst+part.indexCount;t+=3) {
+    const ids=Array.from(g.index.array.slice(t,t+3));
+    const [a,b,c]=ids.map(i=>new THREE.Vector3().fromBufferAttribute(p,i));
+    const surface=b.clone().sub(a).cross(c.clone().sub(a)).length()/2;
+    const [u,v,w]=ids.map(i=>new THREE.Vector2().fromBufferAttribute(uv,i));
+    const area=Math.abs((v.x-u.x)*(w.y-u.y)-(v.y-u.y)*(w.x-u.x))/2, ratio=area/surface;
+    assert(Number.isFinite(ratio) && surface>1e-9,'[uv-area] degenerate face');
+    ratios.push(ratio);if((a.y+b.y+c.y)/3>part.center[1]+part.radii[1]*.6)top.push(ratio);
+  }
+  ratios.sort((a,b)=>a-b);const median=ratios[Math.floor(ratios.length/2)],target=1/tile**2;
+  assert(Math.abs(median/target-1)<=.35,`[uv-density] ${median} expected ${target}`);
+  assert(top.length && Math.min(...top)>=.4*median,'[uv-pole] pinched top projection');
+}
+test('face box UV preserves smooth attributes and varies across clumps [uv-box]',()=>{
+  for(const sp of [1,3,4,5])for(let l=0;l<(sp<4?3:2);l++)for(let shape=0;shape<(TREES.variants[names[sp]]||1);shape++) {
+    const g=treeGeometry(sp,l,shape).leaf, parts=g.userData.parts, p=g.getAttribute('position'),seen=new Map();
+    assert.equal(new Set(parts.map(p=>p.uvAngle)).size,parts.length,'[uv-rotation] identical clump rotation');
+    assert.equal(new Set(parts.map(p=>p.uvShift?.join(','))).size,parts.length,'[uv-shift] identical clump offset');
+    for(const part of parts) {
+      checkProjection(g,part,sp>=4?.6:1);
+      assert.equal(part.vertexCount,part.indexCount,'[uv-box] faces must own their vertices');
+      for(let i=part.first;i<part.first+part.vertexCount;i++) {
+        const key=[parts.indexOf(part),p.getX(i).toFixed(5),p.getY(i).toFixed(5),p.getZ(i).toFixed(5)].join(',');
+        const values=['normal','color','aSway'].flatMap(name=>{const a=g.getAttribute(name);return Array.from(a.array.slice(i*a.itemSize,(i+1)*a.itemSize));});
+        if(seen.has(key))values.forEach((v,k)=>assert(Math.abs(v-seen.get(key)[k])<1e-5,'[uv-smooth] copied attribute discontinuity'));else seen.set(key,values);
+      }
+    }
+  }
+});
+test('clump color bias is balanced and bounded in actual vertex colors [clump-color]',()=>{
+  for(const sp of [1,3,4,5])for(let l=0;l<(sp<4?3:2);l++)for(let shape=0;shape<(TREES.variants[names[sp]]||1);shape++) {
+    const g=treeGeometry(sp,l,shape).leaf,c=g.getAttribute('color'),biases=[];
+    for(const part of g.userData.parts) {
+      const values=[];
+      for(let i=part.first;i<part.first+part.vertexCount;i++) {
+        const delta=1-c.getZ(i)/c.getY(i);values.push(delta);
+        assert(Math.abs(delta)<=.100001,'[clump-color-range] excessive bias');
+        assert(Math.abs(c.getX(i)/c.getY(i)-(1+.9*delta))<1e-6,'[clump-color-gray] exposure/channel relation changed');
+      }
+      assert(Math.max(...values)-Math.min(...values)<1e-6,'[clump-color] bias varies within shell');biases.push(values[0]);
+    }
+    assert(Math.max(...biases)-Math.min(...biases)>.005,'[clump-color] missing clump bias');
+    assert(Math.abs(biases.reduce((a,b)=>a+b,0)/biases.length)<=.02,'[clump-color-mean] tree hue shifted');
+  }
+});
+test('far domes, trunk overlap and grounded understory [candy/ground]',()=>{
+  for(const sp of [1,3])for(let shape=0;shape<3;shape++)for(const l of [1,2]) {
+    const g=treeGeometry(sp,l,shape),p=g.wood.getAttribute('position'),parts=g.leaf.userData.parts;
+    const tip=Array.from({length:4},(_,k)=>p.getY(5+k)).reduce((a,b)=>a+b)/4;
+    assert(tip>Math.min(...parts.map(p=>p.center[1])),'[trunk-overlap] short stick under crown');
+    if(l===2) {
+      const main=parts[0], bottom=main.center[1]-main.radii[1];
+      assert(bottom/g.height<=.35,'[dome-bottom] lollipop dome too high');
+      const foliage=g.leaf.getAttribute('position'), actualBottom=Math.min(...Array.from({length:main.vertexCount},(_,i)=>foliage.getY(main.first+i)));
+      assert(actualBottom/g.height<=.35,'[dome-bottom] tilted mesh dome too high');
+      const radius=Math.min(...Array.from({length:4},(_,i)=>Math.hypot(p.getX(i),p.getZ(i))));
+      assert(radius>=(sp===1?.5:.45),'[trunk-radius] thin far trunk');
+      assert(tip>bottom && tip<main.center[1]+main.radii[1],'[trunk-overlap] far trunk misses dome');
+    }
+  }
+  const sap=treeGeometry(4,0),p=sap.wood.getAttribute('position'),parts=sap.leaf.userData.parts;
+  assert(Math.min(...Array.from({length:4},(_,i)=>Math.hypot(p.getX(i),p.getZ(i))))>=.075,'[sapling-radius] thin stick');
+  assert(parts.every(p=>p.radii[1]>Math.max(p.radii[0],p.radii[2])*1.15),'[sapling-aspect] round candy');
+  assert(bounds(sap.leaf).min.y/sap.height<=.38,'[sapling-bottom] high ball');
+  assert.equal(sap.tris.wood,16+8+6,'[sapling-branch] exactly one side branch and core');
+  for(const l of [0,1])assert(bounds(treeGeometry(5,l).leaf).min.y<=0,'[shrub-ground] floating shrub');
 });

@@ -3,6 +3,10 @@ import fs from 'node:fs';
 import { spawnSync } from 'node:child_process';
 const material = 'dist/valley/tree-materials.js', texture = 'dist/valley/tree-textures.js';
 const cases = [
+  ['missing cedar profile', material, 'transformed.xz *= prof;', 'transformed.xz *= 1.0;'],
+  ['cedar profile on all species', material, "${species === 0 ? `// Position-stable", "${true ? `// Position-stable"],
+  ['dark veins returned', texture, 'gray(v * .72); g.lineWidth = .8', 'gray(v * .55); g.lineWidth = .8'],
+
   ['missing fringe routing', material, 'species === 2 || level === 0 ? 0 : 3', 'true ? 0 : 3'],
   ['pine routed to fringe', material, 'species === 2 || level === 0 ? 0 : 3', 'species === 0 && level === 0 ? 0 : 3'],
   ['too few small maple leaves', texture, 'maple ? 300 : 215', 'maple ? 100 : 80'],
@@ -19,7 +23,7 @@ const cases = [
   ['unscaled wind', material, '*flutter)*uWind;', '*flutter);'],
   ['gust without threshold', material, '*step(.5,uWind)', '*1.0'],
   ['unlimited backlight', material, 'min(vec3(.35)', 'min(vec3(3.5)'],
-  ['same dither direction', material, 'if (n < 1.0-vTreeWeight) discard;', 'if (n >= vTreeWeight) discard;'],
+  ['complementary dither returned', material, 'if (n >= vTreeWeight) discard;', 'if (uSunDir.x > .5) { if (n < 1.0-vTreeWeight) discard; } else { if (n >= vTreeWeight) discard; }'],
   ['fixed emissive color', material, 'totalEmissiveRadiance += diffuseColor.rgb*', 'totalEmissiveRadiance += vec3(.1,.2,.1)*'],
   ['texture disposal leak', material, 'for (const t of textures) t.dispose();', 'for (const t of []) t.dispose();'],
   ['material disposal leak', material, 'for (const m of owned) m.dispose();', 'for (const m of []) m.dispose();'],

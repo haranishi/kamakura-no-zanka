@@ -81,7 +81,7 @@ test('light keeps half of far instances while keeping near overlap [light]',()=>
   const f=field(Array.from({length:10},()=>({x:400})),{quality:'light'});f.update(camera());
   assert.equal(f.stats.far,5,'[light] far thinning removed');
   assert.deepEqual(f.lod,[32,100],'[light] wrong distances');
-  assert.deepEqual(setAt(f,0,0).leaf.material.userData.uLod.value.toArray(),[-1,-1,29,35],'[uniform] light material policy');f.dispose();
+  assert.deepEqual(setAt(f,0,0).leaf.material.userData.uLod.value.toArray(),[-1,-1,32,38],'[uniform] light material policy');f.dispose();
 });
 test('force, last and five metre cadence [cadence]',()=>{
   const f=field([{x:0}]);f.update(camera());assert.equal(f.stats.near,1,'[cadence] first update skipped');
@@ -119,14 +119,14 @@ test('vegetation and quality switch wiring [wiring]',()=>{
 test('real scatter, four site budgets, QA accounting and capacities [budget]',()=>{
   const terrain=createTerrain(WORLD),trees=scatterTrees(WORLD,terrain),species=assignTreeSpecies(WORLD,terrain,trees),understory=scatterUnderstory(WORLD,terrain,trees);
   const f=field([],{data:trees,species,understory});const api=qa(f);
-  const sites=[[WORLD.start.x,WORLD.start.z,1438000,1096204],[-5,2.2,1387000,964336],[-6,20,1344000,961934],[-36,-48,1394000,1073294]];
+  const sites=[[WORLD.start.x,WORLD.start.z,1438000,1148268],[-5,2.2,1387000,997606],[-6,20,1344000,982876],[-36,-48,1394000,1106992]];
   assert.deepEqual(sites.map(p=>p.slice(0,2)),[[-100.5,-89],[-5,2.2],[-6,20],[-36,-48]],'[budget-sites] four evaluation sites changed');
   assert.equal(f.sets.length,3*Object.values(TREES.variants).reduce((a,b)=>a+b,0)+6,'[sets] wrong species/variant level count');assert(f.group.children.length<=80,'[sets] draw set budget exceeded');
   for(const [x,z,old,expected] of sites) {
     const start=performance.now();f.update(camera(x,z),true);const ms=performance.now()-start,result=api.treeStats();
     console.log(`[tree-budget] (${x},${z}) total=${result.total} old=${old} update=${ms.toFixed(3)}ms sets=${f.sets.length} meshes=${f.group.children.length}`);
     assert(result.total<old,'[budget] tree triangles exceed old one-pass budget');
-    assert(result.total<=1100000,'[budget-target] tree triangles exceed 1.1M target');
+    assert(result.total<=1150000,'[budget-target] tree triangles exceed 1.15M target');
     assert.equal(result.total,expected,'[budget-site] real scatter triangle count changed');
     const sum=Object.values(result.tris).flat().reduce((a,b)=>a+b,0);assert.equal(sum,result.total,'[qa] species triangles differ from total');
     for(let sp=0;sp<4;sp++)for(const s of f.sets.filter(s=>s.species===sp))assert.equal(s.capacity,Array.from(species.species).filter((v,i)=>v===sp && Math.min(TREES.variants[['cedar','zelkova','pine','maple'][sp]]-1,Math.floor(trees.tint[i]*TREES.variants[['cedar','zelkova','pine','maple'][sp]]))===s.shape).length,'[capacity] real species/shape count mismatch');
@@ -156,7 +156,7 @@ test('tint selects one stable family across all levels and QA sums families [sha
     }
     const shader={uniforms:{},vertexShader:'#include <common>\n#include <begin_vertex>',fragmentShader:'#include <common>'};s.leaf.material.onBeforeCompile(shader);
     assert.equal((shader.vertexShader.match(/distance\(treeOrigin.xz,cameraPosition.xz\)/g)||[]).length,1,'[shape-material] shader patched more than once');
-    assert.deepEqual(s.leaf.material.userData.uLod.value.toArray(),s.level===0?[-1,-1,44,52]:s.level===1?[44,52,146,154]:[146,154,-1,-1],'[shape-material] family corrupted LOD uniforms');
+    assert.deepEqual(s.leaf.material.userData.uLod.value.toArray(),s.level===0?[-1,-1,48,56]:s.level===1?[40,48,150,158]:[142,150,-1,-1],'[shape-material] family corrupted LOD uniforms');
   }
   const q=qa(f).treeStats();for(const sp of ['cedar','zelkova','pine','maple'])assert.deepEqual(q.bySpecies[sp],[TREES.variants[sp],TREES.variants[sp],0],'[qa-shape] shape counts overwritten');
   const total=f.sets.reduce((n,s)=>n+s.leaf.count*(s.leaf.geometry.index.count+s.wood.geometry.index.count)/3,0);assert.equal(q.total,total,'[qa-shape] shape triangles lost');

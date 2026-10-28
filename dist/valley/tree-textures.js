@@ -87,7 +87,7 @@ function leafTile(kind) {
       // Erase before filling so the leaf itself retains its original shape and veins.
       g.globalCompositeOperation = 'destination-out'; g.lineWidth = 3.8; g.stroke();
       g.globalCompositeOperation = 'source-over'; g.lineWidth = .9; g.fill(); g.stroke();
-      g.strokeStyle = gray(v * .55); g.lineWidth = .8; g.beginPath();
+      g.strokeStyle = gray(v * .72); g.lineWidth = .8; g.beginPath();
       if (maple) { for (const a of [-172, -131, -90, -49, -8]) { g.moveTo(0, 0); g.lineTo(Math.cos(a * Math.PI / 180) * size * .78, Math.sin(a * Math.PI / 180) * size * .78); } }
       else { g.moveTo(0, 0); g.lineTo(0, -size * .92); for (let k = 1; k < 5; k++) for (const s of [-1, 1]) { g.moveTo(0, -size * k * .19); g.lineTo(s * size * .3, -size * (k * .19 + .13)); } }
       g.stroke(); g.restore();

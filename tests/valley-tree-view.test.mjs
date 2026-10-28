@@ -96,16 +96,15 @@ test('Lambert color, two-layer wind, shared objects and limited transmission [sh
   assert(m.get(1, 0).leaf.alphaToCoverage, '[shader] standard coverage'); m.dispose();
   const light = make('light').m; assert(!light.get(1, 0).leaf.alphaToCoverage, '[shader] light coverage'); light.dispose();
 });
-test('complementary stable dither only in color pass [lod]', () => {
+test('same-direction stable dither only in color pass [lod]', () => {
   const { m } = make(); const mat = m.get(1, 1).leaf, s = compile(mat);
   assert.deepEqual(s.uniforms.uLod.value.toArray(), [-1,-1,-1,-1], '[lod] specimen fade disabled');
   assert.match(s.vertexShader, /uLod.x < 0.0 \? 1.0 : smoothstep\(uLod.x,uLod.y,vTreeDistance\)/, '[lod] entering weight');
   assert.match(s.vertexShader, /uLod.z < 0.0 \? 1.0 : 1.0-smoothstep\(uLod.z,uLod.w,vTreeDistance\)/, '[lod] leaving weight');
   assert.match(s.vertexShader, /vTreeWeight = enter\*leave/, '[lod] weight product');
   assert.match(s.fragmentShader, /gl_FragCoord.xy,vec2\(\.06711056,\.00583715\)/, '[lod] stable interleaved noise');
-  assert.match(s.fragmentShader, /if \(vTreeEntering > .5\) \{ if \(n < 1.0-vTreeWeight\) discard; \}/, '[lod] far keeps n >= 1-w');
-  assert.match(s.fragmentShader, /else \{ if \(n >= vTreeWeight\) discard; \}/, '[lod] near keeps n < w');
-  for (const t of [0,.01,.2,.5,.8,.99,1]) for (let k=0;k<100;k++) { const n=k/100, w=t*t*(3-2*t); assert.equal(Number(n<1-w)+Number(n>=1-w),1,'[lod] gap or double'); }
+  assert.match(s.fragmentShader, /if \(n >= vTreeWeight\) discard;/, '[lod-hole] all levels keep n < weight');
+  assert(!/vTreeEntering|1.0-vTreeWeight/.test(s.vertexShader+s.fragmentShader),'[lod-hole] complementary dither returned');
   const set = createTreeSet({ species: 1, level: 0, capacity: 1, materials: m });
   assert(!set.leaf.customDepthMaterial, '[lod] custom dithered depth');
   assert(!set.wood.customDepthMaterial, '[lod] wood depth override');
@@ -220,4 +219,22 @@ test('muted seasonal palettes and twelve percent brightness spread [palette/tint
     const base=stageColor(sp,.53,.5).toArray(),actual=stageColor(sp,.53,tint).toArray();
     actual.forEach((v,i)=>assert(Math.abs(v/base[i]-(.88+.24*tint))<1e-6,'[tint] brightness spread must be .88–1.12'));
   }
+});
+
+// なぜ失敗したか: 山腹の杉が同じ錐に並び、葉脈が布の模様になった。
+test('cedar position-stable height profile precedes wind at every level [cedar-profile]',()=>{
+  const {m}=make();
+  for(let sp=0;sp<6;sp++)for(let l=0;l<(sp>=4?2:3);l++)for(const kind of ['leaf','wood']) {
+    const v=compile(m.get(sp,l)[kind]).vertexShader;
+    assert.equal(v.includes('transformed.xz *= prof;'),sp===0,'[cedar-profile] wrong species/profile missing');
+    if(sp!==0)continue;
+    assert(v.includes(`float prof = 1.0 + ${[.06,.12,.16][l].toFixed(2)} * (0.6*sin(ph1 + position.y*0.55) + 0.4*sin(ph2 + position.y*1.3));`),'[cedar-profile] amplitude/frequency contract');
+    assert(v.includes('dot(treeOrigin.xz,vec2(12.9898,78.233))') && v.includes('dot(treeOrigin.xz,vec2(39.346,11.135))'),'[cedar-phase] phases must depend on individual position');
+    assert(v.indexOf('transformed.xz *= prof;')<v.indexOf('float slow ='),'[cedar-order] profile after wind');
+  }
+  m.dispose();
+});
+test('soft leaf veins retain bright edges [texture-vein]',()=>{
+  assert.match(source('tree-textures.js'),/gray\(v \* \.72\); g.lineWidth = \.8/,'[texture-vein] veins too dark');
+  assert.match(source('tree-textures.js'),/gray\(Math.min\(1, v \* 1.12\)\)/,'[texture-edge] bright edge lost');
 });
