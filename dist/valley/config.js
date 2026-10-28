@@ -75,8 +75,8 @@ export const TREES = Object.freeze({
   sapling: Object.freeze({ step: 3.2, probability: 0.15, maxCount: 1200, split: 18, distance: 45, lightDistance: 30 }),
   shrub: Object.freeze({ step: 2.2, probability: 0.20, maxCount: 4000, split: 13, distance: 32, lightDistance: 22 }),
   lod: Object.freeze({ standard: [48, 150], light: [32, 100], blend: { standard: 4, light: 3 } }),
-  variants: Object.freeze({ cedar: 3, zelkova: 3, pine: 2, maple: 3 }),
+  variants: Object.freeze({ cedar: 5, zelkova: 3, pine: 2, maple: 3 }),
   leafGain: 1.25,
   understoryLeafGain: 1.1,
-  budget: Object.freeze({ cedar: [1500, 260, 40], zelkova: [1100, 260, 160], pine: [600, 140, 96], maple: [1100, 260, 160], sapling: [600, 160], shrub: [500, 140] }),
+  budget: Object.freeze({ cedar: [1500, 260, 40], zelkova: [2600, 560, 160], pine: [600, 140, 96], maple: [2600, 560, 160], sapling: [1400, 200], shrub: [1200, 180] }),
 });

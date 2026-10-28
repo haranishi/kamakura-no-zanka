@@ -55,17 +55,19 @@ export function installQA(game, ctl) {
     },
     clearTreeSpecimens() { specimenRequest++; specimens?.dispose(); specimens = null; },
     treeStats() {
-      const trees = game.veg.trees, bySpecies = {}, tris = {};
+      const trees = game.veg.trees, bySpecies = {}, byShape = {}, tris = {};
       let total = 0;
       for (const set of trees.sets) {
         const key = ['cedar', 'zelkova', 'pine', 'maple', 'sapling', 'shrub'][set.species];
         bySpecies[key] ??= [0, 0, 0]; tris[key] ??= [0, 0, 0];
         bySpecies[key][set.level] += set.leaf.count;
+        byShape[key] ??= {}; byShape[key][set.shape ?? 0] ??= [0, 0, 0];
+        byShape[key][set.shape ?? 0][set.level] += set.leaf.count;
         let count = 0;
         for (const mesh of [set.leaf, set.wood]) if (mesh) count += mesh.count * (mesh.geometry.index ? mesh.geometry.index.count : mesh.geometry.attributes.position.count) / 3;
         tris[key][set.level] += count; total += count;
       }
-      return { stats: { ...trees.stats }, bySpecies, tris, total };
+      return { stats: { ...trees.stats }, bySpecies, byShape, tris, total };
     },
     grassStats() { return game.veg.grass.stats(); },
     windState() { return JSON.parse(JSON.stringify(game.wind)); },

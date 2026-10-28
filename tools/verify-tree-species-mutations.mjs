@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import { spawnSync } from 'node:child_process';
 const rules = 'dist/valley/tree-species.js', config = 'dist/valley/config.js';
 const cases = [
+  ['adult grove seed drift', config, 'detail: 51031', 'detail: 51032'],
   ['grove replaced by independent random', rules, 'grove: 0.8 * field(world, x, z, f.grove, s.grove) + 0.2 * field(world, x, z, f.detail, s.detail)', 'grove: positionRand(world, x, z)()'],
   ['zero conversion', config, 'probability: 0.97', 'probability: 0'],
   ['unconditional conversion probability', config, 'probability: 0.97', 'probability: 1'],

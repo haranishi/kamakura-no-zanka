@@ -3,6 +3,17 @@ import fs from 'node:fs';
 import { spawnSync } from 'node:child_process';
 const material = 'dist/valley/tree-materials.js', texture = 'dist/valley/tree-textures.js';
 const cases = [
+  ['standard dither restored', material, "fadeMode === 'coverage'", "fadeMode === 'never'"],
+  ['light coverage fade', material, "quality === 'light' ? 'dither' : 'coverage'", "'coverage'"],
+  ['coverage disabled on opaque meshes', material, "alphaToCoverage: quality !== 'light'", "alphaToCoverage: !!map && quality !== 'light'"],
+  ['coverage disabled everywhere', material, "alphaToCoverage: quality !== 'light'", "alphaToCoverage: false"],
+  ['weight before alpha test', material, 'm.customProgramCacheKey = () =>', `const compile = m.onBeforeCompile;
+    m.onBeforeCompile = shader => {
+      compile(shader);
+      shader.fragmentShader = shader.fragmentShader.replace('#include <alphatest_fragment>', '').replace('diffuseColor.a *= vTreeWeight;', 'diffuseColor.a *= vTreeWeight;\\n#include <alphatest_fragment>');
+    };
+    m.customProgramCacheKey = () =>`],
+  ['algorithm omitted from program cache', material, '${quality}-${fadeMode}`', '${quality}`'],
   ['missing cedar profile', material, 'transformed.xz *= prof;', 'transformed.xz *= 1.0;'],
   ['cedar profile on all species', material, "${species === 0 ? `// Position-stable", "${true ? `// Position-stable"],
   ['dark veins returned', texture, 'gray(v * .72); g.lineWidth = .8', 'gray(v * .55); g.lineWidth = .8'],

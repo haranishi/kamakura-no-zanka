@@ -97,7 +97,7 @@ test('Lambert color, two-layer wind, shared objects and limited transmission [sh
   const light = make('light').m; assert(!light.get(1, 0).leaf.alphaToCoverage, '[shader] light coverage'); light.dispose();
 });
 test('same-direction stable dither only in color pass [lod]', () => {
-  const { m } = make(); const mat = m.get(1, 1).leaf, s = compile(mat);
+  const { m } = make('light'); const mat = m.get(1, 1).leaf, s = compile(mat);
   assert.deepEqual(s.uniforms.uLod.value.toArray(), [-1,-1,-1,-1], '[lod] specimen fade disabled');
   assert.match(s.vertexShader, /uLod.x < 0.0 \? 1.0 : smoothstep\(uLod.x,uLod.y,vTreeDistance\)/, '[lod] entering weight');
   assert.match(s.vertexShader, /uLod.z < 0.0 \? 1.0 : 1.0-smoothstep\(uLod.z,uLod.w,vTreeDistance\)/, '[lod] leaving weight');
@@ -237,4 +237,23 @@ test('cedar position-stable height profile precedes wind at every level [cedar-p
 test('soft leaf veins retain bright edges [texture-vein]',()=>{
   assert.match(source('tree-textures.js'),/gray\(v \* \.72\); g.lineWidth = \.8/,'[texture-vein] veins too dark');
   assert.match(source('tree-textures.js'),/gray\(Math.min\(1, v \* 1.12\)\)/,'[texture-edge] bright edge lost');
+});
+
+// なぜ失敗したか: MSAAの前に重みを掛けると葉の切り抜きが痩せ、OPAQUEでは溶かしが消える。
+test('quality selects coverage after alpha test for every color material [coverage/order]',()=>{
+  for(const quality of ['standard','light']) {
+    const {m}=make(quality),coverage=quality!=='light';
+    for(let sp=0;sp<6;sp++)for(let l=0;l<(sp>=4?2:3);l++)for(const kind of ['leaf','wood']) {
+      const mat=m.get(sp,l)[kind],s=compile(mat),f=s.fragmentShader;
+      assert.equal(mat.alphaToCoverage,coverage,'[coverage/opaque] every standard material needs coverage');
+      assert.equal(f.includes('diffuseColor.a *= vTreeWeight;'),coverage,'[coverage/mode] wrong fade algorithm');
+      assert.equal(f.includes('if (n >= vTreeWeight) discard;'),!coverage,'[coverage/dither] light only');
+      if(coverage)assert.match(f,/#include <alphatest_fragment>\s*diffuseColor.a \*= vTreeWeight;/,'[coverage/order] weight must follow alpha test coverage');
+      assert(mat.customProgramCacheKey().endsWith(coverage?'-coverage':'-dither'),'[coverage/cache] algorithm missing');
+      assert.deepEqual(s.uniforms.uLod.value.toArray(),[-1,-1,-1,-1],'[coverage/disabled] specimen weight');
+    }
+    m.dispose();
+  }
+  assert.match(THREE.ShaderChunk.alphatest_fragment,/ALPHA_TO_COVERAGE/,'[coverage/chunk] shipped alpha test contract');
+  assert.match(THREE.ShaderChunk.opaque_fragment,/#ifdef OPAQUE/,'[coverage/opaque] shipped opaque contract');
 });

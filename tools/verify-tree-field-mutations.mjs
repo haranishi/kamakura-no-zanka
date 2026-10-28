@@ -5,6 +5,8 @@ import { spawnSync } from 'node:child_process';
 const config = 'dist/valley/config.js';
 const view = 'dist/valley/tree-view.js', lod = 'dist/valley/tree-lod.js', qa = 'dist/valley/qa.js';
 const cases = [
+  ['equal cedar family frequencies', view, 'if (species === 0) return tint < .45 ?', 'if (false) return tint < .45 ?'],
+  ['QA loses new cedar families', qa, 'byShape[key][set.shape ?? 0][set.level] += set.leaf.count;', 'byShape[key][set.shape ?? 0][set.level] += 0;'],
   ['symmetric normalized transition returned', lod, 'return [1 - smooth(a, a + 2 * w, distance), smooth(a - 2 * w, a, distance) * (1 - smooth(b, b + 2 * w, distance)), smooth(b - 2 * w, b, distance)];', 'const enter = smooth(a-w,a+w,distance), far = smooth(b-w,b+w,distance); return [1-enter,enter*(1-far),far];'],
 
   ['wide standard dither band', config, 'blend: { standard: 4, light: 3 }', 'blend: { standard: 10, light: 3 }'],

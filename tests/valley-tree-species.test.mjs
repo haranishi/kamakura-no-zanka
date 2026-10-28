@@ -105,7 +105,7 @@ test('caps, stream separation, budget and purity [budget purity]', () => {
   assert(TREES.conversion.probability > .9 && TREES.conversion.probability < 1, '[ratio] conversion must preserve a small individual remainder');
   const seeds=Object.values(TREES.seeds), old=[101,211,307,401,503,7*101,13*211,17*307,19*401,23*503,GRASS.seed,GRASS.midSeed,GRASS.clumpSeed];
   assert(seeds.every(Number.isInteger)&&new Set(seeds).size===seeds.length&&seeds.every(s=>!old.includes(s)),'[purity] overlapping random streams');
-  assert.deepEqual(TREES.budget,{cedar:[1500,260,40],zelkova:[1100,260,160],pine:[600,140,96],maple:[1100,260,160],sapling:[600,160],shrub:[500,140]},'[budget] triangle ceilings');
+  assert.deepEqual(TREES.budget,{cedar:[1500,260,40],zelkova:[2600,560,160],pine:[600,140,96],maple:[2600,560,160],sapling:[1400,200],shrub:[1200,180]},'[budget] triangle ceilings');
   const src=fs.readFileSync(new URL('../dist/valley/tree-species.js',import.meta.url),'utf8');
   assert(!/Math\.random|Date\.|performance\.|document\.|window\.|from ['"]three/.test(src),'[purity] impure layer');
 });

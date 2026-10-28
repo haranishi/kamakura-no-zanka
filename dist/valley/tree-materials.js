@@ -1,4 +1,4 @@
-// Lambert specimen materials. Only the color pass receives distance dithering.
+// Lambert specimen materials. Only the color pass receives the quality-specific LOD fade.
 import * as THREE from 'three';
 import { TREES } from './config.js';
 import { needleTexture, needleFringeTexture, mapleLeafTexture, zelkovaLeafTexture } from './tree-textures.js';
@@ -20,9 +20,10 @@ export function treeMaterials({ wind, sunDir, quality = 'standard' }) {
     const conifer = species === 0 || species === 2;
     const map = !leaf || level === 2 ? null : textures[conifer ? (species === 2 || level === 0 ? 0 : 3) : species === 3 || species === 4 && variant === 1 ? 2 : 1];
     const m = new THREE.MeshLambertMaterial({ map, vertexColors: true, side: leaf ? THREE.DoubleSide : THREE.FrontSide,
-      alphaTest: map ? .3 : 0, alphaToCoverage: !!map && quality !== 'light', emissive: 0x000000 });
+      alphaTest: map ? .3 : 0, alphaToCoverage: quality !== 'light', emissive: 0x000000 });
     if (leaf && level === 2) m.color.copy(means[conifer ? 0 : species === 3 ? 2 : 1]);
     if (leaf && !conifer && level < 2) m.color.multiplyScalar(species >= 4 ? TREES.understoryLeafGain : TREES.leafGain);
+    const fadeMode = quality === 'light' ? 'dither' : 'coverage';
     const lod = disabled(); m.userData.uLod = lod;
     m.onBeforeCompile = shader => {
       Object.assign(shader.uniforms, wind, { uSunDir: sun, uLod: lod });
@@ -77,8 +78,8 @@ export function treeMaterials({ wind, sunDir, quality = 'standard' }) {
         uniform vec3 uSunDir;
         varying vec3 vTreeWorld; varying float vTreeDistance; varying float vTreeWeight;`)
         .replace('#include <alphatest_fragment>', `#include <alphatest_fragment>
-        float n = fract(52.9829189*fract(dot(gl_FragCoord.xy,vec2(.06711056,.00583715))));
-        if (n >= vTreeWeight) discard;`)
+        ${fadeMode === 'coverage' ? 'diffuseColor.a *= vTreeWeight;' : `float n = fract(52.9829189*fract(dot(gl_FragCoord.xy,vec2(.06711056,.00583715))));
+        if (n >= vTreeWeight) discard;`}`)
         .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
         // diffuseColor includes map, exposure vertex color and instanceColor (color_fragment).
         totalEmissiveRadiance += diffuseColor.rgb*${leaf ? '.24' : '.10'};
@@ -87,7 +88,7 @@ export function treeMaterials({ wind, sunDir, quality = 'standard' }) {
         backlight *= 1.0-smoothstep(30.0,100.0,vTreeDistance);
         totalEmissiveRadiance += min(vec3(.35),diffuseColor.rgb*vec3(1.0,.82,.52)*backlight*${conifer ? '.2' : '1.0'});` : ''}`);
     };
-    m.customProgramCacheKey = () => `tree-specimen-v1-${species}-${level}-${leaf}-${variant}-${shape}-${quality}`;
+    m.customProgramCacheKey = () => `tree-specimen-v1-${species}-${level}-${leaf}-${variant}-${shape}-${quality}-${fadeMode}`;
     owned.push(m); return m;
   }
   let disposed = false;

@@ -4,7 +4,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { field, data, camera, setAt, THREE } from './helpers/tree-field.mjs';
+import { field, data, camera, setAt, THREE, treeShape } from './helpers/tree-field.mjs';
 import { TREES } from '../dist/valley/config.js';
 import { installQA } from '../dist/valley/qa.js';
 import { WORLD } from '../dist/valley/world-data.js';
@@ -119,17 +119,17 @@ test('vegetation and quality switch wiring [wiring]',()=>{
 test('real scatter, four site budgets, QA accounting and capacities [budget]',()=>{
   const terrain=createTerrain(WORLD),trees=scatterTrees(WORLD,terrain),species=assignTreeSpecies(WORLD,terrain,trees),understory=scatterUnderstory(WORLD,terrain,trees);
   const f=field([],{data:trees,species,understory});const api=qa(f);
-  const sites=[[WORLD.start.x,WORLD.start.z,1438000,1148268],[-5,2.2,1387000,997606],[-6,20,1344000,982876],[-36,-48,1394000,1106992]];
+  const sites=[[WORLD.start.x,WORLD.start.z,1438000,1286424],[-5,2.2,1387000,1070338],[-6,20,1344000,1053350],[-36,-48,1394000,1242604]];
   assert.deepEqual(sites.map(p=>p.slice(0,2)),[[-100.5,-89],[-5,2.2],[-6,20],[-36,-48]],'[budget-sites] four evaluation sites changed');
-  assert.equal(f.sets.length,3*Object.values(TREES.variants).reduce((a,b)=>a+b,0)+6,'[sets] wrong species/variant level count');assert(f.group.children.length<=80,'[sets] draw set budget exceeded');
+  assert.equal(f.sets.length,3*Object.values(TREES.variants).reduce((a,b)=>a+b,0)+6,'[sets] wrong species/variant level count');assert(f.group.children.length<=90,'[sets] draw set budget exceeded');
   for(const [x,z,old,expected] of sites) {
     const start=performance.now();f.update(camera(x,z),true);const ms=performance.now()-start,result=api.treeStats();
     console.log(`[tree-budget] (${x},${z}) total=${result.total} old=${old} update=${ms.toFixed(3)}ms sets=${f.sets.length} meshes=${f.group.children.length}`);
     assert(result.total<old,'[budget] tree triangles exceed old one-pass budget');
-    assert(result.total<=1150000,'[budget-target] tree triangles exceed 1.15M target');
+    assert(result.total<=1300000,'[budget-target] tree triangles exceed 1.30M target');
     assert.equal(result.total,expected,'[budget-site] real scatter triangle count changed');
     const sum=Object.values(result.tris).flat().reduce((a,b)=>a+b,0);assert.equal(sum,result.total,'[qa] species triangles differ from total');
-    for(let sp=0;sp<4;sp++)for(const s of f.sets.filter(s=>s.species===sp))assert.equal(s.capacity,Array.from(species.species).filter((v,i)=>v===sp && Math.min(TREES.variants[['cedar','zelkova','pine','maple'][sp]]-1,Math.floor(trees.tint[i]*TREES.variants[['cedar','zelkova','pine','maple'][sp]]))===s.shape).length,'[capacity] real species/shape count mismatch');
+    for(let sp=0;sp<4;sp++)for(const s of f.sets.filter(s=>s.species===sp))assert.equal(s.capacity,Array.from(species.species).filter((v,i)=>v===sp && treeShape(sp,trees.tint[i])===s.shape).length,'[capacity] real species/shape count mismatch');
     for(const s of f.sets)for(const m of [s.leaf,s.wood])if(m) {
       assert(m.count<=m.instanceMatrix.count,'[capacity] real instances exceed GPU buffer');
       assert.equal(m.instanceMatrix.count,s.capacity,'[capacity] actual allocation differs');
@@ -143,9 +143,9 @@ test('real scatter, four site budgets, QA accounting and capacities [budget]',()
 // なぜ失敗したか: 変種を段ごとに選び直すと樹形が跳ね、同じ材質の多重パッチでLODが壊れる。
 test('tint selects one stable family across all levels and QA sums families [shape-selection]',()=>{
   const points=[];
-  for(let sp=0;sp<4;sp++)for(let k=0;k<TREES.variants[['cedar','zelkova','pine','maple'][sp]];k++)points.push({x:48,kind:sp,tint:(k+.5)/TREES.variants[['cedar','zelkova','pine','maple'][sp]],rot:.6});
+  for(let sp=0;sp<4;sp++)for(let k=0;k<TREES.variants[['cedar','zelkova','pine','maple'][sp]];k++)points.push({x:48,kind:sp,tint:sp===0?[.075,.225,.375,.575,.85][k]:(k+.5)/TREES.variants[['cedar','zelkova','pine','maple'][sp]],rot:.6});
   const f=field(points);f.update(camera());
-  assert.equal(f.sets.length,33,'[shape-sets] missing adult family');
+  assert.equal(f.sets.length,39,'[shape-sets] missing adult family');
   for(const s of f.sets) {
     assert.equal(s.capacity,1,'[shape-capacity] per-family buffer');
     assert.equal(s.leaf.count,s.level<2?1:0,'[shape-selection] tint family absent');
@@ -194,4 +194,12 @@ test('understory hard switches with movement reserve and shrinks vertices instea
     f.understory.x[0]=cfg.split+6;f.update(camera(),true);assert.equal(setAt(f,sp,0).leaf.count,0,'[hard-split-margin] retained L0 beyond movement reserve');
     f.understory.x[0]=cfg.split-6;f.update(camera(),true);assert.equal(setAt(f,sp,1).leaf.count,0,'[hard-split-margin] retained L1 beyond movement reserve');f.dispose();
   }
+});
+
+// なぜ失敗したか: 等分選択では旧変種が減りすぎ、QAが新しい変種を識別できなかった。
+test('cedar tint allocation is 45/25/30 and QA includes five families [cedar-frequency/qa]',()=>{
+  const counts=[0,0,0,0,0];for(let i=0;i<1000;i++)counts[treeShape(0,(i+.5)/1000)]++;
+  assert.deepEqual(counts,[150,150,150,250,300],'[cedar-frequency] weighted allocation');
+  const f=field([.075,.225,.375,.575,.85].map(tint=>({x:48,tint})));f.update(camera());
+  assert.deepEqual(qa(f).treeStats().byShape.cedar,{'0':[1,1,0],'1':[1,1,0],'2':[1,1,0],'3':[1,1,0],'4':[1,1,0]},'[qa-cedar] missing family or level');f.dispose();
 });

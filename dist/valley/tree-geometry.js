@@ -39,6 +39,11 @@ function tube(m, a, b, radius, sides = 6, rings = 3, root = false, color = [.12,
   for (let j = 0; j < rings; j++) for (let k = 0; k < sides; k++) { const v = first + j * (sides + 1) + k; m.quad(v, v + 1, v + sides + 2, v + sides + 1); }
 }
 // Face box projection avoids pinched polar UVs. The wood core keeps its untextured grid.
+// Smooth position noise: the same three spatial frequencies survive tessellation changes.
+function crownNoise(p) {
+  const wave = f => Math.sin(p[0] * f + .7) * Math.cos(p[1] * f * .83 - .4) * Math.sin(p[2] * f * .71 + 1.2);
+  return .10 * wave(.8) + .05 * wave(1.6) + .03 * wave(3.2);
+}
 function clump(m, center, radii, sides, bands, tile = 1, core = false, rotation = 0, tilt = 0, jitter = .09, rnd = null, delta = 0) {
   const first = m.s.length, indexFirst = m.i.length;
   m.parts ??= [];
@@ -50,7 +55,7 @@ function clump(m, center, radii, sides, bands, tile = 1, core = false, rotation 
     for (let k = 0; k <= sides; k++) {
       const a = (k % sides) / sides * TAU, unit = [Math.sin(theta) * Math.cos(a), Math.cos(theta), Math.sin(theta) * Math.sin(a)];
       // Matching seam vertices, deterministic from the unperturbed position.
-      const wobble = 1 + jitter * Math.sin((center[0] + radii[0] * unit[0]) * 7.13 + (center[1] + radii[1] * unit[1]) * 3.71 + (center[2] + radii[2] * unit[2]) * 5.37);
+      const wobble = !core && rnd ? 1 + (jitter === 0 ? 0 : crownNoise(unit.map((v,q) => center[q] + radii[q] * v))) : 1 + jitter * Math.sin((center[0] + radii[0] * unit[0]) * 7.13 + (center[1] + radii[1] * unit[1]) * 3.71 + (center[2] + radii[2] * unit[2]) * 5.37);
       const local = radii.map((v, q) => v * unit[q] * (q === 1 ? 1 : wobble));
       const turn = v => {
         if (rotation === 0 && tilt === 0) return v;
@@ -114,7 +119,8 @@ function cone(m, y0, y1, radius, sides, offset, color = null, capped = false) {
     for (let k = 0; k < sides; k++) m.tri(bottom, first + 1 + k, first + 2 + k);
   }
 }
-function cedar(wood, leaf, level, rnd, shape) {
+function cedar(wood, leaf, level, rnd, shape, rowCount = null) {
+  if (shape >= 3) { cedarNew(wood, leaf, level, rnd, shape); return; }
   tube(wood, [0, -.1, 0], [.25 + shape * .16, level === 2 ? 3 : 19, shape * -.12], .45, level === 0 ? 8 : 4, level === 0 ? 6 : 1, true, [.12, .083, .05], .97);
   if (level === 2) {
     if (shape === 0) for (let i = 0; i < 4; i++) cone(leaf, 2.8 + i * 3.8, 11 + i * 3, 3.565 - i * .7475, 6, i * 1.7);
@@ -145,7 +151,7 @@ function cedar(wood, leaf, level, rnd, shape) {
   }
   // Deep green core: slightly darker than the average needles, never a black void.
   cone(wood, 3, 19.7, 1.35, 8, .3, [.07, .12, .055], true);
-  const rows = [26, 24, 28][shape], branches = 6;
+  const rows = rowCount ?? [26, 24, 28][shape], branches = 6;
   for (let i = 0; i < rows; i++) {
     const t = i / (rows - 1), y = 3 + t * 16.8, length = .25 + 3.2 * (shape === 1 ? 1.06 : shape === 2 ? .94 : 1) * Math.pow(1 - t, .85) * (.9 + .1 * Math.cos(t * Math.PI * 6));
     for (let b = 0; b < branches; b++) {
@@ -167,6 +173,52 @@ function cedar(wood, leaf, level, rnd, shape) {
   }
   if (level === 0) for (let i = 0; i < 5; i++) { const a = i * 2.399; tube(wood, [0, 1 + i * .3, 0], [Math.cos(a) * .9, 1 + i * .3, Math.sin(a) * .9], .06, 4, 1, false, [.12, .083, .05], .97); }
 }
+// New families borrow the branch grammar without altering shapes 0, 1 or 2.
+function cedarNew(wood, leaf, level, rnd, shape) {
+  const slim = shape === 3, width = slim ? .62 : 1;
+  const lean = y => slim ? 0 : .6 * Math.max(0, y) / 20;
+  tube(wood, [0, -.1, 0], [0, level === 2 ? 3 : 19, 0], .45, level === 0 ? 8 : 4, level === 0 ? 6 : 1, true, [.12, .083, .05], .97);
+  if (level === 2) {
+    const rows = slim ? 4 : 3;
+    for (let i = 0; i < rows; i++) {
+      const t = i / (rows - 1);
+      cone(leaf, 2.8 + t * 11.4, 11 + t * 9, (3.565 - t * 2.2425) * width * (slim ? 1 : 1.04 + .18 * Math.sin(i * 2.7)), 6, i * 1.7 + shape * .43);
+    }
+  } else if (level === 1) {
+    const rows = slim ? 14 : 10, sides = slim ? 8 : 12;
+    for (let i = 0; i < rows; i++) {
+      const t = i / (rows - 1), y = 3 + t * 16.8;
+      const r = (.25 + 3.2 * Math.pow(1 - t, .85)) * width * (slim ? 1 : 1 + .22 * Math.sin(y * 2.17));
+      const first = leaf.s.length;
+      for (let j = 0; j < 2; j++) for (let k = 0; k <= sides; k++) {
+        const a = i * 2.399 + k / sides * TAU, radius = r * (j ? 1 : .24) * (1 + .12 * Math.sin((k % sides) * 2.3 + i));
+        const e = j ? .48 : .85;
+        leaf.vert([Math.cos(a) * radius, y + (j ? -.65 : 1), Math.sin(a) * radius], [Math.cos(a), .5, Math.sin(a)], [e,e,e], [k / sides * 3, j ? 0 : 1], j ? 1 : .4);
+      }
+      for (let k = 0; k < sides; k++) { const v = first + k; leaf.quad(v, v + 1, v + sides + 2, v + sides + 1); }
+    }
+    cone(wood, 3, 19.7, 1.4 * width, 8, .3, [.022, .045, .020]);
+  } else {
+    // Keep folded fronds but pack a shorter, narrower branch sequence in the slim family.
+    const w = new Mesher(), l = new Mesher();
+    cedar(w, l, 0, rnd, 0, slim ? 24 : 26);
+    // Omit the duplicated trunk; retain its green core and exposed root branches.
+    for (const [target, original] of [[wood, w], [leaf, l]]) {
+      const start = target.s.length, skip = target === wood ? (8 + 1) * (6 + 1) : 0;
+      for (let i = skip; i < original.s.length; i++) {
+        const p = original.p.slice(i*3,i*3+3), y = p[1];
+        const reach = width * (slim ? 1 : 1 + .20 * Math.sin(y * 2.17));
+        p[0] *= reach; p[2] *= reach;
+        target.vert(p, original.n.slice(i*3,i*3+3), original.c.slice(i*3,i*3+3), original.u.slice(i*2,i*2+2), original.s[i]);
+      }
+      for (let i = 0; i < original.i.length; i += 3) if (original.i.slice(i,i+3).every(v => v >= skip)) target.i.push(...original.i.slice(i,i+3).map(v => start + v - skip));
+    }
+  }
+  // A gentle shared lean preserves the family across all levels.
+  for (const m of [wood, leaf]) for (let i = 0; i < m.s.length; i++) {
+    const y = m.p[i*3+1]; m.p[i*3] += lean(y); m.p[i*3+2] -= lean(y) * .5;
+  }
+}
 function broad(wood, leaf, species, level, rnd, shape) {
   const maple = species === 3, small = species >= 4, shrub = species === 5, h = heights[species];
   const center = [0, small ? (shrub ? .51 : 1.72) : level === 2 ? (maple ? 4.7 : 7.4) : maple ? 5.2 : 8, 0];
@@ -175,18 +227,18 @@ function broad(wood, leaf, species, level, rnd, shape) {
   const aspect = [1, .94, 1.06][shape];
   if (!small) { radii[0] *= aspect; radii[2] *= aspect; radii[1] /= aspect; }
   const fork = shrub ? .18 : small ? 1.8 : level === 2 ? (maple ? 3.8 : 5.5) : level === 1 ? (maple ? 5.4 : 8.2) : maple ? 2 : 3.5;
-  const count = small ? (level === 0 ? 4 : 2) : level === 2 ? 2 : level === 0 ? (maple ? [11, 12, 10][shape] : [13, 12, 13][shape]) : 5;
+  const count = small ? (level === 0 ? (shrub ? 6 : 8) : 3) : level === 2 ? 2 : level === 0 ? 8 : 6;
   const total = count + (!small && level === 0 ? 2 : 0), biases = [];
   for (let i=0;i<Math.floor(total/2);i++) { const d = (rnd() * 2 - 1) * .1; biases.push(d,-d); }
   if (total % 2) biases.push(0);
   const crown = (...args) => clump(...args, rnd, biases.shift());
-  tube(wood, [0, -.1, 0], [.12, fork, .1], small ? (shrub ? .025 : .08) : level === 2 ? (maple ? .46 : .52) : .48, level === 0 ? (small ? 4 : 8) : 4, level === 0 ? (small ? (shrub ? 1 : 2) : 4) : 1, true);
+  tube(wood, [0, -.1, 0], [.12, fork, .1], small ? (shrub ? .025 : .08) : level === 2 ? (maple ? .46 : .52) : .48, level === 0 ? (small ? 4 : 8) : 4, level === 0 ? (small ? (shrub ? 1 : 2) : 4) : (species === 4 ? 2 : 1), true);
   if (level === 2) {
     // One full rounded dome and a smaller shoulder, rather than stacked plates.
     const phase = shape * .73;
     const dome = maple ? [3.9 * aspect,2.7 / aspect,3.9 * aspect] : [4.6 * aspect,3.6 / aspect,4.6 * aspect];
-    crown(leaf, center, dome, 8, 5, 1, false, .24 + phase, .07, .12);
-    crown(leaf, [center[0] + radii[0] * .67, h * .42, center[2] - radii[2] * .24], radii.map(v => v * .49), 8, 5, 1, false, 1.13 + phase, -.09, .12);
+    crown(leaf, center, dome, 10, 5, 1, false, .24 + phase, .07, .12);
+    crown(leaf, [center[0] + radii[0] * .67, h * .42, center[2] - radii[2] * .24], radii.map(v => v * .49), 8, 4, 1, false, 1.13 + phase, -.09, .12);
     return;
   }
   const branches = small ? (shrub ? 5 : 4) : [4, 3, 5][shape];
@@ -200,10 +252,10 @@ function broad(wood, leaf, species, level, rnd, shape) {
   for (let i = 0; i < count; i++) {
     const y = 1 - 2 * (i + .5) / count, a = i * 2.399 + shape * .73, radial = Math.sqrt(1 - y * y);
     const c = center.map((v,q) => v + radii[q] * (q === 1 ? y : radial * (q === 0 ? Math.cos(a) : Math.sin(a)) * (species === 1 ? 1 + .45 * y : 1)) * (small ? .22 : .56));
-    const r = small ? radii.map(v => v * (level === 0 ? .78 : .84)) : radii.map((v,q) => v * (level === 0 ? .49 : (.64 + .035 * Math.sin(i * 2.3 + q)) * (shape === 2 ? .97 : 1)));
-    crown(leaf, c, r, small ? (level === 0 ? 12 : 8) : level === 0 ? 10 : 8, small ? (level === 0 ? 5 : 4) : 4, small ? .6 : 1, false, !small && level === 1 ? i * .73 : 0, 0, small ? .14 : .09);
+    const r = small ? radii.map(v => v * (level === 0 ? .78 : .84)) : radii.map((v,q) => v * (level === 0 ? .49 : (.63 + .035 * Math.sin(i * 2.3 + q)) * (shape === 2 ? .97 : 1)));
+    crown(leaf, c, r, small ? (level === 0 ? 14 : 8) : level === 0 ? 16 : 10, small ? (level === 0 ? 7 : 4) : level === 0 ? 8 : 5, small ? .6 : 1, false, !small && level === 1 ? i * .73 : 0, 0, small ? .14 : .09);
   }
-  if (!small && level === 0) for (const y of [-.35, 0]) crown(leaf, [0, center[1] + y * radii[1], 0], radii.map(v => v * .5), 10, 4, 1, false, 0, 0, .09);
+  if (!small && level === 0) for (const y of [-.35, 0]) crown(leaf, [0, center[1] + y * radii[1], 0], radii.map(v => v * .5), 16, 8, 1, false, 0, 0, .09);
   clump(wood, center, radii.map(v => v * .55), small ? 3 : 6, 2, 1, true);
 }
 // Fan cards grow from their bottom centre, with normals pointing away from each tuft.

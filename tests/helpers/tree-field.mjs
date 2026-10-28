@@ -6,7 +6,7 @@ globalThis.document = { createElement() {
   c.getContext = () => new Proxy({ createLinearGradient: () => ({ addColorStop() {} }), getImageData: () => ({ data: new Uint8ClampedArray(c.width * c.height * 4).fill(180) }) }, { get: (o, k) => o[k] ?? (() => {}) });
   return c;
 } };
-export const { TreeField } = await load('tree-view.js');
+export const { TreeField, treeShape } = await load('tree-view.js');
 export const wind = { uTime: { value: 0 }, uWind: { value: 1 }, uWindDir: { value: new THREE.Vector2(1, 0) }, uGuideMix: { value: 0 } };
 export const camera = (x = 0, z = 0) => ({ position: { x, z } });
 export function data(points = []) {

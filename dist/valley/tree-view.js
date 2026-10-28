@@ -15,6 +15,7 @@ export function stageColor(species, stage = 0, tint = .5, variant = 0) {
 // Shape is a stable property of an individual, independent of LOD and array order.
 export function treeShape(species, tint) {
   const count = TREES.variants[names[species]] ?? 1;
+  if (species === 0) return tint < .45 ? Math.min(2, Math.floor(clamp(tint) / .15)) : tint < .70 ? 3 : 4;
   return Math.min(count - 1, Math.floor(clamp(tint) * count));
 }
 // Each set owns cloned buffers; the cached geometry templates never reach the GPU.
