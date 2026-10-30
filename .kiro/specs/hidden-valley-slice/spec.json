@@ -113,6 +113,12 @@
       "adopted": "R11.2を設定「血の表現」として設計に入れる。なし／ひかえめ／標準・既定なし・朱の墨絵風は本人確認で確定する設計案。実装は本人の着手指示まで始めない",
       "reason": "2026-10-28の本人の「足す。設定に入れてほしい」「設計の段階で大丈夫」という指示。衝撃は既存の「画面の揺れ・衝撃」が担い、血を使わない現行の体験を保つ案から検討する",
       "decided_on": "2026-10-28"
+    },
+    {
+      "topic": "抜刀・納刀の方式（8.2）",
+      "adopted": "既存の動作で受け渡す案は採らず、実行時の層で刀を鞘の曲線に沿って滑らせる（右手は腕IK、鞘は後ろへ引く、上体をひねる）。落ち着いた抜刀0.62秒・納刀0.70秒、攻撃・受け・闇討ちが先に来たときは0.15秒以内に抜き切る。combat.jsの規則と入力は変えない",
+      "reason": "2026-10-30の実測で、既存の動作は腰の鞘と噛み合わない（握りが鞘の軸に沿うコマが0/179）と分かった。design-draw-sheathe.md",
+      "decided_on": "2026-10-30"
     }
   ],
   "implementation_scope": "本人の今回依頼: 7.2・7.3（道しるべの画面・G・設定・QA・純粋検査）と7.1の決定記録。git add/commit/pushは禁止。ブラウザ確認は親",
@@ -120,14 +126,15 @@
     "requirements": "requirements-polish3.md（R17・R18）",
     "design": [
       "design-graphics.md",
-      "design-combat-presentation.md"
+      "design-combat-presentation.md",
+      "design-draw-sheathe.md"
     ],
     "tasks": "tasks-polish3.md §8",
     "validation": "design-validation-polish3.md",
     "research": "research-polish3.md",
-    "status": "設計のみ・実装は未着手",
+    "status": "2026-10-30に8.0（静的な前測定）と8.2（抜刀・納刀）へ着手。8.2は純粋層・結線・実ブラウザの毎コマ測定まで済み、本人のプレイでの確認は未実施。ほかのタスクは未着手",
     "date": "2026-10-28",
-    "ready_for_implementation": false,
-    "implementation_scope": "設計のみ。コード・素材・設定は変更しない"
+    "ready_for_implementation": true,
+    "implementation_scope": "本人の依頼（2026-10-30「続きをやっていってほしい」）：8.0の前測定と8.2の抜刀・納刀。ほかのタスクは本人の指示で順に進める"
   }
 }

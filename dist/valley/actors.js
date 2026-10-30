@@ -9,6 +9,7 @@ import { moveActor } from './collision.js';
 import { MOVES, createFighter, startMove, setBlock, startDodge, tick, finish, stealthStrike } from './combat.js';
 import { createBrain, think } from './enemy-ai.js';
 import { createCompanion, thinkCompanion } from './companion-ai.js';
+import { createSwordLayer, poseAt } from './sword-layer.js';
 
 export const angleDiff = (a, b) => Math.atan2(Math.sin(b - a), Math.cos(b - a));
 const turnToward = (cur, target, rate, dt) => { const d = angleDiff(cur, target); return cur + Math.sign(d) * Math.min(Math.abs(d), rate * dt); };
@@ -79,6 +80,8 @@ export class HeroActor extends Actor {
   }
   resetState() {
     this.drawn = false; this.sheatheIn = 0; this.crouch = false; this.lunge = null; this.queued = null; this.dodge = null; this.dash = null;
+    // 抜刀・納刀の進み具合（8.2）。納刀から始まる
+    this.swordLayer = createSwordLayer(); this.character.sword?.reset();
     this.steepT = 0; this.deadT = 0; this.lockTarget = null; this.lockT = 0; this.speed = 0; this.blockPosed = false; this.dead = false;
     this.scripted = false;               // 演出中は動作を外から決める（冒頭の目覚めなど）
     this.recoverT = 0;
@@ -124,9 +127,32 @@ export class HeroActor extends Actor {
     this.character.playMove(id, { windup: m.windup, active: m.active, recover: m.recover }, { fade: 0.06 });
     const dur = m.windup + m.active, d = LUNGE[id] || 0;
     this.lunge = { rate: d / dur, t: 0, dur };
-    if (!this.drawn) this.game.audio.play('draw', { gain: 0.8 });
-    this.drawn = true; this.sheatheIn = 4.5; this.character.setTachi(GRIP, true);
+    this.drawSword({ fast: true });   // 攻撃の開始は遅らせない：刃の出し入れは見た目の層が、予備動作の間に済ませる
     this.blockPosed = false;
+  }
+
+  // 抜刀・納刀（8.2）。刀の置き場と見た目は swordLayer／character.sword が決め、規則（攻撃・受けの開始）は待たせない。
+  // 抜く＝すぐ構え(guard)の論理へ。納める＝すぐ平時(relaxed)の論理へ。進み具合は swordLayer が持つ。
+  drawSword({ fast }) {
+    const accepted = this.swordLayer.requestDraw({ fast });
+    if (accepted || this.swordLayer.snapshot().mode === 'drawn') { this.drawn = true; this.sheatheIn = Math.max(this.sheatheIn, 4.5); }
+    return accepted;
+  }
+  sheatheSword() { if (this.swordLayer.requestSheathe()) { this.drawn = false; this.character.locoName = null; return true; } return false; }
+  // 抜刀の前半（u<0.6）は、腕を下げた平時の姿のまま。刃が鞘から抜け切るころから構えへ移す。
+  get guardStance() { const sw = this.swordLayer.snapshot(); return this.drawn && !(sw.mode === 'drawing' && sw.u < 0.6); }
+  // 死亡・演出中に入ったとき、途中の層を適用し続けない（倒れる動作へ、固定の腕IKとひねりが重なる）。論理が向かう側（抜く→抜いた、納める→納めた）へ確定する。
+  settleSword() {
+    const sw = this.swordLayer.snapshot();
+    if (sw.mode !== 'drawing' && sw.mode !== 'sheathing') return;
+    const toDrawn = sw.mode === 'drawing';
+    this.swordLayer.reset(toDrawn ? 'drawn' : 'sheathed');
+    this.character.sword?.setFrame({ u: toDrawn ? 1 : 0, mode: toDrawn ? 'drawn' : 'sheathed', pose: poseAt(toDrawn ? 1 : 0), events: [] });
+  }
+  tickSword(dt) {
+    const out = this.swordLayer.tick(dt);
+    this.character.sword?.setFrame(out);
+    for (const e of out.events) { if (e === 'clear') this.game.audio.play('draw', { gain: 0.8 }); else if (e === 'seat') this.game.audio.play('sheathe'); }
   }
 
   attackInput(kind) {
@@ -179,7 +205,7 @@ export class HeroActor extends Actor {
       if (!res) continue;
       this.faceTo(e); this.lockT = 0.85; this.speed = 0;
       this.character.playMove('finisher', { windup: 0.22, active: 0.1, recover: 0.5 }, { fade: 0.05 });
-      this.drawn = true; this.sheatheIn = 4.5; this.character.setTachi(GRIP, true);
+      this.drawSword({ fast: true });
       g.battle.onStrike(this, e, res);
       return true;
     }
@@ -220,13 +246,14 @@ export class HeroActor extends Actor {
     const f = this.fighter, g = this.game, input = ctl.input;
     for (const e of tick(f, dt)) this.onCombatEvent(e);
     f.x = this.pos.x; f.z = this.pos.z; f.yaw = this.yaw;
-    if (!f.alive) { this.updateDead(dt); this.tickCharacter(dt); this.sync(); return; }
-    if (this.scripted) { this.tickCharacter(dt); this.sync(); return; }
+    if (!f.alive) { this.settleSword(); this.updateDead(dt); this.tickCharacter(dt); this.sync(); return; }
+    if (this.scripted) { this.settleSword(); this.tickCharacter(dt); this.sync(); return; }
     this.lockT = Math.max(0, this.lockT - dt);
     this.sheatheIn = Math.max(0, this.sheatheIn - dt);
     const inCombat = g.alertedEnemies() > 0;
     if (inCombat && this.drawn) this.sheatheIn = Math.max(this.sheatheIn, 2.5);
-    if (this.drawn && this.sheatheIn === 0 && f.state === 'idle' && !f.blocking && !inCombat) { this.drawn = false; this.character.setTachi(GRIP, false); g.audio.play('sheathe'); this.character.locoName = null; }
+    if (inCombat && !this.drawn) this.drawSword({ fast: false });   // 敵が気づいた：落ち着いて抜く（戦闘の始まりの見せ場）
+    if (this.drawn && this.sheatheIn === 0 && f.state === 'idle' && !f.blocking && !inCombat) this.sheatheSword();   // 戦闘が終わった：落ち着いて納める
 
     const locked = ctl.talking || ctl.frozen || this.lockT > 0;
     if (!locked) {
@@ -237,7 +264,7 @@ export class HeroActor extends Actor {
       if (input.wasPressed('Space')) this.tryDodge();
       const wantBlock = input.mouseDown(2) && !this.dash;
       if (wantBlock && !f.blocking && f.state === 'idle') {
-        if (setBlock(f, true)) { this.drawn = true; this.sheatheIn = 4; this.character.setTachi(GRIP, true); this.crouch = false; this.dash = null; this.blockPosed = false; }
+        if (setBlock(f, true)) { this.drawSword({ fast: true }); this.sheatheIn = Math.max(this.sheatheIn, 4); this.crouch = false; this.dash = null; this.blockPosed = false; }
       }
       if (!wantBlock && f.blocking) { setBlock(f, false); this.character.locoName = null; this.blockPosed = false; }
     } else if (f.blocking) { setBlock(f, false); this.character.locoName = null; this.blockPosed = false; }
@@ -248,6 +275,7 @@ export class HeroActor extends Actor {
     else if (f.state === 'attack') this.updateLunge(dt);
     else if (f.state === 'idle') this.updateLocomotion(dt, ctl, locked);
     else this.speed = approach(this.speed, 0, 22, dt);
+    this.tickSword(dt);
     this.tickCharacter(dt);
     this.sync();
   }
@@ -265,7 +293,6 @@ export class HeroActor extends Actor {
     this.character.playAction('dodge', { timeScale: 2.4 });
     this.game.audio.play('roll');
     this.game.fx.dust(this.pos, 5);
-    this.drawn && this.character.setTachi(GRIP, true);
     this.blockPosed = false;
     return true;
   }
@@ -305,7 +332,7 @@ export class HeroActor extends Actor {
       return;
     }
     this.blockPosed = false;
-    this.character.locomote(this.speed, this.crouch ? 'crouch' : (this.drawn || f.blocking) ? 'guard' : 'relaxed');
+    this.character.locomote(this.speed, this.crouch ? 'crouch' : (this.guardStance || f.blocking) ? 'guard' : 'relaxed');
   }
 
   onHit(res, att) {

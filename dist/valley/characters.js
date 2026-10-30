@@ -7,6 +7,7 @@ import { LOCOMOTION, MOVE_CLIPS, ACTION_CLIPS, CLIP_SEGMENTS, pickGait, locomoti
 import { createContactTracker, observeContacts } from './foot-contacts.js';
 import { FOOT_CONTACTS } from './anim-contacts.js';
 import { BowRig } from './bow.js';
+import { SwordRig } from './sword-rig.js';
 import { makeTachi, makeNaginata, makeYumi, makeArrow, makeQuiver } from './weapons.js';
 import { patchLift } from './grade.js';
 
@@ -202,6 +203,7 @@ export class Character {
       this.attach('tachiDrawn', t.drawn, grips.tachiDrawn);
       this.attach('tachiHip', t.hip, grips.tachiHip);
       this.weapons.tachiHipHilt = { object: t.hiltOnHip };
+      this.sword = new SwordRig(this);   // 抜刀・納刀の見た目の層（8.2）。主人公だけが frame を与える。与えられない間は何もしない
     }
     this.weapons.tachiDrawn.holder.visible = !!drawn;
     this.weapons.tachiHipHilt.object.visible = !drawn;
@@ -213,6 +215,7 @@ export class Character {
   resetContacts() { this.contactReset = true; }
 
   update(dt) {
+    this.sword?.undo();   // 前のコマの抜刀・納刀の骨の後処理を戻してから、動作を当てる
     this.time += dt;
     this.mixer.update(dt * this.rate);
     // Baked table durations are rounded to 4 decimals; clamp the sub-0.1ms GLB tail.
@@ -236,6 +239,7 @@ export class Character {
       for (const name of FLINCH_BONES) this.bones.get(name)?.quaternion.premultiply(FLINCH_Q);
     }
     if (this.armRelax) this.relaxArms(dt);
+    if (this.sword) this.sword.apply();   // 抜刀・納刀：骨の後処理なので relaxArms のあと
     if (this.bow) this.bow.update();
     if (this.drops) this.updateDrops(dt);
   }
