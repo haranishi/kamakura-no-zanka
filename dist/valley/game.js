@@ -216,7 +216,24 @@ export class Game {
     this.hud.narration(true, { colors: OPENING.colors, title: OPENING.title.text, note: OPENING.title.note });
     this.stage = new OpeningStage({ renderer: this.renderer, models: this.models, roster: this.roster, quality: this.post.quality });
     this.post.beginDissolve();
+    this.prepareValley();
     this.updateIntro(0);
+  }
+  // 目覚めの最初の1コマで止まらないよう、谷の材質（主人公など、まだ描いていないもの）を暗転の下で先に組み立て、絵を送っておく。
+  // 後処理は谷を HalfFloat の絵へ・階調なしで描くので、同じ状態で組み立てる（画面向けで組み立てると別の版になり、効かない）
+  // compileAsync は主の材質だけを組み立てる（影の深さの材質は描いたときに組み立てられる）ので、最後に小さな絵へ1回だけ谷を描く。
+  // 描く向きは目覚めの最初の画角に固定する（そのとき谷のカメラがどこにあっても、毎回同じものだけを送る）。絵もこの1回で、目覚めに映る分だけが送られる
+  // （谷の全部の絵を initTexture で送る案は捨てた：映らない人物の絵まで送り、上映を繰り返す検査で画像の数が増えた）
+  prepareValley() {
+    const r = this.renderer, rt = r.getRenderTarget(), tone = r.toneMapping, st = WORLD.start, T = this.terrain;
+    const cam = new THREE.PerspectiveCamera(42, this.camera.aspect, this.camera.near, this.camera.far);
+    cam.position.set(st.x + 5.2, 0.95 + T.heightAt(st.x + 5.2, st.z + 5.6), st.z + 5.6); cam.lookAt(st.x, 0.45 + T.heightAt(st.x, st.z), st.z); cam.updateMatrixWorld();
+    r.setRenderTarget(this.post.target); r.toneMapping = THREE.NoToneMapping;
+    const done = r.compileAsync(this.scene, cam).catch(() => {});
+    const tiny = new THREE.WebGLRenderTarget(16, 16, { type: THREE.HalfFloatType });
+    r.setRenderTarget(tiny); r.render(this.scene, cam);
+    r.setRenderTarget(rt); r.toneMapping = tone; tiny.dispose();
+    return done;
   }
   // オープニングの舞台と語りの枠を片づける（目覚めに入ったとき・途中で始め直したとき）。谷の資源には触れない
   closeStage() {
