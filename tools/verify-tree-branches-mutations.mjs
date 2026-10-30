@@ -33,8 +33,8 @@ const cases = [
   ['tufts turn only in pitch', 'return norm(add(tilted.map(v => v * Math.cos(w)), side, Math.sin(w)));', 'return norm(tilted);'],
   ['one tip tuft size', '(1 + .95 * u)', '(1.45 + 0 * u)'],
   ['broad clusters buried at the centre', 'const depth = d0 + dr * rnd()', 'const depth = .1 * (d0 + dr * rnd())'],
-  ['broad limb off its primary', 'v + (tips[primary][q] - v) * .55)', 'v + (tips[primary][q] - v) * .25)'],
-  ['zelkova clusters narrow upward', 'widen = vase ? 1 + .4 * y : 1', 'widen = vase ? 1 - .4 * y : 1'],
+  ['broad limb off its primary', 'v + (tips[primary][q] - v) * at)', 'v + (tips[primary][q] - v) * at * .5)'],
+  ['zelkova clusters narrow upward', 'widen = vase ? 1 + .6 * y : 1', 'widen = vase ? 1 - .6 * y : 1'],
   ['broad clusters swollen together', 'size = s0 + sr * rnd()', 'size = 1.6 * (s0 + sr * rnd())'],
   ['even bark strips', 'export function barkStripWarp(u) { return .22 * Math.sin(TAU * 3 * u + 1.3) + .11 * Math.sin(TAU * 5 * u + .4); }', 'export function barkStripWarp(u) { return 0 * u; }'],
 ];

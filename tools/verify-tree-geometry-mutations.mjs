@@ -26,7 +26,10 @@ const cases = [
   ['one fork branch', 'const branches = small ? (shrub ? 5 : 4) : [4, 3, 5][shape];', 'const branches = 1;'],
   ['unnormalized normals', 'this.n.push(...norm(n))', 'this.n.push(...n)'],
   ['protruding trunk head', '[.12, fork, .1]', '[.12, h * 1.6, .1]'],
-  ['triangle budget overflow', 'crown(leaf, c.center, c.radii, 12, 6, 1, false, c.rotation, 0, .09)', 'crown(leaf, c.center, c.radii, 40, 6, 1, false, c.rotation, 0, .09)'],
+  ['triangle budget overflow', 'for (const c of plan.clusters) cluster(c, 10, 5, 1, .09);', 'for (const c of plan.clusters) cluster(c, 40, 5, 1, .09);'],
+  ['tufts without pivots', 'leaf.pivot = [...root, 1];', 'leaf.pivot = NO_PIVOT;'],
+  ['pivots lost in the shell rebuild', 'grid.s[i],grid.v.slice(i*4,i*4+4));', 'grid.s[i],[0,0,0,0]);'],
+  ['broadleaf crown without its inner fill', 'for (const c of plan.inner) cluster(c, 10, 4, 1, .09);', ''],
   ['single far cone', 'i < 4; i++) cone(leaf', 'i < 1; i++) cone(leaf'],
   ['floating trunk foot', '[0, -.1, 0]', '[0, .2, 0]'],
   ['invalid flutter weight', '.2 + .8 * Math.sin(theta)', '.2 + 2 * Math.sin(theta)'],
@@ -53,7 +56,7 @@ const cases = [
   // 8.1a（近景の枝と房・中景の房・樹皮のUV・芯の印）。
   ['near core cone returned', "const plan = cedarBranchPlan(shape);\n", "const plan = cedarBranchPlan(shape); cone(wood, 3, 19.7, 1.35, 8, .3, [.07, .12, .055]);\n"],
   ['near limbs omitted', 'if (b.wood) { const s = [0, .45, .85];', 'if (false) { const s = [0, .45, .85];'],
-  ['one card per tuft', 'for (const card of tuftCards(tuft)) {', 'for (const card of tuftCards(tuft).slice(0, 1)) {'],
+  ['one card per tuft', 'for (const card of cards) {', 'for (const card of cards.slice(0, 1)) {'],
   ['tuft root sways like its tip', 'uvs[k], k >= 2 ? 1 : .3);', 'uvs[k], 1);'],
   ['middle core cone returned', '  for (const tuft of cedarMidPlan(shape).tufts) cedarTuft(leaf, tuft, shape);\n}', '  for (const tuft of cedarMidPlan(shape).tufts) cedarTuft(leaf, tuft, shape);\n  cone(wood, 3, 19.7, 1.4, 8, .3, [.055, .1, .045]);\n}'],
   ['middle tufts unlit', 'for (const tuft of cedarMidPlan(shape).tufts) cedarTuft(leaf, tuft, shape);', 'for (const tuft of cedarMidPlan(shape).tufts) cedarTuft(leaf, tuft, shape, .5);'],
@@ -67,8 +70,8 @@ const cases = [
   ['no root flare rings', 'if (flared) steps.splice(1, 0,', 'if (false) steps.splice(1, 0,'],
   ['flat trunk foot', 'flared ? 1 + .85 * Math.exp(-h / .5)', 'flared ? 1 + 0 * Math.exp(-h / .5)'],
   ['sapling ball returned', 'sapling = species === 4 && level === 0;', 'sapling = false;'],
-  ['clusters without limbs', 'tube(wood, c.limb.from, c.limb.to, c.limb.radius, 3, 1); crown(leaf, c.center', 'crown(leaf, c.center'],
-  ['dark core behind the near clusters', "    crown(leaf, [0, center[1] - .1 * radii[1], 0], radii.map(v => v * .42), 12, 6, 1, false, .4, 0, .09);\n    return;", "    crown(leaf, [0, center[1] - .1 * radii[1], 0], radii.map(v => v * .42), 12, 6, 1, false, .4, 0, .09);\n    clump(wood, center, radii.map(v => v * .35), 6, 2, 1, true);\n    return;"],
+  ['clusters without limbs', 'if (c.limb) wood.around(c.limb.from', 'if (false) wood.around(c.limb.from'],
+  ['dark core behind the near clusters', "    for (const c of plan.inner) cluster(c, 10, 4, 1, .09);\n    return;", "    for (const c of plan.inner) cluster(c, 10, 4, 1, .09);\n    clump(wood, center, radii.map(v => v * .35), 6, 2, 1, true);\n    return;"],
 ];
 const original = fs.readFileSync(file);
 const run = () => spawnSync(process.execPath, ['--test', 'tests/valley-tree-geometry.test.mjs'], { encoding: 'utf8', timeout: 30000 });

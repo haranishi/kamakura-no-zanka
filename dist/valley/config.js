@@ -103,6 +103,6 @@ export const TREES = Object.freeze({
   // 夕景の空気（第2周）：葉の彩度を距離で落とす割合（near〜far m で0→amount）。明るさは変えない（山肌の陰の中で樹冠が白く浮かない）。
   leafAir: Object.freeze({ amount: 0.3, near: 25, far: 320 }),
   // 遠景の絵の板（8.1a第2周）：切り抜きの閾値と、遠く（ミップが粗い）ほど葉の不透明を足す割合（細って透けないように）。
-  // 第3周：帯（150m）の先で、板を距離とともに広げ（widenRange で0→widen）、木ごとに少し傾ける（±lean m/m）。斜面の地面が見え、尾根が櫛に見えた（Q01・Q12）。
-  impostor: Object.freeze({ alphaTest: 0.4, mipBoost: 0.5, widen: 0.4, widenRange: Object.freeze([170, 420]), lean: 0.06 }),
+  // 第3周：帯（150m）の先で、板を距離とともに広げ（widenRange の200〜460mで0→widen、第3周の計測で170mからは負荷が増えた）、木ごとに少し傾ける（±lean m/m）。斜面の地面が見え、尾根が櫛に見えた（Q01・Q12）。
+  impostor: Object.freeze({ alphaTest: 0.4, mipBoost: 0.5, widen: 0.35, widenRange: Object.freeze([200, 460]), lean: 0.06 }),
 });
