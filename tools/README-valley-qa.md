@@ -41,6 +41,10 @@ b0 庭へ降りる（`temple_yard` に入る）→ b1 穂太の話 → b2 林道
 - `tools/scenarios/regress-bank-descent.mjs`：待ち伏せの斜面の土手から道へ降りられ、林道のS字の西の縁（傾斜45度の帯）からも道へ出られる。
 - `tools/scenarios/regress-rock-colliders.mjs`：当たりの表に岩が登録され（20個以上）、岩へ向かって歩くと岩の縁で止まる（歩ける場所で比べる）。
 - `tools/scenarios/regress-audio-levels.mjs`：効果音24種のピークが −32〜−3dBFS、全種類を2回ずつ重ねても 0dBFS 未満（音の出ない環境では測れず何も確かめない）。
+- `tools/scenarios/regress-draw-sheathe.mjs`：抜刀・納刀の層（8.2）を、決まった時間刻みで毎コマ測る（握りの誤差・刃の鞘への収まり・刀の跳び・腕の長さ・骨の戻り・表示。8場面）。`KZ_OUT=… ` でJSONを残す。
+- `tools/scenarios/regress-attack-timing.mjs`：同じ入力列で、戦闘の論理（状態・体力・構え・位置）を毎コマ記録し、変更前と変更後が一致することを比べる（`node tools/scenarios/regress-attack-timing.mjs 前.json 後.json`）。
+- `tools/scenarios/capture-draw-sheathe.mjs`：抜刀・納刀を、実ゲームの固定カメラ（主人公の左側）で一定間隔に撮る（敵が気づく→抜刀／納刀済みで攻撃→速い抜刀／戦闘後の納刀）。変更前と変更後を同じ条件で撮って比べる。
+- `tools/scenarios/measure-draw-sheathe.mjs`：既存の抜刀・納刀の動作で、握りと腰の鞘がどう動くかを測る（前値は `reports/polish3/baseline/draw-sheathe-before.json`）。
 - 検査の流れの見本：`tools/scenarios/` のシナリオ。
 
 ## 第2弾の前測定（7.0・7.0b）
