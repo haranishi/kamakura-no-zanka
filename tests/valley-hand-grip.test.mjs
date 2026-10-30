@@ -220,6 +220,11 @@ test('握った手の柄に沿った広がり：親指の側と小指の側で�
   // 手の幅（指の板の幅）の半分より広く、手の長さより狭い
   assert.ok(thumbSide > (m.wHi - m.wLo) / 2 - 0.01 && thumbSide < 0.09, `親指の側 ${thumbSide}`);
   assert.ok(pinkySide > (m.wHi - m.wLo) / 2 - 0.01 && pinkySide < 0.09, `小指の側 ${pinkySide}`);
+  // 親指（と母指球）の側は、小指の側より柄に沿って広い（鍔に当たるのは親指の側。主人公65・40mm、兵65・62mm、侍大将68・49mm）
+  for (const [who, side] of [['hero', 'Right'], ['soldier', 'Right'], ['officer', 'Right'], ['hero', 'Left']]) {
+    const h = handOf(who, side), L2 = boneLayout(h.m), v2 = h.points.map((p, i) => ({ p, s: splitHandWeight(h.m, p), w: h.weights[i] })).filter(v => v.w >= 0.5), f2 = fitGrip(h.m, L2, v2, 0.0155);
+    assert.ok(gripExtent(L2, f2.axes, f2, v2, h.m.w, 0.051) > gripExtent(L2, f2.axes, f2, v2, h.m.w.map(x => -x), 0.051), `${who} ${side}: 親指の側が狭い`);
+  }
   // 軸からの距離の上限を小さくすると、数える皮が減り、広がりは増えない
   assert.ok(gripExtent(L, fit.axes, fit, verts, m.w, 0.02) <= thumbSide + 1e-12);
   assert.equal(groupName('f21'), 'f1/2'); assert.equal(groupName('t0'), 't0');
