@@ -31,12 +31,13 @@ export default async function ({ st, step, call, v, freeze, start, click, releas
   const judge = (name, R, trail, { pops = true } = {}) => {
     const chk = (cond, msg) => { if (!cond) fails.push(`${name}: ${msg}`); };
     chk(R.nan === 0, `NaN ${R.nan}`);
-    for (const side of ['Right', 'Left']) chk(R.sinkAll[side] <= HAND_LIMITS.sinkMm, `${side} の手の皮のめり込み ${R.sinkAll[side].toFixed(1)}mm`);
+    for (const side of ['Right', 'Left', 'LeftT']) chk(R.sinkAll[side] <= HAND_LIMITS.sinkMm, `${side} の手の皮のめり込み ${R.sinkAll[side].toFixed(1)}mm`);
+    chk(R.unreachedL <= HAND_LIMITS.unreachedFrames && R.maxReachErrLMm <= HAND_LIMITS.unreachedMm, `両手持ちの左腕が届かないコマ ${R.unreachedL}（最大 ${R.maxReachErrLMm.toFixed(1)}mm）`);
     chk(R.maxArmDevMm <= HAND_LIMITS.armLenMm, `腕の写しの長さ ${R.maxArmDevMm.toFixed(3)}mm`);
     chk(R.copyLeakRad <= HAND_LIMITS.leakRad, `握っていない手の写しが動作の骨と違う ${R.copyLeakRad}`);
     if (pops) for (const k of ['wristR', 'wristRotR', 'tipR', 'wristL', 'wristRotL', 'tipL']) { const p = popScore(R.steps[k], /Rot/.test(k) ? HAND_LIMITS.popFloorRad : HAND_LIMITS.popFloorM).worst; chk(p <= HAND_LIMITS.popRatio, `${k} が1コマだけ跳ぶ（${p.toFixed(2)}倍）`); }
     const gripped = trail.filter(t => t[1] >= 0.999).length;
-    log(`${name}: frames ${trail.length} gripped ${gripped} contact R ${R.contactFrames.Right} L ${R.contactFrames.Left} sink R ${R.sinkAll.Right.toFixed(1)} L ${R.sinkAll.Left.toFixed(1)}mm unreached ${R.unreached} (${R.maxReachErrMm.toFixed(1)}mm) → ${JSON.stringify(trail.at(-1))}`);
+    log(`${name}: frames ${trail.length} gripped ${gripped} contact R ${R.contactFrames.Right} L ${R.contactFrames.Left} LT ${R.contactFrames.LeftT} sink R ${R.sinkAll.Right.toFixed(1)} L ${R.sinkAll.Left.toFixed(1)} LT ${R.sinkAll.LeftT.toFixed(1)}mm unreached ${R.unreached} (${R.maxReachErrMm.toFixed(1)}mm) → ${JSON.stringify(trail.at(-1))}`);
     return gripped;
   };
 

@@ -1,21 +1,26 @@
 // hand-grip.js — 手の指の骨を合成して、柄・鞘を握らせるための純粋な計算（Three.js非依存）。設計は design-hand-grip.md。
-// 人物GLB（Meshy）は指の骨を持たず、指はそろえて開いた1枚の面（4本は側面でつながる）。そこで、
-//   指4本を1本の鎖（付け根・中・先の3関節）、親指を1本の鎖（2関節）として、手の頂点の重みを分ける。
-//   握る形（関節の角と、円筒の中心線の位置）は、その型の実際の頂点で合わせる（fitGrip。型ごとに1回）。
+// 人物GLB（Meshy）は指の骨を持たず、指はそろえて開いた1枚の面（4本は側面でつながる。侍大将は先の近くまでつながる）。そこで、
+//   指4本をそれぞれ1本の鎖（付け根・中・先の3関節）、親指を1本の鎖（2関節）として、手の頂点の重みを分ける。隣の指との境は横に混ぜる。
+//   握る形（指ごとの関節の角と、円筒の中心線の位置）は、その型の実際の頂点で合わせる（fitGrip。型ごとに1回）。
 // 座標は「手の骨の局所（結合姿勢）」。f＝指の向き（骨の +Y）、n＝手のひらの向き、w＝親指の側。単位は m・rad。
+// 指の番号 k は板の幅を4つに分けた順（0＝小指の側、3＝人差し指の側）。骨の名は 'f' + k + 関節（0＝付け根・1＝中・2＝先）。
 
 export const HAND = Object.freeze({
   frameBand: Object.freeze([0.72, 0.9]),   // 指の板の横の軸を求める帯（指先の高さに対する比。親指を含まない）
-  joints: Object.freeze([0.60, 0.78, 0.89]), // 指の付け根・中・先の関節（指先の高さに対する比）
+  joints: Object.freeze([0.60, 0.78, 0.89]), // 指の付け根・中・先の関節（その指の先の高さに対する比）
   blend: 0.006,                            // 関節の前後で重みを混ぜる半幅
+  fingerBlend: 0.0035,                     // 隣の指との境で重みを混ぜる半幅
   thumbFrom: 0.25, thumbJoints: Object.freeze([0.45, 0.75]),   // 親指の軸（母指球→親指の先）の上の関節の位置
   thumbEdge: Object.freeze([-0.004, 0.010]),                   // 指の板の縁から外へ、親指に属し始める幅（m）
   thumbBand: Object.freeze([0.25, 0.40, 0.80, 0.86]),          // 親指に属する高さの範囲（入り始め・入り切る・抜け始め・抜け切る）
   relaxed: Object.freeze([0.16, 0.22, 0.12]),                   // 握っていない手の、指の軽い曲げ（rad）
+  cascade: Object.freeze([1.3, 1.15, 1.0, 0.85]),              // 握っていない指の曲げの、指ごとの倍率（小指ほど深い。そろうと板に見えた）
   relaxedThumb: Object.freeze([0.10, 0.08]),
   limits: Object.freeze([1.65, 1.9, 1.4]),                      // 指の関節の曲げの上限（rad）
   channelBack: 0.012,                                           // 柄の中心を、指の付け根の関節より手首側へ置く量（m）
 });
+export const FINGERS = 4;
+export const DIGIT_KEYS = Object.freeze(['f00', 'f01', 'f02', 'f10', 'f11', 'f12', 'f20', 'f21', 'f22', 'f30', 'f31', 'f32', 't0', 't1']);
 
 const clamp = (v, lo, hi) => Number.isNaN(v) ? lo : Math.max(lo, Math.min(hi, v));
 export function smoothstep(a, b, x) { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); }
@@ -58,11 +63,19 @@ export function measureHand(points, weights, { down, side }) {
     return { n: (lo + hi) / 2, half: Math.max(0.004, (hi - lo) / 2), palm: hi };
   };
   const joints = HAND.joints.map(r => { const fy = r * tipF, s = section(fy); return { f: fy, n: s.n, half: s.half }; });
+  // 指ごと：板の幅の4分の1。関節の高さと厚みの中心は、4本で共有する（板と同じ。指ごとの先の高さの比にすると、小指の付け根が2cm下がり、
+  // 同じ角でも柄から外れて、板の合わせが4.5mmから12mmへ悪化した。実測）。先の高さだけ、その幅の頂点の最大を持つ
+  const fw = (wHi - wLo) / FINGERS, fingers = [];
+  for (let k = 0; k < FINGERS; k++) {
+    const lo = wLo + k * fw, hi = lo + fw;
+    let tip = 0; for (const q of pc) if (q[0] >= lo && q[0] <= hi && q[1] > tip) tip = q[1];
+    fingers.push({ lo, hi, wC: (lo + hi) / 2, tip: tip > 0.6 * tipF ? tip : tipF, joints });
+  }
   // 親指：板の縁より外で、指先より低い所の、いちばん外の点が親指の先
   const rim = pc.filter(q => q[1] > 0.3 * tipF && q[1] < 0.8 * tipF);
   const thumbTip = rim.reduce((b, q) => (q[0] > b[0] ? q : b), rim[0]);
   const thumbBase = [wHi - 0.01, HAND.thumbFrom * tipF, section(HAND.thumbFrom * tipF).n];
-  return { side, f, w, n, c: cross(f, n), tipF, wLo, wHi, wC, joints, thumbTip, thumbBase, thumbAgrees, palmAt: fy => section(fy).palm };
+  return { side, f, w, n, c: cross(f, n), tipF, wLo, wHi, wC, joints, fingers, thumbTip, thumbBase, thumbAgrees, palmAt: fy => section(fy).palm };
 }
 
 // 手の局所の点を、手のひらの座標 [w, f, n] へ
@@ -70,36 +83,50 @@ export function palmCoords(m, p) { return [dot(p, m.w), p[1], dot(p, m.n)]; }
 // 手のひらの座標を、手の局所へ
 export function fromPalm(m, q) { return add(add(m.w.map(v => v * q[0]), m.f, q[1]), m.n, q[2]); }
 
-// 骨の置き場（手の局所。親子は 手→f0→f1→f2、手→t0→t1。値は各骨の親からの位置）
+// 骨の置き場（手の局所。親子は 手→f{k}0→f{k}1→f{k}2、手→t0→t1。値は各骨の親からの位置）
 export function boneLayout(m) {
-  const at = j => fromPalm(m, [m.wC, m.joints[j].f, m.joints[j].n]);
-  const f0 = at(0), f1 = at(1), f2 = at(2);
+  const out = { world: {} };
+  m.fingers.forEach((fg, k) => {
+    let prev = [0, 0, 0];
+    fg.joints.forEach((j, i) => { const p = fromPalm(m, [fg.wC, j.f, j.n]), key = 'f' + k + i; out.world[key] = p; out[key] = add(p, prev, -1); prev = p; });
+  });
   const tb = m.thumbBase, tt = m.thumbTip, along = (s) => [tb[0] + (tt[0] - tb[0]) * s, tb[1] + (tt[1] - tb[1]) * s, tb[2] + (tt[2] - tb[2]) * s];
   const t0 = fromPalm(m, along(HAND.thumbJoints[0])), t1 = fromPalm(m, along(HAND.thumbJoints[1]));
-  return {
-    f0, f1: add(f1, f0, -1), f2: add(f2, f1, -1),
-    t0, t1: add(t1, t0, -1),
-    world: { f0, f1, f2, t0, t1 },          // 手の局所での位置（逆結合行列に使う）
-    lengths: [m.joints[1].f - m.joints[0].f, m.joints[2].f - m.joints[1].f, m.tipF - m.joints[2].f],
-  };
+  out.world.t0 = t0; out.world.t1 = t1; out.t0 = t0; out.t1 = add(t1, t0, -1);
+  out.lengths = m.fingers.map(fg => [fg.joints[1].f - fg.joints[0].f, fg.joints[2].f - fg.joints[1].f, fg.tip - fg.joints[2].f]);
+  return out;
 }
 
-// 1つの頂点の、手の骨の重み（1とする）の分け方。戻りは { palm, f0, f1, f2, t0, t1 }（合計1）
+// 横の位置 pw の、4本の指への分け方（合計1。境の前後 fingerBlend で混ぜる）
+export function fingerShares(m, pw) {
+  const fw = (m.wHi - m.wLo) / FINGERS, h = HAND.fingerBlend, out = [0, 0, 0, 0];
+  let upper = 1;   // 番号が k 以上の指の分
+  for (let k = 0; k < FINGERS; k++) {
+    const next = k === FINGERS - 1 ? 0 : smoothstep(m.wLo + (k + 1) * fw - h, m.wLo + (k + 1) * fw + h, pw);
+    out[k] = upper - next; upper = next;
+  }
+  return out;
+}
+
+// 1つの頂点の、手の骨の重み（1とする）の分け方。戻りは { palm, f00…f32, t0, t1 }（合計1）
 export function splitHandWeight(m, p) {
-  const [pw, pf] = palmCoords(m, p), b = HAND.blend, J = m.joints.map(j => j.f), T = m.tipF;
+  const [pw, pf] = palmCoords(m, p), b = HAND.blend, T = m.tipF;
   const tb = HAND.thumbBand;
   const thumb = smoothstep(m.wHi + HAND.thumbEdge[0], m.wHi + HAND.thumbEdge[1], pw) * smoothstep(tb[0] * T, tb[1] * T, pf) * (1 - smoothstep(tb[2] * T, tb[3] * T, pf));
-  const fing = 1 - thumb;
-  const s0 = smoothstep(J[0] - b, J[0] + b, pf), s1 = smoothstep(J[1] - b, J[1] + b, pf), s2 = smoothstep(J[2] - b, J[2] + b, pf);
+  const fing = 1 - thumb, share = fingerShares(m, pw), out = { palm: 0 };
+  for (let k = 0; k < FINGERS; k++) {
+    const J = m.fingers[k].joints, g = fing * share[k];
+    const s0 = smoothstep(J[0].f - b, J[0].f + b, pf), s1 = smoothstep(J[1].f - b, J[1].f + b, pf), s2 = smoothstep(J[2].f - b, J[2].f + b, pf);
+    out.palm += g * (1 - s0);
+    out['f' + k + '0'] = g * (s0 - s1); out['f' + k + '1'] = g * (s1 - s2); out['f' + k + '2'] = g * s2;
+  }
   // 親指の軸に沿った位置（母指球=0、親指の先=1）
   const tb3 = m.thumbBase, tt = m.thumbTip, d = [tt[0] - tb3[0], tt[1] - tb3[1]], len2 = d[0] * d[0] + d[1] * d[1];
   const t = len2 > 0 ? ((pw - tb3[0]) * d[0] + (pf - tb3[1]) * d[1]) / len2 : 0;
   const k0 = smoothstep(HAND.thumbJoints[0] - 0.08, HAND.thumbJoints[0] + 0.08, t), k1 = smoothstep(HAND.thumbJoints[1] - 0.07, HAND.thumbJoints[1] + 0.07, t);
-  return {
-    palm: fing * (1 - s0) + thumb * (1 - k0),
-    f0: fing * (s0 - s1), f1: fing * (s1 - s2), f2: fing * s2,
-    t0: thumb * (k0 - k1), t1: thumb * k1,
-  };
+  out.palm += thumb * (1 - k0);
+  out.t0 = thumb * (k0 - k1); out.t1 = thumb * k1;
+  return out;
 }
 
 // 4つまでの影響（[骨, 重み]）に絞り、合計 total（既定255）の整数へ量子化する。重みの大きい順に残し、端数は最大の影響へ。
@@ -210,29 +237,31 @@ function rotation(axis, angle) {
 }
 const mv = (m, v) => [m[0] * v[0] + m[1] * v[1] + m[2] * v[2], m[3] * v[0] + m[4] * v[1] + m[5] * v[2], m[6] * v[0] + m[7] * v[1] + m[8] * v[2]];
 const mm = (a, b) => [0, 1, 2].flatMap(r => [0, 1, 2].map(c => a[r * 3] * b[c] + a[r * 3 + 1] * b[3 + c] + a[r * 3 + 2] * b[6 + c]));
-// 指・親指の骨の姿勢（手の局所で、結合姿勢の点 v → R v + t）。layout は boneLayout、fingers・thumb は各関節の曲げ（rad）
+const I3 = Object.freeze([1, 0, 0, 0, 1, 0, 0, 0, 1]);
+// 指・親指の骨の姿勢（手の局所で、結合姿勢の点 v → R v + t）。layout は boneLayout、fingers は指ごとの [付け根, 中, 先] の曲げ（rad）、thumb は親指の2関節
 export function poseDigits(layout, axes, fingers, thumb) {
-  const R1 = rotation(axes.curl, fingers[0]), R12 = mm(R1, rotation(axes.curl, fingers[1])), R123 = mm(R12, rotation(axes.curl, fingers[2]));
-  const S1 = rotation(axes.thumb, thumb[0]), S12 = mm(S1, rotation(axes.thumb, thumb[1]));
-  const p0 = layout.world.f0, p1 = layout.world.f1, p2 = layout.world.f2, q0 = layout.world.t0, q1 = layout.world.t1;
-  const pose = (R, pivots) => { // R は根元からの合成。pivots は [関節の結合位置, その関節までの合成回転] の列
+  const pose = (R, pivots) => { // R は根元からの合成。pivots は [関節の結合位置, その関節までの合成回転, その関節のあとの合成回転] の列
     let t = [0, 0, 0];
     for (const [p, Rp, Rn] of pivots) t = add(t, add(mv(Rp, p), mv(Rn, p), -1));
     return { R, t };
   };
-  const I = [1, 0, 0, 0, 1, 0, 0, 0, 1];
-  return {
-    f0: pose(R1, [[p0, I, R1]]),
-    f1: pose(R12, [[p0, I, R1], [p1, R1, R12]]),
-    f2: pose(R123, [[p0, I, R1], [p1, R1, R12], [p2, R12, R123]]),
-    t0: pose(S1, [[q0, I, S1]]),
-    t1: pose(S12, [[q0, I, S1], [q1, S1, S12]]),
-  };
+  const out = {};
+  for (let k = 0; k < FINGERS; k++) {
+    const a = fingers[k], R1 = rotation(axes.curl, a[0]), R12 = mm(R1, rotation(axes.curl, a[1])), R123 = mm(R12, rotation(axes.curl, a[2]));
+    const p0 = layout.world['f' + k + '0'], p1 = layout.world['f' + k + '1'], p2 = layout.world['f' + k + '2'];
+    out['f' + k + '0'] = pose(R1, [[p0, I3, R1]]);
+    out['f' + k + '1'] = pose(R12, [[p0, I3, R1], [p1, R1, R12]]);
+    out['f' + k + '2'] = pose(R123, [[p0, I3, R1], [p1, R1, R12], [p2, R12, R123]]);
+  }
+  const S1 = rotation(axes.thumb, thumb[0]), S12 = mm(S1, rotation(axes.thumb, thumb[1])), q0 = layout.world.t0, q1 = layout.world.t1;
+  out.t0 = pose(S1, [[q0, I3, S1]]);
+  out.t1 = pose(S12, [[q0, I3, S1], [q1, S1, S12]]);
+  return out;
 }
 // 結合姿勢の点 v（手の局所）と重みの分け方 split から、曲げたあとの位置（線形の皮）
 export function skinDigits(v, split, poses) {
   let x = v[0] * split.palm, y = v[1] * split.palm, z = v[2] * split.palm;
-  for (const k of ['f0', 'f1', 'f2', 't0', 't1']) {
+  for (const k of DIGIT_KEYS) {
     const s = split[k]; if (!(s > 0)) continue;
     const p = poses[k], r = mv(p.R, v);
     x += s * (r[0] + p.t[0]); y += s * (r[1] + p.t[1]); z += s * (r[2] + p.t[2]);
@@ -244,85 +273,157 @@ export function cylinderDistance(p, center, axis, radius) {
   const d = add(p, center, -1), along = dot(d, axis);
   return Math.hypot(d[0] - axis[0] * along, d[1] - axis[1] * along, d[2] - axis[2] * along) - radius;
 }
+// 頂点の組の名前（回帰の報告と同じ）：指は 'f' + 関節 + '/' + 指、親指は 't0'・'t1'
+export const groupName = key => key[0] === 'f' ? 'f' + key[2] + '/' + key[1] : key;
 
 // 実際の頂点で、円筒（半径 radius）を握る形を合わせる。verts＝[{ p: 結合姿勢の手の局所, s: splitHandWeight の結果 }]
 //   1. 円筒の中心線は手の横の軸 c に沿い、指の付け根の関節より channelBack だけ手首側。手のひらの側の高さは、その幅の手のひらの頂点が円筒に入らない最小。
-//   2. 指（3関節を1つの板として）：板の幅を4つ（4本の指）× 3節の各組で、柄にいちばん近い皮が表面から contact だけ離れるよう、めり込みを重く数えて、関節の角を少しずつ動かして合わせる（座標降下）。
+//   2a. 指を板として（4本とも同じ角で）合わせる：各指の各節で、柄にいちばん近い皮が表面から contact だけ離れるよう、めり込みを重く数えて、
+//       3つの角と、円筒の浮き・指の向きのずれを少しずつ動かす（座標降下）。いちばん離れた節は worstWeight 倍で足す。
+//   2b. 指ごとの差：板の角からのずれを、指ごとに spread まで・隣の指との差を neighbor までに抑えて、同じ式（＋すべての皮のめり込み）で合わせる。
+//       隣の指と角が大きく違うと、境で混ぜた皮が2つの位置の中ほど（柄の内側）へ落ちる（線形の皮の弦）。指ごとに独立に合わせると、侍大将で5〜12mmめり込んだ（実測）。
 //   3. 親指（2関節）：親指の皮がめり込まず、先の節が表面に近いよう、角の格子を探す。
-export const FIT = Object.freeze({ contact: 0.0008, sinkWeight: 400, sinkLimit: 0.001, margin: 0.0005, liftMax: 0.006, thumbGrid: Object.freeze([-0.5, 1.7, 0, 1.3, 0.05]) });
+export const FIT = Object.freeze({ contact: 0.0008, sinkWeight: 400, sinkLimit: 0.001, margin: 0.0005, liftMax: 0.006, shift: Object.freeze([-0.008, 0.006]), worstWeight: 25, spread: 0.35, neighbor: 0.22, thumbGrid: Object.freeze([-0.5, 1.7, 0, 1.3, 0.05]), thumbWide: Object.freeze([-1.2, 1.7, -0.5, 1.3, 0.05]) });
 export function fitGrip(m, layout, verts, radius) {
   const axes = { curl: m.c, thumb: thumbAxis(m) };
-  const fC = m.joints[0].f - HAND.channelBack;
-  // 1 中心線の手のひらの側の高さ（その幅の手のひらの頂点が円筒に入らない最小）。指の当たりを見て、さらに liftMax まで浮かせてよい
-  let nC0 = -Infinity;
-  for (const { p, s } of verts) {
-    const [pw, pf, pn] = palmCoords(m, p);
-    if (s.palm < 0.5 || pw < m.wLo || pw > m.wHi || Math.abs(pf - fC) >= radius) continue;
-    nC0 = Math.max(nC0, pn + Math.sqrt(radius * radius - (pf - fC) ** 2));
-  }
-  if (!Number.isFinite(nC0)) nC0 = m.palmAt(fC) + radius;
-  nC0 += FIT.margin;
-  let lift = 0, center = fromPalm(m, [m.wC, fC, nC0]);
-  const axis = m.c;
-  // 組：指は 節 × 板の幅の4分の1、親指は節ごと
-  const groups = new Map();
-  for (const v of verts) {
-    let best = 'palm', bw = v.s.palm;
-    for (const k of ['f0', 'f1', 'f2', 't0', 't1']) if (v.s[k] > bw) { bw = v.s[k]; best = k; }
-    if (best === 'palm' || bw < 0.5) continue;
-    let key = best;
-    if (best[0] === 'f') {
-      const pw = palmCoords(m, v.p)[0];
-      if (pw < m.wLo || pw > m.wHi) continue;                    // 板の幅の外（親指との水かき）は、指の当たりに数えない
-      key += '/' + Math.max(0, Math.min(3, Math.floor((pw - m.wLo) / (m.wHi - m.wLo) * 4)));
+  const fC0 = m.joints[0].f - HAND.channelBack;
+  // 1 中心線の手のひらの側の高さ（その幅の手のひらの頂点が円筒に入らない最小）。指の当たりを見て、さらに liftMax まで浮かせ、指の向きに shift まで動かしてよい
+  const nCache = new Map();
+  const nCOf = fc => {
+    const key = Math.round(fc * 1e6);
+    if (nCache.has(key)) return nCache.get(key);
+    let n = -Infinity;
+    for (const { p, s } of verts) {
+      const [pw, pf, pn] = palmCoords(m, p);
+      if (s.palm < 0.5 || pw < m.wLo || pw > m.wHi || Math.abs(pf - fc) >= radius) continue;
+      n = Math.max(n, pn + Math.sqrt(radius * radius - (pf - fc) ** 2));
     }
+    if (!Number.isFinite(n)) n = m.palmAt(fc) + radius;
+    nCache.set(key, n + FIT.margin);
+    return n + FIT.margin;
+  };
+  let fC = fC0, nC0 = nCOf(fC0);
+  const axis = m.c;
+  // 頂点ごとの影響を、数の配列で持つ（合わせの間に何千回も皮を計算するので）
+  const prep = verts.map(v => ({ p: v.p, palm: v.s.palm, inf: DIGIT_KEYS.map((k, i) => [i, v.s[k] || 0]).filter(x => x[1] > 0) }));
+  // 組：最も重い指・親指の骨（重み0.5以上）。指は板の幅の中だけ（親指との水かきは数えない）
+  const groups = new Map();
+  prep.forEach((v, n) => {
+    let best = -1, bw = v.palm;
+    for (const [i, w] of v.inf) if (w > bw) { bw = w; best = i; }
+    if (best < 0 || bw < 0.5) return;
+    const key = DIGIT_KEYS[best];
+    if (key[0] === 'f') { const pw = palmCoords(m, v.p)[0]; if (pw < m.wLo || pw > m.wHi) return; }
     if (!groups.has(key)) groups.set(key, []);
     groups.get(key).push(v);
-  }
-  const thumbVerts = verts.filter(v => v.s.t0 + v.s.t1 >= 0.5);   // 親指が主の頂点（人差し指との水かきは、指の側で数える）
-  const minDist = (list, poses) => { let d = Infinity; for (const v of list) d = Math.min(d, cylinderDistance(skinDigits(v.p, v.s, poses), center, axis, radius)); return d; };
-  const energy = (fingers, lifted) => {
-    center = fromPalm(m, [m.wC, fC, nC0 + lifted]);
-    const poses = poseDigits(layout, axes, fingers, [0, 0]);
-    let e = 0;
-    for (const [key, list] of groups) {
-      if (key[0] !== 'f') continue;
-      const err = minDist(list, poses) - FIT.contact;
-      e += err < 0 ? FIT.sinkWeight * err * err : err * err;
+  });
+  const fingerGroups = [0, 1, 2, 3].map(k => [0, 1, 2].map(j => groups.get('f' + k + j) || []));
+  const thumbVerts = prep.filter(v => v.inf.reduce((s, [i, w]) => s + (i >= 12 ? w : 0), 0) >= 0.5);   // 親指が主の頂点
+  const webVerts = prep.filter(v => v.inf.some(([i]) => i >= 12) && !thumbVerts.includes(v));   // 親指に少し付く頂点（人差し指との水かき）
+  let center = fromPalm(m, [m.wC, fC, nC0]);
+  const poseList = poses => DIGIT_KEYS.map(k => poses[k]);
+  const skinMin = (list, P) => {
+    let best = Infinity;
+    for (const v of list) {
+      const p = v.p; let x = p[0] * v.palm, y = p[1] * v.palm, z = p[2] * v.palm;
+      for (const [i, w] of v.inf) { const { R, t } = P[i]; x += w * (R[0] * p[0] + R[1] * p[1] + R[2] * p[2] + t[0]); y += w * (R[3] * p[0] + R[4] * p[1] + R[5] * p[2] + t[1]); z += w * (R[6] * p[0] + R[7] * p[1] + R[8] * p[2] + t[2]); }
+      const dx = x - center[0], dy = y - center[1], dz = z - center[2], al = dx * axis[0] + dy * axis[1] + dz * axis[2];
+      const d = Math.hypot(dx - axis[0] * al, dy - axis[1] * al, dz - axis[2] * al) - radius;
+      if (d < best) best = d;
     }
+    return best;
+  };
+  const errOf = d => { const e = d - FIT.contact; return e < 0 ? FIT.sinkWeight * e * e : e * e; };
+  const fingerVerts = prep.filter(v => v.inf.reduce((s, [i, w]) => s + (i < 12 ? w : 0), 0) > 0);
+  let groupSets = fingerGroups, sinkSet = fingerVerts;   // 2b では、柄に近い頂点だけに絞る（合わせの時間の大半が2bだった）
+  const energy = (fingers, all) => {
+    const P = poseList(poseDigits(layout, axes, fingers, [0, 0]));
+    let e = 0, worst = 0;
+    for (const lists of groupSets) for (const list of lists) if (list.length) { const q = errOf(skinMin(list, P)); e += q; worst = Math.max(worst, q); }
+    e += FIT.worstWeight * worst;   // いちばん離れた節も重く数える（和だけだと、侍大将で1つの節が7mm離れたまま残った。6・12・25で比べ、25が全員で最小）
+    if (all) { const s = skinMin(sinkSet, P) + FIT.sinkLimit; if (s < 0) e += FIT.sinkWeight * s * s; }
     return e;
   };
-  // 2 指：2次元の巻きつけを初期値に、3つの角と円筒の浮きを座標降下
+  const place = (s, l) => { fC = fC0 + s; nC0 = nCOf(fC); center = fromPalm(m, [m.wC, fC, nC0 + l]); };
+  // 2a 板：板の2次元の巻きつけを初期値に、3つの角と、円筒の浮き・指の向きのずれを座標降下
   const half = m.joints.map(j => Math.min(j.half, 0.009));
   const lengths = [m.joints[1].f - m.joints[0].f, m.joints[2].f - m.joints[1].f, m.tipF - m.joints[2].f];
-  let fingers = wrapAngles({ joint0: [m.joints[0].f, m.joints[0].n], lengths, half, center: [fC, nC0], radius });
-  let best = energy(fingers, lift);
+  let plate = wrapAngles({ joint0: [m.joints[0].f, m.joints[0].n], lengths, half, center: [fC, nC0], radius }), lift = 0, shift = 0;
+  const same = a => [a, a, a, a];
+  place(shift, lift);
+  let best = energy(same(plate), false);
   for (let step = 0.12; step > 0.002; step /= 2) {
     for (let improved = true, guard = 0; improved && guard < 40; guard++) {
       improved = false;
-      for (let k = 0; k < 4; k++) for (const sgn of [1, -1]) {
-        const trial = fingers.slice(); let l = lift;
-        if (k < 3) trial[k] = clamp(trial[k] + sgn * step, 0, HAND.limits[k]); else l = clamp(lift + sgn * step * 0.02, 0, FIT.liftMax);
-        const e = energy(trial, l);
-        if (e < best - 1e-12) { best = e; fingers = trial; lift = l; improved = true; }
+      for (let k = 0; k < 5; k++) for (const sgn of [1, -1]) {
+        const trial = plate.slice(); let l = lift, s = shift;
+        if (k < 3) trial[k] = clamp(trial[k] + sgn * step, 0, HAND.limits[k]);
+        else if (k === 3) l = clamp(lift + sgn * step * 0.02, 0, FIT.liftMax);
+        else s = clamp(shift + sgn * step * 0.02, FIT.shift[0], FIT.shift[1]);
+        place(s, l); const e = energy(same(trial), false);
+        if (e < best - 1e-12) { best = e; plate = trial; lift = l; shift = s; improved = true; }
       }
     }
   }
-  center = fromPalm(m, [m.wC, fC, nC0 + lift]);
-  // 3 親指：格子で探す。皮が sinkLimit より深く入る姿勢は採らず、その中で先の節が表面に近いもの（曲げは小さいほど良い）
+  place(shift, lift);
+  // 2b 指ごとの差（板の角からのずれ。指ごとに spread まで・隣の指との差は neighbor まで）。
+  //    数えるのは、板の姿勢で柄の表面から near 以内の頂点だけ（各組は最も近い頂点から near 以内）。最後の報告は全部の頂点で測る
+  let fingers = same(plate).map(a => a.slice());
+  {
+    const P0 = poseList(poseDigits(layout, axes, fingers, [0, 0])), near = 0.012, dOf = v => skinMin([v], P0);
+    groupSets = fingerGroups.map(lists => lists.map(list => { if (!list.length) return list; const d = list.map(dOf), m0 = Math.min(...d); return list.filter((_, i) => d[i] < m0 + near); }));
+    sinkSet = fingerVerts.filter(v => dOf(v) < near);
+  }
+  const allowed = (fs, k, j) => Math.abs(fs[k][j] - plate[j]) <= FIT.spread + 1e-12 && (k === 0 || Math.abs(fs[k][j] - fs[k - 1][j]) <= FIT.neighbor + 1e-12) && (k === FINGERS - 1 || Math.abs(fs[k][j] - fs[k + 1][j]) <= FIT.neighbor + 1e-12);
+  best = energy(fingers, true);
+  for (let step = 0.08; step > 0.002; step /= 2) {
+    for (let improved = true, guard = 0; improved && guard < 25; guard++) {
+      improved = false;
+      for (let k = 0; k < FINGERS; k++) for (let j = 0; j < 3; j++) for (const sgn of [1, -1]) {
+        const trial = fingers.map(a => a.slice()); trial[k][j] = clamp(trial[k][j] + sgn * step, 0, HAND.limits[j]);
+        if (!allowed(trial, k, j)) continue;
+        const e = energy(trial, true);
+        if (e < best - 1e-12) { best = e; fingers = trial; improved = true; }
+      }
+    }
+  }
+  // 3 親指：格子で探す。皮が sinkLimit より深く入る姿勢は採らず、その中で先の節が表面に近いもの（曲げは小さいほど良い）。
+  //   付け根は少し反らす（手のひらから離す）側も探す。どれも入るときだけ、さらに反らす・先を反らす広い格子（thumbWide）で探す
+  //   （はじめから広い格子にすると、兵の右手で付け根を大きく反らした姿勢が選ばれ、甲の上に親指の先がとげのように立った。兵の左手は狭い格子では3mm入る。実測）
   const tip = groups.get('t1') || [];
   let thumb = [0, 0], tBest = Infinity, fallback = [0, 0], fbSink = -Infinity;
-  const [a0, a1, b0, b1, gs] = FIT.thumbGrid;   // 付け根は少し反らす（手のひらから離す）側も探す
-  for (let a = a0; a <= a1 + 1e-9; a += gs) for (let b = b0; b <= b1 + 1e-9; b += gs) {
-    const poses = poseDigits(layout, axes, fingers, [a, b]), sink = minDist(thumbVerts, poses);
+  // 格子は2段：その格子の2倍の目で探し、いちばん良い姿勢のまわりを元の目で探す（合わせの時間を縮める）
+  const tryThumb = (a, b, lim) => {
+    if (a < lim[0] - 1e-9 || a > lim[1] + 1e-9 || b < lim[2] - 1e-9 || b > lim[3] + 1e-9) return;
+    const P = poseList(poseDigits(layout, axes, fingers, [a, b])), sink = skinMin(thumbVerts, P);
     if (sink > fbSink) { fbSink = sink; fallback = [a, b]; }
-    if (sink < -FIT.sinkLimit) continue;
-    const near = tip.length ? minDist(tip, poses) : 0, e = (near - FIT.contact) ** 2 + 1e-6 * (a + b);
+    if (sink < -FIT.sinkLimit) return;
+    // 水かきのめり込みは重く数える（親指が主の頂点だけで選ぶと、兵の右手の水かきが2mm入った。水かきで弾くと、狭い格子に入らない姿勢が無くなり、親指がとげのように立った）
+    const web = webVerts.length ? Math.min(0, skinMin(webVerts, P) + FIT.sinkLimit) : 0;
+    const near = tip.length ? skinMin(tip, P) : 0, e = (near - FIT.contact) ** 2 + FIT.sinkWeight * web * web + 1e-6 * (a + b);
     if (e < tBest) { tBest = e; thumb = [a, b]; }
+  };
+  for (const lim of [FIT.thumbGrid, FIT.thumbWide]) {
+    const gs = lim[4];
+    for (let a = lim[0]; a <= lim[1] + 1e-9; a += 2 * gs) for (let b = lim[2]; b <= lim[3] + 1e-9; b += 2 * gs) tryThumb(a, b, lim);
+    if (tBest < Infinity) { const [a, b] = thumb; for (let i = -2; i <= 2; i++) for (let j = -2; j <= 2; j++) tryThumb(a + i * gs, b + j * gs, lim); break; }
+    const [a, b] = fallback; for (let i = -2; i <= 2; i++) for (let j = -2; j <= 2; j++) tryThumb(a + i * gs, b + j * gs, lim);
+    if (tBest < Infinity) break;
   }
   if (tBest === Infinity) thumb = fallback;
-  const poses = poseDigits(layout, axes, fingers, thumb), report = {};
-  for (const [key, list] of groups) report[key] = minDist(list, poses);
-  report.sinkAll = minDist(verts, poses);
-  return { center, axis, fC, nC: nC0 + lift, lift, fingers, thumb, axes, report };
+  const P = poseList(poseDigits(layout, axes, fingers, thumb)), report = {};
+  for (const [key, list] of groups) report[groupName(key)] = skinMin(list, P);
+  report.sinkAll = skinMin(prep, P);
+  return { center, axis, fC, nC: nC0 + lift, lift, shift, fingers, thumb, axes, report };
+}
+
+// 握った手の、柄の軸に沿った広がり（中心線の点 center から、向き axis へ測った最大）。軸から rMax より遠い皮は数えない（鍔に当たる所だけ）
+export function gripExtent(layout, axes, fit, verts, axis, rMax) {
+  const poses = poseDigits(layout, axes, fit.fingers, fit.thumb);
+  let ext = -Infinity;
+  for (const v of verts) {
+    const q = skinDigits(v.p, v.s, poses), d = add(q, fit.center, -1), along = dot(d, axis);
+    if (Math.hypot(d[0] - axis[0] * along, d[1] - axis[1] * along, d[2] - axis[2] * along) <= rMax) ext = Math.max(ext, along);
+  }
+  return ext;
 }

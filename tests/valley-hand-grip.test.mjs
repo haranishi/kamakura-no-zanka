@@ -4,8 +4,8 @@ import fs from 'node:fs';
 import { parseGlb, decodedAccessor } from '../tools/lib/glb.mjs';
 import { solveTwoBone } from '../dist/valley/arm-ik.js';
 import {
-  HAND, measureHand, palmCoords, boneLayout, splitHandWeight, quantizeInfluences, wrapAngles, solveTwoBoneInto,
-  rollWithinReach, thumbAxis, poseDigits, skinDigits, cylinderDistance, fitGrip,
+  HAND, FIT, FINGERS, DIGIT_KEYS, measureHand, palmCoords, boneLayout, fingerShares, splitHandWeight, quantizeInfluences, wrapAngles, solveTwoBoneInto,
+  rollWithinReach, thumbAxis, poseDigits, skinDigits, cylinderDistance, fitGrip, gripExtent, groupName,
 } from '../dist/valley/hand-grip.js';
 
 const close = (a, b, e = 1e-9, msg = '') => assert.ok(Math.abs(a - b) <= e, `${msg} ${a} != ${b}`);
@@ -54,23 +54,45 @@ test('実際の手：手のひらは結合姿勢の下、親指の側は手の�
   assert.ok(dot(flipped.n, down) < -0.5, 'down を逆にしても手のひらの向きが変わらない');
 });
 
-test('重みの分け方は、どの頂点でも0以上・合計1で、指先・手首・親指の先が正しい骨へ行く', () => {
+test('重みの分け方は、どの頂点でも0以上・合計1で、指先・手首・親指の先が正しい骨へ行き、指はその横の位置の指へ行く', () => {
   for (const [who, side] of HANDS) {
     const { points, m } = handOf(who, side);
     let tip = null, wrist = null, thumb = null;
     for (const p of points) {
       const s = splitHandWeight(m, p), vals = Object.values(s);
+      assert.deepEqual(Object.keys(s).sort(), ['palm', ...DIGIT_KEYS].sort());
       assert.ok(vals.every(x => x >= -1e-12), `${who} ${side}: 負の重み ${JSON.stringify(s)}`);
       close(vals.reduce((a, b) => a + b, 0), 1, 1e-9, '合計');
       const q = palmCoords(m, p);
       if (!tip || q[1] > tip.q[1]) tip = { q, s };
       if (!wrist || q[1] < wrist.q[1]) wrist = { q, s };
       if (q[1] > 0.3 * m.tipF && q[1] < 0.8 * m.tipF && (!thumb || q[0] > thumb.q[0])) thumb = { q, s };
+      // 指の板の中で、横の位置の4分の1（境から fingerBlend より離れた所）の頂点は、その指の骨だけへ行く
+      const k = Math.floor((q[0] - m.wLo) / ((m.wHi - m.wLo) / FINGERS)), b0 = m.wLo + k * (m.wHi - m.wLo) / FINGERS;
+      if (k >= 0 && k < FINGERS && q[0] - b0 > HAND.fingerBlend && b0 + (m.wHi - m.wLo) / FINGERS - q[0] > HAND.fingerBlend && s.t0 + s.t1 === 0)
+        for (const key of DIGIT_KEYS) if (key[0] === 'f' && Number(key[1]) !== k) assert.equal(s[key], 0, `${who} ${side}: ${key} が別の指 ${k} の頂点を持つ`);
     }
-    assert.ok(tip.s.f2 > 0.9, `${who} ${side}: 指先が先の節へ行かない ${JSON.stringify(tip.s)}`);
+    const tipShare = [0, 1, 2, 3].reduce((a, k) => a + tip.s['f' + k + '2'], 0);
+    assert.ok(tipShare > 0.9, `${who} ${side}: 指先が先の節へ行かない ${JSON.stringify(tip.s)}`);
     assert.ok(wrist.s.palm > 0.99, `${who} ${side}: 手首が手のひらに残らない`);
     assert.ok(thumb.s.t1 > 0.5, `${who} ${side}: 親指の先が親指の先の節へ行かない ${JSON.stringify(thumb.s)}`);
   }
+});
+
+test('指への横の分け方は、合計1・0以上で、境の外は1本の指、境では隣の2本だけを混ぜる', () => {
+  const { m } = handOf('hero', 'Right'), fw = (m.wHi - m.wLo) / FINGERS;
+  for (let i = -20; i <= 220; i++) {
+    const w = m.wLo + (m.wHi - m.wLo) * i / 200, s = fingerShares(m, w);
+    assert.equal(s.length, FINGERS);
+    assert.ok(s.every(x => x >= -1e-12), '負の分');
+    close(s.reduce((a, b) => a + b, 0), 1, 1e-12, '合計');
+    assert.ok(s.filter(x => x > 1e-12).length <= 2, '3本以上を混ぜる');
+    const k = Math.max(0, Math.min(FINGERS - 1, Math.floor((w - m.wLo) / fw)));
+    const edge = Math.min(Math.abs(w - (m.wLo + k * fw)), Math.abs(w - (m.wLo + (k + 1) * fw)));
+    if (edge > HAND.fingerBlend || (k === 0 && w < m.wLo + fw - HAND.fingerBlend) || (k === FINGERS - 1 && w > m.wLo + k * fw + HAND.fingerBlend)) close(s[k], 1, 1e-12, `指 ${k} だけでない`);
+  }
+  // 境の真上は、隣の2本を半分ずつ
+  for (let b = 1; b < FINGERS; b++) { const s = fingerShares(m, m.wLo + b * fw); close(s[b - 1], 0.5, 1e-12); close(s[b], 0.5, 1e-12); }
 });
 
 test('影響の量子化：4つまで・合計255・大きい順・同じ骨はまとめる・0は捨てる・同じ入力には同じ出力', () => {
@@ -139,16 +161,26 @@ test('巻きつけの角は0〜上限に収まり、曲げた節の中心線は�
   assert.deepEqual(wrapAngles({ joint0: [0, 0], lengths: [0.01], half: [0.005], center: [0, 0.001], radius: r }), [0]);
 });
 
-test('指の姿勢：角0は恒等、骨の長さは変わらず、正の角で手のひらの側へ曲がる', () => {
+test('指の姿勢：角0は恒等、骨の長さは変わらず、正の角で手のひらの側へ曲がる。指ごとの角はその指の骨だけを動かす', () => {
   const { points, m } = handOf('hero', 'Right'), L = boneLayout(m), axes = { curl: m.c, thumb: thumbAxis(m) };
-  const zero = poseDigits(L, axes, [0, 0, 0], [0, 0]);
+  const flat = [[0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0]];
+  const zero = poseDigits(L, axes, flat, [0, 0]);
   for (const p of points.slice(0, 300)) { const q = skinDigits(p, splitHandWeight(m, p), zero); for (let k = 0; k < 3; k++) close(q[k], p[k], 1e-12); }
-  const bent = poseDigits(L, axes, [0.9, 0.8, 0.5], [0.6, 0.4]), move = (k, p) => { const { R, t } = bent[k]; return [R[0] * p[0] + R[1] * p[1] + R[2] * p[2] + t[0], R[3] * p[0] + R[4] * p[1] + R[5] * p[2] + t[1], R[6] * p[0] + R[7] * p[1] + R[8] * p[2] + t[2]]; };
+  const fingers = [[0.9, 0.8, 0.5], [0.7, 0.9, 0.6], [1.0, 0.6, 0.4], [0.5, 0.5, 0.5]];
+  const bent = poseDigits(L, axes, fingers, [0.6, 0.4]), move = (k, p) => { const { R, t } = bent[k]; return [R[0] * p[0] + R[1] * p[1] + R[2] * p[2] + t[0], R[3] * p[0] + R[4] * p[1] + R[5] * p[2] + t[1], R[6] * p[0] + R[7] * p[1] + R[8] * p[2] + t[2]]; };
   const W = L.world;
-  close(dist(move('f0', W.f1), W.f0), dist(W.f1, W.f0), 1e-12, '付け根→中');
-  close(dist(move('f1', W.f2), move('f0', W.f1)), dist(W.f2, W.f1), 1e-12, '中→先');
+  for (let k = 0; k < FINGERS; k++) {
+    const [a, b, c] = ['f' + k + '0', 'f' + k + '1', 'f' + k + '2'];
+    close(dist(move(a, W[b]), W[a]), dist(W[b], W[a]), 1e-12, '付け根→中');
+    close(dist(move(b, W[c]), move(a, W[b])), dist(W[c], W[b]), 1e-12, '中→先');
+    // 回りは c の軸のまわりだけ（指の付け根の回転角が、その指の付け根の角に等しい）
+    const R = bent[a].R; close(Math.acos(Math.max(-1, Math.min(1, (R[0] + R[4] + R[8] - 1) / 2))), fingers[k][0], 1e-9, '付け根の角');
+  }
   close(dist(move('t0', W.t1), W.t0), dist(W.t1, W.t0), 1e-12, '親指');
-  for (const k of ['f0', 'f1', 'f2', 't0', 't1']) { const R = bent[k].R, det = R[0] * (R[4] * R[8] - R[5] * R[7]) - R[1] * (R[3] * R[8] - R[5] * R[6]) + R[2] * (R[3] * R[7] - R[4] * R[6]); close(det, 1, 1e-12, k); }
+  for (const k of DIGIT_KEYS) { const R = bent[k].R, det = R[0] * (R[4] * R[8] - R[5] * R[7]) - R[1] * (R[3] * R[8] - R[5] * R[6]) + R[2] * (R[3] * R[7] - R[4] * R[6]); close(det, 1, 1e-12, k); }
+  // 1本の指だけ曲げると、ほかの指の骨は恒等
+  const one = poseDigits(L, axes, [[0, 0, 0], [0, 0, 0], [0.8, 0.6, 0.4], [0, 0, 0]], [0, 0]);
+  for (const k of DIGIT_KEYS) if (k[1] !== '2' || k[0] !== 'f') { const { R, t } = one[k]; for (let i = 0; i < 9; i++) close(R[i], [1, 0, 0, 0, 1, 0, 0, 0, 1][i], 1e-12, k); for (let i = 0; i < 3; i++) close(t[i], 0, 1e-12, k); }
   const tip = points.reduce((b, p) => (p[1] > b[1] ? p : b));
   const moved = skinDigits(tip, splitHandWeight(m, tip), bent);
   assert.ok(dot(moved.map((x, i) => x - tip[i]), m.n) > 0.03, '指先が手のひらの側へ動かない');
@@ -159,15 +191,36 @@ test('指の姿勢：角0は恒等、骨の長さは変わらず、正の角で�
   close(cylinderDistance([0.03, 0, 0.04], [0, 0, 0], [0, 1, 0], 0.01), 0.04, 1e-12);
 });
 
-test('実際の頂点で握りを合わせる：皮が柄へ2mmより深く入らず、主人公と兵の指の付け根・中の節は表面から5mm以内（同じ入力には同じ答え）', () => {
-  for (const [who, side, radius, near] of [['hero', 'Right', 0.0155, 0.005], ['soldier', 'Right', 0.0155, 0.005], ['officer', 'Right', 0.0155, null], ['hero', 'Left', 0.0225, null]]) {
+test('実際の頂点で握りを合わせる：皮が柄へ2mmより深く入らず、指の付け根・中の節は表面から6mm以内（主人公・兵・侍大将の右手と、両手持ちの左手）。隣の指との角の差は neighbor まで', () => {
+  const cases = [['hero', 'Right', 0.0155, 0.0035], ['soldier', 'Right', 0.0155, 0.004], ['officer', 'Right', 0.0155, 0.006], ['hero', 'Left', 0.0155, 0.006], ['soldier', 'Left', 0.0155, 0.006], ['officer', 'Left', 0.0155, 0.006], ['hero', 'Left', 0.0225, 0.006]];
+  for (const [who, side, radius, near] of cases) {
     const { points, weights, m } = handOf(who, side), L = boneLayout(m);
     const verts = points.map((p, i) => ({ p, s: splitHandWeight(m, p), w: weights[i] })).filter(v => v.w >= 0.5);
     const fit = fitGrip(m, L, verts, radius);
     assert.ok(fit.report.sinkAll >= -0.002, `${who} ${side}: 皮のめり込み ${(fit.report.sinkAll * 1000).toFixed(1)}mm`);
-    fit.fingers.forEach((x, i) => assert.ok(x >= 0 && x <= HAND.limits[i]));
-    assert.ok(fit.fingers.reduce((a, b) => a + b, 0) > 1.6, `${who} ${side}: 指が巻きつくほど曲がっていない`);
-    if (near) for (const [k, d] of Object.entries(fit.report)) if (/^f[01]\//.test(k)) assert.ok(d <= near, `${who} ${side} ${k}: すき間 ${(d * 1000).toFixed(1)}mm`);
+    assert.equal(fit.fingers.length, FINGERS);
+    fit.fingers.forEach(a => a.forEach((x, j) => assert.ok(x >= 0 && x <= HAND.limits[j], `角が上限の外 ${x}`)));
+    for (let k = 0; k < FINGERS; k++) assert.ok(fit.fingers[k].reduce((a, b) => a + b, 0) > 1.6, `${who} ${side}: 指 ${k} が巻きつくほど曲がっていない`);
+    for (let k = 1; k < FINGERS; k++) for (let j = 0; j < 3; j++) assert.ok(Math.abs(fit.fingers[k][j] - fit.fingers[k - 1][j]) <= FIT.neighbor + 1e-9, `${who} ${side}: 隣の指との差 ${k} ${j}`);
+    for (const [k, d] of Object.entries(fit.report)) if (/^f[01]\//.test(k)) assert.ok(d <= near, `${who} ${side} ${k}: すき間 ${(d * 1000).toFixed(1)}mm`);
+    assert.ok(fit.lift >= 0 && fit.lift <= FIT.liftMax && fit.shift >= FIT.shift[0] && fit.shift <= FIT.shift[1], '中心線の動かし方が範囲の外');
     assert.deepEqual(fitGrip(m, L, verts, radius).fingers, fit.fingers);
   }
+  // 親指は、狭い格子で入らない姿勢があれば、そこから選ぶ（兵の右手：付け根を大きく反らした姿勢を選ぶと、甲の上に親指の先が立った）
+  const { points, weights, m } = handOf('soldier', 'Right'), L = boneLayout(m);
+  const fit = fitGrip(m, L, points.map((p, i) => ({ p, s: splitHandWeight(m, p), w: weights[i] })).filter(v => v.w >= 0.5), 0.0155);
+  assert.ok(fit.thumb[0] >= FIT.thumbGrid[0] - 1e-9 && fit.thumb[1] >= FIT.thumbGrid[2] - 1e-9, `兵の右手の親指が広い格子から選ばれた ${fit.thumb}`);
+});
+
+test('握った手の柄に沿った広がり：親指の側と小指の側で測り、軸から遠い皮は数えない', () => {
+  const { points, weights, m } = handOf('soldier', 'Right'), L = boneLayout(m);
+  const verts = points.map((p, i) => ({ p, s: splitHandWeight(m, p), w: weights[i] })).filter(v => v.w >= 0.5);
+  const fit = fitGrip(m, L, verts, 0.0155);
+  const thumbSide = gripExtent(L, fit.axes, fit, verts, m.w, 0.051), pinkySide = gripExtent(L, fit.axes, fit, verts, m.w.map(x => -x), 0.051);
+  // 手の幅（指の板の幅）の半分より広く、手の長さより狭い
+  assert.ok(thumbSide > (m.wHi - m.wLo) / 2 - 0.01 && thumbSide < 0.09, `親指の側 ${thumbSide}`);
+  assert.ok(pinkySide > (m.wHi - m.wLo) / 2 - 0.01 && pinkySide < 0.09, `小指の側 ${pinkySide}`);
+  // 軸からの距離の上限を小さくすると、数える皮が減り、広がりは増えない
+  assert.ok(gripExtent(L, fit.axes, fit, verts, m.w, 0.02) <= thumbSide + 1e-12);
+  assert.equal(groupName('f21'), 'f1/2'); assert.equal(groupName('t0'), 't0');
 });
