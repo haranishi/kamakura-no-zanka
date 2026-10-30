@@ -111,13 +111,13 @@ test('JSONとMarkdownは2回実行して同一バイト列', () => {
   assert.match(first.stdout, /\| ally_shot \|/);
 });
 
-test('--write は親を作り、保存済みの変更後の記録（8.3a 第2周）とstdoutのJSONにバイト単位で一致', () => temporary(dir => {
+test('--write は親を作り、保存済みの変更後の記録（8.3a 第3周：三段目の接触を0.645へ）とstdoutのJSONにバイト単位で一致', () => temporary(dir => {
   const output = path.join(dir, 'nested', 'moves.json');
   const written = run(['--write', output]);
   assert.equal(written.status, 0, written.stderr);
   assert.equal(written.stdout, '');
   assert.equal(fs.readFileSync(output, 'utf8'), result.stdout);
-  assert.equal(read('reports/polish3/combat-trail/move-segments-after2.json'), result.stdout);
+  assert.equal(read('reports/polish3/combat-trail/move-segments-after3.json'), result.stdout);
 }));
 
 test('--compare：変更前（8.0）と比べて、弓は変わらず、接触の11技は接触が判定の始め（0ms）。使用割合は下がらず（light2 だけ−0.006）、倍速は1.8以下（とどめは今の2.0のまま）', () => {

@@ -29,6 +29,7 @@ export default async function ({ page, out, st, step, call, v, freeze, start, lo
     window.__cc = {
       // passive：相手は自分から技を出さない（主人公の技を最後まで当てて撮るため。apply の意図から startMove だけを外す・検査だけ）
       reset(foeId, active, passive = false) {
+        g.input.mouse.delete(2);   // 受けを離す（第3周：D の「離す」はコマ60で、D はコマ48で終わるので、第2周までは E も受けたまま撮っていた）
         const h = g.hero; h.place(-30, -6, -Math.PI / 2); h.fighter.yaw = h.yaw; h.sheatheIn = 30; g.rig.yaw = h.yaw; g.rig.snap();
         for (const e of g.enemies) if (e.id !== foeId) { e.dormant = true; e.place(-80, -80, 0); }
         const e = g.enemies.find(e => e.id === foeId), f = e.fighter;
@@ -36,9 +37,10 @@ export default async function ({ page, out, st, step, call, v, freeze, start, lo
         if (passive) e.apply = function (intent, dt) { return Object.getPrototypeOf(this).apply.call(this, { ...intent, startMove: null }, dt); }; else delete e.apply;
         f.hp = f.hpMax; f.posture = f.postureMax; f.state = 'idle'; f.move = null; f.blocking = false; f.staggerT = 0; e.lunge = null; e.speedNow = 0; e.recoverT = 0;
         const hf = h.fighter; hf.hp = hf.hpMax; hf.posture = hf.postureMax;
-        // 2人を真横（主人公の右手側）から見る固定カメラ
+        // 2人を真横（主人公の右手側）から見る固定カメラ。KZ_CAM=back は主人公の右肩の後ろから相手を見る（8.3a 第3周：横ずれの確かめ）
         const mx = h.pos.x + 1.1, mz = h.pos.z;
-        __valley.camera([mx - 0.4, 1.35, mz + 3.9], [mx, 1.05, mz], 40);
+        if (${JSON.stringify(process.env.KZ_CAM || '')} === 'back') __valley.camera([h.pos.x - 2.4, 1.85, mz + 0.85], [h.pos.x + 1.8, 1.05, mz], 40);
+        else __valley.camera([mx - 0.4, 1.35, mz + 3.9], [mx, 1.05, mz], 40);
         return true;
       },
       force(foeId, moveId) {

@@ -43,6 +43,18 @@ export function strikePoint(mid, tip, low, high, radius = STRIKE.torsoRadius) {
   return { point: at(c.q, dir, k), inside: false, gap: c.d };
 }
 
+// 刃が胴へ入る点（8.3a 第3周）：刃を手元（from）から切先（tip）へたどって、胴の円柱（縦の軸 low→high・半径 radius）の表面を初めて越える点。
+// 見た目の踏み込みで刃が胴の中まで届くようになり、最も近い所（胴の中）に置いた火花が体に埋もれて見えなかった。
+// 越えない（届かない・手元がもう胴の中・高さが胴の外）ときは null（呼ぶ側は strikePoint の点を使う）。
+export function entryPoint(from, tip, low, high, radius = STRIKE.torsoRadius) {
+  const cx = (low[0] + high[0]) / 2, cz = (low[2] + high[2]) / 2, ax = from[0] - cx, az = from[2] - cz, dx = tip[0] - from[0], dz = tip[2] - from[2];
+  const a = dx * dx + dz * dz, b = 2 * (ax * dx + az * dz), c = ax * ax + az * az - radius * radius, disc = b * b - 4 * a * c;
+  if (!(c > 0) || !(a > 1e-12) || disc < 0) return null;
+  const s = (-b - Math.sqrt(disc)) / (2 * a), y = from[1] + (tip[1] - from[1]) * s;
+  if (!(s >= 0 && s <= 1) || y < Math.min(low[1], high[1]) - 0.05 || y > Math.max(low[1], high[1]) + 0.05) return null;
+  return [from[0] + dx * s, y, from[2] + dz * s];
+}
+
 // 弾きの打ち合う点：相手の刃（root→tip）の上で、受けた人の右肩に最も近い点（腕を伸ばして刀で届く所）。
 // 刃の根元の近く（手の中）を避けるため、刃の外側の8割の上で探す。
 export function clashPoint(root, tip, shoulder) {

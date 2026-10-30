@@ -2,7 +2,7 @@
 //   区間の外（戻りを含む）では帯を足さない／技が判定を抜ける・死ぬと0.05秒＋1コマで消える／命中の停止中に詰まらない・引き伸ばさない／ちらつかない
 //   第2周：停止のコマで刃が頭の上にない／火花は刃が体を通る点から刃の進む向きへ／弾きは刃同士が触れる点／敵の刃は予兆の間だけ照る／ひるみは相手から離れる向き
 //   抜刀の層が動いている間は主人公の帯を足さない／やり直しで全部消える／揺れ0・動きを減らすでも出る
-//   同時6本・頂点の上限／毎コマ配列を作り直さない（同じ配列・形の数が増えない）／描画呼出の増加は1
+//   同時6本・頂点の上限／毎コマ配列を作り直さない（同じ配列・形の数が増えない）／描画呼出の増加は帯1・火花の筋1（第3周）
 //   三段目：停止の長さは前と同じ（0.07秒）・強い当たりの音／弾き：火花が相手の刃の向きへ偏る（22粒）
 // 実行：PLAYWRIGHT_MODULE=… node tools/valley-play.mjs tools/scenarios/regress-slash-trail.mjs --seed 1333 --strict
 // KZ_OUT=<json> で毎コマの記録と結果を残す。
@@ -24,9 +24,11 @@ export default async function ({ st, step, call, v, freeze, start, log }) {
     const sounds = []; const realPlay = g.audio.play.bind(g.audio); g.audio.play = (name, o) => { sounds.push([g.time, name]); return realPlay(name, o); };
     // 当たりの火花（第2周）：点・刃の進む向き・出た粒の速度と、そのときの主人公の刀の切先の高さを控える
     const hits = [], realHit = g.fx.hit.bind(g.fx), V3 = g.hero.character.root.position.constructor;
-    g.fx.hit = (pos, dir, o = {}) => { const n0 = g.fx.add.count; realHit(pos, dir, o); const vel = []; for (let k = n0; k < g.fx.add.count - 1; k++) vel.push([g.fx.add.vel[k * 3], g.fx.add.vel[k * 3 + 1], g.fx.add.vel[k * 3 + 2]]);
+    // 第3周：火花は線状の筋（fx.streaks）。当たり1回で、筋の速度と、点の数（芯の光1つ＝fx.add）を控える
+    const SP = g.fx.streaks.pool;
+    g.fx.hit = (pos, dir, o = {}) => { const n0 = SP.count, a0 = g.fx.add.count; realHit(pos, dir, o); const vel = []; for (let k = n0; k < SP.count; k++) vel.push([SP.vel[k * 3], SP.vel[k * 3 + 1], SP.vel[k * 3 + 2]]);
       const hw = g.hero.character.weapons.tachiDrawn.holder; hw.updateWorldMatrix(true, false); const e = hw.matrixWorld.elements;
-      hits.push({ t: g.time, pos: [pos.x, pos.y, pos.z], travel: o.travel ? Array.from(o.travel) : null, vel, heroMove: g.hero.fighter.move ? g.hero.fighter.move.id : null, heroTipAboveGround: e[5] * 0.88 + e[13] - g.hero.pos.y }); };
+      hits.push({ t: g.time, pos: [pos.x, pos.y, pos.z], travel: o.travel ? Array.from(o.travel) : null, vel, points: g.fx.add.count - a0, heroMove: g.hero.fighter.move ? g.hero.fighter.move.id : null, heroTipAboveGround: e[5] * 0.88 + e[13] - g.hero.pos.y }); };
     const actors = () => [g.hero, ...g.enemies];
     window.__rt = {
       MOVES, ST, FEEL, sounds, hits, arrays, geometries0: g.renderer.info.memory.geometries, V3,
@@ -159,14 +161,20 @@ export default async function ({ st, step, call, v, freeze, start, log }) {
   const calls = await v('(() => { const s = __valley.game.fx.trails.stats(); return { vertices: s.vertices, calls: __rt.callsDelta() }; })()');
   results.calls = calls;
   if (!(calls.vertices > 0 && calls.calls[0] - calls.calls[1] === 1)) fails.push(`描画呼出の差が1でない ${JSON.stringify(calls)}`);
+  // 第3周：火花の筋も1つのメッシュ（筋が出ている間だけ描く）。帯と合わせて増加は2まで
+  const sparkCalls = await v(`(() => { const g = __valley.game, S = g.fx.streaks; g.fx.hit({ x: g.hero.pos.x + 1, y: g.hero.pos.y + 1, z: g.hero.pos.z }, { x: 1, z: 0 }, { travel: [0, -1, 1] }); __valley.step(1);
+    g.render(0); const a = g.renderer.info.render.calls, was = S.mesh.visible; S.mesh.visible = false; g.render(0); const b = g.renderer.info.render.calls; S.mesh.visible = was; g.render(0);
+    return { streaks: S.pool.count, calls: [a, b], visibleBefore: was }; })()`);
+  results.sparkCalls = sparkCalls;
+  if (!(sparkCalls.streaks > 0 && sparkCalls.visibleBefore && sparkCalls.calls[0] - sparkCalls.calls[1] === 1)) fails.push(`火花の筋の描画呼出の差が1でない ${JSON.stringify(sparkCalls)}`);
 
   // 9 弾き：火花（22粒）が相手の切先の速度の向きへ偏る
   await v(`(() => { __rt.park(); __rt.hero(); __rt.foe('road_scout', false); __rt.force('road_scout', 'soldier_slash'); return true; })()`);
   for (let i = 0; i < 26; i++) await step(1);
   await v(`__rt.press('block')`);
   const parry = await v(`(() => {
-    const g = __valley.game, add = g.fx.add; let before = add.count, out = null; const real = g.fx.parry.bind(g.fx);
-    g.fx.parry = (pos, dir, swing) => { const n0 = add.count; real(pos, dir, swing); out = { swing: swing ? Array.from(swing) : null, dir, emitted: add.count - n0, vel: [] }; for (let k = n0 + 1; k < add.count; k++) out.vel.push([add.vel[k * 3], add.vel[k * 3 + 1], add.vel[k * 3 + 2]]); };
+    const g = __valley.game, add = g.fx.add, SP = g.fx.streaks.pool; let out = null; const real = g.fx.parry.bind(g.fx);
+    g.fx.parry = (pos, dir, swing) => { const n0 = add.count, s0 = SP.count; real(pos, dir, swing); out = { swing: swing ? Array.from(swing) : null, dir, emitted: add.count - n0, streaks: SP.count - s0, vel: [] }; for (let k = s0; k < SP.count; k++) out.vel.push([SP.vel[k * 3], SP.vel[k * 3 + 1], SP.vel[k * 3 + 2]]); };
     for (let i = 0; i < 20 && !out; i++) __valley.step(1);
     g.fx.parry = real; return out;
   })()`);
@@ -178,9 +186,9 @@ export default async function ({ st, step, call, v, freeze, start, log }) {
     const ref = s && Math.hypot(...s) > 0.5 ? unit(s) : unit([parry.dir.x, 0, parry.dir.z]);
     const horiz = unit([mean[0], 0, mean[2]]), refH = unit([ref[0], 0, ref[2]]);
     const cos = horiz[0] * refH[0] + horiz[2] * refH[2], meanH = Math.hypot(mean[0], mean[2]);
-    results.parry = { emitted: parry.emitted, swing: s && s.map(x => +x.toFixed(2)), meanVelocity: mean.map(x => +x.toFixed(2)), horizontalCos: +cos.toFixed(3), meanHorizontalSpeed: +meanH.toFixed(2) };
+    results.parry = { emitted: parry.emitted, streaks: parry.streaks, swing: s && s.map(x => +x.toFixed(2)), meanVelocity: mean.map(x => +x.toFixed(2)), horizontalCos: +cos.toFixed(3), meanHorizontalSpeed: +meanH.toFixed(2) };
     log(`parry: ${JSON.stringify(results.parry)}`);
-    if (parry.emitted !== 23) fails.push(`弾きの粒の数が前と違う（光1＋火花22＝23のはず：${parry.emitted}）`);
+    if (parry.emitted !== 1 || parry.streaks !== 22) fails.push(`弾きの数が前と違う（芯の光1＋火花の筋22のはず：${parry.emitted}＋${parry.streaks}）`);
     if (!s) fails.push('弾き：相手の刃の速度が渡っていない（帯が無い）');
     if (!(cos > 0.7 && meanH > 2)) fails.push(`弾きの火花が刃の向きへ偏っていない ${JSON.stringify(results.parry)}`);
   }
@@ -197,12 +205,13 @@ export default async function ({ st, step, call, v, freeze, start, log }) {
   results.hitSparks = strikes.map(h => {
     const tl = Math.hypot(...h.travel), u = h.travel.map(x => x / tl);
     const along = h.vel.filter(q => (q[0] * u[0] + q[1] * u[1] + q[2] * u[2]) / (Math.hypot(...q) || 1) > 0.5).length;
-    return { move: h.heroMove, alongShare: +(along / h.vel.length).toFixed(2), tipAboveGround: +h.heroTipAboveGround.toFixed(2) };
+    return { move: h.heroMove, alongShare: +(along / h.vel.length).toFixed(2), tipAboveGround: +h.heroTipAboveGround.toFixed(2), streaks: h.vel.length, points: h.points };
   });
   log(`hit sparks ${JSON.stringify(results.hitSparks)}`);
   if (strikes.length < 3) fails.push(`火花：刃の進む向きのある当たりが少ない（${strikes.length}）`);
   for (const h of results.hitSparks) {
     if (h.alongShare < 0.6) fails.push(`火花：刃の進む向きへ散っていない ${JSON.stringify(h)}`);
+    if (h.points !== 1 || h.streaks < 9 || h.streaks > 14) fails.push(`火花：芯の光1つと筋9〜14本でない（第2周の粒の数10〜18の範囲内） ${JSON.stringify(h)}`);
     if (['light1', 'light2', 'heavy'].includes(h.move) && h.tipAboveGround >= 1.75) fails.push(`停止のコマで刃が頭の上 ${JSON.stringify(h)}`);
   }
 

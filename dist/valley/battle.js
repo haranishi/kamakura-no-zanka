@@ -9,7 +9,7 @@ import { STORY } from './story-data.js';
 import { FEEL, AUDIO_NOISE } from './config.js';
 import { yawOf, dist2 } from './actors.js';
 import { TRAIL, trailStyleFor, inTrailWindow } from './slash-trail.js';
-import { STRIKE, strikePoint, clashPoint, closestSegments, pushDirection } from './clash.js';
+import { STRIKE, strikePoint, entryPoint, clashPoint, closestSegments, pushDirection } from './clash.js';
 
 const GRAVITY = 9.8;
 const _a = new THREE.Vector3(), _b = new THREE.Vector3(), _up = new THREE.Vector3(0, 1, 0), _q = new THREE.Quaternion();
@@ -71,8 +71,11 @@ export class Battle {
     const w = att.character?.weapons?.tachiDrawn, spine = def.character?.bones.get('Spine02');
     if (arrow || !w || !w.holder.visible || !spine) return out;
     spine.getWorldPosition(_a);
-    const s = strikePoint(bladeAt(w.holder, 0.52), bladeAt(w.holder, 0.88), [_a.x, _a.y - STRIKE.torsoHalf, _a.z], [_a.x, _a.y + STRIKE.torsoHalf, _a.z]);
-    out.pos = { x: s.point[0], y: s.point[1], z: s.point[2] }; out.inside = s.inside;
+    const low = [_a.x, _a.y - STRIKE.torsoHalf, _a.z], high = [_a.x, _a.y + STRIKE.torsoHalf, _a.z], tip = bladeAt(w.holder, 0.88);
+    const s = strikePoint(bladeAt(w.holder, 0.52), tip, low, high);
+    // 第3周：刃が胴の中まで届いたら、火花は刃が胴の表面へ入る点（手元からたどる）に置く。胴の中の点では体に埋もれて見えなかった
+    const e = s.inside ? entryPoint(bladeAt(w.holder, 0.16), tip, low, high) : null, p = e || s.point;
+    out.pos = { x: p[0], y: p[1], z: p[2] }; out.inside = s.inside; out.entry = !!e;
     return out;
   }
   // 弾き（8.3a 第2周）：主人公の刀を相手の刃へ伸ばして打ち合わせ（sword-rig.js の clash。見た目だけ）、打ち合った点を返す。

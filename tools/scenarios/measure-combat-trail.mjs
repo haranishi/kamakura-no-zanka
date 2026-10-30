@@ -205,7 +205,7 @@ async function measureContacts({ v, step, log }) {
           out.push({ t: mv.t, phase: mv.phase, clip: ch.currentName, ct: ch.current ? ch.current.time : null, tip: at(${BLADE_TIP}), mid: at(${BLADE_MID}), pos: [actor.pos.x, actor.pos.y, actor.pos.z], stop: g.stopT > 0 });
         } else if (out.length) break;
       }
-      return { torso, samples: out, yaw: actor.yaw };
+      return { torso, samples: out, yaw: actor.yaw, scale: ch.root.scale.x };
     };
     return true;
   })()`);
@@ -258,5 +258,16 @@ export function contactOf(run, m) {
   const height = b.at[1] - (T[1] - TORSO_HEIGHT);
   return { move: m.id, judgeStart: m.windup, contactT: r3(t), diffMs: Math.round((t - m.windup) * 1000), clip: b.clip, clipTime: r3(clipTime),
     minDist: r3(b.d), reached: b.d <= REACH_RADIUS, inBand, bladeAt: r3(b.k), heightAboveGround: r3(height), tipSpeed: r3(b.speed), samples: rows.length,
-    distanceToTorso: r3(Math.hypot(T[0] - b.pos[0], T[2] - b.pos[2])) };
+    distanceToTorso: r3(Math.hypot(T[0] - b.pos[0], T[2] - b.pos[2])), pose: poseAt(run, m.windup), pose2: poseAt(run, m.windup + 1 / 60) };
+}
+
+// 判定の始め（t）の刃の中ほど・切先を、攻め手の局所（x＝右・y＝立ち位置からの高さ・z＝前、模型の大きさ1）で（8.3a 第3周）。
+// lunge.js の CONTACT_POSE（見た目の踏み込みで、刃を相手の胴へ通す量を決める元）の値。前後のサンプルを時刻で直線補間する。
+export function poseAt(run, t) {
+  const s = run.samples, k = Math.max(1, s.findIndex(x => x.t >= t - 1e-9));
+  if (!s.length || k >= s.length) return null;
+  const a = s[k - 1], b = s[k], u = (t - a.t) / ((b.t - a.t) || 1), L = (p, q) => p.map((x, i) => x + (q[i] - x) * u);
+  const pos = L(a.pos, b.pos), fx = -Math.sin(run.yaw), fz = -Math.cos(run.yaw), rx = Math.cos(run.yaw), rz = -Math.sin(run.yaw), sc = run.scale || 1;
+  const local = p => { const dx = p[0] - pos[0], dz = p[2] - pos[2]; return [dx * rx + dz * rz, p[1] - pos[1], dx * fx + dz * fz].map(x => Math.round(x / sc * 1000) / 1000); };
+  return { mid: local(L(a.mid, b.mid)), tip: local(L(a.tip, b.tip)), scale: Math.round(sc * 1000) / 1000 };
 }

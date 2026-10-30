@@ -126,9 +126,10 @@ export function syncedSegment(meta, timing, spec) {
 
 // 接触の動作の時刻（8.3a 第2周・表示だけ）。刃の中ほど〜切先が相手の胴の高さ（地面から1.1m±0.35m）を通るうちで、
 // 胴の点（間合いの距離）へ最も近づく、動作の時刻（秒）。tools/scenarios/measure-combat-trail.mjs の contact で実ゲームから測った値。
-// この間合いでは、どの技も刃が胴の点に届かない（最短0.25〜1.5m）。届かせるには向きか間合いを変える必要があり、ここでは扱わない。
+// この間合いでは、どの技も刃が胴の点に届かない（最短0.25〜1.5m）。第3周で、見た目だけの踏み込み（lunge.js）が根を出して向きを回し、刃を胴へ通す。
+// 三段目（light3）だけは第3周で 0.609→0.645 へ遅らせた：0.609 では刃が頭の高さ（1.44m）で止まり「振りかぶったまま」に見えた。0.645 で肩の高さ（約1.2m）。
 export const MOVE_CONTACT = Object.freeze({
-  light1: 0.79, light2: 0.38, light3: 0.609, heavy: 0.915, counter: 0.479, finisher: 2.785,
+  light1: 0.79, light2: 0.38, light3: 0.645, heavy: 0.915, counter: 0.479, finisher: 2.785,
   soldier_slash: 1.053, soldier_thrust: 0.336, officer_a: 1.058, officer_b: 0.383, officer_c: 0.919,
 });
 export const CONTACT_MAX_SPEED = 1.8;
