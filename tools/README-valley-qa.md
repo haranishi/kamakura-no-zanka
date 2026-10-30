@@ -45,6 +45,10 @@ b0 庭へ降りる（`temple_yard` に入る）→ b1 穂太の話 → b2 林道
 - `tools/scenarios/regress-attack-timing.mjs`：同じ入力列で、戦闘の論理（状態・体力・構え・位置）を毎コマ記録し、変更前と変更後が一致することを比べる（`node tools/scenarios/regress-attack-timing.mjs 前.json 後.json`）。
 - `tools/scenarios/capture-draw-sheathe.mjs`：抜刀・納刀を、実ゲームの固定カメラ（主人公の左側）で一定間隔に撮る（敵が気づく→抜刀／納刀済みで攻撃→速い抜刀／戦闘後の納刀）。変更前と変更後を同じ条件で撮って比べる。
 - `tools/scenarios/measure-draw-sheathe.mjs`：既存の抜刀・納刀の動作で、握りと腰の鞘がどう動くかを測る（前値は `reports/polish3/baseline/draw-sheathe-before.json`）。
+- `tools/scenarios/regress-attack-timing.mjs` に `KZ_SCENE=officer` を付けると、相手が侍大将になる（連続技の二段目 officer_b を含む520コマ）。
+- `tools/scenarios/regress-slash-trail.mjs`：刃の軌跡（8.3a）を毎コマ確かめる（区間の外で足さない・寿命のうちに消える・ちらつかない・停止中に詰まらない・抜刀の層の間は足さない・やり直しで消える・揺れ0でも出る・描画呼出の増加1・三段目の停止0.07秒・弾きの火花の向き）。
+- `tools/scenarios/measure-combat-trail.mjs`：技ごとに刀の根元・切先・手首を毎コマ記録し、切先と手首の速さの山と判定の区間の差、帯の区間の切先の道のりを測る（`KZ_OUT=…`）。
+- `tools/scenarios/capture-combat-trail.mjs`：通常三連・強斬り・突き・弾き・侍大将の二段目を、固定カメラ・同じ入力でコマ割りに撮る（`KZ_TAG=before|after`、`KZ_FULL=A:12,…` で等倍も残す）。
 - 検査の流れの見本：`tools/scenarios/` のシナリオ。
 
 ## 第2弾の前測定（7.0・7.0b）

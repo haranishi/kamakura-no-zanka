@@ -127,12 +127,13 @@
     "design": [
       "design-graphics.md",
       "design-combat-presentation.md",
-      "design-draw-sheathe.md"
+      "design-draw-sheathe.md",
+      "design-combat-trail.md"
     ],
     "tasks": "tasks-polish3.md §8",
     "validation": "design-validation-polish3.md",
     "research": "research-polish3.md",
-    "status": "2026-10-30に8.0（静的な前測定）と8.2（抜刀・納刀）へ着手。8.2は純粋層・結線・実ブラウザの毎コマ測定まで済み、本人のプレイでの確認は未実施。ほかのタスクは未着手",
+    "status": "2026-10-30に8.0（静的な前測定）と8.2（抜刀・納刀）へ着手。8.2は純粋層・結線・実ブラウザの毎コマ測定まで済み、本人のプレイでの確認は未実施。同日、8.3の前半（8.3a：刃の軌跡・三段目・弾きの火花・突きと二段目の動作の同期。表示だけ）を実装し、実ブラウザの毎コマ検査まで済み。別役の盲検採点と本人のプレイは未実施。ほかのタスクは未着手",
     "date": "2026-10-28",
     "ready_for_implementation": true,
     "implementation_scope": "本人の依頼（2026-10-30「続きをやっていってほしい」）：8.0の前測定と8.2の抜刀・納刀。ほかのタスクは本人の指示で順に進める"

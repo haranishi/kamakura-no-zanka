@@ -41,6 +41,28 @@ characters.jsでrateの適用も確認し、主人公と味方は1倍とする�
 計測時に式・適用経路を確認できなければ実効倍率はnull、理由はnotesへ残す。
 個体差の幅は配置済みの敵の標本最小・最大ではない。
 
+## 8.3a で足したもの：3区間の技・山の時刻・前後の比較
+
+8.3a で、突き（soldier_thrust）と侍大将の二段目（officer_b）だけ、予備・振り・戻りの3区間で再生の速さを変えた（`anim-data.js` の `MOVE_SYNC`）。
+道具は `characters.js` の playMove と同じ選び方で切り出し、全13技に次の項目を足した。
+
+| JSONの項目 | 読み方 |
+| --- | --- |
+| speeds | 3区間の技の速さ（予備・振り・戻り）。ほかの技は null。speed はこのうち最大 |
+| peakStart / peakEnd | 手首の速さの山（clips.json の active）が再生される時刻（技の開始からの秒）。弓は null |
+| peakStartVsJudgeMs / peakEndVsJudgeEndMs | 山の始め − 判定の始め、山の終わり − 判定の終わり（ms）。正なら山が遅い |
+
+3区間の技はゲームの時刻で動作を進めるので、敵の個体差（0.94〜1.06倍）が掛からない。実効倍率は基準倍率と同じになる。
+
+```sh
+node tools/measure-move-segments.mjs --write reports/polish3/combat-trail/move-segments-after.json
+node tools/measure-move-segments.mjs --compare reports/polish3/baseline/move-segments-before.json [--json]
+```
+
+`--compare` は、前の記録と今の切り出しを技ごとに並べる（変わった項目・使用割合・倍速・山の時刻）。
+前の記録に山の時刻が無いときは、`segmentFor` が前の from・to・速さを再現できることを確かめてから、丸める前の値で計算する（再現できなければ approx に印）。
+`research-polish3.md` の表は前値なので、試験は今の記録ではなく `baseline/move-segments-before.json` と照らす。今の記録は `combat-trail/move-segments-after.json` と一致すること。
+
 ## 動作の出所
 
 clips.jsonの全動作を名前順に棚卸しし、CMU_で始まる3本とそれ以外66本を分類する。
