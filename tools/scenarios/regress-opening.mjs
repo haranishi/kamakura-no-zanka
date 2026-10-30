@@ -34,7 +34,7 @@ export default async function ({ v, step, st, start, freeze, tap, click, log }) 
       if (seg !== last) { seen.push([seg, +t.toFixed(2)]); last = seg; }
       if (p.op?.line && p.nr.opacity > 0.99) lines[p.op.line] ??= { text: p.nr.text, color: hex(p.nr.color), bar: hex(p.nr.bar), inBar: p.nr.inBar, at: +t.toFixed(2) };
       if (p.op?.stage) { report.stage.maxCalls = Math.max(report.stage.maxCalls, p.calls); report.stage.maxTris = Math.max(report.stage.maxTris, p.tris); }
-      await onSample?.(p, t);
+      t += ((await onSample?.(p, t)) || 0) / 60;                          // 見本の中で余分に進めたコマ数を足す
       if (p.flow === 'play') break;
     }
     log(label, JSON.stringify(seen));
@@ -56,8 +56,16 @@ export default async function ({ v, step, st, start, freeze, tap, click, log }) 
   if (first.op?.version !== 'full') fail('first opening is not the full version: ' + JSON.stringify(first.op));
   if (first.hud || !first.nr.on || first.nr.veil < 0.99) fail('opening start: HUD must be hidden, narration shown, veil black ' + JSON.stringify(first));
   if (first.nr.titleText !== OPENING.title.text) fail('title text');
-  let seenAtTitle = null, seenAtWake = null, hudDuringOpening = false, narrationDuringWake = false;
+  let seenAtTitle = null, seenAtWake = null, hudDuringOpening = false, narrationDuringWake = false, resized = null;
+  const holdState = () => v('(() => { const h = __valley.game.post.hold; return h && { cur: !!h.cur, frozen: !!h.frozen, w: h.cur?.width, mix: +h.mix.toFixed(3) }; })()');
   const full = await watch('full', { onSample: async p => {
+    // 溶け合いの途中で描画の大きさが変わっても、残した前の場面の1枚を捨てない（溶け終わったら返す）
+    if (p.op?.segment === 'B' && p.op.dissolve > 0.5 && !resized) {
+      await v('__valley.game.post.setSize(1200, 700, 1)'); const during = await holdState();
+      await v('__valley.game.post.setSize(1280, 720, 1)'); await step(70); resized = { during, after: await holdState() };
+      if (!during.frozen || during.w !== 1200 || resized.after.frozen || !resized.after.cur) fail('the held frame was lost on resize, or kept after the dissolve ' + JSON.stringify(resized));
+      return 70;
+    }
     if (p.flow === 'intro' && p.op?.segment !== 'wake' && p.hud) hudDuringOpening = true;
     if (p.op?.segment === 'wake' && p.nr.on) narrationDuringWake = true;
     if (p.op?.segment === 'title' && seenAtTitle === null) seenAtTitle = !!(await meta())?.openingSeen;
@@ -66,6 +74,7 @@ export default async function ({ v, step, st, start, freeze, tap, click, log }) 
   report.segments.full = full.seen; report.lines.full = full.lines;
   const fullAt = Object.fromEntries(full.seen.map(([s, t]) => [s, t]));
   for (const [seg, want] of [['A', 2], ['B', 11.5], ['C', 21], ['D', 30.5], ['title', 42], ['wake', 47], ['play', 52.2]]) near(fullAt[seg], want, 0.11, `full: ${seg} starts`);
+  if (!resized) fail('the resize-during-dissolve check did not run');
   if (hudDuringOpening) fail('the HUD was visible during the opening');
   if (narrationDuringWake) fail('the narration frame stayed during the wake');
   if (seenAtTitle !== false || seenAtWake !== true) fail(`openingSeen should be written when the wake starts (title ${seenAtTitle}, wake ${seenAtWake})`);

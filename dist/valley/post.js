@@ -68,17 +68,22 @@ export class Post {
     this.hold = null;
   }
 
-  // オープニングの場面の溶け合い（ディゾルブ）。使う間だけ、仕上げを画面でなく8bitの絵2枚へ交互に描く。
-  // holdFrame() で直前に描いた1枚を残し、setDissolve(mix) の割合で新しい場面の上へ重ねる。谷（hold が無い間）は何も変えない
-  beginDissolve() { if (!this.hold) { this.hold = { rts: [], cur: 0, frozen: -1, mix: 0 }; if (this.size) this.allocHold(); } }
-  allocHold() {
-    const h = this.hold; for (const rt of h.rts) rt.dispose();
-    h.rts = [0, 1].map(() => new THREE.WebGLRenderTarget(this.size.w, this.size.h, { depthBuffer: false }));
-    h.frozen = -1;
+  // オープニングの場面の溶け合い（ディゾルブ）。使う間だけ、仕上げを画面でなく8bitの絵（cur）へ描いて画面へ写す。
+  // holdFrame() で直前に描いた1枚（frozen）を残し、setDissolve(mix) の割合で新しい場面の上へ重ねる。残した1枚は溶け終わるまで持ち、
+  // 画面の大きさが変わっても捨てない（引き伸ばして重ねる）。谷（hold が無い間）は何も変えない
+  beginDissolve() { if (!this.hold) this.hold = { cur: null, frozen: null, mix: 0 }; this.sizeHold(); }
+  sizeHold() {
+    const h = this.hold; if (!h || !this.size) return;
+    if (h.cur && h.cur.width === this.size.w && h.cur.height === this.size.h) return;
+    h.cur?.dispose(); h.cur = new THREE.WebGLRenderTarget(this.size.w, this.size.h, { depthBuffer: false });
   }
-  holdFrame() { const h = this.hold; if (h && h.rts.length) { h.frozen = h.cur; h.cur = 1 - h.cur; } }
-  setDissolve(mix) { if (this.hold) this.hold.mix = Math.max(0, Math.min(1, mix)); }
-  endDissolve() { if (!this.hold) return; for (const rt of this.hold.rts) rt.dispose(); this.hold = null; }
+  holdFrame() { const h = this.hold; if (!h?.cur) return; h.frozen?.dispose(); h.frozen = h.cur; h.cur = null; this.sizeHold(); }
+  setDissolve(mix) {
+    const h = this.hold; if (!h) return;
+    h.mix = Math.max(0, Math.min(1, mix));
+    if (h.mix === 0 && h.frozen) { h.frozen.dispose(); h.frozen = null; }          // 溶け終わったら、残した1枚を返す
+  }
+  endDissolve() { const h = this.hold; if (!h) return; h.cur?.dispose(); h.frozen?.dispose(); this.hold = null; }
 
   setSize(width, height, pixelRatio) {
     const w = Math.max(2, Math.floor(width * pixelRatio)), h = Math.max(2, Math.floor(height * pixelRatio));
@@ -96,7 +101,7 @@ export class Post {
       rt.texture.colorSpace = THREE.LinearSRGBColorSpace;
       this.levels.push(rt);
     }
-    if (this.hold) this.allocHold();
+    this.sizeHold();
   }
 
   setQuality(q) { this.quality = q; if (this.size) this.setSize(this.size.w, this.size.h, 1); }
@@ -138,12 +143,12 @@ export class Post {
     f.scene.value = this.target.texture; f.bloom.value = this.levels[0]?.texture || null; f.uBloom.value = bloom ? 1 : 0;
     f.exposure.value = p.exposure; f.bloomStrength.value = p.bloomStrength; f.vignette.value = p.vignette;
     f.saturation.value = p.saturation; f.contrast.value = p.contrast; f.warmth.value = p.warmth; f.grain.value = p.grain; f.uTime.value = (f.uTime.value + dt) % 100;
-    const h = this.hold?.rts.length ? this.hold : null;
-    this.run(this.matFinal, h ? h.rts[h.cur] : null);
+    const h = this.hold?.cur ? this.hold : null;
+    this.run(this.matFinal, h ? h.cur : null);
     if (!h) return;
-    this.matCopy.uniforms.tex.value = h.rts[h.cur].texture; this.run(this.matCopy, null);
-    if (h.mix > 0 && h.frozen >= 0) {
-      const u = this.matOver.uniforms; u.tex.value = h.rts[h.frozen].texture; u.opacity.value = h.mix;
+    this.matCopy.uniforms.tex.value = h.cur.texture; this.run(this.matCopy, null);
+    if (h.mix > 0 && h.frozen) {
+      const u = this.matOver.uniforms; u.tex.value = h.frozen.texture; u.opacity.value = h.mix;
       r.autoClear = false; this.run(this.matOver, null); r.autoClear = prevAuto;
     }
   }

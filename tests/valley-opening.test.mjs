@@ -111,6 +111,18 @@ test('開始から0.6秒は飛ばせない。0.6秒を過ぎた飛ばしは0.6�
   }
 });
 
+test('飛ばしの暗転は単調：明けの途中・暮れの途中で飛ばしても、場面が透けて見えない', () => {
+  const plain = run('full', { maxT: 46 }).frames;
+  for (const ts of [0.7, 1.8, 1.95, 2.05, 2.5, 3.1, 11.4, 41.3, 41.9, 44]) {
+    const r = run('full', { skipAt: ts, maxT: ts + 1 });
+    const i = r.frames.findIndex(f => f.events.includes('skip')), w = r.frames.findIndex(f => f.events.includes('wake'));
+    assert.ok(i > 0 && w > i, `skip at ${ts}`);
+    for (let k = i; k < w; k++) assert.ok(r.frames[k].out.black >= plain[k].out.black - 1e-9, `skip at ${ts}: frame ${k} is lighter than without the skip`);
+    for (let k = i + 1; k < w; k++) assert.ok(r.frames[k].out.black >= r.frames[k - 1].out.black - 1e-9, `skip at ${ts}: frame ${k} ${r.frames[k - 1].out.black} → ${r.frames[k].out.black}`);
+    assert.ok(r.frames[w - 1].out.black > 0.95);
+  }
+});
+
 test('目覚めの区間は、入って0.6秒を過ぎてから飛ばせる（既存の目覚めと同じ）', () => {
   const wake = planOf('full').wake.from;
   const at = t => ({ ...createOpening(), t, stood: t - wake > 2.7 });

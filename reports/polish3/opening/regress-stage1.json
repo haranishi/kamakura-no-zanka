@@ -15,23 +15,23 @@
       ],
       [
         "C",
-        21
+        21.07
       ],
       [
         "D",
-        30.6
+        30.57
       ],
       [
         "title",
-        42.1
+        42.07
       ],
       [
         "wake",
-        47.1
+        47.07
       ],
       [
         "play",
-        52.3
+        52.27
       ]
     ],
     "short": [
@@ -82,28 +82,28 @@
         "color": "#eee9dc",
         "bar": "#05080a",
         "inBar": true,
-        "at": 12.5
+        "at": 12.77
       },
       "op_n4": {
         "text": "主を失った者たちは、散り散りに山へ向かった。",
         "color": "#e36b48",
         "bar": "#05080a",
         "inBar": true,
-        "at": 22
+        "at": 21.97
       },
       "op_n5": {
         "text": "榊三郎景継も、その一人。あの夜のことを、誰にも語らなかった。",
         "color": "#e36b48",
         "bar": "#05080a",
         "inBar": true,
-        "at": 31.5
+        "at": 31.47
       },
       "op_n6": {
         "text": "——その火は、まだ消えていなかった。",
         "color": "#e36b48",
         "bar": "#05080a",
         "inBar": true,
-        "at": 38.5
+        "at": 38.47
       }
     }
   },
@@ -123,13 +123,13 @@
     "base": {
       "calls": 433,
       "tris": 3122449,
-      "geometries": 285,
+      "geometries": 283,
       "textures": 170
     },
     "afterFull": {
       "calls": 433,
       "tris": 3122449,
-      "geometries": 273,
+      "geometries": 271,
       "textures": 168
     },
     "replays": {

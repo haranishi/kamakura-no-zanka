@@ -17,7 +17,7 @@ export function planOf(version, data = OPENING) {
 }
 
 export function createOpening({ version = 'full' } = {}) {
-  return { version: planOf(version).version, t: 0, skipAt: null, stood: false, done: false };
+  return { version: planOf(version).version, t: 0, skipAt: null, skipBlack: null, stood: false, done: false };
 }
 
 function segmentAt(plan, t) {
@@ -25,16 +25,23 @@ function segmentAt(plan, t) {
   return plan.segments[plan.segments.length - 1];
 }
 
+// 予定どおりの暗転の濃さ（飛ばしを含まない）。暗転と題名は1、暗転からは明け、題名へは暮れる。目覚めは既存の暗転に任せて0
+function scheduledBlack(plan, t, F) {
+  const seg = segmentAt(plan, t), i = plan.segments.indexOf(seg), prev = plan.segments[i - 1], next = plan.segments[i + 1];
+  let black = seg.id === 'dark' || seg.id === 'title' ? 1 : 0;
+  if (isScene(seg.id) && prev && !isScene(prev.id)) black = Math.max(black, 1 - ramp(t, seg.from, seg.from + F.fromDark));
+  if (isScene(seg.id) && next && !isScene(next.id)) black = Math.max(black, ramp(t, seg.to - F.toTitle, seg.to));
+  return black;
+}
+
 // 時刻 t の見え方。状態を書き換えない
 export function viewOf(state, { reduced = false } = {}, data = OPENING) {
   const plan = planOf(state.version, data), F = data.fade, t = state.t;
   const seg = segmentAt(plan, t), i = plan.segments.indexOf(seg);
-  const prev = plan.segments[i - 1], next = plan.segments[i + 1], scene = isScene(seg.id), wake = seg.id === 'wake';
-  let black = seg.id === 'dark' || seg.id === 'title' ? 1 : 0;
-  if (scene && prev && !isScene(prev.id)) black = Math.max(black, 1 - ramp(t, seg.from, seg.from + F.fromDark));
-  if (scene && next && !isScene(next.id)) black = Math.max(black, ramp(t, seg.to - F.toTitle, seg.to));
+  const prev = plan.segments[i - 1], scene = isScene(seg.id), wake = seg.id === 'wake';
   const skipK = state.skipAt === null || wake ? 0 : ramp(t, state.skipAt, state.skipAt + data.skip.fade);
-  if (!wake) black = Math.max(black, skipK);
+  // 飛ばしたあとは、飛ばした瞬間の濃さから1へ単調に暮れる（明けの途中で飛ばしても、場面が透けて見えない）。予定の暗転より明るくはしない
+  const black = wake ? 0 : state.skipAt === null ? scheduledBlack(plan, t, F) : Math.max(scheduledBlack(plan, t, F), state.skipBlack + (1 - state.skipBlack) * skipK);
   // 場面から場面へは溶け合わせる（前の場面の最後の1枚を残して薄くする）。暗転からと、題名へは溶けない
   const dissolve = scene && prev && isScene(prev.id) ? 1 - ramp(t, seg.from, seg.from + F.dissolve) : 0;
   const l = wake ? null : plan.lines.find(x => t >= x.at && t < x.until) || null;
@@ -55,8 +62,8 @@ export function stepOpening(state, { dt = 0, skip = false, reduced = false } = {
   const plan = planOf(state.version, data), W = plan.wake;
   dt = Number.isFinite(dt) && dt > 0 ? dt : 0;
   const before = state.t;
-  let t = before + dt, skipAt = state.skipAt, stood = state.stood, done = false;
-  if (skip && skipAt === null && t < W.from && t > data.skip.lockout) { skipAt = t; events.push('skip'); }
+  let t = before + dt, skipAt = state.skipAt, skipBlack = state.skipBlack, stood = state.stood, done = false;
+  if (skip && skipAt === null && t < W.from && t > data.skip.lockout) { skipAt = t; skipBlack = scheduledBlack(plan, t, data.fade); events.push('skip'); }
   if (skipAt !== null && t < W.from && t >= skipAt + data.skip.fade) t = W.from + (t - skipAt - data.skip.fade);
   const from = segmentAt(plan, before).id, to = segmentAt(plan, t).id;
   if (t < W.from && isScene(from) && isScene(to) && from !== to) events.push('cut');
@@ -66,7 +73,7 @@ export function stepOpening(state, { dt = 0, skip = false, reduced = false } = {
     if (!stood && wakeT > data.wake.getupAt) { stood = true; events.push('getup'); }
     if (wakeT > W.to - W.from || (skip && before >= W.from && wakeT > data.wake.skipAfter)) { done = true; events.push('done'); }
   }
-  const next = { version: state.version, t, skipAt, stood, done };
+  const next = { version: state.version, t, skipAt, skipBlack, stood, done };
   return { state: next, out: viewOf(next, { reduced }, data), events };
 }
 
