@@ -181,9 +181,10 @@ function cedar(wood, leaf, level, shape) {
 // Middle cedar (L1): the near tufts' image on a spiral of large tufts around the old dark core, in the old skirts' triangles.
 // Nine identical skirts read as a stack of lampshades (the fir/spruce tiers of the 7.9 review) at 40–150 m.
 // Its core is shaded green, not near-black: between the large tufts it must read as deep foliage like the near crown's gaps.
+// Lift 1.1: with 1.25 the middle crowns measured 13-17% brighter than L0 (45m) and L2 (140m) in backlight.
 function cedarMid(wood, leaf, shape) {
-  for (const tuft of cedarMidPlan(shape).tufts) cedarTuft(leaf, tuft, shape, 1.12);
-  cone(wood, 3, 19.7, 1.4 * CEDAR_FAMILIES[shape].width, 8, .3, [.045, .085, .038]);
+  for (const tuft of cedarMidPlan(shape).tufts) cedarTuft(leaf, tuft, shape, 1.1);
+  cone(wood, 3, 19.7, 1.4 * CEDAR_FAMILIES[shape].width, 8, .3, [.055, .1, .045]);
 }
 // New families keep their own middle and far grammar; near limbs come from the shared branch plan.
 function cedarNew(wood, leaf, level, shape) {

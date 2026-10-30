@@ -1,0 +1,660 @@
+{
+ "date": "2026-10-31",
+ "note": "変更前（main 9bf9eea の写し）と変更後を、同じ条件で交互に測った。他のセッションのChromeが同時に動いていた時間帯があり、絶対値は保存標本（標準・移動p95 15.4ms）より高い。他端末へ当てはめない。",
+ "how": "PERF_SCENE/PERF_RUN を変えて tools/scenarios/measure-perf.mjs（600コマ暖機＋1800コマ、1280×720・DPR1）。",
+ "environment": {
+  "gpu": "ANGLE (Apple, ANGLE Metal Renderer: Apple M4 Pro, Unspecified Version)",
+  "chrome": "156.0.8078.79",
+  "os": {
+   "platform": "darwin",
+   "release": "27.0.0",
+   "arch": "arm64",
+   "cpu": "Apple M4 Pro"
+  },
+  "power": "Now drawing from 'AC Power'"
+ },
+ "runs": [
+  {
+   "version": "before",
+   "quality": "standard",
+   "scene": "move",
+   "run": 1,
+   "p50": 15,
+   "p95": 17.4,
+   "p99": 90,
+   "mean": 16.5,
+   "maxCalls": 757,
+   "maxTris": 4456285,
+   "pass": true
+  },
+  {
+   "version": "after",
+   "quality": "standard",
+   "scene": "move",
+   "run": 1,
+   "p50": 15.3,
+   "p95": 19,
+   "p99": 89.4,
+   "mean": 16.94,
+   "maxCalls": 757,
+   "maxTris": 4542602,
+   "pass": true
+  },
+  {
+   "version": "before",
+   "quality": "standard",
+   "scene": "combat",
+   "run": 1,
+   "p50": 14.9,
+   "p95": 17.8,
+   "p99": 19.8,
+   "mean": 15.14,
+   "maxCalls": 682,
+   "maxTris": 4188713,
+   "pass": true
+  },
+  {
+   "version": "after",
+   "quality": "standard",
+   "scene": "combat",
+   "run": 1,
+   "p50": 14.7,
+   "p95": 16.7,
+   "p99": 17.7,
+   "mean": 14.89,
+   "maxCalls": 682,
+   "maxTris": 4254287,
+   "pass": true
+  },
+  {
+   "version": "before",
+   "quality": "light",
+   "scene": "move",
+   "run": 1,
+   "p50": 12.6,
+   "p95": 15.8,
+   "p99": 83.1,
+   "mean": 14.21,
+   "maxCalls": 735,
+   "maxTris": 3665305,
+   "pass": true
+  },
+  {
+   "version": "after",
+   "quality": "light",
+   "scene": "move",
+   "run": 1,
+   "p50": 13.9,
+   "p95": 16.4,
+   "p99": 88.3,
+   "mean": 15.21,
+   "maxCalls": 735,
+   "maxTris": 3707181,
+   "pass": true
+  },
+  {
+   "version": "before",
+   "quality": "light",
+   "scene": "combat",
+   "run": 1,
+   "p50": 12.4,
+   "p95": 14.7,
+   "p99": 16.1,
+   "mean": 12.18,
+   "maxCalls": 654,
+   "maxTris": 3372000,
+   "pass": true
+  },
+  {
+   "version": "after",
+   "quality": "light",
+   "scene": "combat",
+   "run": 1,
+   "p50": 12.7,
+   "p95": 16,
+   "p99": 17.5,
+   "mean": 12.91,
+   "maxCalls": 654,
+   "maxTris": 3396898,
+   "pass": true
+  },
+  {
+   "version": "before",
+   "quality": "standard",
+   "scene": "move",
+   "run": 2,
+   "p50": 14.2,
+   "p95": 17.6,
+   "p99": 19.5,
+   "mean": 14.6,
+   "maxCalls": 753,
+   "maxTris": 4130657,
+   "pass": true
+  },
+  {
+   "version": "after",
+   "quality": "standard",
+   "scene": "move",
+   "run": 2,
+   "p50": 14.2,
+   "p95": 17.9,
+   "p99": 19.6,
+   "mean": 14.79,
+   "maxCalls": 753,
+   "maxTris": 4206729,
+   "pass": true
+  },
+  {
+   "version": "before",
+   "quality": "standard",
+   "scene": "combat",
+   "run": 2,
+   "p50": 14.9,
+   "p95": 16.4,
+   "p99": 17.4,
+   "mean": 15.05,
+   "maxCalls": 693,
+   "maxTris": 4201990,
+   "pass": true
+  },
+  {
+   "version": "after",
+   "quality": "standard",
+   "scene": "combat",
+   "run": 2,
+   "p50": 15,
+   "p95": 16.8,
+   "p99": 17.8,
+   "mean": 15.14,
+   "maxCalls": 693,
+   "maxTris": 4266088,
+   "pass": true
+  },
+  {
+   "version": "before",
+   "quality": "light",
+   "scene": "move",
+   "run": 2,
+   "p50": 13.4,
+   "p95": 15.9,
+   "p99": 18.5,
+   "mean": 13.59,
+   "maxCalls": 735,
+   "maxTris": 3405670,
+   "pass": true
+  },
+  {
+   "version": "after",
+   "quality": "light",
+   "scene": "move",
+   "run": 2,
+   "p50": 13.5,
+   "p95": 16.4,
+   "p99": 18.6,
+   "mean": 13.68,
+   "maxCalls": 735,
+   "maxTris": 3432894,
+   "pass": true
+  },
+  {
+   "version": "before",
+   "quality": "light",
+   "scene": "combat",
+   "run": 2,
+   "p50": 12.8,
+   "p95": 15.5,
+   "p99": 18.1,
+   "mean": 12.99,
+   "maxCalls": 660,
+   "maxTris": 3400725,
+   "pass": true
+  },
+  {
+   "version": "after",
+   "quality": "light",
+   "scene": "combat",
+   "run": 2,
+   "p50": 13.2,
+   "p95": 15.7,
+   "p99": 18,
+   "mean": 13.25,
+   "maxCalls": 660,
+   "maxTris": 3425501,
+   "pass": true
+  }
+ ],
+ "treeMaterialsBuildMs": {
+  "before": [
+   25.3,
+   15.1,
+   16.6,
+   14.8,
+   15.2
+  ],
+  "after": [
+   59.9,
+   50.5,
+   44.6,
+   43.2,
+   44.4
+  ],
+  "note": "手続きの画像を作る時間（起動時と品質の切り替え時に1回）。ブラウザで5回。"
+ },
+ "lodLuma": {
+  "note": "同じ杉（sp0）・欅（sp1）のL0/L1/L2を並べ、木の画素の平均の明るさ（0〜255）。140mの順光は木の画素が少なく（L1は約700）参考値。最終（中景の持ち上げ1.1）でも逆光ではL1がL0より約12%、L2より約15%明るい（持ち上げ1.25からの低下は2〜3%だけ。房の縁の半透明に明るい空が混ざるためと推測）。",
+  "before": {
+   "sp0-45m-front": [
+    {
+     "level": 0,
+     "luma": 44,
+     "pixels": 32683
+    },
+    {
+     "level": 1,
+     "luma": 38.8,
+     "pixels": 25867
+    },
+    {
+     "level": 2,
+     "luma": 43.4,
+     "pixels": 35635
+    }
+   ],
+   "sp0-45m-back": [
+    {
+     "level": 0,
+     "luma": 51.3,
+     "pixels": 35521
+    },
+    {
+     "level": 1,
+     "luma": 50.3,
+     "pixels": 31579
+    },
+    {
+     "level": 2,
+     "luma": 43.2,
+     "pixels": 43798
+    }
+   ],
+   "sp0-140m-front": [
+    {
+     "level": 0,
+     "luma": 50.7,
+     "pixels": 8434
+    },
+    {
+     "level": 1,
+     "luma": 52.9,
+     "pixels": 2937
+    },
+    {
+     "level": 2,
+     "luma": 51.7,
+     "pixels": 5314
+    }
+   ],
+   "sp0-140m-back": [
+    {
+     "level": 0,
+     "luma": 61.3,
+     "pixels": 26471
+    },
+    {
+     "level": 1,
+     "luma": 55.5,
+     "pixels": 19630
+    },
+    {
+     "level": 2,
+     "luma": 53.2,
+     "pixels": 27894
+    }
+   ],
+   "sp1-45m-front": [
+    {
+     "level": 0,
+     "luma": 83.2,
+     "pixels": 31133
+    },
+    {
+     "level": 1,
+     "luma": 81.7,
+     "pixels": 33629
+    },
+    {
+     "level": 2,
+     "luma": 101,
+     "pixels": 35961
+    }
+   ],
+   "sp1-45m-back": [
+    {
+     "level": 0,
+     "luma": 104.1,
+     "pixels": 35872
+    },
+    {
+     "level": 1,
+     "luma": 116.3,
+     "pixels": 38494
+    },
+    {
+     "level": 2,
+     "luma": 102.2,
+     "pixels": 43074
+    }
+   ],
+   "sp1-140m-front": [
+    {
+     "level": 0,
+     "luma": 48.8,
+     "pixels": 13071
+    },
+    {
+     "level": 1,
+     "luma": 51.1,
+     "pixels": 4709
+    },
+    {
+     "level": 2,
+     "luma": 50.5,
+     "pixels": 7864
+    }
+   ],
+   "sp1-140m-back": [
+    {
+     "level": 0,
+     "luma": 77.1,
+     "pixels": 28720
+    },
+    {
+     "level": 1,
+     "luma": 83.3,
+     "pixels": 24909
+    },
+    {
+     "level": 2,
+     "luma": 76.9,
+     "pixels": 28668
+    }
+   ]
+  },
+  "after_lift125": {
+   "sp0-45m-front": [
+    {
+     "level": 0,
+     "luma": 43,
+     "pixels": 32473
+    },
+    {
+     "level": 1,
+     "luma": 45.5,
+     "pixels": 30136
+    },
+    {
+     "level": 2,
+     "luma": 43.8,
+     "pixels": 35587
+    }
+   ],
+   "sp0-45m-back": [
+    {
+     "level": 0,
+     "luma": 49.4,
+     "pixels": 38446
+    },
+    {
+     "level": 1,
+     "luma": 56.6,
+     "pixels": 36819
+    },
+    {
+     "level": 2,
+     "luma": 43.4,
+     "pixels": 44056
+    }
+   ],
+   "sp0-140m-front": [
+    {
+     "level": 0,
+     "luma": 43.5,
+     "pixels": 3094
+    },
+    {
+     "level": 1,
+     "luma": 35,
+     "pixels": 667
+    },
+    {
+     "level": 2,
+     "luma": 45.6,
+     "pixels": 2057
+    }
+   ],
+   "sp0-140m-back": [
+    {
+     "level": 0,
+     "luma": 59.9,
+     "pixels": 29728
+    },
+    {
+     "level": 1,
+     "luma": 63.2,
+     "pixels": 23023
+    },
+    {
+     "level": 2,
+     "luma": 53.9,
+     "pixels": 21260
+    }
+   ],
+   "sp1-45m-front": [
+    {
+     "level": 0,
+     "luma": 74.9,
+     "pixels": 29274
+    },
+    {
+     "level": 1,
+     "luma": 76.6,
+     "pixels": 31619
+    },
+    {
+     "level": 2,
+     "luma": 100.8,
+     "pixels": 35952
+    }
+   ],
+   "sp1-45m-back": [
+    {
+     "level": 0,
+     "luma": 97.1,
+     "pixels": 34467
+    },
+    {
+     "level": 1,
+     "luma": 109.1,
+     "pixels": 36539
+    },
+    {
+     "level": 2,
+     "luma": 102.2,
+     "pixels": 43262
+    }
+   ],
+   "sp1-140m-front": [
+    {
+     "level": 0,
+     "luma": 43.8,
+     "pixels": 9396
+    },
+    {
+     "level": 1,
+     "luma": 35.4,
+     "pixels": 695
+    },
+    {
+     "level": 2,
+     "luma": 45.1,
+     "pixels": 1953
+    }
+   ],
+   "sp1-140m-back": [
+    {
+     "level": 0,
+     "luma": 76,
+     "pixels": 27661
+    },
+    {
+     "level": 1,
+     "luma": 82.2,
+     "pixels": 23127
+    },
+    {
+     "level": 2,
+     "luma": 80,
+     "pixels": 23500
+    }
+   ]
+  },
+  "after_final_lift110": {
+   "sp0-45m-front": [
+    {
+     "level": 0,
+     "luma": 43.1,
+     "pixels": 32480
+    },
+    {
+     "level": 1,
+     "luma": 44,
+     "pixels": 30136
+    },
+    {
+     "level": 2,
+     "luma": 43.7,
+     "pixels": 35554
+    }
+   ],
+   "sp0-45m-back": [
+    {
+     "level": 0,
+     "luma": 49.3,
+     "pixels": 38350
+    },
+    {
+     "level": 1,
+     "luma": 55.1,
+     "pixels": 36826
+    },
+    {
+     "level": 2,
+     "luma": 43.4,
+     "pixels": 44019
+    }
+   ],
+   "sp0-140m-front": [
+    {
+     "level": 0,
+     "luma": 43.3,
+     "pixels": 3064
+    },
+    {
+     "level": 1,
+     "luma": 35,
+     "pixels": 667
+    },
+    {
+     "level": 2,
+     "luma": 45.5,
+     "pixels": 2057
+    }
+   ],
+   "sp0-140m-back": [
+    {
+     "level": 0,
+     "luma": 59.9,
+     "pixels": 29749
+    },
+    {
+     "level": 1,
+     "luma": 61.9,
+     "pixels": 23093
+    },
+    {
+     "level": 2,
+     "luma": 53.7,
+     "pixels": 21254
+    }
+   ],
+   "sp1-45m-front": [
+    {
+     "level": 0,
+     "luma": 75,
+     "pixels": 29289
+    },
+    {
+     "level": 1,
+     "luma": 76.6,
+     "pixels": 31602
+    },
+    {
+     "level": 2,
+     "luma": 100.8,
+     "pixels": 35918
+    }
+   ],
+   "sp1-45m-back": [
+    {
+     "level": 0,
+     "luma": 97.1,
+     "pixels": 34432
+    },
+    {
+     "level": 1,
+     "luma": 109,
+     "pixels": 36530
+    },
+    {
+     "level": 2,
+     "luma": 102.2,
+     "pixels": 43217
+    }
+   ],
+   "sp1-140m-front": [
+    {
+     "level": 0,
+     "luma": 43.8,
+     "pixels": 9379
+    },
+    {
+     "level": 1,
+     "luma": 35.4,
+     "pixels": 695
+    },
+    {
+     "level": 2,
+     "luma": 45,
+     "pixels": 1951
+    }
+   ],
+   "sp1-140m-back": [
+    {
+     "level": 0,
+     "luma": 75.9,
+     "pixels": 27663
+    },
+    {
+     "level": 1,
+     "luma": 82.2,
+     "pixels": 23127
+    },
+    {
+     "level": 2,
+     "luma": 79.8,
+     "pixels": 23505
+    }
+   ]
+  }
+ }
+}

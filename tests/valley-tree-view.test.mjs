@@ -417,7 +417,7 @@ test('cedar tufts are lit as one crown and fade when seen edge-on [crown-lit]',(
     const f=compile(m.get(sp,l).leaf).fragmentShader,cedar=sp===0&&l<2;
     assert.equal(f.includes('normal = normalize(vNormal); nonPerturbedNormal = normal;'),cedar,'[crown-lit] per-card flip on cedar tufts, or crown lighting elsewhere');
     assert(!cedar||f.indexOf('normal = normalize(vNormal);')>f.indexOf('#include <normal_fragment_begin>'),'[crown-lit] reset must follow the face flip');
-    assert.equal(/smoothstep\(\.04, \.22, abs\(dot\(normalize\(cross\(dFdx\(vViewPosition\), dFdy\(vViewPosition\)\)\)/.test(f),cedar,'[crown-lit] edge-on card fade');
+    assert.equal(f.includes('vec3 cardFace = cross(dFdx(vViewPosition), dFdy(vViewPosition));')&&f.includes('diffuseColor.a *= smoothstep(.04, .22, abs(dot(cardFace, normalize(vViewPosition))) / max(length(cardFace), 1e-8));'),cedar,'[crown-lit] edge-on card fade');
   }
   m.dispose();
 });

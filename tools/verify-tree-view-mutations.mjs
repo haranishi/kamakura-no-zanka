@@ -57,7 +57,7 @@ const cases = [
   ['leaf detail on conifers', material, 'const detail = leaf && map && details[image] ? details[image] : null;', 'const detail = leaf && map ? details[image] ?? details[1] : null;'],
   ['rim erosion ignores the leaf', material, '(leafDetail.a-.5)*${TREES.leafDetail.rim.toFixed(2)}', '(0.0)*${TREES.leafDetail.rim.toFixed(2)}'],
   ['crown lighting off', material, 'const crownLit = leaf && species === 0 && level < 2;', 'const crownLit = false;'],
-  ['edge-on card fade missing', material, 'diffuseColor.a *= smoothstep(.04, .22, abs(dot(normalize(cross(dFdx(vViewPosition), dFdy(vViewPosition))), normalize(vViewPosition))));', 'diffuseColor.a *= 1.0;'],
+  ['edge-on card fade missing', material, 'diffuseColor.a *= smoothstep(.04, .22, abs(dot(cardFace, normalize(vViewPosition))) / max(length(cardFace), 1e-8));', 'diffuseColor.a *= 1.0;'],
   ['tier tilt ignores its level', material, '${TREES.tierTilt[level].toFixed(3)}', '${TREES.tierTilt[2].toFixed(3)}'],
   ['detail jitter biased warm', texture, 'hg.fillStyle = gray(.5 + .5 * hue)', 'hg.fillStyle = gray(.75 + .25 * hue)'],
   ['flat leaf detail', texture, 'const base = [Math.sin(tilt) * Math.cos(angle), Math.sin(tilt) * Math.sin(angle), Math.cos(tilt)];', 'const base = [0, 0, 1];'],

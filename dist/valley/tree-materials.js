@@ -109,8 +109,9 @@ export function treeMaterials({ wind, sunDir, quality = 'standard' }) {
         float leafHue = leafDetail.a*2.0-1.0;
         diffuseColor.rgb *= vec3(1.0+${TREES.leafDetail.hue.toFixed(3)}*leafHue, 1.0+${(TREES.leafDetail.hue / 6).toFixed(4)}*leafHue, 1.0-${TREES.leafDetail.hue.toFixed(3)}*leafHue);
         // Rim erosion: near a shell's silhouette each leaf survives by its own random value, so the outline breaks into leaves.
-        diffuseColor.a *= smoothstep(.12, .46, abs(dot(normalize(vNormal), normalize(vViewPosition))) + (leafDetail.a-.5)*${TREES.leafDetail.rim.toFixed(2)});` : crownLit ? `// A tuft card seen edge-on fades out instead of drawing a thin board edge.
-        diffuseColor.a *= smoothstep(.04, .22, abs(dot(normalize(cross(dFdx(vViewPosition), dFdy(vViewPosition))), normalize(vViewPosition))));` : '') : `// Bark: one shared image (mean gain 1, so far trunks keep their brightness); foliage cores carry UV (-1,-1).
+        diffuseColor.a *= smoothstep(.12, .46, abs(dot(normalize(vNormal), normalize(vViewPosition))) + (leafDetail.a-.5)*${TREES.leafDetail.rim.toFixed(2)});` : crownLit ? `// A tuft card seen edge-on fades out instead of drawing a thin board edge (no normalize: a zero cross product stays finite).
+        vec3 cardFace = cross(dFdx(vViewPosition), dFdy(vViewPosition));
+        diffuseColor.a *= smoothstep(.04, .22, abs(dot(cardFace, normalize(vViewPosition))) / max(length(cardFace), 1e-8));` : '') : `// Bark: one shared image (mean gain 1, so far trunks keep their brightness); foliage cores carry UV (-1,-1).
         float barkOn = step(-0.5, vBarkUv.x);
         vec4 barkTexel = texture2D(uBark, vBarkUv);
         diffuseColor.rgb *= mix(1.0, barkTexel.r*2.0, barkOn);
