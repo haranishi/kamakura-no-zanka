@@ -45,6 +45,8 @@ export function treeMaterials({ wind, sunDir, quality = 'standard' }) {
     const crownLit = leaf && species === 0 && level < 2;
     // Near and middle foliage fade when the camera is inside or right against them (shadows keep the full crown).
     const nearFade = leaf && level < 2;
+    // Understory leaves are drawn 1/0.6 larger: the adult strengths read as moth-eaten crowns at 2-3 m.
+    const group = species >= 4 ? TREES.leafDetail.smallGroup : TREES.leafDetail.group, gap = species >= 4 ? TREES.leafDetail.smallGap : TREES.leafDetail.gap;
     const fadeMode = quality === 'light' ? 'dither' : 'coverage';
     const lod = disabled(); m.userData.uLod = lod;
     m.onBeforeCompile = shader => {
@@ -114,9 +116,9 @@ export function treeMaterials({ wind, sunDir, quality = 'standard' }) {
         // Leaf groups: the same per-leaf values at a third of the scale (~0.4m patches) break each cluster's round rim into lobes.
         float leafGroup = texture2D(normalMap, vNormalMapUv*.31+.17).a;
         // Rim erosion: near a shell's silhouette each leaf survives by its own random value, so the outline breaks into leaves.
-        diffuseColor.a *= smoothstep(.12, .46, abs(dot(normalize(vNormal), normalize(vViewPosition))) + (leafDetail.a-.5)*${TREES.leafDetail.rim.toFixed(2)} + (leafGroup-.5)*${TREES.leafDetail.group.toFixed(2)});
+        diffuseColor.a *= smoothstep(.12, .46, abs(dot(normalize(vNormal), normalize(vViewPosition))) + (leafDetail.a-.5)*${TREES.leafDetail.rim.toFixed(2)} + (leafGroup-.5)*${group.toFixed(2)});
         // A few gaps through the cluster; behind them the shell's inner face stands in its own shade (depth, not a second skin).
-        diffuseColor.a *= smoothstep(${TREES.leafDetail.gap.toFixed(2)}, ${(TREES.leafDetail.gap + .08).toFixed(2)}, texture2D(normalMap, vNormalMapUv*.23+.61).a);
+        diffuseColor.a *= smoothstep(${gap.toFixed(2)}, ${(gap + .08).toFixed(2)}, texture2D(normalMap, vNormalMapUv*.23+.61).a);
         if (!gl_FrontFacing) diffuseColor.rgb *= ${TREES.leafDetail.inner.toFixed(2)};` : crownLit ? `// A tuft card seen edge-on fades out instead of drawing a thin board edge (no normalize: a zero cross product stays finite).
         vec3 cardFace = cross(dFdx(vViewPosition), dFdy(vViewPosition));
         diffuseColor.a *= smoothstep(.04, .22, abs(dot(cardFace, normalize(vViewPosition))) / max(length(cardFace), 1e-8));` : '') : `// Bark: one shared image (mean gain 1, so far trunks keep their brightness); foliage cores carry UV (-1,-1).

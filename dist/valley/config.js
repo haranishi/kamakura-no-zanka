@@ -85,7 +85,8 @@ export const TREES = Object.freeze({
   tierTilt: Object.freeze([0.05, 0.14, 0.16]),
   // 広葉の葉1枚ごとの向き（法線の強さ）と色の揺らぎ（±割合）。樹皮の凹凸と根元の暗さ（地面に接する所の明るさ）。
   // 第2周：group＝葉の群れ（約0.4m）で樹冠の房の縁を欠く強さ、gap＝房に開ける隙間の閾値、inner＝隙間から見える房の内側の明るさ。
-  leafDetail: Object.freeze({ normal: 0.85, hue: 0.09, rim: 0.7, group: 0.7, gap: 0.14, inner: 0.5 }),
+  // 若木・灌木は葉の画像が1.7倍大きく、同じ強さでは2〜3mの寄りで虫食いに見えた（smallGroup・smallGap）。
+  leafDetail: Object.freeze({ normal: 0.85, hue: 0.09, rim: 0.7, group: 0.7, gap: 0.14, inner: 0.5, smallGroup: 0.45, smallGap: 0.05 }),
   // カメラの近くの葉を薄くする距離（m）：a 以内は消え、b 以遠は残る（樹冠の中で画面が緑一色になるのを防ぐ）。
   nearFade: Object.freeze([0.4, 1.8]),
   // 逆光の透け：針葉樹の強さ（1周目は .2）と、葉の縁（画像の不透明度が低い所）を足す割合。

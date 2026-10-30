@@ -546,12 +546,15 @@ test('broadleaf clusters break their rims by leaf groups and open shaded gaps [l
   const { m } = make();
   for (let sp = 0; sp < 6; sp++) for (let l = 0; l < (sp >= 4 ? 2 : 3); l++) {
     const mat = m.get(sp, l).leaf, f = compileFull(mat).fragmentShader, on = !!mat.normalMap;
-    assert.equal(f.includes(`(leafGroup-.5)*${TREES.leafDetail.group.toFixed(2)}`), on, '[leaf-group] rim erosion by leaf groups');
-    assert.equal(f.includes(`smoothstep(${TREES.leafDetail.gap.toFixed(2)}, ${(TREES.leafDetail.gap + .08).toFixed(2)}, texture2D(normalMap, vNormalMapUv*.23+.61).a)`), on, '[leaf-group] gaps');
+    // Understory leaves are drawn larger: milder groups and fewer gaps (adult strengths read as moth-eaten saplings).
+    const group = sp >= 4 ? TREES.leafDetail.smallGroup : TREES.leafDetail.group, gap = sp >= 4 ? TREES.leafDetail.smallGap : TREES.leafDetail.gap;
+    assert.equal(f.includes(`(leafGroup-.5)*${group.toFixed(2)}`), on, '[leaf-group] rim erosion by leaf groups');
+    assert.equal(f.includes(`smoothstep(${gap.toFixed(2)}, ${(gap + .08).toFixed(2)}, texture2D(normalMap, vNormalMapUv*.23+.61).a)`), on, '[leaf-group] gaps');
     assert.equal(f.includes(`if (!gl_FrontFacing) diffuseColor.rgb *= ${TREES.leafDetail.inner.toFixed(2)};`), on, '[leaf-group] inner face shade');
     if (on) assert(f.indexOf('leafGroup') < f.indexOf('#include <alphatest_fragment>'), '[leaf-group] erosion must cut before the alpha test');
   }
   assert(TREES.leafDetail.inner < .8 && TREES.leafDetail.gap > 0 && TREES.leafDetail.gap < .3, '[leaf-group] gap and inner shade out of range');
+  assert(TREES.leafDetail.smallGroup < TREES.leafDetail.group && TREES.leafDetail.smallGap < TREES.leafDetail.gap, '[leaf-group] understory as eroded as the adults');
   // The bake erodes the same way, or far crowns would be rounder than near ones.
   assert(source('tree-bake.js').includes('(leafGroup - .5) * ${TREES.leafDetail.group.toFixed(2)}'), '[leaf-group] bake keeps round rims');
   m.dispose();

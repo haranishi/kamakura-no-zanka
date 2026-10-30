@@ -79,7 +79,7 @@ function bakeMaterial({ map = null, detail = null, gain = 1, cedar = false, wood
 // Far cedars only: a shaded inner cone behind the tufts. Seen from 150-600 m the gaps between tufts average into a thin,
 // see-through crown and bare hillsides showed between trees; the near and middle cedars never draw this cone.
 function cedarCore(shape) {
-  const fam = CEDAR_FAMILIES[shape], g = new THREE.ConeGeometry(1.75 * fam.width, 15.8, 10, 1, true);
+  const fam = CEDAR_FAMILIES[shape], g = new THREE.ConeGeometry(1.95 * fam.width, 15.8, 10, 1, true);
   g.translate(fam.lean[0] * .5, 2.7 + 7.9, fam.lean[1] * .5);
   const colors = new Float32Array(g.getAttribute('position').count * 3);
   for (let i = 0; i < colors.length; i += 3) colors.set([.03, .055, .03], i);
@@ -89,7 +89,7 @@ function cedarCore(shape) {
 // read as bare grey skeletons (the far domes they replaced had read as green lollipops).
 function pineCores(leaf) {
   const centres = [...new Map(leaf.userData.parts.map(p => [p.center.join(','), p.center])).values()], geometries = [];
-  for (const c of centres) { const g = new THREE.SphereGeometry(1, 10, 6); g.scale(1.3, .7, 1.3); g.translate(c[0], c[1] + .55, c[2]); geometries.push(g); }
+  for (const c of centres) { const g = new THREE.SphereGeometry(1, 10, 6); g.scale(1.75, .95, 1.75); g.translate(c[0], c[1] + .6, c[2]); geometries.push(g); }
   const positions = [], normals = [], uvs = [], index = []; let offset = 0;
   for (const g of geometries) {
     positions.push(...g.getAttribute('position').array); normals.push(...g.getAttribute('normal').array); uvs.push(...g.getAttribute('uv').array);
