@@ -208,7 +208,7 @@ export class Game {
   // 初回は通常版（約52秒）、見たことがあれば短い版（約15秒）。いつでも E・Space・クリックで飛ばせる（0.6秒で暗転→目覚め）。
   startIntro() {
     const seen = loadMeta(this.storage).meta.openingSeen;
-    this.opening = createOpening({ version: seen ? 'short' : 'full' }); this.openingWasSeen = seen;
+    this.opening = createOpening({ version: seen ? 'short' : 'full' }); this.openingWasSeen = seen; this.introHint = 0;
     this.flow = 'intro';
     const h = this.hero, st = WORLD.start;
     h.scripted = true; h.place(st.x, st.z, yawOf(-0.6, 0.8)); h.character.armRelax = false;
@@ -257,7 +257,10 @@ export class Game {
       else if (e === 'getup') { this.hero.character.playAction('getup', { timeScale: 1.45 }); this.cine && (this.cine.shot = { pos: [WORLD.start.x + 4.2, 1.5, WORLD.start.z + 4.6], look: [WORLD.start.x, 1.0, WORLD.start.z], fov: 44 }); }
       else if (e === 'done') { this.endIntro(); return; }
     }
-    if (this.stage) { this.post.setDissolve(r.out.dissolve); this.stage.update(r.out, dt, this.camera.aspect, { reduced: this.reducedMotion() }); this.hud.setNarration(r.out); }
+    // 飛ばしの案内は、入力があったときだけ出す（2.5秒触らなければ消える）。いつ出せるか（0.6秒の待ち・飛ばした後は出さない）は opening.js の hint のまま
+    const touched = this.input.pressed.size > 0 || this.input.mousePressed.size > 0 || this.input.held.size > 0;
+    this.introHint = touched ? 2.5 : Math.max(0, (this.introHint || 0) - dt);
+    if (this.stage) { this.post.setDissolve(r.out.dissolve); this.stage.update(r.out, dt, this.camera.aspect, { reduced: this.reducedMotion() }); this.hud.setNarration({ ...r.out, hint: r.out.hint * Math.min(1, this.introHint / 0.4) }); }
   }
   // 廃寺の庭で目覚める（横たわる → 頭をもたげる → 立ち上がる）。オープニングの最後の区間
   startWake() {

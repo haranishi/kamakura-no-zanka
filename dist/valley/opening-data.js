@@ -14,7 +14,7 @@ export const OPENING = freeze({
   },
   title: { text: '残火の鎌倉', note: 'この物語の人物と谷は、創作です。' },
   // 字は帯（bar）の上に置く。帯は不透明なので、字と帯の比がそのまま読みやすさの比になる（4.5:1以上。試験で測る）
-  colors: { history: '#eee9dc', fiction: '#e36b48', title: '#eee9dc', note: '#b6b9ac', hint: '#9aa196', bar: '#05080a' },
+  colors: { history: '#eee9dc', fiction: '#f08a66', title: '#eee9dc', note: '#b6b9ac', hint: '#9aa196', bar: '#05080a' },
   // 区間は [id, 始まり, 終わり]、語りは [id, 出す, 消す]。dark=暗転、A〜D=場面、title=題名、wake=既存の目覚め（最後の区間）
   versions: {
     full: {

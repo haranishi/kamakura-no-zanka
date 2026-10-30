@@ -20,7 +20,7 @@ const cases = [
   ['cutの重複', op, 'isScene(from) && isScene(to) && from !== to', 'isScene(from) && isScene(to)', '通しで見ると'],
   ['短い版を選ばない', op, "const key = Object.hasOwn(data.versions, version) ? version : 'full';", "const key = 'full';", '短い版は'],
   ['語りの字の色を取り違える', op, 'color: data.colors[data.lines[id].kind]', 'color: data.colors.history', '字の色は'],
-  ['朱の字が暗すぎる', data, "fiction: '#e36b48'", "fiction: '#8a3a22'", '字の色は'],
+  ['朱の字が暗すぎる', data, "fiction: '#f08a66'", "fiction: '#8a3a22'", '字の色は'],
   ['輝度の係数', op, 'return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];', 'return (c[0] + c[1] + c[2]) / 3;', '字の色は'],
   ['暗転の区間を黒にしない', op, "let black = seg.id === 'dark' || seg.id === 'title' ? 1 : 0;", "let black = seg.id === 'title' ? 1 : 0;", '暗転：'],
   ['題名を題名の区間に出さない', op, "const title = seg.id === 'title' ?", "const title = seg.id === 'D' ?", '暗転：'],
