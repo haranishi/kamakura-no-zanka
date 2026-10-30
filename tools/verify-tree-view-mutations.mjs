@@ -87,7 +87,8 @@ const cases = [
   ['far rims stay round in the bake', bake, ' + (leafGroup - .5) * ${TREES.leafDetail.group.toFixed(2)});', ');'],
 ];
 const originals = new Map([...new Set(cases.map(c => c[1]))].map(f => [f, fs.readFileSync(f)]));
-const run = () => spawnSync(process.execPath, ['--test', 'tests/valley-tree-view.test.mjs'], { encoding: 'utf8', timeout: 30000, maxBuffer: 8 * 1024 * 1024 });
+// 90s: since 8.1a round 2 the view test also bakes 13 tree families in Node (~14s); some texture mutations slow it past 30s.
+const run = () => spawnSync(process.execPath, ['--test', 'tests/valley-tree-view.test.mjs'], { encoding: 'utf8', timeout: 90000, maxBuffer: 8 * 1024 * 1024 });
 function baseline() { const r=run(); if(r.status!==0) throw Error('view baseline failed\n'+r.stdout+r.stderr); }
 baseline(); let killed=0;
 try {

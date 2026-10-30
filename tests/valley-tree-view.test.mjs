@@ -581,6 +581,7 @@ test('wood settles moss in the grooves of its foot [bark-moss]', () => {
     const f = compileFull(m.get(sp, 0).wood).fragmentShader;
     assert(f.includes(`float barkMoss = (1.0-smoothstep(0.0, 1.3, vBarkHeight)) * barkTexel.a * barkOn * ${TREES.bark.moss.toFixed(2)};`), '[bark-moss] moss missing');
     assert(f.indexOf('barkMoss') > f.indexOf('smoothstep(-0.15, 1.1, vBarkHeight)'), '[bark-moss] moss before the soil shade');
+    assert(f.includes('diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb*vec3(.72,1.08,.55) + vec3(.006,.012,.003), barkMoss);'), '[bark-moss] moss computed but never applied');
   }
   assert(TREES.bark.relief >= 1 && TREES.bark.contact <= .55, '[bark] relief or foot shade weakened');
   m.dispose();
