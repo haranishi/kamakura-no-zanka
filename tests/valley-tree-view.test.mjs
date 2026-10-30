@@ -1,5 +1,6 @@
 // なぜ失敗したか: 円盤下地と予約隅がコイン・格子になり、灰色の針と松の絵の誤配線が白い段を作った。紙の縁の黒・固定緑の発光・風やLODの結線漏れを、GPUなしで区別する。
 // 原因の型: texture/shader/wind/lod/color/instance/dispose/specimen/qa、独立レビュー後は side/alpha-test/wind-basis/wind-height/far-mean。GLSLのコンパイルは対象外。
+// 第3弾（8.1a）: 杉の房の絵（2枚の帳）、広葉の葉ごとの向きと色（詳細の画像）、樹皮、樹冠としての照らし方、段の傾き、輪郭の葉の欠け。
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
@@ -8,7 +9,7 @@ import { TREES } from '../dist/valley/config.js';
 import { tileStats } from './helpers/tree-texture-metrics.mjs';
 import { installTreeCanvas } from './helpers/tree-canvas.mjs';
 const canvas = installTreeCanvas();
-const { needleTexture, needleFringeTexture, mapleLeafTexture, zelkovaLeafTexture } = await load('tree-textures.js');
+const { needleTexture, mapleLeafTexture, zelkovaLeafTexture, cedarSprayTexture, leafDetailTexture, barkTexture } = await load('tree-textures.js');
 const { treeMaterials } = await load('tree-materials.js');
 const { createTreeSet, buildSpecimens, stageColor } = await load('tree-view.js');
 const { treeGeometry } = await load('tree-geometry.js');
@@ -16,13 +17,13 @@ const wind = () => ({ uTime: { value: 5 }, uWind: { value: 1 }, uWindDir: { valu
 const sunDir = new THREE.Vector3(.5, .2, .85).normalize();
 const make = (quality = 'standard') => { const w = wind(); return { w, m: treeMaterials({ wind: w, sunDir, quality }) }; };
 function compile(m) {
-  const shader = { uniforms: {}, vertexShader: '#include <common>\n#include <beginnormal_vertex>\n#include <begin_vertex>\n#include <color_vertex>', fragmentShader: '#include <common>\n#include <color_fragment>\n#include <map_fragment>\n#include <alphatest_fragment>\n#include <emissivemap_fragment>' };
+  const shader = { uniforms: {}, vertexShader: '#include <common>\n#include <beginnormal_vertex>\n#include <begin_vertex>\n#include <color_vertex>', fragmentShader: '#include <common>\n#include <map_fragment>\n#include <color_fragment>\n#include <alphatest_fragment>\n#include <normal_fragment_begin>\n#include <normal_fragment_maps>\n#include <emissivemap_fragment>' };
   m.onBeforeCompile(shader); return shader;
 }
 const hash = obj => createHash('sha256').update(JSON.stringify(obj)).digest('hex');
-test('four deterministic procedural textures retain padding and drawing grammar [texture]', () => {
+test('three deterministic procedural textures retain padding and drawing grammar [texture]', () => {
   const hashes = [];
-  for (const factory of [needleTexture, needleFringeTexture, mapleLeafTexture, zelkovaLeafTexture]) {
+  for (const factory of [needleTexture, mapleLeafTexture, zelkovaLeafTexture]) {
     const a = factory(), ops = hash(canvas.drawing()), bytes = hash(Array.from(a.image.data));
     hashes.push(bytes);
     const b = factory(); assert.equal(hash(canvas.drawing()), ops, '[texture] drawing seed'); assert.equal(hash(Array.from(b.image.data)), bytes, '[texture] pixel seed');
@@ -31,7 +32,7 @@ test('four deterministic procedural textures retain padding and drawing grammar 
     assert(a.flipY && a.generateMipmaps && a.colorSpace === THREE.SRGBColorSpace && a.minFilter === THREE.LinearMipmapLinearFilter, '[texture] mip/sRGB orientation');
     a.dispose(); b.dispose();
   }
-  assert.equal(new Set(hashes).size, 4, '[texture] species images identical');
+  assert.equal(new Set(hashes).size, 3, '[texture] species images identical');
   for (const [factory, count] of [[mapleLeafTexture, 300], [zelkovaLeafTexture, 215]]) {
     const map=factory(), stats=tileStats(map);
     assert(canvas.drawing().filter(op=>op[0]==='fill').every(op=>op[1]<100 && op[2]<100),'[texture-disc] large filled underlay instead of leaf union');
@@ -49,14 +50,55 @@ test('four deterministic procedural textures retain padding and drawing grammar 
     assert(new Set(corner).size>10,'[texture-reservation] uniform reserved corner returned');
     map.dispose();
   }
-  const fringe=needleFringeTexture(), a=fringe.image.data;
-  let upper=0,lower=0;const rgb=[0,0,0];
-  for(let y=0;y<256;y++)for(let x=0;x<256;x++) { const i=(y*256+x)*4,alpha=a[i+3]; if(y<140)upper+=alpha/255;else if(alpha===0)lower++; if(alpha>=77)for(let k=0;k<3;k++)rgb[k]+=a[i+k]; }
-  assert(upper/(256*140)>.95,'[fringe-alpha] upper needles too sparse');
-  assert(lower/(256*116)>.10 && lower/(256*116)<.8,'[fringe-alpha] missing hanging cutout tips');
-  assert(rgb[1]>rgb[0] && rgb[1]>rgb[2],'[fringe-hue] gray/snowy needles');
-  assert(fringe.wrapS===THREE.RepeatWrapping && fringe.wrapT===THREE.RepeatWrapping,'[texture-uv] fringe repeat');
-  fringe.dispose();
+});
+// なぜ失敗したか（8.1a）: 杉の近景・中景の房が松の針の絵を共有し、遠景は一色だった。房は2種の杉の枝葉を1枚の帳に並べ、縁の透明は針の平均色で埋める（灰色だと遠くで縁が白く抜けた）。
+test('cedar spray atlas: two green sprays, margins, mean padding and the far forest colour [texture-spray]', () => {
+  const a = cedarSprayTexture(), ops = hash(canvas.drawing()), bytes = hash(Array.from(a.image.data)), b = cedarSprayTexture();
+  assert.equal(hash(canvas.drawing()), ops, '[texture-spray] drawing seed'); assert.equal(hash(Array.from(b.image.data)), bytes, '[texture-spray] pixel seed');
+  assert(a.isDataTexture && a.image.width === 512 && a.image.height === 256 && a.userData.variants === 2, '[texture-spray] two-cell atlas size');
+  assert(a.flipY && a.generateMipmaps && a.colorSpace === THREE.SRGBColorSpace && a.wrapS === THREE.ClampToEdgeWrapping, '[texture-spray] clamp/mip/sRGB');
+  const d = a.image.data, cell = [[0, 0, 0, 0], [0, 0, 0, 0]], mean = [0, 0, 0]; let opaque = 0;
+  for (let y = 0; y < 256; y++) for (let x = 0; x < 512; x++) {
+    const i = (y * 512 + x) * 4, k = x >> 8; if (d[i + 3] >= 77) { cell[k][0]++; for (let q = 0; q < 3; q++) { cell[k][q + 1] += d[i + q]; mean[q] += d[i + q]; } opaque++; }
+    // Margins: the outer columns and the seam between the cells stay clear, so mip levels do not bleed one spray into the other.
+    if ([0, 1, 2, 253, 254, 255, 256, 257, 258, 509, 510, 511].includes(x)) assert(d[i + 3] < 6, '[texture-spray] spray touches a cell edge');
+  }
+  for (const [n, r, g, bl] of cell) assert(n / 65536 > .25 && n / 65536 < .7 && g > r && g > bl, '[texture-spray] sparse, solid or grey spray');
+  let differ = 0; for (let y = 0; y < 256; y++) for (let x = 0; x < 256; x++) if ((d[(y * 512 + x) * 4 + 3] >= 77) !== (d[(y * 512 + x + 256) * 4 + 3] >= 77)) differ++;
+  assert(differ / 65536 > .08, '[texture-spray] the two sprays share one silhouette');   // measured 12.7%
+  const pad = mean.map(v => Math.round(v / opaque));
+  for (let i = 0; i < d.length; i += 4) if (d[i + 3] < 6) assert.deepEqual(Array.from(d.slice(i, i + 3)), pad, '[texture-spray] transparent texels not padded with the needle mean');
+  // The far forest (cedar L2) takes this image's mean: keep it within 12% of the old pine needle image per channel.
+  const needle = linearMean(needleTexture()), spray = linearMean(a);
+  spray.forEach((v, q) => assert(Math.abs(v / needle[q] - 1) < .12, `[texture-spray] far forest colour shifts (${q}: ${v.toFixed(4)} vs ${needle[q].toFixed(4)})`));
+  a.dispose(); b.dispose();
+});
+// なぜ失敗したか（8.1a）: 広葉の殻は殻の向きだけで照らされ、葉の凹凸が無かった。詳細の画像は葉の絵と同じ配置で、葉ごとの傾き（RGB）と色の揺らぎ（A）を持つ。
+test('leaf detail maps tilt each leaf on the leaf layout and stay neutral on average [texture-detail]', () => {
+  for (const kind of ['maple', 'zelkova']) {
+    const detail = leafDetailTexture(kind), leaf = (kind === 'maple' ? mapleLeafTexture : zelkovaLeafTexture)(), d = detail.image.data, l = leaf.image.data;
+    assert(detail.colorSpace === THREE.NoColorSpace && detail.flipY === leaf.flipY && detail.wrapS === THREE.RepeatWrapping && detail.wrapT === THREE.RepeatWrapping, '[texture-detail] linear repeat map aligned with the leaf image');
+    assert.equal(detail.userData.leafCount, leaf.userData.leafCount, '[texture-detail] layout differs from the leaf image');
+    let tilted = 0, n = 0, hue = 0, unit = 0; const hues = new Set();
+    for (let i = 0; i < d.length; i += 4) if (l[i + 3] >= 77) {
+      const v = [d[i] / 127.5 - 1, d[i + 1] / 127.5 - 1, d[i + 2] / 127.5 - 1]; n++;
+      assert(v[2] > .5, '[texture-detail] leaf normal tipped over');
+      // Leaf edges blend two leaves' normals (shorter than 1); the leaf bodies stay unit.
+      if (Math.abs(Math.hypot(...v) - 1) < .08) unit++;
+      if (Math.hypot(v[0], v[1]) > .2) tilted++;
+      hue += d[i + 3]; hues.add(d[i + 3]);
+    }
+    assert(unit / n > .95, '[texture-detail] leaf normals are not unit vectors');
+    assert(tilted / n > .8, '[texture-detail] leaves lie flat on the shell');
+    assert(Math.abs(hue / n / 255 - .5) < .08 && hues.size > 40, '[texture-detail] colour jitter biased or uniform');
+    detail.dispose(); leaf.dispose();
+  }
+});
+test('bark texture is a linear repeating data map [texture-bark]', () => {
+  const bark = barkTexture();
+  assert(bark.isDataTexture && bark.image.width === 128 && bark.image.height === 256 && bark.colorSpace === THREE.NoColorSpace, '[texture-bark] linear 128x256 data');
+  assert(bark.wrapS === THREE.RepeatWrapping && bark.wrapT === THREE.RepeatWrapping && bark.generateMipmaps, '[texture-bark] repeat/mip');
+  bark.dispose();
 });
 test('Lambert color, two-layer wind, shared objects and limited transmission [shader]', () => {
   const { w, m } = make(), keys = new Set();
@@ -174,10 +216,12 @@ test('specimen placement, variants and complete idempotent ownership disposal [s
   for(const r of resources)assert.equal(events.get(r),1,`[dispose] ${r.type||'texture'} not released exactly once`);
   const {m}=make();const p=m.get(1,0);let materialDisposals=0,textureDisposals=0;
   for(const mat of [p.leaf,p.wood])mat.addEventListener('dispose',()=>materialDisposals++);
-  // All four owned maps, even those unused in this material pair, must be freed.
-  const maps=new Set([m.get(0,0).leaf.map,m.get(1,0).leaf.map,m.get(3,0).leaf.map,m.get(0,1).leaf.map]);
+  // All seven owned textures, even those unused in this material pair, must be freed: four leaf images, two leaf
+  // detail maps and the bark image (held in a shader uniform, not in a material slot).
+  const maps=new Set([m.get(0,0).leaf.map,m.get(1,0).leaf.map,m.get(3,0).leaf.map,m.get(2,0).leaf.map,m.get(1,0).leaf.normalMap,m.get(3,0).leaf.normalMap,compile(m.get(1,0).wood).uniforms.uBark.value]);
+  assert.equal(maps.size,7,'[dispose] owned texture set');
   for(const map of maps)map.addEventListener('dispose',()=>textureDisposals++);
-  m.dispose();m.dispose();assert.equal(materialDisposals,2,'[dispose] materials');assert.equal(textureDisposals,4,'[dispose] textures');
+  m.dispose();m.dispose();assert.equal(materialDisposals,2,'[dispose] materials');assert.equal(textureDisposals,7,'[dispose] textures');
   assert.throws(()=>m.get(1,0),/disposed/,'[dispose] use after disposal');
 });
 test('QA lazily installs, replaces and clears specimens with plain JSON [qa]', async()=>{
@@ -197,8 +241,10 @@ test('QA lazily installs, replaces and clears specimens with plain JSON [qa]', a
 });
 
 test('needle routing, untextured core and diffuse gain [texture-routing/core/color]',()=>{
-  const {m}=make(), needle=m.get(0,0).leaf.map, fringe=m.get(0,1).leaf.map;
-  assert.notEqual(needle,fringe,'[texture-routing] cedar fringe');
+  // 8.1a: near and middle cedar tufts share the spray atlas; the pine fans keep the needle image; the fringe left with the skirts.
+  const {m}=make(), spray=m.get(0,0).leaf.map, needle=m.get(2,0).leaf.map;
+  assert(spray.userData.variants===2 && m.get(0,1).leaf.map===spray,'[texture-routing] cedar tufts need the spray atlas at L0 and L1');
+  assert.notEqual(needle,spray,'[texture-routing] pine shares the cedar spray');
   for(const level of [0,1])assert(m.get(2,level).leaf.map===needle,'[texture-routing] pine fan requires needle map');
   for(let species=0;species<6;species++)for(let level=0;level<(species>=4?2:3);level++) {
     const pair=m.get(species,level);
@@ -325,5 +371,69 @@ test('far crowns take the linear-light mean of their own near texture [far-mean/
     assert(actual.every((v,i)=>Math.abs(v-expected[i])<1e-6),`[far-mean] species ${sp} far colour is not its near texture mean in linear light (broadleaf gain ${TREES.leafGain}, conifer none)`);
   }
   assert.notDeepEqual(m.get(1,2).leaf.color.toArray(),m.get(3,2).leaf.color.toArray(),'[far-mean] maple and zelkova share one far mean');
+  m.dispose();
+});
+
+// なぜ失敗したか（8.1a）: 幹は無地、広葉の葉は殻の向きだけで照らされ、杉の房はカードごとに表裏で明暗が反転した。段は個体どうしで水平にそろった。
+test('wood samples the shared bark only off foliage cores; leaves never do [bark-shader]',()=>{
+  for(const quality of ['standard','light']) {
+    const {m}=make(quality);let bark=null;
+    for(let sp=0;sp<6;sp++)for(let l=0;l<(sp>=4?2:3);l++) {
+      const wood=compile(m.get(sp,l).wood),leaf=compile(m.get(sp,l).leaf);
+      assert(wood.uniforms.uBark?.value?.isDataTexture,'[bark-shader] wood lacks the bark image');
+      bark??=wood.uniforms.uBark.value;assert.equal(wood.uniforms.uBark.value,bark,'[bark-shader] bark image not shared');
+      assert.equal(wood.uniforms.uBarkRelief.value,TREES.bark.relief,'[bark-shader] relief uniform');
+      assert(wood.vertexShader.includes('vBarkUv = uv; vBarkHeight = position.y;'),'[bark-shader] bark UV varying');
+      assert(wood.fragmentShader.includes('float barkOn = step(-0.5, vBarkUv.x);'),'[bark-shader] foliage cores (UV -1) not masked');
+      assert(wood.fragmentShader.includes('diffuseColor.rgb *= mix(1.0, barkTexel.r*2.0, barkOn);'),'[bark-shader] bark brightness (mean gain 1)');
+      assert(/smoothstep\(-0\.15, 1\.1, vBarkHeight\)/.test(wood.fragmentShader),'[bark-shader] ground contact darkening');
+      assert.equal(wood.fragmentShader.includes(`mix(1.0, ${TREES.bark.crownShade.toFixed(2)}, smoothstep(2.6, 5.5, vBarkHeight)*barkOn)`),sp===0,'[bark-shader] cedar crown shade on the wrong species');
+      assert(/barkT\*\(barkTilt\.x\*barkScale\)/.test(wood.fragmentShader)&&wood.fragmentShader.indexOf('#include <normal_fragment_maps>')<wood.fragmentShader.indexOf('barkQ0'),'[bark-shader] bark relief after the normal setup');
+      assert(!leaf.uniforms.uBark && !/barkTexel|vBarkUv/.test(leaf.vertexShader+leaf.fragmentShader),'[bark-shader] foliage samples bark');
+    }
+    m.dispose();
+  }
+});
+test('broadleaf leaves carry per-leaf normals, colour jitter and rim erosion; conifers do not [leaf-detail]',()=>{
+  const {m}=make();
+  for(let sp=0;sp<6;sp++)for(let l=0;l<(sp>=4?2:3);l++) {
+    const mat=m.get(sp,l).leaf,f=compile(mat).fragmentShader,broad=sp!==0&&sp!==2&&l<2;
+    assert.equal(!!mat.normalMap,broad,'[leaf-detail] detail map on the wrong leaves');
+    if(broad) {
+      assert(mat.normalMap===m.get(sp,l).leaf.normalMap && mat.normalMap.userData.leafCount===mat.map.userData.leafCount,'[leaf-detail] detail map does not follow the leaf image');
+      assert.equal(mat.normalScale.x,TREES.leafDetail.normal,'[leaf-detail] normal strength');
+      assert(f.includes('vec4 leafDetail = texture2D(normalMap, vNormalMapUv);'),'[leaf-detail] colour jitter source');
+      assert(f.includes(`1.0+${TREES.leafDetail.hue.toFixed(3)}*leafHue`)&&f.includes(`1.0-${TREES.leafDetail.hue.toFixed(3)}*leafHue`),'[leaf-detail] warm/cool jitter');
+      assert(f.indexOf('diffuseColor.a *= smoothstep(.12, .46')<f.indexOf('#include <alphatest_fragment>'),'[leaf-detail] rim erosion must cut before the alpha test');
+      assert(f.includes(`(leafDetail.a-.5)*${TREES.leafDetail.rim.toFixed(2)}`),'[leaf-detail] rim erosion ignores the leaf');
+      assert(/leafThrough = \.55 \+ \.45\*max\(0\.0, dot\(normal/.test(f),'[leaf-detail] transmission ignores the leaf orientation');
+    } else assert(!/leafDetail|leafHue/.test(f),'[leaf-detail] jitter on leaves without a detail map');
+  }
+  m.dispose();
+});
+test('cedar tufts are lit as one crown and fade when seen edge-on [crown-lit]',()=>{
+  const {m}=make();
+  for(let sp=0;sp<6;sp++)for(let l=0;l<(sp>=4?2:3);l++) {
+    const f=compile(m.get(sp,l).leaf).fragmentShader,cedar=sp===0&&l<2;
+    assert.equal(f.includes('normal = normalize(vNormal); nonPerturbedNormal = normal;'),cedar,'[crown-lit] per-card flip on cedar tufts, or crown lighting elsewhere');
+    assert(!cedar||f.indexOf('normal = normalize(vNormal);')>f.indexOf('#include <normal_fragment_begin>'),'[crown-lit] reset must follow the face flip');
+    assert.equal(/smoothstep\(\.04, \.22, abs\(dot\(normalize\(cross\(dFdx\(vViewPosition\), dFdy\(vViewPosition\)\)\)/.test(f),cedar,'[crown-lit] edge-on card fade');
+  }
+  m.dispose();
+});
+// The tier tilt is a position-stable shear: evaluate the shipped GLSL expression and check direction and amplitude per band.
+test('cedar tiers lean a position-dependent way at every level [tier-tilt]',()=>{
+  const {m}=make();
+  for(let sp=0;sp<6;sp++)for(let l=0;l<(sp>=4?2:3);l++)for(const kind of ['leaf','wood']) {
+    const v=compile(m.get(sp,l)[kind]).vertexShader;
+    assert.equal(v.includes('float tierTurn = ph1*1.7 + position.y*0.43;'),sp===0,'[tier-tilt] tilt on the wrong species');
+    if(sp!==0)continue;
+    assert(v.includes(`* ${TREES.tierTilt[l].toFixed(3)} * (0.55 + 0.45*sin(ph2 + position.y*0.91));`),'[tier-tilt] amplitude per level');
+    assert(v.indexOf('transformed.xz *= prof;')<v.indexOf('float tierTurn')&&v.indexOf('float tierTurn')<v.indexOf('float slow ='),'[tier-tilt] tilt must follow the profile and precede wind');
+  }
+  assert(TREES.tierTilt[0]<TREES.tierTilt[1]&&TREES.tierTilt[1]<=TREES.tierTilt[2]&&TREES.tierTilt[0]<=.06,'[tier-tilt] near tilt must stay small (shadow map is untilted)');
+  const tilt=(x,z,y,ph1,ph2,amp)=>{const turn=ph1*1.7+y*.43;return (x*Math.cos(turn)+z*Math.sin(turn))*amp*(.55+.45*Math.sin(ph2+y*.91));};
+  const bands=[3,5,7,9,11].map(y=>Math.atan2(tilt(0,1,y,1.3,.4,1),tilt(1,0,y,1.3,.4,1)));
+  assert(new Set(bands.map(a=>a.toFixed(1))).size===5,'[tier-tilt] bands lean the same way');
   m.dispose();
 });

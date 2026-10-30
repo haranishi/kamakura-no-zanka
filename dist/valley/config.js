@@ -79,5 +79,11 @@ export const TREES = Object.freeze({
   variants: Object.freeze({ cedar: 5, zelkova: 3, pine: 2, maple: 3 }),
   leafGain: 1.25,
   understoryLeafGain: 1.1,
-  budget: Object.freeze({ cedar: [1500, 260, 40], zelkova: [2600, 560, 160], pine: [600, 140, 96], maple: [2600, 560, 160], sapling: [1400, 200], shrub: [1200, 180] }),
+  // R17.11（2026-10-30）：近景の杉は枝と房で作るので、L0の上限を上げた（遠景は据え置き）。総量は性能の実測で確かめる。
+  budget: Object.freeze({ cedar: [2200, 260, 40], zelkova: [2600, 560, 160], pine: [600, 140, 96], maple: [2600, 560, 160], sapling: [1400, 200], shrub: [1200, 180] }),
+  // 杉の段の傾き（m/m、段ごと・個体ごとに向きが変わる）。近景は影とのずれを小さく、中遠景で段の水平線を崩す。
+  tierTilt: Object.freeze([0.05, 0.14, 0.16]),
+  // 広葉の葉1枚ごとの向き（法線の強さ）と色の揺らぎ（±割合）。樹皮の凹凸と根元の暗さ（地面に接する所の明るさ）。
+  leafDetail: Object.freeze({ normal: 0.85, hue: 0.09, rim: 0.7 }),
+  bark: Object.freeze({ relief: 0.75, contact: 0.62, crownShade: 0.6 }),
 });

@@ -140,7 +140,8 @@ test('real scatter, four site budgets, QA accounting and capacities [budget]',()
   const {trees,species,understory}=real();
   const f=field([],{data:trees,species,understory});const api=qa(f);
   // Hashed shape families and the terrace/tread/dress understory exclusions moved the four totals.
-  const sites=[[WORLD.start.x,WORLD.start.z,1438000,1285672],[-5,2.2,1387000,1069778],[-6,20,1344000,1046796],[-36,-48,1394000,1242466]];
+  // 8.1a (R17.11): near cedar limbs and tufts, middle broadleaf limbs: +9,706 to +42,862 per site, still under the old one-pass values.
+  const sites=[[WORLD.start.x,WORLD.start.z,1438000,1328534],[-5,2.2,1387000,1087372],[-6,20,1344000,1056502],[-36,-48,1394000,1278092]];
   const at=new Map();for(const d of [trees,understory])d.x.forEach((x,i)=>at.set(`${Math.fround(x)},${Math.fround(d.z[i])}`,d.tint[i]));
   assert.deepEqual(sites.map(p=>p.slice(0,2)),[[-100.5,-89],[-5,2.2],[-6,20],[-36,-48]],'[budget-sites] four evaluation sites changed');
   assert.equal(f.sets.length,3*Object.values(TREES.variants).reduce((a,b)=>a+b,0)+6,'[sets] wrong species/variant level count');assert(f.group.children.length<=90,'[sets] draw set budget exceeded');
@@ -148,7 +149,8 @@ test('real scatter, four site budgets, QA accounting and capacities [budget]',()
     const start=performance.now();f.update(camera(x,z),true);const ms=performance.now()-start,result=api.treeStats();
     console.log(`[tree-budget] (${x},${z}) total=${result.total} old=${old} update=${ms.toFixed(3)}ms sets=${f.sets.length} meshes=${f.group.children.length}`);
     assert(result.total<old,'[budget] tree triangles exceed old one-pass budget');
-    assert(result.total<=1300000,'[budget-target] tree triangles exceed 1.30M target');
+    // 7.9 set 1.30M; 8.1a spends up to 43k more on near detail (R17.11). The browser total is gated by perf (R17.10).
+    assert(result.total<=1350000,'[budget-target] tree triangles exceed 1.35M target');
     assert.equal(result.total,expected,'[budget-site] real scatter triangle count changed');
     const sum=Object.values(result.tris).flat().reduce((a,b)=>a+b,0);assert.equal(sum,result.total,'[qa] species triangles differ from total');
     for(let sp=0;sp<4;sp++)for(const s of f.sets.filter(s=>s.species===sp))assert.equal(s.capacity,Array.from(species.species).filter((v,i)=>v===sp && treeShape(sp,trees.tint[i])===s.shape).length,'[capacity] real species/shape count mismatch');

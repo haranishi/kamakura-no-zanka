@@ -6,7 +6,6 @@ const file = 'dist/valley/tree-geometry.js';
 const cases = [
   ['missing middle noise octave', '.05 * wave(1.6)', '0 * wave(1.6)'],
   ['wide slim cedar', 'slim ? .62 : 1', 'slim ? 1 : 1'],
-  ['missing irregular cedar jitter', '1 + .22 * Math.sin(y * 2.17)', '1 + 0 * Math.sin(y * 2.17)'],
   ['missing irregular cedar lean', '.6 * Math.max(0, y) / 20', '0 * Math.max(0, y) / 20'],
   ['cylindrical UV returned', 'const uv = [u*Math.cos(angle)-v*Math.sin(angle)+shift[0], u*Math.sin(angle)+v*Math.cos(angle)+shift[1]];', 'const uv = [Math.atan2(p[2]-center[2],p[0]-center[0])/TAU, p[1]/tile];'],
   ['aligned clump UV rotation', 'angle = rnd() * TAU', 'angle = 0'],
@@ -21,12 +20,7 @@ const cases = [
   ['separated understory balls', '(small ? .22 : .56)', '(small ? .85 : .56)'],
   ['three-band middle broadleaf', 'small ? (level === 0 ? 7 : 4) : level === 0 ? 8 : 5, small ? .6', 'small ? (level === 0 ? 5 : 4) : 3, small ? .6'],
   ['three-band far broadleaf', 'dome, 10, 5, 1, false', 'dome, 8, 3, 1, false'],
-  ['thick near cedar core', '19.7, 1.35, 8', '19.7, 2.15, 8'],
-  ['open near cedar core', '[.07, .12, .055], true', '[.07, .12, .055], false'],
-  ['black near cedar core', '[.07, .12, .055]', '[.022, .045, .020]'],
-  ['inward cedar bottom cap', 'm.tri(bottom, first + 1 + k, first + 2 + k)', 'm.tri(bottom, first + 2 + k, first + 1 + k)'],
 
-  ['flat cedar fronds', 'const segments = level === 0 ? 2 : 1;', 'const segments = 1;'],
   ['uniform exposure', 'const exposure = .28 + .72 * Math.pow((facing[1] + 1) / 2, .65) * shelter;', 'const exposure = 1;'],
   ['one clump per branch', '8 : 6', '1 : 1'],
   ['one fork branch', 'const branches = small ? (shrub ? 5 : 4) : [4, 3, 5][shape];', 'const branches = 1;'],
@@ -34,7 +28,6 @@ const cases = [
   ['protruding trunk head', '[.12, fork, .1]', '[.12, h * 1.6, .1]'],
   ['triangle budget overflow', 'level === 0 ? 8 : 6', 'level === 0 ? 40 : 6'],
   ['single far cone', 'i < 4; i++) cone(leaf', 'i < 1; i++) cone(leaf'],
-  ['black needle core', '[.022, .045, .020]', '[.008, .016, .009]'],
   ['floating trunk foot', '[0, -.1, 0]', '[0, .2, 0]'],
   ['invalid flutter weight', '.2 + .8 * Math.sin(theta)', '.2 + 2 * Math.sin(theta)'],
   ['invalid UV', 'u*Math.cos(angle)-v*Math.sin(angle)+shift[0]', 'NaN'],
@@ -43,8 +36,6 @@ const cases = [
   ['one UV tile per shell', 'u = p[axes[0]] / tile', 'u = p[axes[0]] / (tile * 8)'],
   ['one vertical UV tile', 'v = p[axes[1]] / tile', 'v = p[axes[1]] / (tile * 8)'],
   ['coplanar branch tips', 'center[1] - 1.4 + b * .65', 'center[1]'],
-  ['smooth cedar mid cone', 'const rows = [9, 8, 10][shape], sides = 12;', 'cone(leaf, 3, 20.8, 3.45, 12, 0); const rows = 0, sides = 12;'],
-  ['black cedar skirt', 'j ? .48 : .85', 'j ? .12 : .85'],
   ['coarse small leaf tiles', 'small ? .6 : 1, false', '1, false'],
   ['core returned to leaf mesh', 'clump(wood, center, radii.map(v => v * .55)', 'clump(leaf, center, radii.map(v => v * .55)'],
   ['bright core', 'core ? [.06, .05, .03]', 'core ? [.6, .5, .3]'],
@@ -59,6 +50,19 @@ const cases = [
   ['dome returned to a plate', '[3.9 * aspect,2.7 / aspect,3.9 * aspect]', '[3.9 * aspect,.27 / aspect,3.9 * aspect]'],
   ['understory radial jitter removed', 'small ? .14 : .09', 'small ? 0 : .09'],
   ['short sapling trunk gap', 'small ? 1.8 : level', 'small ? .3 : level'],
+  // 8.1a（近景の枝と房・中景の房・樹皮のUV・芯の印）。
+  ['near core cone returned', "const plan = cedarBranchPlan(shape);\n", "const plan = cedarBranchPlan(shape); cone(wood, 3, 19.7, 1.35, 8, .3, [.07, .12, .055]);\n"],
+  ['near limbs omitted', 'if (b.wood) { const s = [0, .45, .85];', 'if (false) { const s = [0, .45, .85];'],
+  ['one card per tuft', 'for (const card of tuftCards(tuft)) {', 'for (const card of tuftCards(tuft).slice(0, 1)) {'],
+  ['tuft root sways like its tip', 'uvs[k], k >= 2 ? 1 : .3);', 'uvs[k], 1);'],
+  ['black middle core', '[.045, .085, .038]', '[.022, .045, .020]'],
+  ['middle tufts unlit', 'cedarTuft(leaf, tuft, shape, 1.12)', 'cedarTuft(leaf, tuft, shape, .5)'],
+  ['middle skirts returned', 'for (const tuft of cedarMidPlan(shape).tufts) cedarTuft(leaf, tuft, shape, 1.12);', `for (let i = 0; i < 9; i++) { const first = leaf.s.length, y = 3 + i * 2.1, r = 3.4 * (1 - i / 9); for (let j = 0; j < 2; j++) for (let k = 0; k <= 12; k++) { const a = k / 12 * TAU; leaf.vert([Math.cos(a) * r * (j ? 1 : .24), y + (j ? -.65 : 1), Math.sin(a) * r * (j ? 1 : .24)], [Math.cos(a), .5, Math.sin(a)], [.6, .6, .6], [k / 12 * 3, j ? 0 : 1], j ? 1 : .4); } for (let k = 0; k < 12; k++) { const v = first + k; leaf.quad(v, v + 1, v + 14, v + 13); } }`],
+  ['atlas UV spills into the other spray', 'half = .23,', 'half = .3,'],
+  ['bark UV per tube instead of metres', 'barkUV(k, sides, t, length, radius)', '[k / sides, t]'],
+  ['core carries bark', "core ? NO_BARK : [circumference / tile * k / sides, p[1] / tile]", "[circumference / tile * k / sides, p[1] / tile]"],
+  ['cedar core carries bark', 'color || [1, 1, 1], color ? NO_BARK : [.5, 1]', 'color || [1, 1, 1], [.5, 1]'],
+  ['middle broadleaf limbs dropped', 'if (level === 1 && !small) for (const l of broadLimbs', 'if (false) for (const l of broadLimbs'],
 ];
 const original = fs.readFileSync(file);
 const run = () => spawnSync(process.execPath, ['--test', 'tests/valley-tree-geometry.test.mjs'], { encoding: 'utf8', timeout: 30000 });
