@@ -1,0 +1,478 @@
+{
+ "seed": 1333,
+ "contact": [
+  {
+   "actor": "hero",
+   "move": "light1",
+   "judgeStart": 0.17,
+   "contactT": 0.171,
+   "diffMs": 1,
+   "clip": "Katana_Kesa_Cut",
+   "clipTime": 0.791,
+   "minDist": 1.258,
+   "reached": false,
+   "inBand": true,
+   "bladeAt": 0.929,
+   "heightAboveGround": 1.414,
+   "tipSpeed": 31.75,
+   "samples": 128,
+   "distanceToTorso": 1.552,
+   "pose": {
+    "mid": [
+     -0.672,
+     1.443,
+     0.496
+    ],
+    "tip": [
+     -0.91,
+     1.448,
+     0.765
+    ],
+    "scale": 1
+   },
+   "pose2": {
+    "mid": [
+     -0.819,
+     1.131,
+     0.339
+    ],
+    "tip": [
+     -1.069,
+     1.069,
+     0.59
+    ],
+    "scale": 1
+   }
+  },
+  {
+   "actor": "hero",
+   "move": "light2",
+   "judgeStart": 0.15,
+   "contactT": 0.15,
+   "diffMs": 0,
+   "clip": "Katana_Gyakukesa_Cut",
+   "clipTime": 0.381,
+   "minDist": 0.494,
+   "reached": false,
+   "inBand": true,
+   "bladeAt": 1,
+   "heightAboveGround": 0.934,
+   "tipSpeed": 26.788,
+   "samples": 128,
+   "distanceToTorso": 1.63,
+   "pose": {
+    "mid": [
+     -0.087,
+     1.06,
+     0.834
+    ],
+    "tip": [
+     0.001,
+     0.947,
+     1.164
+    ],
+    "scale": 1
+   },
+   "pose2": {
+    "mid": [
+     -0.363,
+     1.021,
+     0.758
+    ],
+    "tip": [
+     -0.384,
+     0.894,
+     1.095
+    ],
+    "scale": 1
+   }
+  },
+  {
+   "actor": "hero",
+   "move": "light3",
+   "judgeStart": 0.2,
+   "contactT": 0.179,
+   "diffMs": -21,
+   "clip": "Katana_Yokonagi_Cut",
+   "clipTime": 0.607,
+   "minDist": 0.745,
+   "reached": false,
+   "inBand": true,
+   "bladeAt": 1,
+   "heightAboveGround": 1.442,
+   "tipSpeed": 25.719,
+   "samples": 188,
+   "distanceToTorso": 1.424,
+   "pose": {
+    "mid": [
+     -0.624,
+     1.249,
+     0.518
+    ],
+    "tip": [
+     -0.867,
+     1.137,
+     0.759
+    ],
+    "scale": 1
+   },
+   "pose2": {
+    "mid": [
+     -0.73,
+     1.057,
+     0.331
+    ],
+    "tip": [
+     -0.977,
+     0.886,
+     0.531
+    ],
+    "scale": 1
+   }
+  },
+  {
+   "actor": "hero",
+   "move": "heavy",
+   "judgeStart": 0.42,
+   "contactT": 0.42,
+   "diffMs": 0,
+   "clip": "Katana_Karatake_Heavy",
+   "clipTime": 0.915,
+   "minDist": 0.949,
+   "reached": false,
+   "inBand": true,
+   "bladeAt": 1,
+   "heightAboveGround": 1.241,
+   "tipSpeed": 31.877,
+   "samples": 262,
+   "distanceToTorso": 1.532,
+   "pose": {
+    "mid": [
+     -0.53,
+     1.161,
+     0.604
+    ],
+    "tip": [
+     -0.689,
+     1.278,
+     0.904
+    ],
+    "scale": 1
+   },
+   "pose2": {
+    "mid": [
+     -0.579,
+     0.768,
+     0.601
+    ],
+    "tip": [
+     -0.757,
+     0.759,
+     0.913
+    ],
+    "scale": 1
+   }
+  },
+  {
+   "actor": "hero",
+   "move": "counter",
+   "judgeStart": 0.12,
+   "contactT": 0.121,
+   "diffMs": 1,
+   "clip": "Katana_Counter_Cut",
+   "clipTime": 0.48,
+   "minDist": 1.562,
+   "reached": false,
+   "inBand": true,
+   "bladeAt": 0,
+   "heightAboveGround": 0.771,
+   "tipSpeed": 50.661,
+   "samples": 153,
+   "distanceToTorso": 1.602,
+   "pose": {
+    "mid": [
+     0.839,
+     0.804,
+     0.301
+    ],
+    "tip": [
+     1.168,
+     0.661,
+     0.279
+    ],
+    "scale": 1
+   },
+   "pose2": {
+    "mid": [
+     0.481,
+     0.494,
+     0.51
+    ],
+    "tip": [
+     0.703,
+     0.218,
+     0.572
+    ],
+    "scale": 1
+   }
+  },
+  {
+   "actor": "hero",
+   "move": "finisher",
+   "judgeStart": 0.25,
+   "contactT": 0.25,
+   "diffMs": 0,
+   "clip": "Katana_Finisher",
+   "clipTime": 2.785,
+   "minDist": 0.243,
+   "reached": false,
+   "inBand": true,
+   "bladeAt": 1,
+   "heightAboveGround": 1.191,
+   "tipSpeed": 6.271,
+   "samples": 239,
+   "distanceToTorso": 1.137,
+   "pose": {
+    "mid": [
+     0.069,
+     1.016,
+     0.737
+    ],
+    "tip": [
+     0.21,
+     0.911,
+     1.051
+    ],
+    "scale": 1
+   },
+   "pose2": {
+    "mid": [
+     0.099,
+     0.939,
+     0.721
+    ],
+    "tip": [
+     0.252,
+     0.804,
+     1.018
+    ],
+    "scale": 1
+   }
+  },
+  {
+   "actor": "road_scout",
+   "move": "soldier_slash",
+   "judgeStart": 0.55,
+   "contactT": 0.55,
+   "diffMs": 0,
+   "clip": "Attack_r1",
+   "clipTime": 1.053,
+   "minDist": 0.493,
+   "reached": false,
+   "inBand": true,
+   "bladeAt": 0,
+   "heightAboveGround": 0.944,
+   "tipSpeed": 43.48,
+   "samples": 328,
+   "distanceToTorso": 1.293,
+   "pose": {
+    "mid": [
+     0.258,
+     0.969,
+     0.91
+    ],
+    "tip": [
+     0.583,
+     0.992,
+     1.062
+    ],
+    "scale": 0.99
+   },
+   "pose2": {
+    "mid": [
+     0.099,
+     0.414,
+     0.876
+    ],
+    "tip": [
+     0.37,
+     0.269,
+     1.063
+    ],
+    "scale": 0.99
+   }
+  },
+  {
+   "actor": "road_scout",
+   "move": "soldier_thrust",
+   "judgeStart": 0.7,
+   "contactT": 0.701,
+   "diffMs": 1,
+   "clip": "Katana_Thrust",
+   "clipTime": 0.337,
+   "minDist": 0.651,
+   "reached": false,
+   "inBand": true,
+   "bladeAt": 1,
+   "heightAboveGround": 1.383,
+   "tipSpeed": 6.955,
+   "samples": 383,
+   "distanceToTorso": 1.817,
+   "pose": {
+    "mid": [
+     -0.243,
+     1.268,
+     0.946
+    ],
+    "tip": [
+     -0.174,
+     1.409,
+     1.269
+    ],
+    "scale": 0.99
+   },
+   "pose2": {
+    "mid": [
+     -0.338,
+     1.265,
+     0.925
+    ],
+    "tip": [
+     -0.301,
+     1.388,
+     1.262
+    ],
+    "scale": 0.99
+   }
+  },
+  {
+   "actor": "officer",
+   "move": "officer_a",
+   "judgeStart": 0.35,
+   "contactT": 0.35,
+   "diffMs": 0,
+   "clip": "Officer_Attack",
+   "clipTime": 1.058,
+   "minDist": 1.024,
+   "reached": false,
+   "inBand": true,
+   "bladeAt": 0,
+   "heightAboveGround": 0.845,
+   "tipSpeed": 21.743,
+   "samples": 184,
+   "distanceToTorso": 1.632,
+   "pose": {
+    "mid": [
+     0.345,
+     0.864,
+     0.702
+    ],
+    "tip": [
+     0.701,
+     0.829,
+     0.662
+    ],
+    "scale": 1
+   },
+   "pose2": {
+    "mid": [
+     0.2,
+     0.45,
+     0.699
+    ],
+    "tip": [
+     0.545,
+     0.362,
+     0.749
+    ],
+    "scale": 1
+   }
+  },
+  {
+   "actor": "officer",
+   "move": "officer_b",
+   "judgeStart": 0.4,
+   "contactT": 0.4,
+   "diffMs": 0,
+   "clip": "Katana_Gyakukesa_Cut",
+   "clipTime": 0.383,
+   "minDist": 0.501,
+   "reached": false,
+   "inBand": true,
+   "bladeAt": 1,
+   "heightAboveGround": 1.035,
+   "tipSpeed": 25.709,
+   "samples": 196,
+   "distanceToTorso": 1.696,
+   "pose": {
+    "mid": [
+     -0.11,
+     1.166,
+     0.87
+    ],
+    "tip": [
+     -0.014,
+     1.055,
+     1.199
+    ],
+    "scale": 1
+   },
+   "pose2": {
+    "mid": [
+     -0.384,
+     1.147,
+     0.797
+    ],
+    "tip": [
+     -0.389,
+     1.038,
+     1.14
+    ],
+    "scale": 1
+   }
+  },
+  {
+   "actor": "officer",
+   "move": "officer_c",
+   "judgeStart": 0.45,
+   "contactT": 0.45,
+   "diffMs": 0,
+   "clip": "Katana_Karatake_Heavy",
+   "clipTime": 0.92,
+   "minDist": 1.03,
+   "reached": false,
+   "inBand": true,
+   "bladeAt": 1,
+   "heightAboveGround": 1.29,
+   "tipSpeed": 29.308,
+   "samples": 333,
+   "distanceToTorso": 1.595,
+   "pose": {
+    "mid": [
+     -0.58,
+     1.175,
+     0.612
+    ],
+    "tip": [
+     -0.742,
+     1.304,
+     0.906
+    ],
+    "scale": 1
+   },
+   "pose2": {
+    "mid": [
+     -0.626,
+     0.805,
+     0.607
+    ],
+    "tip": [
+     -0.812,
+     0.823,
+     0.915
+    ],
+    "scale": 1
+   }
+  }
+ ]
+}
