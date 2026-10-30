@@ -1,6 +1,8 @@
 // fx.js — 粒子表現（火花・衝撃の光・土煙・焚き火の火の粉・煙・落ち葉）と、刃の軌跡（view層）。
 // 粒子はCPUで更新する小さな点群2つ（加算／通常）。血の表現は使わず、火花と光と土煙で重さを出す（requirements 6.5）。
+// 刃の軌跡は、帯のサンプル・寿命・頂点の並べ方を slash-trail.js（純粋）が決め、ここは1つのメッシュ（描画呼出1つ）へ流すだけ。
 import * as THREE from 'three';
+import { TRAIL_VERTS, TRAIL_INDICES, createTrailPool, addSample, closeUntouched, pruneTrails, buildRibbon, clearTrails, trailStats, trailVelocity } from './slash-trail.js';
 
 class PointCloud {
   constructor(max, additive) {
@@ -63,11 +65,61 @@ class PointCloud {
 
 const rnd = (a, b) => a + Math.random() * (b - a);
 
+// 刃の軌跡（8.3a）。刀の枠（握りが原点・刃は +Y の 0.16〜0.88m。weapons.js）から帯の両縁を取り、毎コマ足す。
+// 通常の半透明（加算にしない：白飛びと、敵の予兆の金色の光が埋もれるのを避ける）。深さは読むが書かない。毎コマの新規確保なし。
+const BLADE = { root: 0.16, tip: 0.88 };
+const TRAIL_VERT = 'attribute vec2 aUV; attribute vec4 aColor; varying vec2 vUV; varying vec4 vColor; void main(){ vUV = aUV; vColor = aColor; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }';
+// 新しい所ほど濃く、寿命へ向かって二乗で薄れる。幅の向きは、切先の道（外側の縁の少し内側）が最も濃く、根元側へ溶けて消える（板に見せない）。外の縁もぼかす。
+const TRAIL_FRAG = `varying vec2 vUV; varying vec4 vColor;
+  void main(){
+    float age = vUV.x, v = vUV.y;
+    float along = (1.0 - age) * (1.0 - age) * smoothstep(0.0, 0.06, age + 0.02);
+    float across = pow(smoothstep(0.0, 0.9, v), 1.6) * (1.0 - smoothstep(0.88, 1.0, v));
+    gl_FragColor = vec4(vColor.rgb, vColor.a * along * across);
+  }`;
+export class SlashTrails {
+  constructor(scene) {
+    this.pool = createTrailPool();
+    this.out = { position: new Float32Array(TRAIL_VERTS * 3), uv: new Float32Array(TRAIL_VERTS * 2), color: new Float32Array(TRAIL_VERTS * 4), index: new Uint16Array(TRAIL_INDICES), vertices: 0, indices: 0 };
+    const g = new THREE.BufferGeometry();
+    this.attrs = [['position', this.out.position, 3], ['aUV', this.out.uv, 2], ['aColor', this.out.color, 4]].map(([name, array, size]) => {
+      const a = new THREE.BufferAttribute(array, size).setUsage(THREE.DynamicDrawUsage); g.setAttribute(name, a); return a;
+    });
+    this.index = new THREE.BufferAttribute(this.out.index, 1).setUsage(THREE.DynamicDrawUsage); g.setIndex(this.index);
+    g.setDrawRange(0, 0);
+    const m = new THREE.ShaderMaterial({ vertexShader: TRAIL_VERT, fragmentShader: TRAIL_FRAG, transparent: true, depthWrite: false, side: THREE.DoubleSide, blending: THREE.NormalBlending });
+    this.mesh = new THREE.Mesh(g, m); this.mesh.frustumCulled = false; this.mesh.renderOrder = 4; this.mesh.visible = false; this.mesh.name = 'slash-trails';
+    this.geometry = g; this.shown = 0; this.vel = new Float64Array(3); this.edge = new Float64Array(6);
+    scene.add(this.mesh);
+  }
+  // 時刻（ゲーム内の秒）を書く配列。毎コマ、サンプルを足す前に clock[0] へ書く（引数で渡すと数の箱が作られる）
+  get clock() { return this.pool.clock; }
+  // owner（技の1回ぶん）の刀の枠 holder から、帯の両縁（刃の inner と outer の点）の世界位置を足す
+  sample(owner, style, holder) {
+    holder.updateWorldMatrix(true, false);
+    const e = holder.matrixWorld.elements, len = BLADE.tip - BLADE.root, y0 = BLADE.root + len * style.inner, y1 = BLADE.root + len * style.outer, p = this.edge;
+    p[0] = e[4] * y0 + e[12]; p[1] = e[5] * y0 + e[13]; p[2] = e[6] * y0 + e[14]; p[3] = e[4] * y1 + e[12]; p[4] = e[5] * y1 + e[13]; p[5] = e[6] * y1 + e[14];
+    addSample(this.pool, owner, style, p);
+  }
+  // 1コマのサンプルを足し終えたら呼ぶ：足さなかった帯を閉じ、寿命を過ぎた所を捨てて、頂点を作り直す。
+  // 帯がある間だけGPUへ送る（全体で約47KB。範囲指定は three.js が毎回小さな物を作るので使わない）。
+  update() {
+    closeUntouched(this.pool); pruneTrails(this.pool);
+    const indices = buildRibbon(this.pool, this.out);
+    if (indices > 0 || this.shown > 0) { for (let k = 0; k < this.attrs.length; k++) this.attrs[k].needsUpdate = true; this.index.needsUpdate = true; }
+    this.geometry.setDrawRange(0, indices); this.mesh.visible = indices > 0; this.shown = indices;
+  }
+  clear() { clearTrails(this.pool); this.out.vertices = this.out.indices = 0; this.geometry.setDrawRange(0, 0); this.mesh.visible = false; this.shown = 0; }
+  stats() { return { ...trailStats(this.pool), vertices: this.out.vertices, triangles: this.out.indices / 3 }; }
+  // owner の刀の切先側の最新の速度（m/秒）。無ければ null（作業用の配列を返すので、すぐ使う）
+  velocityOf(owner) { return owner && trailVelocity(this.pool, owner, this.vel) ? this.vel : null; }
+}
+
 export class FX {
   constructor(scene) {
     this.add = new PointCloud(1800, true); this.norm = new PointCloud(1600, false);
     scene.add(this.add.points, this.norm.points);
-    this.trails = [];
+    this.trails = new SlashTrails(scene);
   }
 
   // 刃が当たった所の火花と光。dir は当たった向き（x,z）
@@ -80,10 +132,19 @@ export class FX {
     this.add.emit({ pos: [pos.x, pos.y, pos.z], vel: [0, 0, 0], life: 0.09, size: strong ? 0.6 : 0.38, sizeEnd: 0.1, color: blocked ? [1.0, 0.95, 0.8] : [1.0, 0.8, 0.5], alpha: 0.85 });
   }
 
-  // 受け流し（弾き）の鋭い光
-  parry(pos) {
+  // 受け流し（弾き）の鋭い光。火花は、弾かれた刃が逸れる向き（入射の向き）へ偏って散る（8.3a）。
+  // swing は相手の切先の速度（m/秒・あれば）、dir は相手から受け手への水平の向き（無ければ速度だけ・どちらも無ければ真上）。粒の数は前と同じ22。
+  parry(pos, dir = null, swing = null) {
     this.add.emit({ pos: [pos.x, pos.y, pos.z], vel: [0, 0, 0], life: 0.11, size: 0.75, sizeEnd: 0.12, color: [1, 0.97, 0.85], alpha: 0.9 });
-    for (let i = 0; i < 22; i++) { const a = Math.random() * Math.PI * 2, sp = rnd(5, 10); this.add.emit({ pos: [pos.x, pos.y, pos.z], vel: [Math.cos(a) * sp, rnd(-1, 3.5), Math.sin(a) * sp], life: rnd(0.2, 0.38), size: 0.05, sizeEnd: 0.008, color: [1, 0.95, 0.7], gravity: -5 }); }
+    let dx = dir ? dir.x : 0, dy = 0, dz = dir ? dir.z : 0;
+    const sl = swing ? Math.hypot(swing[0], swing[1], swing[2]) : 0;
+    if (sl > 0.5) { dx = swing[0] / sl; dy = swing[1] / sl; dz = swing[2] / sl; }
+    dy += 0.35; const dl = Math.hypot(dx, dy, dz) || 1; dx /= dl; dy /= dl; dz /= dl;
+    for (let i = 0; i < 22; i++) {
+      const sp = rnd(5, 10), spread = i < 16 ? 0.55 : 1.2;          // 4分の3は入射の向きの狭い円錐、残りは広く（放射の名残）
+      const rx = dx + rnd(-1, 1) * spread, ry = dy + rnd(-1, 1) * spread * 0.7, rz = dz + rnd(-1, 1) * spread, rl = Math.hypot(rx, ry, rz) || 1;
+      this.add.emit({ pos: [pos.x, pos.y, pos.z], vel: [rx / rl * sp, ry / rl * sp + rnd(0, 1.5), rz / rl * sp], life: rnd(0.2, 0.38), size: 0.05, sizeEnd: 0.008, color: [1, 0.95, 0.7], gravity: -5 });
+    }
   }
 
   dust(pos, amount = 3, tint = [0.62, 0.52, 0.4]) {

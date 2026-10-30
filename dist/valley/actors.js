@@ -82,6 +82,7 @@ export class HeroActor extends Actor {
     this.drawn = false; this.sheatheIn = 0; this.crouch = false; this.lunge = null; this.queued = null; this.dodge = null; this.dash = null;
     // 抜刀・納刀の進み具合（8.2）。納刀から始まる
     this.swordLayer = createSwordLayer(); this.character.sword?.reset();
+    this.trailCue = null;                // 闇討ちの刃の軌跡の時間割（8.3a）
     this.steepT = 0; this.deadT = 0; this.lockTarget = null; this.lockT = 0; this.speed = 0; this.blockPosed = false; this.dead = false;
     this.scripted = false;               // 演出中は動作を外から決める（冒頭の目覚めなど）
     this.recoverT = 0;
@@ -205,6 +206,7 @@ export class HeroActor extends Actor {
       if (!res) continue;
       this.faceTo(e); this.lockT = 0.85; this.speed = 0;
       this.character.playMove('finisher', { windup: 0.22, active: 0.1, recover: 0.5 }, { fade: 0.05 });
+      this.trailCue = { t0: g.time, windup: 0.22, active: 0.1 };   // 刃の軌跡（8.3a）：論理の技ではないので、この演出の時間割で出す
       this.drawSword({ fast: true });
       g.battle.onStrike(this, e, res);
       return true;
@@ -231,7 +233,7 @@ export class HeroActor extends Actor {
   }
 
   onCombatEvent(e) {
-    if (e.type === 'phase' && e.phase === 'active') this.game.audio.play(e.moveId === 'heavy' || e.moveId === 'finisher' ? 'swing_heavy' : 'swing');
+    if (e.type === 'phase' && e.phase === 'active') this.game.audio.play(e.moveId === 'heavy' || e.moveId === 'finisher' || e.moveId === 'light3' ? 'swing_heavy' : 'swing');   // 三段目は締めの振りの音（8.3a）
     if (e.type === 'phase' && e.phase === 'end') this.lunge = null;
     if (e.type === 'stagger_start') {
       this.character.play('Kneel_on_One_Knee_and_Stand', { fade: 0.08, from: 0, to: 0.95, timeScale: 1.6, onEnd: c => { if (c.current) c.current.paused = true; }, restart: true });

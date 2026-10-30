@@ -3,7 +3,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
-import { LOCOMOTION, MOVE_CLIPS, ACTION_CLIPS, CLIP_SEGMENTS, pickGait, locomotionTimeScale, segmentFor } from './anim-data.js';
+import { LOCOMOTION, MOVE_CLIPS, ACTION_CLIPS, CLIP_SEGMENTS, MOVE_SYNC, pickGait, locomotionTimeScale, segmentFor, syncedSegment, clipTimeAt } from './anim-data.js';
 import { createContactTracker, observeContacts } from './foot-contacts.js';
 import { FOOT_CONTACTS } from './anim-contacts.js';
 import { BowRig } from './bow.js';
@@ -84,7 +84,7 @@ export class Character {
     this.actions = new Map();
     this.current = null; this.currentName = null;
     this.gait = 'idle'; this.style = style; this.locoName = null;
-    this.segment = null; this.onSegmentEnd = null;
+    this.segment = null; this.onSegmentEnd = null; this.warp = null;
     this.time = 0; this.rate = 1;
     this.bones = new Map();
     this.model.traverse(o => { if (o.isBone) this.bones.set(o.name, o); });
@@ -115,6 +115,7 @@ export class Character {
     const { fade = 0.18, timeScale = 1, from = 0, to = null, weight = 1, onEnd = null, restart = false } = options;
     const next = this.action(name);
     if (!next) return null;
+    this.warp = null;                  // 3区間の速さ（playMove）は、別の動作に替えたら終わる
     if (this.current === next && !restart && !to && !Object.hasOwn(options, 'from')) { next.timeScale = timeScale; return next; }
     next.enabled = true; next.paused = false; next.setEffectiveWeight(weight); next.timeScale = timeScale;
     this.contactRestart.add(name);   // 巻き戻した動作だけ、新しい走り出しとして扱う（出ていく動作の接地は続ける）
@@ -143,9 +144,21 @@ export class Character {
     if (!def) return null;
     const meta = this.meta(def.clip);
     if (!meta) return null;
-    const seg = segmentFor(meta, timing, CLIP_SEGMENTS[def.clip]);
-    this.play(def.clip, { fade, timeScale: seg.speed, from: seg.from, to: seg.to, restart: true, onEnd });
+    const seg = MOVE_SYNC[moveId] ? syncedSegment(meta, timing, MOVE_SYNC[moveId]) : segmentFor(meta, timing, CLIP_SEGMENTS[def.clip]);
+    this.play(def.clip, { fade, timeScale: seg.speeds ? seg.speeds[0] : seg.speed, from: seg.from, to: seg.to, restart: true, onEnd });
+    if (seg.knots) this.warp = { knots: seg.knots, t: 0, action: this.current };   // 振りの山を判定へ合わせる技（8.3a）
     return { ...seg, clip: def.clip, root: this.tpl.roots.get(def.clip) || null };
+  }
+
+  // 3区間の速さの技：技の開始からの秒（論理と同じ dt を積む）で動作の時刻を決め、このコマで mixer が進める量を合わせる。
+  // 個体の速さ rate で割り戻すので、敵の個体差（0.94〜1.06倍）は掛からない（判定と表示がずれない）。命中の停止は dt に入っている。
+  followWarp(dt) {
+    const w = this.warp;
+    if (this.current !== w.action) { this.warp = null; return; }
+    const step = dt * this.rate * this.mixer.timeScale;
+    if (!(dt > 0) || !(step > 0)) return;
+    w.t += dt;
+    w.action.timeScale = Math.max(0, (clipTimeAt(w.knots, w.t) - w.action.time) / step);
   }
 
   // 移動：速さ(m/s)から歩き・小走り・走りを選ぶ。style は LOCOMOTION の表。
@@ -217,6 +230,7 @@ export class Character {
   update(dt) {
     this.sword?.undo();   // 前のコマの抜刀・納刀の骨の後処理を戻してから、動作を当てる
     this.time += dt;
+    if (this.warp) this.followWarp(dt);
     this.mixer.update(dt * this.rate);
     // Baked table durations are rounded to 4 decimals; clamp the sub-0.1ms GLB tail.
     const sources = [];

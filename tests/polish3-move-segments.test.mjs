@@ -6,8 +6,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { MOVES } from '../dist/valley/combat.js';
-import { MOVE_CLIPS, CLIP_SEGMENTS, segmentFor } from '../dist/valley/anim-data.js';
-import { actorRates } from '../tools/measure-move-segments.mjs';
+import { MOVE_CLIPS, CLIP_SEGMENTS, MOVE_SYNC, segmentFor } from '../dist/valley/anim-data.js';
+import { actorRates, segmentOf } from '../tools/measure-move-segments.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const read = name => fs.readFileSync(path.join(root, name), 'utf8');
@@ -32,10 +32,11 @@ test('MOVE_CLIPS の13技が揃い、区間と使用割合が有効', () => {
   }
 });
 
-test('segmentFor の戻り値から秒・倍率・割合・決め打ちを記録する', () => {
+test('segmentFor（MOVE_SYNC の技は syncedSegment）の戻り値から秒・倍率・割合・決め打ちを記録する', () => {
   for (const m of report.moves) {
     const meta = clips[m.clip], override = CLIP_SEGMENTS[m.clip];
-    const seg = segmentFor(meta, MOVES[m.id], override);
+    const seg = segmentOf(meta, m.id, MOVES[m.id]);
+    if (!MOVE_SYNC[m.id]) assert.deepEqual(seg, segmentFor(meta, MOVES[m.id], override), m.id);
     assert.equal(m.speed, rounded(seg.speed), m.id);
     assert.equal(m.from, rounded(seg.from), m.id);
     assert.equal(m.to, rounded(seg.to), m.id);
@@ -46,13 +47,15 @@ test('segmentFor の戻り値から秒・倍率・割合・決め打ちを記録
   }
 });
 
-test('research-polish3 の表の全12行と一致し、味方射撃は弓兵と同値', () => {
+// 8.0 の前値（research-polish3 の表）は、保存済みの変更前の記録と照らす（8.3a で MOVE_SYNC の2技の速さを変えたので、今の記録とは照らさない）
+const beforeReport = JSON.parse(read('reports/polish3/baseline/move-segments-before.json'));
+test('research-polish3 の表の全12行は変更前の記録と一致し、味方射撃は弓兵と同値', () => {
   const source = read('.kiro/specs/hidden-valley-slice/research-polish3.md');
   const rows = source.split('\n').filter(line => /^\| \w+ \| \w+ \| \d/.test(line));
   assert.equal(rows.length, 12);
   for (const row of rows) {
     const [id, clip, seconds, moveSeconds, interval, speed, percent] = row.split('|').slice(1, -1).map(s => s.trim());
-    const m = report.moves.find(m => m.id === id);
+    const m = beforeReport.moves.find(m => m.id === id);
     const [from, to] = interval.split('–').map(Number);
     assert.deepEqual([m.clip, m.clipSeconds, m.moveSeconds, m.from, m.to, m.speed, Math.round(m.ratio * 100)],
       [clip, +seconds, +moveSeconds, from, to, +speed, parseInt(percent)], id);
@@ -64,12 +67,12 @@ test('research-polish3 の表の全12行と一致し、味方射撃は弓兵と�
   assert.deepEqual(shot('ally_shot'), shot('archer_shot'));
 });
 
-test('敵だけにコードで確認した0.94〜1.06倍を適用し、丸め前の速度で計算する', () => {
+test('敵だけにコードで確認した0.94〜1.06倍を適用し、丸め前の速度で計算する（3区間の技はゲームの時刻で進むので掛けない）', () => {
   const rates = actorRates(read('dist/valley/actors.js'), read('dist/valley/characters.js'));
   assert.deepEqual(rates.enemy, [0.94, 1.06]);
   for (const m of report.moves) {
-    const enemy = /^(soldier_|officer_)/.test(m.id) || m.id === 'archer_shot';
-    const speed = segmentFor(clips[m.clip], MOVES[m.id], CLIP_SEGMENTS[m.clip]).speed;
+    const enemy = (/^(soldier_|officer_)/.test(m.id) || m.id === 'archer_shot') && !MOVE_SYNC[m.id];
+    const speed = segmentOf(clips[m.clip], m.id, MOVES[m.id]).speed;
     assert.equal(m.effectiveSpeedMin, rounded(speed * (enemy ? 0.94 : 1)), m.id);
     assert.equal(m.effectiveSpeedMax, rounded(speed * (enemy ? 1.06 : 1)), m.id);
   }
@@ -86,7 +89,7 @@ test('目標判定・例外理由は丸め前の値と一致する', () => {
   assert.deepEqual(report.target, { minRatio: 0.6, maxSpeed: 1.8 });
   const expected = [];
   for (const m of report.moves) {
-    const seg = segmentFor(clips[m.clip], MOVES[m.id], CLIP_SEGMENTS[m.clip]);
+    const seg = segmentOf(clips[m.clip], m.id, MOVES[m.id]);
     const reasons = [];
     if ((seg.to - seg.from) / clips[m.clip].seconds < 0.6) reasons.push('ratio');
     if (seg.speed > 1.8) reasons.push('speed');
@@ -107,14 +110,33 @@ test('JSONとMarkdownは2回実行して同一バイト列', () => {
   assert.match(first.stdout, /\| ally_shot \|/);
 });
 
-test('--write は親を作り、保存済みの前値とstdoutのJSONにバイト単位で一致', () => temporary(dir => {
+test('--write は親を作り、保存済みの変更後の記録（8.3a）とstdoutのJSONにバイト単位で一致', () => temporary(dir => {
   const output = path.join(dir, 'nested', 'moves.json');
   const written = run(['--write', output]);
   assert.equal(written.status, 0, written.stderr);
   assert.equal(written.stdout, '');
   assert.equal(fs.readFileSync(output, 'utf8'), result.stdout);
-  assert.equal(read('reports/polish3/baseline/move-segments-before.json'), result.stdout);
+  assert.equal(read('reports/polish3/combat-trail/move-segments-after.json'), result.stdout);
 }));
+
+test('--compare：変更前（8.0）と比べて変わるのは MOVE_SYNC の2技の速さだけ。山は判定の±40ms、使用割合は下がらず、倍速は1.8以下', () => {
+  const r = run(['--compare', 'reports/polish3/baseline/move-segments-before.json', '--json']);
+  assert.equal(r.status, 0, r.stderr);
+  const rows = JSON.parse(r.stdout);
+  assert.equal(rows.length, 13);
+  assert.deepEqual(Object.keys(MOVE_SYNC).sort(), ['officer_b', 'soldier_thrust']);
+  for (const row of rows) {
+    assert.equal(row.approx, false, row.id);                              // 前値の山は、丸める前の値で再現できた
+    if (!MOVE_SYNC[row.id]) { assert.deepEqual(row.changed, [], row.id); assert.deepEqual(row.peakStartVsJudgeMs[0], row.peakStartVsJudgeMs[1], row.id); continue; }
+    assert.deepEqual(row.changed, ['speed', 'effectiveSpeedMin', 'effectiveSpeedMax'], row.id);
+    assert(Math.abs(row.peakStartVsJudgeMs[1]) <= 40 && Math.abs(row.peakEndVsJudgeEndMs[1]) <= 40, row.id);
+    assert(row.ratio[1] >= row.ratio[0] && row.speed[1] <= 1.8, row.id);
+  }
+  const thrust = rows.find(r => r.id === 'soldier_thrust'), officer = rows.find(r => r.id === 'officer_b');
+  assert.deepEqual([thrust.peakStartVsJudgeMs, thrust.peakEndVsJudgeEndMs], [[-367, -15], [-78, 15]]);
+  assert.deepEqual([officer.peakStartVsJudgeMs, officer.peakEndVsJudgeEndMs], [[0, 0], [180, 0]]);
+  assert.equal(run(['--compare']).status, 2);
+});
 
 test('不正な引数は終了コード2', () => {
   for (const args of [['--missing'], ['--write'], ['--write', '--json'], ['--json', '--json'], ['extra']]) {

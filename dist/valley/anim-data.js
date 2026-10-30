@@ -103,6 +103,35 @@ export function segmentFor(meta, { windup, active, recover }, override = null) {
   return { from, to, speed, approximate: false };
 }
 
+// 振りの山を判定の区間へ合わせ直す技（8.3a・表示だけ。combat.js の時間割は変えない）。
+// 動作の予備（手首の速さの山＝meta.active の前）が技の予備より短く、1つの速さでは山が判定より早く来る・判定のあとも振り続ける技。
+// 使う区間（from・to）は segmentFor のまま、予備・振り・戻りの3区間で速さを変え、山の中央を判定の区間の中央へ置く。振りの速さの上限は maxSpeed。
+export const MOVE_SYNC = Object.freeze({
+  soldier_thrust: Object.freeze({ maxSpeed: 1.8 }),
+  officer_b: Object.freeze({ maxSpeed: 1.8 }),
+});
+
+// 3区間の切り出し（pure）。knots は［技の開始からの秒, 動作の秒］の折れ線、speeds は区間ごとの速さ（予備・振り・戻り）。
+// 合わせられない（山の前に動作が無い・戻りに使う所が無い）ときは segmentFor のまま返す。
+export function syncedSegment(meta, timing, spec) {
+  const base = segmentFor(meta, timing);
+  if (!spec || !meta.active) return base;
+  const [a, b] = meta.active, { windup, active, recover } = timing, total = windup + active + recover;
+  const strike = Math.min(spec.maxSpeed, (b - a) / Math.max(1e-3, active)), half = (b - a) / strike / 2, mid = windup + active / 2;
+  const t1 = mid - half, t2 = mid + half;
+  if (!(t1 > 0 && a > base.from && t2 < total && base.to > b)) return base;
+  const speeds = [(a - base.from) / t1, strike, (base.to - b) / (total - t2)];
+  return { ...base, speed: Math.max(...speeds), speeds, knots: [[0, base.from], [t1, a], [t2, b], [total, base.to]] };
+}
+
+// 技の開始から t 秒の、動作の時刻（pure）。折れ線の外は、端の区間の速さで延ばす。
+export function clipTimeAt(knots, t) {
+  let i = 1;
+  while (i < knots.length - 1 && t > knots[i][0]) i++;
+  const [t0, c0] = knots[i - 1], [t1, c1] = knots[i];
+  return c0 + (c1 - c0) * (t - t0) / (t1 - t0);
+}
+
 // 動作の水平な根の移動（in-place化で取り除いた分）を、区間 [from,to] で取り出す。論理側の前進量の参考値。
 export function rootTravel(root, from, to) {
   if (!root) return { x: 0, z: 0 };
