@@ -6,8 +6,10 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { flicker } from './opening.js';
-import { SCENES, SCENE_IDS, cameraAt, flameSprites, createParticleState, particleStep, horizonColor } from './opening-scenes.js';
-import { FlameField, skyMaterial, paintSky, groundMaterial, stoneMaterial } from './opening-fire.js';
+import { SCENES, SCENE_IDS, cameraAt, flameSprites, createParticleState, particleStep, horizonColor, heroAt } from './opening-scenes.js';
+import { FlameField, skyMaterial, paintSky, groundMaterial, stoneMaterial, silhouetteMaterial } from './opening-fire.js';
+import { Character } from './characters.js';
+import { GRIP } from './config.js';
 import { FX } from './fx.js';
 import { patchGrade } from './grade.js';
 
@@ -52,21 +54,58 @@ export class OpeningStage {
   // 場面の組：地面・建物の複製・炎の板・粒子。場面ごとの作り込み（旗・基壇）もここで足す
   build(id) {
     const s = SCENES[id], g = new THREE.Group(); g.name = 'shot-' + id; g.position.fromArray(s.origin);
-    const ground = this.mesh(this.groundGeo, groundMaterial(s.ground), false); ground.receiveShadow = true; g.add(ground);
+    this.makeGround(g, s);
     for (const m of s.models) this.place(g, m);
     if (s.flag) g.add(this.makeFlag(s.flag));
     if (s.terrace) g.add(this.makeTerrace(s.terrace));
+    const figures = (s.figures || []).map(f => this.makeFigure(g, f, s.rim));
+    const hero = s.hero ? this.makeHero(g, s.hero) : null;
     const flames = new FlameField(flameSprites(id)); this.fields.push(flames); g.add(flames.mesh);
     const fx = new FX(g); this.fxs.push(fx);
     this.scene.add(g); this.groups[id] = g;
-    this.scenes[id] = { group: g, flames, fx, pstate: createParticleState(id), warmed: false };
+    this.scenes[id] = { group: g, flames, fx, figures, hero, pstate: createParticleState(id), warmed: false };
+  }
+
+  // 地面：ふつうは1枚。川（water）は両岸の2枚と水面、山道（cliff）は道の平地・落ちる斜面・谷底の3枚にする
+  makeGround(g, s) {
+    const mat = this.own(groundMaterial(s.ground)), add = (w, d, x, y, z, tilt = 0) => {
+      const m = new THREE.Mesh(this.own(new THREE.PlaneGeometry(w, d).rotateX(-Math.PI / 2 + tilt)), mat); m.position.set(x, y, z); m.receiveShadow = true; g.add(m); return m;
+    };
+    if (s.water) {
+      const [x0, x1] = s.water.x, L = 130;
+      add(L + x0, 260, (-L + x0) / 2, 0, 0); add(L - x1, 260, (x1 + L) / 2, 0, 0);
+      const water = new THREE.Mesh(this.own(new THREE.PlaneGeometry(x1 - x0 + 2, 260).rotateX(-Math.PI / 2)), this.own(new THREE.MeshStandardMaterial({ color: s.water.color, roughness: 0.55, metalness: 0 })));
+      water.position.set((x0 + x1) / 2, s.water.y, 0); water.receiveShadow = true; g.add(water);
+    } else if (s.cliff) {
+      const c = s.cliff, slope = Math.atan2(-c.drop, c.run), len = Math.hypot(c.drop, c.run);
+      add(60, 60, 0, 0, c.edge + 30);
+      add(60, len, 0, c.drop / 2, c.edge - c.run / 2, -slope);
+      add(400, 300, 0, c.drop, c.edge - c.run - 150);
+    } else { const ground = new THREE.Mesh(this.groundGeo, mat); ground.receiveShadow = true; g.add(ground); }
+  }
+
+  // 影の人物：人物の複製の材質を、自分で作った暗い単色＋縁の光に替える（材質は own して解放。形と骨は共有の複製）
+  makeFigure(g, f, rim) {
+    const c = new Character(this.roster, f.who); this.characters.push(c);
+    this.silhouette ??= this.own(silhouetteMaterial(rim));
+    c.model.traverse(o => { if (o.isSkinnedMesh) { o.material = this.silhouette; o.castShadow = true; } });
+    c.root.position.fromArray(f.from); c.root.rotation.y = Math.PI / 2; g.add(c.root);
+    return { c, f };
+  }
+  // 景継（D）：主人公の複製。腰の太刀も付ける（後ろ姿の形で侍と分かる）。本物の主人公は動かさない
+  makeHero(g, h) {
+    const c = new Character(this.roster, 'hero'); this.characters.push(c);
+    c.setTachi(GRIP, false);
+    c.root.position.fromArray(h.at); c.root.rotation.y = Math.atan2(h.face[0], h.face[1]); g.add(c.root);
+    return c;
   }
 
   // 建物・小道具の複製を置く。色を変える（tint）・焼けて煤けた（burning）ものだけ材質を複製する（複製は解放する。絵は共有のまま）
   place(g, m) {
     const src = this.models[m.key]; if (!src) return null;
     const o = src.clone(true);
-    o.position.fromArray(m.at); o.rotation.set(m.tilt?.[0] || 0, m.rotY || 0, m.tilt?.[2] || 0, 'YXZ'); o.scale.setScalar(m.scale);
+    o.position.fromArray(m.at); o.rotation.set(m.tilt?.[0] || 0, m.rotY || 0, m.tilt?.[2] || 0, 'YXZ');
+    if (Array.isArray(m.scale)) o.scale.fromArray(m.scale); else o.scale.setScalar(m.scale);         // 橋は長さ・高さ・幅を別々に（欄干を人の腰の高さに保つ）
     if (m.tint || m.burning) {
       const tint = m.tint ? new THREE.Color(m.tint) : null;
       o.traverse(x => {
@@ -139,7 +178,8 @@ export class OpeningStage {
     for (const [k, g] of Object.entries(this.groups)) g.visible = k === id;
     paintSky(this.sky.material, s.sky, s.wind);
     const mid = cameraAt(id, 0.5);
-    this.scene.fog.color.set(horizonColor(s.sky, [mid.look[0] - mid.pos[0], mid.look[2] - mid.pos[2]])); this.scene.fog.near = s.fog[0]; this.scene.fog.far = s.fog[1];
+    // fogGlow：霧に炎の方角のにじみをどれだけ混ぜるか（D は谷底を赤くしないよう0。空の帯だけ赤い）
+    this.scene.fog.color.set(horizonColor({ ...s.sky, glowAmt: s.sky.glowAmt * (s.fogGlow ?? 1) }, [mid.look[0] - mid.pos[0], mid.look[2] - mid.pos[2]])); this.scene.fog.near = s.fog[0]; this.scene.fog.far = s.fog[1];
     this.scene.environmentIntensity = s.env;
     const o = V(...s.origin);
     this.key.color.set(s.key.color); this.key.intensity = s.key.intensity;
@@ -173,6 +213,25 @@ export class OpeningStage {
     this.emit(id, dt);
     sc.fx.update(dt, this.camera, this.renderer.getDrawingBufferSize(this.bufferSize).y || 720);
     if (id === 'A') this.flutter(this.time, reduced ? 0 : 0.05);
+    this.animate(id, sc, out, dt);
+  }
+
+  // 人物の動き：C は橋を渡る（場面に入ってからの秒で位置を決める）、D は見返ったあと向き直って歩き出す
+  animate(id, sc, out, dt) {
+    const segT = out?.camera ? out.segmentT : 0, dur = out?.camera ? out.segmentLength : 10;
+    for (const { c, f } of sc.figures) {
+      c.root.position.set(f.from[0] + f.speed * segT, f.from[1], f.from[2]);
+      c.locomote(f.speed, f.style); c.update(dt);
+    }
+    if (this.silhouette) {                                                       // 縁の光は鍵の光の向き（カメラ空間）から
+      const L = this.key.position.clone().sub(this.key.target.position).normalize().transformDirection(this.camera.matrixWorldInverse);
+      this.silhouette.userData.rim.uLight.value.copy(L);
+    }
+    if (sc.hero) {
+      const D = SCENES.D, h = heroAt(segT, dur, D.hero);
+      sc.hero.root.rotation.y = h.yaw; sc.hero.root.position.fromArray(h.pos);
+      sc.hero.locomote(h.walk > 0 ? D.hero.speed : h.moving ? 0.35 : 0, 'relaxed'); sc.hero.update(dt);          // 向き直る間は足踏み、そのあと歩く
+    }
   }
 
   // 舞台だけの資源を解放する。複製したモデルの形と材質（谷と共有）には触れない

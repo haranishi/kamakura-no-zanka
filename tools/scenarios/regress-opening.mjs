@@ -13,7 +13,7 @@ import { OPENING } from '../../dist/valley/opening-data.js';
 
 export default async function ({ v, step, st, start, freeze, tap, click, log }) {
   const report = { segments: {}, lines: {}, contrast: {}, stage: { maxCalls: 0, maxTris: 0, byScene: {} }, memory: {}, vermilion: {}, flash: {} };
-  const SCENE_CHECK = ['A', 'B'];                                      // 朱の面積と明滅を確かめる場面（作り込みが済んだ場面）
+  const SCENE_CHECK = ['A', 'B', 'C', 'D'];                            // 朱の面積と明滅を確かめる場面（作り込みが済んだ場面）
   const VERMILION_AT = [['A', 4.0], ['A', 9.5], ['B', 14.0], ['B', 19.5], ['C', 25.0], ['C', 29.5], ['D', 34.0], ['D', 40.5]];
   const fail = msg => { throw new Error(msg); };
   const hex = rgb => '#' + rgb.match(/\d+/g).slice(0, 3).map(n => Number(n).toString(16).padStart(2, '0')).join('');

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { SCENES, SCENE_IDS, cameraAt, flameSprites, createParticleState, particleStep, horizonColor, isVermilion, vermilionShare, flashRate } from '../dist/valley/opening-scenes.js';
+import { SCENES, SCENE_IDS, cameraAt, flameSprites, createParticleState, particleStep, horizonColor, isVermilion, vermilionShare, flashRate, heroAt } from '../dist/valley/opening-scenes.js';
 import { flicker } from '../dist/valley/opening.js';
 
 const MODELS = new Set(fs.readdirSync(new URL('../dist/assets/valley/models/', import.meta.url)).filter(f => f.endsWith('.glb')).map(f => f.replace(/\.glb$/, '')));
@@ -121,4 +121,35 @@ test('明滅の数え方：1Hzの揺れは1秒に約1回、5Hzは約5回、一�
   assert.equal(flashRate([], 60), 0);
   const gain = Array.from({ length: 600 }, (_, i) => (0.9 + 0.1 * flicker(i / 60, 2)) * 0.6);
   assert.ok(flashRate(gain, 60, 0.02) <= 3, String(flashRate(gain, 60, 0.02)));
+});
+
+test('C：橋を渡る影は子ども・老人・武士を含み、場面の終わりまで橋の上を左から右へ歩く', () => {
+  const C = SCENES.C, half = 6.06 * C.models.find(m => m.key === 'bridge').scale[0] / 2, dur = 9.5;
+  assert.ok(['child', 'villager_m', 'soldier'].every(w => C.figures.some(f => f.who === w)));
+  for (const f of C.figures) {
+    assert.ok(f.speed > 0.3 && f.speed < 1.4, `${f.who} walks`);
+    const end = f.from[0] + f.speed * dur;
+    assert.ok(end > f.from[0] && end <= half, `${f.who} stays on the bridge: ${end.toFixed(2)} <= ${half.toFixed(2)}`);
+    assert.ok(Math.abs(f.from[2]) < 1.2, 'on the deck');
+  }
+  assert.ok(C.rim && C.key.at[2] < -20, 'backlit from the far bank');
+});
+
+test('D：景継は見返ったあと、場面の終わりの少し前に向き直って歩き出す。どの瞬間も顔をカメラへ向けない', () => {
+  const H = SCENES.D.hero, o = SCENES.D.origin;
+  for (const dur of [11.5, 3.5]) {
+    const a = heroAt(0, dur), z = heroAt(dur, dur);
+    assert.equal(a.moving, false); assert.deepEqual(a.pos, H.at); assert.ok(Math.abs(a.yaw - Math.atan2(H.face[0], H.face[1])) < 1e-9);
+    assert.ok(z.moving && z.walk > 0, `walks before the end (${dur}s)`);
+    assert.ok(Math.abs(Math.cos(z.yaw) - Math.cos(Math.atan2(H.turnTo[0], H.turnTo[1]))) < 1e-9 && Math.abs(Math.sin(z.yaw) - Math.sin(Math.atan2(H.turnTo[0], H.turnTo[1]))) < 1e-9);
+    assert.ok(Math.abs(z.yaw - a.yaw) <= Math.PI, 'turns the short way');
+    for (let t = 0; t <= dur; t += 0.05) {
+      const h = heroAt(t, dur), cam = cameraAt('D', t / dur), to = [cam.pos[0] - o[0] - h.pos[0], cam.pos[2] - o[2] - h.pos[2]];
+      const facing = [Math.sin(h.yaw), Math.cos(h.yaw)], cos = (facing[0] * to[0] + facing[1] * to[1]) / Math.hypot(...to);
+      assert.ok(cos < Math.cos(125 * Math.PI / 180), `face hidden at ${t.toFixed(2)}s of ${dur}s (cos ${cos.toFixed(2)})`);   // 125°より後ろ向き（横顔の線も見せない）
+    }
+  }
+  assert.ok(heroAt(5, 11.5).walk === 0 && heroAt(11.2, 11.5).walk > heroAt(10.4, 11.5).walk, 'walk grows only after the turn');
+  const across = { ...H, face: [-0.15, -1], turnTo: [0.1, -1] };                 // 向きの角が ±π をまたぐ向き直り（約14°）
+  assert.ok(Math.abs(heroAt(11.5, 11.5, across).yaw - heroAt(0, 11.5, across).yaw) < 0.5, 'turns the short way across ±π');
 });

@@ -121,3 +121,20 @@ export function groundMaterial(g, { flat = true } = {}) {
 
 // 石（石段・基壇）：灰の御影石に、煤の暗い斑
 export function stoneMaterial() { return groundMaterial({ base: '#5a544e', dark: '#26231f', light: '#776d64', scale: 1.4 }, { flat: false }); }
+
+// 影の人物（C）：暗い単色に、逆光の側だけの縁の光。向きに関係ない発光の縁は採らない（design-graphics.md）。uLight はカメラ空間での光の向き
+export function silhouetteMaterial(rim) {
+  const m = new THREE.MeshStandardMaterial({ color: '#07080a', roughness: 1, metalness: 0 });
+  const u = { uRim: { value: new THREE.Color(rim.color).multiplyScalar(rim.power) }, uLight: { value: new THREE.Vector3(0, 0.4, -1).normalize() } };
+  m.userData.rim = u;
+  m.onBeforeCompile = shader => {
+    Object.assign(shader.uniforms, u);
+    shader.fragmentShader = shader.fragmentShader.replace('#include <common>', '#include <common>\nuniform vec3 uRim, uLight;')
+      .replace('#include <opaque_fragment>', `{ vec3 vn = normalize(normal), vv = normalize(vViewPosition);
+          float edge = pow(1.0 - clamp(dot(vn, vv), 0.0, 1.0), 2.4), side = smoothstep(-0.1, 0.7, dot(vn, normalize(uLight)));
+          outgoingLight += uRim * edge * side; }
+        #include <opaque_fragment>`);
+  };
+  m.customProgramCacheKey = () => 'opening-silhouette-1';
+  return m;
+}

@@ -31,6 +31,12 @@ const cases = [
   ['暗い赤茶も朱と数える', 'if (v < 0.25 || mx === 0) return false;', 'if (mx === 0) return false;', '朱の画素'],
   ['上下の帯も数える', 'const y0 = Math.round(height * bar), y1 = height - y0;', 'const y0 = 0, y1 = height;', '朱の画素'],
   ['明滅を変化の数で数える', 'return swings / 2 / (lumas.length / fps);', 'return swings / (lumas.length / fps);', '明滅の数え方'],
+  ['景継がカメラの側へ向き直る', 'turnTo: [-0.85, -0.5]', 'turnTo: [0.75, -0.65]', 'D：景継'],
+  ['向き直りを遠回りにする', 'if (a1 - a0 > Math.PI) a1 -= 2 * Math.PI; else if (a0 - a1 > Math.PI) a1 += 2 * Math.PI;', '', 'D：景継'],
+  ['向き直る前から歩く', 'const walkT = Math.max(0, segT - turnAt - hero.turnTime * 0.6);', 'const walkT = Math.max(0, segT - hero.turnTime * 0.6);', 'D：景継'],
+  ['場面の終わりに向き直らない', 'const turnAt = Math.max(0, duration - hero.lead)', 'const turnAt = Math.max(0, duration + hero.lead)', 'D：景継'],
+  ['影の人物が橋から出る', "{ who: 'soldier', style: 'relaxed', from: [-10.4, 0.63, -0.25], speed: 0.92 },", "{ who: 'soldier', style: 'relaxed', from: [-10.4, 0.63, -0.25], speed: 2.2 },", 'C：橋を渡る影'],
+  ['子どもを渡らせない', "{ who: 'child', style: 'villager', from: [-4.7, 0.63, -0.45], speed: 0.82 },", "{ who: 'villager_f', style: 'villager', from: [-4.7, 0.63, -0.45], speed: 0.82 },", 'C：橋を渡る影'],
   ['小さな揺れも明滅と数える', 'if (hi - l >= threshold) { swings++; dir = -1; lo = l; }', 'if (hi - l > 0) { swings++; dir = -1; lo = l; }', '明滅の数え方'],
 ];
 const run = pattern => spawnSync(process.execPath, ['--test', '--test-name-pattern', pattern, test], { encoding: 'utf8', timeout: 30000 });

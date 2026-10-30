@@ -50,7 +50,7 @@ export function viewOf(state, { reduced = false } = {}, data = OPENING) {
   const title = seg.id === 'title' ? Math.min(ramp(t, seg.from + F.titleDelay, seg.from + F.titleDelay + F.titleIn), 1 - ramp(t, seg.to - F.titleOut, seg.to)) * (1 - skipK) : 0;
   const hint = wake || state.skipAt !== null ? 0 : ramp(t, data.skip.lockout, data.skip.lockout + F.hint);
   const camera = scene ? { shot: seg.id, k: reduced ? data.shots[seg.id].still : ramp(t, seg.from, seg.to) } : null;
-  return { version: plan.version, t, segment: seg.id, segmentT: t - seg.from, black, dissolve, line, title, hint, camera,
+  return { version: plan.version, t, segment: seg.id, segmentT: t - seg.from, segmentLength: seg.to - seg.from, black, dissolve, line, title, hint, camera,
     stage: !wake && !state.done, wake, wakeT: wake ? t - seg.from : 0, skipped: state.skipAt !== null, done: state.done };
 }
 

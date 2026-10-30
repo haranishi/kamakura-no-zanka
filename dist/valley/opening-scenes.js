@@ -89,36 +89,59 @@ export const SCENES = freeze({
       { kind: 'ember', at: [0, 7.8, -3.4], box: [12, 0.6, 0.6], rate: 24, up: [1.4, 3.2], life: [2.0, 4.0], size: [0.035, 0.07], color: [1.0, 0.5, 0.12], alpha: 0.9 },
     ],
   },
-  // C・D は仮（二段目の後半で作り込む）：橋と遠くの火、遠くの火と煙だけ。色は A・B と同じ墨・生成り・朱にそろえてある
   C: {
-    origin: [400, 0, 0], fov: 38, wind: [0.6, 0.15],
-    camera: { from: [-0.8, 2.6, 21], to: [0.8, 2.6, 21], look0: [-1.6, 2.6, 0], look1: [1.6, 2.6, 0] },
-    sky: { top: '#050608', mid: '#1b1715', hor: '#4e443b', glow: '#5e4a3c', glowDir: [0.1, -1], glowAmt: 0.6, glowSpread: 2.2, glowRise: 3, smoke: 0.7, smokeDark: '#0e0c0b', smokeLit: '#4a3628' },
-    fog: [16, 150], ground: { base: '#2a2621', dark: '#141210', light: '#433a32', scale: 0.4 }, env: 0.35,
-    key: { color: '#d8c4a4', intensity: 1.1, at: [0, 7, -40] },
-    glow: { color: '#ff7030', intensity: 40, at: [0, 3, -14], distance: 40 },
-    models: [{ key: 'bridge', at: [0, 1.2, 0], rotY: 0, scale: 2.4 }],
-    fires: [
-      { shape: 'area', at: [-14, 2.0, -70], box: [6, 1, 2], n: 8, w: [3, 5], h: [5, 9], power: 0.7, pull: 0 },
-      { shape: 'glow', at: [-14, 5, -70], size: 40, power: 0.16 },
+    origin: [400, 0, 0], fov: 36, wind: [0.6, 0.15],
+    camera: { from: [-3.2, 1.5, 15.5], to: [-3.2, 1.5, 15.5], look0: [-1.6, 2.3, 0], look1: [0.8, 2.3, 0] },
+    sky: { top: '#050608', mid: '#1b1816', hor: '#4e463e', glow: '#544840', glowDir: [0.35, -1], glowAmt: 0.5, glowSpread: 2.4, glowRise: 3.5, smoke: 0.75, smokeDark: '#0e0c0b', smokeLit: '#3e3024' },
+    fog: [20, 150], ground: { base: '#2a2621', dark: '#141210', light: '#433a32', scale: 0.4 }, env: 0.3,
+    key: { color: '#e2c098', intensity: 0.75, at: [9, 7, -40] },
+    glow: { color: '#ff7030', intensity: 70, at: [9, 4, -24], distance: 45 },
+    water: { y: -0.35, x: [-6.4, 6.4], color: '#06080a' },
+    models: [
+      { key: 'bridge', at: [0, 0, 0], rotY: 0, scale: [2.4, 1.0, 1.1] },
+      { key: 'naya', at: [-15, 0, -36], rotY: 0.2, scale: 6.0, tint: '#cdb894' },
+      { key: 'naya', at: [-3, 0, -40], rotY: -0.1, scale: 6.5, tint: '#cdb894' },
+      { key: 'farmhouse', at: [18, 0, -38], rotY: 0.3, scale: 0.9 },
     ],
-    particles: [{ kind: 'smoke', at: [-14, 9, -70], box: [5, 1, 2], rate: 3, up: [1.6, 2.4], life: [12, 16], size: [6, 8], sizeEnd: [16, 22], color: [0.006, 0.0052, 0.0048], alpha: 0.7 }],
+    // 橋を渡る影（子ども・老人・武士。母子の母も）。暗い単色に、逆光の側だけ縁の光。速さはm/s、from は橋の上の始まり
+    figures: [
+      { who: 'villager_f', style: 'villager', from: [-5.4, 0.63, 0.35], speed: 0.82 },
+      { who: 'child', style: 'villager', from: [-4.7, 0.63, -0.45], speed: 0.82 },
+      { who: 'villager_m', style: 'villager', from: [-7.6, 0.63, 0.1], speed: 0.55 },
+      { who: 'soldier', style: 'relaxed', from: [-10.4, 0.63, -0.25], speed: 0.92 },
+    ],
+    rim: { color: '#ffc890', power: 1.6 },
+    fires: [
+      { shape: 'area', at: [10, 1.0, -46], box: [9, 1, 2], n: 9, w: [2.5, 4.5], h: [4, 8], power: 0.55, pull: 0 },
+      { shape: 'glow', at: [10, 5, -46], size: 26, power: 0.1 },
+    ],
+    particles: [
+      { kind: 'smoke', at: [10, 9, -46], box: [7, 1, 2], rate: 5, up: [1.6, 2.4], life: [12, 16], size: [4, 6], sizeEnd: [12, 18], color: [0.006, 0.0052, 0.0048], alpha: 0.7 },
+      { kind: 'ember', at: [10, 6, -46], box: [8, 1, 2], rate: 30, up: [2.0, 4.5], life: [2.5, 5.0], size: [0.07, 0.13], color: [1.0, 0.48, 0.12], alpha: 0.9 },
+    ],
   },
   D: {
     origin: [600, 0, 0], fov: 42, wind: [0.5, 0.1],
-    camera: { from: [1.9, 2.05, 5.6], to: [1.25, 1.9, 3.3], look0: [-1.2, 1.9, -40], look1: [-0.9, 1.7, -40] },
-    sky: { top: '#050608', mid: '#1a1719', hor: '#4a4038', glow: '#5e4a3c', glowDir: [-0.1, -1], glowAmt: 0.55, glowSpread: 4, glowRise: 4, smoke: 0.55, smokeDark: '#0e0c0c', smokeLit: '#4a3628' },
-    fog: [30, 260], ground: { base: '#2c2822', dark: '#141210', light: '#433c33', scale: 0.4 }, env: 0.35,
-    key: { color: '#cdbfa6', intensity: 0.7, at: [-10, 12, -30] },
-    glow: { color: '#ff6a2a', intensity: 20, at: [0, 6, -60], distance: 80 },
-    models: [],
+    camera: { from: [1.9, 2.05, 5.6], to: [1.25, 1.85, 3.3], look0: [-1.6, 1.0, -40], look1: [-1.2, 0.8, -40] },
+    sky: { top: '#050608', mid: '#181617', hor: '#3e3833', glow: '#8e3416', glowDir: [-0.1, -1], glowAmt: 0.25, glowSpread: 2.6, glowRise: 14, smoke: 0.6, smokeDark: '#0e0c0c', smokeLit: '#4a3628' }, fogGlow: 0,
+    fog: [30, 260], ground: { base: '#2c2822', dark: '#141210', light: '#433c33', scale: 0.4 }, env: 0.32,
+    key: { color: '#cdbfa6', intensity: 0.75, at: [-10, 14, -30] },
+    glow: { color: '#ff6a2a', intensity: 9, at: [0, 3, -9], distance: 30 },
+    cliff: { edge: -7, drop: -26, run: 30 },          // 山道の縁から先は斜面で落ち、谷底（町）は26m下
+    models: [
+      { key: 'boulder_lo', at: [-6.5, -0.5, -7.2], rotY: 0.4, scale: 1.1 }, { key: 'boulder_lo', at: [-2.4, -0.6, -7.6], rotY: 2.1, scale: 0.7 },
+      { key: 'boulder_lo', at: [4.2, -0.5, -7.0], rotY: 1.2, scale: 1.3 }, { key: 'boulder_lo', at: [9.5, -0.4, -6.4], rotY: 3.0, scale: 1.6 },
+      { key: 'boulder_lo', at: [-11, -0.3, -5.8], rotY: 0.9, scale: 1.8 }, { key: 'jizo', at: [-3.2, 0, 1.6], rotY: 0.5, scale: 0.6 },
+    ],
+    hero: { at: [0, 0, 0], face: [-0.15, -1], turnTo: [-0.85, -0.5], speed: 0.9, turnTime: 1.1, lead: 2.6 },   // カメラは右肩の後ろ。左へ向き直るので顔はカメラへ向かない
     fires: [
-      { shape: 'area', at: [-30, -18, -160], box: [8, 1, 3], n: 6, w: [5, 8], h: [6, 10], power: 0.6, pull: 0 },
-      { shape: 'area', at: [12, -20, -190], box: [6, 1, 3], n: 5, w: [5, 8], h: [6, 10], power: 0.55, pull: 0 },
+      { shape: 'area', at: [-34, -25, -150], box: [10, 1, 3], n: 7, w: [5, 9], h: [6, 11], power: 0.5, pull: 0 },
+      { shape: 'area', at: [14, -25, -185], box: [8, 1, 3], n: 5, w: [5, 8], h: [6, 10], power: 0.45, pull: 0 },
+      { shape: 'glow', at: [-34, -20, -150], size: 40, power: 0.08 },
     ],
     particles: [
-      { kind: 'smoke', at: [-30, -10, -160], box: [6, 1, 2], rate: 2.5, up: [2.0, 3.0], life: [14, 18], size: [8, 10], sizeEnd: [22, 30], color: [0.006, 0.0052, 0.0048], alpha: 0.7 },
-      { kind: 'smoke', at: [12, -12, -190], box: [5, 1, 2], rate: 2, up: [2.0, 3.0], life: [14, 18], size: [8, 10], sizeEnd: [22, 30], color: [0.006, 0.0052, 0.0048], alpha: 0.7 },
+      { kind: 'smoke', at: [-34, -16, -150], box: [8, 1, 2], rate: 3, up: [2.2, 3.2], life: [16, 22], size: [9, 12], sizeEnd: [26, 36], color: [0.006, 0.0052, 0.0048], alpha: 0.6 },
+      { kind: 'smoke', at: [14, -17, -185], box: [6, 1, 2], rate: 2.4, up: [2.2, 3.2], life: [16, 22], size: [9, 12], sizeEnd: [26, 36], color: [0.006, 0.0052, 0.0048], alpha: 0.55 },
     ],
   },
 });
@@ -188,6 +211,18 @@ export function horizonColor(sky, dir) {
   const hor = rgb(sky.hor), mid = rgb(sky.mid), glow = rgb(sky.glow);
   const out = hor.map((c, i) => Math.min(1, c + (mid[i] - c) * k + glow[i] * g * sky.glowAmt));
   return '#' + out.map(c => Math.round(toSRGB(c) * 255).toString(16).padStart(2, '0')).join('');
+}
+
+// D の景継：場面の終わりの lead 秒前に、見返っていた向き（face）から先の道（turnTo）へ向き直り、歩き出す。顔はカメラへ向けない
+// segT は場面に入ってからの秒、duration は場面の長さ。戻り値の yaw は人物の根の回転（向き (dx,dz) は atan2(dx, dz)）、walk は歩いた距離（m）
+export function heroAt(segT, duration, hero = SCENES.D.hero) {
+  const turnAt = Math.max(0, duration - hero.lead), k = smooth((segT - turnAt) / hero.turnTime);
+  const a0 = Math.atan2(hero.face[0], hero.face[1]); let a1 = Math.atan2(hero.turnTo[0], hero.turnTo[1]);
+  if (a1 - a0 > Math.PI) a1 -= 2 * Math.PI; else if (a0 - a1 > Math.PI) a1 += 2 * Math.PI;      // 近い側へ回る
+  const walkT = Math.max(0, segT - turnAt - hero.turnTime * 0.6);
+  const l = Math.hypot(hero.turnTo[0], hero.turnTo[1]);
+  const walk = hero.speed * walkT;
+  return { yaw: a0 + (a1 - a0) * k, walk, moving: segT > turnAt, pos: [hero.at[0] + hero.turnTo[0] / l * walk, hero.at[1], hero.at[2] + hero.turnTo[1] / l * walk] };
 }
 
 // ---- 画面の測り方（試験と回帰で使う） ----
