@@ -51,7 +51,9 @@ export class FlameField {
           float n = fbm(vec2(x * 1.4 + sd, y * 2.0 - t * 1.5 + sd));
           float n2 = fbm(vec2(x * 3.1 - sd * 0.7, y * 3.8 - t * 2.3 + sd * 1.9));
           float shape = 1.0 - abs(x + (n - 0.5) * 0.9 * y) * (1.0 + y * 1.25) - pow(y, 1.5) * 0.95 + (n2 - 0.5) * 0.7 * (0.15 + y);
-          float f = smoothstep(0.0, 0.24, shape) * smoothstep(0.0, 0.08, y);
+          // 根元は平らに切らない：横に揺れる雑音で、根元の消え方の高さを舌ごと・横の位置ごとにずらす（屋根に埋めた根元が覗いても直線にならない）
+          float nb = vnoise(vec2(x * 2.6 + sd * 1.3, t * 0.5 + sd));
+          float f = smoothstep(0.0, 0.24, shape) * smoothstep(0.02, 0.2 + 0.26 * nb, y);
           float core = smoothstep(0.2, 0.75, shape);
           vec3 c = mix(vec3(0.55, 0.06, 0.01), vec3(1.0, 0.3, 0.04), smoothstep(0.0, 0.5, core));
           c = mix(c, vec3(1.0, 0.62, 0.26), smoothstep(0.6, 1.0, core));
@@ -94,47 +96,88 @@ export function paintSky(material, sky, wind) {
   if (wind) u.wind.value.set(wind[0], wind[1]);
 }
 
-// 地面：踏み固めた土に、灰・煤の暗い斑と、乾いた明るい土。世界座標の雑音で色と凹凸（法線）を作る（板の継ぎ目や繰り返しが出ない）
-// flat=false（石段の蹴上げなど、上を向かない面）では凹凸を付けず、色の斑だけを高さにも沿わせる
-export function groundMaterial(g, { flat = true } = {}) {
-  const m = new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.94, metalness: 0 });
-  const uni = { uBase: { value: new THREE.Color(g.base) }, uDark: { value: new THREE.Color(g.dark) }, uLight: { value: new THREE.Color(g.light) }, uScale: { value: g.scale } };
+// 地面：乾いた土に、灰・煤の暗い斑と、乾いた明るい土。世界座標の雑音で色と凹凸（法線）を作る（板の継ぎ目や繰り返しが出ない）。
+// 凹凸は細かい粒（bumpScale 倍の細かさ）を弱く：大きな波の凹凸は、炎の照り返しで水面に見えた（2周目の講評）。
+// ash：白っぽい灰の斑の量。path：[z0, z1]（世界座標）の帯を、踏み固めた明るい道にする（D の山道）。
+// flat=false（石段の蹴上げなど、上を向かない面）では凹凸を付けず、色の斑だけを高さにも沿わせる。blocks：[幅, 高さ] の切石の目地（基壇・袖壁）
+export function groundMaterial(g, { flat = true, blocks = null } = {}) {
+  const m = new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 1, metalness: 0 });
+  m.envMapIntensity = 0.6;
+  const uni = { uBase: { value: new THREE.Color(g.base) }, uDark: { value: new THREE.Color(g.dark) }, uLight: { value: new THREE.Color(g.light) }, uAsh: { value: new THREE.Color(g.ashColor || '#8a847b') },
+    uScale: { value: g.scale }, uBump: { value: g.bump ?? 0.12 }, uBumpScale: { value: g.bumpScale ?? 3.2 }, uAshAmt: { value: g.ash ?? 0 }, uPath: { value: new THREE.Vector2(...(g.path || [1, 0])) } };
   const P = flat ? 'vGW.xz' : '(vGW.xz + vGW.yy * vec2(0.83, -0.61))';
+  const B = blocks ? `{ vec3 an = abs(vGN); vec2 bp = an.y > 0.6 ? vGW.xz : (an.x > an.z ? vGW.zy : vGW.xy);
+      vec2 c = bp / vec2(${blocks[0].toFixed(3)}, ${blocks[1].toFixed(3)}); c.x += mod(floor(c.y), 2.0) * 0.5; vec2 fc = fract(c), id = floor(c);
+      float edge = min(min(fc.x, 1.0 - fc.x) * ${blocks[0].toFixed(3)}, min(fc.y, 1.0 - fc.y) * ${blocks[1].toFixed(3)});
+      diffuseColor.rgb *= (0.78 + 0.4 * h21(id)) * mix(0.35, 1.0, smoothstep(0.012, 0.05, edge)); }` : '';
   m.onBeforeCompile = shader => {
     Object.assign(shader.uniforms, uni);
-    shader.vertexShader = shader.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vGW;').replace('#include <worldpos_vertex>', '#include <worldpos_vertex>\nvGW = (modelMatrix * vec4(transformed, 1.0)).xyz;');
-    shader.fragmentShader = shader.fragmentShader.replace('#include <common>', `#include <common>\nvarying vec3 vGW; uniform vec3 uBase, uDark, uLight; uniform float uScale; ${NOISE}
+    shader.vertexShader = shader.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vGW; varying vec3 vGN;').replace('#include <worldpos_vertex>', '#include <worldpos_vertex>\nvGW = (modelMatrix * vec4(transformed, 1.0)).xyz; vGN = normalize(mat3(modelMatrix) * objectNormal);');
+    shader.fragmentShader = shader.fragmentShader.replace('#include <common>', `#include <common>\nvarying vec3 vGW; varying vec3 vGN; uniform vec3 uBase, uDark, uLight, uAsh; uniform float uScale, uBump, uBumpScale, uAshAmt; uniform vec2 uPath; ${NOISE}
       float gh(vec2 p){ return fbm(p * uScale) * 0.7 + fbm(p * uScale * 5.3) * 0.3; }`)
       .replace('#include <map_fragment>', `#include <map_fragment>
-        vec2 gp = ${P}; float gn = gh(gp), gs = fbm(gp * uScale * 0.31 + 7.0), gf = vnoise(gp * 9.0);
-        vec3 gc = mix(uBase, uDark, smoothstep(0.42, 0.7, gs)); gc = mix(gc, uLight, smoothstep(0.55, 0.85, gn) * 0.6);
-        diffuseColor.rgb = gc * (0.82 + 0.36 * gf);`)
+        vec2 gp = ${P}; float gn = gh(gp), gs = fbm(gp * uScale * 0.31 + 7.0), gf = vnoise(gp * 9.0), ga = fbm(gp * uScale * 0.8 + 21.0);
+        float onPath = uPath.x < uPath.y ? smoothstep(uPath.x, uPath.x + 0.35, vGW.z + (vnoise(vGW.xz * 1.3) - 0.5) * 0.5) * (1.0 - smoothstep(uPath.y - 0.35, uPath.y, vGW.z + (vnoise(vGW.xz * 1.1 + 3.0) - 0.5) * 0.5)) : 0.0;
+        vec3 gc = mix(uBase, uDark, smoothstep(0.42, 0.7, gs) * (1.0 - 0.6 * onPath)); gc = mix(gc, uLight, max(smoothstep(0.55, 0.85, gn) * 0.6, onPath * 0.55));
+        gc = mix(gc, uAsh, smoothstep(0.58, 0.8, ga) * uAshAmt);
+        diffuseColor.rgb = gc * (0.82 + 0.36 * gf);
+        ${B}`)
       .replace('#include <normal_fragment_maps>', flat ? `#include <normal_fragment_maps>
-        { float e = 0.04; float h0 = gh(vGW.xz), hx = gh(vGW.xz + vec2(e, 0.0)), hz = gh(vGW.xz + vec2(0.0, e));
-          vec3 wn = normalize(vec3(-(hx - h0) / e * 0.35, 1.0, -(hz - h0) / e * 0.35));
+        { float e = 0.03; vec2 q = vGW.xz * uBumpScale; float h0 = gh(q), hx = gh(q + vec2(e, 0.0)), hz = gh(q + vec2(0.0, e));
+          vec3 wn = normalize(vec3(-(hx - h0) / e * uBump, 1.0, -(hz - h0) / e * uBump));
           normal = normalize((viewMatrix * vec4(wn, 0.0)).xyz); }` : '#include <normal_fragment_maps>')
-      .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nroughnessFactor = clamp(0.86 + 0.12 * gn, 0.0, 1.0);');
+      .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nroughnessFactor = 1.0;');
   };
-  m.customProgramCacheKey = () => 'opening-ground-' + (flat ? 1 : 0);
+  m.customProgramCacheKey = () => 'opening-ground-' + (flat ? 1 : 0) + (blocks ? '-' + blocks.join('x') : '');
   return m;
 }
 
-// 石（石段・基壇）：灰の御影石に、煤の暗い斑
-export function stoneMaterial() { return groundMaterial({ base: '#5a544e', dark: '#26231f', light: '#776d64', scale: 1.4 }, { flat: false }); }
+// 石（石段・基壇・袖壁）：灰の御影石の切石。目地と、石ごとの明るさの差、煤の暗い斑
+export function stoneMaterial() { return groundMaterial({ base: '#625b53', dark: '#2a2622', light: '#7b7168', scale: 1.4 }, { flat: false, blocks: [1.1, 0.45] }); }
 
-// 影の人物（C）：暗い単色に、逆光の側だけの縁の光。向きに関係ない発光の縁は採らない（design-graphics.md）。uLight はカメラ空間での光の向き
+// 谷のモデルの材質の複製に、上乗せの細工をする（複製だけ。共有の材質には使わない）。前の onBeforeCompile（色の補正）の後に足す。
+// roof：屋根（上向きの斜面）に瓦の筋と段、ember：焦げた屋根の下から透ける熾火（ゆっくり動く斑。明滅はしない）。stone：灯籠などを石の斑に
+export function decorate(material, { roof = null, ember = null, stone = false, time }) {
+  const prev = material.onBeforeCompile, prevKey = material.customProgramCacheKey?.() || '';
+  const uni = { uTime: time, uEmber: { value: new THREE.Color(ember?.color || '#ff5a1a').multiplyScalar(ember?.power ?? 0) }, uRoofY: { value: roof?.y ?? 1e9 }, uEmberY: { value: ember?.y ?? 1e9 }, uEmberX: { value: new THREE.Vector2(...(ember?.x || [-1e9, 1e9])) } };
+  material.onBeforeCompile = (shader, r) => {
+    prev?.call(material, shader, r);
+    Object.assign(shader.uniforms, uni);
+    shader.vertexShader = shader.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vDW; varying vec3 vDN;').replace('#include <worldpos_vertex>', '#include <worldpos_vertex>\nvDW = (modelMatrix * vec4(transformed, 1.0)).xyz; vDN = normalize(mat3(modelMatrix) * objectNormal);');
+    shader.fragmentShader = shader.fragmentShader.replace('#include <common>', `#include <common>\nvarying vec3 vDW; varying vec3 vDN; uniform float uTime, uRoofY, uEmberY; uniform vec3 uEmber; uniform vec2 uEmberX; ${NOISE}`)
+      .replace('#include <map_fragment>', `#include <map_fragment>
+        float dRoof = ${roof ? '1.0' : '0.0'} * step(uRoofY, vDW.y) * smoothstep(0.2, 0.4, vDN.y) * (1.0 - smoothstep(0.93, 0.99, vDN.y));
+        if (dRoof > 0.0) {                                                         // 瓦：斜面を下る丸瓦の列（横の周期）と、重なりの段（高さの周期）
+          float along = abs(vDN.x) > abs(vDN.z) ? vDW.z : vDW.x;
+          float ridge = abs(fract(along / ${(roof?.pitch || 0.3).toFixed(3)}) - 0.5) * 2.0, course = fract(vDW.y / ${(roof?.course || 0.22).toFixed(3)});
+          diffuseColor.rgb *= mix(1.0, (0.55 + 0.45 * smoothstep(0.15, 0.85, ridge)) * (0.7 + 0.3 * smoothstep(0.0, 0.12, course)), dRoof);
+        }
+        ${stone ? 'diffuseColor.rgb = mix(vec3(dot(diffuseColor.rgb, vec3(0.3, 0.55, 0.15))) * vec3(1.0, 0.97, 0.92), diffuseColor.rgb, 0.35) * (0.62 + 0.55 * fbm(vDW.xz * 3.1 + vDW.yy * 2.3));' : ''}`)
+      .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+        { float roofK = step(uEmberY, vDW.y) * smoothstep(0.15, 0.4, vDN.y) * step(uEmberX.x, vDW.x) * step(vDW.x, uEmberX.y);
+          float e = smoothstep(0.55, 0.8, fbm(vDW.xz * 0.9 + vDW.yy * 0.4 + vec2(0.0, uTime * 0.04))) * (0.6 + 0.4 * fbm(vDW.xz * 3.7 - uTime * 0.03));
+          totalEmissiveRadiance += uEmber * e * roofK; }`);
+  };
+  material.customProgramCacheKey = () => prevKey + '|deco-' + (roof ? 1 : 0) + (stone ? 1 : 0) + (ember ? 1 : 0) + (roof ? roof.pitch + '-' + roof.course : '');
+  material.needsUpdate = true;
+  return material;
+}
+
+// 影の人物（C）：艶のない黒（光・映り込みを受けない）に、逆光の側の輪郭だけを細く暖色で照らす。式は opening-scenes.js の rimShade と同じ。
+// 1周目は「カメラへ向かない法線」（裏向きの補間法線）で縁が最大になり、体じゅうに白い粒が散った。カメラを向く面の縁だけに限る。uLight はカメラ空間での光の向き
 export function silhouetteMaterial(rim) {
-  const m = new THREE.MeshStandardMaterial({ color: '#07080a', roughness: 1, metalness: 0 });
-  const u = { uRim: { value: new THREE.Color(rim.color).multiplyScalar(rim.power) }, uLight: { value: new THREE.Vector3(0, 0.4, -1).normalize() } };
+  const m = new THREE.MeshStandardMaterial({ color: '#000000', roughness: 1, metalness: 0 });
+  m.envMapIntensity = 0;
+  const u = { uRim: { value: new THREE.Color(rim.color).multiplyScalar(rim.power) }, uBase: { value: new THREE.Color(rim.base || '#050506') }, uLight: { value: new THREE.Vector3(0, 0.4, -1).normalize() } };
   m.userData.rim = u;
   m.onBeforeCompile = shader => {
     Object.assign(shader.uniforms, u);
-    shader.fragmentShader = shader.fragmentShader.replace('#include <common>', '#include <common>\nuniform vec3 uRim, uLight;')
-      .replace('#include <opaque_fragment>', `{ vec3 vn = normalize(normal), vv = normalize(vViewPosition);
-          float edge = pow(1.0 - clamp(dot(vn, vv), 0.0, 1.0), 2.4), side = smoothstep(-0.1, 0.7, dot(vn, normalize(uLight)));
-          outgoingLight += uRim * edge * side; }
+    shader.fragmentShader = shader.fragmentShader.replace('#include <common>', '#include <common>\nuniform vec3 uRim, uLight, uBase;')
+      .replace('#include <opaque_fragment>', `{ vec3 vn = normalize(normal), vv = normalize(vViewPosition); float ndv = dot(vn, vv);
+          float edge = smoothstep(0.0, 0.1, ndv) * pow(1.0 - clamp(ndv, 0.0, 1.0), 5.0), side = smoothstep(0.05, 0.6, dot(vn, normalize(uLight)));
+          outgoingLight = uBase + uRim * edge * side; }
         #include <opaque_fragment>`);
   };
-  m.customProgramCacheKey = () => 'opening-silhouette-1';
+  m.customProgramCacheKey = () => 'opening-silhouette-2';
   return m;
 }

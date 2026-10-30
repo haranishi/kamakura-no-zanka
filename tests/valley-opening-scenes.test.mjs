@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { SCENES, SCENE_IDS, cameraAt, flameSprites, createParticleState, particleStep, horizonColor, isVermilion, vermilionShare, flashRate, heroAt } from '../dist/valley/opening-scenes.js';
+import { SCENES, SCENE_IDS, cameraAt, flameSprites, createParticleState, particleStep, horizonColor, isVermilion, vermilionShare, flashRate, heroAt, particleSources, fireRoot, townHouses, townLights, scatterGround, rimShade, figureAt } from '../dist/valley/opening-scenes.js';
 import { flicker } from '../dist/valley/opening.js';
 
 const MODELS = new Set(fs.readdirSync(new URL('../dist/assets/valley/models/', import.meta.url)).filter(f => f.endsWith('.glb')).map(f => f.replace(/\.glb$/, '')));
@@ -20,12 +20,17 @@ test('場面は A〜D の4つ。データは凍結され、置くのは谷の既
   for (let i = 1; i < origins.length; i++) assert.ok(origins[i] - origins[i - 1] >= 150, 'scene groups are far apart');
 });
 
-test('燃えるのは寺と数棟の家だけ（町全体を焼かない）：Aは2棟、Bは寺だけ', () => {
+test('燃えるのは寺と数棟の家だけ（町全体を焼かない）：Aは2棟、Bは寺だけ、Cは対岸の2棟、Dは町の一区画', () => {
   const houses = SCENES.A.models.filter(m => m.key === 'farmhouse' || m.key === 'naya');
   assert.ok(houses.length >= 4, 'the street is lined with houses');
   assert.equal(houses.filter(m => m.burning).length, 2);
   assert.deepEqual(SCENES.B.models.filter(m => m.burning).map(m => m.key), ['temple']);
-  for (const id of ['C', 'D']) assert.equal(SCENES[id].models.filter(m => m.burning).length, 0, `${id} has no burning building in view`);
+  const cBurn = SCENES.C.models.filter(m => m.burning);
+  assert.equal(cBurn.length, 2, 'C: two houses burn on the far banks');
+  for (const m of cBurn) assert.ok(m.at[2] < -20, 'C: the burning houses stand beyond the bridge');
+  assert.equal(SCENES.D.models.filter(m => m.burning).length, 0);
+  const town = townHouses(SCENES.D.town), burnt = town.filter(h => h.burn).length;
+  assert.ok(burnt > 0 && burnt / town.length <= 0.1, `D: one district burns, not the whole town (${burnt}/${town.length})`);
   assert.ok(SCENES.A.flag && SCENES.A.flag.pole.length === 2, 'A has the fallen plain flag');
 });
 
@@ -57,10 +62,14 @@ test('炎の板：源ごとに決まった数・範囲・大きさで並び、�
         assert.ok(s.seed >= 0 && s.seed <= 1 && s.power > 0);
         if (f.shape === 'glow') { assert.equal(s.kind, 1); assert.deepEqual(s.pos, [...f.at]); continue; }
         assert.equal(s.kind, 0);
-        assert.ok(s.w >= f.w[0] - 1e-9 && s.w <= f.w[1] + 1e-9 && s.h >= f.h[0] - 1e-9 && s.h <= f.h[1] + 1e-9);
+        const hMin = f.top === undefined ? f.h[0] : f.h[0] * 0.4;                          // 先の上限で縮めるときだけ、短くなってよい
+        assert.ok(s.w >= f.w[0] * 0.75 - 1e-9 && s.w <= f.w[1] * 1.1 + 1e-9 && s.h >= hMin - 1e-9 && s.h <= f.h[1] + 1e-9, `${id} size ${s.w} ${s.h}`);
         assert.ok(s.power >= f.power * 0.8 - 1e-9 && s.power <= f.power * 1.2 + 1e-9);
-        if (f.shape === 'area') for (let k = 0; k < 3; k++) assert.ok(Math.abs(s.pos[k] - f.at[k]) <= f.box[k] / 2 + 1e-9, `${id} area`);
-        else { const L = dist(f.from, f.to), d = dist(s.pos, f.from) + dist(s.pos, f.to); assert.ok(d <= L + 0.8, `${id} line: ${d} vs ${L}`); }
+        const y0 = (f.shape === 'area' ? f.at[1] : Math.min(f.from[1], f.to[1])) - (f.box ? f.box[1] / 2 : 0), y1 = (f.shape === 'area' ? f.at[1] : Math.max(f.from[1], f.to[1])) + (f.box ? f.box[1] / 2 : 0);
+        const jy = (f.jitterY ?? 0.35) * f.h[0] / 2;
+        assert.ok(s.pos[1] >= y0 - jy - (f.sink ?? 0) * f.h[1] - 1e-9 && s.pos[1] <= y1 + jy + 1e-9, `${id} root height`);
+        if (f.shape === 'area') for (const k of [0, 2]) assert.ok(Math.abs(s.pos[k] - f.at[k]) <= f.box[k] / 2 + 1e-9, `${id} area`);
+        else { const flat = p => [p[0], 0, p[2]], L = dist(flat(f.from), flat(f.to)), d = dist(flat(s.pos), flat(f.from)) + dist(flat(s.pos), flat(f.to)); assert.ok(d <= L + 0.8, `${id} line: ${d} vs ${L}`); }
       }
     }
   }
@@ -123,6 +132,68 @@ test('明滅の数え方：1Hzの揺れは1秒に約1回、5Hzは約5回、一�
   assert.ok(flashRate(gain, 60, 0.02) <= 3, String(flashRate(gain, 60, 0.02)));
 });
 
+test('炎の柵にしない：舌の高さは短い舌を多めに散らし、根元の高さもずらす。先の上限（top）を越えない', () => {
+  for (const id of SCENE_IDS) {
+    const all = flameSprites(id); let i = 0;
+    for (const f of SCENES[id].fires) {
+      const group = all.slice(i, i += f.shape === 'glow' ? 1 : f.n);
+      if (f.shape === 'glow' || f.n < 5) continue;                                         // 4本以下の小さな火は、数が少なく比べにくい
+      const hs = group.map(s => s.h), ys = group.map(s => s.pos[1]);
+      assert.ok(Math.max(...hs) / Math.min(...hs) >= 1.5, `${id}: heights vary (${Math.min(...hs).toFixed(2)}–${Math.max(...hs).toFixed(2)})`);
+      assert.ok(Math.max(...ys) - Math.min(...ys) >= 0.12 * f.h[0], `${id}: the roots are not on one line`);
+      const short = hs.filter(h => h < (f.h[0] + f.h[1]) / 2).length;
+      assert.ok(short >= hs.length / 2, `${id}: more short tongues than tall ones`);
+      if (f.top !== undefined) for (const s of group) assert.ok(s.pos[1] + s.h <= f.top + 1e-9, `${id}: the tip stays under ${f.top}`);
+    }
+  }
+});
+
+test('煙は炎の根元から立つ：smoke を持つ炎ごとに、その足もとから出る源がある。出たばかりは朱茶、昇るほど暗い', () => {
+  for (const id of SCENE_IDS) {
+    const srcs = particleSources(id);
+    SCENES[id].fires.forEach((f, fi) => {
+      if (!f.smoke) return;
+      const src = srcs.find(p => p.fire === fi); assert.ok(src, `${id}: fire ${fi} has its smoke`);
+      const lo = f.shape === 'line' ? [Math.min(f.from[0], f.to[0]), Math.min(f.from[2], f.to[2])] : [f.at[0] - f.box[0] / 2, f.at[2] - f.box[2] / 2];
+      const hi = f.shape === 'line' ? [Math.max(f.from[0], f.to[0]), Math.max(f.from[2], f.to[2])] : [f.at[0] + f.box[0] / 2, f.at[2] + f.box[2] / 2];
+      const baseY = f.shape === 'line' ? f.from[1] : f.at[1];
+      assert.ok(src.at[0] >= lo[0] - 1e-9 && src.at[0] <= hi[0] + 1e-9 && src.at[2] >= lo[1] - 1e-9 && src.at[2] <= hi[1] + 1e-9, `${id}: rooted in the fire's footprint`);
+      assert.ok(src.at[1] >= baseY - 0.5 && src.at[1] <= baseY + f.h[0], `${id}: starts among the flames, not above them (${src.at[1]} vs ${baseY})`);
+      const sum = c => c[0] + c[1] + c[2];
+      assert.ok(src.color[0] > src.color[2] * 3 && sum(src.color) > sum(src.colorEnd) * 3, `${id}: lit vermilion at the root, dark above`);
+    });
+    const { spawns } = run(id, 3, 1 / 20);
+    for (const p of spawns.filter(p => p.colorEnd)) assert.ok(p.colorEnd[0] < p.color[0], 'the smoke darkens as it rises');
+  }
+  for (const id of ['B', 'C', 'D']) assert.ok(SCENES[id].fires.some(f => f.smoke), `${id}: the big fire has a smoke column`);
+  assert.deepEqual(fireRoot({ shape: 'area', at: [1, 2, 3], box: [4, 1, 2], h: [2, 3] }).at, [1, 2.6, 3]);
+});
+
+test('影の人物：艶のない黒で、カメラを向く面の縁だけが細く光る（裏向きの法線・正面・光の反対側は光らない）', () => {
+  for (const ndl of [0.3, 0.8, 1]) {
+    for (const ndv of [-1, -0.3, -0.01, 0]) assert.equal(rimShade(ndv, ndl), 0, `back-facing normal ${ndv}`);
+    for (const ndv of [0.5, 0.8, 1]) assert.ok(rimShade(ndv, ndl) < 0.04, `facing the camera ${ndv}`);
+  }
+  for (const ndl of [-1, 0, 0.05]) assert.equal(rimShade(0.15, ndl), 0, 'the side away from the fire');
+  assert.ok(rimShade(0.12, 0.9) > 0.3 && rimShade(0.12, 0.9) <= 1, 'a thin bright edge toward the fire');
+  for (let v = -1; v <= 1; v += 0.01) for (let l = -1; l <= 1; l += 0.1) assert.ok(rimShade(v, l) <= 1 && rimShade(v, l) >= 0);
+  assert.ok(SCENES.C.rim.power <= 1, 'the rim is not a glowing outline');
+});
+
+test('D：眼下の町は家並みと灯の帯。燃える区画のまわりは朱の熾火、ほかはまばらな暗い灯。小石は足もとを避ける', () => {
+  const T = SCENES.D.town, h = townHouses(T), l = townLights(T);
+  assert.equal(h.length, T.n); assert.deepEqual(h, townHouses(T));
+  for (const x of h) assert.ok(x.at[0] >= T.x[0] && x.at[0] <= T.x[1] && x.at[2] <= T.z[0] && x.at[2] >= T.z[1] && x.at[1] === T.y);
+  assert.equal(l.length, T.lights);
+  const near = l.filter(d => d.near), far = l.filter(d => !d.near);
+  assert.ok(near.length > 0 && far.length > near.length * 0.8);
+  for (const d of near) assert.ok(Math.hypot(d.at[0] - T.burn.at[0], d.at[2] - T.burn.at[1]) <= T.burn.r * 1.5 + 1e-9);
+  assert.ok(Math.min(...near.map(d => d.color[0])) > Math.max(...far.map(d => d.color[0])) * 0.9, 'embers are brighter than the lanterns');
+  const st = SCENES.D.stones, v = st.avoid;
+  for (const s of scatterGround(st, 'stone')) assert.ok(!(s.at[0] > v[0] && s.at[0] < v[1] && s.at[2] > v[2] && s.at[2] < v[3]), 'no stone under the feet');
+  assert.ok(SCENES.D.ridges.length >= 3 && SCENES.D.mist.length >= 1, 'mountains frame the valley, mist lies in the middle');
+});
+
 test('C：橋を渡る影は子ども・老人・武士を含み、場面の終わりまで橋の上を左から右へ歩く', () => {
   const C = SCENES.C, half = 6.06 * C.models.find(m => m.key === 'bridge').scale[0] / 2, dur = 9.5;
   assert.ok(['child', 'villager_m', 'soldier'].every(w => C.figures.some(f => f.who === w)));
@@ -133,6 +204,15 @@ test('C：橋を渡る影は子ども・老人・武士を含み、場面の終�
     assert.ok(Math.abs(f.from[2]) < 1.2, 'on the deck');
   }
   assert.ok(C.rim && C.key.at[2] < -20, 'backlit from the far bank');
+  assert.ok(C.figures.length >= 7, 'a crowd flees, not four people');
+  assert.ok(C.figures.filter(f => f.who === 'child').length >= 2, 'children walk with the adults');
+  const loads = C.figures.map(f => f.load).filter(Boolean);
+  assert.ok(loads.filter(k => k === 'pack' || k === 'pole').length >= 2 && loads.includes('baby'), 'they carry bundles and a child');
+  for (const f of C.figures) for (const t of [0, 2.5, 7.5, 9.5]) {                     // 岸では地面に立ち、橋の上では床に立つ（宙に浮かない）
+    const p = figureAt(f, t);
+    if (Math.abs(p[0]) <= C.bridgeHalf - 1.4) assert.equal(p[1], f.from[1]);
+    if (Math.abs(p[0]) >= C.bridgeHalf) assert.equal(p[1], 0, `${f.who} on the bank at ${t}s`);
+  }
 });
 
 test('D：景継は見返ったあと、場面の終わりの少し前に向き直って歩き出す。どの瞬間も顔をカメラへ向けない', () => {

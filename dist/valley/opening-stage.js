@@ -6,8 +6,9 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { flicker } from './opening.js';
-import { SCENES, SCENE_IDS, cameraAt, flameSprites, createParticleState, particleStep, horizonColor, heroAt } from './opening-scenes.js';
-import { FlameField, skyMaterial, paintSky, groundMaterial, stoneMaterial, silhouetteMaterial } from './opening-fire.js';
+import { SCENES, SCENE_IDS, cameraAt, flameSprites, createParticleState, particleStep, horizonColor, heroAt, townHouses, townLights, scatterGround, figureAt, groveTrees } from './opening-scenes.js';
+import { FlameField, skyMaterial, paintSky, groundMaterial, stoneMaterial, silhouetteMaterial, decorate } from './opening-fire.js';
+import { WaterSurface, instanceModel, townField, lightDots, ridgeGeometry, mistMaterial, stoneField, tuftField, loadGeometry, treeField, wallGeometry } from './opening-set.js';
 import { Character } from './characters.js';
 import { GRIP } from './config.js';
 import { FX } from './fx.js';
@@ -16,13 +17,14 @@ import { patchGrade } from './grade.js';
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
 const UP = V(0, 1, 0);
 const smooth = (a, b, x) => { const t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
-const PREWARM = { A: 9, B: 11, C: 14, D: 16 };       // 最初に見せる前に、煙と火の粉を何秒ぶん流しておくか（柱が育った状態で始める）
+const PREWARM = { A: 9, B: 11, C: 14, D: 28 };       // 最初に見せる前に、煙と火の粉を何秒ぶん流しておくか（柱が育った状態で始める）
 export const STAGE_SHOTS = SCENE_IDS;
 
 export class OpeningStage {
   constructor({ renderer, models = {}, roster = null, quality = 'standard' } = {}) {
     this.renderer = renderer; this.models = models; this.roster = roster; this.quality = quality;
-    this.owned = []; this.characters = []; this.fields = []; this.fxs = []; this.time = 0; this.shot = null; this.disposed = false;
+    this.owned = []; this.characters = []; this.fields = []; this.fxs = []; this.instanced = []; this.time = 0; this.shot = null; this.disposed = false;
+    this.clock = { value: 0 };                                                    // 屋根の熾火などの材質が読む時刻（全場面で共有）
     this.reduced = false; this.bufferSize = new THREE.Vector2();
     const scene = this.scene = new THREE.Scene(); scene.name = 'opening-stage';
     this.camera = new THREE.PerspectiveCamera(40, 16 / 9, 0.1, 900);
@@ -58,12 +60,14 @@ export class OpeningStage {
     for (const m of s.models) this.place(g, m);
     if (s.flag) g.add(this.makeFlag(s.flag));
     if (s.terrace) g.add(this.makeTerrace(s.terrace));
+    for (const row of s.rows || []) this.makeRow(g, row);
     const figures = (s.figures || []).map(f => this.makeFigure(g, f, s.rim));
     const hero = s.hero ? this.makeHero(g, s.hero) : null;
+    const extras = this.makeExtras(g, s);
     const flames = new FlameField(flameSprites(id)); this.fields.push(flames); g.add(flames.mesh);
     const fx = new FX(g); this.fxs.push(fx);
     this.scene.add(g); this.groups[id] = g;
-    this.scenes[id] = { group: g, flames, fx, figures, hero, pstate: createParticleState(id), warmed: false };
+    this.scenes[id] = { group: g, flames, fx, figures, hero, pstate: createParticleState(id), warmed: false, ...extras };
   }
 
   // 地面：ふつうは1枚。川（water）は両岸の2枚と水面、山道（cliff）は道の平地・落ちる斜面・谷底の3枚にする
@@ -74,13 +78,18 @@ export class OpeningStage {
     if (s.water) {
       const [x0, x1] = s.water.x, L = 130;
       add(L + x0, 260, (-L + x0) / 2, 0, 0); add(L - x1, 260, (x1 + L) / 2, 0, 0);
-      const water = new THREE.Mesh(this.own(new THREE.PlaneGeometry(x1 - x0 + 2, 260).rotateX(-Math.PI / 2)), this.own(new THREE.MeshStandardMaterial({ color: s.water.color, roughness: 0.55, metalness: 0 })));
-      water.position.set((x0 + x1) / 2, s.water.y, 0); water.receiveShadow = true; g.add(water);
+      // 川面は手続きの水（波で砕けた炎の照り返し）。場面の光源を受けないので、鍵の光の照り返しが板のように光らない
+      this.water = new WaterSurface({ width: x1 - x0 + 2, length: 260, center: [(x0 + x1) / 2, 0, 0], y: s.water.y, color: s.water.color, fires: s.water.reflect || [] });
+      g.add(this.water.mesh);
+      for (const sx of [-1, 1]) {                                                  // 岸の斜面（地面の縁が水面の上に直線で浮かないように）
+        const bank = new THREE.Mesh(this.own(new THREE.PlaneGeometry(1.6, 260).rotateX(-Math.PI / 2).rotateZ(sx * 0.42)), mat);
+        bank.position.set(sx > 0 ? x1 - 0.7 : x0 + 0.7, -0.3, 0); bank.receiveShadow = true; g.add(bank);
+      }
     } else if (s.cliff) {
-      const c = s.cliff, slope = Math.atan2(-c.drop, c.run), len = Math.hypot(c.drop, c.run);
+      const c = s.cliff, slope = Math.atan2(-c.drop, c.run), len = Math.hypot(c.drop, c.run), floor = this.own(groundMaterial(c.floor || s.ground));
       add(60, 60, 0, 0, c.edge + 30);
-      add(60, len, 0, c.drop / 2, c.edge - c.run / 2, -slope);
-      add(400, 300, 0, c.drop, c.edge - c.run - 150);
+      const sl = add(420, len, 0, c.drop / 2, c.edge - c.run / 2, -slope); sl.material = floor;
+      const fl = add(900, 600, 0, c.drop, c.edge - c.run - 300); fl.material = floor;
     } else { const ground = new THREE.Mesh(this.groundGeo, mat); ground.receiveShadow = true; g.add(ground); }
   }
 
@@ -89,8 +98,17 @@ export class OpeningStage {
     const c = new Character(this.roster, f.who); this.characters.push(c);
     this.silhouette ??= this.own(silhouetteMaterial(rim));
     c.model.traverse(o => { if (o.isSkinnedMesh) { o.material = this.silhouette; o.castShadow = true; } });
-    c.root.position.fromArray(f.from); c.root.rotation.y = Math.PI / 2; g.add(c.root);
+    if (f.load) this.attachLoad(c, f.load);
+    c.root.position.fromArray(figureAt(f, 0)); c.root.rotation.y = Math.PI / 2; g.add(c.root);
     return { c, f };
+  }
+  // 荷（天秤棒・背負った包み・抱いた子）を胸の骨に付ける。形は人物の根の向きで作ってあるので、いまの骨の向きを打ち消して付ける（歩くと骨と一緒に揺れる）
+  attachLoad(c, kind) {
+    const bone = c.bone('Spine02') || c.bone('Spine01'); if (!bone) return;
+    c.root.updateMatrixWorld(true);
+    const inRoot = new THREE.Matrix4().copy(c.root.matrixWorld).invert().multiply(bone.matrixWorld);
+    const m = new THREE.Mesh(this.own(loadGeometry(kind)), this.silhouette); m.name = 'load-' + kind; m.castShadow = true;
+    m.matrixAutoUpdate = false; m.matrix.copy(inRoot).invert(); bone.add(m);
   }
   // 景継（D）：主人公の複製。腰の太刀も付ける（後ろ姿の形で侍と分かる）。本物の主人公は動かさない
   makeHero(g, h) {
@@ -106,7 +124,7 @@ export class OpeningStage {
     const o = src.clone(true);
     o.position.fromArray(m.at); o.rotation.set(m.tilt?.[0] || 0, m.rotY || 0, m.tilt?.[2] || 0, 'YXZ');
     if (Array.isArray(m.scale)) o.scale.fromArray(m.scale); else o.scale.setScalar(m.scale);         // 橋は長さ・高さ・幅を別々に（欄干を人の腰の高さに保つ）
-    if (m.tint || m.burning) {
+    if (m.tint || m.burning || m.deco) {
       const tint = m.tint ? new THREE.Color(m.tint) : null;
       o.traverse(x => {
         if (!x.isMesh) return;
@@ -114,12 +132,43 @@ export class OpeningStage {
           const c = this.own(mat.clone());
           if (tint) c.color.multiply(tint);
           if (m.burning) c.color.multiplyScalar(0.58);                          // 煤けた色。炎の明かりで赤く照らされても、黒ずんで見える
-          return patchGrade(c, { whiteMax: 0.46 });
+          patchGrade(c, { whiteMax: 0.46 });
+          if (!m.deco) return c;
+          const ox = g.position.x, d = m.deco, ember = d.ember && { ...d.ember, x: d.ember.x.map(v => v + ox) };   // 熾火の範囲は世界座標へ
+          return decorate(c, { roof: d.roof || null, ember, stone: !!d.stone, time: this.clock });
         });
         x.material = mats.length === 1 ? mats[0] : mats;
       });
     }
     g.add(o); return o;
+  }
+
+  // 家並み：谷のモデルを、種類ごとのインスタンスで並べる（1種類につき部品の数だけの描画呼出）。list の要素は [x, z, rotY, scale, shade]
+  makeRow(g, row) {
+    const src = this.models[row.key]; if (!src) return;
+    for (const im of instanceModel(src, row.list.map(([x, z, rotY, scale, shade]) => ({ at: [x, 0, z], rotY, scale, shade })))) { this.instanced.push(im); g.add(im); }
+  }
+  // 場面だけの大道具：遠い町と灯・山並み・霧の層・小石・草むら（D）。自分で作った形と材質は own、インスタンスの箱は instanced で解放する
+  makeExtras(g, s) {
+    const out = {};
+    if (s.town) {
+      const t = townField(townHouses(s.town)); this.own(t.geometry); this.own(t.material); this.instanced.push(t.mesh); g.add(t.mesh);
+      const l = lightDots(townLights(s.town)); this.own(l.geometry); this.own(l.material); g.add(l.points); out.lights = l;
+    }
+    if (s.ridges) { const m = this.mesh(ridgeGeometry(s.ridges), new THREE.MeshBasicMaterial({ vertexColors: true, fog: false, side: THREE.DoubleSide })); m.name = 'ridges'; m.renderOrder = -5; g.add(m); }
+    if (s.mist) out.mist = s.mist.map(ms => {
+      const m = this.mesh(new THREE.PlaneGeometry(ms.x[1] - ms.x[0], ms.z[0] - ms.z[1]).rotateX(-Math.PI / 2), mistMaterial(ms));
+      m.position.set((ms.x[0] + ms.x[1]) / 2, ms.y, (ms.z[0] + ms.z[1]) / 2); m.renderOrder = 3; m.name = 'mist'; g.add(m); return m.material;
+    });
+    if (s.stones) { const f = stoneField(scatterGround(s.stones, 'stone'), s.stones.color, s.stones.seed); this.own(f.geometry); this.own(f.material); this.instanced.push(f.mesh); g.add(f.mesh); }
+    if (s.tufts) { const f = tuftField(scatterGround(s.tufts, 'tuft'), s.tufts.color); this.own(f.geometry); this.own(f.material); this.instanced.push(f.mesh); g.add(f.mesh); }
+    if (s.debris) { const f = stoneField(scatterGround(s.debris, 'stone'), s.debris.color, s.debris.seed); this.own(f.geometry); this.own(f.material); this.instanced.push(f.mesh); g.add(f.mesh); }
+    if (s.trees) { const f = treeField(groveTrees(s.trees)); this.own(f.geometry); this.own(f.material); this.instanced.push(f.mesh); g.add(f.mesh); }
+    if (s.walls) {                                                                // 瓦の付いた塀：土壁と、瓦の筋のある小屋根（材質は自分のもの）
+      const mat = this.own(decorate(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95 }), { roof: { y: s.walls.h - 0.1, pitch: 0.2, course: 0.1 }, time: this.clock }));
+      const m = new THREE.Mesh(this.own(wallGeometry(s.walls.runs.map(([from, to]) => ({ from, to })), s.walls.h)), mat); m.castShadow = m.receiveShadow = true; m.name = 'walls'; g.add(m);
+    }
+    return out;
   }
 
   // 倒れた幟：竿が地面に横たわり、無地の布（旗印なし。実在の家紋は使わない）が竿に沿って地面に皺を作る。布の端だけ熱い風に揺れる
@@ -134,10 +183,10 @@ export class OpeningStage {
     const pos = [], col = [], idx = [], base = [];
     for (let i = 0; i <= nu; i++) for (let j = 0; j <= nv; j++) {
       const u = i / nu, v = j / nv, at = start.clone().addScaledVector(dir, u * ch), d = v * cw, hang = Math.max(0, at.y - 0.03);
-      const wave = 0.06 * Math.sin(u * 11.0 + v * 3.0 + Math.sin(u * 3.1) * 1.5);
+      const wave = 0.1 * Math.sin(u * 11.0 + v * 3.0 + Math.sin(u * 3.1) * 1.5) + 0.04 * Math.sin(u * 23.0 - v * 7.0);
       // 竿から地面までは垂れ（少し手前へふくらむ）、余りは地面に皺を作って広がる
       const p = d < hang ? at.clone().addScaledVector(UP, -d).addScaledVector(side, 0.22 * Math.sin(Math.PI * d / Math.max(hang, 1e-3)) + wave)
-        : V(at.x, 0.03 + Math.abs(wave) * 0.8, at.z).addScaledVector(side, wave + (d - hang) * 0.9);
+        : V(at.x, 0.03 + Math.abs(wave) * 1.1, at.z).addScaledVector(side, wave * 0.6 + (d - hang) * 0.92);
       pos.push(p.x, p.y, p.z); base.push(u, Math.min(1, d / Math.max(hang, 0.2)));
       const soot = 0.55 + 0.45 * (1 - smooth(0.55, 1, v) * (0.6 + 0.4 * Math.sin(u * 7.0))) - 0.25 * smooth(0.85, 1, u);
       col.push(0.46 * soot, 0.41 * soot, 0.32 * soot);                           // 生成りの古い麻（線形の値）。端ほど煤けて暗い
@@ -145,8 +194,8 @@ export class OpeningStage {
     for (let i = 0; i < nu; i++) for (let j = 0; j < nv; j++) { const a = i * (nv + 1) + j, b = a + nv + 1; idx.push(a, b, a + 1, b, b + 1, a + 1); }
     const geo = this.own(new THREE.BufferGeometry());
     geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3).setUsage(THREE.DynamicDrawUsage)); geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3)); geo.setIndex(idx); geo.computeVertexNormals();
-    // 薄い麻なので、後ろの炎の明かりがわずかに透ける（暗い橙の自発光）
-    const cloth = new THREE.Mesh(geo, this.own(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.96, side: THREE.DoubleSide, emissive: '#2a150b', emissiveIntensity: 0.9 })));
+    // 地面に伏せた麻。自発光は付けない（1周目の暗い橙の自発光は、地面の上で赤いしみに見えた）
+    const cloth = new THREE.Mesh(geo, this.own(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.96, side: THREE.DoubleSide })));
     cloth.castShadow = cloth.receiveShadow = true;
     this.flag = { geo, rest: Float32Array.from(pos), uv: base, side };
     grp.add(pole, cloth); return grp;
@@ -211,7 +260,12 @@ export class OpeningStage {
     this.glow.intensity = this.glowBase * fl;
     sc.flames.update(this.time, this.camera, 0.9 + 0.1 * fl, s.wind, this.scene.fog);
     this.emit(id, dt);
-    sc.fx.update(dt, this.camera, this.renderer.getDrawingBufferSize(this.bufferSize).y || 720);
+    const vh = this.renderer.getDrawingBufferSize(this.bufferSize).y || 720;
+    sc.fx.update(dt, this.camera, vh);
+    this.clock.value = this.time;
+    if (id === 'C' && this.water) this.water.update(this.time, this.camera, s.sky, this.scene.fog, s.origin);
+    for (const m of sc.mist || []) { m.uniforms.uTime.value = this.time; m.uniforms.uFogCol.value.copy(this.scene.fog.color); m.uniforms.uFog.value.set(this.scene.fog.near, this.scene.fog.far); m.uniforms.uWind.value.set(s.wind[0], s.wind[1]); }
+    if (sc.lights) sc.lights.uniforms.uScale.value = vh * 0.5 / Math.tan(this.camera.fov * Math.PI / 360);
     if (id === 'A') this.flutter(this.time, reduced ? 0 : 0.05);
     this.animate(id, sc, out, dt);
   }
@@ -220,7 +274,7 @@ export class OpeningStage {
   animate(id, sc, out, dt) {
     const segT = out?.camera ? out.segmentT : 0, dur = out?.camera ? out.segmentLength : 10;
     for (const { c, f } of sc.figures) {
-      c.root.position.set(f.from[0] + f.speed * segT, f.from[1], f.from[2]);
+      c.root.position.fromArray(figureAt(f, segT));
       c.locomote(f.speed, f.style); c.update(dt);
     }
     if (this.silhouette) {                                                       // 縁の光は鍵の光の向き（カメラ空間）から
@@ -241,6 +295,8 @@ export class OpeningStage {
     for (const c of this.characters) c.dispose();
     for (const f of this.fields) f.dispose();
     for (const fx of this.fxs) fx.dispose();
+    for (const im of this.instanced) { im.removeFromParent(); im.dispose(); }     // インスタンスの行列の箱だけ（形と材質は谷と共有、または own で解放）
+    this.water?.dispose();
     this.key.dispose(); this.glow.dispose();
     for (const x of this.owned) x.dispose();
     this.envRT.dispose();

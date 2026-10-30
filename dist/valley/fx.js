@@ -8,7 +8,7 @@ class PointCloud {
     this.pos = new Float32Array(max * 3); this.col = new Float32Array(max * 4); this.size = new Float32Array(max);
     this.vel = new Float32Array(max * 3); this.life = new Float32Array(max); this.age = new Float32Array(max);
     this.grav = new Float32Array(max); this.drag = new Float32Array(max); this.s0 = new Float32Array(max); this.s1 = new Float32Array(max); this.a0 = new Float32Array(max);
-    this.base = new Float32Array(max * 3);
+    this.base = new Float32Array(max * 3); this.end = new Float32Array(max * 3);       // end：寿命の終わりの色（無ければ base のまま。オープニングの煙は下が朱で、昇るほど暗い）
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.BufferAttribute(this.pos, 3).setUsage(THREE.DynamicDrawUsage));
     g.setAttribute('aColor', new THREE.BufferAttribute(this.col, 4).setUsage(THREE.DynamicDrawUsage));
@@ -30,7 +30,7 @@ class PointCloud {
     this.pos.set(p.pos, i * 3); this.vel.set(p.vel || [0, 0, 0], i * 3);
     this.life[i] = p.life; this.age[i] = 0; this.grav[i] = p.gravity ?? 0; this.drag[i] = p.drag ?? 0;
     this.s0[i] = p.size; this.s1[i] = p.sizeEnd ?? p.size; this.a0[i] = p.alpha ?? 1;
-    this.base.set(p.color, i * 3);
+    this.base.set(p.color, i * 3); this.end.set(p.colorEnd || p.color, i * 3);
     this.col.set([p.color[0], p.color[1], p.color[2], this.a0[i]], i * 4); this.size[i] = this.s0[i];
   }
 
@@ -48,7 +48,8 @@ class PointCloud {
       this.pos[k] += this.vel[k] * dt; this.pos[k + 1] += this.vel[k + 1] * dt; this.pos[k + 2] += this.vel[k + 2] * dt;
       this.size[i] = this.s0[i] + (this.s1[i] - this.s0[i]) * t;
       const fade = t < 0.12 ? t / 0.12 : 1 - (t - 0.12) / 0.88;
-      this.col[i * 4] = this.base[k]; this.col[i * 4 + 1] = this.base[k + 1]; this.col[i * 4 + 2] = this.base[k + 2]; this.col[i * 4 + 3] = this.a0[i] * Math.max(0, fade);
+      const ce = Math.min(1, t * 1.6);
+      this.col[i * 4] = this.base[k] + (this.end[k] - this.base[k]) * ce; this.col[i * 4 + 1] = this.base[k + 1] + (this.end[k + 1] - this.base[k + 1]) * ce; this.col[i * 4 + 2] = this.base[k + 2] + (this.end[k + 2] - this.base[k + 2]) * ce; this.col[i * 4 + 3] = this.a0[i] * Math.max(0, fade);
       i++;
     }
     this.geometry.setDrawRange(0, this.count);
@@ -56,7 +57,7 @@ class PointCloud {
   }
 
   move(from, to) {
-    for (const [arr, n] of [[this.pos, 3], [this.vel, 3], [this.base, 3], [this.col, 4]]) for (let c = 0; c < n; c++) arr[to * n + c] = arr[from * n + c];
+    for (const [arr, n] of [[this.pos, 3], [this.vel, 3], [this.base, 3], [this.end, 3], [this.col, 4]]) for (let c = 0; c < n; c++) arr[to * n + c] = arr[from * n + c];
     for (const arr of [this.life, this.age, this.grav, this.drag, this.s0, this.s1, this.a0, this.size]) arr[to] = arr[from];
   }
 }
