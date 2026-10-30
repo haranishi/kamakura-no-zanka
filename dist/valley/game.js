@@ -240,7 +240,7 @@ export class Game {
       else if (e === 'getup') { this.hero.character.playAction('getup', { timeScale: 1.45 }); this.cine && (this.cine.shot = { pos: [WORLD.start.x + 4.2, 1.5, WORLD.start.z + 4.6], look: [WORLD.start.x, 1.0, WORLD.start.z], fov: 44 }); }
       else if (e === 'done') { this.endIntro(); return; }
     }
-    if (this.stage) { this.post.setDissolve(r.out.dissolve); this.stage.update(r.out, dt, this.camera.aspect); this.hud.setNarration(r.out); }
+    if (this.stage) { this.post.setDissolve(r.out.dissolve); this.stage.update(r.out, dt, this.camera.aspect, { reduced: this.reducedMotion() }); this.hud.setNarration(r.out); }
   }
   // 廃寺の庭で目覚める（横たわる → 頭をもたげる → 立ち上がる）。オープニングの最後の区間
   startWake() {

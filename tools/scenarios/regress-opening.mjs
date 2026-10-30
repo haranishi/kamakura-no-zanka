@@ -1,16 +1,20 @@
 // 回帰：オープニング（語りと絵のような場面）を実ブラウザで通す。
 //  ・区間の時刻、語りの表示と消去（字幕OFFでも出る・字の色・帯との比4.5:1以上）、HUDを隠す、舞台の描画呼出と三角形
-//  ・終わったら舞台と溶け合いの絵を解放し、谷の描画呼出・三角形・形・画像の数が「オープニング無し」と同じに戻る
+//  ・終わったら舞台と溶け合いの絵を解放し、谷の描画呼出・三角形が「オープニング無し」と同じに戻る。形・画像の数は、上映を繰り返しても増えないことで確かめる
 //  ・2回目の「はじめから」は短い版。飛ばす（開始0.6秒は効かない・E/Space/クリック・0.6秒で暗転→目覚め）。休止からの復帰。動きを減らす
 //  ・続きからでは出さない。旧保存（見たかの記録が無い）では通常版。やり直しでは出さない。結果からの「もう一度」で再上映
+//  ・場面ごとの描画呼出・三角形（予算内）、絵の朱の面積（2割以下）、明滅（1秒に3回以下）
 // 実行：PLAYWRIGHT_MODULE=… node tools/valley-play.mjs tools/scenarios/regress-opening.mjs --intro 1 --seed 1333 --strict
 //   KZ_OUT=<file.json> を付けると、測った値をJSONで残す。
 import fs from 'node:fs';
 import { contrast } from '../../dist/valley/opening.js';
+import { flashRate } from '../../dist/valley/opening-scenes.js';
 import { OPENING } from '../../dist/valley/opening-data.js';
 
 export default async function ({ v, step, st, start, freeze, tap, click, log }) {
-  const report = { segments: {}, lines: {}, contrast: {}, stage: { maxCalls: 0, maxTris: 0 }, memory: {} };
+  const report = { segments: {}, lines: {}, contrast: {}, stage: { maxCalls: 0, maxTris: 0, byScene: {} }, memory: {}, vermilion: {}, flash: {} };
+  const SCENE_CHECK = ['A', 'B'];                                      // 朱の面積と明滅を確かめる場面（作り込みが済んだ場面）
+  const VERMILION_AT = [['A', 4.0], ['A', 9.5], ['B', 14.0], ['B', 19.5], ['C', 25.0], ['C', 29.5], ['D', 34.0], ['D', 40.5]];
   const fail = msg => { throw new Error(msg); };
   const hex = rgb => '#' + rgb.match(/\d+/g).slice(0, 3).map(n => Number(n).toString(16).padStart(2, '0')).join('');
   // n コマ進め、状態と語りの枠（DOM）を読む
@@ -33,7 +37,10 @@ export default async function ({ v, step, st, start, freeze, tap, click, log }) 
       const seg = p.flow === 'intro' ? p.op?.segment ?? 'wake' : p.flow;
       if (seg !== last) { seen.push([seg, +t.toFixed(2)]); last = seg; }
       if (p.op?.line && p.nr.opacity > 0.99) lines[p.op.line] ??= { text: p.nr.text, color: hex(p.nr.color), bar: hex(p.nr.bar), inBar: p.nr.inBar, at: +t.toFixed(2) };
-      if (p.op?.stage) { report.stage.maxCalls = Math.max(report.stage.maxCalls, p.calls); report.stage.maxTris = Math.max(report.stage.maxTris, p.tris); }
+      if (p.op?.stage) {
+        report.stage.maxCalls = Math.max(report.stage.maxCalls, p.calls); report.stage.maxTris = Math.max(report.stage.maxTris, p.tris);
+        const b = report.stage.byScene[p.op.shot] ??= { calls: 0, tris: 0 }; b.calls = Math.max(b.calls, p.calls); b.tris = Math.max(b.tris, p.tris);
+      }
       t += ((await onSample?.(p, t)) || 0) / 60;                          // 見本の中で余分に進めたコマ数を足す
       if (p.flow === 'play') break;
     }
@@ -41,6 +48,30 @@ export default async function ({ v, step, st, start, freeze, tap, click, log }) 
     return { seen, lines };
   }
   const near = (got, want, tol, what) => { if (Math.abs(got - want) > tol) fail(`${what}: ${got} (want ${want}±${tol})`); };
+  // 絵（上下の帯を除く）の朱の割合と、相対輝度の平均。描画面を縮めて読む（?qa=1 では描いた絵が残る）
+  const pix = (w = 160, h = 90) => v(`(async () => { const m = await import('/valley/opening-scenes.js'); const c = document.createElement('canvas'); c.width = ${w}; c.height = ${h};
+    const g = c.getContext('2d'); g.drawImage(__valley.game.renderer.domElement, 0, 0, ${w}, ${h}); const d = g.getImageData(0, 0, ${w}, ${h}).data, bar = Math.round(${h} * 0.125);
+    const lin = x => (x <= 0.04045 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4); let l = 0, n = 0;
+    for (let y = bar; y < ${h} - bar; y++) for (let x = 0; x < ${w}; x++) { const i = (y * ${w} + x) * 4; l += 0.2126 * lin(d[i] / 255) + 0.7152 * lin(d[i + 1] / 255) + 0.0722 * lin(d[i + 2] / 255); n++; }
+    return { share: m.vermilionShare(d, ${w}, ${h}, { bar: 0.125 }), luma: l / n }; })()`);
+  const sampled = new Set();
+  async function sampleScene(p) {
+    let extra = 0;
+    for (const [shot, at] of VERMILION_AT) {
+      const key = shot + at;
+      if (sampled.has(key) || p.op?.shot !== shot || p.op.t < at || p.op.dissolve > 0) continue;
+      sampled.add(key); (report.vermilion[shot] ??= []).push([+p.op.t.toFixed(2), +(await pix(320, 180)).share.toFixed(4)]);
+    }
+    // 明滅：場面が明けてから2秒間、毎コマの平均の明るさ
+    if (SCENE_CHECK.includes(p.op?.shot) && !report.flash[p.op.shot] && p.op.black === 0 && p.op.dissolve === 0) {
+      const lumas = [];
+      for (let i = 0; i < 120; i++) { await step(1); lumas.push((await pix(64, 36)).luma); }
+      const lo = Math.min(...lumas), hi = Math.max(...lumas);
+      report.flash[p.op.shot] = { rate: +flashRate(lumas, 60, 0.1 * hi).toFixed(3), min: +lo.toFixed(4), max: +hi.toFixed(4) };
+      extra += 120;
+    }
+    return extra;
+  }
 
   // 0 オープニング無しの谷（基準）。同じ固定カメラで描画呼出・三角形・形・画像を数える
   await v("localStorage.removeItem('kamakura-valley-meta')");
@@ -66,6 +97,7 @@ export default async function ({ v, step, st, start, freeze, tap, click, log }) 
       if (!during.frozen || during.w !== 1200 || resized.after.frozen || !resized.after.cur) fail('the held frame was lost on resize, or kept after the dissolve ' + JSON.stringify(resized));
       return 70;
     }
+    const extra = p.op?.stage ? await sampleScene(p) : 0; if (extra) return extra;
     if (p.flow === 'intro' && p.op?.segment !== 'wake' && p.hud) hudDuringOpening = true;
     if (p.op?.segment === 'wake' && p.nr.on) narrationDuringWake = true;
     if (p.op?.segment === 'title' && seenAtTitle === null) seenAtTitle = !!(await meta())?.openingSeen;
@@ -88,13 +120,22 @@ export default async function ({ v, step, st, start, freeze, tap, click, log }) 
     if (report.contrast[l[0]] < 4.5) fail(`contrast ${l[0]} ${report.contrast[l[0]]}`);
   }
   if (report.stage.maxCalls > 300 || report.stage.maxTris > 1.5e6) fail('stage over budget ' + JSON.stringify(report.stage));
+  for (const id of ['A', 'B', 'C', 'D']) if (!report.stage.byScene[id]) fail('scene not drawn: ' + id);
+  for (const id of SCENE_CHECK) {
+    for (const [t, share] of report.vermilion[id] || fail('vermilion not sampled: ' + id)) if (share > 0.2) fail(`vermilion ${id} at ${t}s: ${share}`);
+    const f = report.flash[id] || fail('flash not sampled: ' + id); if (f.rate > 3) fail(`flash ${id}: ${f.rate}/s`);
+  }
+  log('stage by scene', JSON.stringify(report.stage.byScene), 'vermilion', JSON.stringify(report.vermilion), 'flash', JSON.stringify(report.flash));
   // 解放後：谷へ戻り、基準と同じ描画になる。溶け合いの絵も残らない
   const after = await v('(() => { const g = __valley.game; return { stage: !!g.stage, opening: !!g.opening, hold: !!g.post.hold, flow: g.flow }; })()');
   if (after.stage || after.opening || after.hold || after.flow !== 'play') fail('the stage was not released ' + JSON.stringify(after));
   await v('(__valley.game.hud.subsOn = true, 0)');
   await step(40); const back = await gpu(); report.memory.afterFull = back;
   if (back.calls !== base.calls || back.tris !== base.tris) fail(`valley draw differs after the opening: ${JSON.stringify(base)} → ${JSON.stringify(back)}`);
-  if (back.geometries > base.geometries || back.textures > base.textures) fail(`GPU resources grew after the opening: ${JSON.stringify(base)} → ${JSON.stringify(back)}`);
+  // 形と画像の数は、ここでは比べない：舞台は谷のモデル（家・寺・荷車など）の複製を描くので、谷のこの画角に映らない共有の形と絵が
+  // 初めて送られて残り、測る流れによって増えも減りもする（谷の持ち物で、漏れではない）。漏れは「10 上映を繰り返しても増えない」で、
+  // 一度上映したあとの基準と比べて確かめる
+  report.memory.firstRunDelta = { geometries: back.geometries - base.geometries, textures: back.textures - base.textures };
   await v('__valley.camera(null)');
   log('full: released, valley draw back to', JSON.stringify(back));
 

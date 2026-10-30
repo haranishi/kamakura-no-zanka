@@ -45,7 +45,8 @@ b0 庭へ降りる（`temple_yard` に入る）→ b1 穂太の話 → b2 林道
 - `tools/scenarios/regress-attack-timing.mjs`：同じ入力列で、戦闘の論理（状態・体力・構え・位置）を毎コマ記録し、変更前と変更後が一致することを比べる（`node tools/scenarios/regress-attack-timing.mjs 前.json 後.json`）。
 - `tools/scenarios/capture-draw-sheathe.mjs`：抜刀・納刀を、実ゲームの固定カメラ（主人公の左側）で一定間隔に撮る（敵が気づく→抜刀／納刀済みで攻撃→速い抜刀／戦闘後の納刀）。変更前と変更後を同じ条件で撮って比べる。
 - `tools/scenarios/measure-draw-sheathe.mjs`：既存の抜刀・納刀の動作で、握りと腰の鞘がどう動くかを測る（前値は `reports/polish3/baseline/draw-sheathe-before.json`）。
-- `tools/scenarios/regress-opening.mjs`（`--intro 1` が要る）：オープニング。区間の時刻、語り（字幕OFFでも出る・字と帯の比・帯からはみ出さない）、飛ばす（E・Space・クリック）、短い版、休止、動きを減らす、続きから、旧保存、やり直し、再上映、記録が書けない場合、解放後の谷の描画と資源を確かめる。`KZ_OUT=…` でJSONを残す。純粋層の変異試験は `node tools/verify-opening-mutations.mjs`。
+- `tools/scenarios/regress-opening.mjs`（`--intro 1` が要る）：オープニング。区間の時刻、語り（字幕OFFでも出る・字と帯の比・帯からはみ出さない）、飛ばす（E・Space・クリック）、短い版、休止、動きを減らす、続きから、旧保存、やり直し、再上映、記録が書けない場合、解放後の谷の描画と資源、場面ごとの描画呼出・三角形、作り込んだ場面の朱の面積（2割以下）と明滅（1秒に3回以下）を確かめる。`KZ_OUT=…` でJSONを残す。純粋層の変異試験は `node tools/verify-opening-mutations.mjs` と `node tools/verify-opening-scenes-mutations.mjs`（場面の置き場・炎・粒子・測り方）。
+- `tools/scenarios/measure-opening-perf.mjs`（`--intro 1`）：場面A〜Dごとの1コマの時間（p50・p95・最大）と描画呼出・三角形、始まりと目覚めの最初の1コマの時間。`KZ_OUT=…` でJSON。
 - `tools/scenarios/capture-opening.mjs`（`--intro 1`）：オープニングの固定画角（O1〜O4＝場面A〜D、題名、目覚め）を撮る。`KZ_SHOTS=O1a,title` で絞り、`KZ_REDUCED=1` で「動きを減らす」。
 - 検査の流れの見本：`tools/scenarios/` のシナリオ。
 
