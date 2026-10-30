@@ -38,6 +38,7 @@ export function installQA(game, ctl) {
         resources: { ...game.quest.resources }, flags: { ...game.quest.flags }, checkpoint: game.quest.checkpoint, stats: { ...game.stats },
         talking: game.hud.talking, pending: game.pendingDialogue?.id || null, arrows: game.battle.arrows.length,
         render: { calls: game.renderer.info.render.calls, tris: game.renderer.info.render.triangles },
+        opening: game.openingView(),
       };
     },
     step(n = 1, dt = 1 / 60) { for (let i = 0; i < n; i++) game.update(dt); game.render(dt); return api.state(); },

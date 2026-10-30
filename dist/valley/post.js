@@ -61,7 +61,24 @@ export class Post {
         c += (hash(gl_FragCoord.xy + uTime) - 0.5) * grain;
         gl_FragColor = vec4(c, 1.0);
       }`, { scene: { value: null }, bloom: { value: null }, exposure: { value: 1 }, bloomStrength: { value: 0.3 }, vignette: { value: 0.25 }, saturation: { value: 1 }, contrast: { value: 1 }, warmth: { value: 1 }, grain: { value: 0.01 }, uBloom: { value: 1 }, uTime: { value: 0 } });
+    // 溶け合い（オープニングの場面転換）で、仕上がった絵をそのまま写す。copy は不透明、over は前の1枚を薄く重ねる
+    const COPY = 'varying vec2 vUv; uniform sampler2D tex; uniform float opacity; void main(){ gl_FragColor = vec4(texture2D(tex, vUv).rgb, opacity); }';
+    this.matCopy = pass(COPY, { tex: { value: null }, opacity: { value: 1 } });
+    this.matOver = pass(COPY, { tex: { value: null }, opacity: { value: 0 } }, { transparent: true });
+    this.hold = null;
   }
+
+  // オープニングの場面の溶け合い（ディゾルブ）。使う間だけ、仕上げを画面でなく8bitの絵2枚へ交互に描く。
+  // holdFrame() で直前に描いた1枚を残し、setDissolve(mix) の割合で新しい場面の上へ重ねる。谷（hold が無い間）は何も変えない
+  beginDissolve() { if (!this.hold) { this.hold = { rts: [], cur: 0, frozen: -1, mix: 0 }; if (this.size) this.allocHold(); } }
+  allocHold() {
+    const h = this.hold; for (const rt of h.rts) rt.dispose();
+    h.rts = [0, 1].map(() => new THREE.WebGLRenderTarget(this.size.w, this.size.h, { depthBuffer: false }));
+    h.frozen = -1;
+  }
+  holdFrame() { const h = this.hold; if (h && h.rts.length) { h.frozen = h.cur; h.cur = 1 - h.cur; } }
+  setDissolve(mix) { if (this.hold) this.hold.mix = Math.max(0, Math.min(1, mix)); }
+  endDissolve() { if (!this.hold) return; for (const rt of this.hold.rts) rt.dispose(); this.hold = null; }
 
   setSize(width, height, pixelRatio) {
     const w = Math.max(2, Math.floor(width * pixelRatio)), h = Math.max(2, Math.floor(height * pixelRatio));
@@ -79,6 +96,7 @@ export class Post {
       rt.texture.colorSpace = THREE.LinearSRGBColorSpace;
       this.levels.push(rt);
     }
+    if (this.hold) this.allocHold();
   }
 
   setQuality(q) { this.quality = q; if (this.size) this.setSize(this.size.w, this.size.h, 1); }
@@ -120,6 +138,13 @@ export class Post {
     f.scene.value = this.target.texture; f.bloom.value = this.levels[0]?.texture || null; f.uBloom.value = bloom ? 1 : 0;
     f.exposure.value = p.exposure; f.bloomStrength.value = p.bloomStrength; f.vignette.value = p.vignette;
     f.saturation.value = p.saturation; f.contrast.value = p.contrast; f.warmth.value = p.warmth; f.grain.value = p.grain; f.uTime.value = (f.uTime.value + dt) % 100;
-    this.run(this.matFinal, null);
+    const h = this.hold?.rts.length ? this.hold : null;
+    this.run(this.matFinal, h ? h.rts[h.cur] : null);
+    if (!h) return;
+    this.matCopy.uniforms.tex.value = h.rts[h.cur].texture; this.run(this.matCopy, null);
+    if (h.mix > 0 && h.frozen >= 0) {
+      const u = this.matOver.uniforms; u.tex.value = h.rts[h.frozen].texture; u.opacity.value = h.mix;
+      r.autoClear = false; this.run(this.matOver, null); r.autoClear = prevAuto;
+    }
   }
 }

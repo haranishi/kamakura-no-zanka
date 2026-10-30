@@ -11,7 +11,10 @@ import { CameraRig } from './camera-rig.js';
 import { FX } from './fx.js';
 import { createQuest, reduce, exportProgress, restoreProgress, summarize } from './quest.js';
 import { STORY } from './story-data.js';
-import { loadValley, saveValley } from './save.js';
+import { loadValley, saveValley, loadMeta, saveMeta } from './save.js';
+import { OPENING } from './opening-data.js';
+import { createOpening, stepOpening } from './opening.js';
+import { OpeningStage } from './opening-stage.js';
 import { FEEL } from './config.js';
 import { mulberry32 } from './scatter.js';
 import { createWind, stepWind, toUniforms, requestGuide, particleCount } from './wind.js';
@@ -26,12 +29,12 @@ const PLACE_ZONES = ['viewpoint', 'temple_steps'];
 const GROUP_KINDS = { boy: 'npc', road_scout: 'enemy', village_enemies: 'enemy', escort_ambush: 'enemy' };
 
 export class Game {
-  constructor({ scene, camera, renderer, post, atmosphere, veg, props, water, terrain, scatter, roster, hud, audio, input, storage, seed = 1333 }) {
-    Object.assign(this, { scene, camera, renderer, post, atmosphere, veg, props, water, terrain, scatter, roster, hud, audio, input, storage });
+  constructor({ scene, camera, renderer, post, atmosphere, veg, props, water, terrain, scatter, roster, hud, audio, input, storage, models = {}, seed = 1333 }) {
+    Object.assign(this, { scene, camera, renderer, post, atmosphere, veg, props, water, terrain, scatter, roster, hud, audio, input, storage, models });
     this.wind = createWind(); this.windUniforms = veg.wind;
     this.world = WORLD; this.rng = mulberry32(seed);
     this.time = 0; this.stopT = 0; this.timers = []; this.paused = false; this.aiPaused = false;
-    this.flow = 'idle';                       // idle | play | choice | dead | result
+    this.flow = 'idle';                       // idle | intro | play | choice | dead | result
     this.enemies = []; this.npcs = new Map(); this.ally = null; this.noises = [];
     this.exitPoint = { ...WORLD.exit };
     const extra = propColliders(WORLD);
@@ -46,7 +49,7 @@ export class Game {
     this.quest = createQuest(); this.cpPos = {}; this.inZone = {}; this.pendingDialogue = null; this.ending = null;
     this.lostFood = 0; this.pillageT = 0; this.promptKey = ''; this.deathT = 0; this.heroWasAlive = true;
     this.lock = null; this.listenerT = 0; this.markerT = 0; this.enemySnaps = null; this.enemySnapsAt = -1;
-    this.cine = null; this.intro = null;
+    this.cine = null; this.opening = null; this.openingOut = null; this.stage = null;   // opening：オープニングの進行（opening.js）、stage：その舞台
     this.stats = { kills: 0, parries: 0, stealth: 0 };
     this.guideNav = createGuideNav({ world: WORLD, terrain, col: this.col });
     this.guideRenderer = new GuideRenderer(scene, terrain);
@@ -148,6 +151,7 @@ export class Game {
     this.rig.update(0.016, this.hero.pos, { rayClip: null });
   }
   startNew() {
+    this.stopOpening();
     this.freshRun = true;
     this.quest = createQuest(); this.cpPos = {}; this.ending = null; this.lostFood = 0; this.stats = { kills: 0, parries: 0, stealth: 0 };
     this.hero.character.root.visible = true;
@@ -157,6 +161,7 @@ export class Game {
     if (this.skipIntro) this.hud.hint('move', STORY.hints.move, 9000); else this.startIntro();
   }
   continueGame() {
+    this.stopOpening();
     const { state, hasSave } = loadValley(this.storage);
     if (!hasSave) return this.startNew();
     this.freshRun = false;
@@ -198,32 +203,68 @@ export class Game {
   }
   toCheckpoint() { if (this.flow === 'play' || this.flow === 'dead') { this.flow = 'dead'; if (!this.quest.pendingRetry) this.dispatch({ type: 'player_down' }); this.retry(); } }
 
-  // ------------------------------------------------------------------ 冒頭の目覚め・演出カメラ
-  // 廃寺の庭で目覚める（横たわる → 頭をもたげる → 立ち上がる）。E・Space・クリックで飛ばせる。
+  // ------------------------------------------------------------------ オープニング・冒頭の目覚め・演出カメラ
+  // オープニング（語りと絵のような場面）→ 廃寺の庭で目覚める。進行は opening.js（純粋層）、舞台は谷とは別のシーン（opening-stage.js）。
+  // 初回は通常版（約52秒）、見たことがあれば短い版（約15秒）。いつでも E・Space・クリックで飛ばせる（0.6秒で暗転→目覚め）。
   startIntro() {
+    const seen = loadMeta(this.storage).meta.openingSeen;
+    this.opening = createOpening({ version: seen ? 'short' : 'full' }); this.openingWasSeen = seen;
+    this.flow = 'intro';
+    const h = this.hero, st = WORLD.start;
+    h.scripted = true; h.place(st.x, st.z, yawOf(-0.6, 0.8)); h.character.armRelax = false;
+    this.hud.showHUD(false); this.hud.fadeInstant(false);
+    this.hud.narration(true, { colors: OPENING.colors, title: OPENING.title.text, note: OPENING.title.note });
+    this.stage = new OpeningStage({ renderer: this.renderer, models: this.models, roster: this.roster, quality: this.post.quality });
+    this.post.beginDissolve();
+    this.updateIntro(0);
+  }
+  // オープニングの舞台と語りの枠を片づける（目覚めに入ったとき・途中で始め直したとき）。谷の資源には触れない
+  closeStage() {
+    if (this.stage) { this.stage.dispose(); this.stage = null; }
+    this.post.endDissolve(); this.hud.narration(false);
+  }
+  stopOpening() {
+    if (!this.opening && !this.stage) return;
+    this.closeStage(); this.opening = null; this.openingOut = null; this.cine = null;
+    const c = this.hero.character; this.hero.scripted = false; c.armRelax = true; c.locoName = null; c.gait = 'idle';
+  }
+  updateIntro(dt) {
+    if (!this.opening) return;
+    const skip = this.input.wasPressed('KeyE') || this.input.wasPressed('Space') || this.input.mouseWasPressed(0);
+    const r = stepOpening(this.opening, { dt, skip, reduced: this.reducedMotion() });
+    this.opening = r.state; this.openingOut = r.out;
+    for (const e of r.events) {
+      if (e === 'cut') this.post.holdFrame();                                  // 前の場面の最後の1枚を残して、新しい場面へ溶け合わせる
+      else if (e === 'seen' && !this.openingWasSeen) saveMeta(this.storage, { openingSeen: true });   // 書けなくても続ける
+      else if (e === 'wake') { this.closeStage(); this.startWake(); }
+      else if (e === 'getup') { this.hero.character.playAction('getup', { timeScale: 1.45 }); this.cine && (this.cine.shot = { pos: [WORLD.start.x + 4.2, 1.5, WORLD.start.z + 4.6], look: [WORLD.start.x, 1.0, WORLD.start.z], fov: 44 }); }
+      else if (e === 'done') { this.endIntro(); return; }
+    }
+    if (this.stage) { this.post.setDissolve(r.out.dissolve); this.stage.update(r.out, dt, this.camera.aspect); this.hud.setNarration(r.out); }
+  }
+  // 廃寺の庭で目覚める（横たわる → 頭をもたげる → 立ち上がる）。オープニングの最後の区間
+  startWake() {
     const h = this.hero, st = WORLD.start;
     h.scripted = true; h.place(st.x, st.z, yawOf(-0.6, 0.8));
     h.character.armRelax = false; h.character.playAction('wake', { timeScale: 1.25 });
-    this.intro = { t: 0, stood: false };
-    this.flow = 'intro';
     this.hud.showHUD(false); this.hud.fadeInstant(true);
     this.after(0.3, () => this.hud.fade(false));
     this.setCine({ pos: [st.x + 5.2, 0.95, st.z + 5.6], look: [st.x, 0.45, st.z], fov: 42 }, 1);
   }
-  updateIntro(dt) {
-    const it = this.intro; if (!it) return;
-    it.t += dt;
-    const skip = this.input.wasPressed('KeyE') || this.input.wasPressed('Space') || this.input.mouseWasPressed(0);
-    if (it.t > 2.7 && !it.stood) { it.stood = true; this.hero.character.playAction('getup', { timeScale: 1.45 }); this.cine && (this.cine.shot = { pos: [WORLD.start.x + 4.2, 1.5, WORLD.start.z + 4.6], look: [WORLD.start.x, 1.0, WORLD.start.z], fov: 44 }); }
-    if (it.t > 5.2 || (skip && it.t > 0.6)) this.endIntro();
-  }
   endIntro() {
-    const h = this.hero; this.intro = null;
+    const h = this.hero; this.opening = null; this.closeStage();
     h.scripted = false; h.character.armRelax = true; h.character.locoName = null; h.character.gait = 'idle';
     this.flow = 'play'; this.clearCine();
     // 起き上がった向きのまま、庭（廃寺の石段の方）へ向けてカメラを置く
     const y = WORLD.zones.temple_yard; this.rig.yaw = yawOf(y.x - h.pos.x, y.z - h.pos.z); this.rig.pitch = 0.2;
     this.hud.showHUD(true); this.hud.hint('move', STORY.hints.move, 9000);
+  }
+  // 検査用（?qa=1）：オープニングのいまの見え方
+  openingView() {
+    const o = this.openingOut; if (!this.opening || !o) return null;
+    return { version: o.version, t: +o.t.toFixed(3), segment: o.segment, line: o.line?.id ?? null, lineAlpha: o.line ? +o.line.alpha.toFixed(3) : 0,
+      black: +o.black.toFixed(3), dissolve: +o.dissolve.toFixed(3), title: +o.title.toFixed(3), camera: o.camera && { shot: o.camera.shot, k: +o.camera.k.toFixed(3) },
+      skipped: o.skipped, stage: !!this.stage, shot: this.stage?.shot ?? null };
   }
   // 固定の演出カメラへ滑らかに移る（k が 0→1）。解除すると元のカメラへ戻る。pos/look の y は地面からの高さ（m）
   setCine(shot, k0 = 0) { this.cine = { shot, k: k0, target: 1 }; }
@@ -827,5 +868,6 @@ export class Game {
     if (this.rng() < 0.45 && this.flow !== 'idle') this.fx.mote({ x: hp.x + (this.rng() - 0.5) * 14, y: hp.y + 0.4 + this.rng() * 3.2, z: hp.z + (this.rng() - 0.5) * 14 });
   }
 
-  render(dt) { this.renderer.info.reset(); this.post.render(this.scene, this.camera, dt); }
+  // オープニングの間は、谷を描かずに舞台だけを描く
+  render(dt) { this.renderer.info.reset(); if (this.stage) this.post.render(this.stage.scene, this.stage.camera, dt); else this.post.render(this.scene, this.camera, dt); }
 }

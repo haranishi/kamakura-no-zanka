@@ -4,7 +4,8 @@ const $ = id => document.getElementById(id);
 export class HUD {
   constructor() {
     this.el = Object.fromEntries(['hud', 'obj-text', 'compass', 'compass-needle', 'compass-dist', 'bar-hp', 'bar-posture', 'party', 'party-mode', 'boss', 'boss-name', 'boss-hp', 'markers', 'prompt', 'prompt-text', 'hint', 'subtitle',
-      'dialogue', 'dlg-name', 'dlg-text', 'choice', 'result', 'result-lines', 'result-nums', 'death', 'title', 'loading', 'load-fill', 'load-note', 'load-title', 'toast', 'hurt', 'pause', 'fade', 'granary', 'granary-fill'].map(k => [k, $(k)]));
+      'dialogue', 'dlg-name', 'dlg-text', 'choice', 'result', 'result-lines', 'result-nums', 'death', 'title', 'loading', 'load-fill', 'load-note', 'load-title', 'toast', 'hurt', 'pause', 'fade', 'granary', 'granary-fill',
+      'narration', 'nr-veil', 'nr-top', 'nr-bottom', 'nr-line', 'nr-title', 'nr-title-text', 'nr-note', 'nr-skip'].map(k => [k, $(k)]));
     this.dialogue = null; this.markers = new Map(); this.timers = new Map(); this.subsOn = true;   // timers: 案内・通知・字幕が消えるまで（ゲーム内の時間。休止中は進まない）
     this.hintsShown = new Set();
   }
@@ -67,6 +68,29 @@ export class HUD {
   hurt() {
     const h = this.el.hurt; h.classList.add('on'); clearTimeout(this.hurtTimer);
     this.hurtTimer = setTimeout(() => h.classList.remove('on'), 90);          // 画面の赤みは短い演出なので実時間で消す
+  }
+
+  // オープニングの語りの枠（HUDの外）。字幕の設定（subsOn）に依らず出す。o = { colors, title, note }（opening-data.js）
+  narration(on, o = null) {
+    this.el.narration.classList.toggle('hidden', !on);
+    this.nr = on ? { line: undefined, black: -1, title: -1, hint: -1, alpha: -1 } : null;
+    if (!on || !o) return;
+    for (const k of ['nr-veil', 'nr-top', 'nr-bottom']) this.el[k].style.background = o.colors.bar;
+    const head = this.el['nr-title-text'], note = this.el['nr-note'];
+    head.textContent = o.title; head.style.color = o.colors.title; note.textContent = o.note; note.style.color = o.colors.note;
+    this.el['nr-skip'].style.color = o.colors.hint;
+  }
+  // 毎コマ。opening.js の出力のうち、変わった値だけを書く
+  setNarration(out) {
+    const c = this.nr; if (!c) return;
+    const fade = (key, el, v) => { const r = Math.round(v * 1000) / 1000; if (c[key] !== r) { c[key] = r; el.style.opacity = r; } };
+    fade('black', this.el['nr-veil'], out.black); fade('title', this.el['nr-title'], out.title); fade('hint', this.el['nr-skip'], out.hint);
+    const line = this.el['nr-line'], id = out.line?.id ?? null;
+    if (c.line !== id) {
+      c.line = id; line.textContent = out.line?.text ?? '';
+      if (out.line) { line.style.color = out.line.color; line.dataset.id = id; line.dataset.kind = out.line.kind; } else { delete line.dataset.id; delete line.dataset.kind; }
+    }
+    fade('alpha', line, out.line ? out.line.alpha : 0);
   }
 
   // 会話：行を順に出す。進めるのは E / クリック。終わったら onEnd。

@@ -108,6 +108,12 @@ export class FX {
     this.norm.emit({ pos: [pos.x, pos.y, pos.z], vel: [rnd(0.35, 0.7), rnd(0.9, 1.4), rnd(-0.1, 0.25)], life: rnd(7, 11), size: 0.7, sizeEnd: 6.5, color: [0.4, 0.37, 0.36], alpha: 0.36, drag: 0.12 });
   }
 
+  // 粒子の形と材質を解放する。オープニングの舞台が自分で作った FX だけに使う（谷の FX は作り直さない）
+  dispose() {
+    for (const c of [this.add, this.norm]) { c.points.removeFromParent(); c.geometry.dispose(); c.points.material.dispose(); }
+    this.trails = [];
+  }
+
   update(dt, camera, viewportHeight) {
     const scale = viewportHeight * 0.5 / Math.tan(camera.fov * Math.PI / 360);
     this.add.uniforms.uScale.value = this.norm.uniforms.uScale.value = scale;
