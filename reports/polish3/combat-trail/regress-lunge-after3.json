@@ -1,0 +1,329 @@
+{
+ "seed": 1333,
+ "results": {
+  "contact": [
+   {
+    "move": "light1",
+    "D": 1.2,
+    "gap": 0.108,
+    "shift": 0.028,
+    "turnDeg": -60,
+    "minGap": 0.72,
+    "restShift": 0
+   },
+   {
+    "move": "light1",
+    "D": 1.6,
+    "gap": 0.04,
+    "shift": 0.116,
+    "turnDeg": -58.9,
+    "minGap": 1.05,
+    "restShift": 0
+   },
+   {
+    "move": "light1",
+    "D": 2.15,
+    "gap": 0.04,
+    "shift": 0.666,
+    "turnDeg": -58.9,
+    "minGap": 1.089,
+    "restShift": 0
+   },
+   {
+    "move": "light2",
+    "D": 1.2,
+    "gap": 0.022,
+    "shift": 0.134,
+    "turnDeg": 0,
+    "minGap": 0.75,
+    "restShift": 0
+   },
+   {
+    "move": "light2",
+    "D": 1.6,
+    "gap": 0.028,
+    "shift": 0.266,
+    "turnDeg": 0,
+    "minGap": 1.038,
+    "restShift": 0
+   },
+   {
+    "move": "light2",
+    "D": 2.15,
+    "gap": 0.028,
+    "shift": 0.816,
+    "turnDeg": 0,
+    "minGap": 1.039,
+    "restShift": 0
+   },
+   {
+    "move": "light3",
+    "D": 1.2,
+    "gap": 0.155,
+    "shift": 0.04,
+    "turnDeg": -50.3,
+    "minGap": 0.699,
+    "restShift": 0
+   },
+   {
+    "move": "light3",
+    "D": 1.6,
+    "gap": 0.021,
+    "shift": 0.016,
+    "turnDeg": -48.8,
+    "minGap": 0.734,
+    "restShift": 0
+   },
+   {
+    "move": "light3",
+    "D": 2.15,
+    "gap": 0.021,
+    "shift": 0.566,
+    "turnDeg": -48.8,
+    "minGap": 0.97,
+    "restShift": 0
+   },
+   {
+    "move": "heavy",
+    "D": 1.2,
+    "gap": 0.035,
+    "shift": 0.183,
+    "turnDeg": -40.9,
+    "minGap": 0.72,
+    "restShift": 0
+   },
+   {
+    "move": "heavy",
+    "D": 1.6,
+    "gap": 0.035,
+    "shift": 0.043,
+    "turnDeg": -39.2,
+    "minGap": 0.997,
+    "restShift": 0
+   },
+   {
+    "move": "heavy",
+    "D": 2.25,
+    "gap": 0.035,
+    "shift": 0.693,
+    "turnDeg": -39.2,
+    "minGap": 1.076,
+    "restShift": 0
+   },
+   {
+    "move": "counter",
+    "D": 1.2,
+    "gap": 0.16,
+    "shift": 0.121,
+    "turnDeg": 49.7,
+    "minGap": 0.601,
+    "restShift": 0
+   },
+   {
+    "move": "counter",
+    "D": 1.6,
+    "gap": 0.16,
+    "shift": 0.521,
+    "turnDeg": 49.7,
+    "minGap": 0.553,
+    "restShift": 0
+   },
+   {
+    "move": "counter",
+    "D": 2.25,
+    "gap": 0.113,
+    "shift": 0.9,
+    "turnDeg": 49.7,
+    "minGap": 0.6,
+    "restShift": 0
+   },
+   {
+    "move": "finisher",
+    "D": 1.2,
+    "gap": 0.099,
+    "shift": 0.345,
+    "turnDeg": 5.3,
+    "minGap": 0.64,
+    "restShift": 0
+   },
+   {
+    "move": "finisher",
+    "D": 1.6,
+    "gap": 0.099,
+    "shift": 0.745,
+    "turnDeg": 5.3,
+    "minGap": 0.64,
+    "restShift": 0
+   },
+   {
+    "move": "finisher",
+    "D": 1.85,
+    "gap": 0.004,
+    "shift": 0.9,
+    "turnDeg": 5.3,
+    "minGap": 0.736,
+    "restShift": 0
+   },
+   {
+    "move": "soldier_slash",
+    "D": 1.2,
+    "gap": 0.093,
+    "shift": 0.047,
+    "turnDeg": 15.8,
+    "minGap": 0.72,
+    "restShift": 0
+   },
+   {
+    "move": "soldier_slash",
+    "D": 1.6,
+    "gap": 0.089,
+    "shift": 0.353,
+    "turnDeg": 15.8,
+    "minGap": 0.761,
+    "restShift": 0
+   },
+   {
+    "move": "soldier_slash",
+    "D": 1.95,
+    "gap": 0.089,
+    "shift": 0.703,
+    "turnDeg": 15.8,
+    "minGap": 0.761,
+    "restShift": 0
+   },
+   {
+    "move": "soldier_thrust",
+    "D": 1.2,
+    "gap": 0.142,
+    "shift": 0.3,
+    "turnDeg": -7.8,
+    "minGap": 0.72,
+    "restShift": 0
+   },
+   {
+    "move": "soldier_thrust",
+    "D": 1.6,
+    "gap": 0.162,
+    "shift": 0.3,
+    "turnDeg": -7.8,
+    "minGap": 0.72,
+    "restShift": 0
+   },
+   {
+    "move": "soldier_thrust",
+    "D": 2.85,
+    "gap": 0.178,
+    "shift": 0.894,
+    "turnDeg": -7.8,
+    "minGap": 1.168,
+    "restShift": 0
+   },
+   {
+    "move": "officer_a",
+    "D": 1.2,
+    "gap": 0.088,
+    "shift": 0.145,
+    "turnDeg": 26.2,
+    "minGap": 0.613,
+    "restShift": 0
+   },
+   {
+    "move": "officer_a",
+    "D": 1.6,
+    "gap": 0.092,
+    "shift": 0.545,
+    "turnDeg": 26.2,
+    "minGap": 0.61,
+    "restShift": 0
+   },
+   {
+    "move": "officer_a",
+    "D": 2.25,
+    "gap": 0.195,
+    "shift": 0.9,
+    "turnDeg": 26.2,
+    "minGap": 0.85,
+    "restShift": 0
+   },
+   {
+    "move": "officer_b",
+    "D": 1.2,
+    "gap": 0.018,
+    "shift": 0.207,
+    "turnDeg": -0.7,
+    "minGap": 0.8,
+    "restShift": 0
+   },
+   {
+    "move": "officer_b",
+    "D": 1.6,
+    "gap": 0.018,
+    "shift": 0.193,
+    "turnDeg": -0.7,
+    "minGap": 1.089,
+    "restShift": 0
+   },
+   {
+    "move": "officer_b",
+    "D": 2.25,
+    "gap": 0.018,
+    "shift": 0.843,
+    "turnDeg": -0.7,
+    "minGap": 1.089,
+    "restShift": 0
+   },
+   {
+    "move": "officer_c",
+    "D": 1.2,
+    "gap": 0.034,
+    "shift": 0.209,
+    "turnDeg": -41.1,
+    "minGap": 0.72,
+    "restShift": 0
+   },
+   {
+    "move": "officer_c",
+    "D": 1.6,
+    "gap": 0.065,
+    "shift": 0.001,
+    "turnDeg": -40.1,
+    "minGap": 0.8,
+    "restShift": 0
+   },
+   {
+    "move": "officer_c",
+    "D": 2.45,
+    "gap": 0.095,
+    "shift": 0.769,
+    "turnDeg": -39.3,
+    "minGap": 1.071,
+    "restShift": 0
+   }
+  ],
+  "wall": {
+   "blocked": "wall",
+   "penetration": 0,
+   "maxShift": 0,
+   "wallGap": 6.7208961843576045
+  },
+  "slope": {
+   "found": true,
+   "freeAlong": 0.7999999999999972,
+   "overshoot": -0.2380295344925365
+  },
+  "bystander": {
+   "nearest": 0.7199999999999994,
+   "maxShift": 0.30000000000000004
+  },
+  "calm": {
+   "gap": 0.03086875489136873,
+   "shift": 0.8159995704468033,
+   "turnDeg": 0.0492231661658934,
+   "stop": true,
+   "restShift": 0,
+   "restTurn": 0,
+   "minGap": 1.035201549298268
+  }
+ },
+ "fails": []
+}

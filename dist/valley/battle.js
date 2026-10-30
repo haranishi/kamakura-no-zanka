@@ -8,9 +8,15 @@ import { makeArrow } from './weapons.js';
 import { STORY } from './story-data.js';
 import { FEEL, AUDIO_NOISE } from './config.js';
 import { yawOf, dist2 } from './actors.js';
+import { TRAIL, trailStyleFor, inTrailWindow } from './slash-trail.js';
+import { STRIKE, strikePoint, entryPoint, clashPoint, closestSegments, pushDirection } from './clash.js';
 
 const GRAVITY = 9.8;
 const _a = new THREE.Vector3(), _b = new THREE.Vector3(), _up = new THREE.Vector3(0, 1, 0), _q = new THREE.Quaternion();
+// 刀の枠（握りが原点・刃は +Y の 0.16〜0.88m）の上の点の世界位置（当たりの瞬間に1回だけ使うので、配列を作ってよい）
+const bladeAt = (holder, y) => { holder.updateWorldMatrix(true, false); const e = holder.matrixWorld.elements; return [e[4] * y + e[12], e[5] * y + e[13], e[6] * y + e[14]]; };
+// 予兆の光（8.3a 第2周）：金色の脈動。刃の帯（白〜青白・一瞬）と、色（赤＞緑＞青）と動き（明滅）で分ける
+const GLINT = { color: [1, 0.78, 0.34], pulse: 2.5 };
 
 export class Battle {
   constructor(game) {
@@ -28,59 +34,98 @@ export class Battle {
     this.updateArrows(dt);
     this.updateAimLines();
     this.updateGlints(dt);
+    this.dimBlades();
+    this.updateTrails();
   }
 
   // ---------------------------------------------------------------- 近接
+  // swing は、その振りの技の1回ぶん（刃の軌跡の持ち主）。弾かれると論理が技を消すので、当たりの判定の前に控えておく
   resolveMelee() {
     const g = this.g, hero = g.hero, hf = hero.fighter;
     if (hf.alive && hf.state === 'attack' && hf.move?.phase === 'active') {
+      const swing = hf.move;
       for (const e of g.enemies) {
         if (!e.fighter.alive || e.departed || e.brain.state === 'surrendered') continue;
         const res = strike(hf, e.fighter);
-        if (res) this.onStrike(hero, e, res);
+        if (res) this.onStrike(hero, e, res, { swing });
       }
     }
     for (const e of g.enemies) {
       const f = e.fighter;
       if (!f.alive || e.departed || f.state !== 'attack' || f.move?.phase !== 'active' || MOVES[f.move.id].kind === 'shot') continue;
       if (e.brain.state === 'retreat' || e.brain.state === 'surrendered') continue;       // 背を向けた兵の振りは当たらない
-      if (hf.alive && !g.heroProtected()) { const res = strike(f, hf); if (res) this.onStrike(e, hero, res); }
+      const swing = f.move;
+      if (hf.alive && !g.heroProtected()) { const res = strike(f, hf); if (res) this.onStrike(e, hero, res, { swing }); }
       const ally = g.ally;
-      if (ally?.inParty && !ally.down) { const res = strike(f, ally.fighter); if (res) this.onStrike(e, ally, res); }
+      if (ally?.inParty && !ally.down) { const res = strike(f, ally.fighter); if (res) this.onStrike(e, ally, res, { swing }); }
     }
   }
 
-  onStrike(att, def, res, { arrow = false } = {}) {
-    const g = this.g, pos = def.chest(); pos.y += 0.1;
+  // 当たった点と刃の進む向き（8.3a 第2周）。点は、相手の刃の中ほど〜切先と、受けた人の胴の軸（胸の骨 Spine02 の上下）の最も近い所
+  // （刃が胴の外なら、胴の表面の刃の側。clash.js）。向きは、帯の切先の最新の速度（帯が無ければ null＝放射状）。矢と刀の無い者は胸のまま。
+  // push は、ひるみ（見た目だけ）の押す向き：相手から自分へ＋刃の進む向き。
+  strikeGeometry(att, def, swing, arrow) {
+    const pos = def.chest(); pos.y += 0.1;
+    const v = !arrow && this.g.fx.trails.velocityOf(swing), travel = v ? [v[0], v[1], v[2]] : null;
+    const out = { pos, travel, push: pushDirection(att.pos.x, att.pos.z, def.pos.x, def.pos.z, travel), inside: false };
+    const w = att.character?.weapons?.tachiDrawn, spine = def.character?.bones.get('Spine02');
+    if (arrow || !w || !w.holder.visible || !spine) return out;
+    spine.getWorldPosition(_a);
+    const low = [_a.x, _a.y - STRIKE.torsoHalf, _a.z], high = [_a.x, _a.y + STRIKE.torsoHalf, _a.z], tip = bladeAt(w.holder, 0.88);
+    const s = strikePoint(bladeAt(w.holder, 0.52), tip, low, high);
+    // 第3周：刃が胴の中まで届いたら、火花は刃が胴の表面へ入る点（手元からたどる）に置く。胴の中の点では体に埋もれて見えなかった
+    const e = s.inside ? entryPoint(bladeAt(w.holder, 0.16), tip, low, high) : null, p = e || s.point;
+    out.pos = { x: p[0], y: p[1], z: p[2] }; out.inside = s.inside; out.entry = !!e;
+    return out;
+  }
+  // 弾き（8.3a 第2周）：主人公の刀を相手の刃へ伸ばして打ち合わせ（sword-rig.js の clash。見た目だけ）、打ち合った点を返す。
+  // 点は、相手の刃の上で主人公の右肩に最も近い所。合わせたあとの2本の刃の最も近い2点の中ほどに火花を置く。
+  parryClash(att, def) {
+    const wa = att.character?.weapons?.tachiDrawn, wd = def.character?.weapons?.tachiDrawn, rig = def.character?.sword, sh = def.character?.bones.get('RightArm');
+    if (!wa || !wd || !rig?.clash || !sh || !wa.holder.visible || !wd.holder.visible) return null;
+    const root = bladeAt(wa.holder, 0.16), tip = bladeAt(wa.holder, 0.88);
+    sh.getWorldPosition(_a);
+    rig.clash(clashPoint(root, tip, [_a.x, _a.y, _a.z]));
+    const c = closestSegments(root, tip, bladeAt(wd.holder, 0.16), bladeAt(wd.holder, 0.88));
+    this.lastClash = { gap: c.d };                                  // 検査用：打ち合ったときの2本の刃の距離（m）
+    return { x: (c.p[0] + c.q[0]) / 2, y: (c.p[1] + c.q[1]) / 2, z: (c.p[2] + c.q[2]) / 2 };
+  }
+
+  onStrike(att, def, res, { arrow = false, swing = null } = {}) {
+    const g = this.g, geo = this.strikeGeometry(att, def, swing, arrow), pos = geo.pos;
     const dx = def.pos.x - att.pos.x, dz = def.pos.z - att.pos.z, dl = Math.hypot(dx, dz) || 1, dir = { x: dx / dl, z: dz / dl };
     const pan = g.pan(def.pos), heroDef = def === g.hero, heroAtt = att === g.hero;
     switch (res.outcome) {
       case 'hit': case 'stealth': {
         if (res.outcome === 'stealth' && heroAtt) { g.stats.stealth++; if (!res.dead) def.stealthStruck = true; }       // 闇討ちで倒れなかった侍大将が気づく反応は、「見つかった」に数えない
         const strong = res.moveId === 'heavy' || res.moveId === 'finisher' || res.outcome === 'stealth' || res.damage >= 20;
-        g.fx.hit(pos, dir, { strong });
-        g.audio.play(arrow ? 'arrow_hit' : strong ? 'hit_heavy' : 'hit', { pan });
+        // 三段目（締めの一撃）：規則では強い技（combat.js の STRONG）。停止の長さ（時間の進み）は変えず、火花・音・揺れだけを強い側へ寄せる（8.3a）
+        const finale = !strong && res.moveId === 'light3';
+        g.fx.hit(pos, dir, { strong: strong || finale, travel: geo.travel });
+        g.audio.play(arrow ? 'arrow_hit' : strong || finale ? 'hit_heavy' : 'hit', { pan });
         g.hitStop(strong ? FEEL.hitStop.heavy : FEEL.hitStop.hit);
         if (heroDef) { g.rig.kick(0.7); g.rig.punchFov(1.8); g.hud.hurt(); g.hud.hint('dodge', STORY.hints.dodge); }
-        else if (heroAtt) { g.rig.kick(strong ? 0.5 : 0.25); g.rig.punchFov(strong ? 1.6 : 0.8); }
+        else if (heroAtt) { g.rig.kick(strong ? 0.5 : finale ? 0.42 : 0.25); g.rig.punchFov(strong ? 1.6 : finale ? 1.3 : 0.8); }
         break;
       }
       case 'blocked':
-        g.fx.hit(pos, dir, { blocked: true });
+        g.fx.hit(pos, dir, { blocked: true, travel: geo.travel });
         g.audio.play(arrow ? 'arrow_hit' : 'block', { pan });
         g.hitStop(FEEL.hitStop.hit * 0.8);
         if (heroDef) { g.rig.kick(0.35); g.hud.hint('parry', STORY.hints.parry); }
         break;
-      case 'parried':
+      case 'parried': {
         if (heroDef) g.stats.parries++;
-        g.fx.parry(pos);
+        const at = (!arrow && this.parryClash(att, def)) || pos;     // 刃同士が触れる点（8.3a 第2周）
+        g.fx.parry(at, dir, g.fx.trails.velocityOf(swing));             // 火花は、弾かれた刃が逸れる向きへ（8.3a）
         g.audio.play('parry', { pan });
         g.hitStop(FEEL.hitStop.parry);
         if (heroDef) { g.rig.kick(0.5); g.rig.punchFov(3.2); g.hud.toast('弾いた', 900); g.hud.hint('finisher', STORY.hints.finisher); }
         break;
+      }
       default: return;
     }
-    def.onHit?.(res, att);
+    def.onHit?.(res, att, geo);
     if (res.outcome === 'parried') {
       att.onHit?.(res, def);
       if (att.brain) adjustMorale(att.brain, FEEL.parriedMorale, 'parried');
@@ -141,7 +186,7 @@ export class Battle {
       const f = actor.fighter;
       if (!f.alive || f.state !== 'attack' || f.move?.id !== id) return;
       const p = actor.chest(), fx = -Math.sin(actor.yaw), fz = -Math.cos(actor.yaw);
-      g.fx.add.emit({ pos: [p.x + fx * 0.55, p.y + 0.4, p.z + fz * 0.55], vel: [0, 0, 0], life: 0.17, size: 0.4, sizeEnd: 0.12, color: [1, 0.88, 0.6], alpha: 0.9 });          // 胸の前の閃光は小さく（大きいと敵の胴が白く飛んだ）
+      g.fx.add.emit({ pos: [p.x + fx * 0.55, p.y + 0.4, p.z + fz * 0.55], vel: [0, 0, 0], life: 0.17, size: 0.4, sizeEnd: 0.12, color: GLINT.color, alpha: 0.9 });          // 胸の前の閃光は小さく（大きいと敵の胴が白く飛んだ）
       g.audio.play('alert', { gain: 0.55, pan: g.pan(actor.pos), pitch: 1.5 });
       this.glints.push({ actor, t: 0.34 });
       if (dist2(actor.pos, g.hero.pos) < 16) {
@@ -156,16 +201,65 @@ export class Battle {
     for (let i = this.glints.length - 1; i >= 0; i--) {
       const gl = this.glints[i]; gl.t -= dt;
       const w = gl.actor.character?.weapons?.tachiDrawn || gl.actor.character?.weapons?.naginata;
-      if (gl.t <= 0 || !w || !w.holder.visible || !gl.actor.fighter.alive) { this.glints.splice(i, 1); continue; }
+      // 振りが始まったら新しい光の粒を足さない。予兆は「振る前」、刃の軌跡は「振っている間」と時機を分ける（8.3a）。
+      // 第2周：帯を出し始める所（接触＝判定の始めの0.08秒前）で止める。予備の終わりまで出すと、突きの振り出しに金色が重なり、突きの光の線が埋もれた
+      const mv = gl.actor.fighter.move;
+      if (gl.t <= 0 || !w || !w.holder.visible || !gl.actor.fighter.alive || mv?.phase !== 'windup' || mv.t >= MOVES[mv.id].windup - TRAIL.lead) { this.glints.splice(i, 1); continue; }
       const len = w === gl.actor.character.weapons.naginata ? 1.7 : 0.95;
       w.holder.updateWorldMatrix(true, false);
-      // 細かい光の粒を、間隔より大きく重ねて刃に沿った一本の線にする（粒が離れると「白い玉の数珠」に見えた）。切先ほど明るく太い
+      // 細かい光の粒を、間隔より大きく重ねて刃に沿った一本の線にする（粒が離れると「白い玉の数珠」に見えた）。切先ほど明るく太い。
+      // 金色で、明滅する（予兆の0.34秒に約2.5回。8.3a 第2周）。粒の寿命は短く、明滅が粒の重なりで消えないようにする
+      const beat = 0.35 + 0.65 * Math.pow(0.5 + 0.5 * Math.cos((0.34 - gl.t) * GLINT.pulse * 2 * Math.PI), 2);
       for (let k = 0; k < 22; k++) {
         const t = 0.2 + k * 0.04;
         _a.set(0, t * len, 0); w.holder.localToWorld(_a);
-        g.fx.add.emit({ pos: [_a.x, _a.y, _a.z], vel: [0, 0, 0], life: 0.12, size: 0.05 + 0.07 * t, sizeEnd: 0.02, color: [1, 0.92, 0.68], alpha: 0.5 + 0.4 * t });
+        g.fx.add.emit({ pos: [_a.x, _a.y, _a.z], vel: [0, 0, 0], life: 0.07, size: (0.05 + 0.07 * t) * (0.7 + 0.3 * beat), sizeEnd: 0.02, color: GLINT.color, alpha: (0.5 + 0.4 * t) * beat });
       }
     }
+  }
+  // 敵の刃の照り返し（8.3a 第2周）：夕日の直射を映した鋼が、戻りや構えの間にも金色ににじみ（ブルーム）、予兆と見分けがつかなかった。
+  // 予兆の間（刃の光の粒を出している間）だけ元の鋼、ほかは地の色を #9a9a9a へ落としてにじまない明るさにする
+  // （照り返しの強さ・粗さだけでは直射の光沢が残った。戻りの0.87秒のコマで撮り比べた）。材質は人物ごとに1つ。見た目だけ。
+  dimBlades() {
+    const glinting = this.glintActors || (this.glintActors = new Set());
+    glinting.clear(); for (const gl of this.glints) glinting.add(gl.actor);
+    const mats = this.bladeMats || (this.bladeMats = new WeakMap());
+    for (const e of this.g.enemies) {
+      const w = e.character?.weapons?.tachiDrawn;
+      if (!w) continue;
+      let m = mats.get(w);
+      if (m === undefined) { m = w.object.getObjectByName('blade')?.material || null; mats.set(w, m); }
+      if (!m) continue;
+      const lit = glinting.has(e), u = m.userData;
+      if (u.lit === lit) continue;
+      if (!u.steel) u.steel = { color: m.color.getHex(), roughness: m.roughness, env: m.envMapIntensity };
+      u.lit = lit; m.color.setHex(lit ? u.steel.color : 0x9a9a9a); m.roughness = lit ? u.steel.roughness : 0.38; m.envMapIntensity = lit ? u.steel.env : 0.6;
+    }
+  }
+
+  // ---------------------------------------------------------------- 刃の軌跡（8.3a）
+  // 振りの間（接触＝判定の始めの0.08秒前〜判定の終わり。戻りには足さない）、刀の帯のサンプルを足す。帯の持ち主は技の1回ぶん（f.move）。
+  // 刀が見えない・抜刀納刀の層が動いている・死んだ・離脱した・区間の外のコマは足さない（足さなかった帯は閉じて0.05秒で消える）。時刻はゲーム内の秒。
+  updateTrails() {
+    const g = this.g, trails = g.fx.trails;
+    trails.clock[0] = g.time;
+    this.trailActor(g.hero, trails);
+    for (const e of g.enemies) this.trailActor(e, trails);
+    trails.update(g.camera);
+  }
+  trailActor(actor, trails) {
+    const f = actor.fighter, ch = actor.character, w = ch?.weapons?.tachiDrawn;
+    if (!w || !f?.alive || actor.departed || !w.holder.visible || ch.sword?.active) return;
+    if (f.state === 'attack' && f.move) {
+      const m = MOVES[f.move.id], style = m.kind === 'melee' && inTrailWindow(m, f.move.t) ? trailStyleFor(m.id, f.team) : null;
+      if (style) trails.sample(f.move, style, w.holder);
+      return;
+    }
+    const cue = actor.trailCue;                              // 闇討ち：論理の技ではない演出の時間割（actors.js の tryInteract）
+    if (!cue) return;
+    const t = this.g.time - cue.t0;
+    if (t > cue.windup + cue.active + 1) { actor.trailCue = null; return; }
+    if (inTrailWindow(cue, t)) trails.sample(cue, trailStyleFor('stealth', f.team), w.holder);
   }
 
   // ---------------------------------------------------------------- 矢

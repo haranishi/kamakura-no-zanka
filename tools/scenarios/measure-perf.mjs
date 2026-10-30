@@ -6,6 +6,8 @@ import { summarize, judgeRun } from '../../dist/valley/perf-stats.js';
 
 export default async function ({ page, out, start, freeze, log }) {
   const scene = process.env.PERF_SCENE || 'move', run = Number(process.env.PERF_RUN || 1);
+  // 8.3a：PERF_TRAILS=off で刃の軌跡を止めて比べる（同じ手順の前後比較用）。軌跡の処理時間（毎コマのms）は常に測って残す
+  const trails = process.env.PERF_TRAILS === 'off' ? 'off' : 'on';
   if (!['move', 'combat'].includes(scene) || ![1, 2].includes(run)) throw Error('PERF_SCENE=move|combat PERF_RUN=1|2 required');
   let power = '取得不可（macOS以外）';
   if (process.platform === 'darwin') {
@@ -14,7 +16,7 @@ export default async function ({ page, out, start, freeze, log }) {
     catch { power = 'pmset -g batt 失敗（測定は続行）'; }
   }
   await start('new'); await freeze(true);
-  const result = await page.evaluate(async ({ scene, run }) => {
+  const result = await page.evaluate(async ({ scene, run, trails }) => {
     const qa = window.__valley, g = qa.game;
     const [{ mulberry32 }, { createWind }, { createQuest, reduce }, { MOVES }] = await Promise.all([
       import('/valley/scatter.js'), import('/valley/wind.js'), import('/valley/quest.js'), import('/valley/combat.js')]);
@@ -46,6 +48,7 @@ export default async function ({ page, out, start, freeze, log }) {
       g.rng = mulberry32(SEED); Math.random = mulberry32(SEED); g.wind = createWind();
       // 暖機中の粒・軌跡を残さず、GPU側の作成済み資源は保持。
       for (const cloud of [g.fx.add, g.fx.norm]) { cloud.count = 0; cloud.geometry.setDrawRange(0, 0); }
+      g.fx.trails?.clear?.(); trailMs.length = 0;
       g.quest = createQuest();
       for (const event of [{ type: 'enter_zone', zone: 'temple_yard' }, { type: 'dialogue_end', id: 'boy_arrives' },
         ...(scene === 'combat' ? [{ type: 'arrived', place: 'viewpoint' }, { type: 'choose_plan', plan: 'front' }, { type: 'enter_zone', zone: 'village_front' }] : [])]) g.quest = reduce(g.quest, event).state;
@@ -67,6 +70,9 @@ export default async function ({ page, out, start, freeze, log }) {
       g.veg.trees.last.set(Infinity, Infinity); g.updateWorld(0); // LODも初期位置へ戻す
     }
     const input = (kind, detail = {}) => inputs.push({ frame, kind, ...detail });
+    // 刃の軌跡の処理時間（battle.updateTrails の1コマぶん）。止めるときは、何もしない関数に替える
+    const trailMs = [], realTrails = g.battle.updateTrails?.bind(g.battle);
+    if (realTrails) g.battle.updateTrails = trails === 'off' ? () => {} : () => { const t0 = performance.now(); realTrails(); trailMs.push(performance.now() - t0); };
     function driveMove() {
       let p = route[target], h = g.hero.pos;
       if (Math.hypot(p.x - h.x, p.z - h.z) < ARRIVAL) {
@@ -131,18 +137,20 @@ export default async function ({ page, out, start, freeze, log }) {
       const initial = { hero: { ...g.hero.pos }, beat: g.quest.beat, route, initialIndex, direction, enemies: enemyInitial };
       const begin = performance.now(), samples = qa.perfSamples(FRAMES, DT), seconds = (performance.now() - begin) / 1000;
       if (scene === 'combat' && (!inputs.some(i => i.kind === 'move-started' && i.move === 'light3') || !inputs.some(i => i.kind === 'block'))) throw Error('weak triple/block cycle not observed');
+      const sortedTrail = [...trailMs].sort((a, b) => a - b), q = p => sortedTrail.length ? sortedTrail[Math.max(0, Math.ceil(p * sortedTrail.length) - 1)] : null;
+      const trailCost = { trails, frames: trailMs.length, meanMs: trailMs.length ? trailMs.reduce((a, b) => a + b, 0) / trailMs.length : null, p95Ms: q(0.95), maxMs: q(1) };
       if (samples.w !== 1280 || samples.h !== 720 || samples.dpr !== 1) throw Error('render resolution contract violated');
-      return { scene, run, seed: SEED, environment, initial, variation: run === 1 ? '基準開始点・正順' : scene === 'move' ? '道筋の中点・逆順開始' : '正面入口内側(-32,-8)開始',
+      return { scene, run, seed: SEED, environment, initial, trailCost, variation: run === 1 ? '基準開始点・正順' : scene === 'move' ? '道筋の中点・逆順開始' : '正面入口内側(-32,-8)開始',
         warmup: { frames: WARM, seconds: warmSeconds, excluded: true }, seconds, samples, inputs, positions, refills, chunkSwaps: swaps, endpointTurns: laps,
         instrumentation: 'game.update内に入力制御・記録・補充を含む。grass.children.visibleの入替を計数（視錐台除外・新規生成の回数ではない）。',
         scope: 'このOS・Chrome・GPU・電源・ヘッドレスの条件だけ。他端末へ当てはめない。' };
-    } finally { g.update = originalUpdate; g.updateZones = originalZones; g.reportDown = originalReport; Math.random = originalRandom; g.input.clear(); }
-  }, { scene, run });
+    } finally { g.update = originalUpdate; g.updateZones = originalZones; g.reportDown = originalReport; Math.random = originalRandom; g.input.clear(); if (realTrails) delete g.battle.updateTrails; }
+  }, { scene, run, trails });
   result.environment.os = { platform: os.platform(), release: os.release(), arch: os.arch(), cpu: os.cpus()[0]?.model || 'unknown' };
   result.environment.chromeVersion = page.context().browser().version(); result.environment.power = power;
   result.quality = result.samples.quality;
   result.summary = { ms: summarize(result.samples.ms), calls: summarize(result.samples.calls), tris: summarize(result.samples.tris) };
   result.judgement = judgeRun(result.samples, result.quality);
   await fs.writeFile(path.join(out, 'samples.json'), JSON.stringify(result, null, 2) + '\n');
-  log(JSON.stringify({ scene, run, quality: result.quality, seconds: result.seconds, ...result.judgement }));
+  log(JSON.stringify({ scene, run, quality: result.quality, seconds: result.seconds, ...result.judgement, trailCost: result.trailCost }));
 }
