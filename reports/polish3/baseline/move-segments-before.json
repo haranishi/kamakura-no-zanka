@@ -1,0 +1,305 @@
+{
+  "target": {
+    "minRatio": 0.6,
+    "maxSpeed": 1.8
+  },
+  "notes": [
+    "MOVES の時間割と MOVE_CLIPS を segmentFor に渡した静的計算。目標判定は丸め前の使用割合と基準倍率で行う。",
+    "actors.js の EnemyActor: this.character.rate = 0.94 + (h % 9) * 0.015; / hashId は符号なし整数。余り0〜8の理論範囲であり、配置済み個体の実測ではない。",
+    "characters.js は rate=1 で初期化し、mixer.update(dt * this.rate) で全動作へ適用。敵技 soldier_・officer_・archer_shot に個体差を適用し、主人公と ally_shot は1倍。",
+    "実プレイの割り込み・混合・停止は未測定。actors.js の tryInteract は闇討ちで finisher に別時間割を渡すため、その演出の区間も対象外。"
+  ],
+  "moves": [
+    {
+      "id": "light1",
+      "clip": "Katana_Kesa_Cut",
+      "clipSeconds": 2.47,
+      "moveSeconds": 0.53,
+      "from": 0.51,
+      "to": 1.22,
+      "usedSeconds": 0.71,
+      "speed": 1.34,
+      "ratio": 0.288,
+      "approximate": false,
+      "fixedSegment": false,
+      "effectiveSpeedMin": 1.34,
+      "effectiveSpeedMax": 1.34,
+      "meetsTarget": false
+    },
+    {
+      "id": "light2",
+      "clip": "Katana_Gyakukesa_Cut",
+      "clipSeconds": 1.97,
+      "moveSeconds": 0.53,
+      "from": 0,
+      "to": 0.97,
+      "usedSeconds": 0.97,
+      "speed": 1.78,
+      "ratio": 0.491,
+      "approximate": false,
+      "fixedSegment": false,
+      "effectiveSpeedMin": 1.78,
+      "effectiveSpeedMax": 1.78,
+      "meetsTarget": false
+    },
+    {
+      "id": "light3",
+      "clip": "Katana_Yokonagi_Cut",
+      "clipSeconds": 2.47,
+      "moveSeconds": 0.78,
+      "from": 0.23,
+      "to": 1.53,
+      "usedSeconds": 1.3,
+      "speed": 1.67,
+      "ratio": 0.527,
+      "approximate": false,
+      "fixedSegment": false,
+      "effectiveSpeedMin": 1.67,
+      "effectiveSpeedMax": 1.67,
+      "meetsTarget": false
+    },
+    {
+      "id": "heavy",
+      "clip": "Katana_Karatake_Heavy",
+      "clipSeconds": 2.97,
+      "moveSeconds": 1.09,
+      "from": 0.22,
+      "to": 1.73,
+      "usedSeconds": 1.52,
+      "speed": 1.39,
+      "ratio": 0.511,
+      "approximate": false,
+      "fixedSegment": false,
+      "effectiveSpeedMin": 1.39,
+      "effectiveSpeedMax": 1.39,
+      "meetsTarget": false
+    },
+    {
+      "id": "finisher",
+      "clip": "Katana_Finisher",
+      "clipSeconds": 3.47,
+      "moveSeconds": 1,
+      "from": 2.3,
+      "to": 3.47,
+      "usedSeconds": 1.17,
+      "speed": 2,
+      "ratio": 0.337,
+      "approximate": false,
+      "fixedSegment": false,
+      "effectiveSpeedMin": 2,
+      "effectiveSpeedMax": 2,
+      "meetsTarget": false
+    },
+    {
+      "id": "counter",
+      "clip": "Katana_Counter_Cut",
+      "clipSeconds": 1.97,
+      "moveSeconds": 0.64,
+      "from": 0.27,
+      "to": 1.13,
+      "usedSeconds": 0.86,
+      "speed": 1.34,
+      "ratio": 0.436,
+      "approximate": false,
+      "fixedSegment": false,
+      "effectiveSpeedMin": 1.34,
+      "effectiveSpeedMax": 1.34,
+      "meetsTarget": false
+    },
+    {
+      "id": "soldier_slash",
+      "clip": "Attack_r1",
+      "clipSeconds": 2.8,
+      "moveSeconds": 1.37,
+      "from": 0.39,
+      "to": 1.87,
+      "usedSeconds": 1.48,
+      "speed": 1.1,
+      "ratio": 0.527,
+      "approximate": false,
+      "fixedSegment": false,
+      "effectiveSpeedMin": 1.03,
+      "effectiveSpeedMax": 1.17,
+      "meetsTarget": false
+    },
+    {
+      "id": "soldier_thrust",
+      "clip": "Katana_Thrust",
+      "clipSeconds": 1.97,
+      "moveSeconds": 1.6,
+      "from": 0,
+      "to": 0.91,
+      "usedSeconds": 0.91,
+      "speed": 0.6,
+      "ratio": 0.464,
+      "approximate": false,
+      "fixedSegment": false,
+      "effectiveSpeedMin": 0.56,
+      "effectiveSpeedMax": 0.64,
+      "meetsTarget": false
+    },
+    {
+      "id": "officer_a",
+      "clip": "Officer_Attack",
+      "clipSeconds": 2.8,
+      "moveSeconds": 0.77,
+      "from": 0.65,
+      "to": 1.43,
+      "usedSeconds": 0.78,
+      "speed": 1.1,
+      "ratio": 0.279,
+      "approximate": false,
+      "fixedSegment": false,
+      "effectiveSpeedMin": 1.03,
+      "effectiveSpeedMax": 1.17,
+      "meetsTarget": false
+    },
+    {
+      "id": "officer_b",
+      "clip": "Katana_Gyakukesa_Cut",
+      "clipSeconds": 1.97,
+      "moveSeconds": 0.82,
+      "from": 0,
+      "to": 0.67,
+      "usedSeconds": 0.67,
+      "speed": 0.67,
+      "ratio": 0.339,
+      "approximate": false,
+      "fixedSegment": false,
+      "effectiveSpeedMin": 0.63,
+      "effectiveSpeedMax": 0.71,
+      "meetsTarget": false
+    },
+    {
+      "id": "officer_c",
+      "clip": "Katana_Karatake_Heavy",
+      "clipSeconds": 2.97,
+      "moveSeconds": 1.39,
+      "from": 0.26,
+      "to": 1.92,
+      "usedSeconds": 1.66,
+      "speed": 1.19,
+      "ratio": 0.559,
+      "approximate": false,
+      "fixedSegment": false,
+      "effectiveSpeedMin": 1.12,
+      "effectiveSpeedMax": 1.26,
+      "meetsTarget": false
+    },
+    {
+      "id": "archer_shot",
+      "clip": "Archery_Shot",
+      "clipSeconds": 5,
+      "moveSeconds": 2.15,
+      "from": 2,
+      "to": 4.95,
+      "usedSeconds": 2.95,
+      "speed": 2.22,
+      "ratio": 0.59,
+      "approximate": false,
+      "fixedSegment": true,
+      "effectiveSpeedMin": 2.09,
+      "effectiveSpeedMax": 2.36,
+      "meetsTarget": false
+    },
+    {
+      "id": "ally_shot",
+      "clip": "Archery_Shot",
+      "clipSeconds": 5,
+      "moveSeconds": 2.15,
+      "from": 2,
+      "to": 4.95,
+      "usedSeconds": 2.95,
+      "speed": 2.22,
+      "ratio": 0.59,
+      "approximate": false,
+      "fixedSegment": true,
+      "effectiveSpeedMin": 2.22,
+      "effectiveSpeedMax": 2.22,
+      "meetsTarget": false
+    }
+  ],
+  "exceptions": [
+    {
+      "id": "light1",
+      "reasons": [
+        "ratio"
+      ]
+    },
+    {
+      "id": "light2",
+      "reasons": [
+        "ratio"
+      ]
+    },
+    {
+      "id": "light3",
+      "reasons": [
+        "ratio"
+      ]
+    },
+    {
+      "id": "heavy",
+      "reasons": [
+        "ratio"
+      ]
+    },
+    {
+      "id": "finisher",
+      "reasons": [
+        "ratio",
+        "speed"
+      ]
+    },
+    {
+      "id": "counter",
+      "reasons": [
+        "ratio"
+      ]
+    },
+    {
+      "id": "soldier_slash",
+      "reasons": [
+        "ratio"
+      ]
+    },
+    {
+      "id": "soldier_thrust",
+      "reasons": [
+        "ratio"
+      ]
+    },
+    {
+      "id": "officer_a",
+      "reasons": [
+        "ratio"
+      ]
+    },
+    {
+      "id": "officer_b",
+      "reasons": [
+        "ratio"
+      ]
+    },
+    {
+      "id": "officer_c",
+      "reasons": [
+        "ratio"
+      ]
+    },
+    {
+      "id": "archer_shot",
+      "reasons": [
+        "ratio",
+        "speed"
+      ]
+    },
+    {
+      "id": "ally_shot",
+      "reasons": [
+        "ratio",
+        "speed"
+      ]
+    }
+  ]
+}
