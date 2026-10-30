@@ -54,14 +54,17 @@ characters.jsでrateの適用も確認し、主人公と味方は1倍とする�
 
 3区間の技はゲームの時刻で動作を進めるので、敵の個体差（0.94〜1.06倍）が掛からない。実効倍率は基準倍率と同じになる。
 
+8.3a 第2周で、弓以外の11技を「接触（刃が相手の胴の高さを通って最も近づく動作の時刻・`MOVE_CONTACT`）が判定の始めに来る」折れ線にした（`moveSegment`）。
+道具も同じ `moveSegment` で切り出し、`contact`（動作の秒）と `contactVsJudgeMs`（接触が再生される時刻 − 判定の始め）を足した。山の時刻は折れ線の逆（`timeAtClip`）で求める。
+
 ```sh
-node tools/measure-move-segments.mjs --write reports/polish3/combat-trail/move-segments-after.json
+node tools/measure-move-segments.mjs --write reports/polish3/combat-trail/move-segments-after2.json
 node tools/measure-move-segments.mjs --compare reports/polish3/baseline/move-segments-before.json [--json]
 ```
 
 `--compare` は、前の記録と今の切り出しを技ごとに並べる（変わった項目・使用割合・倍速・山の時刻）。
 前の記録に山の時刻が無いときは、`segmentFor` が前の from・to・速さを再現できることを確かめてから、丸める前の値で計算する（再現できなければ approx に印）。
-`research-polish3.md` の表は前値なので、試験は今の記録ではなく `baseline/move-segments-before.json` と照らす。今の記録は `combat-trail/move-segments-after.json` と一致すること。
+`research-polish3.md` の表は前値なので、試験は今の記録ではなく `baseline/move-segments-before.json` と照らす。今の記録は `combat-trail/move-segments-after2.json` と一致すること（第1周の記録 `move-segments-after.json` は残す）。
 
 ## 動作の出所
 
