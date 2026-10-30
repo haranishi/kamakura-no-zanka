@@ -1,10 +1,11 @@
 // R18・8.0: 表示側の対応表と現行の純粋関数を使う。ゲームの規則は変更しない。
 // 8.3a: 振りの山を判定へ合わせ直す技（MOVE_SYNC）は3区間の速さで切り出すので、その区間・速さ・山の時刻も記録する。
+// 8.3a 第2周: 接触の動作の時刻（MOVE_CONTACT）を判定の始めへ置く技は折れ線で切り出すので、接触の時刻と判定の始めの差も記録する。
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { MOVES } from '../dist/valley/combat.js';
-import { MOVE_CLIPS, CLIP_SEGMENTS, MOVE_SYNC, segmentFor, syncedSegment } from '../dist/valley/anim-data.js';
+import { MOVE_CLIPS, CLIP_SEGMENTS, segmentFor, moveSegment, timeAtClip } from '../dist/valley/anim-data.js';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const read = name => fs.readFileSync(path.join(root, name), 'utf8');
@@ -29,15 +30,13 @@ export function actorRates(actors, characters) {
   };
 }
 
-// 技の切り出し（characters.js の playMove と同じ選び方）
-export function segmentOf(meta, id, timing) {
-  return MOVE_SYNC[id] ? syncedSegment(meta, timing, MOVE_SYNC[id]) : segmentFor(meta, timing, CLIP_SEGMENTS[MOVE_CLIPS[id].clip]);
-}
-// 手首の速さの山（meta.active）が再生される時刻（技の開始からの秒）。3区間の技は折れ線の点、1つの速さの技は (山 − from) ÷ 速さ。
+// 技の切り出し（characters.js の playMove と同じ選び方＝anim-data.js の moveSegment）
+export function segmentOf(meta, id, timing) { return moveSegment(id, meta, timing); }
+// 手首の速さの山（meta.active）が再生される時刻（技の開始からの秒）。折れ線の技は折れ線の逆、1つの速さの技は (山 − from) ÷ 速さ。
 // 弓（放ちを決め打ち）と、山の記録が無い動作は null。
 export function peakTimes(meta, segment, fixed) {
   if (fixed || !meta.active) return null;
-  if (segment.knots) return [segment.knots[1][0], segment.knots[2][0]];
+  if (segment.knots) return [timeAtClip(segment.knots, meta.active[0]), timeAtClip(segment.knots, meta.active[1])];
   return [(meta.active[0] - segment.from) / segment.speed, (meta.active[1] - segment.from) / segment.speed];
 }
 
@@ -56,7 +55,7 @@ export function measureMoveSegments() {
     if (ratio < 0.60) reasons.push('ratio');
     if (segment.speed > 1.8) reasons.push('speed');
     if (reasons.length) exceptions.push({ id, reasons });
-    // 3区間の技は、ゲームの時刻で動作を進めるので個体の速さが掛からない（characters.js の followWarp）
+    // 折れ線の技は、論理の技の経過で動作を進めるので個体の速さが掛からない（characters.js の followWarp）
     const rate = segment.knots ? [1, 1] : /^(soldier_|officer_)/.test(id) || id === 'archer_shot' ? rates.enemy : rates.other;
     const peak = peakTimes(meta, segment, !!override), end = timing.windup + timing.active;
     return { id, clip, clipSeconds: round(meta.seconds),
@@ -67,12 +66,14 @@ export function measureMoveSegments() {
       effectiveSpeedMax: rate ? round(segment.speed * rate[1]) : null, meetsTarget: reasons.length === 0,
       speeds: segment.speeds ? segment.speeds.map(x => round(x)) : null,
       peakStart: peak ? round(peak[0], 3) : null, peakEnd: peak ? round(peak[1], 3) : null,
-      peakStartVsJudgeMs: peak ? Math.round((peak[0] - timing.windup) * 1000) : null, peakEndVsJudgeEndMs: peak ? Math.round((peak[1] - end) * 1000) : null };
+      peakStartVsJudgeMs: peak ? Math.round((peak[0] - timing.windup) * 1000) : null, peakEndVsJudgeEndMs: peak ? Math.round((peak[1] - end) * 1000) : null,
+      contact: segment.contact ?? null, contactVsJudgeMs: segment.knots && segment.contact != null ? Math.round((timeAtClip(segment.knots, segment.contact) - timing.windup) * 1000) : null };
   });
   return { target: { minRatio: 0.60, maxSpeed: 1.8 },
     notes: ['MOVES の時間割と MOVE_CLIPS を、characters.js の playMove と同じ選び方（MOVE_SYNC の技は syncedSegment、ほかは segmentFor）で切り出した静的計算。目標判定は丸め前の使用割合と基準倍率（3区間の技は最大の速さ）で行う。',
       ...rates.notes,
-      '3区間の技（MOVE_SYNC）は、ゲームの時刻で動作を進めるので個体の速さが掛からない。実効倍率は基準倍率と同じ。',
+      '折れ線の技（MOVE_CONTACT・MOVE_SYNC）は、論理の技の経過で動作を進めるので個体の速さが掛からない。実効倍率は基準倍率と同じ。',
+      '接触（contact）は、刃の中ほど〜切先が相手の胴の高さを通って胴の点へ最も近づく動作の時刻（秒・measure-combat-trail.mjs の実測）。contactVsJudgeMs はそれが再生される時刻と判定の始めの差。',
       '山（peakStart・peakEnd）は手首の速さの山（clips.json の active）が再生される時刻（技の開始からの秒）。弓は放ちを決め打ちするので null。',
       '実プレイの割り込み・混合・停止は未測定。actors.js の tryInteract は闇討ちで finisher に別時間割を渡すため、その演出の区間も対象外。'],
     moves, exceptions };
@@ -98,11 +99,11 @@ export function compareMoveSegments(before, after) {
 }
 
 function markdown(report) {
-  const columns = ['id', 'clip', '動作秒', '技秒', 'from', 'to', '使用秒', '倍速', '使用割合', 'approximate', '決め打ち', '実効最小', '実効最大', 'meetsTarget', '3区間の速さ', '山の始め−判定の始め(ms)', '山の終わり−判定の終わり(ms)'];
+  const columns = ['id', 'clip', '動作秒', '技秒', 'from', 'to', '使用秒', '倍速', '使用割合', 'approximate', '決め打ち', '実効最小', '実効最大', 'meetsTarget', '区間ごとの速さ', '山の始め−判定の始め(ms)', '山の終わり−判定の終わり(ms)', '接触−判定の始め(ms)'];
   const n = value => value === null ? 'null' : value.toFixed(2);
   const rows = report.moves.map(m => [m.id, m.clip, n(m.clipSeconds), n(m.moveSeconds), n(m.from), n(m.to),
     n(m.usedSeconds), n(m.speed), m.ratio.toFixed(3), m.approximate, m.fixedSegment,
-    n(m.effectiveSpeedMin), n(m.effectiveSpeedMax), m.meetsTarget, m.speeds ? m.speeds.map(n).join('/') : '-', m.peakStartVsJudgeMs ?? '-', m.peakEndVsJudgeEndMs ?? '-']);
+    n(m.effectiveSpeedMin), n(m.effectiveSpeedMax), m.meetsTarget, m.speeds ? m.speeds.map(n).join('/') : '-', m.peakStartVsJudgeMs ?? '-', m.peakEndVsJudgeEndMs ?? '-', m.contactVsJudgeMs ?? '-']);
   return ['# 技の使用区間', '', '| ' + columns.join(' | ') + ' |', '| ' + columns.map(() => '---').join(' | ') + ' |',
     ...rows.map(row => '| ' + row.join(' | ') + ' |'), '',
     '目標: 使用割合 ≥ 0.60、基準倍率 ≤ 1.8（丸め前に判定）。', '', '例外:',

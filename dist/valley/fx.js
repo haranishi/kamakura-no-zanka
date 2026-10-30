@@ -2,7 +2,7 @@
 // 粒子はCPUで更新する小さな点群2つ（加算／通常）。血の表現は使わず、火花と光と土煙で重さを出す（requirements 6.5）。
 // 刃の軌跡は、帯のサンプル・寿命・頂点の並べ方を slash-trail.js（純粋）が決め、ここは1つのメッシュ（描画呼出1つ）へ流すだけ。
 import * as THREE from 'three';
-import { TRAIL_VERTS, TRAIL_INDICES, createTrailPool, addSample, closeUntouched, pruneTrails, buildRibbon, clearTrails, trailStats, trailVelocity } from './slash-trail.js';
+import { TRAIL_VERTS, TRAIL_INDICES, createTrailPool, addSample, closeUntouched, pruneTrails, buildRibbon, clearTrails, trailStats, trailVelocity, trailEdges } from './slash-trail.js';
 
 class PointCloud {
   constructor(max, additive) {
@@ -69,13 +69,15 @@ const rnd = (a, b) => a + Math.random() * (b - a);
 // 通常の半透明（加算にしない：白飛びと、敵の予兆の金色の光が埋もれるのを避ける）。深さは読むが書かない。毎コマの新規確保なし。
 const BLADE = { root: 0.16, tip: 0.88 };
 const TRAIL_VERT = 'attribute vec2 aUV; attribute vec4 aColor; varying vec2 vUV; varying vec4 vColor; void main(){ vUV = aUV; vColor = aColor; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }';
-// 新しい所ほど濃く、寿命へ向かって二乗で薄れる。幅の向きは、切先の道（外側の縁の少し内側）が最も濃く、根元側へ溶けて消える（板に見せない）。外の縁もぼかす。
+// 第2周：切先の道（外側の縁 v=1）に細く明るい芯を置き、内側へは素早く消す（芯の幅は帯の約16%）。内側には薄い光をわずかに残すだけ。
+// 新しい所ほど濃く、寿命へ向かって薄れる（2.2乗）。第1周は幅の外半分が濃く、停止のコマで乳白の板・柱に見えた。
 const TRAIL_FRAG = `varying vec2 vUV; varying vec4 vColor;
   void main(){
     float age = vUV.x, v = vUV.y;
-    float along = (1.0 - age) * (1.0 - age) * smoothstep(0.0, 0.06, age + 0.02);
-    float across = pow(smoothstep(0.0, 0.9, v), 1.6) * (1.0 - smoothstep(0.88, 1.0, v));
-    gl_FragColor = vec4(vColor.rgb, vColor.a * along * across);
+    float along = pow(1.0 - age, 2.2) * smoothstep(0.0, 0.05, age + 0.015);
+    float d = (1.0 - v) / 0.16;
+    float across = exp(-d * d) + 0.08 * v * v;
+    gl_FragColor = vec4(vColor.rgb, min(1.0, vColor.a * along * across));
   }`;
 export class SlashTrails {
   constructor(scene) {
@@ -89,21 +91,22 @@ export class SlashTrails {
     g.setDrawRange(0, 0);
     const m = new THREE.ShaderMaterial({ vertexShader: TRAIL_VERT, fragmentShader: TRAIL_FRAG, transparent: true, depthWrite: false, side: THREE.DoubleSide, blending: THREE.NormalBlending });
     this.mesh = new THREE.Mesh(g, m); this.mesh.frustumCulled = false; this.mesh.renderOrder = 4; this.mesh.visible = false; this.mesh.name = 'slash-trails';
-    this.geometry = g; this.shown = 0; this.vel = new Float64Array(3); this.edge = new Float64Array(6);
+    this.geometry = g; this.shown = 0; this.vel = new Float64Array(3); this.edge = new Float64Array(6); this.ys = new Float64Array(2);
     scene.add(this.mesh);
   }
   // 時刻（ゲーム内の秒）を書く配列。毎コマ、サンプルを足す前に clock[0] へ書く（引数で渡すと数の箱が作られる）
   get clock() { return this.pool.clock; }
-  // owner（技の1回ぶん）の刀の枠 holder から、帯の両縁（刃の inner と outer の点）の世界位置を足す
+  // owner（技の1回ぶん）の刀の枠 holder から、帯の両縁（刃の inner と outer の点。幅は上限まで）の世界位置を足す
   sample(owner, style, holder) {
     holder.updateWorldMatrix(true, false);
-    const e = holder.matrixWorld.elements, len = BLADE.tip - BLADE.root, y0 = BLADE.root + len * style.inner, y1 = BLADE.root + len * style.outer, p = this.edge;
+    const e = holder.matrixWorld.elements, ys = trailEdges(style, BLADE.root, BLADE.tip, this.ys), y0 = ys[0], y1 = ys[1], p = this.edge;
     p[0] = e[4] * y0 + e[12]; p[1] = e[5] * y0 + e[13]; p[2] = e[6] * y0 + e[14]; p[3] = e[4] * y1 + e[12]; p[4] = e[5] * y1 + e[13]; p[5] = e[6] * y1 + e[14];
     addSample(this.pool, owner, style, p);
   }
   // 1コマのサンプルを足し終えたら呼ぶ：足さなかった帯を閉じ、寿命を過ぎた所を捨てて、頂点を作り直す。
-  // 帯がある間だけGPUへ送る（全体で約47KB。範囲指定は three.js が毎回小さな物を作るので使わない）。
-  update() {
+  // 帯がある間だけGPUへ送る（全体で約40KB。範囲指定は three.js が毎回小さな物を作るので使わない）。camera は突きの光の線をカメラへ向ける。
+  update(camera = null) {
+    if (camera) { const c = camera.matrixWorld.elements; this.pool.camera[0] = c[12]; this.pool.camera[1] = c[13]; this.pool.camera[2] = c[14]; }
     closeUntouched(this.pool); pruneTrails(this.pool);
     const indices = buildRibbon(this.pool, this.out);
     if (indices > 0 || this.shown > 0) { for (let k = 0; k < this.attrs.length; k++) this.attrs[k].needsUpdate = true; this.index.needsUpdate = true; }
@@ -122,12 +125,21 @@ export class FX {
     this.trails = new SlashTrails(scene);
   }
 
-  // 刃が当たった所の火花と光。dir は当たった向き（x,z）
-  hit(pos, dir, { strong = false, blocked = false } = {}) {
-    const n = blocked ? 12 : strong ? 18 : 10;
+  // 刃が当たった所の火花と光。pos は刃が体を通る点、dir は当たった向き（x,z）。travel は刃の進む向き（あれば。長さは問わない）：
+  // 火花の8割を刃の進む向きの狭い円錐へ、残りを当たった向きへ散らす（8.3a 第2周。前は胸の中心から放射状で、刃の無い側にも散った）。粒の数は前と同じ。
+  hit(pos, dir, { strong = false, blocked = false, travel = null } = {}) {
+    const n = blocked ? 12 : strong ? 18 : 10, tl = travel ? Math.hypot(travel[0], travel[1], travel[2]) : 0;
+    const tx = tl > 1e-6 ? travel[0] / tl : 0, ty = tl > 1e-6 ? travel[1] / tl : 0, tz = tl > 1e-6 ? travel[2] / tl : 0;
     for (let i = 0; i < n; i++) {
-      const a = Math.random() * Math.PI * 2, sp = rnd(2.5, blocked ? 8 : 6.5), up = rnd(0.5, 3.5);
-      this.add.emit({ pos: [pos.x, pos.y, pos.z], vel: [Math.cos(a) * sp + dir.x * 2, up, Math.sin(a) * sp + dir.z * 2], life: rnd(0.18, 0.42), size: rnd(0.05, 0.1), sizeEnd: 0.01, color: blocked ? [1.0, 0.9, 0.6] : [1.0, 0.62, 0.22], alpha: 1, gravity: -7, drag: 1.5 });
+      let vx, vy, vz;
+      if (tl > 1e-6 && i < n * 0.8) {
+        const sp = rnd(4, blocked ? 9 : 8), rx = tx + rnd(-0.45, 0.45), ry = ty + rnd(-0.3, 0.45), rz = tz + rnd(-0.45, 0.45), rl = Math.hypot(rx, ry, rz) || 1;
+        vx = rx / rl * sp; vy = ry / rl * sp + rnd(0.3, 1.5); vz = rz / rl * sp;
+      } else {
+        const a = Math.random() * Math.PI * 2, sp = rnd(2.5, blocked ? 8 : 6.5);
+        vx = Math.cos(a) * sp + dir.x * 2; vy = rnd(0.5, 3.5); vz = Math.sin(a) * sp + dir.z * 2;
+      }
+      this.add.emit({ pos: [pos.x, pos.y, pos.z], vel: [vx, vy, vz], life: rnd(0.18, 0.42), size: rnd(0.05, 0.1), sizeEnd: 0.01, color: blocked ? [1.0, 0.9, 0.6] : [1.0, 0.62, 0.22], alpha: 1, gravity: -7, drag: 1.5 });
     }
     this.add.emit({ pos: [pos.x, pos.y, pos.z], vel: [0, 0, 0], life: 0.09, size: strong ? 0.6 : 0.38, sizeEnd: 0.1, color: blocked ? [1.0, 0.95, 0.8] : [1.0, 0.8, 0.5], alpha: 0.85 });
   }

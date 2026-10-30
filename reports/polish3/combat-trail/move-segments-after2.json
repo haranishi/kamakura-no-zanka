@@ -1,0 +1,446 @@
+{
+  "target": {
+    "minRatio": 0.6,
+    "maxSpeed": 1.8
+  },
+  "notes": [
+    "MOVES の時間割と MOVE_CLIPS を、characters.js の playMove と同じ選び方（MOVE_SYNC の技は syncedSegment、ほかは segmentFor）で切り出した静的計算。目標判定は丸め前の使用割合と基準倍率（3区間の技は最大の速さ）で行う。",
+    "actors.js の EnemyActor: this.character.rate = 0.94 + (h % 9) * 0.015; / hashId は符号なし整数。余り0〜8の理論範囲であり、配置済み個体の実測ではない。",
+    "characters.js は rate=1 で初期化し、mixer.update(dt * this.rate) で全動作へ適用。敵技 soldier_・officer_・archer_shot に個体差を適用し、主人公と ally_shot は1倍。",
+    "折れ線の技（MOVE_CONTACT・MOVE_SYNC）は、論理の技の経過で動作を進めるので個体の速さが掛からない。実効倍率は基準倍率と同じ。",
+    "接触（contact）は、刃の中ほど〜切先が相手の胴の高さを通って胴の点へ最も近づく動作の時刻（秒・measure-combat-trail.mjs の実測）。contactVsJudgeMs はそれが再生される時刻と判定の始めの差。",
+    "山（peakStart・peakEnd）は手首の速さの山（clips.json の active）が再生される時刻（技の開始からの秒）。弓は放ちを決め打ちするので null。",
+    "実プレイの割り込み・混合・停止は未測定。actors.js の tryInteract は闇討ちで finisher に別時間割を渡すため、その演出の区間も対象外。"
+  ],
+  "moves": [
+    {
+      "id": "light1",
+      "clip": "Katana_Kesa_Cut",
+      "clipSeconds": 2.47,
+      "moveSeconds": 0.53,
+      "from": 0.51,
+      "to": 1.22,
+      "usedSeconds": 0.71,
+      "speed": 1.68,
+      "ratio": 0.288,
+      "approximate": false,
+      "fixedSegment": false,
+      "effectiveSpeedMin": 1.68,
+      "effectiveSpeedMax": 1.68,
+      "meetsTarget": false,
+      "speeds": [
+        1.68,
+        1.68,
+        1.11
+      ],
+      "peakStart": 0.136,
+      "peakEnd": 0.216,
+      "peakStartVsJudgeMs": -34,
+      "peakEndVsJudgeEndMs": -54,
+      "contact": 0.79,
+      "contactVsJudgeMs": 0
+    },
+    {
+      "id": "light2",
+      "clip": "Katana_Gyakukesa_Cut",
+      "clipSeconds": 1.97,
+      "moveSeconds": 0.53,
+      "from": 0.11,
+      "to": 1.06,
+      "usedSeconds": 0.95,
+      "speed": 1.8,
+      "ratio": 0.485,
+      "approximate": false,
+      "fixedSegment": false,
+      "effectiveSpeedMin": 1.8,
+      "effectiveSpeedMax": 1.8,
+      "meetsTarget": false,
+      "speeds": [
+        1.8,
+        1.8,
+        1.8
+      ],
+      "peakStart": 0.087,
+      "peakEnd": 0.198,
+      "peakStartVsJudgeMs": -63,
+      "peakEndVsJudgeEndMs": -52,
+      "contact": 0.38,
+      "contactVsJudgeMs": 0
+    },
+    {
+      "id": "light3",
+      "clip": "Katana_Yokonagi_Cut",
+      "clipSeconds": 2.47,
+      "moveSeconds": 0.78,
+      "from": 0.25,
+      "to": 1.55,
+      "usedSeconds": 1.3,
+      "speed": 1.8,
+      "ratio": 0.527,
+      "approximate": false,
+      "fixedSegment": false,
+      "effectiveSpeedMin": 1.8,
+      "effectiveSpeedMax": 1.8,
+      "meetsTarget": false,
+      "speeds": [
+        1.8,
+        1.8,
+        1.59
+      ],
+      "peakStart": 0.177,
+      "peakEnd": 0.288,
+      "peakStartVsJudgeMs": -23,
+      "peakEndVsJudgeEndMs": -32,
+      "contact": 0.609,
+      "contactVsJudgeMs": 0
+    },
+    {
+      "id": "heavy",
+      "clip": "Katana_Karatake_Heavy",
+      "clipSeconds": 2.97,
+      "moveSeconds": 1.09,
+      "from": 0.22,
+      "to": 1.73,
+      "usedSeconds": 1.52,
+      "speed": 1.67,
+      "ratio": 0.511,
+      "approximate": false,
+      "fixedSegment": false,
+      "effectiveSpeedMin": 1.67,
+      "effectiveSpeedMax": 1.67,
+      "meetsTarget": false,
+      "speeds": [
+        1.67,
+        1.67,
+        1.2
+      ],
+      "peakStart": 0.351,
+      "peakEnd": 0.451,
+      "peakStartVsJudgeMs": -69,
+      "peakEndVsJudgeEndMs": -89,
+      "contact": 0.915,
+      "contactVsJudgeMs": 0
+    },
+    {
+      "id": "finisher",
+      "clip": "Katana_Finisher",
+      "clipSeconds": 3.47,
+      "moveSeconds": 1,
+      "from": 2.3,
+      "to": 3.47,
+      "usedSeconds": 1.17,
+      "speed": 2,
+      "ratio": 0.337,
+      "approximate": false,
+      "fixedSegment": false,
+      "effectiveSpeedMin": 2,
+      "effectiveSpeedMax": 2,
+      "meetsTarget": false,
+      "speeds": [
+        1.94,
+        2,
+        0.73
+      ],
+      "peakStart": 0.257,
+      "peakEnd": 0.357,
+      "peakStartVsJudgeMs": 7,
+      "peakEndVsJudgeEndMs": 7,
+      "contact": 2.785,
+      "contactVsJudgeMs": 0
+    },
+    {
+      "id": "counter",
+      "clip": "Katana_Counter_Cut",
+      "clipSeconds": 1.97,
+      "moveSeconds": 0.64,
+      "from": 0.27,
+      "to": 1.13,
+      "usedSeconds": 0.86,
+      "speed": 1.72,
+      "ratio": 0.436,
+      "approximate": false,
+      "fixedSegment": false,
+      "effectiveSpeedMin": 1.72,
+      "effectiveSpeedMax": 1.72,
+      "meetsTarget": false,
+      "speeds": [
+        1.72,
+        1.72,
+        1.2
+      ],
+      "peakStart": 0.093,
+      "peakEnd": 0.171,
+      "peakStartVsJudgeMs": -27,
+      "peakEndVsJudgeEndMs": -49,
+      "contact": 0.479,
+      "contactVsJudgeMs": 0
+    },
+    {
+      "id": "soldier_slash",
+      "clip": "Attack_r1",
+      "clipSeconds": 2.8,
+      "moveSeconds": 1.37,
+      "from": 0.39,
+      "to": 1.87,
+      "usedSeconds": 1.48,
+      "speed": 1.2,
+      "ratio": 0.527,
+      "approximate": false,
+      "fixedSegment": false,
+      "effectiveSpeedMin": 1.2,
+      "effectiveSpeedMax": 1.2,
+      "meetsTarget": false,
+      "speeds": [
+        1.2,
+        1.2,
+        0.99
+      ],
+      "peakStart": 0.506,
+      "peakEnd": 0.589,
+      "peakStartVsJudgeMs": -44,
+      "peakEndVsJudgeEndMs": -81,
+      "contact": 1.053,
+      "contactVsJudgeMs": 0
+    },
+    {
+      "id": "soldier_thrust",
+      "clip": "Katana_Thrust",
+      "clipSeconds": 1.97,
+      "moveSeconds": 1.6,
+      "from": 0,
+      "to": 0.91,
+      "usedSeconds": 0.91,
+      "speed": 1.8,
+      "ratio": 0.464,
+      "approximate": false,
+      "fixedSegment": false,
+      "effectiveSpeedMin": 1.8,
+      "effectiveSpeedMax": 1.8,
+      "meetsTarget": false,
+      "speeds": [
+        0.32,
+        1.8,
+        1.8,
+        0.57
+      ],
+      "peakStart": 0.624,
+      "peakEnd": 0.754,
+      "peakStartVsJudgeMs": -76,
+      "peakEndVsJudgeEndMs": -46,
+      "contact": 0.336,
+      "contactVsJudgeMs": 0
+    },
+    {
+      "id": "officer_a",
+      "clip": "Officer_Attack",
+      "clipSeconds": 2.8,
+      "moveSeconds": 0.77,
+      "from": 0.65,
+      "to": 1.43,
+      "usedSeconds": 0.78,
+      "speed": 1.17,
+      "ratio": 0.279,
+      "approximate": false,
+      "fixedSegment": false,
+      "effectiveSpeedMin": 1.17,
+      "effectiveSpeedMax": 1.17,
+      "meetsTarget": false,
+      "speeds": [
+        1.17,
+        1.17,
+        0.86
+      ],
+      "peakStart": 0.329,
+      "peakEnd": 0.386,
+      "peakStartVsJudgeMs": -21,
+      "peakEndVsJudgeEndMs": -84,
+      "contact": 1.058,
+      "contactVsJudgeMs": 0
+    },
+    {
+      "id": "officer_b",
+      "clip": "Katana_Gyakukesa_Cut",
+      "clipSeconds": 1.97,
+      "moveSeconds": 0.82,
+      "from": 0,
+      "to": 0.67,
+      "usedSeconds": 0.67,
+      "speed": 1.67,
+      "ratio": 0.339,
+      "approximate": false,
+      "fixedSegment": false,
+      "effectiveSpeedMin": 1.67,
+      "effectiveSpeedMax": 1.67,
+      "meetsTarget": false,
+      "speeds": [
+        0.81,
+        1.67,
+        1.67,
+        0.54
+      ],
+      "peakStart": 0.33,
+      "peakEnd": 0.45,
+      "peakStartVsJudgeMs": -70,
+      "peakEndVsJudgeEndMs": -70,
+      "contact": 0.383,
+      "contactVsJudgeMs": 0
+    },
+    {
+      "id": "officer_c",
+      "clip": "Katana_Karatake_Heavy",
+      "clipSeconds": 2.97,
+      "moveSeconds": 1.39,
+      "from": 0.26,
+      "to": 1.92,
+      "usedSeconds": 1.66,
+      "speed": 1.46,
+      "ratio": 0.559,
+      "approximate": false,
+      "fixedSegment": false,
+      "effectiveSpeedMin": 1.46,
+      "effectiveSpeedMax": 1.46,
+      "meetsTarget": false,
+      "speeds": [
+        1.46,
+        1.46,
+        1.05
+      ],
+      "peakStart": 0.368,
+      "peakEnd": 0.483,
+      "peakStartVsJudgeMs": -82,
+      "peakEndVsJudgeEndMs": -107,
+      "contact": 0.919,
+      "contactVsJudgeMs": 0
+    },
+    {
+      "id": "archer_shot",
+      "clip": "Archery_Shot",
+      "clipSeconds": 5,
+      "moveSeconds": 2.15,
+      "from": 2,
+      "to": 4.95,
+      "usedSeconds": 2.95,
+      "speed": 2.22,
+      "ratio": 0.59,
+      "approximate": false,
+      "fixedSegment": true,
+      "effectiveSpeedMin": 2.09,
+      "effectiveSpeedMax": 2.36,
+      "meetsTarget": false,
+      "speeds": null,
+      "peakStart": null,
+      "peakEnd": null,
+      "peakStartVsJudgeMs": null,
+      "peakEndVsJudgeEndMs": null,
+      "contact": null,
+      "contactVsJudgeMs": null
+    },
+    {
+      "id": "ally_shot",
+      "clip": "Archery_Shot",
+      "clipSeconds": 5,
+      "moveSeconds": 2.15,
+      "from": 2,
+      "to": 4.95,
+      "usedSeconds": 2.95,
+      "speed": 2.22,
+      "ratio": 0.59,
+      "approximate": false,
+      "fixedSegment": true,
+      "effectiveSpeedMin": 2.22,
+      "effectiveSpeedMax": 2.22,
+      "meetsTarget": false,
+      "speeds": null,
+      "peakStart": null,
+      "peakEnd": null,
+      "peakStartVsJudgeMs": null,
+      "peakEndVsJudgeEndMs": null,
+      "contact": null,
+      "contactVsJudgeMs": null
+    }
+  ],
+  "exceptions": [
+    {
+      "id": "light1",
+      "reasons": [
+        "ratio"
+      ]
+    },
+    {
+      "id": "light2",
+      "reasons": [
+        "ratio",
+        "speed"
+      ]
+    },
+    {
+      "id": "light3",
+      "reasons": [
+        "ratio"
+      ]
+    },
+    {
+      "id": "heavy",
+      "reasons": [
+        "ratio"
+      ]
+    },
+    {
+      "id": "finisher",
+      "reasons": [
+        "ratio",
+        "speed"
+      ]
+    },
+    {
+      "id": "counter",
+      "reasons": [
+        "ratio"
+      ]
+    },
+    {
+      "id": "soldier_slash",
+      "reasons": [
+        "ratio"
+      ]
+    },
+    {
+      "id": "soldier_thrust",
+      "reasons": [
+        "ratio"
+      ]
+    },
+    {
+      "id": "officer_a",
+      "reasons": [
+        "ratio"
+      ]
+    },
+    {
+      "id": "officer_b",
+      "reasons": [
+        "ratio"
+      ]
+    },
+    {
+      "id": "officer_c",
+      "reasons": [
+        "ratio"
+      ]
+    },
+    {
+      "id": "archer_shot",
+      "reasons": [
+        "ratio",
+        "speed"
+      ]
+    },
+    {
+      "id": "ally_shot",
+      "reasons": [
+        "ratio",
+        "speed"
+      ]
+    }
+  ]
+}

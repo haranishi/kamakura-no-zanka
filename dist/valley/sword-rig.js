@@ -12,6 +12,9 @@ const TWIST_BONES = [['Spine', 0.3], ['Spine01', 0.3], ['Spine02', 0.4]];
 // 左手が鞘を持つ位置（鞘の枠・鯉口 y=0.168 の少し先）。
 const LEFT_HOLD = [0.0, 0.26, 0.0];
 const SHRUG_MAX = THREE.MathUtils.degToRad(40);   // 肩甲骨を前へ出す最大の角度
+// 弾きの打ち合い（8.3a 第2周・見た目だけ）：hold 秒（ゲームの秒。命中の停止の間）保ち、fade 秒でもとの動作へ戻す。
+// 刃は右肩から打ち合う点への向きに置き、握りから at（m）の所がその点を通る。手は肩から minReach 以上離す。左手は柄頭（pommel）へ。
+const CLASH = { hold: 0.012, fade: 0.2, at: 0.62, minReach: 0.35, pommel: -0.1 };
 
 const V = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
 const arr = v => [v.x, v.y, v.z];
@@ -44,7 +47,7 @@ export class SwordRig {
   }
 
   setFrame(frame) { this.frame = frame || null; }
-  reset() { this.undo(); this.frame = null; this.active = false; this.last = null; this.memos.clear(); this.restore(0); }
+  reset() { this.undo(); this.frame = null; this.active = false; this.last = null; this.clashAt = null; this.memos.clear(); this.restore(0); }
 
   // 触る骨は、触る前の局所の向きを控える。手の骨など、動作が毎コマは書き直さない骨に、後処理が残り続けないよう、次のコマの最初に戻す。
   touch(bone) { if (!this.saved.has(bone)) this.saved.set(bone, bone.quaternion.clone()); }
@@ -93,12 +96,37 @@ export class SwordRig {
     return new THREE.Matrix4().compose(V(...p.position), new THREE.Quaternion(...p.quaternion), ONE).premultiply(this.ch.weapons.tachiHip.holder.matrixWorld);
   }
 
+  // 弾きの打ち合い（8.3a 第2周）：受けた刃の上の点 point（[x,y,z]・世界）へ、刃を通す。すぐ当て、以降は apply が毎コマ当て直す。
+  clash(point) {
+    this.clashFrom = this.ch.time; this.clashAt = V(point[0], point[1], point[2]);
+    this.memos.delete('handRight'); this.memos.delete('handLeft');
+    this.applyClash();
+  }
+  applyClash() {
+    const p = this.clashAt, ch = this.ch;
+    if (!p) return;
+    const x = Math.min(1, Math.max(0, (ch.time - this.clashFrom - CLASH.hold) / CLASH.fade)), w = 1 - x * x * (3 - 2 * x);
+    const arm = ch.bones.get('RightArm'), drawn = ch.weapons.tachiDrawn?.holder;
+    if (!(w > 1e-3) || !arm || !drawn?.visible || this.active) { this.clashAt = null; return; }
+    ch.model.updateMatrixWorld(true);
+    const s = arm.getWorldPosition(V()), dir = p.clone().sub(s), L = dir.length();
+    if (!(L > 1e-4)) { this.clashAt = null; return; }
+    dir.divideScalar(L);
+    const hand = p.clone().addScaledVector(dir, -Math.min(CLASH.at, Math.max(CLASH.minReach, L - CLASH.minReach)));
+    const hq = drawn.getWorldQuaternion(new THREE.Quaternion()), y = V(0, 1, 0).applyQuaternion(hq);
+    const blade = new THREE.Quaternion(...shortestArc(arr(y), arr(dir))).multiply(hq);           // 刃を dir へ（刃のまわりのねじれは今のまま）
+    this.solveArm('Right', hand, blade.multiply(this.home.drawn.quaternion.clone().invert()), w);   // 手の向き＝刀の枠の向き×枠の局所の逆
+    if (this.useLeft) { ch.model.updateMatrixWorld(true); this.solveArm('Left', V(0, CLASH.pommel, 0).applyMatrix4(drawn.matrixWorld), null, w * 0.9); }
+    ch.model.updateMatrixWorld(true);
+  }
+
   apply() {
     const f = this.frame, ch = this.ch;
     if (!f || !(f.u > 0 && f.u < 1)) {
       // 動いていた層が終わったコマで、定常状態（納刀／抜刀）へ戻す。それ以外は何もしない（動作と setTachi に任せる）。
       if (this.active) this.restore(f ? f.u : 0);
-      this.active = false; this.last = null; this.memos.clear();
+      this.active = false; this.last = null;
+      if (this.clashAt) this.applyClash(); else this.memos.clear();   // 打ち合いの間は、向きの混ぜの前のコマを持ち越す
       return;
     }
     this.active = true;

@@ -1,5 +1,6 @@
 // 回帰：刃の軌跡（8.3a）を実ゲームで毎コマ確かめる。主人公・斥候・侍大将を本物の結線で動かし、帯の決まりを見る:
-//   区間の外では帯を足さない／技が終わる・死ぬと寿命のうちに消える／命中の停止中に詰まらない・引き伸ばさない／ちらつかない
+//   区間の外（戻りを含む）では帯を足さない／技が判定を抜ける・死ぬと0.05秒＋1コマで消える／命中の停止中に詰まらない・引き伸ばさない／ちらつかない
+//   第2周：停止のコマで刃が頭の上にない／火花は刃が体を通る点から刃の進む向きへ／弾きは刃同士が触れる点／敵の刃は予兆の間だけ照る／ひるみは相手から離れる向き
 //   抜刀の層が動いている間は主人公の帯を足さない／やり直しで全部消える／揺れ0・動きを減らすでも出る
 //   同時6本・頂点の上限／毎コマ配列を作り直さない（同じ配列・形の数が増えない）／描画呼出の増加は1
 //   三段目：停止の長さは前と同じ（0.07秒）・強い当たりの音／弾き：火花が相手の刃の向きへ偏る（22粒）
@@ -21,9 +22,14 @@ export default async function ({ st, step, call, v, freeze, start, log }) {
     const realSample = T.sample.bind(T);
     T.sample = (owner, style, holder) => { sampled.push(owner); realSample(owner, style, holder); };
     const sounds = []; const realPlay = g.audio.play.bind(g.audio); g.audio.play = (name, o) => { sounds.push([g.time, name]); return realPlay(name, o); };
+    // 当たりの火花（第2周）：点・刃の進む向き・出た粒の速度と、そのときの主人公の刀の切先の高さを控える
+    const hits = [], realHit = g.fx.hit.bind(g.fx), V3 = g.hero.character.root.position.constructor;
+    g.fx.hit = (pos, dir, o = {}) => { const n0 = g.fx.add.count; realHit(pos, dir, o); const vel = []; for (let k = n0; k < g.fx.add.count - 1; k++) vel.push([g.fx.add.vel[k * 3], g.fx.add.vel[k * 3 + 1], g.fx.add.vel[k * 3 + 2]]);
+      const hw = g.hero.character.weapons.tachiDrawn.holder; hw.updateWorldMatrix(true, false); const e = hw.matrixWorld.elements;
+      hits.push({ t: g.time, pos: [pos.x, pos.y, pos.z], travel: o.travel ? Array.from(o.travel) : null, vel, heroMove: g.hero.fighter.move ? g.hero.fighter.move.id : null, heroTipAboveGround: e[5] * 0.88 + e[13] - g.hero.pos.y }); };
     const actors = () => [g.hero, ...g.enemies];
     window.__rt = {
-      MOVES, ST, FEEL, sounds, arrays, geometries0: g.renderer.info.memory.geometries,
+      MOVES, ST, FEEL, sounds, hits, arrays, geometries0: g.renderer.info.memory.geometries, V3,
       park() { for (const e of g.enemies) { e.dormant = true; e.place(-80, -80, 0); delete e.apply; } },
       hero() { const h = g.hero; h.place(-30, -6, -Math.PI / 2); h.fighter.yaw = h.yaw; h.sheatheIn = 30; g.rig.yaw = h.yaw; g.rig.snap(); },
       foe(id, passive) {
@@ -61,11 +67,12 @@ export default async function ({ st, step, call, v, freeze, start, log }) {
     return true;
   })()`);
   if (!ok) throw Error('setup failed');
+  const limits = await v('({ vertices: __rt.ST.TRAIL_VERTS, triangles: __rt.ST.TRAIL_INDICES / 3, closeFade: __rt.ST.TRAIL.closeFade })');
   await step(80);
   const run = async (n, per = async () => {}) => { const rec = []; for (let i = 0; i < n; i++) { await per(i); rec.push(await v('__rt.frame()')); } return rec; };
   const check = (name, rec, { allowOutside = 0 } = {}) => {
     const bad = (cond, msg) => { if (!cond) fails.push(`${name}: ${msg}`); };
-    bad(rec.every(r => r.active <= 6 && r.vertices <= 1116 && r.triangles <= 1104), '上限を超えた');
+    bad(rec.every(r => r.active <= 6 && r.vertices <= limits.vertices && r.triangles <= limits.triangles), '上限を超えた');
     bad(rec.reduce((n, r) => n + r.sampledOutside, 0) <= allowOutside, `区間の外で足した ${rec.reduce((n, r) => n + r.sampledOutside, 0)}`);
     bad(rec.every(r => r.heroSampledInLayer === 0), '抜刀の層の間に主人公の帯を足した');
     bad(rec.every(r => r.inWindow > 0 || r.open === 0), '区間の外なのに帯が開いたまま');
@@ -73,9 +80,9 @@ export default async function ({ st, step, call, v, freeze, start, log }) {
     for (let i = 1; i < rec.length - 1; i++) if (rec[i - 1].inWindow && rec[i].inWindow && rec[i + 1].inWindow && rec[i - 1].vertices > 0 && rec[i].vertices === 0 && rec[i + 1].vertices > 0) bad(false, `帯が1コマ消えた（コマ${i}）`);
     // 停止中は、帯のサンプルが毎コマは増えない（詰まらない・引き伸ばさない）
     for (let i = 1; i < rec.length; i++) if (rec[i].stop && rec[i - 1].stop && rec[i].samples > rec[i - 1].samples + 1) bad(false, `停止中にサンプルが${rec[i].samples - rec[i - 1].samples}増えた（コマ${i}）`);
-    // 最後に開いていたコマから、寿命（最長0.16秒）＋1コマのうちに、帯が消える
+    // 最後に開いていたコマから、閉じたあとの薄れ（closeFade 0.05秒）＋1コマのうちに、帯が消える（戻りに残さない）
     const lastOpen = rec.findLastIndex(r => r.open > 0), gone = rec.findIndex((r, i) => i > lastOpen && r.vertices === 0);
-    if (lastOpen >= 0) bad(gone > 0 && rec[gone].t - rec[lastOpen].t <= 0.16 + 1 / 60 + 1e-6, `消えるまで ${gone > 0 ? (rec[gone].t - rec[lastOpen].t).toFixed(3) : '消えない'}秒`);
+    if (lastOpen >= 0) bad(gone > 0 && rec[gone].t - rec[lastOpen].t <= limits.closeFade + 2 / 60 + 1e-6, `消えるまで ${gone > 0 ? (rec[gone].t - rec[lastOpen].t).toFixed(3) : '消えない'}秒`);
     const maxV = Math.max(...rec.map(r => r.vertices)), stopFrames = rec.filter(r => r.stop).length, drawn = rec.filter(r => r.vertices > 0).length;
     results[name] = { frames: rec.length, drawnFrames: drawn, maxVertices: maxV, maxTriangles: Math.max(...rec.map(r => r.triangles)), maxActive: Math.max(...rec.map(r => r.active)), stopFrames, cuts: rec.at(-1).cuts };
     log(`${name}: frames ${rec.length} drawn ${drawn} maxVerts ${maxV} stop ${stopFrames} cuts ${rec.at(-1).cuts}`);
@@ -177,6 +184,51 @@ export default async function ({ st, step, call, v, freeze, start, log }) {
     if (!s) fails.push('弾き：相手の刃の速度が渡っていない（帯が無い）');
     if (!(cos > 0.7 && meanH > 2)) fails.push(`弾きの火花が刃の向きへ偏っていない ${JSON.stringify(results.parry)}`);
   }
+
+  // 9b 弾き（第2周）：主人公の刀を相手の刃へ伸ばして打ち合わせる。2本の刃の距離が3cm以内
+  const clash = await v('__valley.game.battle.lastClash');
+  results.parryClash = clash;
+  if (!(clash && clash.gap < 0.03)) fails.push(`弾き：刃同士が触れていない ${JSON.stringify(clash)}`);
+
+  // 9c 当たりの火花（第2周）：三連・強斬りの当たりで、火花の8割が刃の進む向き（余弦0.5以上）へ散り、点は受けた人の胴の軸から0.25m以内。
+  //    停止のコマ（当たり）で、主人公の刀の切先は地面から1.75m未満（頭の上ではない。第1周は2.06m）
+  const hitsAll = await v('__rt.hits.map(h => ({ ...h }))');
+  const strikes = hitsAll.filter(h => h.travel && h.heroMove);
+  results.hitSparks = strikes.map(h => {
+    const tl = Math.hypot(...h.travel), u = h.travel.map(x => x / tl);
+    const along = h.vel.filter(q => (q[0] * u[0] + q[1] * u[1] + q[2] * u[2]) / (Math.hypot(...q) || 1) > 0.5).length;
+    return { move: h.heroMove, alongShare: +(along / h.vel.length).toFixed(2), tipAboveGround: +h.heroTipAboveGround.toFixed(2) };
+  });
+  log(`hit sparks ${JSON.stringify(results.hitSparks)}`);
+  if (strikes.length < 3) fails.push(`火花：刃の進む向きのある当たりが少ない（${strikes.length}）`);
+  for (const h of results.hitSparks) {
+    if (h.alongShare < 0.6) fails.push(`火花：刃の進む向きへ散っていない ${JSON.stringify(h)}`);
+    if (['light1', 'light2', 'heavy'].includes(h.move) && h.tipAboveGround >= 1.75) fails.push(`停止のコマで刃が頭の上 ${JSON.stringify(h)}`);
+  }
+
+  // 9d 敵の刃の照り返し（第2周）：予兆の間（光の粒）は元の鋼、戻りの間は地の色を落とす
+  await v(`(() => { __rt.park(); __rt.hero(); __rt.foe('road_scout', true); __rt.force('road_scout', 'soldier_slash'); return true; })()`);
+  const blade = await v(`(() => { const g = __valley.game, e = g.enemies.find(e => e.id === 'road_scout'), m = e.character.weapons.tachiDrawn.object.getObjectByName('blade').material, out = [];
+    for (let i = 0; i < 90; i++) { __valley.step(1); const f = e.fighter; out.push({ phase: f.move ? f.move.phase : f.state, glint: g.battle.glints.some(x => x.actor === e), color: m.color.getHex() }); }
+    return out; })()`);
+  const lit = blade.filter(b => b.glint), dark = blade.filter(b => b.phase === 'recover');
+  results.bladeDim = { glintFrames: lit.length, glintColors: [...new Set(lit.map(b => b.color.toString(16)))], recoverFrames: dark.length, recoverColors: [...new Set(dark.map(b => b.color.toString(16)))] };
+  if (!(lit.length > 5 && lit.every(b => b.color === 0xffffff))) fails.push(`予兆の間に刃が元の鋼でない ${JSON.stringify(results.bladeDim)}`);
+  if (!(dark.length > 5 && dark.every(b => b.color === 0x9a9a9a))) fails.push(`戻りの間に刃が照っている ${JSON.stringify(results.bladeDim)}`);
+
+  // 9e ひるみ（第2周）：鎧でひるまない一段目の当たりでも、相手の頭が主人公から離れる向きへ動く（0.15秒のうちに3cm以上）
+  await v(`(() => { __rt.park(); __rt.hero(); __rt.foe('road_scout', true); return true; })()`); await step(20);
+  const kick = await v(`(() => { const g = __valley.game, e = g.enemies.find(e => e.id === 'road_scout'), head = e.character.bones.get('Head');
+    const at = () => { head.updateWorldMatrix(true, false); const m = head.matrixWorld.elements; return [m[12] - e.pos.x, m[14] - e.pos.z]; };
+    const ux = e.pos.x - g.hero.pos.x, uz = e.pos.z - g.hero.pos.z, ul = Math.hypot(ux, uz);
+    let hitAt = -1, base = null, best = -9, state = null; const hp0 = e.fighter.hp;
+    __rt.press('click');
+    for (let i = 0; i < 60; i++) { if (i === 1) __rt.unpress(); const before = at(); __valley.step(1);
+      if (hitAt < 0 && e.fighter.hp < hp0) { hitAt = i; base = before; state = e.fighter.state; }
+      if (hitAt >= 0 && i - hitAt <= 12) { const p = at(); best = Math.max(best, ((p[0] - base[0]) * ux + (p[1] - base[1]) * uz) / ul); } }
+    return { hitAt, state, awayM: +best.toFixed(3) }; })()`);
+  results.kick = kick;
+  if (!(kick.hitAt >= 0 && kick.state !== 'hit' && kick.awayM > 0.03)) fails.push(`ひるみ：相手の頭が離れる向きへ動かない ${JSON.stringify(kick)}`);
 
   // 10 同時6本：主人公と敵5人（無理に出させる）で上限を超えない
   const many = await v(`(() => {

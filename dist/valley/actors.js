@@ -21,6 +21,8 @@ const BUSY = ['attack', 'hit', 'stagger', 'recoil', 'dodge'];
 
 // 技ごとの踏み込み（m）。動作の根の移動は取り除いてあるので、ここで前へ出す。
 const LUNGE = { light1: 0.55, light2: 0.45, light3: 0.85, heavy: 0.6, finisher: 0.3, counter: 0.75, soldier_slash: 0.5, soldier_thrust: 0.9, officer_a: 0.5, officer_b: 0.4, officer_c: 0.8 };
+// ひるみ（見た目だけ）を強める技：三段目・強斬り・反撃・とどめ（combat.js の STRONG と同じ顔ぶれ＋とどめ）
+const STRONG_KICK = new Set(['light3', 'heavy', 'counter', 'finisher']);
 export const SPEED = { walk: 2.5, sprint: 5.0, crouch: 1.3, guard: 1.5, patrol: 1.3, orbit: 0.95, run: 3.6, officerRun: 3.2, ally: 2.0, child: 4.2, villager: 1.2 };
 
 class Actor {
@@ -39,6 +41,8 @@ class Actor {
     // Movement is terrain-bound; no jump/fall state currently exists.
     ch.contactAirborne = this.airborne === true;
     ch.contactTimeScale = g.contactTimeScale ?? 1;
+    const f = this.fighter;                  // 技の動作は、論理の技の経過で進める（8.3a 第2周。characters.js の followWarp）
+    ch.warpClock = f?.state === 'attack' && f.move ? f.move.t : NaN;
     ch.update(dt);
   }
   onFootContact(c) {
@@ -337,14 +341,15 @@ export class HeroActor extends Actor {
     this.character.locomote(this.speed, this.crouch ? 'crouch' : (this.guardStance || f.blocking) ? 'guard' : 'relaxed');
   }
 
-  onHit(res, att) {
+  // hit は当たりの見た目の情報（battle.js の strikeGeometry）：push＝ひるみの押す向き（相手から自分へ＋刃の進む向き）
+  onHit(res, att, hit = null) {
     const f = this.fighter, ch = this.character;
-    const from = att ? yawOf(att.pos.x - this.pos.x, att.pos.z - this.pos.z) - this.yaw : 0;
+    const from = att ? yawOf(att.pos.x - this.pos.x, att.pos.z - this.pos.z) - this.yaw : 0, push = hit?.push || null;
     if (res.outcome === 'hit') {
       this.game.audio.play('hurt');
       if (f.alive && f.state === 'hit') { ch.playAction(this.game.rng() < 0.5 ? 'hit' : 'hit2', { timeScale: 2.4 }); this.blockPosed = false; }
-      ch.kick(1.2, from);
-    } else if (res.outcome === 'blocked') ch.kick(0.5, from);
+      ch.kick(1.2, from, push);
+    } else if (res.outcome === 'blocked') ch.kick(0.5, from, push);
   }
   die() {
     this.dead = true; this.deadT = 0; this.dash = null; this.queued = null; this.character.armRelax = false;
@@ -498,16 +503,18 @@ export class EnemyActor extends Actor {
     ch.locomote(0, style);
   }
 
-  onHit(res, att) {
+  // hit は当たりの見た目の情報（battle.js の strikeGeometry）。鎧でひるまない（論理の 'hit' にならない）一・二発目にも、
+  // 上体を押された向きへしならせる（見た目だけ。強い技は1.25倍。8.3a 第2周）
+  onHit(res, att, hit = null) {
     const f = this.fighter, ch = this.character, brain = this.brain;
     if (!['combat', 'retreat', 'surrendered'].includes(brain.state) && f.alive) { brain.state = 'combat'; brain.awareness = 1; brain.lastSeen = { x: this.game.hero.pos.x, z: this.game.hero.pos.z }; f.aware = true; }
     this.dormant = false;
     if (res.dead) { this.die(); return; }
-    const from = att ? yawOf(att.pos.x - this.pos.x, att.pos.z - this.pos.z) - this.yaw : 0;
+    const from = att ? yawOf(att.pos.x - this.pos.x, att.pos.z - this.pos.z) - this.yaw : 0, push = hit?.push || null;
     if (res.outcome === 'hit') {
       if (f.state === 'hit') ch.playAction(['hit', 'hit2', 'hit_waist'][(this.game.rng() * 3) | 0], { timeScale: 2.4 });
-      ch.kick(this.kind === 'officer' ? 0.7 : 1.1, from);
-    } else if (res.outcome === 'blocked') ch.kick(0.4, from);
+      ch.kick((this.kind === 'officer' ? 0.8 : 1.15) * (STRONG_KICK.has(res.moveId) ? 1.25 : 1), from, push);
+    } else if (res.outcome === 'blocked') ch.kick(0.4, from, push);
     else if (res.outcome === 'parried') ch.play('Hit_Reaction_to_Waist', { fade: 0.06, from: 0.1, timeScale: 1.9, restart: true });
   }
   die() {
@@ -623,9 +630,9 @@ export class AllyActor extends Actor {
     if (!busy && f.state === 'idle') this.character.locomote(this.speedNow, 'injured');
   }
 
-  onHit(res, att) {
+  onHit(res, att, hit = null) {
     const from = att ? yawOf(att.pos.x - this.pos.x, att.pos.z - this.pos.z) - this.yaw : 0;
-    if (res.outcome === 'hit') { this.character.kick(1.0, from); this.game.audio.play('hurt', { pan: this.game.pan(this.pos), gain: 0.8 }); }
+    if (res.outcome === 'hit') { this.character.kick(1.0, from, hit?.push || null); this.game.audio.play('hurt', { pan: this.game.pan(this.pos), gain: 0.8 }); }
   }
 }
 

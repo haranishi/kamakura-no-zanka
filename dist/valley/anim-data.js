@@ -124,12 +124,74 @@ export function syncedSegment(meta, timing, spec) {
   return { ...base, speed: Math.max(...speeds), speeds, knots: [[0, base.from], [t1, a], [t2, b], [total, base.to]] };
 }
 
+// 接触の動作の時刻（8.3a 第2周・表示だけ）。刃の中ほど〜切先が相手の胴の高さ（地面から1.1m±0.35m）を通るうちで、
+// 胴の点（間合いの距離）へ最も近づく、動作の時刻（秒）。tools/scenarios/measure-combat-trail.mjs の contact で実ゲームから測った値。
+// この間合いでは、どの技も刃が胴の点に届かない（最短0.25〜1.5m）。届かせるには向きか間合いを変える必要があり、ここでは扱わない。
+export const MOVE_CONTACT = Object.freeze({
+  light1: 0.79, light2: 0.38, light3: 0.609, heavy: 0.915, counter: 0.479, finisher: 2.785,
+  soldier_slash: 1.053, soldier_thrust: 0.336, officer_a: 1.058, officer_b: 0.383, officer_c: 0.919,
+});
+export const CONTACT_MAX_SPEED = 1.8;
+
+// 接触の動作の時刻を、判定の始め（予備の終わり）へ置く切り出し（pure）。base は今の切り出し（segmentFor・syncedSegment）。
+// 予備〜接触を1つの速さ s1 で流せて、それが今の振りの速さ以上なら、from〜手首の山の終わりまでをその速さで（振りの途中で遅くしない）。
+//   s1 が上限を超えるなら、上限で間に合うよう、動作の少し先から始める（from を後ろへ。始めの姿勢は混ぜが隠す）。
+// s1 が今の振りの速さより遅いなら、振り（手首の山）は今の速さのまま、予備だけをゆっくりにする（3区間。8.3a の突き・二段目の形）。
+// 戻りは、使う長さを今より短くしないよう、上限・動作の終わりまでで延ばす。上限は1.8倍、今すでに超えている技は今の速さまで。
+// 戻りは knots（[技の開始からの秒, 動作の秒] の折れ線）と、区間ごとの速さ speeds。
+export function contactSegment(meta, timing, contact, base) {
+  if (!meta?.active || !Number.isFinite(contact) || !base || base.approximate) return base;
+  const { windup, active, recover } = timing, total = windup + active + recover, [a, b] = meta.active;
+  const strike = base.speeds ? base.speeds[1] : base.speed, cap = Math.max(CONTACT_MAX_SPEED, base.speed);
+  let from = base.from, tc = windup;
+  const s1 = (contact - from) / windup, bb = Math.max(b, contact), knots = [];
+  let S;
+  if (s1 >= strike - 1e-9) {
+    S = Math.min(s1, cap);
+    if (s1 > cap) { from = Math.max(0, contact - cap * windup); tc = (contact - from) / cap; }   // 0 から始めても間に合わないときだけ、接触が遅れる
+    knots.push([0, from], [tc, contact]);
+  } else {
+    S = strike;
+    const aa = Math.min(Math.max(a, from), contact), t1 = windup - (contact - aa) / strike;
+    knots.push([0, from]); if (t1 > 1e-6 && t1 < windup - 1e-6 && aa > from) knots.push([t1, aa]); knots.push([windup, contact]);
+  }
+  if (!(tc < total - 1e-3)) return base;
+  const tb = tc + (bb - contact) / S;
+  if (tb > total - 1e-3) knots.push([total, contact + S * (total - tc)]);
+  else {
+    if (tb > tc + 1e-6) knots.push([tb, bb]);
+    const want = Math.max(base.to, from + (base.to - base.from));            // 使う長さを今より短くしない
+    knots.push([total, Math.max(bb + 1e-3, Math.min(meta.seconds, want, bb + cap * (total - tb)))]);
+  }
+  const speeds = knots.slice(1).map((k, i) => (k[1] - knots[i][1]) / (k[0] - knots[i][0]));
+  return { from, to: knots.at(-1)[1], speed: Math.max(...speeds), speeds, knots, contact, contactAt: tc, approximate: false };
+}
+
+// 技の切り出しの選び方（characters.js の playMove と measure-move-segments.mjs が同じものを使う）。
+// 弓（区間の決め打ち）→ そのまま。8.3a の3区間（MOVE_SYNC）→ 振りの速さの元。接触の時刻がある技 → 接触を判定の始めへ。
+export function moveSegment(id, meta, timing) {
+  const def = MOVE_CLIPS[id];
+  if (!def || !meta) return null;
+  const fixed = CLIP_SEGMENTS[def.clip];
+  if (fixed) return segmentFor(meta, timing, fixed);
+  const base = MOVE_SYNC[id] ? syncedSegment(meta, timing, MOVE_SYNC[id]) : segmentFor(meta, timing);
+  return Object.hasOwn(MOVE_CONTACT, id) ? contactSegment(meta, timing, MOVE_CONTACT[id], base) : base;
+}
+
 // 技の開始から t 秒の、動作の時刻（pure）。折れ線の外は、端の区間の速さで延ばす。
 export function clipTimeAt(knots, t) {
   let i = 1;
   while (i < knots.length - 1 && t > knots[i][0]) i++;
   const [t0, c0] = knots[i - 1], [t1, c1] = knots[i];
   return c0 + (c1 - c0) * (t - t0) / (t1 - t0);
+}
+
+// clipTimeAt の逆（pure）：動作の時刻 c になる、技の開始からの秒。折れ線は単調に増えるので1つに決まる。外は端の区間で延ばす。
+export function timeAtClip(knots, c) {
+  let i = 1;
+  while (i < knots.length - 1 && c > knots[i][1]) i++;
+  const [t0, c0] = knots[i - 1], [t1, c1] = knots[i];
+  return t0 + (t1 - t0) * (c - c0) / (c1 - c0);
 }
 
 // 動作の水平な根の移動（in-place化で取り除いた分）を、区間 [from,to] で取り出す。論理側の前進量の参考値。

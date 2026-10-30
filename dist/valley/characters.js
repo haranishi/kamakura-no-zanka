@@ -3,7 +3,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
-import { LOCOMOTION, MOVE_CLIPS, ACTION_CLIPS, CLIP_SEGMENTS, MOVE_SYNC, pickGait, locomotionTimeScale, segmentFor, syncedSegment, clipTimeAt } from './anim-data.js';
+import { LOCOMOTION, MOVE_CLIPS, ACTION_CLIPS, pickGait, locomotionTimeScale, moveSegment, clipTimeAt } from './anim-data.js';
 import { createContactTracker, observeContacts } from './foot-contacts.js';
 import { FOOT_CONTACTS } from './anim-contacts.js';
 import { BowRig } from './bow.js';
@@ -90,7 +90,7 @@ export class Character {
     this.model.traverse(o => { if (o.isBone) this.bones.set(o.name, o); });
     this.weapons = {};
     this.rootTravel = { x: 0, z: 0 };
-    this.flinch = { x: 0, v: 0, dir: 0 };
+    this.flinch = { x: 0, v: 0, px: 0, pz: 1 };
     this.armRelax = true; this.relax = { Left: 0, Right: 0 };
   }
 
@@ -144,20 +144,21 @@ export class Character {
     if (!def) return null;
     const meta = this.meta(def.clip);
     if (!meta) return null;
-    const seg = MOVE_SYNC[moveId] ? syncedSegment(meta, timing, MOVE_SYNC[moveId]) : segmentFor(meta, timing, CLIP_SEGMENTS[def.clip]);
+    const seg = moveSegment(moveId, meta, timing);
     this.play(def.clip, { fade, timeScale: seg.speeds ? seg.speeds[0] : seg.speed, from: seg.from, to: seg.to, restart: true, onEnd });
-    if (seg.knots) this.warp = { knots: seg.knots, t: 0, action: this.current };   // 振りの山を判定へ合わせる技（8.3a）
+    if (seg.knots) this.warp = { knots: seg.knots, t: 0, action: this.current };   // 接触（8.3a 第2周）・振りの山（8.3a）を判定へ合わせる技
     return { ...seg, clip: def.clip, root: this.tpl.roots.get(def.clip) || null };
   }
 
-  // 3区間の速さの技：技の開始からの秒（論理と同じ dt を積む）で動作の時刻を決め、このコマで mixer が進める量を合わせる。
-  // 個体の速さ rate で割り戻すので、敵の個体差（0.94〜1.06倍）は掛からない（判定と表示がずれない）。命中の停止は dt に入っている。
+  // 折れ線の速さの技：技の開始からの秒で動作の時刻を決め、このコマで mixer が進める量を合わせる。
+  // 秒は、人物が渡す論理の技の経過（warpClock）。無いとき（闇討ちの演出）は dt を積む。論理の秒を使うので、技を始めたコマに
+  // 動作が1コマ先へ進む（60コマ/秒で17ms早く当たって見える）ことがない。個体の速さ rate で割り戻すので、敵の個体差（0.94〜1.06倍）も掛からない。
   followWarp(dt) {
     const w = this.warp;
     if (this.current !== w.action) { this.warp = null; return; }
     const step = dt * this.rate * this.mixer.timeScale;
     if (!(dt > 0) || !(step > 0)) return;
-    w.t += dt;
+    w.t = Number.isFinite(this.warpClock) ? this.warpClock : w.t + dt;
     w.action.timeScale = Math.max(0, (clipTimeAt(w.knots, w.t) - w.action.time) / step);
   }
 
@@ -222,8 +223,13 @@ export class Character {
     this.weapons.tachiHipHilt.object.visible = !drawn;
   }
 
-  // 被弾のひるみ：動作を止めずに、背骨を打たれた向きへ一瞬しならせる（鎧で怯まない相手にも手応えを返す）
-  kick(amount = 1, yawLocal = 0) { this.flinch.v += amount * 7; this.flinch.dir = yawLocal; }
+  // 被弾のひるみ：動作を止めずに、上体を押された向きへ一瞬しならせる（鎧で怯まない相手にも手応えを返す。見た目だけ）。
+  // push は世界の水平の向き（押される向き）。無ければ yawLocal（打たれた向き。人物の向きからの角）の反対。
+  // 骨の局所の軸は人物の向きとそろっていないので、世界の軸を親の向きで局所へ直して回す（8.3a 第2周。前は相手の側へ曲がり、反応が見えなかった）。
+  kick(amount = 1, yawLocal = 0, push = null) {
+    const f = this.flinch, yaw = this.root.rotation.y - Math.PI + yawLocal, l = push ? Math.hypot(push.x, push.z) : 0;
+    f.v += amount * 7; f.px = l > 1e-9 ? push.x / l : Math.sin(yaw); f.pz = l > 1e-9 ? push.z / l : Math.cos(yaw);
+  }
 
   resetContacts() { this.contactReset = true; }
 
@@ -249,8 +255,11 @@ export class Character {
       f.v += (-f.x * 120 - f.v * 14) * dt; f.x += f.v * dt;
       if (Math.abs(f.x) < 1e-3 && Math.abs(f.v) < 1e-2) f.x = f.v = 0;
       const a = Math.max(-0.5, Math.min(0.5, f.x));
-      FLINCH_Q.setFromAxisAngle(FLINCH_AXIS.set(Math.cos(f.dir), 0, -Math.sin(f.dir)), a * 0.4);
-      for (const name of FLINCH_BONES) this.bones.get(name)?.quaternion.premultiply(FLINCH_Q);
+      for (const name of FLINCH_BONES) {
+        const b = this.bones.get(name); if (!b) continue;
+        b.parent.getWorldQuaternion(PQ);   // 世界の軸 上×押す向き（上体の先が押す向きへ傾く）を、親の局所へ
+        b.quaternion.premultiply(FLINCH_Q.setFromAxisAngle(FLINCH_AXIS.set(f.pz, 0, -f.px).applyQuaternion(PQ.invert()), a * 0.4));
+      }
     }
     if (this.armRelax) this.relaxArms(dt);
     if (this.sword) this.sword.apply();   // 抜刀・納刀：骨の後処理なので relaxArms のあと

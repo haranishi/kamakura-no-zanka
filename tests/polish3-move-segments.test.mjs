@@ -6,7 +6,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { MOVES } from '../dist/valley/combat.js';
-import { MOVE_CLIPS, CLIP_SEGMENTS, MOVE_SYNC, segmentFor } from '../dist/valley/anim-data.js';
+import { MOVE_CLIPS, CLIP_SEGMENTS, MOVE_CONTACT, segmentFor, moveSegment } from '../dist/valley/anim-data.js';
 import { actorRates, segmentOf } from '../tools/measure-move-segments.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
@@ -32,11 +32,12 @@ test('MOVE_CLIPS の13技が揃い、区間と使用割合が有効', () => {
   }
 });
 
-test('segmentFor（MOVE_SYNC の技は syncedSegment）の戻り値から秒・倍率・割合・決め打ちを記録する', () => {
+test('characters.js と同じ moveSegment（弓は決め打ち・ほかは接触の折れ線）の戻り値から秒・倍率・割合・決め打ちを記録する', () => {
   for (const m of report.moves) {
     const meta = clips[m.clip], override = CLIP_SEGMENTS[m.clip];
     const seg = segmentOf(meta, m.id, MOVES[m.id]);
-    if (!MOVE_SYNC[m.id]) assert.deepEqual(seg, segmentFor(meta, MOVES[m.id], override), m.id);
+    assert.deepEqual(seg, moveSegment(m.id, meta, MOVES[m.id]), m.id);
+    if (override) assert.deepEqual(seg, segmentFor(meta, MOVES[m.id], override), m.id);
     assert.equal(m.speed, rounded(seg.speed), m.id);
     assert.equal(m.from, rounded(seg.from), m.id);
     assert.equal(m.to, rounded(seg.to), m.id);
@@ -67,12 +68,12 @@ test('research-polish3 の表の全12行は変更前の記録と一致し、味�
   assert.deepEqual(shot('ally_shot'), shot('archer_shot'));
 });
 
-test('敵だけにコードで確認した0.94〜1.06倍を適用し、丸め前の速度で計算する（3区間の技はゲームの時刻で進むので掛けない）', () => {
+test('敵だけにコードで確認した0.94〜1.06倍を適用し、丸め前の速度で計算する（折れ線の技は論理の技の経過で進むので掛けない）', () => {
   const rates = actorRates(read('dist/valley/actors.js'), read('dist/valley/characters.js'));
   assert.deepEqual(rates.enemy, [0.94, 1.06]);
   for (const m of report.moves) {
-    const enemy = (/^(soldier_|officer_)/.test(m.id) || m.id === 'archer_shot') && !MOVE_SYNC[m.id];
-    const speed = segmentOf(clips[m.clip], m.id, MOVES[m.id]).speed;
+    const seg = segmentOf(clips[m.clip], m.id, MOVES[m.id]), enemy = (/^(soldier_|officer_)/.test(m.id) || m.id === 'archer_shot') && !seg.knots;
+    const speed = seg.speed;
     assert.equal(m.effectiveSpeedMin, rounded(speed * (enemy ? 0.94 : 1)), m.id);
     assert.equal(m.effectiveSpeedMax, rounded(speed * (enemy ? 1.06 : 1)), m.id);
   }
@@ -110,31 +111,30 @@ test('JSONとMarkdownは2回実行して同一バイト列', () => {
   assert.match(first.stdout, /\| ally_shot \|/);
 });
 
-test('--write は親を作り、保存済みの変更後の記録（8.3a）とstdoutのJSONにバイト単位で一致', () => temporary(dir => {
+test('--write は親を作り、保存済みの変更後の記録（8.3a 第2周）とstdoutのJSONにバイト単位で一致', () => temporary(dir => {
   const output = path.join(dir, 'nested', 'moves.json');
   const written = run(['--write', output]);
   assert.equal(written.status, 0, written.stderr);
   assert.equal(written.stdout, '');
   assert.equal(fs.readFileSync(output, 'utf8'), result.stdout);
-  assert.equal(read('reports/polish3/combat-trail/move-segments-after.json'), result.stdout);
+  assert.equal(read('reports/polish3/combat-trail/move-segments-after2.json'), result.stdout);
 }));
 
-test('--compare：変更前（8.0）と比べて変わるのは MOVE_SYNC の2技の速さだけ。山は判定の±40ms、使用割合は下がらず、倍速は1.8以下', () => {
+test('--compare：変更前（8.0）と比べて、弓は変わらず、接触の11技は接触が判定の始め（0ms）。使用割合は下がらず（light2 だけ−0.006）、倍速は1.8以下（とどめは今の2.0のまま）', () => {
   const r = run(['--compare', 'reports/polish3/baseline/move-segments-before.json', '--json']);
   assert.equal(r.status, 0, r.stderr);
   const rows = JSON.parse(r.stdout);
   assert.equal(rows.length, 13);
-  assert.deepEqual(Object.keys(MOVE_SYNC).sort(), ['officer_b', 'soldier_thrust']);
   for (const row of rows) {
     assert.equal(row.approx, false, row.id);                              // 前値の山は、丸める前の値で再現できた
-    if (!MOVE_SYNC[row.id]) { assert.deepEqual(row.changed, [], row.id); assert.deepEqual(row.peakStartVsJudgeMs[0], row.peakStartVsJudgeMs[1], row.id); continue; }
-    assert.deepEqual(row.changed, ['speed', 'effectiveSpeedMin', 'effectiveSpeedMax'], row.id);
-    assert(Math.abs(row.peakStartVsJudgeMs[1]) <= 40 && Math.abs(row.peakEndVsJudgeEndMs[1]) <= 40, row.id);
-    assert(row.ratio[1] >= row.ratio[0] && row.speed[1] <= 1.8, row.id);
+    const after = report.moves.find(m => m.id === row.id);
+    if (!Object.hasOwn(MOVE_CONTACT, row.id)) { assert.deepEqual(row.changed, [], row.id); assert.equal(after.contactVsJudgeMs, null, row.id); continue; }
+    assert.equal(after.contactVsJudgeMs, 0, row.id);
+    if (row.id === 'light2') assert(row.ratio[0] - row.ratio[1] <= 0.006 + 1e-9, row.id); else assert(row.ratio[1] >= row.ratio[0], row.id);
+    assert(row.speed[1] <= (row.id === 'finisher' ? 2.0 : 1.8), row.id);
+    // 手首の山（前の基準）は、接触より前へ（判定の始めより早く）動く。山の始めは判定の始めの−0.1秒〜＋0.01秒
+    assert(row.peakStartVsJudgeMs[1] <= 10 && row.peakStartVsJudgeMs[1] >= -100, `${row.id}: ${row.peakStartVsJudgeMs}`);
   }
-  const thrust = rows.find(r => r.id === 'soldier_thrust'), officer = rows.find(r => r.id === 'officer_b');
-  assert.deepEqual([thrust.peakStartVsJudgeMs, thrust.peakEndVsJudgeEndMs], [[-367, -15], [-78, 15]]);
-  assert.deepEqual([officer.peakStartVsJudgeMs, officer.peakEndVsJudgeEndMs], [[0, 0], [180, 0]]);
   assert.equal(run(['--compare']).status, 2);
 });
 
