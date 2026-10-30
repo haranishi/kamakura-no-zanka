@@ -3,7 +3,7 @@
 //  ・終わったら舞台と溶け合いの絵を解放し、谷の描画呼出・三角形が「オープニング無し」と同じに戻る。形・画像の数は、上映を繰り返しても増えないことで確かめる
 //  ・2回目の「はじめから」は短い版。飛ばす（開始0.6秒は効かない・E/Space/クリック・0.6秒で暗転→目覚め）。休止からの復帰。動きを減らす
 //  ・続きからでは出さない。旧保存（見たかの記録が無い）では通常版。やり直しでは出さない。結果からの「もう一度」で再上映
-//  ・場面ごとの描画呼出・三角形（予算内）、絵の朱の面積（2割以下）、明滅（1秒に3回以下）
+//  ・場面ごとの描画呼出・三角形（予算内）、絵の朱の面積（2割以下）、明滅（1秒に3回以下）、人影と景継の体の白い粒とそのちらつき（8コマ）
 // 実行：PLAYWRIGHT_MODULE=… node tools/valley-play.mjs tools/scenarios/regress-opening.mjs --intro 1 --seed 1333 --strict
 //   KZ_OUT=<file.json> を付けると、測った値をJSONで残す。
 import fs from 'node:fs';
@@ -12,7 +12,7 @@ import { flashRate } from '../../dist/valley/opening-scenes.js';
 import { OPENING } from '../../dist/valley/opening-data.js';
 
 export default async function ({ v, step, st, start, freeze, tap, click, log }) {
-  const report = { segments: {}, lines: {}, contrast: {}, stage: { maxCalls: 0, maxTris: 0, byScene: {} }, memory: {}, vermilion: {}, flash: {} };
+  const report = { segments: {}, lines: {}, contrast: {}, stage: { maxCalls: 0, maxTris: 0, byScene: {} }, memory: {}, vermilion: {}, flash: {}, grains: {} };
   const SCENE_CHECK = ['A', 'B', 'C', 'D'];                            // 朱の面積と明滅を確かめる場面（作り込みが済んだ場面）
   const VERMILION_AT = [['A', 4.0], ['A', 9.5], ['B', 14.0], ['B', 19.5], ['C', 25.0], ['C', 29.5], ['D', 34.0], ['D', 40.5]];
   const fail = msg => { throw new Error(msg); };
@@ -54,9 +54,42 @@ export default async function ({ v, step, st, start, freeze, tap, click, log }) 
     const lin = x => (x <= 0.04045 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4); let l = 0, n = 0;
     for (let y = bar; y < ${h} - bar; y++) for (let x = 0; x < ${w}; x++) { const i = (y * ${w} + x) * 4; l += 0.2126 * lin(d[i] / 255) + 0.7152 * lin(d[i + 1] / 255) + 0.0722 * lin(d[i + 2] / 255); n++; }
     return { share: m.vermilionShare(d, ${w}, ${h}, { bar: 0.125 }), luma: l / n }; })()`);
+  // 白い粒：人影（C）と景継（D）の体の中で、まわりより明るく孤立した白っぽい画素（明るい隣が1つ以下・彩度0.5未満）。体の範囲は、
+  // 人物だけを朱紫の単色で描き直した絵（後処理なし）で決める。8コマ続けて数え、平均と「前のコマとの入れ替わり」（ちらつき）を見る
+  const GRAIN_AT = [['C', 23.5], ['D', 34.0], ['D', 40.2]];
+  const grainPixels = id => v(`(async () => { const THREE = await import('three'); const g = __valley.game, st = g.stage, r = g.renderer, W = r.domElement.width, H = r.domElement.height;
+    const c2 = document.createElement('canvas'); c2.width = W; c2.height = H; const x2 = c2.getContext('2d'); x2.drawImage(r.domElement, 0, 0); const d = x2.getImageData(0, 0, W, H).data;
+    const rt = new THREE.WebGLRenderTarget(W, H), mag = new THREE.MeshBasicMaterial({ color: 0xff00ff, fog: false }), sc = st.scenes['${id}'], saved = [];
+    for (const c of ('${id}' === 'C' ? sc.figures.map(f => f.c) : [sc.hero])) c.root.traverse(o => { if (o.isMesh) { saved.push([o, o.material]); o.material = mag; } });
+    const hid = [sc.flames.mesh, sc.fx.add.points, sc.fx.norm.points].filter(o => o.visible); for (const o of hid) o.visible = false;
+    r.setRenderTarget(rt); r.clear(); r.render(st.scene, st.camera); r.setRenderTarget(null);
+    for (const [o, m] of saved) o.material = m; for (const o of hid) o.visible = true;
+    const buf = new Uint8Array(W * H * 4); r.readRenderTargetPixels(rt, 0, 0, W, H, buf); rt.dispose(); mag.dispose();
+    const L = p => 0.2126 * d[p * 4] + 0.7152 * d[p * 4 + 1] + 0.0722 * d[p * 4 + 2], out = [];
+    for (let y = 1; y < H - 1; y++) for (let x = 1; x < W - 1; x++) {
+      const m = ((H - 1 - y) * W + x) * 4; if (!(buf[m] > 200 && buf[m + 1] < 80 && buf[m + 2] > 200)) continue;
+      const p = y * W + x, l = L(p); if (l < 50) continue;
+      let s = 0, mn = 255, nb = 0; for (const [a, b] of [[-1,-1],[0,-1],[1,-1],[-1,0],[1,0],[-1,1],[0,1],[1,1]]) { const q = L(p + a * W + b); s += q; mn = Math.min(mn, q); if (q > 0.6 * l) nb++; }
+      const mx = Math.max(d[p * 4], d[p * 4 + 1], d[p * 4 + 2]), sat = (mx - Math.min(d[p * 4], d[p * 4 + 1], d[p * 4 + 2])) / mx;
+      if (l - s / 8 > 25 && mn < 50 && nb <= 1 && sat < 0.5) out.push(p);
+    }
+    return out; })()`);
   const sampled = new Set();
   async function sampleScene(p) {
     let extra = 0;
+    for (const [shot, at] of GRAIN_AT) {
+      const key = 'grain' + shot + at;
+      if (sampled.has(key) || p.op?.shot !== shot || p.op.t < at || p.op.dissolve > 0) continue;
+      sampled.add(key);
+      const counts = []; let prev = null, swaps = 0;
+      for (let i = 0; i < 8; i++) {
+        await step(1); const cur = new Set(await grainPixels(shot)); counts.push(cur.size);
+        if (prev) { for (const x of cur) if (!prev.has(x)) swaps++; for (const x of prev) if (!cur.has(x)) swaps++; }
+        prev = cur;
+      }
+      extra += 8;
+      (report.grains[shot] ??= []).push({ at, mean: +(counts.reduce((a, b) => a + b) / counts.length).toFixed(2), twinkle: +(swaps / (counts.length - 1)).toFixed(2), counts });
+    }
     for (const [shot, at] of VERMILION_AT) {
       const key = shot + at;
       if (sampled.has(key) || p.op?.shot !== shot || p.op.t < at || p.op.dissolve > 0) continue;
@@ -125,7 +158,12 @@ export default async function ({ v, step, st, start, freeze, tap, click, log }) 
     for (const [t, share] of report.vermilion[id] || fail('vermilion not sampled: ' + id)) if (share > 0.2) fail(`vermilion ${id} at ${t}s: ${share}`);
     const f = report.flash[id] || fail('flash not sampled: ' + id); if (f.rate > 3) fail(`flash ${id}: ${f.rate}/s`);
   }
-  log('stage by scene', JSON.stringify(report.stage.byScene), 'vermilion', JSON.stringify(report.vermilion), 'flash', JSON.stringify(report.flash));
+  // 白い粒：変更前は景継で1コマ平均10〜19・入れ替わり7〜20、人影で約5。上限は平均4・入れ替わり5
+  for (const [shot, at] of GRAIN_AT) {
+    const g = (report.grains[shot] || []).find(x => x.at === at) || fail(`grains not sampled: ${shot} ${at}`);
+    if (g.mean > 4 || g.twinkle > 5) fail(`white grains on the figures ${shot} at ${at}s: ${JSON.stringify(g)}`);
+  }
+  log('stage by scene', JSON.stringify(report.stage.byScene), 'vermilion', JSON.stringify(report.vermilion), 'flash', JSON.stringify(report.flash), 'grains', JSON.stringify(report.grains));
   // 解放後：谷へ戻り、基準と同じ描画になる。溶け合いの絵も残らない
   const after = await v('(() => { const g = __valley.game; return { stage: !!g.stage, opening: !!g.opening, hold: !!g.post.hold, flow: g.flow }; })()');
   if (after.stage || after.opening || after.hold || after.flow !== 'play') fail('the stage was not released ' + JSON.stringify(after));

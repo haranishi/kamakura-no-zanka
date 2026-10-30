@@ -129,7 +129,7 @@ export const SCENES = freeze({
       { who: 'villager_m', style: 'villager', from: [-14.2, 0.63, -0.1], speed: 0.9, load: 'pack' },
       { who: 'child', style: 'villager', from: [-14.9, 0.63, 0.5], speed: 0.9 },
     ],
-    rim: { color: '#ffb276', power: 0.85, base: '#040405' },
+    rim: { color: '#ff7a36', power: 1.0, base: '#0a0807' },                  // 炎の側の縁だけ朱（ならした法線で、粒に割れない）
     fires: [
       { shape: 'line', from: [9.0, 5.45, -30.2], to: [13.0, 5.45, -30.2], n: 8, w: [1.4, 2.6], h: [2.2, 5.2], power: 0.8, pull: 0, sink: 0.25, top: 11,
         smoke: { rate: 10, up: [1.5, 2.3], life: [9, 13], size: [1.4, 2.2], sizeEnd: [7, 11], lit: [0.17, 0.058, 0.02], dark: [0.008, 0.0072, 0.0066], alpha: 0.7 } },
@@ -174,7 +174,7 @@ export const SCENES = freeze({
     ],
     stones: { n: 80, area: [-6, 8, -1.5, 3.8], size: [0.05, 0.2], avoid: [-0.6, 0.6, -0.6, 0.6], color: '#5d554b', seed: 7 },
     tufts: { n: 320, areas: [[-7, 9, -1.75, -0.95], [-7, 9, 1.35, 4.5], [-7, -3.5, -0.95, 1.35]], h: [0.22, 0.55], color: '#4a4a2a', seed: 9 },
-    hero: { at: [0, 0, 0], face: [-0.15, -1], turnTo: [-0.85, -0.5], speed: 0.9, turnTime: 1.1, lead: 2.6 },   // カメラは右肩の後ろ。左へ向き直るので顔はカメラへ向かない
+    hero: { at: [0, 0, 0], face: [-0.15, -1], turnTo: [-0.85, -0.5], speed: 0.9, turnTime: 1.1, lead: 2.6, rim: { color: '#ff7a36', power: 0.9 }, normalScale: 0.35 },   // カメラは右肩の後ろ。左へ向き直るので顔はカメラへ向かない
     fires: [
       { shape: 'area', at: [12, -31.2, -150], box: [30, 1.4, 18], n: 16, w: [4, 8], h: [5, 13], power: 0.62, pull: 0, sink: 0.15,
         smoke: { rate: 10, up: [2.8, 3.8], life: [24, 32], size: [4, 6], sizeEnd: [18, 30], lit: [0.2, 0.066, 0.022], dark: [0.012, 0.011, 0.010], alpha: 0.5, drag: 0.02 } },
@@ -351,10 +351,54 @@ export function groveTrees(t) {
   return out;
 }
 
-// 影の人物の輪郭の明かり（opening-fire.js の silhouetteMaterial と同じ式）。ndv は法線と視線の内積、ndl は法線と光の向きの内積。
-// カメラを向かない法線（ndv≤0）・正面を向く面（ndv が大きい）・光の反対の側では0。縁だけが細く明るい（最大1）
+// 人影と景継の輪郭の明かり（opening-fire.js の rimTerm と同じ式）。ndv は「ならした法線」（smoothNormals）と視線の内積、ndl は法線と炎の向きの内積。
+// 正面を向く面・はっきり裏を向く面・炎の反対の側では0に近く、炎の側の縁で最大1。3周目：法線をならしたので、縁は体の大きな形に沿って続き、粒に割れない
 const sstep = (a, b, x) => { const t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
-export function rimShade(ndv, ndl) { return sstep(0, 0.1, ndv) * (1 - Math.max(0, Math.min(1, ndv))) ** 5 * sstep(0.05, 0.6, ndl); }
+export function rimShade(ndv, ndl) { return (1 - Math.min(1, Math.abs(ndv))) ** 3 * sstep(-0.35, 0.55, ndl); }
+
+// 法線を低域へ通す（小さな面の向きを消す）。同じ位置の頂点（UVの継ぎ目で分かれたもの）を1つにまとめ、辺でつながった隣の法線と
+// passes 回平均する（1回で約1辺ぶん広がる）。向きの近い（内積が minDot 以上の）隣だけを混ぜるので、薄い布の表と裏は打ち消し合わない。
+// 布のひだ・袖の折り目は、遠目には1画素より細い面になり、縁の明かりや逆光を受けて白い粒に散った（3周目の講評。動くとちらつく）。
+// 人物の形は局所の法線が平均から約29°ずれていた。腕・胴・頭の大きな形の向きは残る。
+// pos・nor は [x,y,z,…]、index は三角形の頂点番号の並び。戻り値は新しい Float32Array（長さ1）。入力は書き換えない
+export function smoothNormals(pos, nor, index, { passes = 12, minDot = 0.2, weld = 1e-4 } = {}) {
+  const n = Math.floor(pos.length / 3), id = new Int32Array(n), keyOf = new Map();
+  let m = 0;
+  for (let i = 0; i < n; i++) {                                          // 同じ位置でも、向きが逆の頂点（両面の布の表と裏）はまとめない（位置は ±4m の範囲）
+    const k = Math.round(pos[i * 3] / weld) + 40000 + (Math.round(pos[i * 3 + 1] / weld) + 40000) * 80000 + (Math.round(pos[i * 3 + 2] / weld) + 40000) * 6.4e9;
+    let reps = keyOf.get(k); if (!reps) keyOf.set(k, reps = []);
+    let w = reps.find(r => nor[r * 3] * nor[i * 3] + nor[r * 3 + 1] * nor[i * 3 + 1] + nor[r * 3 + 2] * nor[i * 3 + 2] > 0);
+    if (w === undefined) { reps.push(i); w = i; }
+    id[i] = w;
+  }
+  const rep = new Int32Array(n).fill(-1);                                 // まとめた頂点に 0..m-1 の番号を振り直す
+  for (let i = 0; i < n; i++) { if (rep[id[i]] < 0) rep[id[i]] = m++; id[i] = rep[id[i]]; }
+  let cur = new Float32Array(m * 3);
+  for (let i = 0; i < n; i++) { const l = Math.hypot(nor[i * 3], nor[i * 3 + 1], nor[i * 3 + 2]) || 1; for (let k = 0; k < 3; k++) cur[id[i] * 3 + k] += nor[i * 3 + k] / l; }
+  const norm = a => { for (let v = 0; v < m; v++) { const l = Math.hypot(a[v * 3], a[v * 3 + 1], a[v * 3 + 2]); if (l > 1e-9) for (let k = 0; k < 3; k++) a[v * 3 + k] /= l; } };
+  norm(cur);
+  // 隣の一覧（CSR）。三角形の3辺を両向きに数える（同じ辺が2つの三角形にあれば2回。重みとして扱う）
+  const tri = index ? index : Array.from({ length: n }, (_, i) => i), deg = new Int32Array(m + 1);
+  for (let t = 0; t + 2 < tri.length; t += 3) for (let e = 0; e < 3; e++) { const a = id[tri[t + e]], b = id[tri[t + (e + 1) % 3]]; if (a !== b) { deg[a + 1]++; deg[b + 1]++; } }
+  for (let v = 0; v < m; v++) deg[v + 1] += deg[v];
+  const adj = new Int32Array(deg[m]), fill = deg.slice(0, m);
+  for (let t = 0; t + 2 < tri.length; t += 3) for (let e = 0; e < 3; e++) { const a = id[tri[t + e]], b = id[tri[t + (e + 1) % 3]]; if (a !== b) { adj[fill[a]++] = b; adj[fill[b]++] = a; } }
+  for (let p = 0; p < passes; p++) {
+    const next = new Float32Array(m * 3);
+    for (let v = 0; v < m; v++) {
+      const nx = cur[v * 3], ny = cur[v * 3 + 1], nz = cur[v * 3 + 2]; let sx = nx, sy = ny, sz = nz;
+      for (let q = deg[v]; q < deg[v + 1]; q++) {
+        const u = adj[q], ux = cur[u * 3], uy = cur[u * 3 + 1], uz = cur[u * 3 + 2];
+        if (ux * nx + uy * ny + uz * nz >= minDot) { sx += ux; sy += uy; sz += uz; }
+      }
+      next[v * 3] = sx; next[v * 3 + 1] = sy; next[v * 3 + 2] = sz;
+    }
+    norm(next); cur = next;
+  }
+  const out = new Float32Array(n * 3);
+  for (let i = 0; i < n; i++) for (let k = 0; k < 3; k++) out[i * 3 + k] = cur[id[i] * 3 + k];
+  return out;
+}
 
 // ---- 画面の測り方（試験と回帰で使う） ----
 // 朱の画素：色相が赤〜橙（345°〜45°）、彩度0.45以上、明るさ0.25以上（sRGB 8bit）。暗い赤茶（墨に沈む色）と、白っぽい炎の芯は数えない

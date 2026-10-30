@@ -163,21 +163,39 @@ export function decorate(material, { roof = null, ember = null, stone = false, t
   return material;
 }
 
-// 影の人物（C）：艶のない黒（光・映り込みを受けない）に、逆光の側の輪郭だけを細く暖色で照らす。式は opening-scenes.js の rimShade と同じ。
-// 1周目は「カメラへ向かない法線」（裏向きの補間法線）で縁が最大になり、体じゅうに白い粒が散った。カメラを向く面の縁だけに限る。uLight はカメラ空間での光の向き
+// 輪郭の明かり（炎の側の縁だけを朱で照らす）。式は opening-scenes.js の rimShade と同じ。n は「ならした法線」（smoothNormals を入れた形の法線。
+// 法線の絵の凹凸は入れない）、v は視線、l は炎の向き（どれもカメラ空間）。2周目までは人物の細かな面の向きのまま縁を光らせ、体じゅうに白い粒が散った
+const RIM = `float rimTerm(vec3 n, vec3 v, vec3 l){ float ndv = abs(dot(n, v)); return pow(1.0 - min(ndv, 1.0), 3.0) * smoothstep(-0.35, 0.55, dot(n, l)); }`;
+const rimUniforms = rim => ({ uRim: { value: new THREE.Color(rim.color).multiplyScalar(rim.power) }, uRimL: { value: new THREE.Vector3(0, 0.4, -1).normalize() } });
+
+// 影の人物（C）：艶のない黒（光・映り込みを受けない）に、炎の側の輪郭だけを朱で照らす。uRimL はカメラ空間での炎の向き（毎コマ置く）
 export function silhouetteMaterial(rim) {
   const m = new THREE.MeshStandardMaterial({ color: '#000000', roughness: 1, metalness: 0 });
   m.envMapIntensity = 0;
-  const u = { uRim: { value: new THREE.Color(rim.color).multiplyScalar(rim.power) }, uBase: { value: new THREE.Color(rim.base || '#050506') }, uLight: { value: new THREE.Vector3(0, 0.4, -1).normalize() } };
+  const u = { ...rimUniforms(rim), uBase: { value: new THREE.Color(rim.base || '#050506') } };
   m.userData.rim = u;
   m.onBeforeCompile = shader => {
     Object.assign(shader.uniforms, u);
-    shader.fragmentShader = shader.fragmentShader.replace('#include <common>', '#include <common>\nuniform vec3 uRim, uLight, uBase;')
-      .replace('#include <opaque_fragment>', `{ vec3 vn = normalize(normal), vv = normalize(vViewPosition); float ndv = dot(vn, vv);
-          float edge = smoothstep(0.0, 0.1, ndv) * pow(1.0 - clamp(ndv, 0.0, 1.0), 5.0), side = smoothstep(0.05, 0.6, dot(vn, normalize(uLight)));
-          outgoingLight = uBase + uRim * edge * side; }
+    shader.fragmentShader = shader.fragmentShader.replace('#include <common>', `#include <common>\nuniform vec3 uRim, uRimL, uBase; ${RIM}`)
+      .replace('#include <opaque_fragment>', `outgoingLight = uBase + uRim * rimTerm(normalize(nonPerturbedNormal), normalize(vViewPosition), normalize(uRimL));
         #include <opaque_fragment>`);
   };
-  m.customProgramCacheKey = () => 'opening-silhouette-2';
+  m.customProgramCacheKey = () => 'opening-silhouette-3';
   return m;
+}
+
+// 色のある人物（D の景継）の材質の複製に、炎の側の輪郭の明かりを足す（ふつうの照明はそのまま）。複製だけに使う
+export function rimLight(material, rim) {
+  const prev = material.onBeforeCompile, prevKey = material.customProgramCacheKey?.() || '', u = rimUniforms(rim);
+  material.userData.rim = u;
+  material.onBeforeCompile = (shader, r) => {
+    prev?.call(material, shader, r);
+    Object.assign(shader.uniforms, u);
+    shader.fragmentShader = shader.fragmentShader.replace('#include <common>', `#include <common>\nuniform vec3 uRim, uRimL; ${RIM}`)
+      .replace('#include <opaque_fragment>', `outgoingLight += uRim * rimTerm(normalize(nonPerturbedNormal), normalize(vViewPosition), normalize(uRimL));
+        #include <opaque_fragment>`);
+  };
+  material.customProgramCacheKey = () => prevKey + '|rim';
+  material.needsUpdate = true;
+  return material;
 }

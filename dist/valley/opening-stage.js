@@ -6,15 +6,16 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { flicker } from './opening.js';
-import { SCENES, SCENE_IDS, cameraAt, flameSprites, createParticleState, particleStep, horizonColor, heroAt, townHouses, townLights, scatterGround, figureAt, groveTrees } from './opening-scenes.js';
-import { FlameField, skyMaterial, paintSky, groundMaterial, stoneMaterial, silhouetteMaterial, decorate } from './opening-fire.js';
+import { SCENES, SCENE_IDS, cameraAt, flameSprites, createParticleState, particleStep, horizonColor, heroAt, townHouses, townLights, scatterGround, figureAt, groveTrees, smoothNormals } from './opening-scenes.js';
+import { FlameField, skyMaterial, paintSky, groundMaterial, stoneMaterial, silhouetteMaterial, decorate, rimLight } from './opening-fire.js';
 import { WaterSurface, instanceModel, townField, lightDots, ridgeGeometry, mistMaterial, stoneField, tuftField, loadGeometry, treeField, wallGeometry } from './opening-set.js';
 import { Character } from './characters.js';
 import { GRIP } from './config.js';
 import { FX } from './fx.js';
-import { patchGrade } from './grade.js';
+import { patchGrade, patchLift } from './grade.js';
 
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
+const SMOOTH = new WeakMap();                                         // 人物の形 → ならした法線（JSの配列だけ。上映をくり返しても計算は最初の1回）
 const UP = V(0, 1, 0);
 const smooth = (a, b, x) => { const t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 const PREWARM = { A: 9, B: 11, C: 14, D: 28 };       // 最初に見せる前に、煙と火の粉を何秒ぶん流しておくか（柱が育った状態で始める）
@@ -24,6 +25,7 @@ export class OpeningStage {
   constructor({ renderer, models = {}, roster = null, quality = 'standard' } = {}) {
     this.renderer = renderer; this.models = models; this.roster = roster; this.quality = quality;
     this.owned = []; this.characters = []; this.fields = []; this.fxs = []; this.instanced = []; this.time = 0; this.shot = null; this.disposed = false;
+    this.smoothGeos = new Map(); this.rims = [];
     this.clock = { value: 0 };                                                    // 屋根の熾火などの材質が読む時刻（全場面で共有）
     this.reduced = false; this.bufferSize = new THREE.Vector2();
     const scene = this.scene = new THREE.Scene(); scene.name = 'opening-stage';
@@ -93,10 +95,31 @@ export class OpeningStage {
     } else { const ground = new THREE.Mesh(this.groundGeo, mat); ground.receiveShadow = true; g.add(ground); }
   }
 
+  // 人物の形を、法線だけ「ならした」ものに差し替える（位置・UV・骨の重みは谷の形と同じ配列を指す。新しく送るのは法線だけ）。
+  // 細かな布の面の向きが縁の明かり・逆光で白い粒に散るのを止める（3周目）。解放するときは、共有の配列を外してから自分の法線だけを返す
+  smoothed(src) {
+    let g = this.smoothGeos.get(src); if (g) return g;
+    let arr = SMOOTH.get(src);
+    if (!arr) {
+      const p = src.attributes.position, nn = src.attributes.normal, n = p.count, pos = new Float32Array(n * 3), nor = new Float32Array(n * 3);
+      for (let i = 0; i < n; i++) { pos[i * 3] = p.getX(i); pos[i * 3 + 1] = p.getY(i); pos[i * 3 + 2] = p.getZ(i); nor[i * 3] = nn.getX(i); nor[i * 3 + 1] = nn.getY(i); nor[i * 3 + 2] = nn.getZ(i); }
+      arr = smoothNormals(pos, nor, src.index?.array); SMOOTH.set(src, arr);
+    }
+    g = new THREE.BufferGeometry(); g.name = (src.name || 'figure') + '-smooth';
+    g.setIndex(src.index); for (const [k, a] of Object.entries(src.attributes)) if (k !== 'normal') g.setAttribute(k, a);
+    g.setAttribute('normal', new THREE.Float32BufferAttribute(arr, 3));
+    for (const gr of src.groups) g.addGroup(gr.start, gr.count, gr.materialIndex);
+    g.boundingSphere = src.boundingSphere; g.boundingBox = src.boundingBox;
+    this.smoothGeos.set(src, g); return g;
+  }
+  smoothFigure(c) { c.model.traverse(o => { if (o.isSkinnedMesh) o.geometry = this.smoothed(o.geometry); }); }
+
   // 影の人物：人物の複製の材質を、自分で作った暗い単色＋縁の光に替える（材質は own して解放。形と骨は共有の複製）
   makeFigure(g, f, rim) {
     const c = new Character(this.roster, f.who); this.characters.push(c);
     this.silhouette ??= this.own(silhouetteMaterial(rim));
+    if (!this.rims.includes(this.silhouette.userData.rim)) this.rims.push(this.silhouette.userData.rim);
+    this.smoothFigure(c);
     c.model.traverse(o => { if (o.isSkinnedMesh) { o.material = this.silhouette; o.castShadow = true; } });
     if (f.load) this.attachLoad(c, f.load);
     c.root.position.fromArray(figureAt(f, 0)); c.root.rotation.y = Math.PI / 2; g.add(c.root);
@@ -114,6 +137,14 @@ export class OpeningStage {
   makeHero(g, h) {
     const c = new Character(this.roster, 'hero'); this.characters.push(c);
     c.setTachi(GRIP, false);
+    // 法線をならし、法線の絵の凹凸を弱め（遠い火の明かりが布の細かな面で白い粒に割れた）、炎の側の輪郭に朱の明かりを足す。材質は複製して解放する
+    this.smoothFigure(c);
+    c.model.traverse(o => {
+      if (!o.isSkinnedMesh) return;
+      const m = this.own(o.material.clone()); patchLift(m, 0.78);
+      if (m.normalMap) m.normalScale.multiplyScalar(h.normalScale ?? 0.35);
+      rimLight(m, h.rim); this.rims.push(m.userData.rim); o.material = m;
+    });
     c.root.position.fromArray(h.at); c.root.rotation.y = Math.atan2(h.face[0], h.face[1]); g.add(c.root);
     return c;
   }
@@ -277,9 +308,9 @@ export class OpeningStage {
       c.root.position.fromArray(figureAt(f, segT));
       c.locomote(f.speed, f.style); c.update(dt);
     }
-    if (this.silhouette) {                                                       // 縁の光は鍵の光の向き（カメラ空間）から
+    if (this.rims.length) {                                                      // 縁の光は鍵の光の向き（場面ごとに炎の方角へ置く。カメラ空間）から
       const L = this.key.position.clone().sub(this.key.target.position).normalize().transformDirection(this.camera.matrixWorldInverse);
-      this.silhouette.userData.rim.uLight.value.copy(L);
+      for (const u of this.rims) u.uRimL.value.copy(L);
     }
     if (sc.hero) {
       const D = SCENES.D, h = heroAt(segT, dur, D.hero);
@@ -297,6 +328,10 @@ export class OpeningStage {
     for (const fx of this.fxs) fx.dispose();
     for (const im of this.instanced) { im.removeFromParent(); im.dispose(); }     // インスタンスの行列の箱だけ（形と材質は谷と共有、または own で解放）
     this.water?.dispose();
+    for (const g of this.smoothGeos.values()) {                                  // 共有の配列（位置・UV・骨の重み・番号）を外してから解放する＝返すのは自分の法線だけ
+      for (const k of Object.keys(g.attributes)) if (k !== 'normal') g.deleteAttribute(k);
+      g.setIndex(null); g.dispose();
+    }
     this.key.dispose(); this.glow.dispose();
     for (const x of this.owned) x.dispose();
     this.envRT.dispose();

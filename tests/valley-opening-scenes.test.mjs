@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { SCENES, SCENE_IDS, cameraAt, flameSprites, createParticleState, particleStep, horizonColor, isVermilion, vermilionShare, flashRate, heroAt, particleSources, fireRoot, townHouses, townLights, scatterGround, rimShade, figureAt } from '../dist/valley/opening-scenes.js';
+import { SCENES, SCENE_IDS, cameraAt, flameSprites, createParticleState, particleStep, horizonColor, isVermilion, vermilionShare, flashRate, heroAt, particleSources, fireRoot, townHouses, townLights, scatterGround, rimShade, figureAt, smoothNormals } from '../dist/valley/opening-scenes.js';
 import { flicker } from '../dist/valley/opening.js';
 
 const MODELS = new Set(fs.readdirSync(new URL('../dist/assets/valley/models/', import.meta.url)).filter(f => f.endsWith('.glb')).map(f => f.replace(/\.glb$/, '')));
@@ -169,15 +169,48 @@ test('煙は炎の根元から立つ：smoke を持つ炎ごとに、その足�
   assert.deepEqual(fireRoot({ shape: 'area', at: [1, 2, 3], box: [4, 1, 2], h: [2, 3] }).at, [1, 2.6, 3]);
 });
 
-test('影の人物：艶のない黒で、カメラを向く面の縁だけが細く光る（裏向きの法線・正面・光の反対側は光らない）', () => {
-  for (const ndl of [0.3, 0.8, 1]) {
-    for (const ndv of [-1, -0.3, -0.01, 0]) assert.equal(rimShade(ndv, ndl), 0, `back-facing normal ${ndv}`);
-    for (const ndv of [0.5, 0.8, 1]) assert.ok(rimShade(ndv, ndl) < 0.04, `facing the camera ${ndv}`);
-  }
-  for (const ndl of [-1, 0, 0.05]) assert.equal(rimShade(0.15, ndl), 0, 'the side away from the fire');
-  assert.ok(rimShade(0.12, 0.9) > 0.3 && rimShade(0.12, 0.9) <= 1, 'a thin bright edge toward the fire');
+test('影の人物：輪郭の明かりは炎の側の縁だけ（正面・はっきり裏を向く面・炎の反対側は光らない）', () => {
+  for (const ndl of [0.3, 0.8, 1]) for (const ndv of [-1, -0.7, -0.6, 0.6, 0.8, 1]) assert.ok(rimShade(ndv, ndl) < 0.07, `facing the camera or clearly away ${ndv}`);
+  for (const ndl of [-1, -0.6, -0.35]) for (const ndv of [-0.1, 0, 0.05, 0.2]) assert.equal(rimShade(ndv, ndl), 0, 'the side away from the fire');
+  assert.ok(rimShade(0.05, 0.9) > 0.8 && rimShade(0.05, 0.9) <= 1, 'a bright edge toward the fire');
+  for (let v = 0; v < 0.99; v += 0.01) assert.ok(rimShade(v + 0.01, 0.9) <= rimShade(v, 0.9) + 1e-12, 'fades toward the camera-facing middle');
   for (let v = -1; v <= 1; v += 0.01) for (let l = -1; l <= 1; l += 0.1) assert.ok(rimShade(v, l) <= 1 && rimShade(v, l) >= 0);
-  assert.ok(SCENES.C.rim.power <= 1, 'the rim is not a glowing outline');
+  assert.ok(SCENES.C.rim.power <= 1 && SCENES.D.hero.rim.power <= 1, 'the rim is not a glowing outline');
+});
+
+// 法線をならす：大きな形の向きは残し、頂点ごとの細かな向きの乱れ（布のひだ）を消す。継ぎ目で分かれた頂点はそろえ、薄い布の表と裏は混ぜない
+const angle = (a, i, b, j) => Math.acos(Math.max(-1, Math.min(1, a[i * 3] * b[j * 3] + a[i * 3 + 1] * b[j * 3 + 1] + a[i * 3 + 2] * b[j * 3 + 2])));
+function sphere(nu = 48, nv = 24, r = 0.15) {           // 経線の0と1周は同じ位置の別の頂点（UVの継ぎ目）
+  const pos = [], nor = [], idx = [];
+  for (let j = 0; j <= nv; j++) for (let i = 0; i <= nu; i++) {
+    const th = Math.PI * (0.08 + 0.84 * j / nv), ph = 2 * Math.PI * i / nu, n = [Math.sin(th) * Math.cos(ph), Math.cos(th), Math.sin(th) * Math.sin(ph)];
+    pos.push(...n.map(c => c * r)); nor.push(...n);
+  }
+  for (let j = 0; j < nv; j++) for (let i = 0; i < nu; i++) { const a = j * (nu + 1) + i, b = a + nu + 1; idx.push(a, b, a + 1, b, b + 1, a + 1); }
+  return { pos: Float32Array.from(pos), nor: Float32Array.from(nor), idx: Uint32Array.from(idx), nu };
+}
+test('人物の法線をならす：大きな形は残り、細かな乱れは消える（白い粒の元）', () => {
+  const s = sphere(), n = s.pos.length / 3;
+  const keep = smoothNormals(s.pos, s.nor, s.idx);
+  let worst = 0, rim = 0; for (let i = 0; i < n; i++) { const j = Math.floor(i / (s.nu + 1)), d = angle(keep, i, s.nor, i); if (j >= 3 && j <= 21) worst = Math.max(worst, d); else rim = Math.max(rim, d); }
+  assert.ok(worst < 0.06 && rim < 0.3, `a smooth shape keeps its normals (inside ${(worst * 57.3).toFixed(1)}°, open rim ${(rim * 57.3).toFixed(1)}°)`);
+  for (let j = 0; j <= 24; j++) { const a = j * (s.nu + 1), b = a + s.nu; for (let k = 0; k < 3; k++) assert.ok(Math.abs(keep[a * 3 + k] - keep[b * 3 + k]) < 1e-6, 'the seam duplicates agree'); }
+  // 頂点ごとに約35°ずらした乱れ（布のひだの代わり）。ならすと、元の球の向きとの差が3分の1未満になる
+  const noisy = Float32Array.from(s.nor), r = (i, k) => Math.sin(i * 12.9898 + k * 78.233) * 43758.5453 % 1;
+  for (let i = 0; i < n; i++) { for (let k = 0; k < 3; k++) noisy[i * 3 + k] += 0.75 * r(i, k); const l = Math.hypot(noisy[i * 3], noisy[i * 3 + 1], noisy[i * 3 + 2]); for (let k = 0; k < 3; k++) noisy[i * 3 + k] /= l; }
+  const before = Array.from({ length: n }, (_, i) => angle(noisy, i, s.nor, i)).reduce((a, b) => a + b) / n;
+  const out = smoothNormals(s.pos, noisy, s.idx), after = Array.from({ length: n }, (_, i) => angle(out, i, s.nor, i)).reduce((a, b) => a + b) / n;
+  assert.ok(before > 0.4 && after < before / 3, `noise ${(before * 57.3).toFixed(1)}° → ${(after * 57.3).toFixed(1)}°`);
+  for (let i = 0; i < n; i++) assert.ok(Math.abs(Math.hypot(out[i * 3], out[i * 3 + 1], out[i * 3 + 2]) - 1) < 1e-5, 'unit length');
+  assert.deepEqual(Array.from(s.nor.slice(0, 6)), Array.from(sphere().nor.slice(0, 6)), 'the input is not rewritten');
+});
+test('人物の法線をならす：薄い布の表と裏（同じ位置・縁でつながる）は混ぜない', () => {
+  const g = 5, pos = [], nor = [], idx = [], at = (s, i, j) => s * g * g + j * g + i;
+  for (const [s, y, ny] of [[0, 0, 1], [1, 0, -1]]) for (let j = 0; j < g; j++) for (let i = 0; i < g; i++) { pos.push(i * 0.02, y, j * 0.02); nor.push(0, ny, 0); }
+  for (let j = 0; j < g - 1; j++) for (let i = 0; i < g - 1; i++) for (const s of [0, 1]) idx.push(at(s, i, j), at(s, i, j + 1), at(s, i + 1, j), at(s, i + 1, j), at(s, i, j + 1), at(s, i + 1, j + 1));
+  for (let k = 0; k < g - 1; k++) for (const [a, b] of [[at(0, k, 0), at(0, k + 1, 0)], [at(0, 0, k), at(0, 0, k + 1)]]) idx.push(a, b, b + g * g, a, b + g * g, a + g * g);   // 縁で表と裏をつなぐ
+  const out = smoothNormals(Float32Array.from(pos), Float32Array.from(nor), Uint32Array.from(idx));
+  for (let v = 0; v < 2 * g * g; v++) assert.ok(out[v * 3 + 1] * nor[v * 3 + 1] > 0.95, `vertex ${v} keeps its side`);
 });
 
 test('D：眼下の町は家並みと灯の帯。燃える区画のまわりは朱の熾火、ほかはまばらな暗い灯。小石は足もとを避ける', () => {
