@@ -8,6 +8,7 @@ import { createContactTracker, observeContacts } from './foot-contacts.js';
 import { FOOT_CONTACTS } from './anim-contacts.js';
 import { BowRig } from './bow.js';
 import { SwordRig } from './sword-rig.js';
+import { HandRig, HAND_RIG_WHO, prepareHands } from './hand-rig.js';
 import { makeTachi, makeNaginata, makeYumi, makeArrow, makeQuiver } from './weapons.js';
 import { patchLift } from './grade.js';
 
@@ -60,6 +61,7 @@ export async function loadRoster({ names = ROSTER, onProgress, anisotropy = 8 } 
       if (looped) clips.set(c.name, c);
       else { const s = stripRoot(c); clips.set(c.name, s.clip); roots.set(c.name, s.root); }
     }
+    if (HAND_RIG_WHO.has(name)) prepareHands(gltf.scene);   // 指の骨の重み・握りの形（8.6a）を、読み込みの間に1回だけ
     templates.set(name, { scene: gltf.scene, clips, roots, info: meta.characters[name] });
   }));
   return { templates, meta };
@@ -92,6 +94,8 @@ export class Character {
     this.rootTravel = { x: 0, z: 0 };
     this.flinch = { x: 0, v: 0, dir: 0 };
     this.armRelax = true; this.relax = { Left: 0, Right: 0 };
+    // 指の骨と見える腕の写し（8.6a）。this.bones（動作の骨）を作ったあとに足すので、写しは this.bones に入らない
+    this.hands = HAND_RIG_WHO.has(who) ? new HandRig(this) : null;
   }
 
   bone(name) { return this.bones.get(name); }
@@ -240,6 +244,7 @@ export class Character {
     }
     if (this.armRelax) this.relaxArms(dt);
     if (this.sword) this.sword.apply();   // 抜刀・納刀：骨の後処理なので relaxArms のあと
+    if (this.hands) this.hands.apply(dt);   // 握り（8.6a）：抜刀の層が決めた刀・鞘を読み、見える腕の写しだけを動かす
     if (this.bow) this.bow.update();
     if (this.drops) this.updateDrops(dt);
   }
