@@ -10,3 +10,5 @@ export function uLodFor(level, { lod: [a, b], blend: w }) {
   return level === 0 ? [-1, -1, a, a + 2 * w] : level === 1 ? [a - 2 * w, a, b, b + 2 * w] : [b - 2 * w, b, -1, -1];
 }
 export function fadeWeight(distance, range, blend) { return 1 - smooth(range - blend, range + blend, distance); }
+// The camera-near foliage fade (8.1a, second round): 0 inside a, 1 beyond b. The leaf shader evaluates the same smoothstep.
+export function nearFade(distance, [a, b]) { if (!(a >= 0 && b > a)) throw new RangeError('near fade'); return smooth(a, b, distance); }

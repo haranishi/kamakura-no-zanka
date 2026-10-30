@@ -34,7 +34,9 @@ export function needleTexture() {
     twig(128, 246, a, len, i * 37);
     for (let k = 0; k < 4; k++) for (const side of [-1, 1]) { const t = .28 + k * .17; twig(128 + Math.cos(a) * len * t, 246 + Math.sin(a) * len * t, a + side * .85, 34 + hash(i, k) * 28, i * 71 + k); }
   }
-  return upload(c, g);
+  // Second round: transparent texels take the needles' mean colour (as the cedar spray). Grey padding bled into the
+  // mip levels and the middle pines (60-150 m) stood pale and snowy against the hillside.
+  return upload(c, g, 'mean');
 }
 const S = 256;
 const gray = v => { const n = Math.max(0, Math.min(255, Math.round(255 * v))); return `rgb(${n},${n},${n})`; };

@@ -79,11 +79,21 @@ export const TREES = Object.freeze({
   variants: Object.freeze({ cedar: 5, zelkova: 3, pine: 2, maple: 3 }),
   leafGain: 1.25,
   understoryLeafGain: 1.1,
-  // R17.11（2026-10-30）：近景の杉は枝と房で作るので、L0の上限を上げた（遠景は据え置き）。総量は性能の実測で確かめる。
-  budget: Object.freeze({ cedar: [2200, 260, 40], zelkova: [2600, 560, 160], pine: [600, 140, 96], maple: [2600, 560, 160], sapling: [1400, 200], shrub: [1200, 180] }),
+  // R17.11（2026-10-30）：近景の杉は枝と房で作るので、L0の上限を上げた。第2周（10-31）：遠景を絵の板にして浮いた分で、中景の杉を近景の枝ごとの房に（L1 260→600）。
+  budget: Object.freeze({ cedar: [2300, 600, 40], zelkova: [2600, 560, 160], pine: [600, 140, 96], maple: [2600, 560, 160], sapling: [1400, 200], shrub: [1200, 180] }),
   // 杉の段の傾き（m/m、段ごと・個体ごとに向きが変わる）。近景は影とのずれを小さく、中遠景で段の水平線を崩す。
   tierTilt: Object.freeze([0.05, 0.14, 0.16]),
   // 広葉の葉1枚ごとの向き（法線の強さ）と色の揺らぎ（±割合）。樹皮の凹凸と根元の暗さ（地面に接する所の明るさ）。
-  leafDetail: Object.freeze({ normal: 0.85, hue: 0.09, rim: 0.7 }),
-  bark: Object.freeze({ relief: 0.75, contact: 0.62, crownShade: 0.6 }),
+  // 第2周：group＝葉の群れ（約0.4m）で樹冠の房の縁を欠く強さ、gap＝房に開ける隙間の閾値、inner＝隙間から見える房の内側の明るさ。
+  leafDetail: Object.freeze({ normal: 0.85, hue: 0.09, rim: 0.7, group: 0.7, gap: 0.14, inner: 0.5 }),
+  // カメラの近くの葉を薄くする距離（m）：a 以内は消え、b 以遠は残る（樹冠の中で画面が緑一色になるのを防ぐ）。
+  nearFade: Object.freeze([0.4, 1.8]),
+  // 逆光の透け：針葉樹の強さ（1周目は .2）と、葉の縁（画像の不透明度が低い所）を足す割合。
+  backlight: Object.freeze({ conifer: 0.5, edge: 2.0 }),
+  // 第2周：凹凸を強く（.75→1.0）、根元の暗さを深く（.62→.52）、溝の苔（根元1.3mまで）。
+  bark: Object.freeze({ relief: 1.0, contact: 0.52, crownShade: 0.6, moss: 0.75 }),
+  // 夕景の空気（第2周）：葉の彩度を距離で落とす割合（near〜far m で0→amount）。明るさは変えない（山肌の陰の中で樹冠が白く浮かない）。
+  leafAir: Object.freeze({ amount: 0.3, near: 25, far: 320 }),
+  // 遠景の絵の板（8.1a第2周）：切り抜きの閾値と、遠く（ミップが粗い）ほど葉の不透明を足す割合（細って透けないように）。
+  impostor: Object.freeze({ alphaTest: 0.4, mipBoost: 0.5 }),
 });

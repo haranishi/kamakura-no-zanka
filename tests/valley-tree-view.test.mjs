@@ -1,6 +1,7 @@
 // なぜ失敗したか: 円盤下地と予約隅がコイン・格子になり、灰色の針と松の絵の誤配線が白い段を作った。紙の縁の黒・固定緑の発光・風やLODの結線漏れを、GPUなしで区別する。
 // 原因の型: texture/shader/wind/lod/color/instance/dispose/specimen/qa、独立レビュー後は side/alpha-test/wind-basis/wind-height/far-mean。GLSLのコンパイルは対象外。
 // 第3弾（8.1a）: 杉の房の絵（2枚の帳）、広葉の葉ごとの向きと色（詳細の画像）、樹皮、樹冠としての照らし方、段の傾き、輪郭の葉の欠け。
+// 第2周: 遠景の絵の板（焼き付けと材質）、カメラの近くの葉の薄め、葉の群れでの縁の欠けと隙間、逆光の縁、夕景の空気、根元の苔。
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
@@ -12,6 +13,10 @@ const canvas = installTreeCanvas();
 const { needleTexture, mapleLeafTexture, zelkovaLeafTexture, cedarSprayTexture, leafDetailTexture, barkTexture } = await load('tree-textures.js');
 const { treeMaterials } = await load('tree-materials.js');
 const { createTreeSet, buildSpecimens, stageColor } = await load('tree-view.js');
+const { impostorMaterial, treeImpostors, impostorGeometry } = await load('tree-bake.js');
+import { impostorView, IMPOSTOR, frameFit } from '../dist/valley/tree-impostor.js';
+import { nearFade } from '../dist/valley/tree-lod.js';
+import { stubRenderer } from './helpers/tree-field.mjs';
 const { treeGeometry } = await load('tree-geometry.js');
 const wind = () => ({ uTime: { value: 5 }, uWind: { value: 1 }, uWindDir: { value: new THREE.Vector2(1, 0) }, uGuideMix: { value: 0 } });
 const sunDir = new THREE.Vector3(.5, .2, .85).normalize();
@@ -28,7 +33,11 @@ test('three deterministic procedural textures retain padding and drawing grammar
     hashes.push(bytes);
     const b = factory(); assert.equal(hash(canvas.drawing()), ops, '[texture] drawing seed'); assert.equal(hash(Array.from(b.image.data)), bytes, '[texture] pixel seed');
     assert(a.isDataTexture && a.image.width <= 512 && a.image.height <= 512, '[texture] raw upload and size');
-    for(let i=0;i<a.image.data.length;i+=4)if(a.image.data[i+3]<6)assert.deepEqual(Array.from(a.image.data.slice(i,i+3)),[190,190,190],'[texture-padding] transparent RGB');
+    // Grey leaves pad with grey (they are tinted per tree). The coloured needles pad with their own mean (8.1a second round):
+    // grey padding bled into the mip levels and the middle pines stood pale and snowy.
+    const d=a.image.data,sum=[0,0,0];let n=0;for(let i=0;i<d.length;i+=4)if(d[i+3]>=77){n++;for(let k=0;k<3;k++)sum[k]+=d[i+k];}
+    const pad=factory===needleTexture?sum.map(v=>Math.round(v/n)):[190,190,190];
+    for(let i=0;i<d.length;i+=4)if(d[i+3]<6)assert.deepEqual(Array.from(d.slice(i,i+3)),pad,'[texture-padding] transparent RGB');
     assert(a.flipY && a.generateMipmaps && a.colorSpace === THREE.SRGBColorSpace && a.minFilter === THREE.LinearMipmapLinearFilter, '[texture] mip/sRGB orientation');
     a.dispose(); b.dispose();
   }
@@ -131,7 +140,9 @@ test('Lambert color, two-layer wind, shared objects and limited transmission [sh
         assert.match(f, /pow\(max\(0.0,dot\(sight,normalize\(uSunDir\)\)\),3.0\)/, '[shader] sun backlight');
         assert.match(f, /min\(vec3\(\.35\),diffuseColor.rgb\*/, '[shader] bounded diffuse-proportional transmission');
         assert.match(f, /1.0-smoothstep\(30.0,100.0,vTreeDistance\)/, '[shader] transmission distance');
-        assert(f.includes(`backlight*${species === 0 || species === 2 ? '.2' : '1.0'}`), '[shader] species transmission');
+        // 8.1a second round: conifer sprays pass more light (.2 -> TREES.backlight.conifer) and thin edges glow (blind review: backlit).
+        assert(f.includes(`backlight*${species === 0 || species === 2 ? TREES.backlight.conifer.toFixed(2) : '1.0'}`), '[shader] species transmission');
+        if (level < 2) assert(f.includes(`leafThrough *= 1.0 + ${TREES.backlight.edge.toFixed(2)}*(1.0-smoothstep(.3, .95, leafAlpha));`) && f.indexOf('float leafAlpha = diffuseColor.a;') < f.indexOf('leafThrough *='), '[shader] backlit edge glow');
       }
     }
   }
@@ -435,5 +446,139 @@ test('cedar tiers lean a position-dependent way at every level [tier-tilt]',()=>
   const tilt=(x,z,y,ph1,ph2,amp)=>{const turn=ph1*1.7+y*.43;return (x*Math.cos(turn)+z*Math.sin(turn))*amp*(.55+.45*Math.sin(ph2+y*.91));};
   const bands=[3,5,7,9,11].map(y=>Math.atan2(tilt(0,1,y,1.3,.4,1),tilt(1,0,y,1.3,.4,1)));
   assert(new Set(bands.map(a=>a.toFixed(1))).size===5,'[tier-tilt] bands lean the same way');
+  m.dispose();
+});
+
+// --- 8.1a second round ---------------------------------------------------------------------------------------------
+const fullShader = () => ({ uniforms: {}, vertexShader: '#include <common>\n#include <beginnormal_vertex>\n#include <begin_vertex>\n#include <color_vertex>', fragmentShader: '#include <common>\n#include <map_fragment>\n#include <color_fragment>\n#include <alphatest_fragment>\n#include <normal_fragment_begin>\n#include <normal_fragment_maps>\n#include <emissivemap_fragment>\n#include <fog_fragment>' });
+function compileFull(m) { const shader = fullShader(); m.onBeforeCompile(shader); return shader; }
+// The shipped GLSL frame choice, translated to JS: atan(x,z), mod, floor, smoothstep, as the vertex stage evaluates them.
+function glslView(v) {
+  const expr = name => v.match(new RegExp(`${name} = ([^;]+);`))[1];
+  const js = e => e.replace(/atan\(/g, 'Math.atan2(').replace(/floor\(/g, 'Math.floor(').replace(/mod\(/g, 'mod(').replace(/smoothstep\(/g, 'smoothstep(');
+  const mod = (x, y) => x - y * Math.floor(x / y), smoothstep = (a, b, x) => { const t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+  const u = new Function('impDir', 'mod', `return ${js(expr('float impU'))}`), b = new Function('impA', 'mod', `return ${js(expr('impB'))}`), t = new Function('impU', 'impA', 'smoothstep', `return ${js(expr('vImpT'))}`);
+  return az => { const impDir = { x: Math.sin(az), y: Math.cos(az) }, U = u(impDir, mod), A = Math.floor(U); return { a: A, b: b(A, mod), t: t(U, A, smoothstep) }; };
+}
+// なぜ失敗したか（第2周）: 遠景の円錐は見晴らしで段の針葉樹に見えた。絵の板は、木の局所の方位で8枚の絵から2枚を選び、帯の中だけ混ぜる。
+// GLSLの選び方が純粋な層（tree-impostor.js）とずれると、回ると絵が跳ねる。全方位でGLSLとJSを照合する。
+test('impostor shader picks the same frames as the pure view choice [impostor-view]', () => {
+  const w = wind(), atlas = { albedo: new THREE.Texture(), normal: new THREE.Texture() };
+  for (const quality of ['standard', 'light']) {
+    const m = impostorMaterial({ wind: w, sunDir, quality, frame: [.1, .2, .05, .06], atlas, height: 12 }), s = compileFull(m), v = s.vertexShader, f = s.fragmentShader;
+    const view = glslView(v);
+    for (let k = 0; k <= 720; k++) {
+      const az = k / 720 * Math.PI * 2 - .001, got = view(az), want = impostorView(((az % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2));
+      // The shader's 6.2831853 differs from 2π in the ninth digit; the GPU computes in float32 anyway.
+      assert(got.a === want.a && got.b === want.b && Math.abs(got.t - want.t) < 1e-6, `[impostor-view] frame choice differs at ${az.toFixed(3)}`);
+    }
+    assert(v.includes('vImpUvA = uImpFrame.xy + vec2(impA * uImpStep, 0.0) + uv * uImpFrame.zw;') && v.includes('vImpUvB = uImpFrame.xy + vec2(impB * uImpStep, 0.0) + uv * uImpFrame.zw;'), '[impostor-view] frame UVs');
+    assert.equal(s.uniforms.uImpStep.value, 1 / IMPOSTOR.views, '[impostor-view] column step');
+    assert(v.includes('transformed = impRight * position.x + vec3(0.0, position.y, 0.0);'), '[impostor-view] board does not turn to the camera');
+    assert(v.indexOf('transformed = impRight') < v.indexOf('transformed +=') && (v.match(/transformed \+=/g) || []).length === 1, '[wind] board sway must follow the turn, once');
+    for (const key of Object.keys(w)) assert.equal(s.uniforms[key], w[key], `[wind] ${key} object identity`);
+    assert(v.includes('float heightRatio = clamp(position.y/12.0,0.0,1.0);') && /step\(\.5,uWind\)/.test(v) && /\*uWind;/.test(v), '[wind] board sway');
+    assert(v.includes('vTreeDistance = distance(treeOrigin,cameraPosition);') && v.includes('vTreeWeight = enter*leave;'), '[lod] board LOD weights');
+    assert.equal(m.alphaToCoverage, quality !== 'light', '[coverage/opaque] board coverage');
+    assert.equal(f.includes('diffuseColor.a *= vTreeWeight;'), quality !== 'light', '[coverage/mode] board fade');
+    assert.equal(f.includes('if (n >= vTreeWeight) discard;'), quality === 'light', '[coverage/dither] board dither');
+    assert(f.includes('diffuseColor.rgb *= mix(vec3(vImpWood), vColor.rgb, step(.5, impNormal.a));'), '[impostor] leaves take the instance colour, trunks the bark brightness');
+    assert(f.includes('normal = normalize(impN.x * vImpRight + impN.y * vImpUp + impN.z * vImpFwd);'), '[impostor] baked normal not rebuilt on the board');
+    assert(f.indexOf('impAlbedo.a = min(1.0') > f.indexOf('vec4 impAlbedo'), '[impostor] far alpha thins out with the mip level');
+    assert.equal(m.alphaTest, TREES.impostor.alphaTest, '[impostor] alpha cut');
+    assert(m.customProgramCacheKey() === impostorMaterial({ wind: w, sunDir, quality, frame: [.5, .5, .1, .1], atlas }).customProgramCacheKey(), '[impostor] families must share one program');
+    m.dispose();
+  }
+});
+// 板の大きさは、焼いた枠と同じ（幹を中心、根元を下端）。uv は枠の0〜1。
+test('impostor boards span their baked frame [impostor-board]', () => {
+  const fit = frameFit({ half: 3.4, bottom: -.1, top: 20.2 }), g = impostorGeometry(fit), p = g.getAttribute('position'), uv = g.getAttribute('uv');
+  assert.equal(g.index.count, 6, '[impostor-board] two triangles');
+  const xs = Array.from({ length: 4 }, (_, i) => p.getX(i)), ys = Array.from({ length: 4 }, (_, i) => p.getY(i));
+  const close = (a, b) => Math.abs(a - b) < 1e-6;
+  assert(close(Math.min(...xs), -3.4) && close(Math.max(...xs), 3.4) && close(Math.min(...ys), -.1) && close(Math.max(...ys), 20.2), '[impostor-board] board does not match the frame');
+  for (let i = 0; i < 4; i++) assert(Math.abs(uv.getX(i) - (p.getX(i) + 3.4) / 6.8) < 1e-6 && Math.abs(uv.getY(i) - (p.getY(i) + .1) / 20.3) < 1e-6, '[impostor-board] uv does not follow the board');
+  g.dispose();
+});
+// 焼き付けは2回（色・法線）だけ描き、描き先・消去色・自動消去を元に戻し、一時の形と材質を捨てる。
+test('the bake renders both atlases once and restores the renderer [impostor-bake]', () => {
+  const { w, m } = make(), r = stubRenderer(), imp = treeImpostors({ wind: w, sunDir, materials: m });
+  const ms = imp.bake(r), renders = r.calls.filter(c => c[0] === 'render');
+  assert(Number.isFinite(ms) && imp.baked, '[impostor-bake] not baked');
+  assert.deepEqual(renders.map(c => c[3]), [imp.targets.albedo, imp.targets.normal], '[impostor-bake] atlases rendered out of order or twice');
+  assert(renders.every(c => c[4] === true), '[impostor-bake] atlases not cleared before the bake');
+  assert.equal(r.state.target, 'screen', '[impostor-bake] render target not restored'); assert.equal(r.state.alpha, .25, '[impostor-bake] clear alpha not restored');
+  assert.equal(r.state.color.getHex(), 0x123456, '[impostor-bake] clear colour not restored'); assert.equal(r.state.autoClear, false, '[impostor-bake] autoClear not restored');
+  const scene = renders[0][1];
+  assert.equal(scene.children.length, 0, '[impostor-bake] temporary meshes kept in the bake scene');
+  assert(imp.targets.albedo.texture.colorSpace === THREE.SRGBColorSpace && imp.targets.normal.texture.colorSpace === THREE.NoColorSpace, '[impostor-bake] atlas colour spaces');
+  assert(imp.targets.albedo.texture.generateMipmaps && imp.targets.albedo.samples === 0 && imp.targets.normal.samples === 0, '[impostor-bake] atlas mips, or multisample buffers kept after the bake');
+  const lost = treeImpostors({ wind: w, sunDir, materials: m }), fail = stubRenderer({ fail: true });
+  assert.throws(() => lost.bake(fail), /context lost/, '[impostor-bake] bake error swallowed');
+  assert.equal(fail.state.target, 'screen', '[impostor-bake] failed bake left its target bound');
+  let disposed = 0; for (const t of Object.values(imp.targets)) t.addEventListener('dispose', () => disposed++);
+  const mat = imp.material(0, 0); let matDisposed = 0; mat.addEventListener('dispose', () => matDisposed++);
+  imp.dispose(); imp.dispose(); assert(disposed === 2 && matDisposed === 1, '[impostor-bake] owned resources not released exactly once');
+  assert.throws(() => imp.material(0, 0), /disposed/, '[impostor-bake] use after disposal');
+  lost.dispose(); m.dispose();
+});
+// なぜ失敗したか（第2周）: カメラが樹冠に入ると画面が緑一色になった。近くの葉だけ距離で薄くする（影はそのまま）。
+test('near and middle foliage thins out right in front of the camera [near-fade]', () => {
+  for (const quality of ['standard', 'light']) {
+    const { m } = make(quality);
+    for (let sp = 0; sp < 6; sp++) for (let l = 0; l < (sp >= 4 ? 2 : 3); l++) for (const kind of ['leaf', 'wood']) {
+      const f = compileFull(m.get(sp, l)[kind]).fragmentShader, on = kind === 'leaf' && l < 2;
+      const line = `float nearKeep = smoothstep(${TREES.nearFade[0].toFixed(2)}, ${TREES.nearFade[1].toFixed(2)}, length(vViewPosition));`;
+      assert.equal(f.includes(line), on, `[near-fade] ${sp}/${l}/${kind}`);
+      if (!on) continue;
+      assert(f.indexOf(line) > f.indexOf('#include <alphatest_fragment>'), '[near-fade] fade must follow the alpha test');
+      assert(f.includes(quality === 'light' ? 'if (n >= nearKeep) discard;' : 'diffuseColor.a *= nearKeep;'), '[near-fade] wrong fade mode');
+    }
+    m.dispose();
+  }
+  const [a, b] = TREES.nearFade, smoothstep = (x, y, d) => { const t = Math.max(0, Math.min(1, (d - x) / (y - x))); return t * t * (3 - 2 * t); };
+  for (let d = 0; d <= 3; d += .05) assert(Math.abs(nearFade(d, TREES.nearFade) - smoothstep(a, b, d)) < 1e-12, '[near-fade] shader and pure fade disagree');
+  assert(a < b && b < 2.4 && a > 0, '[near-fade] distances outside the third-person camera (3.6m)');
+  assert(!/customDepthMaterial|MeshDepthMaterial/.test(source('tree-materials.js')), '[near-fade] shadows must keep the full crown');
+});
+// なぜ失敗したか（第2周）: 広葉の房が丸い球に見えた。葉の群れ（約0.4m）で縁を欠き、隙間を開け、隙間から見える内側は陰にする。
+test('broadleaf clusters break their rims by leaf groups and open shaded gaps [leaf-group]', () => {
+  const { m } = make();
+  for (let sp = 0; sp < 6; sp++) for (let l = 0; l < (sp >= 4 ? 2 : 3); l++) {
+    const mat = m.get(sp, l).leaf, f = compileFull(mat).fragmentShader, on = !!mat.normalMap;
+    assert.equal(f.includes(`(leafGroup-.5)*${TREES.leafDetail.group.toFixed(2)}`), on, '[leaf-group] rim erosion by leaf groups');
+    assert.equal(f.includes(`smoothstep(${TREES.leafDetail.gap.toFixed(2)}, ${(TREES.leafDetail.gap + .08).toFixed(2)}, texture2D(normalMap, vNormalMapUv*.23+.61).a)`), on, '[leaf-group] gaps');
+    assert.equal(f.includes(`if (!gl_FrontFacing) diffuseColor.rgb *= ${TREES.leafDetail.inner.toFixed(2)};`), on, '[leaf-group] inner face shade');
+    if (on) assert(f.indexOf('leafGroup') < f.indexOf('#include <alphatest_fragment>'), '[leaf-group] erosion must cut before the alpha test');
+  }
+  assert(TREES.leafDetail.inner < .8 && TREES.leafDetail.gap > 0 && TREES.leafDetail.gap < .3, '[leaf-group] gap and inner shade out of range');
+  // The bake erodes the same way, or far crowns would be rounder than near ones.
+  assert(source('tree-bake.js').includes('(leafGroup - .5) * ${TREES.leafDetail.group.toFixed(2)}'), '[leaf-group] bake keeps round rims');
+  m.dispose();
+});
+// なぜ失敗したか（第2周）: 黄緑の葉が夕景の中で明るすぎた。葉は距離で彩度だけを落とす（明るさは保つ）。遠景の板も同じ。
+test('foliage loses saturation with distance, not brightness [leaf-air]', () => {
+  const { w, m } = make(), luma = c => .2126 * c[0] + .7152 * c[1] + .0722 * c[2];
+  const board = compileFull(impostorMaterial({ wind: w, sunDir, quality: 'standard', frame: [0, 0, .1, .1], atlas: { albedo: null, normal: null } })).fragmentShader;
+  for (const f of [compileFull(m.get(0, 0).leaf).fragmentShader, compileFull(m.get(3, 1).leaf).fragmentShader, board]) {
+    assert(f.includes(`float leafAir = ${TREES.leafAir.amount.toFixed(2)}*smoothstep(${TREES.leafAir.near.toFixed(1)}, ${TREES.leafAir.far.toFixed(1)}, length(vViewPosition));`), '[leaf-air] missing');
+    assert(f.indexOf('float leafAir') > f.indexOf('#include <fog_fragment>'), '[leaf-air] must follow the fog');
+    assert(f.includes('gl_FragColor.rgb = mix(gl_FragColor.rgb, vec3(dot(gl_FragColor.rgb, vec3(.2126,.7152,.0722)))*vec3(.94,.98,1.08), leafAir);'), '[leaf-air] haze target is not the luminance grey');
+  }
+  assert(!compileFull(m.get(0, 0).wood).fragmentShader.includes('leafAir'), '[leaf-air] on wood');
+  // The grey target keeps luminance within 6%: a saturated yellow-green does not brighten.
+  const c = [.3, .42, .08], grey = luma(c), mixed = c.map((v, k) => v + (grey * [.94, .98, 1.08][k] - v) * TREES.leafAir.amount);
+  assert(Math.abs(luma(mixed) / luma(c) - 1) < .06 && mixed[1] - mixed[2] < c[1] - c[2], '[leaf-air] haze brightens or keeps the yellow-green');
+  m.dispose();
+});
+// なぜ失敗したか（第2周）: 樹皮が等間隔の縞で、根元がまっすぐ地面に刺さって見えた。根元の溝に少し苔。
+test('wood settles moss in the grooves of its foot [bark-moss]', () => {
+  const { m } = make();
+  for (let sp = 0; sp < 6; sp++) {
+    const f = compileFull(m.get(sp, 0).wood).fragmentShader;
+    assert(f.includes(`float barkMoss = (1.0-smoothstep(0.0, 1.3, vBarkHeight)) * barkTexel.a * barkOn * ${TREES.bark.moss.toFixed(2)};`), '[bark-moss] moss missing');
+    assert(f.indexOf('barkMoss') > f.indexOf('smoothstep(-0.15, 1.1, vBarkHeight)'), '[bark-moss] moss before the soil shade');
+  }
+  assert(TREES.bark.relief >= 1 && TREES.bark.contact <= .55, '[bark] relief or foot shade weakened');
   m.dispose();
 });

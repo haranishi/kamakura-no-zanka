@@ -1,7 +1,7 @@
 // なぜ失敗したか: 風・色・溶かし・資源の退行をassertionで検出し、元のバイト列へ戻す。
 import fs from 'node:fs';
 import { spawnSync } from 'node:child_process';
-const material = 'dist/valley/tree-materials.js', texture = 'dist/valley/tree-textures.js';
+const material = 'dist/valley/tree-materials.js', texture = 'dist/valley/tree-textures.js', bake = 'dist/valley/tree-bake.js';
 const cases = [
   ['standard dither restored', material, "fadeMode === 'coverage'", "fadeMode === 'never'"],
   ['light coverage fade', material, "quality === 'light' ? 'dither' : 'coverage'", "'coverage'"],
@@ -64,6 +64,26 @@ const cases = [
   ['detail map flipped against the leaf image', texture, 'map.flipY = true; map.colorSpace = THREE.NoColorSpace;', 'map.flipY = false; map.colorSpace = THREE.NoColorSpace;'],
   ['spray padded grey', texture, "upload(c, g, 'mean')", 'upload(c, g)'],
   ['spray wider than its card', texture, 'Math.min(1, 116 / half,', 'Math.min(1.6, 180 / half,'],
+  // 8.1a second round: near-camera fade, leaf groups and gaps, backlit edges, evening air, moss, pine padding, the far boards.
+  ['no near fade', material, 'const nearFade = leaf && level < 2;', 'const nearFade = false;'],
+  ['near fade on trunks', material, 'const nearFade = leaf && level < 2;', 'const nearFade = level < 2;'],
+  ['near fade modes swapped', material, "${fadeMode === 'coverage' ? 'diffuseColor.a *= nearKeep;' : 'if (n >= nearKeep) discard;'}", "${fadeMode === 'coverage' ? 'if (n >= nearKeep) discard;' : 'diffuseColor.a *= nearKeep;'}"],
+  ['round cluster rims', material, '+ (leafGroup-.5)*${TREES.leafDetail.group.toFixed(2)});', ');'],
+  ['no gaps in clusters', material, "diffuseColor.a *= smoothstep(${TREES.leafDetail.gap.toFixed(2)}, ${(TREES.leafDetail.gap + .08).toFixed(2)}, texture2D(normalMap, vNormalMapUv*.23+.61).a);", ''],
+  ['lit inner faces', material, 'if (!gl_FrontFacing) diffuseColor.rgb *= ${TREES.leafDetail.inner.toFixed(2)};', ''],
+  ['conifer transmission back to .2', material, "${conifer ? TREES.backlight.conifer.toFixed(2) : '1.0'}", "${conifer ? '.2' : '1.0'}"],
+  ['no backlit edge glow', material, 'leafThrough *= 1.0 + ${TREES.backlight.edge.toFixed(2)}*(1.0-smoothstep(.3, .95, leafAlpha));', ''],
+  ['evening air brightens', material, 'vec3(dot(gl_FragColor.rgb, vec3(.2126,.7152,.0722)))*vec3(.94,.98,1.08), leafAir);`', 'vec3(1.0), leafAir);`'],
+  ['no moss at the foot', material, 'diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb*vec3(.72,1.08,.55) + vec3(.006,.012,.003), barkMoss);', ''],
+  ['grey needle padding', texture, "  return upload(c, g, 'mean');\n}", '  return upload(c, g);\n}'],
+  ['board shows one frame twice', bake, 'vImpUvB = uImpFrame.xy + vec2(impB * uImpStep, 0.0) + uv * uImpFrame.zw;', 'vImpUvB = uImpFrame.xy + vec2(impA * uImpStep, 0.0) + uv * uImpFrame.zw;'],
+  ['board view half a step off', bake, '/ 6.2831853 * ${cfg.views.toFixed(1)}, ${cfg.views.toFixed(1)});', '/ 6.2831853 * ${cfg.views.toFixed(1)} + 0.5, ${cfg.views.toFixed(1)});'],
+  ['board blends everywhere', bake, 'vImpT = smoothstep(${f3(.5 - cfg.band / 2)}, ${f3(.5 + cfg.band / 2)}, impU - impA);', 'vImpT = smoothstep(0.0, 1.0, impU - impA);'],
+  ['board does not face the camera', bake, 'transformed = impRight * position.x + vec3(0.0, position.y, 0.0);', 'transformed = vec3(position);'],
+  ['seasonal tint on far trunks', bake, 'diffuseColor.rgb *= mix(vec3(vImpWood), vColor.rgb, step(.5, impNormal.a));', 'diffuseColor.rgb *= vColor.rgb;'],
+  ['bake leaves its atlas bound', bake, 'renderer.setRenderTarget(prev.target); renderer.setClearColor', 'renderer.setClearColor'],
+  ['bake keeps its temporary meshes', bake, '    scene.clear();\n  }', '  }'],
+  ['far rims stay round in the bake', bake, ' + (leafGroup - .5) * ${TREES.leafDetail.group.toFixed(2)});', ');'],
 ];
 const originals = new Map([...new Set(cases.map(c => c[1]))].map(f => [f, fs.readFileSync(f)]));
 const run = () => spawnSync(process.execPath, ['--test', 'tests/valley-tree-view.test.mjs'], { encoding: 'utf8', timeout: 30000, maxBuffer: 8 * 1024 * 1024 });

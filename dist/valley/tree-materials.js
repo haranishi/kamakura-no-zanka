@@ -43,6 +43,8 @@ export function treeMaterials({ wind, sunDir, quality = 'standard' }) {
     if (detail) { m.normalMap = detail; m.normalScale.set(TREES.leafDetail.normal, TREES.leafDetail.normal); }
     // Cedar tufts are lit as one crown: back faces keep the outward crown normal instead of flipping per card.
     const crownLit = leaf && species === 0 && level < 2;
+    // Near and middle foliage fade when the camera is inside or right against them (shadows keep the full crown).
+    const nearFade = leaf && level < 2;
     const fadeMode = quality === 'light' ? 'dither' : 'coverage';
     const lod = disabled(); m.userData.uLod = lod;
     m.onBeforeCompile = shader => {
@@ -104,24 +106,36 @@ export function treeMaterials({ wind, sunDir, quality = 'standard' }) {
         varying vec3 vTreeWorld; varying float vTreeDistance; varying float vTreeWeight;
         ${leaf ? '' : 'uniform sampler2D uBark; uniform float uBarkRelief; varying vec2 vBarkUv; varying float vBarkHeight;'}`)
         .replace('#include <color_fragment>', `#include <color_fragment>
+        ${leaf ? 'float leafAlpha = diffuseColor.a;' : ''}
         ${leaf ? (detail ? `// Per-leaf colour jitter (detail alpha, mean 0): some leaves warmer, some cooler, never a new hue.
         vec4 leafDetail = texture2D(normalMap, vNormalMapUv);
         float leafHue = leafDetail.a*2.0-1.0;
         diffuseColor.rgb *= vec3(1.0+${TREES.leafDetail.hue.toFixed(3)}*leafHue, 1.0+${(TREES.leafDetail.hue / 6).toFixed(4)}*leafHue, 1.0-${TREES.leafDetail.hue.toFixed(3)}*leafHue);
+        // Leaf groups: the same per-leaf values at a third of the scale (~0.4m patches) break each cluster's round rim into lobes.
+        float leafGroup = texture2D(normalMap, vNormalMapUv*.31+.17).a;
         // Rim erosion: near a shell's silhouette each leaf survives by its own random value, so the outline breaks into leaves.
-        diffuseColor.a *= smoothstep(.12, .46, abs(dot(normalize(vNormal), normalize(vViewPosition))) + (leafDetail.a-.5)*${TREES.leafDetail.rim.toFixed(2)});` : crownLit ? `// A tuft card seen edge-on fades out instead of drawing a thin board edge (no normalize: a zero cross product stays finite).
+        diffuseColor.a *= smoothstep(.12, .46, abs(dot(normalize(vNormal), normalize(vViewPosition))) + (leafDetail.a-.5)*${TREES.leafDetail.rim.toFixed(2)} + (leafGroup-.5)*${TREES.leafDetail.group.toFixed(2)});
+        // A few gaps through the cluster; behind them the shell's inner face stands in its own shade (depth, not a second skin).
+        diffuseColor.a *= smoothstep(${TREES.leafDetail.gap.toFixed(2)}, ${(TREES.leafDetail.gap + .08).toFixed(2)}, texture2D(normalMap, vNormalMapUv*.23+.61).a);
+        if (!gl_FrontFacing) diffuseColor.rgb *= ${TREES.leafDetail.inner.toFixed(2)};` : crownLit ? `// A tuft card seen edge-on fades out instead of drawing a thin board edge (no normalize: a zero cross product stays finite).
         vec3 cardFace = cross(dFdx(vViewPosition), dFdy(vViewPosition));
         diffuseColor.a *= smoothstep(.04, .22, abs(dot(cardFace, normalize(vViewPosition))) / max(length(cardFace), 1e-8));` : '') : `// Bark: one shared image (mean gain 1, so far trunks keep their brightness); foliage cores carry UV (-1,-1).
         float barkOn = step(-0.5, vBarkUv.x);
         vec4 barkTexel = texture2D(uBark, vBarkUv);
         diffuseColor.rgb *= mix(1.0, barkTexel.r*2.0, barkOn);
         // Ground contact: the first metre of every trunk darkens toward the soil.
-        diffuseColor.rgb *= mix(1.0, ${TREES.bark.contact.toFixed(2)} + ${(1 - TREES.bark.contact).toFixed(2)}*smoothstep(-0.15, 1.1, vBarkHeight), barkOn);${species === 0 ? `
+        diffuseColor.rgb *= mix(1.0, ${TREES.bark.contact.toFixed(2)} + ${(1 - TREES.bark.contact).toFixed(2)}*smoothstep(-0.15, 1.1, vBarkHeight), barkOn);
+        // A little moss settles in the grooves of the foot (bark alpha = groove depth), greener toward the soil.
+        float barkMoss = (1.0-smoothstep(0.0, 1.3, vBarkHeight)) * barkTexel.a * barkOn * ${TREES.bark.moss.toFixed(2)};
+        diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb*vec3(.72,1.08,.55) + vec3(.006,.012,.003), barkMoss);${species === 0 ? `
         // Inside the cedar crown the trunk and limbs stand in the tufts' shade.
         diffuseColor.rgb *= mix(1.0, ${TREES.bark.crownShade.toFixed(2)}, smoothstep(2.6, 5.5, vBarkHeight)*barkOn);` : ''}`}`)
         .replace('#include <alphatest_fragment>', `#include <alphatest_fragment>
         ${fadeMode === 'coverage' ? 'diffuseColor.a *= vTreeWeight;' : `float n = fract(52.9829189*fract(dot(gl_FragCoord.xy,vec2(.06711056,.00583715))));
-        if (n >= vTreeWeight) discard;`}`)
+        if (n >= vTreeWeight) discard;`}${nearFade ? `
+        // Foliage right in front of the camera thins out (tree-lod.js nearFade): inside a crown the screen was one green wall.
+        float nearKeep = smoothstep(${TREES.nearFade[0].toFixed(2)}, ${TREES.nearFade[1].toFixed(2)}, length(vViewPosition));
+        ${fadeMode === 'coverage' ? 'diffuseColor.a *= nearKeep;' : 'if (n >= nearKeep) discard;'}` : ''}`)
         .replace('#include <normal_fragment_begin>', `#include <normal_fragment_begin>
         ${crownLit ? 'normal = normalize(vNormal); nonPerturbedNormal = normal;' : ''}`)
         .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
@@ -134,6 +148,10 @@ export function treeMaterials({ wind, sunDir, quality = 'standard' }) {
         float barkScale = barkDet == 0.0 ? 0.0 : inversesqrt(barkDet);
         vec2 barkTilt = (barkTexel.gb*2.0-1.0)*uBarkRelief;
         normal = normalize(mix(normal, normalize(barkT*(barkTilt.x*barkScale) + barkB*(barkTilt.y*barkScale) + normal), barkOn));`}`)
+        .replace('#include <fog_fragment>', `#include <fog_fragment>
+        ${leaf ? `// Evening air: foliage loses saturation with distance (not brightness, so crowns do not pale against the shaded slopes).
+        float leafAir = ${TREES.leafAir.amount.toFixed(2)}*smoothstep(${TREES.leafAir.near.toFixed(1)}, ${TREES.leafAir.far.toFixed(1)}, length(vViewPosition));
+        gl_FragColor.rgb = mix(gl_FragColor.rgb, vec3(dot(gl_FragColor.rgb, vec3(.2126,.7152,.0722)))*vec3(.94,.98,1.08), leafAir);` : ''}`)
         .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
         // diffuseColor includes map, exposure vertex color and instanceColor (color_fragment).
         totalEmissiveRadiance += diffuseColor.rgb*${leaf ? '.24' : '.10'};
@@ -142,7 +160,9 @@ export function treeMaterials({ wind, sunDir, quality = 'standard' }) {
         backlight *= 1.0-smoothstep(30.0,100.0,vTreeDistance);
         // Thin leaves turned away from the sun pass more light; the shell's inner leaves stay dark (exposure).
         float leafThrough = ${detail ? `.55 + .45*max(0.0, dot(normal, -normalize((viewMatrix*vec4(uSunDir,0.0)).xyz)))` : '1.0'};
-        totalEmissiveRadiance += min(vec3(.35),diffuseColor.rgb*vec3(1.0,.82,.52)*backlight*${conifer ? '.2' : '1.0'}*leafThrough);` : ''}`);
+        // Against the sun the thin edges of leaves and needle sprays glow (low image alpha = thin foliage).
+        leafThrough *= 1.0 + ${TREES.backlight.edge.toFixed(2)}*(1.0-smoothstep(.3, .95, leafAlpha));
+        totalEmissiveRadiance += min(vec3(.35),diffuseColor.rgb*vec3(1.0,.82,.52)*backlight*${conifer ? TREES.backlight.conifer.toFixed(2) : '1.0'}*leafThrough);` : ''}`);
     };
     m.customProgramCacheKey = () => `tree-specimen-v2-${species}-${level}-${leaf}-${variant}-${shape}-${quality}-${fadeMode}`;
     owned.push(m); return m;

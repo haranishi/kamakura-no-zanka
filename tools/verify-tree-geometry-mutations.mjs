@@ -22,11 +22,11 @@ const cases = [
   ['three-band far broadleaf', 'dome, 10, 5, 1, false', 'dome, 8, 3, 1, false'],
 
   ['uniform exposure', 'const exposure = .28 + .72 * Math.pow((facing[1] + 1) / 2, .65) * shelter;', 'const exposure = 1;'],
-  ['one clump per branch', '8 : 6', '1 : 1'],
+  ['one clump per branch', 'clustered ? BROAD_CLUSTERS : 6', 'clustered ? 1 : 1'],
   ['one fork branch', 'const branches = small ? (shrub ? 5 : 4) : [4, 3, 5][shape];', 'const branches = 1;'],
   ['unnormalized normals', 'this.n.push(...norm(n))', 'this.n.push(...n)'],
   ['protruding trunk head', '[.12, fork, .1]', '[.12, h * 1.6, .1]'],
-  ['triangle budget overflow', 'level === 0 ? 8 : 6', 'level === 0 ? 40 : 6'],
+  ['triangle budget overflow', 'crown(leaf, c.center, c.radii, 12, 6, 1, false, c.rotation, 0, .09)', 'crown(leaf, c.center, c.radii, 40, 6, 1, false, c.rotation, 0, .09)'],
   ['single far cone', 'i < 4; i++) cone(leaf', 'i < 1; i++) cone(leaf'],
   ['floating trunk foot', '[0, -.1, 0]', '[0, .2, 0]'],
   ['invalid flutter weight', '.2 + .8 * Math.sin(theta)', '.2 + 2 * Math.sin(theta)'],
@@ -55,14 +55,20 @@ const cases = [
   ['near limbs omitted', 'if (b.wood) { const s = [0, .45, .85];', 'if (false) { const s = [0, .45, .85];'],
   ['one card per tuft', 'for (const card of tuftCards(tuft)) {', 'for (const card of tuftCards(tuft).slice(0, 1)) {'],
   ['tuft root sways like its tip', 'uvs[k], k >= 2 ? 1 : .3);', 'uvs[k], 1);'],
-  ['black middle core', '[.055, .1, .045]', '[.022, .045, .020]'],
-  ['middle tufts unlit', 'cedarTuft(leaf, tuft, shape, 1.1)', 'cedarTuft(leaf, tuft, shape, .5)'],
-  ['middle skirts returned', 'for (const tuft of cedarMidPlan(shape).tufts) cedarTuft(leaf, tuft, shape, 1.1);', `for (let i = 0; i < 9; i++) { const first = leaf.s.length, y = 3 + i * 2.1, r = 3.4 * (1 - i / 9); for (let j = 0; j < 2; j++) for (let k = 0; k <= 12; k++) { const a = k / 12 * TAU; leaf.vert([Math.cos(a) * r * (j ? 1 : .24), y + (j ? -.65 : 1), Math.sin(a) * r * (j ? 1 : .24)], [Math.cos(a), .5, Math.sin(a)], [.6, .6, .6], [k / 12 * 3, j ? 0 : 1], j ? 1 : .4); } for (let k = 0; k < 12; k++) { const v = first + k; leaf.quad(v, v + 1, v + 14, v + 13); } }`],
+  ['middle core cone returned', '  for (const tuft of cedarMidPlan(shape).tufts) cedarTuft(leaf, tuft, shape);\n}', '  for (const tuft of cedarMidPlan(shape).tufts) cedarTuft(leaf, tuft, shape);\n  cone(wood, 3, 19.7, 1.4, 8, .3, [.055, .1, .045]);\n}'],
+  ['middle tufts unlit', 'for (const tuft of cedarMidPlan(shape).tufts) cedarTuft(leaf, tuft, shape);', 'for (const tuft of cedarMidPlan(shape).tufts) cedarTuft(leaf, tuft, shape, .5);'],
+  ['middle skirts returned', 'for (const tuft of cedarMidPlan(shape).tufts) cedarTuft(leaf, tuft, shape);', `for (let i = 0; i < 9; i++) { const first = leaf.s.length, y = 3 + i * 2.1, r = 3.4 * (1 - i / 9); for (let j = 0; j < 2; j++) for (let k = 0; k <= 12; k++) { const a = k / 12 * TAU; leaf.vert([Math.cos(a) * r * (j ? 1 : .24), y + (j ? -.65 : 1), Math.sin(a) * r * (j ? 1 : .24)], [Math.cos(a), .5, Math.sin(a)], [.6, .6, .6], [k / 12 * 3, j ? 0 : 1], j ? 1 : .4); } for (let k = 0; k < 12; k++) { const v = first + k; leaf.quad(v, v + 1, v + 14, v + 13); } }`],
   ['atlas UV spills into the other spray', 'half = .23,', 'half = .3,'],
   ['bark UV per tube instead of metres', 'barkUV(k, sides, t, length, radius)', '[k / sides, t]'],
   ['core carries bark', "core ? NO_BARK : [circumference / tile * k / sides, p[1] / tile]", "[circumference / tile * k / sides, p[1] / tile]"],
-  ['cedar core carries bark', 'color || [1, 1, 1], color ? NO_BARK : [.5, 1]', 'color || [1, 1, 1], [.5, 1]'],
+  // 'cedar core carries bark' left with the middle cedar's core cone (8.1a second round); broadleaf cores keep their mark below.
   ['middle broadleaf limbs dropped', 'if (level === 1 && !small) for (const l of broadLimbs', 'if (false) for (const l of broadLimbs'],
+  // 8.1a second round: root flare, clustered near broadleaf and sapling crowns.
+  ['no root flare rings', 'if (flared) steps.splice(1, 0,', 'if (false) steps.splice(1, 0,'],
+  ['flat trunk foot', 'flared ? 1 + .85 * Math.exp(-h / .5)', 'flared ? 1 + 0 * Math.exp(-h / .5)'],
+  ['sapling ball returned', 'sapling = species === 4 && level === 0;', 'sapling = false;'],
+  ['clusters without limbs', 'tube(wood, c.limb.from, c.limb.to, c.limb.radius, 3, 1); crown(leaf, c.center', 'crown(leaf, c.center'],
+  ['dark core behind the near clusters', "    crown(leaf, [0, center[1] - .1 * radii[1], 0], radii.map(v => v * .42), 12, 6, 1, false, .4, 0, .09);\n    return;", "    crown(leaf, [0, center[1] - .1 * radii[1], 0], radii.map(v => v * .42), 12, 6, 1, false, .4, 0, .09);\n    clump(wood, center, radii.map(v => v * .35), 6, 2, 1, true);\n    return;"],
 ];
 const original = fs.readFileSync(file);
 const run = () => spawnSync(process.execPath, ['--test', 'tests/valley-tree-geometry.test.mjs'], { encoding: 'utf8', timeout: 30000 });

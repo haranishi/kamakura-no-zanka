@@ -1,6 +1,8 @@
 // なぜ失敗したか（8.1a・2026-10-30）: 近景の杉は26段×6本の輪生カード（板）と滑らかな芯の円錐で、「張りぼて」「段の針葉樹」に見えた。
 // 中景は同じ形の笠を9枚重ね、モミ・トウヒの段になった。枝が無く「棒に樹冠を載せた」見え方だった。樹皮は無地だった。
 // 原因の型: whorl（同じ高さの輪生）/spiral（向きの規則）/envelope（大きさ）/tuft（房の付き方）/connection（枝と房）/mid（中景の段）/bark（樹皮）/determinism。
+// 第2周（10-31・盲検）: 細い杉が「魚の骨」（同じ間隔・大きさ・角度の房）、中景が「円錐に星形の紙」、広葉が「棒の上の球」、樹皮が等間隔の縞に見えた。
+// 原因の型を追加: clump（枝の疎密）/jitter（房の向き・大きさ）/broad（広葉の房の集まり）/strip（樹皮の帯の幅）。
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -52,7 +54,7 @@ test('limb lengths taper upward and tips stay inside the middle crown rim [envel
   }
 });
 
-// 房が枝先だけ（あるいは幹から浮いて）付くと、「棒に葉の玉」に戻る。房は枝の外側の3/4に重なり、最後は枝先。
+// 房が枝先だけ（あるいは幹から浮いて）付くと、「棒に葉の玉」に戻る。房は枝の外側の約2/3（第2周：内側の枝を見せる）に重なり、最後は枝先。
 test('tufts sit on their limb, overlap along the outer three quarters and end at the tip [tuft/connection]', () => {
   for (const shape of families) {
     const { branches } = B.cedarBranchPlan(shape), variants = [0, 0];
@@ -69,7 +71,7 @@ test('tufts sit on their limb, overlap along the outer three quarters and end at
       }
       const spacing = b.tufts.slice(1).map((t, i) => (t.s - b.tufts[i].s) * b.length);
       assert(spacing.every((d, i) => d < .8 * b.tufts[i + 1].length), '[tuft] neighbouring tufts do not overlap');
-      if (b.wood) { woody++; assert(b.length > 1.35 && b.t < .72, '[connection] limb flag'); }
+      if (b.wood) { woody++; assert(b.length > 1.05 && b.t < .8, '[connection] limb flag'); }
       // The limb starts inside the trunk at its own height.
       const axis = B.cedarTrunkAxis(shape, b.y);
       assert(Math.hypot(b.base[0] - axis[0], b.base[2] - axis[2]) < B.cedarTrunkRadius(b.y) + 1e-9, '[connection] limb floats off the trunk');
@@ -107,22 +109,102 @@ test('crown normals face outward and exposure darkens the inside and the bottom 
   }
 });
 
-// 中景の裾は9枚の同じ笠だった（段）。房に替えても、数は旧の三角形の数と同じで、外周まで届き、高さは一つずつ違う。
-test('middle cedar tufts replace the stacked skirts within their triangles [mid]', () => {
-  assert.deepEqual(B.CEDAR_MID_TUFTS, [36, 32, 40, 37, 40], '[mid] tuft counts (old skirt triangles / 6)');
+// 中景の裾は9枚の同じ笠だった（段）。第1周の螺旋の大きな房と芯の円錐は、見晴らしから「円錐に星形の紙」に見えた（第2周）。
+// 中景の房は近景の枝ごと（長い枝は2枚）で、近景の房の向き・色を引き継ぎ、枝の先の側に付く。
+test('middle cedar tufts follow the near limbs, one per limb and two on long limbs [mid]', () => {
   for (const shape of families) {
-    const { tufts } = B.cedarMidPlan(shape), ys = tufts.map(t => t.center[1]).sort((a, b) => a - b);
-    assert.equal(tufts.length, B.CEDAR_MID_TUFTS[shape], '[mid] tuft count');
-    for (let i = 2; i < ys.length; i++) assert(ys[i] - ys[i - 2] > .1, '[mid] tufts stacked at one height (skirt)');
-    let reach = 0;
-    for (const t of tufts) {
-      const axis = B.cedarTrunkAxis(shape, t.center[1]), rim = B.cedarSkirtRadius(shape, t.center[1]);
-      const tip = t.center.map((v, q) => v + t.along[q] * .55 * t.length), r = Math.hypot(tip[0] - axis[0], tip[2] - axis[2]);
-      assert(Math.hypot(t.center[0] - axis[0], t.center[2] - axis[2]) < rim + 1e-9, '[mid] tuft centre outside the crown');
-      reach += r / rim;
+    const limbs = B.cedarBranchPlan(shape), { tufts } = B.cedarMidPlan(shape), perLimb = new Map();
+    for (const t of tufts) perLimb.set(t.limb, (perLimb.get(t.limb) ?? 0) + 1);
+    assert.equal(perLimb.size, limbs.branches.length, '[mid] a near limb lost its middle tuft');
+    for (const b of limbs.branches) {
+      const n = perLimb.get(b.index), cover = .64 * b.length + .55 * b.tufts.at(-1).length;
+      assert.equal(n, cover > 2.6 ? 2 : 1, '[mid] tufts per limb');
     }
-    assert(reach / tufts.length > .85 && reach / tufts.length < 1.2, '[mid] tufts do not reach the crown rim');
+    const ys = tufts.map(t => t.center[1]).sort((a, b) => a - b);
+    // A skirt is a ring of tufts at one height: no four tufts within 5cm (two pieces of one limb may sit close).
+    for (let i = 3; i < ys.length; i++) assert(ys[i] - ys[i - 3] > .05, '[mid] tufts stacked at one height (skirt)');
+    for (const t of tufts) {
+      const b = limbs.branches[t.limb];
+      B.branchPoint(b, t.s).forEach((v, q) => assert(near(v, t.center[q]), '[mid] middle tuft off its limb'));
+      assert(t.s >= .3 && t.length >= .7 && t.length <= 2.6 && Math.abs(t.width / t.length - .92) < 1e-9, '[mid] tuft placement or size');
+      assert(Math.abs(Math.hypot(...t.along) - 1) < 1e-9, '[mid] tuft direction');
+    }
+    // The middle crown reaches as far as the near tips (the dissolve band does not shrink the crown).
+    const reach = plan => Math.max(...plan.map(t => { const tip = t.center.map((v, q) => v + t.along[q] * .55 * t.length), axis = B.cedarTrunkAxis(shape, t.center[1]); return Math.hypot(tip[0] - axis[0], tip[2] - axis[2]); }));
+    const nearReach = reach(limbs.branches.flatMap(b => b.tufts)), midReach = reach(tufts);
+    assert(Math.abs(midReach / nearReach - 1) < .15, `[mid] middle crown ${midReach.toFixed(2)}m against near ${nearReach.toFixed(2)}m`);
   }
+});
+
+// 一様な層化の枝は、細い家族で同じ間隔の「魚の骨」に見えた。波で疎密を作る（順序は保つ）。
+test('crown warp clusters limb heights without reordering them [clump]', () => {
+  const wave = { k: 4, phase: 1.1, amp: .55 };
+  let prev = -1, dmin = Infinity, dmax = 0;
+  for (let i = 0; i <= 400; i++) {
+    const s = i / 400, t = B.crownWarp(s, wave);
+    assert(t >= prev - 1e-12 && t >= 0 && t <= 1, '[clump] warp reorders or leaves the crown');
+    if (i) { const d = (t - prev) * 400; dmin = Math.min(dmin, d); dmax = Math.max(dmax, d); }
+    prev = t;
+  }
+  assert(dmax / dmin > 2.5, '[clump] no dense and sparse bands');
+  assert(B.crownWarp(0, wave) === 0, '[clump] crown base moved');
+  assert.throws(() => B.crownWarp(.5, { k: 4, phase: 0, amp: 1 }), RangeError, '[clump] folding warp accepted');
+  for (const shape of families) {
+    const { branches } = B.cedarBranchPlan(shape), ys = branches.map(b => b.y).sort((a, b) => a - b);
+    const gaps = ys.slice(1).map((y, i) => y - ys[i]), mean = gaps.reduce((a, b) => a + b) / gaps.length;
+    // Measured .51-.59 with the warp; the same plan without it (the fishbone) gives .32-.42.
+    assert(std(gaps) / mean > .46, `[clump] limb spacing too even (${(std(gaps) / mean).toFixed(2)})`);
+  }
+});
+
+// 同じ角度・同じ大きさの房が枝ごとに並ぶと、櫛に見えた。房の向きは枝の接線から±.3/.25rad、大きさは約2倍の幅で揺れる。
+test('tufts tilt off their limb and vary in size [jitter]', () => {
+  let seed = 7; const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+  const angles = [];
+  for (let i = 0; i < 400; i++) {
+    const along = [Math.cos(i), .3 * Math.sin(i * .7), Math.sin(i)], a = B.perturbTuft(along, rnd), n = Math.hypot(...along);
+    assert(near(Math.hypot(...a), 1, 1e-9), '[jitter] tuft direction not unit');
+    const cos = a.reduce((m, v, q) => m + v * along[q] / n, 0); angles.push(Math.acos(Math.min(1, cos)));
+  }
+  assert(Math.max(...angles) < Math.hypot(.3, .25) + 1e-9, '[jitter] tuft turned too far from its limb');
+  // Both turns act: the sideways one leaves the limb's vertical plane, the pitch one leaves its horizontal heading.
+  let side = 0, lift = 0;
+  for (let i = 0; i < 400; i++) { const along = [1, 0, 0], a = B.perturbTuft(along, rnd); side += Math.abs(a[2]); lift += Math.abs(a[1]); }
+  assert(side / 400 > .05 && lift / 400 > .05, '[jitter] tufts turn only one way');
+  assert(std(angles) > .05 && angles.filter(x => x > .1).length > 100, '[jitter] tufts keep the limb direction');
+  assert.deepEqual(B.perturbTuft([0, 1, 0], () => .5), [0, 1, 0], '[jitter] centred draw moves a vertical tuft');
+  for (const shape of families) {
+    const tufts = B.cedarBranchPlan(shape).branches.flatMap(b => b.tufts.map(t => ({ t, b })));
+    const off = tufts.map(({ t, b }) => Math.acos(Math.min(1, t.along.reduce((m, v, q) => m + v * B.branchTangent(b, t.s)[q], 0))));
+    assert(off.filter(x => x > .08).length > .5 * off.length, '[jitter] most tufts point along their limb');
+    const tips = tufts.filter(({ t }) => t.s === 1).map(({ t, b }) => t.length / (.55 + .45 * Math.min(1, b.length / 2.6)));
+    assert(Math.max(...tips) / Math.min(...tips) > 1.6, '[jitter] tip tufts share one size');
+  }
+});
+
+// 広葉の近景は大きな殻10個（棒の上の球）だった。房は二次の枝の先に付き、樹冠の外殻に沿って並び、間に空が抜ける。
+test('broadleaf clusters sit on secondary limbs around the crown with gaps between them [broad]', () => {
+  const center = [0, 8, 0], radii = [4.2, 3.6, 4.2], tips = [[1.8, 6.6, 0], [-1.2, 7.4, 1.5], [.4, 8.2, -2.2], [-1, 9, -1]];
+  const plan = B.broadClusterPlan({ center, radii, tips, fork: 3.5, vase: true });
+  assert.equal(plan.clusters.length, B.BROAD_CLUSTERS, '[broad] cluster count');
+  assert.deepEqual(B.broadClusterPlan({ center, radii, tips, fork: 3.5, vase: true }), plan, '[broad] plan drift');
+  let gaps = 0;
+  for (const c of plan.clusters) {
+    const r = c.center.map((v, q) => (v - center[q]) / radii[q]), depth = Math.hypot(...r);
+    assert(depth > .5 && depth < 1.25, '[broad] cluster inside the trunk or outside the crown');
+    assert(c.radii.every((v, q) => v / radii[q] >= .27 && v / radii[q] <= .41), '[broad] cluster size');
+    // The limb leaves its primary at 55% and ends inside the cluster.
+    const from = plan.root.map((v, q) => v + (tips[c.primary][q] - v) * .55);
+    c.limb.from.forEach((v, q) => assert(near(v, from[q]), '[broad] limb not on its primary'));
+    assert(Math.hypot(...c.limb.to.map((v, q) => (v - c.center[q]) / c.radii[q])) < 1, '[broad] limb ends outside its cluster');
+    const nearest = Math.min(...plan.clusters.filter(o => o !== c).map(o => Math.hypot(...o.center.map((v, q) => v - c.center[q])) - Math.max(...o.radii) - Math.max(...c.radii)));
+    if (nearest > -.6) gaps++;
+  }
+  assert(gaps >= 4, '[broad] every cluster buried in its neighbours (no sky between them)');
+  const upper = plan.clusters.filter(c => c.center[1] > center[1]), lower = plan.clusters.filter(c => c.center[1] < center[1]);
+  const spread = cs => Math.max(...cs.map(c => Math.hypot(c.center[0], c.center[2])));
+  assert(spread(upper) > spread(lower), '[broad] zelkova clusters do not widen upward');
+  assert.throws(() => B.broadClusterPlan({ center, radii, tips: [], fork: 3 }), RangeError, '[broad] empty limbs accepted');
 });
 
 // 樹皮が無地の棒だと幹が「張りぼて」に見えた。縦の帯と割れ目、平均1の明るさ（遠景で幹の明るさが変わらない）、周期でつながること。
@@ -138,6 +220,12 @@ test('bark image is periodic, vertical and brightness neutral [bark]', () => {
   }
   // Measured 18x for the shipped image; horizontal fibres fall to about 3x.
   assert(du > 8 * dv, '[bark] strips and fibres are not vertical');
+  // 第2周: 帯の幅は不揃い（等間隔の縞に見えた）。帯の境（x の整数）を周に沿って数え、幅の比を見る。
+  const edges = []; let last = Math.floor(14 * 0 + B.barkStripWarp(0));
+  for (let k = 1; k <= 2800; k++) { const u = k / 2800, x = Math.floor(14 * u + B.barkStripWarp(u)); if (x !== last) { edges.push(u); last = x; } }
+  const widths = edges.slice(1).map((u, i) => u - edges[i]);
+  assert(edges.length === 14 && Math.max(...widths) / Math.min(...widths) > 2, '[bark] strips share one width');
+  assert(near(B.barkStripWarp(0), B.barkStripWarp(1), 1e-9), '[bark] strip warp not periodic');
   for (let k = 0; k <= 8; k++) {
     assert(near(B.barkHeight(0, k / 8), B.barkHeight(1, k / 8), 1e-9), '[bark] seam around the trunk');
     assert(near(B.barkHeight(k / 8, 0), B.barkHeight(k / 8, 1), 1e-9), '[bark] seam along the trunk');

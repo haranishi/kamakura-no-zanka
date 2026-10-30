@@ -4,12 +4,14 @@
 // 第2回独立評価: 複製樹形・低木の多面体・遠景の皿を、全変種の実バッファで防ぐ。
 // 原因の型: budget/attributes/normal/exposure/shape/bark/core/determinism。GPUと見た目は検査しない。
 // 第3弾（8.1a）: 近景の杉は26段×6本の板と芯の円錐、中景は9枚の笠の段で「張りぼて」に見えた。枝・房の計画は tree-branches.js（試験は valley-tree-branches）。
+// 第2周（10-31）: 中景の杉は近景の枝ごとの房（芯の円錐なし）、広葉の近景は小さな房の集まり（棒の上の球を割る）、若木も房に、幹の根元は張る。
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { TREES } from '../dist/valley/config.js';
 import { load, source, THREE } from './helpers/tree-modules.mjs';
-import { cedarBranchPlan, CEDAR_MID_TUFTS } from '../dist/valley/tree-branches.js';
+import { cedarBranchPlan, cedarMidPlan, BROAD_CLUSTERS } from '../dist/valley/tree-branches.js';
+const midTufts = shape => cedarMidPlan(shape).tufts.length;
 const { treeGeometry } = await load('tree-geometry.js');
 const names = ['cedar', 'zelkova', 'pine', 'maple', 'sapling', 'shrub'];
 const digest = g => { const h=createHash('sha256');for(const a of Object.values(g.attributes))h.update(Buffer.from(a.array.buffer));h.update(Buffer.from(g.index.array.buffer));return h.digest('hex'); };
@@ -96,7 +98,9 @@ test('crown volume, repeated shell UV, opaque core and irregular branch tips [vo
   for(const species of [1,3,4,5])for(const level of [0,1]) {
     const g=treeGeometry(species,level), parts=g.leaf.userData.parts, uv=g.leaf.getAttribute('uv'), p=g.leaf.getAttribute('position');
     const shells=parts.filter(p=>!p.core);
-    if(level===0)assert(shells.length >= (species<4?10:species===4?8:6) && shells.length <= (species<4?10:species===4?8:6),'[volume] too few foliage shells');
+    // 8.1a second round: the near broadleaf crown is BROAD_CLUSTERS small clusters plus one inner cluster; the sapling nine plus one.
+    const expected=species<4?BROAD_CLUSTERS+1:species===4?10:6;
+    if(level===0)assert(shells.length===expected,'[volume] too few foliage shells');
     for(const part of shells) {
       const {first,sides,bands}=part;
       if(species<4)for(let j=1;j<bands;j++)for(let k=0;k<sides;k++) {
@@ -139,12 +143,12 @@ test('LOD dimensions and rounded far broadleaf, fringed cedar mid [lod-shape]',(
       }
     }
   }
-  // The middle cedar is the near tufts' image on a spiral (nine identical skirts read as fir/spruce tiers), in the
-  // skirts' triangles, around a shaded green core (a near-black core showed between the large tufts as holes).
+  // The middle cedar carries one large tuft per near limb (two on long limbs), with no core cone: nine identical skirts read
+  // as fir/spruce tiers (7.9), and a spiral of large tufts on a smooth green core as paper stars on a cone (8.1a second round).
   for(let shape=0;shape<5;shape++) {
-    const g=treeGeometry(0,1,shape), uv=g.leaf.getAttribute('uv'), c=g.leaf.getAttribute('color'), p=g.leaf.getAttribute('position'), w=g.wood.getAttribute('color');
-    for(let i=0;i<w.count;i++)if(w.getY(i)>w.getX(i)*1.6)assert(w.getY(i)>=.08,'[core] black mid needle core');
-    assert.equal(g.tris.leaf,6*CEDAR_MID_TUFTS[shape],'[cedar-mid] three cards per spiral tuft');
+    const g=treeGeometry(0,1,shape), uv=g.leaf.getAttribute('uv'), c=g.leaf.getAttribute('color'), p=g.leaf.getAttribute('position'), w=g.wood.getAttribute('uv');
+    assert(Array.from(w.array).every(v=>v>=0),'[core] middle cedar core cone returned');
+    assert.equal(g.tris.leaf,6*midTufts(shape),'[cedar-mid] three cards per limb tuft');
     assert(Array.from(uv.array).every(v=>v>=0&&v<=1),'[cedar-mid] atlas UV outside its cells');
     assert(Math.min(...Array.from({length:c.count},(_,i)=>c.getY(i)))>=.3,'[cedar-mid] black tuft');
     assert(new Set(Array.from({length:p.count},(_,i)=>p.getY(i).toFixed(2))).size>=p.count*.6,'[cedar-mid] tufts share heights (skirts returned)');
@@ -155,8 +159,35 @@ test('broad fork retains trunk thickness [bark]',()=>{
   for(const species of [1,3]) {
     const g=treeGeometry(species,0), p=g.wood.getAttribute('position');
     const ringRadius=(first,c)=>Array.from({length:8},(_,k)=>Math.hypot(p.getX(first+k)-c[0],p.getZ(first+k)-c[2])).reduce((a,b)=>a+b)/8;
-    assert(ringRadius(36,[.12,0,.1])/ringRadius(0,[0,0,0])>.3,'[bark] carrot taper at fork');
+    // The trunk's top ring follows its root-flare rings (8.1a second round): find it as the highest trunk ring.
+    let top=0;for(let first=0;first<p.count&&Math.abs(p.getY(first+9)-p.getY(first))>1e-6||first===0;first+=9){if(p.getY(first)>p.getY(top))top=first;if(first>90)break;}
+    assert(ringRadius(top,[.12,0,.1])/ringRadius(0,[0,0,0])>.3,'[bark] carrot taper at fork');
   }
+});
+// なぜ失敗したか（8.1a第2周）: 広葉の近景は大きな殻10個で「棒の上の球」だった。房はそれぞれ二次の枝（3面の管）の先に付く。
+test('near broadleaf clusters each hang on a secondary limb [broad-limb]',()=>{
+  for(const sp of [1,3])for(let shape=0;shape<3;shape++) {
+    const g=treeGeometry(sp,0,shape),p=g.wood.getAttribute('position'),clusters=g.leaf.userData.parts.slice(0,BROAD_CLUSTERS);
+    // Trunk (8 sides, 4 rings, flare rings), primaries (4 sides, 2 rings), one three-sided limb per cluster.
+    const trunkRings=p.count-(g.wood.userData.tips.length*15)-BROAD_CLUSTERS*8;
+    assert(trunkRings>0&&trunkRings%9===0,'[broad-limb] cluster limbs missing from the wood mesh');
+    for(const c of clusters)assert(Array.from({length:p.count},(_,i)=>Math.hypot(...[p.getX(i)-c.center[0],p.getY(i)-c.center[1],p.getZ(i)-c.center[2]].map((v,q)=>v/c.radii[q]))).some(d=>d<1),'[broad-limb] cluster without a limb');
+  }
+});
+// なぜ失敗したか（8.1a第2周）: 根元の張り出しは埋まった輪だけにあり、地上では幹がまっすぐ地面に刺さって見えた。
+test('near trunks spread buttresses over their first metre [root-flare]',()=>{
+  for(const [sp,sides] of [[0,8],[1,8],[3,8]]) {
+    const p=treeGeometry(sp,0).wood.getAttribute('position'),rings=[];
+    // Mean radius about each ring's own centre (the trunk bows), ring by ring up the trunk.
+    for(let first=0;first<(sides+1)*7;first+=sides+1) {
+      const c=[0,2].map(q=>Array.from({length:sides},(_,k)=>q?p.getZ(first+k):p.getX(first+k)).reduce((a,b)=>a+b)/sides);
+      rings.push({y:p.getY(first),r:Array.from({length:sides},(_,k)=>Math.hypot(p.getX(first+k)-c[0],p.getZ(first+k)-c[1])).reduce((a,b)=>a+b)/sides});
+    }
+    const above=rings.find(r=>r.y>1.1);
+    assert(rings[1].y>.1&&rings[1].y<.4&&rings[2].y<1.2,'[root-flare] no rings in the first metre');
+    assert(rings[1].r>above.r*1.15,'[root-flare] the foot does not spread');
+  }
+  assert.equal(treeGeometry(0,1).wood.getAttribute('position').count%5,0,'[root-flare] far trunks gained flare rings');
 });
 test('all broadleaf triangles belong to shells; wood holds one dark core [shell/core]',()=>{
   for(const species of [1,3,4,5])for(const level of [0,1]) {
@@ -177,6 +208,8 @@ test('all broadleaf triangles belong to shells; wood holds one dark core [shell/
       assert(max-min>.015 && min>=.8199 && max<=1.1801,'[shell-wobble] smooth crown or extreme perturbation');
     }
     const cores=g.wood.userData.parts.filter(p=>p.core);
+    // Clustered near crowns (adult broadleaf and sapling L0) show sky between clusters; a dark core there read as brown spots.
+    if(level===0&&species!==5){assert.equal(cores.length,0,'[core-mesh] dark core behind the near clusters');continue;}
     assert.equal(cores.length,1,'[core-mesh] missing wood core');
     const core=cores[0],col=g.wood.getAttribute('color'),sway=g.wood.getAttribute('aSway');
     for(let i=core.first;i<core.first+(core.sides+1)*(core.bands+1);i++){
@@ -220,7 +253,7 @@ function outlineCount(points) {
 test('rounded understory and middle/far crowns use real shell rings [shell-resolution]',()=>{
   for(const species of [1,3,4,5])for(const level of (species<4?[1,2]:[0,1])) {
     const g=treeGeometry(species,level),p=g.leaf.getAttribute('position'),parts=g.leaf.userData.parts;
-    assert.equal(parts.length,species<4?(level===1?6:2):level===1?3:species===4?8:6,'[clump-count] rounded crown grouping');
+    assert.equal(parts.length,species<4?(level===1?6:2):level===1?3:species===4?10:6,'[clump-count] rounded crown grouping');
     for(const part of parts) {
       const {first,sides,bands}=part;
       assert(sides>=(species>=4 && level===0?12:8) && bands>=(species<4?(level===2?4:5):(level===0?5:4)),'[shell-resolution] diamond/hexagon shell returned');
@@ -249,10 +282,13 @@ test('rounded understory and middle/far crowns use real shell rings [shell-resol
       }
       const points=rows.flat();
       if(species<4)for(const axis of ['x','z'])assert(outlineCount(points.map(v=>[v[axis],v.y]))>=8,'[outline] side silhouette has fewer than eight vertices');
-      if(species>=4)for(const other of parts)if(other!==part) {
+      // Shrubs stay one overlapping mound. The near sapling's clusters stand apart (one deep ball read as a lollipop, set-04),
+      // but each still touches a neighbour, so the crown never breaks into floating balls.
+      if(species===5||(species===4&&level===1))for(const other of parts)if(other!==part) {
         const separation=Math.hypot(...part.center.map((v,q)=>(v-other.center[q])/Math.min(part.radii[q],other.radii[q])));
         assert(separation<1,'[clump-overlap] understory balls must overlap deeply');
       }
+      if(species===4&&level===0)assert(parts.some(other=>other!==part&&Math.hypot(...part.center.map((v,q)=>(v-other.center[q])/(part.radii[q]+other.radii[q])))<1),'[clump-overlap] floating sapling cluster');
     }
     if(species<4) {
       assert(new Set(parts.map(p=>p.rotation)).size===parts.length,'[clump-axis] aligned crown axes');
@@ -266,9 +302,9 @@ test('near cedar meshes carry every planned limb and tuft [limb/tuft]',()=>{
   for(let shape=0;shape<5;shape++) {
     const plan=cedarBranchPlan(shape),g=treeGeometry(0,0,shape),limbs=plan.branches.filter(b=>b.wood).length,tufts=plan.branches.reduce((n,b)=>n+b.tufts.length,0);
     assert(limbs>=(shape===3?12:24),'[limb] too few visible limbs');
-    // Trunk 9x7 ring vertices, three-sided limbs with three rings, five dead stubs (5x2 vertices).
-    assert.equal(g.wood.getAttribute('position').count,63+limbs*12+50,'[limb] limb rings missing from the wood mesh');
-    assert.equal(g.tris.wood,96+limbs*12+40,'[limb] limb triangles');
+    // Trunk 9x10 ring vertices (six rings and three root-flare rings), three-sided limbs with three rings, five dead stubs (5x2 vertices).
+    assert.equal(g.wood.getAttribute('position').count,90+limbs*12+50,'[limb] limb rings missing from the wood mesh');
+    assert.equal(g.tris.wood,144+limbs*12+40,'[limb] limb triangles');
     assert.equal(g.leaf.getAttribute('position').count,tufts*12,'[tuft] three four-corner cards per tuft');
     assert.equal(g.tris.leaf,tufts*6,'[tuft] tuft triangles');
     const sway=g.leaf.getAttribute('aSway');
@@ -279,9 +315,9 @@ test('near cedar meshes carry every planned limb and tuft [limb/tuft]',()=>{
 // なぜ失敗したか（8.1a）: 無地の幹は「棒」に見えた。樹皮の画像は周1.4mごとに繰り返し、縦は1:2の画素のまま伸ばす。葉の芯は樹皮を付けない印（UV -1）を持つ。
 test('trunk and limb UVs measure the bark in metres; foliage cores carry the no-bark mark [bark-uv/core]',()=>{
   const uv=treeGeometry(0,0).wood.getAttribute('uv');let maxU=0,maxV=0;
-  for(let i=0;i<63;i++){maxU=Math.max(maxU,uv.getX(i));maxV=Math.max(maxV,uv.getY(i));}
+  for(let i=0;i<90;i++){maxU=Math.max(maxU,uv.getX(i));maxV=Math.max(maxV,uv.getY(i));}
   assert(Math.abs(maxU-2)<1e-6 && Math.abs(maxV-Math.hypot(.25,19.1)*2/(4*Math.PI*.45))<1e-5,'[bark-uv] cedar trunk UV is not in metres');
-  for(const [sp,l] of [[0,1],[1,0],[1,1],[3,2],[4,0],[5,1]]) {
+  for(const [sp,l] of [[0,1],[1,1],[3,1],[3,2],[4,1],[5,0],[5,1]]) {
     const g=treeGeometry(sp,l).wood,c=g.getAttribute('color'),u=g.getAttribute('uv'),core=new Set();
     for(const part of g.userData.parts.filter(p=>p.core))for(let i=part.first;i<part.first+(part.sides+1)*(part.bands+1);i++)core.add(i);
     if(sp===0)for(let i=0;i<c.count;i++)if(c.getY(i)>c.getX(i)*1.6)core.add(i);
@@ -319,7 +355,7 @@ test('all shape families have finite unit normals, budgets and matching LOD boun
           assert(Array.from(g[kind].index.array).every(i=>i<g[kind].getAttribute('position').count),'[variant-index] out of bounds');
         }
         if(level)size(g).forEach((v,q)=>assert(Math.abs(v/dims[q]-1)<=(level===1?.15:.2),`[variant-lod] ${sp}/${shape}/${level} axis ${q}`));
-        if(sp===0)assert(level===0?g.tris.leaf===6*cedarBranchPlan(shape).branches.reduce((n,b)=>n+b.tufts.length,0):level===1?g.tris.leaf===6*CEDAR_MID_TUFTS[shape]:g.tris.leaf/6>=3 && g.tris.leaf/6<=5,'[variant-cedar] tuft or cone count outside grammar');
+        if(sp===0)assert(level===0?g.tris.leaf===6*cedarBranchPlan(shape).branches.reduce((n,b)=>n+b.tufts.length,0):level===1?g.tris.leaf===6*midTufts(shape):g.tris.leaf/6>=3 && g.tris.leaf/6<=5,'[variant-cedar] tuft or cone count outside grammar');
         if([1,3].includes(sp) && level===2) {
           const [main,side]=g.leaf.userData.parts;
           assert.equal(g.leaf.userData.parts.length,2,'[dome-count] main dome plus shoulder');
@@ -334,10 +370,12 @@ test('all shape families have finite unit normals, budgets and matching LOD boun
   for(const args of [[0,0,-1],[0,0,5],[2,1,2],[4,0,1],[5,1,1],[1,0,.5]])assert.throws(()=>treeGeometry(...args),RangeError,'[variant-validation] invalid shape accepted');
 });
 // 8.1a: near and middle cedars were rebuilt (limbs, tufts) and every trunk got bark UVs; the far cones keep their bytes.
+// Second round: the near plan became irregular (height clusters, wider tuft size/tilt/colour), the middle cedar follows the near
+// limbs without a core, and near trunks gained root-flare rings. The far cones (the fallback when no bake is possible) keep their bytes.
 test('cedar shape zero retains committed L0 and L2 bytes [cedar-hash]',()=>{
   const hashes={
-    '0/wood':'b0c9cbbc8f6f670c25aa5198b45bb8bea067f69249cad7ae574e8d29e573f4b6',
-    '0/leaf':'47edbef82e749d83e74ea1b0227716f723a1bc71999c49d1e7096df3a5ec5675',
+    '0/wood':'f252ae4507c021684804f88d2455d754375bfde0aaa939de27f19d42845f1d12',
+    '0/leaf':'a5d52eeaf193744af1b28f4d3e7d8996c5dd9dadbc1956ffca7b8054ecaf9980',
     '2/wood':'7ed0f1b4fd27be471a81537c5abdcc645cd5ec710831f9bf69908d8cd1f2a54a',
     '2/leaf':'732b9606020a6e155db29ffa08b9910a7f3d6f71a5409a5806b2d28157023ea7',   // 遠景の葉（円錐）は8.1aでも変えていない
   };
@@ -417,33 +455,34 @@ test('far domes, trunk overlap and grounded understory [candy/ground]',()=>{
   assert(Math.min(...Array.from({length:4},(_,i)=>Math.hypot(p.getX(i),p.getZ(i))))>=.075,'[sapling-radius] thin stick');
   assert(parts.every(p=>p.radii[1]>Math.max(p.radii[0],p.radii[2])*1.15),'[sapling-aspect] round candy');
   assert(bounds(sap.leaf).min.y/sap.height<=.38,'[sapling-bottom] high ball');
-  assert.equal(sap.tris.wood,16+8+6,'[sapling-branch] exactly one side branch and core');
+  // 8.1a second round: nine three-sided limbs carry the clusters; the dark core left with the closed ball.
+  assert.equal(sap.tris.wood,16+8+6*9,'[sapling-branch] one side branch and nine cluster limbs');
   for(const l of [0,1])assert(bounds(treeGeometry(5,l).leaf).min.y<=0,'[shrub-ground] floating shrub');
 });
 
 // なぜ失敗したか: 新しい杉の追加で既存の枝ぶりまで変えると、比較の根拠を失う。
 test('all cedar zero through two buffers retain committed bytes [cedar-compatibility]',()=>{
-  // 8.1a changed every buffer except the far cones' foliage (2/leaf), which still match the 7.9 bytes.
+  // 8.1a (both rounds) changed the near and middle buffers; the far cones (2/*) still match the 7.9 bytes.
   const hashes={
-  "0/0/wood": "b0c9cbbc8f6f670c25aa5198b45bb8bea067f69249cad7ae574e8d29e573f4b6",
-  "0/0/leaf": "47edbef82e749d83e74ea1b0227716f723a1bc71999c49d1e7096df3a5ec5675",
-  "0/1/wood": "3cd7db98eaa6bd02e35c5122c19ad758ef59eb965b8943f96234ecca79fdab9f",
-  "0/1/leaf": "aae1c3d6d0f5727172ab4726d830b76f26dc4c7175e8f2e4c8f6cdb68dc3cb05",
-  "0/2/wood": "7ed0f1b4fd27be471a81537c5abdcc645cd5ec710831f9bf69908d8cd1f2a54a",
-  "0/2/leaf": "732b9606020a6e155db29ffa08b9910a7f3d6f71a5409a5806b2d28157023ea7",
-  "1/0/wood": "2698724c138d059a2698858cb0e300f01047444bbc3c4952691433b452502983",
-  "1/0/leaf": "5551f7bed011be67a513a1cea9efc88624223c912aa7b398cbb7e562bbd9e9b0",
-  "1/1/wood": "80d0e30b3933441da9a859434473b87cc261c0937584cc1f75355afbcfe5b7c4",
-  "1/1/leaf": "a2acedd5cd96a3aabf759a704ad15ddf551052131516d438c53def4155638731",
-  "1/2/wood": "2d4655811294077763f75b1d8912f7121b4a6e1fb3de00c2bd4625dcd70afb8d",
-  "1/2/leaf": "6621e8b29368ac410be7e0270b876febf9865ccdf7d3f020d95679f4e5d1b4cc",
-  "2/0/wood": "3f110eed68915e6d80447bb1358592548e9ff2021a0a43e03a072239929330ab",
-  "2/0/leaf": "2daef34e4ce198aba879c4cedd3a61f9bc5dc85182517ec578c2004efb29e0e1",
-  "2/1/wood": "e4be7beb10553ca9865138f57235b07a4873c8beff14cee68d7e655549b5837d",
-  "2/1/leaf": "26dbf406eb4fb2010611f4d196a115587bc779e79fdf1fbc7812700448a6987c",
-  "2/2/wood": "8ef16d64b93564b796b2a62eb983198412a310d8edde4fac2c1216eaa5e83c3d",
-  "2/2/leaf": "b56c93c098a3935e6cc1bbb2d08b6ca69534ee37c587d293d91f2ea5e3b640cf"
-};
+    "0/0/wood": "f252ae4507c021684804f88d2455d754375bfde0aaa939de27f19d42845f1d12",
+    "0/0/leaf": "a5d52eeaf193744af1b28f4d3e7d8996c5dd9dadbc1956ffca7b8054ecaf9980",
+    "0/1/wood": "4a13170ef6dc8b877ec2bd77006f8dc9478b2d3332947b57f0ddfe6632bcc52a",
+    "0/1/leaf": "72b0ae24e0815714e2b57705ba275003fc3648517abbf2e64e8be8ef1e77bf9b",
+    "0/2/wood": "7ed0f1b4fd27be471a81537c5abdcc645cd5ec710831f9bf69908d8cd1f2a54a",
+    "0/2/leaf": "732b9606020a6e155db29ffa08b9910a7f3d6f71a5409a5806b2d28157023ea7",
+    "1/0/wood": "c85575d91d341739bf4149a1ce20a706ef77d564436aa6f3ff09919018e8e248",
+    "1/0/leaf": "8ff5ca66821cccba0b5e9da51378d94d8c2cc91f3dccee37d34dc47d5b529f61",
+    "1/1/wood": "b219453507d901a6af7d2c8165a7d53b290dd406b95048ff18afaa818355e391",
+    "1/1/leaf": "2547efb4858e4f3e5cdf0aad4f46fb44862937639dec17322d1e928926339ae1",
+    "1/2/wood": "2d4655811294077763f75b1d8912f7121b4a6e1fb3de00c2bd4625dcd70afb8d",
+    "1/2/leaf": "6621e8b29368ac410be7e0270b876febf9865ccdf7d3f020d95679f4e5d1b4cc",
+    "2/0/wood": "65040a0f5c38b1e2015ad1b1fe7bcb3824c8a6046bf511f107c9c57fbd04fcce",
+    "2/0/leaf": "e518656edf1c48d7ade53fdf1d546beed65a2f69a931c8d04ad42bfa10a7d71a",
+    "2/1/wood": "186f1c00e9f8d0bcec622933c58737367c5e05ca29f001153e432fc5e42db73f",
+    "2/1/leaf": "68344787ed81d52f78b409d1b8557b5d34487343665d841da9765c4320d463f0",
+    "2/2/wood": "8ef16d64b93564b796b2a62eb983198412a310d8edde4fac2c1216eaa5e83c3d",
+    "2/2/leaf": "b56c93c098a3935e6cc1bbb2d08b6ca69534ee37c587d293d91f2ea5e3b640cf"
+  };
   for(const [key,h] of Object.entries(hashes)) {const [shape,l,kind]=key.split('/');assert.equal(digest(treeGeometry(0,+l,+shape)[kind]),h,'[cedar-compatibility] existing family changed');}
 });
 // なぜ失敗したか: 分割数だけ増やすと球に戻り、位置ノイズの帯域が欠けても気づけなかった。
@@ -452,7 +491,8 @@ test('dense broad shells retain three spatial noise octaves [resolution/noise]',
     const g=treeGeometry(sp,l,sh),p=g.leaf.getAttribute('position'),budget=TREES.budget[names[sp]][l],total=g.tris.wood+g.tris.leaf;
     assert(total>=budget*.8 && total<=budget,'[budget-utilization] dense foliage allocation');
     for(const [index,part] of g.leaf.userData.parts.entries()) {
-      const sides=sp<4?(l===0?16:l===2 && index===1?8:10):(l===0?14:8),bands=sp<4?(l===0?8:l===2 && index===1?4:5):(l===0?7:4);
+      // Near clusters (adult broadleaf and sapling) are 12x6 shells (8.1a second round); shrubs keep 14x7.
+      const sides=sp<4?(l===0?12:l===2 && index===1?8:10):(l===0?(sp===4?12:14):8),bands=sp<4?(l===0?6:l===2 && index===1?4:5):(l===0?(sp===4?6:7):4);
       assert.equal(part.sides,sides,'[shell-resolution] azimuth subdivision');assert.equal(part.bands,bands,'[shell-resolution] vertical subdivision');
       for(let j=1;j<bands;j++)for(let k=0;k<sides;k++) {
         const theta=j/bands*Math.PI,a=k/sides*Math.PI*2,unit=[Math.sin(theta)*Math.cos(a),Math.cos(theta),Math.sin(theta)*Math.sin(a)];
@@ -472,8 +512,9 @@ test('dense broad shells retain three spatial noise octaves [resolution/noise]',
 test('slim and irregular cedar families retain distinct branch grammar [cedar-family]',()=>{
   const width=g=>{const b=bounds(g.leaf);return b.max.x-b.min.x;};
   for(const l of [0,1,2])assert(width(treeGeometry(0,l,3))<=width(treeGeometry(0,l,0))*.7,'[cedar-slim] family too wide');
-  assert.equal(treeGeometry(0,1,3).tris.leaf,37*6,'[cedar-rows] slim needs its thirty-seven middle tufts');
-  assert.equal(treeGeometry(0,1,4).tris.leaf,40*6,'[cedar-rows] irregular needs its forty middle tufts');
+  // The middle families follow their near limbs: one tuft per limb, two on long limbs.
+  for(const shape of [3,4])assert.equal(treeGeometry(0,1,shape).tris.leaf,6*midTufts(shape),'[cedar-rows] middle tufts do not follow the near limbs');
+  assert(midTufts(3)>=cedarBranchPlan(3).branches.length&&midTufts(3)<midTufts(4),'[cedar-rows] slim family is not the sparsest');
   assert.equal(treeGeometry(0,2,3).tris.leaf,4*6,'[cedar-cones] slim four cones');
   assert.equal(treeGeometry(0,2,4).tris.leaf,3*6,'[cedar-cones] irregular three cones');
   // The irregular family keeps its lean: the trunk top sits ~.6m off the axis (the slim one stands straight).

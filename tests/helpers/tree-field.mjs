@@ -16,3 +16,16 @@ export function data(points = []) {
 }
 export const field = (points, opts = {}) => new TreeField({ data: data(points), wind, sunDir: new THREE.Vector3(1,1,1), ...opts });
 export const setAt = (f, sp, level, variant = 0) => f.sets.find(s => s.species === sp && s.level === level && s.variant === variant);
+
+// A recording stand-in for WebGLRenderer: the far boards bake through it in Node (no GPU, the atlases stay blank).
+// fail=true makes render throw, as a lost context would, so the field must fall back to its far meshes.
+export function stubRenderer({ fail = false } = {}) {
+  const state = { target: 'screen', color: new THREE.Color(0x123456), alpha: .25, autoClear: false }, calls = [];
+  return { calls, state,
+    getRenderTarget: () => state.target, setRenderTarget(t) { calls.push(['target', t]); state.target = t; },
+    getClearColor: c => c.copy(state.color), getClearAlpha: () => state.alpha,
+    setClearColor(c, a) { calls.push(['clear', c.clone(), a]); state.color.copy(c); state.alpha = a; },
+    get autoClear() { return state.autoClear; }, set autoClear(v) { state.autoClear = v; },
+    render(scene, camera) { if (fail) throw new Error('context lost'); calls.push(['render', scene, camera, state.target, state.autoClear]); },
+  };
+}

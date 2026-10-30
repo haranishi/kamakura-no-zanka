@@ -123,7 +123,9 @@ test('caps, stream separation, budget and purity [budget purity]', () => {
   const seeds=Object.values(TREES.seeds), old=[101,211,307,401,503,7*101,13*211,17*307,19*401,23*503,GRASS.seed,GRASS.midSeed,GRASS.clumpSeed];
   assert(seeds.every(Number.isInteger)&&new Set(seeds).size===seeds.length&&seeds.every(s=>!old.includes(s)),'[purity] overlapping random streams');
   // 8.1a (R17.11): the near cedar ceiling rose from 1,500 to 2,200 for limbs and tufts; middle and far ceilings are unchanged.
-  assert.deepEqual(TREES.budget,{cedar:[2200,260,40],zelkova:[2600,560,160],pine:[600,140,96],maple:[2600,560,160],sapling:[1400,200],shrub:[1200,180]},'[budget] triangle ceilings');
+  // 8.1a second round: the far level is a baked board (2 triangles) when a renderer exists; its savings fund the near cedar
+  // (root flare, 2200->2300) and the middle cedar built from the near limbs (260->600). The far meshes keep 40 as the fallback.
+  assert.deepEqual(TREES.budget,{cedar:[2300,600,40],zelkova:[2600,560,160],pine:[600,140,96],maple:[2600,560,160],sapling:[1400,200],shrub:[1200,180]},'[budget] triangle ceilings');
   const src=fs.readFileSync(new URL('../dist/valley/tree-species.js',import.meta.url),'utf8');
   assert(!/Math\.random|Date\.|performance\.|document\.|window\.|from ['"]three/.test(src),'[purity] impure layer');
 });

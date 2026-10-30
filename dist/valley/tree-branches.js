@@ -38,70 +38,89 @@ export function cedarTrunkRadius(y) { return .45 * (1 - .97 * clamp((y + .1) / 1
 export function branchPoint(b, s) { const u = 1 - s; return [0, 1, 2].map(q => u * u * b.base[q] + 2 * s * u * b.ctrl[q] + s * s * b.tip[q]); }
 export function branchTangent(b, s) { return norm([0, 1, 2].map(q => 2 * (1 - s) * (b.ctrl[q] - b.base[q]) + 2 * s * (b.tip[q] - b.ctrl[q]))); }
 
-// 房の大きさ（m）：長い枝・枝先ほど大きい。細長い家族は小さくする。
-function tuftSize(u, length, s, fam) { return (1.25 + .55 * u) * (.55 + .45 * clamp(length / 2.6)) * (.72 + .28 * s) * (fam.width < .8 ? .7 : 1); }
+// 房の大きさ（m）：長い枝・枝先ほど大きい。細長い家族は小さくする。u（0〜1）の幅を広げ、同じ大きさの房が並ばないようにした（第2周）。
+function tuftSize(u, length, s, fam) { return (1 + .95 * u) * (.55 + .45 * clamp(length / 2.6)) * (.72 + .28 * s) * (fam.width < .8 ? .7 : 1); }
+// 枝の高さの疎密（第2周）：一様な層化は、細い家族で「魚の骨」（同じ間隔の枝と房）に見えた。s（0〜1）を単調な波でゆがめ、
+// 枝の集まる帯と、空く帯を作る。密度は 1±amp（amp<1 なので順序は変わらない）。波の数と位相は形ごと。
+export function crownWarp(s, wave) {
+  const { k, phase, amp } = wave;
+  if (!(amp >= 0 && amp < 1) || !(k > 0)) throw new RangeError('crown warp');
+  return clamp(s + amp * (Math.sin(TAU * k * s + phase) - Math.sin(phase)) / (TAU * k));
+}
+// 房の向きの乱し方（第2周）：枝の接線を、上下（pitch）と左右（yaw）にそれぞれ ±amount の一様な角度で回す。
+// 同じ角度の房が並ぶと、枝ごとに同じ形の繰り返し（櫛）に見えた。返す向きは単位ベクトル。
+export function perturbTuft(along, rnd, { pitch = .3, yaw = .25 } = {}) {
+  const a = norm(along), flat = Math.hypot(a[0], a[2]);
+  const side = flat > 1e-6 ? [-a[2] / flat, 0, a[0] / flat] : [1, 0, 0], up = norm(cross(side, a));
+  const p = (rnd() * 2 - 1) * pitch, w = (rnd() * 2 - 1) * yaw;
+  const tilted = add(a.map(v => v * Math.cos(p)), up, Math.sin(p));
+  return norm(add(tilted.map(v => v * Math.cos(w)), side, Math.sin(w)));
+}
 // 杉の枝と房の計画。同じ形番号なら同じ結果（形のテンプレートは5つだけ。個体差は位置で決めるシェーダーの揺らぎが足す）。
 export function cedarBranchPlan(shape) {
   const fam = CEDAR_FAMILIES[shape];
   if (!fam) throw new RangeError('cedar branch family');
   const rnd = seeded(77003 + shape * 131), n = fam.branches, { base, top } = CEDAR_CROWN, span = top - base - .4;
-  const branches = [];
+  const wave = { k: 3 + Math.floor(rnd() * 3), phase: rnd() * TAU, amp: .55 }, branches = [];
   for (let i = 0; i < n; i++) {
-    // 高さ：層化した乱択（同じ高さに並ばない）。上ほど枝が短いので、少し密にする。
-    const s = (i + .5 + .9 * (rnd() - .5)) / n, t = clamp(Math.pow(clamp(s), .93)), y = base + span * t;
+    // 高さ：層化した乱択（同じ高さに並ばない）を、疎密の波でゆがめる。上ほど枝が短いので、少し密にする。
+    const s = (i + .5 + .9 * (rnd() - .5)) / n, t = clamp(Math.pow(crownWarp(clamp(s), wave), .93)), y = base + span * t;
     // 向き：黄金角の螺旋に ±0.45rad の揺らぎ。輪生（同じ高さに6本）を作らない。
     const azimuth = i * GOLDEN + (rnd() - .5) * .9;
     // 長さ：包絡×個体の揺らぎ×螺旋の房（低周波の膨らみ）。ときどき短い枝で空隙を作る。樹冠の裾（下12%）は張り出しを保つ。
     const skirt = t < .12;
-    let length = cedarEnvelope(t, fam.width) * (skirt ? .96 + .14 * rnd() : .8 + .28 * rnd()) * (1 + .12 * Math.sin(2 * azimuth + y * .9 + shape));
-    if (rnd() < .12 && !skirt) length *= .62;
+    let length = cedarEnvelope(t, fam.width) * (skirt ? .96 + .14 * rnd() : .74 + .38 * rnd()) * (1 + .12 * Math.sin(2 * azimuth + y * .9 + shape));
+    if (rnd() < .18 && !skirt) length *= .55;
     if (fam.ragged) length *= 1 + .15 * Math.sin(y * 2.17);
     // A typical tip tuft may overhang the middle skirt's rim by 12% at most.
     const rim = 1.12 * cedarSkirtRadius(shape, y), tipSize = tuftSize(.5, length, 1, fam);
     length = Math.max(.35, Math.min(length, rim - TUFT_REACH * tipSize));
-    const pitch = -.2 + .62 * Math.pow(t, 1.15) + (rnd() - .5) * .22, sag = (.16 - .1 * t) * (.7 + .6 * rnd()), upturn = (.12 - .08 * t) * rnd();
+    // 角度：高さの傾向に、枝ごとの大きな揺らぎ（±.25rad）。垂れと反りも枝ごとに 0.5〜1.6倍。
+    const pitch = -.2 + .62 * Math.pow(t, 1.15) + (rnd() - .5) * .5, sag = (.16 - .1 * t) * (.5 + 1.1 * rnd()), upturn = (.12 - .08 * t) * rnd();
     const dir = [Math.cos(azimuth), 0, Math.sin(azimuth)], root = cedarTrunkAxis(shape, y);
     const reach = length * Math.cos(pitch), rise = length * Math.sin(pitch);
     const tip = add(add(root, dir, reach), [0, 1, 0], rise + upturn * length);
     const ctrl = add(add(root, dir, reach * .55), [0, 1, 0], rise * .55 - sag * length);
     const radius = .04 + .038 * clamp(length / 3) * (1 - .45 * t);
-    branches.push({ index: i, y, t, azimuth, length, pitch, base: root, ctrl, tip, radius, wood: length > 1.35 && t < .72, tufts: [] });
+    branches.push({ index: i, y, t, azimuth, length, pitch, base: root, ctrl, tip, radius, wood: length > 1.05 && t < .8, tufts: [] });
   }
-  // 房：枝の外側の3/4（s≥.22）に2〜6個が重なる。最後の房は枝先（s=1）。枝先ほど大きく、内側と下ほど暗い（cedarExposure）。
+  // 房：枝の外側の約2/3（s≥.34）に2〜6個が重なる。内側の枝は見せる（第2周：枝のない「棒に房」を避ける）。最後の房は枝先（s=1）。
+  // 枝先ほど大きく、内側と下ほど暗い（cedarExposure）。向きは枝の接線から乱す（perturbTuft）。
   for (const b of branches) {
-    const count = Math.max(2, Math.min(6, Math.round(b.length / .55)));
+    const count = Math.max(2, Math.min(6, Math.round(b.length / .5)));
     for (let j = 0; j < count; j++) {
-      const s = j === count - 1 ? 1 : clamp(.22 + .78 * (j + 1) / count + (rnd() - .5) * .07, .2, .97);
-      const center = branchPoint(b, s), along = branchTangent(b, s), size = tuftSize(rnd(), b.length, s, fam);
-      const roll = (rnd() - .5) * .6, variant = rnd() < .5 ? 0 : 1, hue = rnd() * 2 - 1, shade = rnd() * 2 - 1;
+      const s = j === count - 1 ? 1 : clamp(.36 + .64 * (j + 1) / count + (rnd() - .5) * .1, .34, .97);
+      const center = branchPoint(b, s), along = perturbTuft(branchTangent(b, s), rnd), size = tuftSize(rnd(), b.length, s, fam);
+      const roll = (rnd() - .5) * 1.0, variant = rnd() < .5 ? 0 : 1, hue = rnd() * 2 - 1, shade = rnd() * 2 - 1;
       b.tufts.push({ s, center, along, length: size, width: .9 * size, roll, variant, hue, shade });
     }
   }
-  return { shape, family: fam, branches };
+  return { shape, family: fam, branches, wave };
 }
-// 杉の中景（L1・40〜158m）：裾の段（同じ形の笠を9枚重ねる）をやめ、近景と同じ房の絵を螺旋に並べる。三角形の数は旧の裾と同じ。
-// 房の中心は樹冠の外周の約半分の深さ、先は外周まで。内側の暗い芯（tree-geometry.js）が、房の間を深い陰に見せる。
-export const CEDAR_MID_TUFTS = Object.freeze([36, 32, 40, 37, 40]);
+// 杉の中景（L1・40〜158m）：近景と同じ枝の計画から、枝ごとに大きな房1枚（長い枝は2枚）を、枝の外側に付ける（第2周）。
+// 旧の中景（螺旋の大きな房36〜40個と、滑らかな芯の円錐）は、見晴らしから「円錐に星形の紙」に見えた。芯は置かない。
+// 外形・房の付く枝先が近景と同じなので、溶かしの帯で形が跳ねず、遠景の絵（近景から焼く）ともつながる。
 export function cedarMidPlan(shape) {
-  const fam = CEDAR_FAMILIES[shape];
-  if (!fam) throw new RangeError('cedar middle family');
-  const rnd = seeded(91019 + shape * 173), n = CEDAR_MID_TUFTS[shape], tufts = [], { base, top } = CEDAR_CROWN;
-  for (let i = 0; i < n; i++) {
-    const t = clamp((i + .5 + .7 * (rnd() - .5)) / n), y = base - .2 + (top - base - .3) * Math.pow(t, .95);
-    const azimuth = i * GOLDEN + (rnd() - .5) * .8, rim = cedarSkirtRadius(shape, y), axis = cedarTrunkAxis(shape, y);
-    const size = Math.max(.9, (.8 + .16 * rnd()) * rim * 1.05), depth = Math.max(.25, 1.1 * rim - TUFT_REACH * size);
-    const pitch = -.15 + .55 * t + (rnd() - .5) * .2, dir = [Math.cos(azimuth) * Math.cos(pitch), Math.sin(pitch), Math.sin(azimuth) * Math.cos(pitch)];
-    const center = [axis[0] + Math.cos(azimuth) * depth, y, axis[2] + Math.sin(azimuth) * depth];
-    tufts.push({ s: 1, center, along: dir, length: size, width: 1.05 * size, roll: (rnd() - .5) * .6, variant: rnd() < .5 ? 0 : 1, hue: rnd() * 2 - 1, shade: rnd() * 2 - 1 });
+  const plan = cedarBranchPlan(shape), tufts = [];
+  for (const b of plan.branches) {
+    const tip = b.tufts.at(-1), cover = .64 * b.length + TUFT_REACH * tip.length, pieces = cover > 2.6 ? 2 : 1;
+    for (let j = 0; j < pieces; j++) {
+      const length = clamp(cover / pieces * (pieces === 2 ? 1.25 : 1), .7, 2.6), endS = j === pieces - 1 ? 1 : .68;
+      // The card ends at the limb tip (or at two thirds for the inner piece) and reaches back towards the trunk.
+      const s = clamp(endS - (TUFT_REACH * length * .6) / Math.max(b.length, .35), .3, 1);
+      tufts.push({ s, center: branchPoint(b, s), along: b.tufts[Math.min(b.tufts.length - 1, j * 2 + 1)].along, length, width: .92 * length,
+        roll: tip.roll, variant: (tip.variant + j) % 2, hue: tip.hue, shade: tip.shade, limb: b.index });
+    }
   }
-  return { shape, family: fam, tufts };
+  return { shape, family: plan.family, tufts };
 }
 // 房の明るさ（頂点色の灰色）：幹からの距離（包絡に対する比）と高さで、内側と下を暗くする。黒にはしない（.30以上）。
+// 第2周：幹に近い房をより暗く（.18まで暗いまま）、房ごとの明暗の揺らぎを ±.05→±.09 に広げた（同じ明るさの房が並ばない）。
 export function cedarExposure(point, shape, shade = 0) {
   const { base, top } = CEDAR_CROWN, fam = CEDAR_FAMILIES[shape];
   const t = clamp((point[1] - base) / (top - base)), axis = cedarTrunkAxis(shape, point[1]);
   const radial = Math.hypot(point[0] - axis[0], point[2] - axis[2]) / Math.max(.45, cedarEnvelope(t, fam.width));
-  return clamp(.3 + .58 * smooth(.12, 1.02, radial) + .14 * t + .05 * shade, .3, 1.1);
+  return clamp(.3 + .62 * smooth(.18, 1.02, radial) + .12 * t + .09 * shade, .3, 1.1);
 }
 // 房の3枚のカード：枝の向きに沿い、枝の軸のまわりに60°ずつ回す。どの向きから見ても1枚は面を見せる（板に見せない）。
 export function tuftCards(tuft) {
@@ -123,6 +142,25 @@ export function crownNormal(point, cardNormal, axis) {
   return norm(add(norm(radial).map(v => v * .65), facing, .35));
 }
 
+// 広葉の近景（L0）の樹冠（第2周）：大きな殻10個（「棒の上の球」）を、枝の先に付く小さな葉の房（殻）の集まりに割る。
+// 房は樹冠の外殻の上から下の手前まで（真下は疎ら）黄金角で並べ、それぞれ最も近い主枝の途中から二次の枝を伸ばす。房の間に空と枝が見える。
+// 欅は上ほど広がる（壺形）、楓は平たい房（層）。center・radii は樹冠の楕円体、tips は主枝の先、fork は分岐の高さ。
+export const BROAD_CLUSTERS = 16;
+export function broadClusterPlan({ center, radii, tips, fork, vase = false, flat = false, shape = 0, count = BROAD_CLUSTERS, depth: [d0, dr] = [.72, .14], size: [s0, sr] = [.3, .1], salt = 0 }) {
+  if (!tips?.length || !Number.isInteger(count) || count < 4) throw new RangeError('broad cluster plan');
+  const rnd = seeded(66011 + shape * 97 + (vase ? 7 : 0) + (flat ? 13 : 0) + salt), clusters = [], root = [.08, fork, .05];
+  for (let i = 0; i < count; i++) {
+    const y = 1 - 1.85 * (i + .5) / count, a = i * GOLDEN + shape * .73 + (rnd() - .5) * .5, ring = Math.sqrt(Math.max(0, 1 - y * y));
+    const depth = d0 + dr * rnd(), widen = vase ? 1 + .4 * y : 1, size = s0 + sr * rnd();
+    const c = [center[0] + radii[0] * ring * Math.cos(a) * depth * widen, center[1] + radii[1] * y * depth, center[2] + radii[2] * ring * Math.sin(a) * depth * widen];
+    let primary = 0;
+    for (let k = 1; k < tips.length; k++) if (Math.hypot(...tips[k].map((v, q) => v - c[q])) < Math.hypot(...tips[primary].map((v, q) => v - c[q]))) primary = k;
+    // The secondary limb leaves its primary at 55% and stops inside the cluster (88% of the way to its centre).
+    const from = root.map((v, q) => v + (tips[primary][q] - v) * .55), to = from.map((v, q) => v + (c[q] - v) * .88);
+    clusters.push({ center: c, radii: [radii[0] * size, radii[1] * size * (flat ? .92 : .95), radii[2] * size], rotation: rnd() * TAU, limb: { from, to, radius: .07 + .03 * rnd() }, primary });
+  }
+  return { clusters, root };
+}
 // 広葉の中景（L1）にも、近景と同じ分岐枝を出す（「棒に玉」を避ける）。根元は近景の分岐の高さ。
 export function broadLimbs(tips, fork, aspect = 1) {
   return tips.map((tip, b) => ({ from: [.08, fork, .05], to: tip, radius: .21 * aspect - .02 * (b % 2) }));
@@ -139,12 +177,14 @@ function periodicNoise(x, y, px, py, salt) {
   const a = lattice(ix, iy, px, py, salt), b = lattice(ix + 1, iy, px, py, salt), c = lattice(ix, iy + 1, px, py, salt), d = lattice(ix + 1, iy + 1, px, py, salt);
   return a + (b - a) * sx + (c - a) * sy + (a - b - c + d) * sx * sy;
 }
+// 帯の幅の不揃い（周期1の和。導関数は ±7.6 で、14本の帯の幅が約3.4倍まで違う。順序は変わらない）。
+export function barkStripWarp(u) { return .22 * Math.sin(TAU * 3 * u + 1.3) + .11 * Math.sin(TAU * 5 * u + .4); }
 export function barkHeight(u, v) {
   // u：周（0〜1）、v：長さ（0〜1）。周期は両方向で1。14本の縦の帯（杉の剥がれる樹皮）が少し蛇行し、帯の境は浅い割れ目。
-  // 帯は長さ方向に4つに切れて明るさが変わり、表面は縦に引き延ばした細かい繊維。
+  // 帯は長さ方向に4つに切れて明るさが変わり、表面は縦に引き延ばした細かい繊維。第2周：帯の幅と割れ目の幅を帯ごとに変えた（等間隔の縞に見えた）。
   const warp = .55 * periodicNoise(u * 5, v * 3, 5, 3, 3) + .25 * periodicNoise(u * 11, v * 7, 11, 7, 6);
-  const x = u * 14 + warp, strip = Math.floor(x), f = x - strip;
-  const plate = periodicNoise(strip, v * 4 + lattice(strip, 0, 14, 1, 9) * 4, 14, 4, 2), crack = smooth(0, .18, f) * smooth(0, .18, 1 - f);
+  const x = u * 14 + warp + barkStripWarp(u), strip = Math.floor(x), f = x - strip, cw = .09 + .17 * lattice(strip, 1, 14, 1, 5);
+  const plate = periodicNoise(strip, v * 4 + lattice(strip, 0, 14, 1, 9) * 4, 14, 4, 2), crack = smooth(0, cw, f) * smooth(0, cw, 1 - f);
   const fibre = periodicNoise(u * 70 + warp * 4, v * 6, 70, 6, 1);
   return clamp(.12 + .38 * plate * crack + .32 * fibre * (.45 + .55 * crack) + .18 * crack);
 }

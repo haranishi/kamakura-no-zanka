@@ -1,7 +1,8 @@
 // Deterministic specimen geometry. Cached templates are borrowed; views clone them.
 import * as THREE from 'three';
 import { TREES } from './config.js';
-import { CEDAR_FAMILIES, cedarBranchPlan, cedarMidPlan, cedarExposure, cedarTrunkAxis, tuftCards, crownNormal, branchPoint, broadLimbs } from './tree-branches.js';
+import { cedarBranchPlan, cedarMidPlan, cedarExposure, cedarTrunkAxis, tuftCards, crownNormal, branchPoint, broadLimbs, broadClusterPlan, BROAD_CLUSTERS } from './tree-branches.js';
+const SAPLING_CLUSTERS = 9;
 const names = ['cedar', 'zelkova', 'pine', 'maple', 'sapling', 'shrub'];
 
 const TAU = Math.PI * 2, cache = new Map();
@@ -24,22 +25,28 @@ class Mesher {
 // Bark UV in metres: u wraps the circumference in ~1.4m repeats, v keeps the bark image's 1:2 texel aspect.
 const barkUV = (k, sides, t, length, radius) => { const repeat = Math.max(1, Math.round(TAU * radius / 1.4)); return [k / sides * repeat, t * length * repeat / (2 * TAU * radius)]; };
 // Curved tapered tubes, alternating bark ridges and 5 buttresses at the buried foot.
+// Second round: near trunks (six sides or more, over 1.8 m) get three extra rings at 0.25/0.6/1.1 m, so the buttresses
+// spread visibly over the first metre (they lived only on the buried ring before). The flare and the soil shade are in metres.
+export const ROOT_RINGS = Object.freeze([.25, .6, 1.1]);
 function tube(m, a, b, radius, sides = 6, rings = 3, root = false, color = [.12, .083, .05], taper = .4) {
   const first = m.s.length, axis = norm(b.map((v, k) => v - a[k])), length = Math.hypot(...b.map((v, k) => v - a[k]));
   const side = norm([axis[1], -axis[0], 0]), cross = new THREE.Vector3(...axis).cross(new THREE.Vector3(...side)).toArray();
-  for (let j = 0; j <= rings; j++) {
-    const t = j / rings;
+  const flared = root && sides >= 6 && length > 1.8;
+  const steps = Array.from({ length: rings + 1 }, (_, j) => j / rings);
+  if (flared) steps.splice(1, 0, ...ROOT_RINGS.map(h => h / length).filter(t => t < steps[1]));
+  for (const t of steps) {
+    const h = t * length;
     for (let k = 0; k <= sides; k++) {
       const angle = k / sides * TAU, nx = side.map((v, q) => v * Math.cos(angle) + cross[q] * Math.sin(angle));
-      const flare = root ? 1 + .8 * Math.exp(-t * 24) * (.6 + .4 * Math.cos(angle * 5)) : 1;
+      const flare = !root ? 1 : flared ? 1 + .85 * Math.exp(-h / .5) * (.5 + .5 * Math.cos(angle * 5 + .6)) : 1 + .8 * Math.exp(-t * 24) * (.6 + .4 * Math.cos(angle * 5));
       const r = radius * (1 - taper * t) * flare * ((k % sides) % 2 ? .91 : 1.09);
       const p = a.map((v, q) => v + (b[q] - v) * t + nx[q] * r);
       p[0] += Math.sin(t * Math.PI) * radius * .8;
-      const shade = (.72 + .18 * ((k % sides) % 2)) * (root ? .45 + .55 * Math.min(1, t * 5) : 1);
+      const shade = (.72 + .18 * ((k % sides) % 2)) * (root ? .45 + .55 * Math.min(1, flared ? h / 1.2 : t * 5) : 1);
       m.vert(p, nx, color.map(v => v * shade), barkUV(k, sides, t, length, radius));
     }
   }
-  for (let j = 0; j < rings; j++) for (let k = 0; k < sides; k++) { const v = first + j * (sides + 1) + k; m.quad(v, v + 1, v + sides + 2, v + sides + 1); }
+  for (let j = 0; j < steps.length - 1; j++) for (let k = 0; k < sides; k++) { const v = first + j * (sides + 1) + k; m.quad(v, v + 1, v + sides + 2, v + sides + 1); }
 }
 // A tapered limb along a curve of ring centres (each ring keeps a horizontal side axis, so limbs never twist).
 function limb(m, centres, radii, sides = 3, color = [.12, .083, .05], shade = .8) {
@@ -124,14 +131,15 @@ function clump(m, center, radii, sides, bands, tile = 1, core = false, rotation 
     part.vertexCount = m.s.length-first;
   }
 }
-// Wood cones are foliage cores: UV (-1,-1) marks them as bark-free for the wood shader.
+// Wood cores carry UV (-1,-1): bark-free for the wood shader (broadleaf cores; the cedar's middle core cone left in 8.1a round two).
 const NO_BARK = [-1, -1];
-function cone(m, y0, y1, radius, sides, offset, color = null) {
+// The far cedar's cones (the fallback when the far boards cannot be baked).
+function cone(m, y0, y1, radius, sides, offset) {
   const first = m.s.length, cx = Math.sin(offset) * .22, cz = Math.cos(offset) * .18;
-  m.vert([cx, y1, cz], [0, 1, 0], color || [1, 1, 1], color ? NO_BARK : [.5, 1], color ? 0 : .4);
+  m.vert([cx, y1, cz], [0, 1, 0], [1, 1, 1], [.5, 1], .4);
   for (let k = 0; k <= sides; k++) {
     const a = offset + k / sides * TAU, r = radius * (1 + .08 * Math.sin(k * 2.3 + offset));
-    m.vert([cx + Math.cos(a) * r, y0, cz + Math.sin(a) * r], [Math.cos(a), .45, Math.sin(a)], color || [.28, .28, .28], color ? NO_BARK : [k / sides, 0], color ? 0 : 1);
+    m.vert([cx + Math.cos(a) * r, y0, cz + Math.sin(a) * r], [Math.cos(a), .45, Math.sin(a)], [.28, .28, .28], [k / sides, 0], 1);
   }
   for (let k = 0; k < sides; k++) m.tri(first, first + 2 + k, first + 1 + k);
 }
@@ -150,13 +158,15 @@ function cedarNear(wood, leaf, shape) {
 }
 // Three crossed cards per tuft; UVs follow the trapezoid inside one cell of the two-spray atlas.
 function cedarTuft(leaf, tuft, shape, lift = 1) {
-  const centre = tuft.variant * .5 + .25, half = .23, tint = [1 + .05 * tuft.hue, 1 + .012 * tuft.hue, 1 - .07 * tuft.hue].map(v => v * lift);
+  // Per-tuft hue: warmer tufts against cooler, bluer ones (second round: ±5%/7% read as one flat green). The mean leans
+  // cool (red -3%, blue +4%): in the low gold sun the lit tufts read yellow-green against the evening (blind review: set-04, f1).
+  const centre = tuft.variant * .5 + .25, half = .23, tint = [.97 + .08 * tuft.hue, 1 + .03 * tuft.hue, 1.04 - .1 * tuft.hue].map(v => v * lift);
   const uvs = [[centre - half * .55, 0], [centre + half * .55, 0], [centre + half, 1], [centre - half, 1]];
   for (const card of tuftCards(tuft)) {
     const first = leaf.s.length;
     card.corners.forEach((p, k) => {
       const e = cedarExposure(p, shape, tuft.shade);
-      leaf.vert(p, crownNormal(p, card.normal, cedarTrunkAxis(shape, p[1])), tint.map(c => Math.min(1.15, c * e)), uvs[k], k >= 2 ? 1 : .3);
+      leaf.vert(p, crownNormal(p, card.normal, cedarTrunkAxis(shape, p[1])), tint.map(c => Math.max(.3, Math.min(1.15, c * e))), uvs[k], k >= 2 ? 1 : .3);
     });
     leaf.quad(first, first + 1, first + 2, first + 3);
   }
@@ -178,13 +188,11 @@ function cedar(wood, leaf, level, shape) {
   }
   if (level === 1) cedarMid(wood, leaf, shape);
 }
-// Middle cedar (L1): the near tufts' image on a spiral of large tufts around the old dark core, in the old skirts' triangles.
-// Nine identical skirts read as a stack of lampshades (the fir/spruce tiers of the 7.9 review) at 40–150 m.
-// Its core is shaded green, not near-black: between the large tufts it must read as deep foliage like the near crown's gaps.
-// Lift 1.1: with 1.25 the middle crowns measured 13-17% brighter than L0 (45m) and L2 (140m) in backlight.
+// Middle cedar (L1): one large tuft per near limb (two on long limbs), on the near branch plan, with no core cone.
+// Nine identical skirts read as a stack of lampshades (7.9); the spiral of 36-40 large tufts around a smooth green core
+// read as paper stars on a cone from the overlook (8.1a, second round). The outline and tips now match the near tree.
 function cedarMid(wood, leaf, shape) {
-  for (const tuft of cedarMidPlan(shape).tufts) cedarTuft(leaf, tuft, shape, 1.1);
-  cone(wood, 3, 19.7, 1.4 * CEDAR_FAMILIES[shape].width, 8, .3, [.055, .1, .045]);
+  for (const tuft of cedarMidPlan(shape).tufts) cedarTuft(leaf, tuft, shape);
 }
 // New families keep their own middle and far grammar; near limbs come from the shared branch plan.
 function cedarNew(wood, leaf, level, shape) {
@@ -212,8 +220,9 @@ function broad(wood, leaf, species, level, rnd, shape) {
   const aspect = [1, .94, 1.06][shape];
   if (!small) { radii[0] *= aspect; radii[2] *= aspect; radii[1] /= aspect; }
   const fork = shrub ? .18 : small ? 1.8 : level === 2 ? (maple ? 3.8 : 5.5) : level === 1 ? (maple ? 5.4 : 8.2) : maple ? 2 : 3.5;
-  const count = small ? (level === 0 ? (shrub ? 6 : 8) : 3) : level === 2 ? 2 : level === 0 ? 8 : 6;
-  const total = count + (!small && level === 0 ? 2 : 0), biases = [];
+  const clustered = !small && level === 0, sapling = species === 4 && level === 0;
+  const count = small ? (level === 0 ? (shrub ? 6 : sapling ? SAPLING_CLUSTERS : 8) : 3) : level === 2 ? 2 : clustered ? BROAD_CLUSTERS : 6;
+  const total = count + (clustered || sapling ? 1 : 0), biases = [];
   for (let i=0;i<Math.floor(total/2);i++) { const d = (rnd() * 2 - 1) * .1; biases.push(d,-d); }
   if (total % 2) biases.push(0);
   const crown = (...args) => clump(...args, rnd, biases.shift());
@@ -236,13 +245,29 @@ function broad(wood, leaf, species, level, rnd, shape) {
   }
   // Middle broadleaf keeps the near fork's limbs (three-sided), so the crown is held by branches, not a stick.
   if (level === 1 && !small) for (const l of broadLimbs(wood.tips, maple ? 2 : 3.5, aspect)) tube(wood, l.from, l.to, l.radius, 3, 1);
+  if (sapling) {
+    // Near sapling (second round): nine small clusters on short limbs around one inner cluster that holds the trunk top.
+    // Eight shells packed within 0.22 of the crown read as one ball on a stick at 2-5 m (blind review: set-04).
+    // Horizontal reach stays inside the old drawn crown (TREES.sapling.crown keeps it off road treads and dress).
+    const plan = broadClusterPlan({ center, radii: [radii[0] * .9, radii[1], radii[2] * .9], tips: wood.tips, fork: 1.2, shape, count: SAPLING_CLUSTERS, depth: [.62, .16], size: [.36, .1], salt: 401 });
+    for (const c of plan.clusters) { tube(wood, c.limb.from, c.limb.to, .022, 3, 1); crown(leaf, c.center, c.radii, 12, 6, .6, false, c.rotation, 0, .14); }
+    crown(leaf, [center[0], center[1] + .2, center[2]], [radii[0] * .44, radii[1] * .56, radii[2] * .44], 12, 6, .6, false, .9, 0, .14);
+    return;
+  }
+  if (clustered) {
+    // Near crown (8.1a, second round): small leaf clusters on secondary limbs, with sky and limbs between them, and one
+    // dark inner cluster. Ten large shells read as a ball on a stick at 3-15 m (blind review: detail-n4, set-04, set-24).
+    const plan = broadClusterPlan({ center, radii, tips: wood.tips, fork, vase: species === 1, flat: maple, shape });
+    for (const c of plan.clusters) { tube(wood, c.limb.from, c.limb.to, c.limb.radius, 3, 1); crown(leaf, c.center, c.radii, 12, 6, 1, false, c.rotation, 0, .09); }
+    crown(leaf, [0, center[1] - .1 * radii[1], 0], radii.map(v => v * .42), 12, 6, 1, false, .4, 0, .09);
+    return;
+  }
   for (let i = 0; i < count; i++) {
     const y = 1 - 2 * (i + .5) / count, a = i * 2.399 + shape * .73, radial = Math.sqrt(1 - y * y);
     const c = center.map((v,q) => v + radii[q] * (q === 1 ? y : radial * (q === 0 ? Math.cos(a) : Math.sin(a)) * (species === 1 ? 1 + .45 * y : 1)) * (small ? .22 : .56));
     const r = small ? radii.map(v => v * (level === 0 ? .78 : .84)) : radii.map((v,q) => v * (level === 0 ? .49 : (.63 + .035 * Math.sin(i * 2.3 + q)) * (shape === 2 ? .97 : 1)));
     crown(leaf, c, r, small ? (level === 0 ? 14 : 8) : level === 0 ? 16 : 10, small ? (level === 0 ? 7 : 4) : level === 0 ? 8 : 5, small ? .6 : 1, false, !small && level === 1 ? i * .73 : 0, 0, small ? .14 : .09);
   }
-  if (!small && level === 0) for (const y of [-.35, 0]) crown(leaf, [0, center[1] + y * radii[1], 0], radii.map(v => v * .5), 16, 8, 1, false, 0, 0, .09);
   clump(wood, center, radii.map(v => v * .55), small ? 3 : 6, 2, 1, true);
 }
 // Fan cards grow from their bottom centre, with normals pointing away from each tuft.
