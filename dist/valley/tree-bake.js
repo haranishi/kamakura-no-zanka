@@ -59,7 +59,7 @@ function bakeMaterial({ map = null, detail = null, gain = 1, cedar = false, wood
           if (uFlags.z > .5) {
             vec3 cardFace = cross(dFdx(vViewPosition), dFdy(vViewPosition));
             albedo.a *= smoothstep(.04, .22, abs(dot(cardFace, normalize(vViewPosition))) / max(length(cardFace), 1e-8));
-          } else if (!gl_FrontFacing) n = -n;
+          } else if (!gl_FrontFacing && uFlags.y < .5) n = -n;   // broadleaf inner faces keep the outward normal (as tree-materials.js)
           if (uFlags.y > .5) {
             vec4 leafDetail = texture2D(uDetail, vUv, -1.5);
             float leafHue = leafDetail.a * 2.0 - 1.0;
@@ -186,7 +186,11 @@ export function impostorMaterial({ wind, sunDir, quality, frame, atlas, height =
       vImpUvA = uImpFrame.xy + vec2(impA * uImpStep, 0.0) + uv * uImpFrame.zw;
       vImpUvB = uImpFrame.xy + vec2(impB * uImpStep, 0.0) + uv * uImpFrame.zw;
       vec3 impRight = vec3(impDir.y, 0.0, -impDir.x);
-      transformed = impRight * position.x + vec3(0.0, position.y, 0.0);
+      // Third round: beyond the dissolve band the boards widen with distance and lean a little each its own way, so the bare
+      // slope between thin far cedars is covered and a ridge no longer reads as a comb of round-topped posts (blind review Q01, Q12).
+      float impFar = smoothstep(${TREES.impostor.widenRange[0].toFixed(1)}, ${TREES.impostor.widenRange[1].toFixed(1)}, distance(treeOrigin.xz, cameraPosition.xz));
+      float impLean = (fract(sin(dot(treeOrigin.xz, vec2(41.31, 17.77))) * 23421.631) - .5) * ${(2 * TREES.impostor.lean).toFixed(3)} * impFar;
+      transformed = impRight * (position.x * (1.0 + ${TREES.impostor.widen.toFixed(2)} * impFar) + position.y * impLean) + vec3(0.0, position.y, 0.0);
       vImpRight = normalize(mat3(viewMatrix) * (treeBasis * impRight));
       vImpUp = normalize(mat3(viewMatrix) * treeBasis[1]);
       vImpFwd = normalize(mat3(viewMatrix) * (treeBasis * vec3(impDir.x, 0.0, impDir.y)));

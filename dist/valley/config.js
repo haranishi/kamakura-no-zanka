@@ -86,15 +86,23 @@ export const TREES = Object.freeze({
   // 広葉の葉1枚ごとの向き（法線の強さ）と色の揺らぎ（±割合）。樹皮の凹凸と根元の暗さ（地面に接する所の明るさ）。
   // 第2周：group＝葉の群れ（約0.4m）で樹冠の房の縁を欠く強さ、gap＝房に開ける隙間の閾値、inner＝隙間から見える房の内側の明るさ。
   // 若木・灌木は葉の画像が1.7倍大きく、同じ強さでは2〜3mの寄りで虫食いに見えた（smallGroup・smallGap）。
-  leafDetail: Object.freeze({ normal: 0.85, hue: 0.09, rim: 0.7, group: 0.7, gap: 0.14, inner: 0.5, smallGroup: 0.45, smallGap: 0.05 }),
-  // カメラの近くの葉を薄くする距離（m）：a 以内は消え、b 以遠は残る（樹冠の中で画面が緑一色になるのを防ぐ）。
-  nearFade: Object.freeze([0.4, 1.8]),
+  // 第3周：隙間の奥が黒い穴に見えた（裏面の法線が内向きに反転し、明るさ.5）。裏面も外向きの法線で照らし .72、隙間は .14→.09。
+  leafDetail: Object.freeze({ normal: 0.85, hue: 0.09, rim: 0.7, group: 0.7, gap: 0.09, inner: 0.72, smallGroup: 0.45, smallGap: 0.04 }),
+  // カメラの近くの葉と枝を、房・枝ごとに根元へ縮める距離（m）：カメラから「根元→頂点」の線分まで a 以内で消え、b 以遠は元の大きさ。
+  // 第3周：画素ごとに薄める方式（第2周）は、カメラの直前で網点の膜に見えた（tree-lod.js nearShrink）。
+  nearFade: Object.freeze([0.35, 1.7]),
   // 逆光の透け：針葉樹の強さ（1周目は .2）と、葉の縁（画像の不透明度が低い所）を足す割合。
-  backlight: Object.freeze({ conifer: 0.5, edge: 2.0 }),
+  // 第3周：透けは外側の葉だけ（頂点の明るさ inner[0]〜[1] で0→1：内側ほど暗い）、上限 .35→.5、針葉樹 .5→.7（Q03・Q15）。
+  backlight: Object.freeze({ conifer: 0.7, edge: 2.0, cap: 0.5, inner: Object.freeze([0.32, 0.8]) }),
+  // 第3周：陰の側（自己発光の .24）は、彩度を cool の割合で落として青寄りに（影の橙・黄が鮮やかに浮いた：Q04・Q16）。
+  shade: Object.freeze({ cool: 0.45, tint: Object.freeze([0.84, 0.95, 1.16]) }),
+  // 第3周：葉が受ける日の影の残る明るさ（0＝影で真っ暗）。房どうしの影が丸い黒いしみに見えた（Q04・Q09）。
+  leafShadow: 0.4,
   // 第2周：凹凸を強く（.75→1.0）、根元の暗さを深く（.62→.52）、溝の苔（根元1.3mまで）。
   bark: Object.freeze({ relief: 1.0, contact: 0.52, crownShade: 0.6, moss: 0.75 }),
   // 夕景の空気（第2周）：葉の彩度を距離で落とす割合（near〜far m で0→amount）。明るさは変えない（山肌の陰の中で樹冠が白く浮かない）。
   leafAir: Object.freeze({ amount: 0.3, near: 25, far: 320 }),
   // 遠景の絵の板（8.1a第2周）：切り抜きの閾値と、遠く（ミップが粗い）ほど葉の不透明を足す割合（細って透けないように）。
-  impostor: Object.freeze({ alphaTest: 0.4, mipBoost: 0.5 }),
+  // 第3周：帯（150m）の先で、板を距離とともに広げ（widenRange で0→widen）、木ごとに少し傾ける（±lean m/m）。斜面の地面が見え、尾根が櫛に見えた（Q01・Q12）。
+  impostor: Object.freeze({ alphaTest: 0.4, mipBoost: 0.5, widen: 0.4, widenRange: Object.freeze([170, 420]), lean: 0.06 }),
 });

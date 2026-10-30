@@ -15,7 +15,7 @@ const { treeMaterials } = await load('tree-materials.js');
 const { createTreeSet, buildSpecimens, stageColor } = await load('tree-view.js');
 const { impostorMaterial, treeImpostors, impostorGeometry } = await load('tree-bake.js');
 import { impostorView, IMPOSTOR, frameFit } from '../dist/valley/tree-impostor.js';
-import { nearFade } from '../dist/valley/tree-lod.js';
+import { nearFade, nearShrink } from '../dist/valley/tree-lod.js';
 import { stubRenderer } from './helpers/tree-field.mjs';
 const { treeGeometry } = await load('tree-geometry.js');
 const wind = () => ({ uTime: { value: 5 }, uWind: { value: 1 }, uWindDir: { value: new THREE.Vector2(1, 0) }, uGuideMix: { value: 0 } });
@@ -132,13 +132,20 @@ test('Lambert color, two-layer wind, shared objects and limited transmission [sh
       assert(!/objectNormal\s*=/.test(v), '[wind] normals moved');
       assert.match(v, /treeOrigin = instanceMatrix\[3\].xyz/, '[lod] distance from instance origin');
       assert.match(v, /distance\(treeOrigin,cameraPosition\)/, '[lod] full camera distance');
-      assert.match(f, /totalEmissiveRadiance \+= diffuseColor.rgb\*/, '[color] diffuse-proportional lift');
+      // Third round: the leaf lift is the foliage colour pulled toward a cooler grey (TREES.shade), still proportional to it.
+      assert(kind === 'leaf' ? f.includes('totalEmissiveRadiance += mix(diffuseColor.rgb, vec3(dot(diffuseColor.rgb, vec3(.2126,.7152,.0722)))*vec3(') : /totalEmissiveRadiance \+= diffuseColor.rgb\*/.test(f), '[color] diffuse-proportional lift');
+      if (kind === 'leaf') assert(f.includes(`, ${TREES.shade.cool.toFixed(2)})*.24;`) && TREES.shade.cool >= .2 && TREES.shade.tint[2] > TREES.shade.tint[0], '[color] shade side keeps the full saturation');
+      // Third round: leaves keep part of the light in the sun's shadow (hard round blotches of one cluster on the next).
+      const lambert = { uniforms: {}, vertexShader: THREE.ShaderLib.lambert.vertexShader, fragmentShader: THREE.ShaderLib.lambert.fragmentShader }; mat.onBeforeCompile(lambert);
+      assert.equal(lambert.fragmentShader.includes(`${TREES.leafShadow.toFixed(2)} + ${(1 - TREES.leafShadow).toFixed(2)}*getShadow( directionalShadowMap[ i ]`), kind === 'leaf', '[leaf-shadow] foliage shadow strength');
       assert.match(f, /#include <color_fragment>/, '[color] instanceColor support');
       assert.match(v, /#include <color_vertex>/, '[color] instance color vertex chunk');
       assert.match(THREE.ShaderChunk.color_vertex, /vColor.xyz \*= instanceColor.xyz/, '[color] shipped Three instanceColor contract');
       if (kind === 'leaf') {
         assert.match(f, /pow\(max\(0.0,dot\(sight,normalize\(uSunDir\)\)\),3.0\)/, '[shader] sun backlight');
-        assert.match(f, /min\(vec3\(\.35\),diffuseColor.rgb\*/, '[shader] bounded diffuse-proportional transmission');
+        assert(f.includes(`min(vec3(${TREES.backlight.cap.toFixed(2)}),diffuseColor.rgb*`) && TREES.backlight.cap <= .5, '[shader] bounded diffuse-proportional transmission');
+        // Third round: the inner, sheltered foliage (low vertex exposure) passes less backlight.
+        assert(f.includes(`backlight *= smoothstep(${TREES.backlight.inner[0].toFixed(2)}, ${TREES.backlight.inner[1].toFixed(2)}, vTreeLift);`), '[shader] inner foliage glows as much as the rim');
         assert.match(f, /1.0-smoothstep\(30.0,100.0,vTreeDistance\)/, '[shader] transmission distance');
         // 8.1a second round: conifer sprays pass more light (.2 -> TREES.backlight.conifer) and thin edges glow (blind review: backlit).
         assert(f.includes(`backlight*${species === 0 || species === 2 ? TREES.backlight.conifer.toFixed(2) : '1.0'}`), '[shader] species transmission');
@@ -425,8 +432,10 @@ test('broadleaf leaves carry per-leaf normals, colour jitter and rim erosion; co
 test('cedar tufts are lit as one crown and fade when seen edge-on [crown-lit]',()=>{
   const {m}=make();
   for(let sp=0;sp<6;sp++)for(let l=0;l<(sp>=4?2:3);l++) {
-    const f=compile(m.get(sp,l).leaf).fragmentShader,cedar=sp===0&&l<2;
-    assert.equal(f.includes('normal = normalize(vNormal); nonPerturbedNormal = normal;'),cedar,'[crown-lit] per-card flip on cedar tufts, or crown lighting elsewhere');
+    const mat=m.get(sp,l).leaf,f=compile(mat).fragmentShader,cedar=sp===0&&l<2,shell=!!mat.normalMap;
+    // Third round: broadleaf shells (detail map) also keep the outward normal on their inner faces (flipped, gaps read as black holes).
+    assert.equal(f.includes('normal = normalize(vNormal); nonPerturbedNormal = normal;'),cedar||shell,'[crown-lit] per-card flip on cedar tufts, or crown lighting elsewhere');
+    assert.equal(f.includes('tbn[2] = normal;'),shell,'[crown-lit] the leaf detail frame still flips on inner faces');
     assert(!cedar||f.indexOf('normal = normalize(vNormal);')>f.indexOf('#include <normal_fragment_begin>'),'[crown-lit] reset must follow the face flip');
     assert.equal(f.includes('vec3 cardFace = cross(dFdx(vViewPosition), dFdy(vViewPosition));')&&f.includes('diffuseColor.a *= smoothstep(.04, .22, abs(dot(cardFace, normalize(vViewPosition))) / max(length(cardFace), 1e-8));'),cedar,'[crown-lit] edge-on card fade');
   }
@@ -474,7 +483,9 @@ test('impostor shader picks the same frames as the pure view choice [impostor-vi
     }
     assert(v.includes('vImpUvA = uImpFrame.xy + vec2(impA * uImpStep, 0.0) + uv * uImpFrame.zw;') && v.includes('vImpUvB = uImpFrame.xy + vec2(impB * uImpStep, 0.0) + uv * uImpFrame.zw;'), '[impostor-view] frame UVs');
     assert.equal(s.uniforms.uImpStep.value, 1 / IMPOSTOR.views, '[impostor-view] column step');
-    assert(v.includes('transformed = impRight * position.x + vec3(0.0, position.y, 0.0);'), '[impostor-view] board does not turn to the camera');
+    // Third round: past the band the board widens with distance and leans per tree (TREES.impostor.widen / lean); at the band it is the frame.
+    assert(v.includes(`transformed = impRight * (position.x * (1.0 + ${TREES.impostor.widen.toFixed(2)} * impFar) + position.y * impLean) + vec3(0.0, position.y, 0.0);`), '[impostor-view] board does not turn to the camera');
+    assert(v.includes(`float impFar = smoothstep(${TREES.impostor.widenRange[0].toFixed(1)}, ${TREES.impostor.widenRange[1].toFixed(1)},`) && TREES.impostor.widenRange[0] > TREES.lod.standard[1] + 2 * TREES.lod.blend.standard, '[impostor-view] boards widen inside the dissolve band');
     assert(v.indexOf('transformed = impRight') < v.indexOf('transformed +=') && (v.match(/transformed \+=/g) || []).length === 1, '[wind] board sway must follow the turn, once');
     for (const key of Object.keys(w)) assert.equal(s.uniforms[key], w[key], `[wind] ${key} object identity`);
     assert(v.includes('float heightRatio = clamp(position.y/12.0,0.0,1.0);') && /step\(\.5,uWind\)/.test(v) && /\*uWind;/.test(v), '[wind] board sway');
@@ -523,23 +534,33 @@ test('the bake renders both atlases once and restores the renderer [impostor-bak
   lost.dispose(); m.dispose();
 });
 // なぜ失敗したか（第2周）: カメラが樹冠に入ると画面が緑一色になった。近くの葉だけ距離で薄くする（影はそのまま）。
-test('near and middle foliage thins out right in front of the camera [near-fade]', () => {
+// 第3周：画素ごとに薄めると網点の膜（被覆・ディザ）に見えた（盲検 Q07）。房・枝ごとに根元（aPivot）へ縮める。画素の薄めは残さない。
+test('near tufts, clusters and limbs fold toward their pivots in front of the camera [near-fade]', () => {
   for (const quality of ['standard', 'light']) {
     const { m } = make(quality);
     for (let sp = 0; sp < 6; sp++) for (let l = 0; l < (sp >= 4 ? 2 : 3); l++) for (const kind of ['leaf', 'wood']) {
-      const f = compileFull(m.get(sp, l)[kind]).fragmentShader, on = kind === 'leaf' && l < 2;
-      const line = `float nearKeep = smoothstep(${TREES.nearFade[0].toFixed(2)}, ${TREES.nearFade[1].toFixed(2)}, length(vViewPosition));`;
-      assert.equal(f.includes(line), on, `[near-fade] ${sp}/${l}/${kind}`);
+      const s = compileFull(m.get(sp, l)[kind]), v = s.vertexShader, f = s.fragmentShader, on = l < 2;
+      const line = `float nearKeep = smoothstep(${TREES.nearFade[0].toFixed(2)}, ${TREES.nearFade[1].toFixed(2)}, length(pivotEye - pivotSpan*pivotT));`;
+      assert.equal(v.includes(line), on, `[near-fade] ${sp}/${l}/${kind}`);
+      assert(!/nearKeep/.test(f), '[near-fade] per-pixel fade left in the fragment (dotted veil)');
       if (!on) continue;
-      assert(f.indexOf(line) > f.indexOf('#include <alphatest_fragment>'), '[near-fade] fade must follow the alpha test');
-      assert(f.includes(quality === 'light' ? 'if (n >= nearKeep) discard;' : 'diffuseColor.a *= nearKeep;'), '[near-fade] wrong fade mode');
+      assert(v.includes('if (aPivot.w > .5) {') && v.includes('transformed = aPivot.xyz + (transformed - aPivot.xyz)*nearKeep;'), '[near-fade] shrink toward the pivot');
+      assert(v.indexOf(line) < v.indexOf('vec2 treeMotion'), '[near-fade] the shrink must come before the wind');
     }
     m.dispose();
   }
+  // The shader's keep factor is the pure nearShrink (segment pivot→vertex, smoothstep over TREES.nearFade).
   const [a, b] = TREES.nearFade, smoothstep = (x, y, d) => { const t = Math.max(0, Math.min(1, (d - x) / (y - x))); return t * t * (3 - 2 * t); };
   for (let d = 0; d <= 3; d += .05) assert(Math.abs(nearFade(d, TREES.nearFade) - smoothstep(a, b, d)) < 1e-12, '[near-fade] shader and pure fade disagree');
   assert(a < b && b < 2.4 && a > 0, '[near-fade] distances outside the third-person camera (3.6m)');
   assert(!/customDepthMaterial|MeshDepthMaterial/.test(source('tree-materials.js')), '[near-fade] shadows must keep the full crown');
+  const pivot = [0, 0, 0], tip = [2, 0, 0];
+  assert.equal(nearShrink([5, 0, 0], pivot, tip, TREES.nearFade).keep, 1, '[near-fade] a far tuft shrank');
+  assert.equal(nearShrink([1, .1, 0], pivot, tip, TREES.nearFade).keep, 0, '[near-fade] a tuft through the camera kept its size');
+  // Pushed aside: the vertex toward the camera folds first, the one pointing away keeps more of its reach.
+  const toward = nearShrink([2, 0, 0], pivot, [1, 0, 0], TREES.nearFade).keep, away = nearShrink([2, 0, 0], pivot, [-1, 0, 0], TREES.nearFade).keep;
+  assert(toward < away && away === 1, '[near-fade] the side facing the camera does not fold first');
+  assert.deepEqual(nearShrink([1, 1, 1], [1, 1, 1], [3, 1, 1], TREES.nearFade).position, [1, 1, 1], '[near-fade] a folded tuft left its pivot');
 });
 // なぜ失敗したか（第2周）: 広葉の房が丸い球に見えた。葉の群れ（約0.4m）で縁を欠き、隙間を開け、隙間から見える内側は陰にする。
 test('broadleaf clusters break their rims by leaf groups and open shaded gaps [leaf-group]', () => {
@@ -549,7 +570,8 @@ test('broadleaf clusters break their rims by leaf groups and open shaded gaps [l
     // Understory leaves are drawn larger: milder groups and fewer gaps (adult strengths read as moth-eaten saplings).
     const group = sp >= 4 ? TREES.leafDetail.smallGroup : TREES.leafDetail.group, gap = sp >= 4 ? TREES.leafDetail.smallGap : TREES.leafDetail.gap;
     assert.equal(f.includes(`(leafGroup-.5)*${group.toFixed(2)}`), on, '[leaf-group] rim erosion by leaf groups');
-    assert.equal(f.includes(`smoothstep(${gap.toFixed(2)}, ${(gap + .08).toFixed(2)}, texture2D(normalMap, vNormalMapUv*.23+.61).a)`), on, '[leaf-group] gaps');
+    // Third round: the middle crowns (L1) keep no gaps (the dark wood core showed through as black specks).
+    assert.equal(f.includes(`smoothstep(${gap.toFixed(2)}, ${(gap + .08).toFixed(2)}, texture2D(normalMap, vNormalMapUv*.23+.61).a)`), on && l === 0, '[leaf-group] gaps');
     assert.equal(f.includes(`if (!gl_FrontFacing) diffuseColor.rgb *= ${TREES.leafDetail.inner.toFixed(2)};`), on, '[leaf-group] inner face shade');
     if (on) assert(f.indexOf('leafGroup') < f.indexOf('#include <alphatest_fragment>'), '[leaf-group] erosion must cut before the alpha test');
   }

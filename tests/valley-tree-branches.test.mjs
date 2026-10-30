@@ -192,15 +192,25 @@ test('broadleaf clusters sit on secondary limbs around the crown with gaps betwe
   for (const c of plan.clusters) {
     const r = c.center.map((v, q) => (v - center[q]) / radii[q]), depth = Math.hypot(...r);
     assert(depth > .5 && depth < 1.25, '[broad] cluster inside the trunk or outside the crown');
-    assert(c.radii.every((v, q) => v / radii[q] >= .27 && v / radii[q] <= .41), '[broad] cluster size');
-    // The limb leaves its primary at 55% and ends inside the cluster.
-    const from = plan.root.map((v, q) => v + (tips[c.primary][q] - v) * .55);
-    c.limb.from.forEach((v, q) => assert(near(v, from[q]), '[broad] limb not on its primary'));
+    // Third round: sizes 0.2-0.4 of the crown (equal shells read as a ball painted with leaves, blind review Q08/Q14).
+    assert(c.radii.every((v, q) => v / radii[q] >= .17 && v / radii[q] <= .41), '[broad] cluster size');
+    // The limb leaves its primary somewhere in 40-70% (one fixed fraction read as umbrella ribs, Q10) and ends inside the cluster.
+    const along = [0, 1, 2].map(q => (c.limb.from[q] - plan.root[q]) / (tips[c.primary][q] - plan.root[q])).filter(Number.isFinite);
+    assert(along.every(t => t >= .4 - 1e-9 && t <= .7 + 1e-9) && along.every(t => near(t, along[0])), '[broad] limb not on its primary');
     assert(Math.hypot(...c.limb.to.map((v, q) => (v - c.center[q]) / c.radii[q])) < 1, '[broad] limb ends outside its cluster');
     const nearest = Math.min(...plan.clusters.filter(o => o !== c).map(o => Math.hypot(...o.center.map((v, q) => v - c.center[q])) - Math.max(...o.radii) - Math.max(...c.radii)));
     if (nearest > -.6) gaps++;
   }
   assert(gaps >= 4, '[broad] every cluster buried in its neighbours (no sky between them)');
+  // Third round: inner clusters fill the crown's hollow (from below it read as an empty painted shell, blind review Q10).
+  const filled = B.broadClusterPlan({ center, radii, tips, fork: 3.5, vase: true, inner: 4 });
+  assert.equal(filled.inner.length, 4, '[broad] inner fill count');
+  for (const c of filled.inner) assert(Math.hypot(...c.center.map((v, q) => (v - center[q]) / radii[q])) < .5 && c.limb === null, '[broad] inner cluster outside the crown core');
+  assert.deepEqual(filled.clusters, plan.clusters, '[broad] the fill moved the outer clusters');
+  const leaves = plan.clusters.map(c => { const q = Math.abs(tips[c.primary][0] - plan.root[0]) > .1 ? 0 : 2; return (c.limb.from[q] - plan.root[q]) / (tips[c.primary][q] - plan.root[q]); });
+  assert(Math.max(...leaves) - Math.min(...leaves) > .15, '[broad] every limb leaves its primary at one fraction (umbrella ribs)');
+  const sizes = plan.clusters.map(c => c.radii[0] / radii[0]);
+  assert(Math.max(...sizes) - Math.min(...sizes) > .12, '[broad] clusters of one size');
   const upper = plan.clusters.filter(c => c.center[1] > center[1]), lower = plan.clusters.filter(c => c.center[1] < center[1]);
   const spread = cs => Math.max(...cs.map(c => Math.hypot(c.center[0], c.center[2])));
   assert(spread(upper) > spread(lower), '[broad] zelkova clusters do not widen upward');
@@ -242,4 +252,15 @@ test('leaf tilt and colour jitter stay bounded per leaf [leaf-tilt]', () => {
   const tilts = Array.from({ length: 300 }, (_, i) => B.leafTilt(hash, i));
   for (const t of tilts) assert(t.tilt >= .25 && t.tilt <= .7 && t.fold >= .18 && t.fold <= .32 && Math.abs(t.hue) <= 1, '[leaf-tilt] range');
   assert(std(tilts.map(t => t.hue)) > .4 && std(tilts.map(t => t.angle)) > 1.2, '[leaf-tilt] leaves share one orientation or colour');
+});
+
+// なぜ失敗したか（8.1a第3周）: 下から見上げると、房の無い枝の内側（s<.34）が空に突き出す足場の棒に見えた（盲検 Q06）。
+test('cedar tufts reach the inner quarter of long limbs [tuft-reach]', () => {
+  for (let shape = 0; shape < 5; shape++) {
+    const long = B.cedarBranchPlan(shape).branches.filter(b => b.wood);
+    // Mean first tuft along the long limbs: .56-.61 in the second round, .49-.55 now (measured).
+    const first = long.reduce((n, b) => n + b.tufts[0].s, 0) / long.length;
+    assert(first < .56, `[tuft-reach] long limbs bare on their inner part (first tuft at s ${first.toFixed(3)})`);
+    assert(long.every(b => b.tufts.every(t => t.s >= .24 - 1e-9)), '[tuft-reach] tuft on the trunk side of the limb');
+  }
 });

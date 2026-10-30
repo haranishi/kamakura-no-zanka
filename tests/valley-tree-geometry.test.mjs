@@ -14,7 +14,8 @@ import { cedarBranchPlan, cedarMidPlan, BROAD_CLUSTERS } from '../dist/valley/tr
 const midTufts = shape => cedarMidPlan(shape).tufts.length;
 const { treeGeometry } = await load('tree-geometry.js');
 const names = ['cedar', 'zelkova', 'pine', 'maple', 'sapling', 'shrub'];
-const digest = g => { const h=createHash('sha256');for(const a of Object.values(g.attributes))h.update(Buffer.from(a.array.buffer));h.update(Buffer.from(g.index.array.buffer));return h.digest('hex'); };
+// The near-shrink pivot (8.1a third round) has its own test [pivot]; leaving it out keeps the far cones' committed bytes comparable.
+const digest = g => { const h=createHash('sha256');for(const [name,a] of Object.entries(g.attributes))if(name!=='aPivot')h.update(Buffer.from(a.array.buffer));h.update(Buffer.from(g.index.array.buffer));return h.digest('hex'); };
 const gridVertex = (part, i) => part.vertices ? part.vertices[i] : part.first + i;
 function bounds(g) { g.computeBoundingBox(); return g.boundingBox; }
 for (let species = 0; species < 6; species++) {
@@ -99,7 +100,8 @@ test('crown volume, repeated shell UV, opaque core and irregular branch tips [vo
     const g=treeGeometry(species,level), parts=g.leaf.userData.parts, uv=g.leaf.getAttribute('uv'), p=g.leaf.getAttribute('position');
     const shells=parts.filter(p=>!p.core);
     // 8.1a second round: the near broadleaf crown is BROAD_CLUSTERS small clusters plus one inner cluster; the sapling nine plus one.
-    const expected=species<4?BROAD_CLUSTERS+1:species===4?10:6;
+    // Third round: the adult crown adds four inner clusters (from below it read as an empty painted shell, blind review Q10).
+    const expected=species<4?BROAD_CLUSTERS+4:species===4?10:6;
     if(level===0)assert(shells.length===expected,'[volume] too few foliage shells');
     for(const part of shells) {
       const {first,sides,bands}=part;
@@ -375,7 +377,7 @@ test('all shape families have finite unit normals, budgets and matching LOD boun
 test('cedar shape zero retains committed L0 and L2 bytes [cedar-hash]',()=>{
   const hashes={
     '0/wood':'f252ae4507c021684804f88d2455d754375bfde0aaa939de27f19d42845f1d12',
-    '0/leaf':'a5d52eeaf193744af1b28f4d3e7d8996c5dd9dadbc1956ffca7b8054ecaf9980',
+    '0/leaf':'73a8b51eeae027fcef88d23f8c70ad2efeb8942e8b9fd2db46c9bf0400f4d4b1',   // 第3周：房を枝の内側（s .24〜）まで
     '2/wood':'7ed0f1b4fd27be471a81537c5abdcc645cd5ec710831f9bf69908d8cd1f2a54a',
     '2/leaf':'732b9606020a6e155db29ffa08b9910a7f3d6f71a5409a5806b2d28157023ea7',   // 遠景の葉（円錐）は8.1aでも変えていない
   };
@@ -462,24 +464,24 @@ test('far domes, trunk overlap and grounded understory [candy/ground]',()=>{
 
 // なぜ失敗したか: 新しい杉の追加で既存の枝ぶりまで変えると、比較の根拠を失う。
 test('all cedar zero through two buffers retain committed bytes [cedar-compatibility]',()=>{
-  // 8.1a (both rounds) changed the near and middle buffers; the far cones (2/*) still match the 7.9 bytes.
+  // 8.1a (all rounds) changed the near and middle buffers (third round: tufts reach s .24 on the limb); the far cones (2/*) still match the 7.9 bytes.
   const hashes={
     "0/0/wood": "f252ae4507c021684804f88d2455d754375bfde0aaa939de27f19d42845f1d12",
-    "0/0/leaf": "a5d52eeaf193744af1b28f4d3e7d8996c5dd9dadbc1956ffca7b8054ecaf9980",
+    "0/0/leaf": "73a8b51eeae027fcef88d23f8c70ad2efeb8942e8b9fd2db46c9bf0400f4d4b1",
     "0/1/wood": "4a13170ef6dc8b877ec2bd77006f8dc9478b2d3332947b57f0ddfe6632bcc52a",
-    "0/1/leaf": "72b0ae24e0815714e2b57705ba275003fc3648517abbf2e64e8be8ef1e77bf9b",
+    "0/1/leaf": "df90691b1244969720e0afe946a3f300467ad8141a44c2ac5f0946aa86480e7f",
     "0/2/wood": "7ed0f1b4fd27be471a81537c5abdcc645cd5ec710831f9bf69908d8cd1f2a54a",
     "0/2/leaf": "732b9606020a6e155db29ffa08b9910a7f3d6f71a5409a5806b2d28157023ea7",
     "1/0/wood": "c85575d91d341739bf4149a1ce20a706ef77d564436aa6f3ff09919018e8e248",
-    "1/0/leaf": "8ff5ca66821cccba0b5e9da51378d94d8c2cc91f3dccee37d34dc47d5b529f61",
+    "1/0/leaf": "c4bf4f6e7e1a23dee341b89680f26be169e59f31816a104131b43e4c7973c11c",
     "1/1/wood": "b219453507d901a6af7d2c8165a7d53b290dd406b95048ff18afaa818355e391",
-    "1/1/leaf": "2547efb4858e4f3e5cdf0aad4f46fb44862937639dec17322d1e928926339ae1",
+    "1/1/leaf": "c3cc8a44486c322d0d095d72445f5625b6845bfc6d1b47e82c83760d123c4abf",
     "1/2/wood": "2d4655811294077763f75b1d8912f7121b4a6e1fb3de00c2bd4625dcd70afb8d",
     "1/2/leaf": "6621e8b29368ac410be7e0270b876febf9865ccdf7d3f020d95679f4e5d1b4cc",
     "2/0/wood": "65040a0f5c38b1e2015ad1b1fe7bcb3824c8a6046bf511f107c9c57fbd04fcce",
-    "2/0/leaf": "e518656edf1c48d7ade53fdf1d546beed65a2f69a931c8d04ad42bfa10a7d71a",
+    "2/0/leaf": "0b5b88b932aad03531f5206a7f7ddc5289a7f1e7557b79ecc2dbace15a35920c",
     "2/1/wood": "186f1c00e9f8d0bcec622933c58737367c5e05ca29f001153e432fc5e42db73f",
-    "2/1/leaf": "68344787ed81d52f78b409d1b8557b5d34487343665d841da9765c4320d463f0",
+    "2/1/leaf": "e27783207ddd087295c0182aa651b3888efcad72a2491a8bde2f0224367b973d",
     "2/2/wood": "8ef16d64b93564b796b2a62eb983198412a310d8edde4fac2c1216eaa5e83c3d",
     "2/2/leaf": "b56c93c098a3935e6cc1bbb2d08b6ca69534ee37c587d293d91f2ea5e3b640cf"
   };
@@ -491,8 +493,9 @@ test('dense broad shells retain three spatial noise octaves [resolution/noise]',
     const g=treeGeometry(sp,l,sh),p=g.leaf.getAttribute('position'),budget=TREES.budget[names[sp]][l],total=g.tris.wood+g.tris.leaf;
     assert(total>=budget*.8 && total<=budget,'[budget-utilization] dense foliage allocation');
     for(const [index,part] of g.leaf.userData.parts.entries()) {
-      // Near clusters (adult broadleaf and sapling) are 12x6 shells (8.1a second round); shrubs keep 14x7.
-      const sides=sp<4?(l===0?12:l===2 && index===1?8:10):(l===0?(sp===4?12:14):8),bands=sp<4?(l===0?6:l===2 && index===1?4:5):(l===0?(sp===4?6:7):4);
+      // Near adult clusters are 10x5 shells and the four inner ones 10x4 (third round: 22+4 clusters within the second round's
+      // triangles); sapling clusters stay 12x6 (8.1a second round); shrubs keep 14x7.
+      const sides=sp<4?(l===0?10:l===2 && index===1?8:10):(l===0?(sp===4?12:14):8),bands=sp<4?(l===0?(index<BROAD_CLUSTERS?5:4):l===2 && index===1?4:5):(l===0?(sp===4?6:7):4);
       assert.equal(part.sides,sides,'[shell-resolution] azimuth subdivision');assert.equal(part.bands,bands,'[shell-resolution] vertical subdivision');
       for(let j=1;j<bands;j++)for(let k=0;k<sides;k++) {
         const theta=j/bands*Math.PI,a=k/sides*Math.PI*2,unit=[Math.sin(theta)*Math.cos(a),Math.cos(theta),Math.sin(theta)*Math.sin(a)];
@@ -525,4 +528,22 @@ test('slim and irregular cedar families retain distinct branch grammar [cedar-fa
   const corr=(bs)=>{const x=bs.map(b=>Math.sin(b.y*2.17)),y=bs.map(b=>b.length/(.25+2.9*Math.pow(1-b.t,.9))),mx=x.reduce((a,b)=>a+b)/x.length,my=y.reduce((a,b)=>a+b)/y.length;
     let sxy=0,sxx=0,syy=0;x.forEach((v,i)=>{sxy+=(v-mx)*(y[i]-my);sxx+=(v-mx)**2;syy+=(y[i]-my)**2;});return sxy/Math.sqrt(sxx*syy);};
   assert(corr(ragged)>corr(plain)+.15,'[cedar-irregular] radius jitter missing');
+});
+// なぜ失敗したか（8.1a第3周）: 画素ごとに薄めた近くの葉が網点の膜に見え、葉の消えた枝が足場の棒に見えた（盲検 Q06・Q07）。
+// 房・殻・枝は自分の根元（aPivot、w=1）へ縮む。幹と遠景には根元が無い（w=0）。根元は房の付く枝の上、殻の中心にある。
+test('near and middle foliage and limbs carry their own pivots; trunks do not [pivot]',()=>{
+  for(let sp=0;sp<6;sp++)for(let l=0;l<(sp>=4?2:3);l++){
+    const g=treeGeometry(sp,l),leaf=g.leaf.getAttribute('aPivot'),wood=g.wood.getAttribute('aPivot');
+    assert(leaf&&wood&&leaf.itemSize===4,'[pivot] missing pivot attribute');
+    const lw=Array.from({length:leaf.count},(_,i)=>leaf.getW(i));
+    assert(l<2?lw.every(w=>w===1):lw.every(w=>w===0),`[pivot] foliage pivot flags ${sp}/${l}`);
+    // The trunk is the first tube of every wood mesh: its first ring never shrinks.
+    for(let i=0;i<4;i++)assert.equal(wood.getW(i),0,'[pivot] trunk shrinks');
+  }
+  // Cedar tufts fold toward their root on the limb (the near card corners lie within one tuft length of it).
+  const c=treeGeometry(0,0),p=c.leaf.getAttribute('position'),v=c.leaf.getAttribute('aPivot');
+  for(let i=0;i<p.count;i+=4){const d=Math.hypot(p.getX(i)-v.getX(i),p.getY(i)-v.getY(i),p.getZ(i)-v.getZ(i));assert(d<1.6,'[pivot] cedar tuft pivot away from its root');}
+  // Broadleaf shells fold toward their own centre.
+  const b=treeGeometry(1,0),bv=b.leaf.getAttribute('aPivot');
+  for(const part of b.leaf.userData.parts){const i=part.vertices?.[0]??part.first;assert([0,1,2].every(q=>Math.abs([bv.getX(i),bv.getY(i),bv.getZ(i)][q]-part.center[q])<1e-6),'[pivot] cluster pivot is not its centre');}
 });

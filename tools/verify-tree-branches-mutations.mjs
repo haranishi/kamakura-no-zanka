@@ -4,11 +4,15 @@ import fs from 'node:fs';
 import { spawnSync } from 'node:child_process';
 const file = 'dist/valley/tree-branches.js';
 const cases = [
+  ['inner fill outside the core', 'depth = .25 + .2 * rnd()', 'depth = .85 + .2 * rnd()'],
+  ['broad clusters of one size', 'size: [s0, sr] = [.2, .2]', 'size: [s0, sr] = [.3, 0]'],
+  ['limbs leave at one fraction', 'leave: [l0, lr] = [.4, .3]', 'leave: [l0, lr] = [.55, 0]'],
+  ['tufts back on the outer two thirds', '.27 + .73 * (j + 1) / count + (rnd() - .5) * .1, .24, .97', '.36 + .64 * (j + 1) / count + (rnd() - .5) * .1, .34, .97'],
   ['whorl returned (six limbs per height)', 'const s = (i + .5 + .9 * (rnd() - .5)) / n', 'const s = (Math.floor(i / 6) * 6 + .5) / n'],
   ['regular azimuth step', 'const azimuth = i * GOLDEN + (rnd() - .5) * .9;', 'const azimuth = i * GOLDEN + 0 * (rnd() - .5);'],
   ['tips beyond the middle rim', 'Math.min(length, rim - TUFT_REACH * tipSize)', 'Math.min(length * 1.6, rim * 2)'],
   ['one tuft per limb', 'const count = Math.max(2, Math.min(6, Math.round(b.length / .5)));', 'const count = 1;'],
-  ['tufts on the bare inner limb', '.36 + .64 * (j + 1) / count', '.02 + .98 * (j + 1) / count'],
+  ['tufts on the bare inner limb', '.27 + .73 * (j + 1) / count', '.02 + .98 * (j + 1) / count'],
   ['tuft off its limb', 'const center = branchPoint(b, s), along', 'const center = branchPoint(b, s * .5), along'],
   ['limb floats off the trunk', 'root = cedarTrunkAxis(shape, y);', 'root = cedarTrunkAxis(shape, y).map((v, q) => q === 1 ? v : v + 1);'],
   ['one spray image', 'variant = rnd() < .5 ? 0 : 1, hue = rnd() * 2 - 1, shade = rnd() * 2 - 1;\n      b.tufts', 'variant = 0 * rnd(), hue = rnd() * 2 - 1, shade = rnd() * 2 - 1;\n      b.tufts'],

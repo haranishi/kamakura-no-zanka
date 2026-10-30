@@ -88,8 +88,9 @@ export function cedarBranchPlan(shape) {
   // 枝先ほど大きく、内側と下ほど暗い（cedarExposure）。向きは枝の接線から乱す（perturbTuft）。
   for (const b of branches) {
     const count = Math.max(2, Math.min(6, Math.round(b.length / .5)));
+    // 第3周：房の付く範囲を枝の外側2/3→約3/4へ（s .34→.24）。下から見上げると、枝の内側の素の部分が足場の棒に見えた（盲検 Q06）。
     for (let j = 0; j < count; j++) {
-      const s = j === count - 1 ? 1 : clamp(.36 + .64 * (j + 1) / count + (rnd() - .5) * .1, .34, .97);
+      const s = j === count - 1 ? 1 : clamp(.27 + .73 * (j + 1) / count + (rnd() - .5) * .1, .24, .97);
       const center = branchPoint(b, s), along = perturbTuft(branchTangent(b, s), rnd), size = tuftSize(rnd(), b.length, s, fam);
       const roll = (rnd() - .5) * 1.0, variant = rnd() < .5 ? 0 : 1, hue = rnd() * 2 - 1, shade = rnd() * 2 - 1;
       b.tufts.push({ s, center, along, length: size, width: .9 * size, roll, variant, hue, shade });
@@ -145,21 +146,33 @@ export function crownNormal(point, cardNormal, axis) {
 // 広葉の近景（L0）の樹冠（第2周）：大きな殻10個（「棒の上の球」）を、枝の先に付く小さな葉の房（殻）の集まりに割る。
 // 房は樹冠の外殻の上から下の手前まで（真下は疎ら）黄金角で並べ、それぞれ最も近い主枝の途中から二次の枝を伸ばす。房の間に空と枝が見える。
 // 欅は上ほど広がる（壺形）、楓は平たい房（層）。center・radii は樹冠の楕円体、tips は主枝の先、fork は分岐の高さ。
-export const BROAD_CLUSTERS = 16;
-export function broadClusterPlan({ center, radii, tips, fork, vase = false, flat = false, shape = 0, count = BROAD_CLUSTERS, depth: [d0, dr] = [.72, .14], size: [s0, sr] = [.3, .1], salt = 0 }) {
-  if (!tips?.length || !Number.isInteger(count) || count < 4) throw new RangeError('broad cluster plan');
+// 第3周：房を22個に増やし、大きさを0.2〜0.4（樹冠の半径比）に広げ、外形の出入り（depth .62〜.88）を強めた。同じ大きさの殻が並ぶと
+// 「葉の絵を貼った球」に見えた（盲検 Q08・Q14・Q16）。inner 個の房を樹冠の内側（depth .25〜.45）に詰め、下から殻の中が空に見えないようにする（Q10）。
+// 二次の枝は主枝の40〜70%から出す（同じ割合だと傘の骨に見えた：Q10）。
+export const BROAD_CLUSTERS = 22;
+export function broadClusterPlan({ center, radii, tips, fork, vase = false, flat = false, shape = 0, count = BROAD_CLUSTERS, depth: [d0, dr] = [.62, .22], size: [s0, sr] = [.2, .2], salt = 0, inner = 0, leave: [l0, lr] = [.4, .3], reach = 0 }) {
+  if (!tips?.length || !Number.isInteger(count) || count < 4 || !Number.isInteger(inner) || inner < 0) throw new RangeError('broad cluster plan');
   const rnd = seeded(66011 + shape * 97 + (vase ? 7 : 0) + (flat ? 13 : 0) + salt), clusters = [], root = [.08, fork, .05];
+  const nearest = c => { let primary = 0; for (let k = 1; k < tips.length; k++) if (Math.hypot(...tips[k].map((v, q) => v - c[q])) < Math.hypot(...tips[primary].map((v, q) => v - c[q]))) primary = k; return primary; };
   for (let i = 0; i < count; i++) {
     const y = 1 - 1.85 * (i + .5) / count, a = i * GOLDEN + shape * .73 + (rnd() - .5) * .5, ring = Math.sqrt(Math.max(0, 1 - y * y));
-    const depth = d0 + dr * rnd(), widen = vase ? 1 + .4 * y : 1, size = s0 + sr * rnd();
-    const c = [center[0] + radii[0] * ring * Math.cos(a) * depth * widen, center[1] + radii[1] * y * depth, center[2] + radii[2] * ring * Math.sin(a) * depth * widen];
-    let primary = 0;
-    for (let k = 1; k < tips.length; k++) if (Math.hypot(...tips[k].map((v, q) => v - c[q])) < Math.hypot(...tips[primary].map((v, q) => v - c[q]))) primary = k;
-    // The secondary limb leaves its primary at 55% and stops inside the cluster (88% of the way to its centre).
-    const from = root.map((v, q) => v + (tips[primary][q] - v) * .55), to = from.map((v, q) => v + (c[q] - v) * .88);
-    clusters.push({ center: c, radii: [radii[0] * size, radii[1] * size * (flat ? .92 : .95), radii[2] * size], rotation: rnd() * TAU, limb: { from, to, radius: .07 + .03 * rnd() }, primary });
+    const depth = d0 + dr * rnd(), widen = vase ? 1 + .6 * y : 1, size = s0 + sr * rnd();
+    const c = [center[0] + radii[0] * ring * Math.cos(a) * depth * widen, center[1] + radii[1] * y * depth * 1.12, center[2] + radii[2] * ring * Math.sin(a) * depth * widen];
+    const r = [radii[0] * size, radii[1] * size * (flat ? .92 : .95), radii[2] * size], primary = nearest(c), at = l0 + (lr > 0 ? lr * rnd() : 0);
+    // The secondary limb leaves its primary at `leave` and stops inside the cluster: at `reach` of the way to its centre, or
+    // (reach 0) 0.55 of the cluster's smallest radius short of it, so a long limb still ends inside a small cluster.
+    const from = root.map((v, q) => v + (tips[primary][q] - v) * at), span = Math.hypot(...c.map((v, q) => v - from[q])) || 1;
+    const to = from.map((v, q) => v + (c[q] - v) * (reach || Math.max(.5, 1 - .55 * Math.min(...r) / span)));
+    clusters.push({ center: c, radii: r, rotation: rnd() * TAU, limb: { from, to, radius: .06 + .03 * rnd() }, primary });
   }
-  return { clusters, root };
+  // Inner clusters around the top of the trunk, in the crown's shade (their exposure comes from tree-geometry.js clump).
+  const fill = [];
+  for (let i = 0; i < inner; i++) {
+    const a = i * GOLDEN * 1.7 + shape * 1.3 + rnd() * .6, depth = .25 + .2 * rnd(), y = (rnd() - .55) * .7, size = .3 + .08 * rnd();
+    const c = [center[0] + radii[0] * Math.cos(a) * depth, center[1] + radii[1] * y * .6, center[2] + radii[2] * Math.sin(a) * depth];
+    fill.push({ center: c, radii: [radii[0] * size, radii[1] * size * .9, radii[2] * size], rotation: rnd() * TAU, limb: null, primary: nearest(c) });
+  }
+  return { clusters, inner: fill, root };
 }
 // 広葉の中景（L1）にも、近景と同じ分岐枝を出す（「棒に玉」を避ける）。根元は近景の分岐の高さ。
 export function broadLimbs(tips, fork, aspect = 1) {

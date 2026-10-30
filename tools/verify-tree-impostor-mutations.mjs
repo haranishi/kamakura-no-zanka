@@ -17,6 +17,9 @@ const cases = [
   ['families out of row order', plan, 'for (let shape = 0; shape < n; shape++) out.push({ species, shape, row: out.length });', 'for (let shape = n - 1; shape >= 0; shape--) out.push({ species, shape, row: out.length });'],
   ['near fade inverted', lod, 'return smooth(a, b, distance); }', 'return 1 - smooth(a, b, distance); }'],
   ['near fade without a band', lod, "if (!(a >= 0 && b > a)) throw new RangeError('near fade');", ''],
+  ['segment parameter unclamped', lod, 'const t = l > 0 ? Math.max(0, Math.min(1, ((c[0] - p[0]) * d[0] + (c[1] - p[1]) * d[1] + (c[2] - p[2]) * d[2]) / l)) : 0;', 'const t = l > 0 ? ((c[0] - p[0]) * d[0] + (c[1] - p[1]) * d[1] + (c[2] - p[2]) * d[2]) / l : 0;'],
+  ['shrink toward the origin', lod, 'position: [0, 1, 2].map(q => pivot[q] + (vertex[q] - pivot[q]) * keep)', 'position: [0, 1, 2].map(q => vertex[q] * keep)'],
+  ['shrink by the pivot distance only', lod, 'const keep = nearFade(segmentDistance(camera, pivot, vertex), range);', 'const keep = nearFade(Math.hypot(...camera.map((v, q) => v - pivot[q])), range);'],
 ];
 const originals = new Map([...new Set(cases.map(c => c[1]))].map(f => [f, fs.readFileSync(f)]));
 const run = () => spawnSync(process.execPath, ['--test', 'tests/valley-tree-impostor.test.mjs', 'tests/valley-tree-lod.test.mjs'], { encoding: 'utf8', timeout: 60000 });

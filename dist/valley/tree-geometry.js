@@ -9,16 +9,20 @@ const TAU = Math.PI * 2, cache = new Map();
 const heights = [20, 12, 13, 8, 3, 1.2];
 const norm = v => { const l = Math.hypot(...v) || 1; return v.map(x => x / l); };
 function seeded(seed) { return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t ^= t + Math.imul(t ^ t >>> 7, 61 | t); return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+// aPivot (xyz, w): the point a tuft, cluster or limb shrinks toward when the camera comes right up to it (w = 1), or none
+// (w = 0: trunks, roots, far meshes). Third round: it replaces the per-pixel near fade (tree-lod.js nearShrink).
+const NO_PIVOT = [0, 0, 0, 0];
 class Mesher {
-  constructor() { this.p = []; this.n = []; this.c = []; this.u = []; this.s = []; this.i = []; }
-  vert(p, n, c, uv = [0, 0], sway = 0) {
-    this.p.push(...p); this.n.push(...norm(n)); this.c.push(...c); this.u.push(...uv); this.s.push(sway); return this.s.length - 1;
+  constructor() { this.p = []; this.n = []; this.c = []; this.u = []; this.s = []; this.v = []; this.i = []; this.pivot = NO_PIVOT; }
+  vert(p, n, c, uv = [0, 0], sway = 0, pivot = this.pivot) {
+    this.p.push(...p); this.n.push(...norm(n)); this.c.push(...c); this.u.push(...uv); this.s.push(sway); this.v.push(...pivot); return this.s.length - 1;
   }
+  around(point, fn) { const before = this.pivot; this.pivot = [...point, 1]; try { fn(); } finally { this.pivot = before; } }
   tri(a, b, c) { this.i.push(a, b, c); }
   quad(a, b, c, d) { this.i.push(a, b, c, a, c, d); }
   build() {
     const g = new THREE.BufferGeometry();
-    for (const [name, a, n] of [['position', this.p, 3], ['normal', this.n, 3], ['color', this.c, 3], ['uv', this.u, 2], ['aSway', this.s, 1]]) g.setAttribute(name, new THREE.Float32BufferAttribute(a, n));
+    for (const [name, a, n] of [['position', this.p, 3], ['normal', this.n, 3], ['color', this.c, 3], ['uv', this.u, 2], ['aSway', this.s, 1], ['aPivot', this.v, 4]]) g.setAttribute(name, new THREE.Float32BufferAttribute(a, n));
     g.userData.parts = this.parts || []; g.userData.tips = this.tips || []; g.setIndex(this.i); g.computeBoundingSphere(); return g;
   }
 }
@@ -106,7 +110,7 @@ function clump(m, center, radii, sides, bands, tile = 1, core = false, rotation 
     const angle = rnd() * TAU, shift = [rnd() * 8, rnd() * 8];
     part.uvAngle = angle; part.uvShift = shift;
     const indices = m.i.splice(indexFirst), grid = {};
-    for (const [key, width] of [['p',3],['n',3],['c',3],['u',2],['s',1]]) grid[key] = m[key].splice(first * width);
+    for (const [key, width] of [['p',3],['n',3],['c',3],['u',2],['s',1],['v',4]]) grid[key] = m[key].splice(first * width);
     part.vertices = [];
     for (let t = 0; t < indices.length; t += 3) {
       const ids = indices.slice(t,t+3).map(i => i-first);
@@ -118,7 +122,7 @@ function clump(m, center, radii, sides, bands, tile = 1, core = false, rotation 
       for (const i of ids) {
         const p = grid.p.slice(i*3,i*3+3), u = p[axes[0]] / tile, v = p[axes[1]] / tile;
         const uv = [u*Math.cos(angle)-v*Math.sin(angle)+shift[0], u*Math.sin(angle)+v*Math.cos(angle)+shift[1]];
-        const id = m.vert(p,grid.n.slice(i*3,i*3+3),grid.c.slice(i*3,i*3+3),uv,grid.s[i]);
+        const id = m.vert(p,grid.n.slice(i*3,i*3+3),grid.c.slice(i*3,i*3+3),uv,grid.s[i],grid.v.slice(i*4,i*4+4));
         part.vertices[i] ??= id;
         m.i.push(id);
       }
@@ -150,11 +154,12 @@ function cedarNear(wood, leaf, shape) {
   const plan = cedarBranchPlan(shape);
   tube(wood, [0, -.1, 0], shape < 3 ? [.25 + shape * .16, 19, shape * -.12] : [0, 19, 0], .45, 8, 6, true, [.12, .083, .05], .97);
   for (const b of plan.branches) {
-    if (b.wood) { const s = [0, .45, .85]; limb(wood, s.map(v => branchPoint(b, v)), s.map(v => b.radius * (1 - .7 * v)), 3, [.12, .083, .05], .78); }
+    // Limbs fold toward the trunk with their tufts when the camera comes right up to them (no bare sticks left in front of it).
+    if (b.wood) { const s = [0, .45, .85]; wood.around(b.base, () => limb(wood, s.map(v => branchPoint(b, v)), s.map(v => b.radius * (1 - .7 * v)), 3, [.12, .083, .05], .78)); }
     for (const tuft of b.tufts) cedarTuft(leaf, tuft, shape);
   }
   // Dead stubs on the clear lower trunk.
-  for (let i = 0; i < 5; i++) { const a = i * 2.399; tube(wood, [0, 1 + i * .3, 0], [Math.cos(a) * .9, 1 + i * .3, Math.sin(a) * .9], .06, 4, 1, false, [.12, .083, .05], .97); }
+  for (let i = 0; i < 5; i++) { const a = i * 2.399, root = [0, 1 + i * .3, 0]; wood.around(root, () => tube(wood, root, [Math.cos(a) * .9, 1 + i * .3, Math.sin(a) * .9], .06, 4, 1, false, [.12, .083, .05], .97)); }
 }
 // Three crossed cards per tuft; UVs follow the trapezoid inside one cell of the two-spray atlas.
 function cedarTuft(leaf, tuft, shape, lift = 1) {
@@ -162,7 +167,9 @@ function cedarTuft(leaf, tuft, shape, lift = 1) {
   // cool (red -3%, blue +4%): in the low gold sun the lit tufts read yellow-green against the evening (blind review: set-04, f1).
   const centre = tuft.variant * .5 + .25, half = .23, tint = [.97 + .08 * tuft.hue, 1 + .03 * tuft.hue, 1.04 - .1 * tuft.hue].map(v => v * lift);
   const uvs = [[centre - half * .55, 0], [centre + half * .55, 0], [centre + half, 1], [centre - half, 1]];
-  for (const card of tuftCards(tuft)) {
+  const cards = tuftCards(tuft), root = cards[0].corners[0].map((v, q) => (v + cards[0].corners[1][q]) / 2);
+  leaf.pivot = [...root, 1];
+  for (const card of cards) {
     const first = leaf.s.length;
     card.corners.forEach((p, k) => {
       const e = cedarExposure(p, shape, tuft.shade);
@@ -170,6 +177,7 @@ function cedarTuft(leaf, tuft, shape, lift = 1) {
     });
     leaf.quad(first, first + 1, first + 2, first + 3);
   }
+  leaf.pivot = NO_PIVOT;
 }
 function cedar(wood, leaf, level, shape) {
   if (shape >= 3) { cedarNew(wood, leaf, level, shape); return; }
@@ -241,32 +249,39 @@ function broad(wood, leaf, species, level, rnd, shape) {
     const a = b * 2.399 + shape * .73, spread = small ? .3 : (1.8 + b * .32) * aspect;
     const tip = [Math.cos(a) * spread, small ? center[1] : center[1] - 1.4 + b * .65, Math.sin(a) * spread];
     wood.tips.push(tip);
-    if (level === 0 && (!small || shrub || b === 0)) tube(wood, [.08, small && !shrub ? 1 : fork, .05], small && !shrub ? [.55,1.5,0] : tip, small ? .018 : .23, level === 0 ? 4 : 3, level === 0 && !small ? 2 : 1);
+    const from = [.08, small && !shrub ? 1 : fork, .05];
+    if (level === 0 && (!small || shrub || b === 0)) wood.around(from, () => tube(wood, from, small && !shrub ? [.55,1.5,0] : tip, small ? .018 : .23, level === 0 ? 4 : 3, level === 0 && !small ? 2 : 1));
   }
   // Middle broadleaf keeps the near fork's limbs (three-sided), so the crown is held by branches, not a stick.
-  if (level === 1 && !small) for (const l of broadLimbs(wood.tips, maple ? 2 : 3.5, aspect)) tube(wood, l.from, l.to, l.radius, 3, 1);
+  if (level === 1 && !small) for (const l of broadLimbs(wood.tips, maple ? 2 : 3.5, aspect)) wood.around(l.from, () => tube(wood, l.from, l.to, l.radius, 3, 1));
+  // Each cluster and its limb shrink toward their own pivots when the camera comes right up to them (tree-lod.js nearShrink).
+  const cluster = (c, sides, bands, tile, jitter) => {
+    if (c.limb) wood.around(c.limb.from, () => tube(wood, c.limb.from, c.limb.to, c.limb.radius, 3, 1));
+    leaf.around(c.center, () => crown(leaf, c.center, c.radii, sides, bands, tile, false, c.rotation, 0, jitter));
+  };
   if (sapling) {
     // Near sapling (second round): nine small clusters on short limbs around one inner cluster that holds the trunk top.
     // Eight shells packed within 0.22 of the crown read as one ball on a stick at 2-5 m (blind review: set-04).
     // Horizontal reach stays inside the old drawn crown (TREES.sapling.crown keeps it off road treads and dress).
-    const plan = broadClusterPlan({ center, radii: [radii[0] * .9, radii[1], radii[2] * .9], tips: wood.tips, fork: 1.2, shape, count: SAPLING_CLUSTERS, depth: [.62, .16], size: [.36, .1], salt: 401 });
-    for (const c of plan.clusters) { tube(wood, c.limb.from, c.limb.to, .022, 3, 1); crown(leaf, c.center, c.radii, 12, 6, .6, false, c.rotation, 0, .14); }
-    crown(leaf, [center[0], center[1] + .2, center[2]], [radii[0] * .44, radii[1] * .56, radii[2] * .44], 12, 6, .6, false, .9, 0, .14);
+    const plan = broadClusterPlan({ center, radii: [radii[0] * .9, radii[1], radii[2] * .9], tips: wood.tips, fork: 1.2, shape, count: SAPLING_CLUSTERS, depth: [.62, .16], size: [.36, .1], salt: 401, leave: [.55, 0], reach: .88 });
+    for (const c of plan.clusters) cluster({ ...c, limb: { ...c.limb, radius: .022 } }, 12, 6, .6, .14);
+    cluster({ center: [center[0], center[1] + .2, center[2]], radii: [radii[0] * .44, radii[1] * .56, radii[2] * .44], rotation: .9, limb: null }, 12, 6, .6, .14);
     return;
   }
   if (clustered) {
-    // Near crown (8.1a, second round): small leaf clusters on secondary limbs, with sky and limbs between them, and one
-    // dark inner cluster. Ten large shells read as a ball on a stick at 3-15 m (blind review: detail-n4, set-04, set-24).
-    const plan = broadClusterPlan({ center, radii, tips: wood.tips, fork, vase: species === 1, flat: maple, shape });
-    for (const c of plan.clusters) { tube(wood, c.limb.from, c.limb.to, c.limb.radius, 3, 1); crown(leaf, c.center, c.radii, 12, 6, 1, false, c.rotation, 0, .09); }
-    crown(leaf, [0, center[1] - .1 * radii[1], 0], radii.map(v => v * .42), 12, 6, 1, false, .4, 0, .09);
+    // Near crown (8.1a, second round): small leaf clusters on secondary limbs, with sky and limbs between them.
+    // Third round: 22 clusters of uneven size (0.2-0.4 of the crown) set in and out (relief), and four inner clusters, so the
+    // crown is no hollow shell from below (blind review Q08, Q10, Q14, Q16: "a ball painted with leaves", "an empty shell").
+    const plan = broadClusterPlan({ center, radii, tips: wood.tips, fork, vase: species === 1, flat: maple, shape, inner: 4 });
+    for (const c of plan.clusters) cluster(c, 10, 5, 1, .09);
+    for (const c of plan.inner) cluster(c, 10, 4, 1, .09);
     return;
   }
   for (let i = 0; i < count; i++) {
     const y = 1 - 2 * (i + .5) / count, a = i * 2.399 + shape * .73, radial = Math.sqrt(1 - y * y);
     const c = center.map((v,q) => v + radii[q] * (q === 1 ? y : radial * (q === 0 ? Math.cos(a) : Math.sin(a)) * (species === 1 ? 1 + .45 * y : 1)) * (small ? .22 : .56));
     const r = small ? radii.map(v => v * (level === 0 ? .78 : .84)) : radii.map((v,q) => v * (level === 0 ? .49 : (.63 + .035 * Math.sin(i * 2.3 + q)) * (shape === 2 ? .97 : 1)));
-    crown(leaf, c, r, small ? (level === 0 ? 14 : 8) : level === 0 ? 16 : 10, small ? (level === 0 ? 7 : 4) : level === 0 ? 8 : 5, small ? .6 : 1, false, !small && level === 1 ? i * .73 : 0, 0, small ? .14 : .09);
+    leaf.around(c, () => crown(leaf, c, r, small ? (level === 0 ? 14 : 8) : level === 0 ? 16 : 10, small ? (level === 0 ? 7 : 4) : level === 0 ? 8 : 5, small ? .6 : 1, false, !small && level === 1 ? i * .73 : 0, 0, small ? .14 : .09));
   }
   clump(wood, center, radii.map(v => v * .55), small ? 3 : 6, 2, 1, true);
 }
@@ -296,8 +311,9 @@ function pine(wood, leaf, level, rnd, shape) {
   const count = level === 0 ? 5 : 4, cards = level === 0 ? 8 : 5;
   for (let i = 0; i < count; i++) {
     const center = tufts[i].map((v,q) => v + shape * (q === 0 ? Math.sin(i * 2.399) * .45 : q === 1 ? Math.cos(i) * .25 : Math.cos(i * 2.399) * .4));
-    tube(wood, [.6,center[1]-1.8,0], center, .12, level === 0 ? 4 : 3, 2);
-    for (let k = 0; k < cards; k++) pineFan(leaf, center, k / cards * TAU + i * 2.399 + shape * .7, k % 5 === 0 ? -.25 : .55 + .15 * Math.sin(k * 2.399 + i));
+    const from = [.6, center[1] - 1.8, 0];
+    wood.around(from, () => tube(wood, from, center, .12, level === 0 ? 4 : 3, 2));
+    leaf.around(center, () => { for (let k = 0; k < cards; k++) pineFan(leaf, center, k / cards * TAU + i * 2.399 + shape * .7, k % 5 === 0 ? -.25 : .55 + .15 * Math.sin(k * 2.399 + i)); });
   }
 }
 
