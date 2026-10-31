@@ -10,9 +10,15 @@ export function createServer(){return http.createServer(async(req,res)=>{
   if(!['GET','HEAD'].includes(req.method)){res.writeHead(405,{'Allow':'GET, HEAD'});res.end();return;}
   const raw=decodeURIComponent((req.url||'/').split('?')[0]);
   if(raw.includes('\0')||raw.includes('\\')||raw.split('/').includes('..')){res.writeHead(403);res.end();return;}
-  const file=path.resolve(root,'.'+(raw==='/'?'/index.html':raw));
+  let file=path.resolve(root,'.'+(raw==='/'?'/index.html':raw));
   if(!file.startsWith(root+path.sep)&&file!==path.join(root,'index.html')){res.writeHead(403);res.end();return;}
-  const stat=await fs.stat(file);if(!stat.isFile()){res.writeHead(404);res.end();return;}
+  let stat=await fs.stat(file);
+  // /valley/ で index.html を返す。末尾の / が無ければ付けて飛ばす（//valley のような二重の / でも、行き先は解決した相対パスから作り、外のホストへ飛ばさない）。一覧は出さない。
+  if(stat.isDirectory()){
+   if(!raw.endsWith('/')){res.writeHead(301,{Location:'/'+path.relative(root,file).split(path.sep).map(encodeURIComponent).join('/')+'/'});res.end();return;}
+   file=path.join(file,'index.html');stat=await fs.stat(file);
+  }
+  if(!stat.isFile()){res.writeHead(404);res.end();return;}
   res.writeHead(200,{'Content-Type':mime[path.extname(file)]||'application/octet-stream','Content-Length':stat.size,'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'});
   res.end(req.method==='HEAD'?undefined:await fs.readFile(file));
  }catch(error){res.writeHead(error instanceof URIError?400:404);res.end('Not found');}
