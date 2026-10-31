@@ -79,3 +79,6 @@ body.hide-hud .hud{opacity:0}
 
 #guide-help{margin:8px 0 0;color:#e9d8a4;font-size:13px;letter-spacing:.08em;text-shadow:0 1px 6px #000}
 #guide-help[hidden]{display:none}
+/* 物語（S5・S6）：結末の語りは名を出さず中央に。無言の間は「E ▸」を出さない */
+.dialogue.narration .dlg-name{display:none}.dialogue.narration .dlg-text{text-align:center;color:#ead2a6;letter-spacing:.16em;padding-top:.5em}
+.dialogue.pause .dlg-next{visibility:hidden}

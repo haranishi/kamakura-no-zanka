@@ -48,13 +48,16 @@ export class HUD {
     const t = this.el.toast; t.textContent = text; t.classList.add('on');
     this.after('toast', ms / 1000, () => t.classList.remove('on'));
   }
-  subtitle(speaker, text, ms = 2600) {
+  // kind：bark（掛け声）・clue（侍大将の一言）・banter（掛け合い）。掛け合いは、掛け声と手がかりの表示中は出さない（game.js）
+  subtitle(speaker, text, ms = 2600, kind = 'bark') {
     if (!this.subsOn) return;
-    const s = this.el.subtitle; s.innerHTML = '';
+    const s = this.el.subtitle; s.innerHTML = ''; this.subKind = kind;
     if (speaker) { const b = document.createElement('b'); b.textContent = speaker; s.append(b); }
     s.append(document.createTextNode(text)); s.classList.remove('hidden');
     this.after('sub', ms / 1000, () => s.classList.add('hidden'));
   }
+  subtitleKind() { return this.el.subtitle.classList.contains('hidden') ? null : this.subKind || 'bark'; }
+  hideSubtitle(kind) { if (this.subtitleKind() === kind) { this.timers.delete('sub'); this.el.subtitle.classList.add('hidden'); } }
   setFood(ratio) {
     const g = this.el.granary; g.classList.toggle('hidden', ratio == null);
     if (ratio != null) this.el['granary-fill'].style.transform = `scaleX(${Math.max(0, Math.min(1, ratio))})`;
@@ -70,19 +73,25 @@ export class HUD {
   }
 
   // 会話：行を順に出す。進めるのは E / クリック。終わったら onEnd。
-  startDialogue(id, lines, onEnd) {
-    this.dialogue = { id, lines, i: 0, onEnd };
+  // onLine(line, i)：行が出るたびに呼ぶ（見つめる間・焚き火の演出）。pause のある行は無言の間で、その秒数で次へ進む（E でも進む）。
+  // narration の行は語り（名を出さず、中央に置く）
+  startDialogue(id, lines, onEnd, onLine) {
+    this.dialogue = { id, lines, i: 0, onEnd, onLine };
     this.el.dialogue.classList.remove('hidden'); document.body.classList.add('talking');
     this.showLine();
   }
   showLine() {
-    const d = this.dialogue, line = d.lines[d.i];
-    this.el['dlg-name'].textContent = line.speaker; this.el['dlg-text'].textContent = line.text;
+    const d = this.dialogue, i = d.i, line = d.lines[i];
+    this.el['dlg-name'].textContent = line.narration ? '' : line.speaker; this.el['dlg-text'].textContent = line.text;
+    this.el.dialogue.classList.toggle('narration', !!line.narration); this.el.dialogue.classList.toggle('pause', !!line.pause);
+    this.timers.delete('dlg-pause');
+    if (line.pause) this.after('dlg-pause', line.pause, () => { if (this.dialogue === d && d.i === i) this.advanceDialogue(); });
+    d.onLine?.(line, i);
   }
   advanceDialogue() {
     const d = this.dialogue; if (!d) return false;
-    d.i++;
-    if (d.i >= d.lines.length) { this.el.dialogue.classList.add('hidden'); document.body.classList.remove('talking'); this.dialogue = null; d.onEnd?.(d.id); }
+    d.i++; this.timers.delete('dlg-pause');
+    if (d.i >= d.lines.length) { this.el.dialogue.classList.add('hidden'); this.el.dialogue.classList.remove('narration', 'pause'); document.body.classList.remove('talking'); this.dialogue = null; d.onEnd?.(d.id); }
     else this.showLine();
     return true;
   }

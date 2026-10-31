@@ -37,33 +37,37 @@ export const lineSeconds = text => Math.max(2.4, Math.min(4.6, 1.4 + 0.11 * [...
 
 export function createBanterState() { return { shown: [], groups: [], playing: null, lastEnd: -1e9, calmSince: null }; }
 
-// 1コマ分進める。返す show は、いま字幕に出す一行（無ければ null）。list は STORY.banter
+// 1コマ分進める。返す show は、いま字幕に出す一行（無ければ null）。list は STORY.banter。
+// waiting は「掛け合いの最中か、出せる台詞が静まるのを待っている」。そのあいだ、急がない案内（G の案内）は譲る（掛け合い＞ヒント）
 export function stepBanter(state, sit, list) {
   const s = { ...state, shown: [...state.shown], groups: [...state.groups], playing: state.playing && { ...state.playing } };
-  const none = { state: s, show: null };
+  const none = { state: s, show: null, waiting: false };
   if (sit.blocked) {
     // 割り込まれたら、掛け合いの残りの行は捨てる（掛け声や会話の上に、続きを重ねない）
     if (s.playing) { s.playing = null; s.lastEnd = sit.t; }
     s.calmSince = null;
     return none;
   }
-  if (s.calmSince === null) s.calmSince = sit.t;
   if (s.playing) {
-    if (sit.t < s.playing.until) return none;
+    if (sit.t < s.playing.until) return { ...none, waiting: true };
     const entry = list.find(e => e.id === s.playing.id), i = s.playing.line + 1;
     if (entry && i < entry.lines.length) {
       const line = entry.lines[i], seconds = lineSeconds(line.text);
       s.playing = { id: entry.id, line: i, until: sit.t + seconds };
-      return { state: s, show: { id: entry.id, line: i, speaker: line.speaker, text: line.text, seconds } };
+      return { state: s, show: { id: entry.id, line: i, speaker: line.speaker, text: line.text, seconds }, waiting: true };
     }
     s.lastEnd = s.playing.until; s.playing = null;
     return none;
   }
-  if (sit.t - s.calmSince < BANTER_CALM || sit.t - s.lastEnd < BANTER_GAP) return none;
+  // held（案内の表示中）：新しい掛け合いは始めないが、始まった掛け合いは最後まで出す（掛け合い＞ヒント）
+  if (sit.held) { s.calmSince = null; return none; }
+  if (s.calmSince === null) s.calmSince = sit.t;
+  if (sit.t - s.lastEnd < BANTER_GAP) return none;
   const entry = list.find(e => !s.shown.includes(e.id) && !(e.group && s.groups.includes(e.group)) && matches(e.when, sit));
   if (!entry) return none;
+  if (sit.t - s.calmSince < BANTER_CALM) return { ...none, waiting: true };
   s.shown.push(entry.id); if (entry.group) s.groups.push(entry.group);
   const line = entry.lines[0], seconds = lineSeconds(line.text);
   s.playing = { id: entry.id, line: 0, until: sit.t + seconds };
-  return { state: s, show: { id: entry.id, line: 0, speaker: line.speaker, text: line.text, seconds } };
+  return { state: s, show: { id: entry.id, line: 0, speaker: line.speaker, text: line.text, seconds }, waiting: true };
 }

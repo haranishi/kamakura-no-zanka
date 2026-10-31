@@ -103,9 +103,10 @@ export const STORY = {
     { id: 'F5', order: 5, kind: 'voice', place: 'road_back', dialogue: 'ambush_cleared', note: '弥十郎「門に貴殿の姿がなかった」' },
   ],
   // 調べられる物・場所（E）。at は世界の座標(m)、r は案内が出る距離。drop は、その敵が倒れた所に落ちる物。beats の外では出ない
+  // 袖印は焚き火の石の縁（庭は背の高い薄に覆われ、地面の物は見えない。火のまわりだけ草がない）。5つ拾った結末で、同じ火にくべる
   relics: [
-    { id: 'sode', fragment: 'F1', at: { x: -99.1, z: -87.5 }, r: 1.8, beats: ['b0_temple', 'b1_boy', 'b2_road'], prompt: '袖印を調べる', dialogue: 'relic_sode', look: 'down' },
-    { id: 'far_look', fragment: 'F2', at: { x: -46.4, z: -31.0 }, r: 3.6, beats: ['b3_viewpoint'], prompt: '遠くを見る', dialogue: 'relic_far_look', look: 'far' },
+    { id: 'sode', fragment: 'F1', at: { x: -89.3, z: -81.0 }, r: 2.4, beats: ['b0_temple', 'b1_boy', 'b2_road'], prompt: '袖印を調べる', dialogue: 'relic_sode', look: 'down' },
+    { id: 'far_look', fragment: 'F2', at: { x: -46.4, z: -31.0 }, r: 3.6, beats: ['b3_viewpoint'], prompt: '遠くを見る', dialogue: 'relic_far_look', look: 'far', view: { x: 150, z: 128, h: 26 } },   // view：谷の向こうの山並み（南東。鎌倉の方角）
     { id: 'scout_note', clue: 'C1', drop: 'road_scout', r: 1.8, beats: ['b2_road'], prompt: '書き付けを拾う', dialogue: 'clue_scout_note', look: 'down' },
   ],
   // 敵の事情の手がかり（R21.3）。C3 と C4 は出来事で必ず出す。C1 は拾えば、C2 は掛け声の運次第
@@ -135,9 +136,9 @@ export const STORY = {
     { id: 'b3_plan_front', group: 'b3_plan', when: { beats: ['b3_viewpoint'], plan: 'front' }, lines: [{ speaker: hero, text: '正面から行く。早く終わらせる。' }] },
     { id: 'b3_plan_flank', group: 'b3_plan', when: { beats: ['b3_viewpoint'], plan: 'flank' }, lines: [{ speaker: hero, text: '回り込む。……気取られるな。' }] },
     { id: 'b4_unseen', when: { beats: ['b4_village'], approach: 'flank', seen: false, areas: ['village'], minBeatT: 4 }, lines: [{ speaker: hero, text: '……まだ、気づかれていない。' }] },
-    { id: 'b5_old_kept', group: 'b5_old', when: { beats: ['b5_archer'], areas: ['village'], food: [50, null] }, lines: [{ speaker: old, text: '蓄えは、まだある。……礼は、後でさせてくれ。' }] },
-    { id: 'b5_old_half', group: 'b5_old', when: { beats: ['b5_archer'], areas: ['village'], food: [35, 50] }, lines: [{ speaker: old, text: '半分は残った。……冬は、なんとかする。' }] },
-    { id: 'b5_old_lost', group: 'b5_old', when: { beats: ['b5_archer'], areas: ['village'], food: [null, 35] }, lines: [{ speaker: old, text: '米は減ったが、命は減らなんだ。' }] },
+    { id: 'b5_old_kept', group: 'b5_old', when: { beats: ['b5_archer'], areas: ['village'], food: [50, null], captiveFreed: false }, lines: [{ speaker: old, text: '蓄えは、まだある。……礼は、後でさせてくれ。' }] },
+    { id: 'b5_old_half', group: 'b5_old', when: { beats: ['b5_archer'], areas: ['village'], food: [35, 50], captiveFreed: false }, lines: [{ speaker: old, text: '半分は残った。……冬は、なんとかする。' }] },
+    { id: 'b5_old_lost', group: 'b5_old', when: { beats: ['b5_archer'], areas: ['village'], food: [null, 35], captiveFreed: false }, lines: [{ speaker: old, text: '米は減ったが、命は減らなんだ。' }] },
     { id: 'b5_rope', when: { beats: ['b5_archer'], areas: ['captive'], captiveFreed: false }, lines: [{ speaker: tsubaki, text: '縄が固くて、私の手では解けませんでした。' }] },
     { id: 'b6_burden', when: { beats: ['b6_escort'], companion: true, ambush: null }, lines: [{ speaker: yajuro, text: 'この脚では足手まといだ。置いていってもいい。' }, { speaker: hero, text: '置いていくなら、拾いに来た意味がない。' }] },
     { id: 'b6_trust_high', group: 'b6_trust', when: { beats: ['b6_escort'], companion: true, ambush: null, trust: 'high' }, lines: [{ speaker: yajuro, text: '里の者は、我らを見送ってくれたな。' }] },

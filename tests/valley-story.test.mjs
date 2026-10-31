@@ -70,6 +70,21 @@ test('banter: blocked (combat, dialogue, hint, bark, subtitles off) shows nothin
   const input = createBanterState(); const frozen = JSON.stringify(input);
   stepBanter(input, sit({ t: 50 }), LIST); assert.equal(JSON.stringify(input), frozen, 'the state passed in is not changed');
 });
+test('banter: a showing hint holds back a new entry but lets a started exchange finish; waiting tells the slow hint to yield', () => {
+  // 案内が出ているあいだは始めない（静まってから2秒）
+  const held = play(LIST, 400, { over: t => ({ held: t < 10 }) });
+  assert(held.shown[0].t >= 10 + BANTER_CALM - 1e-9, `started at ${held.shown[0].t}`);
+  // 掛け合いの1行目のあとに案内が出ても、2行目は出る
+  const both = play([LIST[1]], 400, { over: t => ({ held: t > 3 && t < 5 }) });
+  assert.deepEqual(both.shown.map(s => s.text), ['二の上', '二の下']);
+  // 出せる台詞が静まるのを待つ間と、掛け合いの最中は waiting
+  let st = createBanterState();
+  const step = (t, over = {}) => { const r = stepBanter(st, sit({ t, ...over }), LIST); st = r.state; return r; };
+  assert.equal(step(0).waiting, true, 'eligible and waiting for calm');
+  assert.equal(step(2.1).show?.text, '一');
+  assert.equal(step(3).waiting, true, 'playing');
+  assert.equal(step(30, { beat: 'b5_archer' }).waiting, false, 'nothing eligible');
+});
 test('banter: conditions read place, events, plan, companion, ambush, trust, food and fragments', () => {
   assert(matches({ areas: ['upper_road'] }, sit({ areas: areasAt(STORY.areas, { x: -62, z: -60 }) })));
   assert(!matches({ areas: ['upper_road'] }, sit({ areas: areasAt(STORY.areas, { x: 0, z: 0 }) })));
