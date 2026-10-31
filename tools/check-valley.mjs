@@ -6,13 +6,15 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { referencedClips } from './lib/character-clips.mjs';
+import { storyProblems } from './lib/story-check.mjs';
+import { STORY, SPEAKERS } from '../dist/valley/story-data.js';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const dir = path.join(root, 'dist/valley');
 const read = f => fs.readFileSync(path.join(root, f), 'utf8');
 
 // 1 入口・主要なモジュールと素材がある
-const modules = ['sword-path', 'arm-ik', 'sword-layer', 'actors', 'ai-world', 'anim-data', 'atmosphere', 'audio-valley', 'audio-rules', 'voice-bank', 'foot-contacts', 'step-surface', 'step-synth', 'battle', 'bow', 'buildings', 'camera-rig', 'characters', 'collision', 'combat', 'companion-ai', 'config',
+const modules = ['banter', 'narrative', 'sword-path', 'arm-ik', 'sword-layer', 'actors', 'ai-world', 'anim-data', 'atmosphere', 'audio-valley', 'audio-rules', 'voice-bank', 'foot-contacts', 'step-surface', 'step-synth', 'battle', 'bow', 'buildings', 'camera-rig', 'characters', 'collision', 'combat', 'companion-ai', 'config',
   'enemy-ai', 'fx', 'game', 'guide-nav', 'guide-view', 'guide-renderer', 'guide', 'grade', 'grass-view', 'grass-schedule', 'grass-field', 'hud', 'input', 'main', 'nav', 'perf-stats', 'wind', 'post', 'props', 'qa', 'quest', 'ridges', 'save', 'scatter', 'tree-species', 'tree-lod', 'tree-geometry', 'tree-textures', 'tree-materials', 'tree-view', 'shots', 'story-data', 'terrain-height', 'terrain', 'vegetation', 'water', 'weapons', 'world-colliders', 'world-data'];
 for (const m of modules) assert(fs.statSync(path.join(dir, m + '.js')).size > 0, `missing dist/valley/${m}.js`);
 for (const f of ['index.html', 'valley.css']) assert(fs.statSync(path.join(dir, f)).size > 0, `missing dist/valley/${f}`);
@@ -33,7 +35,7 @@ for (const [file, src] of Object.entries(sources)) {
 }
 
 // 3 純粋な層（規則・データ）は Three.js・DOM・乱数・時計に触れない
-const pure = ['sword-path', 'arm-ik', 'sword-layer', 'audio-rules', 'voice-bank', 'foot-contacts', 'step-surface', 'step-synth', 'guide-nav', 'guide-view', 'guide', 'perf-stats', 'wind', 'combat', 'enemy-ai', 'companion-ai', 'quest', 'save', 'nav', 'terrain-height', 'scatter', 'tree-species', 'tree-lod', 'grass-schedule', 'grass-field', 'collision', 'anim-data', 'world-data', 'world-colliders', 'story-data', 'ai-world'];
+const pure = ['banter', 'narrative', 'sword-path', 'arm-ik', 'sword-layer', 'audio-rules', 'voice-bank', 'foot-contacts', 'step-surface', 'step-synth', 'guide-nav', 'guide-view', 'guide', 'perf-stats', 'wind', 'combat', 'enemy-ai', 'companion-ai', 'quest', 'save', 'nav', 'terrain-height', 'scatter', 'tree-species', 'tree-lod', 'grass-schedule', 'grass-field', 'collision', 'anim-data', 'world-data', 'world-colliders', 'story-data', 'ai-world'];
 for (const m of pure) {
   const code = sources[m + '.js'].replace(/\/\/.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, '');
   for (const bad of [/from\s+'three/, /\bMath\.random\b/, /\bDate\.now\b/, /\bperformance\.now\b/, /\bdocument\./, /\bwindow\./, /\blocalStorage\b/, /\b(?:AudioContext|OfflineAudioContext|webkitAudioContext)\b/]) assert(!bad.test(code), `${m}.js (pure layer) uses ${bad}`);
@@ -98,4 +100,8 @@ for (const [file, sha] of Object.entries(shas)) {
 for (const c of characters) assert(prov.assets.some(a => a.file === 'dist/assets/characters/' + c + '.glb'), `provenance lacks ${c}`);
 for (const p of ['well', 'cart', 'lantern', 'hasa', 'jizo', 'firepit', 'gatehouse', 'fort', 'barricade', 'dozo', 'naya', 'wara', 'kakashi', 'hokora']) assert(prov.assets.some(a => a.file === 'dist/assets/valley/models/' + p + '.glb'), `provenance lacks ${p}`);
 
-console.log(`Valley check passed: ${modules.length} modules, imports resolved, ${pure.length} pure layers clean, ${wanted.size} HTML ids, ${characters.length + props.length} GLBs (${(total / 1048576).toFixed(1)} MB), provenance matched.`);
+// 7 物語のデータ（design-narrative.md §7）：id の重複・一画面40字・未知の話者・満たされない条件・断片の欠け・呼ばれない会話
+const storyIssues = storyProblems({ story: STORY, speakers: SPEAKERS, sources: sources['quest.js'] + '\n' + sources['game.js'] });
+assert.deepEqual(storyIssues, [], 'story data problems:\n' + storyIssues.join('\n'));
+
+console.log(`Valley check passed: ${modules.length} modules, imports resolved, ${pure.length} pure layers clean, ${wanted.size} HTML ids, ${characters.length + props.length} GLBs (${(total / 1048576).toFixed(1)} MB), provenance matched, story data clean (${STORY.banter.length} banter, ${Object.keys(STORY.dialogues).length} dialogues, ${STORY.fragments.length} fragments).`);

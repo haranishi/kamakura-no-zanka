@@ -6,7 +6,8 @@ const snapshot = s => ({ beat: s.beat, flags: copy(s.flags), resources: copy(s.r
   down: copy(s.down), captiveFreed: s.captiveFreed, seen: s.seen, stealth: s.stealth });
 const objective = s => ({ type: 'objective', text: s.story.beats[s.beat].objective });
 export function createQuest(story = STORY) {
-  const s = { story: copy(story), beat: 'b0_temple', flags: { plan: null, approach: null, archerJoined: false, ambush: null },
+  // fragments：拾った過去の謎の断片の id（story.fragments の順に並べる。保存に含める。旧い保存は空）
+  const s = { story: copy(story), beat: 'b0_temple', flags: { plan: null, approach: null, archerJoined: false, ambush: null, fragments: [] },
     resources: copy(story.resources), trust: story.trust, checkpoint: null, checkpointState: null,
     down: {}, captiveFreed: false, pendingRetry: false,
     seen: false, stealth: 0 };                                       // 里の戦いの記録（保存しない）：一度でも騒ぎになったか／闇討ちの数。結果の文と士気・信頼に効く
@@ -15,7 +16,14 @@ export function createQuest(story = STORY) {
 export function reduce(state, event) {
   const s = copy(state), effects = [];
   const emit = (type, data = {}) => effects.push({ type, ...data });
-  const dialogue = id => emit('dialogue', { id });
+  // 会話を出すと、その会話に入っている断片を拾ったことになる。同じ断片は二度数えない（やり直しで区切りへ戻れば、拾い直せる）
+  const pick = id => {
+    const all = s.story.fragments || [], list = (s.flags.fragments ||= []);
+    if (!all.some(f => f.id === id) || list.includes(id)) return;
+    list.push(id); list.sort((a, b) => all.find(f => f.id === a).order - all.find(f => f.id === b).order);
+    emit('fragment', { id, count: list.length });
+  };
+  const dialogue = id => { emit('dialogue', { id }); for (const f of s.story.fragments || []) if (f.dialogue === id) pick(f.id); };
   const advance = beat => { s.beat = beat; effects.push(objective(s)); };
   const checkpoint = id => { s.checkpoint = id; s.checkpointState = snapshot(s); emit('checkpoint', { id }); };
   if (!event || typeof event.type !== 'string') return { state: s, effects };
@@ -84,6 +92,11 @@ export function reduce(state, event) {
     } else if (s.beat === 'b6_escort' && event.type === 'arrived' && event.place === 'temple_steps' && s.flags.ambush !== 'active') {
       advance('b7_result'); checkpoint('cp_result'); dialogue('result'); emit('ending', { summary: summarize(s) });
     } else if (s.beat === 'b7_result' && event.type === 'dialogue_end' && event.id === 'result') advance('done');
+    else if (event.type === 'examine') {
+      // 調べる（E）：その場面で調べられる物だけ。断片を持つ物は一度きり（手がかりの物は、出し直しの見張りを game.js が持つ）
+      const r = (s.story.relics || []).find(x => x.id === event.relic);
+      if (r && r.beats.includes(s.beat) && !(r.fragment && (s.flags.fragments || []).includes(r.fragment))) dialogue(r.dialogue);
+    }
   }
   return { state: s, effects };
 }
