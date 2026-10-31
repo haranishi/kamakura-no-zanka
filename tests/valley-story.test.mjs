@@ -154,6 +154,10 @@ test('fragments: retry rewinds what was picked after the checkpoint, and picking
   assert.equal(s.beat, 'b3_viewpoint'); assert.deepEqual(s.flags.fragments, [], 'back at the checkpoint, the view can be taken again');
   s = run(run(s, 'examine', { relic: 'far_look' }), 'examine', { relic: 'far_look' });
   assert.deepEqual(s.flags.fragments, ['F2']);
+  // 保存に入っていた断片の会話がもう一度出ても、数えない（書き換えた保存・区切りの前後の食い違い）
+  let u = toViewpoint(); u = { ...u, flags: { ...u.flags, fragments: ['F3'] } };
+  const cleared = reduce(run(u, 'enter_zone', { zone: 'village_front' }), { type: 'enemy_down', id: 'officer', how: 'routed' });
+  assert.deepEqual(cleared.state.flags.fragments, ['F3']); assert(!cleared.effects.some(e => e.type === 'fragment'));
   // 区切りより前に拾った断片は、やり直しでも残る
   let t = run(run(createQuest(STORY), 'enter_zone', { zone: 'temple_yard' }), 'examine', { relic: 'sode' });
   t = run(run(t, 'dialogue_end', { id: 'boy_arrives' }), 'player_down');
