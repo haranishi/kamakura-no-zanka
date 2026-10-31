@@ -924,6 +924,9 @@ export class Game {
         const y = this.terrain.heightAt(b.x, b.z) + 5.6 * (0.98 + (b.variant || 0) * 0.04);
         this.fx.chimney({ x: b.x + Math.sin(b.rotY) * 0.8, y, z: b.z + Math.cos(b.rotY) * 0.8 });
       }
+      // 里の荒れ（§5.2。見た目だけ）：倉が荒らされたほど、荷車のあたりから煙が上がる（蓄え35未満は太く、50未満は細く。帰り道まで）
+      const q = this.quest, food = q.resources.food;
+      if (['b5_archer', 'b6_escort'].includes(q.beat) && food < 50 && Math.hypot(hp.x + 27.5, hp.z - 6.5) < 160 && (food < 35 || (this.raidSmokeOdd = !this.raidSmokeOdd))) this.fx.chimney({ x: -27.5, y: this.terrain.heightAt(-27.5, 6.5) + 0.6, z: 6.5 });
     }
     // 光の筋の中を舞う塵（主人公のまわり）
     if (this.rng() < 0.45 && this.flow !== 'idle') this.fx.mote({ x: hp.x + (this.rng() - 0.5) * 14, y: hp.y + 0.4 + this.rng() * 3.2, z: hp.z + (this.rng() - 0.5) * 14 });

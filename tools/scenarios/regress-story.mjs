@@ -169,8 +169,17 @@ export default async function ({ st, step, call, v, freeze, start, tap, shot, lo
     const ring = await v(`(() => { const g = ${G}, f = g.world.props.find(p => p.id === 'bonfire'), n = g.npcs.get('r_man'); return { d: Math.hypot(n.pos.x - f.x, n.pos.z - f.z), mode: n.mode }; })()`);
     if (trust >= 58 ? !(ring.d < 3.6 && ring.mode === 'cower') : !(ring.d > 7)) fail(`fire ring for trust ${trust}: ${JSON.stringify(ring)}`);
     const seen = await adv();
+    await until(() => v("!document.getElementById('result').classList.contains('hidden')"), 60, 'the result screen');   // 結果画面まで待つ（次のつづきからへ、前の遊びの時計を持ち込まない）
     const truth = seen.find(x => x.id === 'ending_truth'), coda = seen.find(x => x.id === 'ending_coda');
     if (truth?.texts.length !== truthLines || coda.texts.includes('もう、いい。') !== burn) fail(`ending with ${list.length}: ${JSON.stringify([truth, coda])}`);
     log(`ending with ${list.length}: truth ${truth.texts.length} lines, burn ${burn}; ring ${ring.d.toFixed(1)} m (${ring.mode})`);
   }
+
+  // ---- 里の荒れ（見た目だけ）：蓄えが少ない保存で帰り道の区切りからつづけ、荷車のあたりの煙を撮る
+  await v(`(() => { const s = JSON.parse(localStorage.getItem('kamakura-valley-progress')); Object.assign(s, { beat: 'b6_escort', checkpoint: 'cp_archer_joined' }); s.flags.ambush = null; s.resources.food = 20; localStorage.setItem('kamakura-valley-progress', JSON.stringify(s)); })()`);
+  await toTitle(); await start('continue'); await step(5);
+  if ((await st()).beat !== 'b6_escort') fail('could not continue on the road back');
+  await call('teleport', -12, 2, Math.atan2(15.5, -4.5)); await call('look', Math.atan2(15.5, -4.5), 0.12); await step(240, 1 / 30);
+  await shot('story-12-raided-smoke');
+  log('raided village: smoke by the cart captured');
 }
