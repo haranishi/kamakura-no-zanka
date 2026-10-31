@@ -113,10 +113,10 @@ export function makeTufts({ data, geometry, wind, height, fadeStart, fadeEnd, ti
   return group;
 }
 
-export function buildVegetation({ scatter, quality = 'standard', field, sunDir }) {
+export function buildVegetation({ scatter, quality = 'standard', field, sunDir, renderer = null }) {
   const wind = windUniforms();
   const group = new THREE.Group(); group.name = 'vegetation';
-  const trees = new TreeField({ data: scatter.trees, species: scatter.species, understory: scatter.understory, wind, sunDir, quality });
+  const trees = new TreeField({ data: scatter.trees, species: scatter.species, understory: scatter.understory, wind, sunDir, quality, renderer });
   group.add(trees.group);
   const grass = buildGrass({ field, wind, quality, sunDir });
   const rice = makeTufts({ data: scatter.rice, geometry: riceGeometry(), wind, height: 1.0, fadeStart: 60, fadeEnd: 95, tintA: '#b8963c', tintB: '#d6b658', flutter: 0.02 });

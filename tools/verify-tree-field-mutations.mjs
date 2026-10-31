@@ -51,6 +51,12 @@ const cases = [
     ['village centre', 'cx === -6 && cz === 20'],
     ['forest', 'cx === -36 && cz === -48'],
   ].map(([name,condition]) => [`break budget at ${name}`,view,'const membership = lodMembership(distance, this.policy);',`const membership = ${condition} ? [true,false,false] : lodMembership(distance, this.policy);`]),
+  // 8.1a second round: the far adults as baked boards in the field.
+  ['far adults stay meshes', view, 'const set = !cfg && level === 2 && this.impostors ?', 'const set = false ?'],
+  ['board trunk brightness not written', view, 'else if (set.impostor) set.leaf.geometry.attributes.aImpWood.array[k] = .85 + tv * .3;', 'else if (set.impostor) set.leaf.geometry.attributes.aImpWood.array[k] = 1;'],
+  ['failed bake breaks the field', view, "catch (error) { impostors.dispose(); console.warn('tree impostor bake failed; far trees keep their meshes', error); }", 'catch (error) { throw error; }'],
+  ['board atlases leak', view, 'this.materials.dispose(); this.impostors?.dispose(); this.group.clear();', 'this.materials.dispose(); this.group.clear();'],
+  ['boards cast shadows', view, 'm.castShadow = false; m.receiveShadow = false;\n  return { leaf: m, wood: null, impostor: true };', 'm.castShadow = true; m.receiveShadow = false;\n  return { leaf: m, wood: null, impostor: true };'],
 ];
 const originals = new Map([...new Set(cases.map(c => c[1]))].map(f => [f, fs.readFileSync(f)]));
 const run = () => spawnSync(process.execPath, ['--test', 'tests/valley-tree-lod.test.mjs', 'tests/valley-tree-field.test.mjs'], { encoding: 'utf8', timeout: 30000, maxBuffer: 8 * 1024 * 1024 });

@@ -45,6 +45,8 @@ b0 庭へ降りる（`temple_yard` に入る）→ b1 穂太の話 → b2 林道
 - `tools/scenarios/regress-attack-timing.mjs`：同じ入力列で、戦闘の論理（状態・体力・構え・位置）を毎コマ記録し、変更前と変更後が一致することを比べる（`node tools/scenarios/regress-attack-timing.mjs 前.json 後.json`）。
 - `tools/scenarios/capture-draw-sheathe.mjs`：抜刀・納刀を、実ゲームの固定カメラ（主人公の左側）で一定間隔に撮る（敵が気づく→抜刀／納刀済みで攻撃→速い抜刀／戦闘後の納刀）。変更前と変更後を同じ条件で撮って比べる。
 - `tools/scenarios/measure-draw-sheathe.mjs`：既存の抜刀・納刀の動作で、握りと腰の鞘がどう動くかを測る（前値は `reports/polish3/baseline/draw-sheathe-before.json`）。
+- `tools/scenarios/capture-trees-detail.mjs`：木（8.1a）の近景（林道・枝の下から見上げ・幹と根元の寄り・広葉・庭・楓の寄り・林道の斥候）・中景（林の縁）・遠景（見晴らし・谷の川・太陽の方位）と、杉と広葉の標本（12〜30m、順光と、太陽の方位へ低く向けた逆光）を、HUDなし・乱数・時刻・風を固定して撮る。第2周で画角の重複を外した。`--q light` では5枚に light- を付ける。変更前のコードでも同じシナリオで撮って比べる。純粋層の変異検査は `node tools/verify-tree-branches-mutations.mjs` と `verify-tree-impostor-mutations.mjs`。
+- `tools/scenarios/capture-tree-lod-far.mjs`：遠景の絵の板（8.1a第2周）と中景が入れ替わる帯（標準150m・軽量100m）を、同じ木へ近づきながら10°の画角で撮る。
 - 検査の流れの見本：`tools/scenarios/` のシナリオ。
 
 ## 第2弾の前測定（7.0・7.0b）
