@@ -72,13 +72,14 @@ export default async function ({ page, out, st, step, call, v, freeze, start, lo
     };
     return true;
   })()`);
-  await v(`(() => { __ci.reset('road_scout', false); __valley.game.hero.drawSword({ fast: false }); return true; })()`);
+  // 道しるべ（地面の矢印）は消す：撮る場所によって画面の隅に大きく写り、比べる所から目をそらした（第1周の採点）。両方の版で同じ
+  await v(`(() => { __valley.setWaymarks('off'); __ci.reset('road_scout', false); __valley.game.hero.drawSword({ fast: false }); return true; })()`);
   await step(80);
   const sheets = {}, numbers = {};
   const run = async (scene, foe, inputs, passive = false, setup = null) => {
     await v(`__ci.reset(${JSON.stringify(foe)}, false, ${passive})`); await step(40);
     await v(`__ci.reset(${JSON.stringify(foe)}, true, ${passive})`);
-    if (setup) { await v(setup); await step(30); }
+    if (setup) { await v(setup); await step(60); }   // とどめの場面：膝をつき終えるまで待つ（膝つきの動作は約0.65秒。崩れは2.2秒続く）
     await step(1);
     const want = new Set(SCENES[scene].frames), last = Math.max(...want), shots = [], track = [];
     for (let f = 0; f <= last; f++) {

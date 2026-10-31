@@ -17,7 +17,7 @@ export default async function ({ st, step, call, v, freeze, start, log }) {
   await adv(); await step(20);
   await v(`(async () => {
     const g = __valley.game, C = await import('/valley/collision.js'), { mulberry32 } = await import('/valley/scatter.js'), { SLOW } = await import('/valley/time-warp.js');
-    const { FEEL } = await import('/valley/config.js'), { MOVES } = await import('/valley/combat.js');
+    const { FEEL } = await import('/valley/config.js'), { MOVES } = await import('/valley/combat.js'), { createBrain } = await import('/valley/enemy-ai.js');
     g.makeEnemies('village_enemies', { alert: 'unaware', dormant: true });
     const inp = g.input, H = -Math.PI / 2, ActorProto = Object.getPrototypeOf(Object.getPrototypeOf(g.hero)), knockReal = ActorProto.knockBack;
     const freeze = e => { e.apply = function (intent, dt) { return Object.getPrototypeOf(this).apply.call(this, { ...intent, startMove: null, move: null }, dt); }; };
@@ -139,6 +139,10 @@ export default async function ({ st, step, call, v, freeze, start, log }) {
         park(); heroAt(-30, -6, H); const h = g.hero, e = byId(id);
         g.rng = mulberry32(4000 + trial * 17);
         ready(e, h.pos.x + 3.2 + 0.3 * trial, h.pos.z + ((trial % 3) - 1) * 0.9, -H, false);
+        // 頭（士気・逃げ・降参）も作り直す（前の試行で倒れた・弾かれた分の士気が残ると、相手が逃げて戦いにならなかった）
+        const b = e.brain; e.brain = createBrain(e.kind, { id: e.id, home: { x: e.pos.x, z: e.pos.z }, seed: b.seed, exit: b.exit });
+        Object.assign(e.brain, { state: 'combat', awareness: 1, lastSeen: { x: h.pos.x, z: h.pos.z } });
+        e.surrendered = false; e.departed = false; e.character.root.visible = true; g.tokens.release(e.id);
         if (cfg.knock === false) e.knockBack = () => false;
         if (cfg.slow === false) g.slowMo = () => {};
         g.lock = e; h.lockTarget = e;
@@ -161,7 +165,7 @@ export default async function ({ st, step, call, v, freeze, start, log }) {
         allUp(); delete e.knockBack; delete g.slowMo; g.lock = null; h.lockTarget = null; g.reportDown = quest.reportDown; g.dispatch = quest.dispatch;
         const mine = hits.filter(x => x.att === 'hero' && x.def === e.id), taken = hits.filter(x => x.def === 'hero');
         const l1 = mine.filter(x => x.move === 'light1' && x.outcome === 'hit').length, l3 = mine.filter(x => x.move === 'light3' && x.outcome === 'hit').length;
-        return { id, trial, killed: !ef.alive, seconds: +real.toFixed(2), gameSeconds: +(g.time - t0).toFixed(2), taken: taken.filter(x => x.outcome === 'hit').length,
+        return { id, trial, brain: e.brain.state, killed: !ef.alive, seconds: +real.toFixed(2), gameSeconds: +(g.time - t0).toFixed(2), taken: taken.filter(x => x.outcome === 'hit').length,
           blocked: taken.filter(x => x.outcome === 'blocked').length, parried: taken.filter(x => x.outcome === 'parried').length,
           light1: l1, light3: l3, finisher: mine.filter(x => x.move === 'finisher').length, landed: mine.filter(x => x.outcome === 'hit').length, slowFrames: timing().slow };
       },
