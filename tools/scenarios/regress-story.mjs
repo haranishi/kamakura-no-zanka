@@ -133,7 +133,7 @@ export default async function ({ st, step, call, v, freeze, start, tap, shot, lo
   for (const id of ['ambush_soldier_1', 'ambush_soldier_2', 'ambush_archer']) await kill(id);
   await until(async () => (await st()).talking, 60, 'the ambush-cleared dialogue');
   d = await dlg();
-  if (d.texts.at(-2) !== '……あの夜、門に貴殿の姿がなかった。' || d.texts.at(-1) !== '……') fail('F5 and the silence: ' + JSON.stringify(d.texts));
+  if (d.texts.at(-2) !== '……あの夜、門に貴殿の姿がなかった。門は、破られた。' || d.texts.at(-1) !== '……') fail('F5 and the silence: ' + JSON.stringify(d.texts));
   for (let i = 0; i < d.texts.length - 1; i++) { await tap('KeyE'); await step(2); }
   await step(100);                                                  // 1.5秒の無言は E を押さずに終わる
   if ((await st()).talking) fail('the 1.5 s silence did not end by itself');
@@ -148,11 +148,13 @@ export default async function ({ st, step, call, v, freeze, start, tap, shot, lo
     if (q.talking) {
       const dd = await dlg(); if (!seen5.length || seen5.at(-1).id !== dd.id) seen5.push(dd);
       if (dd.id === 'ending_truth' && !seen5.shot1) { await step(20); await shot('story-08-ending-truth'); seen5.shot1 = true; }
-      if (dd.id === 'ending_coda' && dd.texts[dd.i] === 'もう、いい。' && !seen5.shot2) {
+      if (dd.id === 'ending_coda' && dd.i === 0 && dd.texts[1] === 'もう、いい。' && !seen5.shot2) {   // 袖印をくべる無言の間（会話の枠は消える）
         await step(18); await shot('story-09a-sode-falls');
         if (!(await v(`${G}.relicView.items.has('sode_burn')`))) fail('the badge is not seen falling into the fire');
+        if (!(await v("getComputedStyle(document.getElementById('dialogue')).opacity === '0'"))) fail('the dialogue box covers the badge going in');
         await step(40); await shot('story-09-sode-burn'); seen5.shot2 = true;
         if (!(await v(`${G}.flareT > 0`))) fail('no flare when the badge lands');
+        continue;                                                    // 無言の間は E を押さずに進む
       }
       if (!seen5.hudChecked) { seen5.hudChecked = true; if (!(await v("document.getElementById('hud').classList.contains('hidden')"))) fail('the HUD bars and objective show during the ending'); }
       if (dd.id === 'ending_coda' && dd.texts[dd.i] === '……' && !seen5.shot3) { await step(40); await shot('story-10-ending-gaze'); seen5.shot3 = true; }

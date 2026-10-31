@@ -85,7 +85,7 @@ export class HUD {
   showLine() {
     const d = this.dialogue, i = d.i, line = d.lines[i];
     this.el['dlg-name'].textContent = line.narration ? '' : line.speaker; this.el['dlg-text'].textContent = line.text;
-    this.el.dialogue.classList.toggle('narration', !!line.narration); this.el.dialogue.classList.toggle('pause', !!line.pause);
+    this.el.dialogue.classList.toggle('narration', !!line.narration); this.el.dialogue.classList.toggle('pause', !!line.pause); this.el.dialogue.classList.toggle('veil', !!line.veil);
     this.timers.delete('dlg-pause');
     if (line.pause) this.after('dlg-pause', line.pause, () => { if (this.dialogue === d && d.i === i) this.advanceDialogue(); });
     d.onLine?.(line, i);
@@ -93,7 +93,7 @@ export class HUD {
   advanceDialogue() {
     const d = this.dialogue; if (!d) return false;
     d.i++; this.timers.delete('dlg-pause');
-    if (d.i >= d.lines.length) { this.el.dialogue.classList.add('hidden'); this.el.dialogue.classList.remove('narration', 'pause'); document.body.classList.remove('talking'); this.dialogue = null; d.onEnd?.(d.id); }
+    if (d.i >= d.lines.length) { this.el.dialogue.classList.add('hidden'); this.el.dialogue.classList.remove('narration', 'pause', 'veil'); document.body.classList.remove('talking'); this.dialogue = null; d.onEnd?.(d.id); }
     else this.showLine();
     return true;
   }

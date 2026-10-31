@@ -13,7 +13,7 @@ const guideTargets = { b0_temple: 'temple_yard', b1_boy: 'boy', b2_road: 'viewpo
   b4_village: 'village_center', b5_archer: 'captive', b6_escort: 'temple_steps', b7_result: null, done: null };
 const hero = '榊三郎景継', boy = '穂太', old = '久作', tsubaki = 'つばき', yajuro = '梓弥十郎', narrator = '語り';
 // 物語の本体（design-narrative.md §3〜§7）。行の when は banter.js の matches で読む（場面・道・食糧・信頼・断片の数）。
-// pause は無言の間（秒。E でも進む）、look は見つめる相手、fragment／clue はその行が出す断片・手がかりの id。
+// pause は無言の間（秒。E でも進む）、veil はその間だけ会話の枠を消す、look は見つめる相手、fragment／clue はその行が出す断片・手がかりの id。
 export const SPEAKERS = [hero, boy, old, tsubaki, yajuro, narrator, '侍大将', '追手'];
 export const STORY = {
   beats: Object.fromEntries(beats.map(([id, objective]) => [id, { id, objective, guideTarget: guideTargets[id] }])),
@@ -55,7 +55,7 @@ export const STORY = {
       { speaker: yajuro, text: 'これで追手は退いた。寺はすぐそこだ。' },
       { speaker: hero, text: '歩けるか。' },
       { speaker: yajuro, text: 'ご心配なく。この脚は、まだ動く。' },
-      { speaker: yajuro, text: '……あの夜、門に貴殿の姿がなかった。', fragment: 'F5' },
+      { speaker: yajuro, text: '……あの夜、門に貴殿の姿がなかった。門は、破られた。', fragment: 'F5' },   // 離れた代償（§3「戻ったとき、門は破られていた」）
       { speaker: hero, text: '……', pause: 1.5 },                                    // 景継は答えない
     ],
     // 結末は三つの会話に分ける（1回あたり約5行。R24.2）。result → ending_truth → ending_coda の順に game.js がつなぐ
@@ -64,7 +64,7 @@ export const STORY = {
       { speaker: yajuro, text: 'あの兵たちも、腹を空かせていた。', clue: 'C4' },
       { speaker: old, text: '武士など要らんと思うておったが……あんた方は、違ったな。', group: 'kyusaku_result', when: { trust: 'high' } },
       { speaker: old, text: '武士など要らんと思うておった。……今は、分からん。', group: 'kyusaku_result', when: { trust: 'mid' } },
-      { speaker: old, text: '助けられたのは、確かだ。……礼だけは、言うておく。', group: 'kyusaku_result', when: { trust: 'low' } },
+      { speaker: old, text: '助けられた礼は、米で返した。……それだけだ。', group: 'kyusaku_result', when: { trust: 'low' } },
       { speaker: tsubaki, text: '次に兵が来たら、私も手を貸します。' },
       { speaker: yajuro, text: '焚き火のそばは、久しぶりだ。' },
     ],
@@ -73,11 +73,12 @@ export const STORY = {
       { speaker: hero, text: 'あの夜、門を離れたのは、泣いている子がいたからだ。' },
       { speaker: yajuro, text: '……その子は。' },
       { speaker: hero, text: '山へ逃がした。名も知らぬ。' },
-      { speaker: yajuro, text: 'ならば、離れてよい理由だ。', when: { fragments: [3, null] } },
-      { speaker: hero, text: '……そう言うのは、お前だけだ。', when: { fragments: [3, null] } },
+      { speaker: yajuro, text: 'ならば、離れたのも道理だ。', when: { fragments: [3, null] } },
+      { speaker: hero, text: '……そう言われたのは、初めてだ。', when: { fragments: [3, null] } },
     ],
     ending_coda: [
-      { speaker: hero, text: 'もう、いい。', when: { fragments: [5, null] }, fx: 'sode_burn' },   // 袖印を焚き火にくべる（案。音なし・炎が少し上がるだけ）
+      { speaker: hero, text: '……', pause: 1.2, veil: true, fx: 'sode_burn', when: { fragments: [5, null] } },   // 袖印が手から火へ落ちる（会話の枠を消して見せる。案。音なし）
+      { speaker: hero, text: 'もう、いい。', when: { fragments: [5, null] } },
       { speaker: hero, text: '……', pause: 1.5, look: 'boy', when: { fragments: [5, null] } },
       { speaker: hero, text: '……飯にしよう。' },
       { speaker: yajuro, text: '橋の向こうに、追手の本隊がいるはずだ。' },

@@ -431,19 +431,18 @@ export class Game {
   // 子を見つめる画角：主人公の右肩の後ろから、子の顔へ
   gazeShot(boy) {
     const h = this.hero.pos, b = boy.pos, d = Math.hypot(b.x - h.x, b.z - h.z) || 1, ux = (b.x - h.x) / d, uz = (b.z - h.z) / d;
-    if (d < 2) {
-      // すぐ隣に座る子（結末）：肩越しだと主人公の背で子が隠れる。二人を横から、焚き火と反対の側から撮る（子へ向く横顔が見える）
-      const f = WORLD.props.find(p => p.id === 'bonfire'), mx = (h.x + b.x) / 2, mz = (h.z + b.z) / 2;
-      const s = Math.hypot(mx - uz * 2.4 - f.x, mz + ux * 2.4 - f.z) > Math.hypot(mx + uz * 2.4 - f.x, mz - ux * 2.4 - f.z) ? 1 : -1;
-      return { pos: [mx - s * uz * 2.6, 1.2, mz + s * ux * 2.6], look: [mx, 1.3, mz], fov: 44 };   // 子の顔と主人公の顔が、どちらも会話の枠より上に入る高さ
-    }
-    return { pos: [h.x - ux * 1.35 + uz * 0.5, 1.6, h.z - uz * 1.35 - ux * 0.5], look: [b.x, 1.0, b.z], fov: 30 };
+    // 二人を横から撮る（子へ向く景継の横顔が見える。肩越しでは後頭部しか映らず、隣の子は背に隠れた）。焚き火と反対の側から。
+    // 子の顔と景継の顔が、どちらも会話の枠より上に入る高さ
+    const f = WORLD.props.find(p => p.id === 'bonfire'), mx = (h.x + b.x) / 2, mz = (h.z + b.z) / 2, r = Math.max(2.6, d * 1.15);
+    const s = Math.hypot(mx - uz * r - f.x, mz + ux * r - f.z) > Math.hypot(mx + uz * r - f.x, mz - ux * r - f.z) ? 1 : -1;
+    return { pos: [mx - s * uz * r, 1.2, mz + s * ux * r], look: [mx, 1.3, mz], fov: 44 };
   }
   // 結末の画角（焚き火の向こうから二人を／火越しに主人公を）
   endingShot(id) {
     const f = WORLD.props.find(p => p.id === 'bonfire');
-    return id === 'ending_truth' ? { pos: [f.x - 0.4, 0.65, f.z + 2.2], look: [f.x - 0.2, 0.9, f.z - 1.69], fov: 46 }
-      : { pos: [f.x - 0.75, 0.6, f.z + 1.9], look: [f.x + 0.3, 0.85, f.z - 0.8], fov: 46 };   // 結び：低く火越しに。炎が画の中ほど（会話の枠の上）に来て、くべた袖印の炎も見える
+    // どちらも少し高い所から見下ろし、火床を画の中ほど（会話の枠の上）に置く。景継は火の真後ろに立たせない（炎が体に重なって靄に見えた）
+    return id === 'ending_truth' ? { pos: [f.x - 1.6, 2.3, f.z + 3.5], look: [f.x - 0.4, 0.2, f.z - 1.1], fov: 46 }
+      : { pos: [f.x - 0.4, 2.6, f.z + 4.0], look: [f.x - 0.3, 0.2, f.z - 1.0], fov: 46 };
   }
   // 体力と構えを戻す（里を守ったあと・待ち伏せを退けたあと。戦いの合間に息をつける）
   healHero(amount, text) {

@@ -216,7 +216,7 @@ test('relics: the prompt shows only in its scene, near it, before it is taken, a
 });
 test('result: Kyusaku welcomes only as far as the trust earned; the seen record survives the save and old saves read as unseen', () => {
   const say = trust => linesFor(STORY, 'result', { ...fullRun(), trust }).find(l => l.speaker === '久作').text;
-  assert(say(60).includes('違ったな')); assert(say(50).includes('分からん')); assert(say(40).includes('礼だけは'));
+  assert(say(60).includes('違ったな')); assert(say(50).includes('分からん')); assert(say(40).includes('米で返した'));
   let s = run(toViewpoint(), 'enter_zone', { zone: 'village_north' });
   s = run(run(s, 'noticed'), 'enemy_down', { id: 'officer', how: 'routed' });
   s = run(run(s, 'interact', { id: 'archer_captive' }), 'party_joined', { id: 'archer' });
