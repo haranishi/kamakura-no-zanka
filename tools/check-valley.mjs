@@ -12,7 +12,7 @@ const dir = path.join(root, 'dist/valley');
 const read = f => fs.readFileSync(path.join(root, f), 'utf8');
 
 // 1 入口・主要なモジュールと素材がある
-const modules = ['sword-path', 'arm-ik', 'sword-layer', 'actors', 'ai-world', 'anim-data', 'atmosphere', 'audio-valley', 'audio-rules', 'voice-bank', 'foot-contacts', 'step-surface', 'step-synth', 'battle', 'bow', 'buildings', 'camera-rig', 'characters', 'collision', 'combat', 'companion-ai', 'config',
+const modules = ['sword-path', 'arm-ik', 'sword-layer', 'actors', 'ai-world', 'anim-data', 'atmosphere', 'audio-valley', 'audio-rules', 'voice-bank', 'foot-contacts', 'step-surface', 'step-synth', 'battle', 'bow', 'buildings', 'batch', 'camera-rig', 'characters', 'collision', 'combat', 'companion-ai', 'config',
   'enemy-ai', 'fx', 'game', 'guide-nav', 'guide-view', 'guide-renderer', 'guide', 'grade', 'grass-view', 'grass-schedule', 'grass-field', 'hud', 'input', 'main', 'nav', 'perf-stats', 'wind', 'post', 'props', 'qa', 'quest', 'ridges', 'save', 'scatter', 'tree-species', 'tree-lod', 'tree-geometry', 'tree-textures', 'tree-materials', 'tree-view', 'shots', 'story-data', 'terrain-height', 'terrain', 'vegetation', 'water', 'weapons', 'world-colliders', 'world-data'];
 for (const m of modules) assert(fs.statSync(path.join(dir, m + '.js')).size > 0, `missing dist/valley/${m}.js`);
 for (const f of ['index.html', 'valley.css']) assert(fs.statSync(path.join(dir, f)).size > 0, `missing dist/valley/${f}`);
