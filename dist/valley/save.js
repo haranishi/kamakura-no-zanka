@@ -1,11 +1,13 @@
+import { STORY } from './story-data.js';
 export const VALLEY_KEY = 'kamakura-valley-progress';
 export const VALLEY_SCHEMA_VERSION = 1;
 const beats = ['b0_temple', 'b1_boy', 'b2_road', 'b3_viewpoint', 'b4_village', 'b5_archer', 'b6_escort', 'b7_result', 'done'];
 const checkpoints = [null, 'cp_leave_temple', 'cp_viewpoint', 'cp_archer_joined', 'cp_result'];
 const modes = ['follow', 'hold', 'cover', 'retreat'];
+const fragmentOrder = STORY.fragments.map(f => f.id);
 export function initialSave() {
   return { schema: 'kamakura-valley-progress', version: 1, savedAt: 0, checkpoint: null, beat: 'b0_temple',
-    flags: { plan: null, approach: null, archerJoined: false, ambush: null },
+    flags: { plan: null, approach: null, archerJoined: false, ambush: null, fragments: [], seen: false },
     resources: { food: 60, material: 0, funds: 0, morale: 50 }, trust: 40,
     party: { archer: { joined: false, hp: 100, mode: 'follow' } }, player: { hp: 100, posture: 100 },
     world: { enemies: {} } };
@@ -15,6 +17,12 @@ const object = v => { if (!v || typeof v !== 'object' || Array.isArray(v) || ![O
 const number = v => { if (typeof v !== 'number' || !Number.isFinite(v) || v < 0 || v > 1000) fail(); return v; };
 const bool = v => { if (typeof v !== 'boolean') fail(); return v; };
 const choice = (v, values) => { if (!values.includes(v)) fail(); return v; };
+// 拾った断片（任意の項目。版は上げない）。無ければ空。あれば、知っている id の重なりのない並び。物語の順に並べ直す
+const fragments = v => {
+  if (v === undefined) return [];
+  if (!Array.isArray(v) || v.length > fragmentOrder.length || new Set(v).size !== v.length || !v.every(id => fragmentOrder.includes(id))) fail();
+  return fragmentOrder.filter(id => v.includes(id));
+};
 export function sanitize(raw) {
   object(raw);
   if (raw.schema !== VALLEY_KEY || raw.version !== VALLEY_SCHEMA_VERSION) fail();
@@ -24,7 +32,8 @@ export function sanitize(raw) {
   result.beat = choice(raw.beat, beats);
   const flags = object(raw.flags);
   result.flags = { plan: choice(flags.plan, [null, 'front', 'flank']), approach: choice(flags.approach, [null, 'front', 'flank']),
-    archerJoined: bool(flags.archerJoined), ambush: choice(flags.ambush, [null, 'active', 'cleared']) };
+    archerJoined: bool(flags.archerJoined), ambush: choice(flags.ambush, [null, 'active', 'cleared']), fragments: fragments(flags.fragments),
+    seen: flags.seen === undefined ? false : bool(flags.seen) };                // 里で見つかったか（任意。版は上げない）
   const resources = object(raw.resources);
   for (const k of Object.keys(result.resources)) result.resources[k] = number(resources[k]);
   result.trust = number(raw.trust);
