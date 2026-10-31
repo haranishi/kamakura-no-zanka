@@ -1,6 +1,6 @@
 // 物語のデータの検査（design-narrative.md §7）。tools/check-valley.mjs と tests/valley-story.test.mjs が使う。
 // 見るもの：id の重複／一画面40字（掛け声14字）／未知の話者／条件の書き間違い／条件が一度も満たされない台詞／
-// 久作の第一声が各場合に一つだけ／断片 id の欠け／調べる物と手がかりの指す行／どこからも呼ばれない会話／画面に出さない語。
+// 言い換えの組が各場合に一つだけ／断片 id の欠け／調べる物と手がかりの指す行／どこからも呼ばれない会話／画面に出さない語。
 import { matches, WHEN_KEYS, BANTER_EVENTS } from '../../dist/valley/banter.js';
 import { ENDING_NEXT } from '../../dist/valley/narrative.js';
 
@@ -53,11 +53,14 @@ export function storyProblems({ story, speakers, sources }) {
     if (!reachable(story, w)) bad(`${who}: the condition can never be met`);
   }
   for (const e of story.banter) if (!e.lines?.length) bad(`banter ${e.id}: no lines`);
-  // 久作の第一声：道×食糧の各場合に、ちょうど一つ
-  const first = (story.dialogues.village_cleared || []).filter(l => l.group === 'kyusaku_first');
-  for (const approach of ['front', 'flank']) for (const food of [0, 20, 34.99, 35, 40, 49.99, 50, 60]) {
-    const n = first.filter(l => matches(l.when, { approach, food })).length;
-    if (n !== 1) bad(`village_cleared: ${n} first lines for ${approach} with food ${food}`);
+  // 言い換えの組（久作の第一声・結果の一言）：道×蓄え×信頼×見つかったか の各場合に、ちょうど一行
+  for (const [id, lines] of Object.entries(story.dialogues)) {
+    const groups = new Set(lines.filter(l => l.group).map(l => l.group));
+    for (const g of groups) for (const approach of ['front', 'flank']) for (const food of [0, 20, 34.99, 35, 40, 49.99, 50, 60])
+      for (const trust of [40, 47.9, 48, 57.9, 58, 70]) for (const seen of [false, true]) {
+        const n = lines.filter(l => l.group === g && matches(l.when, { approach, food, trust, seen })).length;
+        if (n !== 1) { bad(`${id}: ${n} lines in group ${g} for ${approach}, food ${food}, trust ${trust}, seen ${seen}`); break; }
+      }
   }
   // 断片：各 id がちょうど一行に乗り、その行は条件なしで、断片の会話にある
   for (const f of story.fragments) {

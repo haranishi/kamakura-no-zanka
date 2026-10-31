@@ -29,7 +29,8 @@ test('the story check catches each kind of mistake it claims to', () => {
   broken(s => { s.banter[3].when.after = 'scout_kiled'; }, /unknown event/);
   broken(s => { s.banter[0].when = { beats: ['b0_temple'], companion: true }; }, /b0_alive: the condition can never be met/);
   broken(s => { s.dialogues.ending_coda[0].when = { fragments: [6, null] }; }, /can never be met/);
-  broken(s => { s.dialogues.village_cleared[3].when.food = [null, 45]; }, /first lines for flank with food 4[59]/);
+  broken(s => { s.dialogues.village_cleared[3].when.food = [null, 45]; }, /village_cleared: 0 lines in group kyusaku_first for flank/);
+  broken(s => { s.dialogues.result[3].when.trust = 'high'; }, /result: 2 lines in group kyusaku_result/);
   broken(s => { delete s.dialogues.archer_joins[3].fragment; }, /F4: carried by 0 lines/);
   broken(s => { s.fragments[4].dialogue = 'result'; }, /F5: lives in ambush_cleared/);
   broken(s => { s.relics[0].dialogue = 'relic_none'; }, /sode: no dialogue/);
@@ -85,6 +86,13 @@ test('banter: a showing hint holds back a new entry but lets a started exchange 
   assert.equal(step(3).waiting, true, 'playing');
   assert.equal(step(30, { beat: 'b5_archer' }).waiting, false, 'nothing eligible');
 });
+test('banter: only an entry marked overHint may start beside a showing hint (the waking line)', () => {
+  const list = [{ id: 'w', overHint: true, when: { beats: ['b0_temple'] }, lines: [{ speaker: '榊三郎景継', text: '起' }] }, ...LIST];
+  const r = play(list, 80, { over: () => ({ held: true }) });
+  assert.deepEqual(r.shown.map(s => s.text), ['起']);
+  assert(r.shown[0].t >= BANTER_CALM - 1e-9);
+  assert.equal(STORY.banter.filter(e => e.overHint).map(e => e.id).join(), 'b0_alive');
+});
 test('banter: conditions read place, events, plan, companion, ambush, trust, food and fragments', () => {
   assert(matches({ areas: ['upper_road'] }, sit({ areas: areasAt(STORY.areas, { x: -62, z: -60 }) })));
   assert(!matches({ areas: ['upper_road'] }, sit({ areas: areasAt(STORY.areas, { x: 0, z: 0 }) })));
@@ -100,8 +108,10 @@ test('banter: the real data plays the escort exchanges in order and only one tru
   const over = () => ({ beat: 'b6_escort', companion: true, captiveFreed: true, approach: 'front', trust: 50, food: 40 });
   const { shown } = play(STORY.banter, 1200, { over });
   const ids = [...new Set(shown.map(s => s.id))];
-  assert.deepEqual(ids, ['b6_burden', 'b6_trust_mid', 'b6_way_front', 'b6_boy', 'b6_bow']);
-  assert(!ids.includes('b6_after'), 'the line after the ambush waits for the ambush to clear');
+  assert.deepEqual(ids, ['b6_burden', 'b6_way_front', 'b6_trust_mid']);
+  assert(!ids.includes('b6_after') && !ids.includes('b6_boy'), 'the apology and the boy wait for the ambush to clear');
+  const after = play(STORY.banter, 1200, { over: () => ({ ...over(), ambush: 'cleared' }) }).shown;
+  assert.deepEqual([...new Set(after.map(s => s.id))], ['b6_after', 'b6_boy']);
 });
 
 // ---------------------------------------------------------------------------------------------- 断片の記録・保存・やり直し
@@ -179,12 +189,13 @@ test('save: fragments round-trip in story order; an old save without them reads 
 });
 
 // ---------------------------------------------------------------------------------------------- 会話の組み立て・調べる物・焚き火の輪
-test('village_cleared: the first word follows the road and the stores; F3 is always the second line', () => {
-  const at = (approach, food) => linesFor(STORY, 'village_cleared', { ...createQuest(STORY), beat: 'b5_archer', flags: { ...createQuest(STORY).flags, approach }, resources: { ...STORY.resources, food } });
-  const cases = [['front', 40, 'あんたの戦で'], ['front', 34.9, '畑も倉も'], ['flank', 50, 'いつの間に'], ['flank', 49.9, '静かに、とは']];
-  for (const [approach, food, start] of cases) {
-    const lines = at(approach, food);
-    assert(lines[0].text.startsWith(start), `${approach} ${food}: ${lines[0].text}`);
+test('village_cleared: the first word follows the road, the stores and whether the village saw you; F3 is always the second line', () => {
+  const at = (approach, food, seen) => linesFor(STORY, 'village_cleared', { ...createQuest(STORY), beat: 'b5_archer', seen, flags: { ...createQuest(STORY).flags, approach }, resources: { ...STORY.resources, food } });
+  const cases = [['front', 40, false, 'あんたの戦で'], ['front', 34.9, true, '畑も倉も'], ['flank', 50, false, 'いつの間に'], ['flank', 49.9, false, '足音は聞こえなんだ'],
+    ['flank', 50, true, '騒ぎには'], ['flank', 49.9, true, '静かに、とは']];
+  for (const [approach, food, seen, start] of cases) {
+    const lines = at(approach, food, seen);
+    assert(lines[0].text.startsWith(start), `${approach} ${food} ${seen}: ${lines[0].text}`);
     assert.equal(lines[1].fragment, 'F3'); assert.equal(lines.length, 4);
   }
 });
@@ -202,6 +213,19 @@ test('relics: the prompt shows only in its scene, near it, before it is taken, a
   assert.equal(relicInReach(STORY, { ...road, drops: { scout_note: drop }, clues: ['C1'] }), null);
   const far = STORY.relics.find(r => r.id === 'far_look');
   assert.equal(relicInReach(STORY, { ...base, beat: 'b3_viewpoint', pos: far.at })?.id, 'far_look');
+});
+test('result: Kyusaku welcomes only as far as the trust earned; the seen record survives the save and old saves read as unseen', () => {
+  const say = trust => linesFor(STORY, 'result', { ...fullRun(), trust }).find(l => l.speaker === '久作').text;
+  assert(say(60).includes('違ったな')); assert(say(50).includes('分からん')); assert(say(40).includes('礼だけは'));
+  let s = run(toViewpoint(), 'enter_zone', { zone: 'village_north' });
+  s = run(run(s, 'noticed'), 'enemy_down', { id: 'officer', how: 'routed' });
+  s = run(run(s, 'interact', { id: 'archer_captive' }), 'party_joined', { id: 'archer' });
+  const saved = exportProgress(s);
+  assert.equal(saved.flags.seen, true); assert.equal(restoreProgress(STORY, saved).seen, true);
+  assert.equal('seen' in restoreProgress(STORY, saved).flags, false, 'the quest keeps seen outside its flags');
+  const old = initialSave(); delete old.flags.seen;
+  assert.equal(sanitize(old).flags.seen, false); assert.equal(restoreProgress(STORY, old).seen, false);
+  assert.throws(() => sanitize({ ...initialSave(), flags: { ...initialSave().flags, seen: 'yes' } }), TypeError);
 });
 test('the fire ring follows trust: inside and seated when high, at the edge when middling, apart when low', () => {
   assert.deepEqual(ringPlacement(60), { scale: 0.78, sit: true });

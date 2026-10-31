@@ -36,6 +36,8 @@ export class HUD {
 
   // いま案内が見えているか（次の案内で上書きしないために使う）
   hintBusy() { return !this.el.hint.classList.contains('hidden'); }
+  // 会話が始まったら、出ている案内を下げる（静かな間や調べた物に、操作の案内を重ねない）
+  hideHint() { this.timers.delete('hint'); this.el.hint.classList.add('hidden'); }
   // 案内は鍵ごとに一度だけ出す。出したときだけ true
   hint(key, text, ms = 5200) {
     if (this.hintsShown.has(key)) return false;

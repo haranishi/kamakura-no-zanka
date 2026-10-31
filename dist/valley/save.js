@@ -7,7 +7,7 @@ const modes = ['follow', 'hold', 'cover', 'retreat'];
 const fragmentOrder = STORY.fragments.map(f => f.id);
 export function initialSave() {
   return { schema: 'kamakura-valley-progress', version: 1, savedAt: 0, checkpoint: null, beat: 'b0_temple',
-    flags: { plan: null, approach: null, archerJoined: false, ambush: null, fragments: [] },
+    flags: { plan: null, approach: null, archerJoined: false, ambush: null, fragments: [], seen: false },
     resources: { food: 60, material: 0, funds: 0, morale: 50 }, trust: 40,
     party: { archer: { joined: false, hp: 100, mode: 'follow' } }, player: { hp: 100, posture: 100 },
     world: { enemies: {} } };
@@ -32,7 +32,8 @@ export function sanitize(raw) {
   result.beat = choice(raw.beat, beats);
   const flags = object(raw.flags);
   result.flags = { plan: choice(flags.plan, [null, 'front', 'flank']), approach: choice(flags.approach, [null, 'front', 'flank']),
-    archerJoined: bool(flags.archerJoined), ambush: choice(flags.ambush, [null, 'active', 'cleared']), fragments: fragments(flags.fragments) };
+    archerJoined: bool(flags.archerJoined), ambush: choice(flags.ambush, [null, 'active', 'cleared']), fragments: fragments(flags.fragments),
+    seen: flags.seen === undefined ? false : bool(flags.seen) };                // 里で見つかったか（任意。版は上げない）
   const resources = object(raw.resources);
   for (const k of Object.keys(result.resources)) result.resources[k] = number(resources[k]);
   result.trust = number(raw.trust);

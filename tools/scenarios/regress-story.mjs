@@ -60,7 +60,7 @@ export default async function ({ st, step, call, v, freeze, start, tap, shot, lo
   await call('teleport', sc.x - 0.9, sc.z - 0.6, 0); await step(4);
   if (await prompt() !== '書き付けを拾う') fail('no note prompt where the scout fell: ' + await prompt());
   await tap('KeyE'); await step(2);
-  d = await dlg(); if (d?.texts[0] !== '兵糧の書き付け。腹を空かせた兵か。') fail('the note line: ' + JSON.stringify(d));
+  d = await dlg(); if (d?.texts[0] !== '兵糧の書き付け。取り立てが、多すぎる。') fail('the note line: ' + JSON.stringify(d));
   await adv(); await step(10);
   if (await prompt()) fail('the note can be read twice');
   log('C1: the scout drops the note and it reads once');
@@ -148,7 +148,13 @@ export default async function ({ st, step, call, v, freeze, start, tap, shot, lo
     if (q.talking) {
       const dd = await dlg(); if (!seen5.length || seen5.at(-1).id !== dd.id) seen5.push(dd);
       if (dd.id === 'ending_truth' && !seen5.shot1) { await step(20); await shot('story-08-ending-truth'); seen5.shot1 = true; }
-      if (dd.id === 'ending_coda' && dd.texts[dd.i] === 'もう、いい。' && !seen5.shot2) { await step(14); await shot('story-09-sode-burn'); seen5.shot2 = true; if (!(await v(`${G}.flareT > 0`))) fail('no flare when the badge goes in'); }
+      if (dd.id === 'ending_coda' && dd.texts[dd.i] === 'もう、いい。' && !seen5.shot2) {
+        await step(18); await shot('story-09a-sode-falls');
+        if (!(await v(`${G}.relicView.items.has('sode_burn')`))) fail('the badge is not seen falling into the fire');
+        await step(40); await shot('story-09-sode-burn'); seen5.shot2 = true;
+        if (!(await v(`${G}.flareT > 0`))) fail('no flare when the badge lands');
+      }
+      if (!seen5.hudChecked) { seen5.hudChecked = true; if (!(await v("document.getElementById('hud').classList.contains('hidden')"))) fail('the HUD bars and objective show during the ending'); }
       if (dd.id === 'ending_coda' && dd.texts[dd.i] === '……' && !seen5.shot3) { await step(40); await shot('story-10-ending-gaze'); seen5.shot3 = true; }
       if (dd.id === 'ending_coda' && dd.texts[dd.i].startsWith('燃え残った火') && !seen5.shot4) { await step(10); await shot('story-11-narration'); seen5.shot4 = true; }
       await tap('KeyE'); await step(3);

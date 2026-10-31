@@ -127,8 +127,7 @@ export class Battle {
   onEnemySurrendered(e) { this.bark(e, 'surrender'); this.g.reportDown(e, 'surrendered'); }
 
   bark(actor, key) {
-    // 里の兵が気づいたときは、徴発の掛け声も混ぜる（C2）。選ぶ乱数は1回のまま（戦闘の乱数の並びを変えない）
-    const g = this.g, lines = key === 'alert' && actor.group === 'village_enemies' ? [...STORY.barks.alert, ...STORY.barks.raid] : STORY.barks[key];
+    const g = this.g, lines = STORY.barks[key];
     if (!lines || g.time - this.barkAt < 1.6 || dist2(actor.pos, g.hero.pos) > 40) return;
     this.barkAt = g.time;
     g.hud.subtitle(actor.kind === 'officer' ? '侍大将' : '追手', lines[(g.rng() * lines.length) | 0], 1800);

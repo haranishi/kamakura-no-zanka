@@ -31,12 +31,14 @@ export const STORY = {
       { speaker: hero, text: '西の口から入れば早い。だが戦が長引けば、倉が荒らされる。' },
       { speaker: hero, text: '北の斜面か南の畦を回れば背後に出られる。時はかかるが、見つかりにくい。' },
     ],
-    // 里の戦いのあと。久作の第一声は、選んだ道と残った食糧で変わる（§5.1。脇道で50未満は結果文の flankLoud と同じ境目）
+    // 里の戦いのあと。久作の第一声は、選んだ道と残った食糧で変わる（§5.1）。脇道は「見つかったか」でも分ける（静かでも時がかかれば50を割る）
     village_cleared: [
       { speaker: old, text: 'あんたの戦で、畑が踏まれた。……それでも、倉は残った。', group: 'kyusaku_first', when: { approach: 'front', food: [35, null] } },
-      { speaker: old, text: '畑も倉も、ひどく荒れたな。……皆、生きてはいる。', group: 'kyusaku_first', when: { approach: 'front', food: [null, 35] } },
-      { speaker: old, text: 'いつの間に片づけたのか。足音も聞こえなんだ。', group: 'kyusaku_first', when: { approach: 'flank', food: [50, null] } },
-      { speaker: old, text: '静かに、とはいかなんだか。倉が荒れた。', group: 'kyusaku_first', when: { approach: 'flank', food: [null, 50] } },
+      { speaker: old, text: '畑も倉も、ひどく荒れたな。……この冬は、厳しい。', group: 'kyusaku_first', when: { approach: 'front', food: [null, 35] } },
+      { speaker: old, text: 'いつの間に片づけたのか。足音も聞こえなんだ。', group: 'kyusaku_first', when: { approach: 'flank', seen: false, food: [50, null] } },
+      { speaker: old, text: '足音は聞こえなんだ。……だが、倉は荒らされた。', group: 'kyusaku_first', when: { approach: 'flank', seen: false, food: [null, 50] } },
+      { speaker: old, text: '騒ぎにはなったが、倉は残った。', group: 'kyusaku_first', when: { approach: 'flank', seen: true, food: [50, null] } },
+      { speaker: old, text: '静かに、とはいかなんだか。倉が荒れた。', group: 'kyusaku_first', when: { approach: 'flank', seen: true, food: [null, 50] } },
       { speaker: old, text: '逃げてきた武士は、あんたで三人目だ。皆、同じ顔をする。', fragment: 'F3' },
       { speaker: tsubaki, text: '倉の裏に、縛られた人がいます。あの兵たちに追われていた方です。' },
       { speaker: hero, text: '……そこにいるのか。' },
@@ -60,7 +62,9 @@ export const STORY = {
     result: [
       { speaker: tsubaki, text: '里の者から、米を預かってきました。' },
       { speaker: yajuro, text: 'あの兵たちも、腹を空かせていた。', clue: 'C4' },
-      { speaker: old, text: '武士など要らんと思うておったが……あんた方は、違ったな。' },
+      { speaker: old, text: '武士など要らんと思うておったが……あんた方は、違ったな。', group: 'kyusaku_result', when: { trust: 'high' } },
+      { speaker: old, text: '武士など要らんと思うておった。……今は、分からん。', group: 'kyusaku_result', when: { trust: 'mid' } },
+      { speaker: old, text: '助けられたのは、確かだ。……礼だけは、言うておく。', group: 'kyusaku_result', when: { trust: 'low' } },
       { speaker: tsubaki, text: '次に兵が来たら、私も手を貸します。' },
       { speaker: yajuro, text: '焚き火のそばは、久しぶりだ。' },
     ],
@@ -75,17 +79,17 @@ export const STORY = {
     ending_coda: [
       { speaker: hero, text: 'もう、いい。', when: { fragments: [5, null] }, fx: 'sode_burn' },   // 袖印を焚き火にくべる（案。音なし・炎が少し上がるだけ）
       { speaker: hero, text: '……', pause: 1.5, look: 'boy', when: { fragments: [5, null] } },
-      { speaker: hero, text: 'ここが、帰る場所になる。' },
+      { speaker: hero, text: '……飯にしよう。' },
       { speaker: yajuro, text: '橋の向こうに、追手の本隊がいるはずだ。' },
       { speaker: hero, text: '……明日、考える。' },
       { speaker: narrator, text: '燃え残った火は、谷で、人の灯になった。', narration: true },
     ],
     // 調べる（E）で出す一行。断片 F1・F2 と手がかり C1
     relic_sode: [{ speaker: hero, text: '……あの門を。', fragment: 'F1' }],
-    relic_far_look: [{ speaker: hero, text: 'あの夜、持ち場にいなかった。それだけは、確かだ。', fragment: 'F2' }],
-    clue_scout_note: [{ speaker: hero, text: '兵糧の書き付け。腹を空かせた兵か。', clue: 'C1' }],
+    relic_far_look: [{ speaker: hero, text: 'あの夜、門を背に、山へ走った。', fragment: 'F2' }],
+    clue_scout_note: [{ speaker: hero, text: '兵糧の書き付け。取り立てが、多すぎる。', clue: 'C1' }],
   },
-  // 敵の掛け声（字幕）。音に頼らず状況が分かるように、画面にも出す。raid は里の兵が気づいたときに alert と混ぜる（C2）
+  // 敵の掛け声（字幕）。音に頼らず状況が分かるように、画面にも出す。raid は、まだ気づいていない里の兵が荒らしながら上げる声（C2。game.js）
   barks: {
     alert: ['何奴だ！', '敵だ、かかれ！', 'こっちにいるぞ！'],
     raid: ['米を出せ。腹が減った。'],
@@ -126,8 +130,8 @@ export const STORY = {
   // 掛け合い・独り言（R21.1）。条件がそろい、戦闘・会話・案内・掛け声の表示がないときに字幕で一度だけ出す（banter.js）。
   // b0〜b5 は主人公ひとり（独り言と里の人）、b6 から弥十郎との掛け合い。group は同じ場面の言い換えで、どれか一つだけ出る。
   banter: [
-    { id: 'b0_alive', when: { beats: ['b0_temple'], minBeatT: 1 }, lines: [{ speaker: hero, text: '……生きている。まだ。' }] },
-    { id: 'b0_sword', when: { beats: ['b0_temple'], minBeatT: 1 }, lines: [{ speaker: hero, text: '刀は、まだ腰にある。' }] },
+    { id: 'b0_alive', overHint: true, when: { beats: ['b0_temple'], minBeatT: 1 }, lines: [{ speaker: hero, text: '……生きている。まだ。' }] },   // 目覚めた直後に（操作の案内と並んで出す）
+    { id: 'b0_sword', when: { beats: ['b0_temple'], minBeatT: 1 }, lines: [{ speaker: hero, text: '刀だけは、残ったか。' }] },
     { id: 'b2_soldiers', when: { beats: ['b2_road'], areas: ['upper_road'] }, lines: [{ speaker: hero, text: '穂太の言った兵は、この先か。' }] },
     { id: 'b2_scout_killed', group: 'b2_scout', when: { beats: ['b2_road', 'b3_viewpoint'], after: 'scout_killed' }, lines: [{ speaker: hero, text: '物見か。……本隊は、里だな。' }] },
     { id: 'b2_scout_stealth', group: 'b2_scout', when: { beats: ['b2_road', 'b3_viewpoint'], after: 'scout_stealth' }, lines: [{ speaker: hero, text: '……腕は、鈍っていない。' }] },
@@ -136,20 +140,19 @@ export const STORY = {
     { id: 'b3_plan_front', group: 'b3_plan', when: { beats: ['b3_viewpoint'], plan: 'front' }, lines: [{ speaker: hero, text: '正面から行く。早く終わらせる。' }] },
     { id: 'b3_plan_flank', group: 'b3_plan', when: { beats: ['b3_viewpoint'], plan: 'flank' }, lines: [{ speaker: hero, text: '回り込む。……気取られるな。' }] },
     { id: 'b4_unseen', when: { beats: ['b4_village'], approach: 'flank', seen: false, areas: ['village'], minBeatT: 4 }, lines: [{ speaker: hero, text: '……まだ、気づかれていない。' }] },
-    { id: 'b5_old_kept', group: 'b5_old', when: { beats: ['b5_archer'], areas: ['village'], food: [50, null], captiveFreed: false }, lines: [{ speaker: old, text: '蓄えは、まだある。……礼は、後でさせてくれ。' }] },
+    { id: 'b5_old_kept', group: 'b5_old', when: { beats: ['b5_archer'], areas: ['village'], food: [50, null], captiveFreed: false }, lines: [{ speaker: old, text: '蓄えは残った。……礼は、後でさせてくれ。' }] },
     { id: 'b5_old_half', group: 'b5_old', when: { beats: ['b5_archer'], areas: ['village'], food: [35, 50], captiveFreed: false }, lines: [{ speaker: old, text: '半分は残った。……冬は、なんとかする。' }] },
     { id: 'b5_old_lost', group: 'b5_old', when: { beats: ['b5_archer'], areas: ['village'], food: [null, 35], captiveFreed: false }, lines: [{ speaker: old, text: '米は減ったが、命は減らなんだ。' }] },
     { id: 'b5_rope', when: { beats: ['b5_archer'], areas: ['captive'], captiveFreed: false }, lines: [{ speaker: tsubaki, text: '縄が固くて、私の手では解けませんでした。' }] },
     { id: 'b6_burden', when: { beats: ['b6_escort'], companion: true, ambush: null }, lines: [{ speaker: yajuro, text: 'この脚では足手まといだ。置いていってもいい。' }, { speaker: hero, text: '置いていくなら、拾いに来た意味がない。' }] },
+    { id: 'b6_way_front', group: 'b6_way', when: { beats: ['b6_escort'], companion: true, ambush: null, approach: 'front' }, lines: [{ speaker: yajuro, text: '正面から斬り込んだとか。……無茶をなさる。' }, { speaker: hero, text: '時がなかった。' }] },
+    { id: 'b6_way_quiet', group: 'b6_way', when: { beats: ['b6_escort'], companion: true, ambush: null, approach: 'flank', seen: false }, lines: [{ speaker: yajuro, text: '里では、音もなく片づけられたとか。' }, { speaker: hero, text: '……昔の癖だ。' }] },
+    { id: 'b6_way_loud', group: 'b6_way', when: { beats: ['b6_escort'], companion: true, ambush: null, approach: 'flank', seen: true }, lines: [{ speaker: yajuro, text: '気取られたと聞いた。……ご無事で何より。' }, { speaker: hero, text: '……次は、うまくやる。' }] },
     { id: 'b6_trust_high', group: 'b6_trust', when: { beats: ['b6_escort'], companion: true, ambush: null, trust: 'high' }, lines: [{ speaker: yajuro, text: '里の者は、我らを見送ってくれたな。' }] },
-    { id: 'b6_trust_mid', group: 'b6_trust', when: { beats: ['b6_escort'], companion: true, ambush: null, trust: 'mid' }, lines: [{ speaker: yajuro, text: 'まだ、様子を見ているようだ。' }] },
+    { id: 'b6_trust_mid', group: 'b6_trust', when: { beats: ['b6_escort'], companion: true, ambush: null, trust: 'mid' }, lines: [{ speaker: yajuro, text: '里の者は、遠巻きに見ていたな。' }] },
     { id: 'b6_trust_low', group: 'b6_trust', when: { beats: ['b6_escort'], companion: true, ambush: null, trust: 'low' }, lines: [{ speaker: yajuro, text: '武士は要らぬ、か。' }, { speaker: hero, text: 'それでも、守る。' }] },
-    { id: 'b6_way_front', group: 'b6_way', when: { beats: ['b6_escort'], companion: true, ambush: null, approach: 'front' }, lines: [{ speaker: yajuro, text: '正面から斬り込んだそうだな。無茶をする。' }, { speaker: hero, text: '時がなかった。' }] },
-    { id: 'b6_way_quiet', group: 'b6_way', when: { beats: ['b6_escort'], companion: true, ambush: null, approach: 'flank', food: [50, null] }, lines: [{ speaker: yajuro, text: '里では、音もなく片づけたと聞いた。' }, { speaker: hero, text: '……昔の癖だ。' }] },
-    { id: 'b6_way_loud', group: 'b6_way', when: { beats: ['b6_escort'], companion: true, ambush: null, approach: 'flank', food: [null, 50] }, lines: [{ speaker: yajuro, text: '回り込んだが、気取られたそうだな。' }, { speaker: hero, text: '……次は、うまくやる。' }] },
-    { id: 'b6_boy', when: { beats: ['b6_escort'], companion: true, ambush: null }, lines: [{ speaker: yajuro, text: '寺に、子がいると聞いた。' }, { speaker: hero, text: '穂太だ。……待たせている。' }] },
-    { id: 'b6_bow', when: { beats: ['b6_escort'], companion: true, ambush: null }, lines: [{ speaker: yajuro, text: '指図をくだされ。弓は、まだ引ける。' }] },
     { id: 'b6_after', when: { beats: ['b6_escort'], companion: true, ambush: 'cleared' }, lines: [{ speaker: yajuro, text: '……すまぬ。余計なことを言った。' }] },
+    { id: 'b6_boy', when: { beats: ['b6_escort'], companion: true, ambush: 'cleared' }, lines: [{ speaker: yajuro, text: '寺に、子がいると聞いた。' }, { speaker: hero, text: '穂太だ。……待たせている。' }] },
   ],
   // 操作の案内（その場で一度だけ出す）
   hints: {
@@ -175,6 +178,6 @@ export const STORY = {
     plentiful: 'この食糧なら冬を越せる。', meager: '蓄えは半分ほど。冬は切り詰めて越す。', scarce: 'この蓄えでは、次は匿えない。',
     moraleHigh: '仲間の足取りは軽い。', moraleMid: '仲間と帰る灯がある。', moraleLow: '里の灯を絶やすな。',
     trustHigh: '里は門を開く。', trustMid: '里は、まだ様子を見ている。', trustLow: '信頼はこれからだ。',
-    front: '正面から里を守った。戦は早く終わった。', flank: '脇道から倉を守った。里は傷つかなかった。', flankLoud: '脇道から回ったが、気づかれて里は荒らされた。', none: '里への道を振り返る。',
+    front: '正面から里を守った。戦は早く終わった。', flank: '脇道から倉を守った。里は傷つかなかった。', flankLoud: '脇道から回ったが、気づかれて里は荒らされた。', flankSlow: '脇道から回ったが、時がかかり、倉は荒らされた。', none: '里への道を振り返る。',
   },
 };

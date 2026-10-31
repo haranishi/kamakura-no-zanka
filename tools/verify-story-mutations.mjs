@@ -8,11 +8,13 @@ const B = 'dist/valley/banter.js', N = 'dist/valley/narrative.js', Q = 'dist/val
 // 名前、対象、置換前、置換後、対象の試験名（正規表現）
 const cases = [
   ['掛け合いの間（8秒）を外す', B, 'if (sit.t - s.lastEnd < BANTER_GAP) return none;', 'if (false) return none;', 'waits for calm'],
-  ['静まる2秒を外す', B, 'if (sit.t - s.calmSince < BANTER_CALM) return { ...none, waiting: true };', '', 'waits for calm'],
+  ['静まる2秒を外す', B, 'if (sit.t - s.calmSince < BANTER_CALM || ', 'if (', 'only an entry marked overHint'],
   ['同じ台詞を繰り返す', B, '!s.shown.includes(e.id) && ', '', 'waits for calm'],
   ['言い換えの組を無視する', B, '!(e.group && s.groups.includes(e.group)) && ', '', 'waits for calm'],
   ['止められても続きを出す', B, 'if (s.playing) { s.playing = null; s.lastEnd = sit.t; }', 'if (false) { s.playing = null; s.lastEnd = sit.t; }', 'cuts an exchange short'],
-  ['案内の表示中も始める', B, 'if (sit.held) { s.calmSince = null; return none; }', '', 'a showing hint holds back'],
+  ['案内の表示中も始める', B, '(e.overHint || !sit.held) && ', '', 'a showing hint holds back'],
+  ['案内の横に出す一言を止める', B, '(e.overHint || !sit.held) && ', '!sit.held && ', 'only an entry marked overHint'],
+  ['案内が消えてすぐ始める', B, '(!entry.overHint && sit.t - s.quietSince < BANTER_CALM)', 'false', 'a showing hint holds back'],
   ['待っている合図を出さない', B, 'return { ...none, waiting: true };\n  s.shown.push', 'return none;\n  s.shown.push', 'a showing hint holds back'],
   ['信頼の段の境目', B, "t >= 58 ? 'high'", "t > 58 ? 'high'", 'conditions read'],
   ['食糧の範囲の下端', B, '(r[0] == null || v >= r[0])', '(r[0] == null || v > r[0])', 'conditions read'],
@@ -28,6 +30,8 @@ const cases = [
   ['旧い保存を読めない', S, 'if (v === undefined) return [];', 'if (v === undefined) fail();', 'old save without them'],
   ['重なった断片を受け入れる', S, 'new Set(v).size !== v.length || ', '', 'old save without them'],
   ['物語の順に並べ直さない', S, 'return fragmentOrder.filter(id => v.includes(id));', 'return v;', 'old save without them'],
+  ['見つかった記録を保存しない', Q, 'seen: !!s.seen }', 'seen: false }', 'Kyusaku welcomes only'],
+  ['旧い保存の見つかった記録', S, "seen: flags.seen === undefined ? false : bool(flags.seen) };", "seen: bool(flags.seen) };", 'Kyusaku welcomes only'],
 ];
 const run = pattern => spawnSync(process.execPath, ['--test', '--test-name-pattern', pattern, T], { encoding: 'utf8', timeout: 60000 });
 const logOf = r => (r.stdout || '') + (r.stderr || '');

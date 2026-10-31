@@ -201,8 +201,10 @@ test('being noticed before the village entrance still counts: no unseen bonus', 
   assert.equal(run(createQuest(STORY), 'noticed').seen, false, 'only the viewpoint and the village count');
 });
 test('the first result line does not say the village was unharmed when a flank was seen and the stores were raided', () => {
-  const first = (approach, food) => { const s = escort(); s.flags.approach = approach; s.resources.food = food; return summarize(s).lines[0]; };
+  const first = (approach, food, seen = true) => { const s = escort(); s.flags.approach = approach; s.resources.food = food; s.seen = seen; return summarize(s).lines[0]; };
   const L = STORY.results;
   assert.equal(first('flank', 57), L.flank); assert.equal(first('flank', 49), L.flankLoud);
+  // 見つからずに時がかかって割ったときは「気づかれて」と言わない（それでも「傷つかなかった」とは言わない）
+  assert.equal(first('flank', 49, false), L.flankSlow); assert.notEqual(first('flank', 49, false), L.flank);
   assert.equal(first('front', 30), L.front, 'a front approach never claims to be quiet');
 });

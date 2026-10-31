@@ -53,19 +53,20 @@ export class RelicView {
     mesh.rotation.x = -Math.PI / 2 + 0.06; mesh.rotation.z = it.yaw || 0; mesh.position.y = 0.025; mesh.receiveShadow = true;
     const glint = new THREE.Sprite(new THREE.SpriteMaterial({ map: this.glintMap, color: 0xffe0a6, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0 }));
     glint.scale.setScalar(0.34); glint.position.y = 0.16;
-    root.add(mesh, glint); root.position.set(it.x, this.terrain.heightAt(it.x, it.z), it.z);
+    root.add(mesh, glint);
     this.group.add(root);
-    return { root, glint };
+    return { root, glint, mesh };
   }
-  // list：いま地面にある物 [{ id, kind: 'sode'|'note', x, z, yaw }]。無くなった物は片づける
+  // list：いま見えている物 [{ id, kind: 'sode'|'note', x, z, yaw, y }]（y は地面からの高さ。袖印が火へ落ちる間だけ使う）。無くなった物は片づける
   update(list, t, camera, reduced) {
     const seen = new Set();
     for (const it of list) {
       seen.add(it.id);
       let v = this.items.get(it.id);
-      if (!v || v.x !== it.x || v.z !== it.z) { if (v) this.drop(it.id); v = { ...this.make(it), x: it.x, z: it.z }; this.items.set(it.id, v); }
+      if (!v) { v = this.make(it); this.items.set(it.id, v); }
+      v.root.position.set(it.x, this.terrain.heightAt(it.x, it.z) + (it.y || 0), it.z); v.mesh.rotation.z = it.yaw || 0;
       const d = camera.position.distanceTo(v.root.position);
-      v.glint.material.opacity = d > 22 ? 0 : (reduced ? 0.32 : 0.22 + 0.2 * (0.5 + 0.5 * Math.sin(t * Math.PI))) * Math.min(1, (22 - d) / 6);
+      v.glint.material.opacity = d > 22 || it.y ? 0 : (reduced ? 0.32 : 0.22 + 0.2 * (0.5 + 0.5 * Math.sin(t * Math.PI))) * Math.min(1, (22 - d) / 6);
     }
     for (const id of [...this.items.keys()]) if (!seen.has(id)) this.drop(id);
   }

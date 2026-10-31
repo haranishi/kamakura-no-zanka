@@ -60,7 +60,7 @@ export class Game {
     this.resetStory();
   }
   // 物語の進み（掛け合い・出来事・読んだ手がかり・落とし物）。はじめから・つづきからで新しくし、やり直しでは残す（同じ台詞を繰り返さない）
-  resetStory() { this.banter = createBanterState(); this.storyEvents = []; this.cluesSeen = []; this.drops = {}; this.c3Shown = false; this.beatAt = this.time; this.gaze = null; this.flareT = 0; }
+  resetStory() { this.banter = createBanterState(); this.storyEvents = []; this.cluesSeen = []; this.drops = {}; this.c3Shown = false; this.beatAt = this.time; this.gaze = null; this.flareT = 0; this.burnBadge = null; this.raidBarks = 0; this.raidBarkAt = -99; }
 
   // ------------------------------------------------------------------ 時間・小道具
   after(sec, fn) { this.timers.push({ t: this.time + sec, fn }); }
@@ -175,7 +175,7 @@ export class Game {
     this.buildWorld(); this.begin();
     if (this.quest.beat === 'done') this.showResult();
     // クリア後の保存は結果の区切り(b7_result)。つづきからは焚き火の前で結果の会話を出し直す（出さないと何も起きない）
-    else if (this.quest.beat === 'b7_result') { this.ending = summarize(this.quest); this.queueDialogue('result'); }
+    else if (this.quest.beat === 'b7_result') { this.ending = summarize(this.quest); this.queueDialogue('result'); this.hud.showHUD(false); }   // 結末の間は HUD を隠す
     // 見晴らしの区切りからのつづきも、道を選ぶ場面を飛ばさない（やり直しと同じ）
     else if (this.quest.beat === 'b3_viewpoint') this.after(0.9, () => { if (this.flow === 'play' && this.quest.beat === 'b3_viewpoint') this.showChoice(); });
   }
@@ -383,6 +383,7 @@ export class Game {
     if (id.startsWith('ending_')) this.setCine(this.endingShot(id), 1);       // 結末の二つ目・三つ目の会話は、画角を切り替えて始める
     // 行は状況で選ぶ（久作の第一声・断片の数で深くなる結末）。narrative.js
     const lines = linesFor(STORY, id, this.quest); if (!lines?.length) return;
+    this.hud.hideHint();
     this.hud.startDialogue(id, lines, did => this.onDialogueEnd(did), line => this.onDialogueLine(line));
     this.audio.play('dialogue');
   }
@@ -393,7 +394,7 @@ export class Game {
       const boy = this.npcs.get('boy');
       if (boy) { this.gaze = { target: boy, prev: this.cine && this.cine.target === 1 ? this.cine.shot : null }; this.setCine(this.gazeShot(boy), this.gaze.prev ? 1 : 0); }
     }
-    if (line.fx === 'sode_burn') this.flareT = 1.8;
+    if (line.fx === 'sode_burn') this.burnBadge = { t0: this.time };     // 袖印が手から火へ落ち、落ちたところで炎が上がる（updateStory）
   }
   onDialogueEnd(id) {
     if (this.gaze) { this.gaze = null; this.clearCine(); }
@@ -436,12 +437,12 @@ export class Game {
       const s = Math.hypot(mx - uz * 2.4 - f.x, mz + ux * 2.4 - f.z) > Math.hypot(mx + uz * 2.4 - f.x, mz - ux * 2.4 - f.z) ? 1 : -1;
       return { pos: [mx - s * uz * 2.6, 1.2, mz + s * ux * 2.6], look: [mx, 1.3, mz], fov: 44 };   // 子の顔と主人公の顔が、どちらも会話の枠より上に入る高さ
     }
-    return { pos: [h.x - ux * 1.7 + uz * 0.55, 1.62, h.z - uz * 1.7 - ux * 0.55], look: [b.x, 0.85, b.z], fov: 36 };
+    return { pos: [h.x - ux * 1.35 + uz * 0.5, 1.6, h.z - uz * 1.35 - ux * 0.5], look: [b.x, 1.0, b.z], fov: 30 };
   }
   // 結末の画角（焚き火の向こうから二人を／火越しに主人公を）
   endingShot(id) {
     const f = WORLD.props.find(p => p.id === 'bonfire');
-    return id === 'ending_truth' ? { pos: [f.x - 0.2, 1.35, f.z + 2.5], look: [f.x - 0.5, 0.9, f.z - 1.8], fov: 44 }
+    return id === 'ending_truth' ? { pos: [f.x - 0.4, 0.65, f.z + 2.2], look: [f.x - 0.2, 0.9, f.z - 1.69], fov: 46 }
       : { pos: [f.x - 0.75, 0.6, f.z + 1.9], look: [f.x + 0.3, 0.85, f.z - 0.8], fov: 46 };   // 結び：低く火越しに。炎が画の中ほど（会話の枠の上）に来て、くべた袖印の炎も見える
   }
   // 体力と構えを戻す（里を守ったあと・待ち伏せを退けたあと。戦いの合間に息をつける）
@@ -497,7 +498,7 @@ export class Game {
       this.npcs.get('v_tsubaki')?.place(tsu.x, tsu.z, tsu.yaw); this.npcs.get('v_tsubaki')?.setCower(false);
       for (const id of ['v_old', 'v_tsubaki']) this.npcs.get(id)?.lookAt(this.hero.pos);
       if (this.ally) { const a = at(-2.1, -0.9); this.ally.place(a.x, a.z, a.yaw); this.ally.role = 'captive'; this.ally.character.weapons.yumi.holder.visible = true; this.ally.character.play('Sit_Cross_Legged_on_Floor', { fade: 0.2 }); }
-      this.hud.setParty(false);
+      this.hud.setParty(false); this.hud.showHUD(false);             // 結末の間は、体力・構え・目的の欄を隠す（会話の枠は HUD の外）
       this.lock = null; this.hero.lockTarget = null;
       this.rig.yaw = yawOf(f.x - h.x, f.z - h.z); this.rig.snap();
       this.hud.clearTransient();
@@ -783,7 +784,7 @@ export class Game {
     if(!g.ahead || this.guideTime-(g.aheadAt ?? -Infinity)>=.1) { g.ahead=sampleGuidePath(this.guidePath(),2,15).at(-1); g.aheadAt=this.guideTime; }
     this.guideRenderer.update({pos,direction,target:baseline.points.at(-1),ahead:g.ahead,remaining:g.assessment.remaining,
       level:this.settings.waymarks,mode,emphasized:helping,reached:g.reached,reduced:this.reducedMotion(),hidden:document.body.classList.contains('hide-hud'),t:this.guideTime,wind:this.wind,camera:this.camera});
-    if(mode==='free' && ['b0_temple','b1_boy','b2_road'].includes(objectiveId) && !this.hud.hintBusy() && !this.banterWaiting) this.hud.hint('guide-g','迷ったら G で、導きの風を呼べます');
+    if(mode==='free' && ['b0_temple','b1_boy','b2_road'].includes(objectiveId) && !this.hud.hintBusy() && !this.banterWaiting && !this.pendingDialogue) this.hud.hint('guide-g','迷ったら G で、導きの風を呼べます');
   }
   guidePath() {
     const g=this.guide, pos=this.hero.pos;
@@ -868,7 +869,18 @@ export class Game {
     this.banter = r.state; this.banterWaiting = r.waiting;
     if ((talking || fighting) && kind === 'banter') this.hud.hideSubtitle('banter');   // 戦闘・会話が始まったら、掛け合いの字幕を残さない
     if (r.show) this.hud.subtitle({ 榊三郎景継: '景継', 梓弥十郎: '弥十郎' }[r.show.speaker] || r.show.speaker, r.show.text, r.show.seconds * 1000, 'banter');
+    // C2：まだ気づいていない里の兵が、荒らしながら上げる声（近づいたときだけ。14秒おき、3回まで。乱数は使わない）
+    if (q.beat === 'b4_village' && !kind && !talking && (this.raidBarks || 0) < 3 && this.time - (this.raidBarkAt ?? -99) > 14) {
+      const e = this.enemies.find(e => e.group === 'village_enemies' && e.kind !== 'officer' && e.fighter.alive && !e.dormant && !e.departed && ['patrol', 'suspicious'].includes(e.brain.state) && dist2(e.pos, this.hero.pos) < 22);
+      if (e) { this.raidBarkAt = this.time; this.raidBarks = (this.raidBarks || 0) + 1; this.hud.subtitle('追手', STORY.barks.raid[0], 1800); }
+    }
     const items = [];
+    const b = this.burnBadge, f = WORLD.props.find(p => p.id === 'bonfire');
+    if (b) {
+      const k = Math.min(1, (this.time - b.t0) / 0.7), h = this.hero.pos, sx = h.x - Math.sin(this.hero.yaw) * 0.45, sz = h.z - Math.cos(this.hero.yaw) * 0.45;
+      if (k >= 1) { this.burnBadge = null; this.flareT = 1.6; }
+      else items.push({ id: 'sode_burn', kind: 'sode', x: sx + (f.x - sx) * k, z: sz + (f.z - sz) * k, y: 1.0 + (0.3 - 1.0) * k + 0.35 * Math.sin(Math.PI * k), yaw: k * 3 });
+    }
     for (const rel of STORY.relics) {
       const at = rel.drop ? this.drops[rel.id] : rel.at;
       const reading = this.hud.dialogue?.id === rel.dialogue || this.pendingDialogue?.id === rel.dialogue;   // 調べている間は、まだ地面にある（寄った画に写す）

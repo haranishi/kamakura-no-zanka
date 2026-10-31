@@ -101,18 +101,19 @@ export function reduce(state, event) {
   return { state: s, effects };
 }
 // 結果の文の境目は、実際に遊んで出る幅に合わせてある（正面で食糧33〜45・信頼44〜47、静かな脇道で食糧50前後・信頼55前後）。
-// 脇道でも食糧が50を割った（見つかって荒らされた）ときは、1行目も「里は傷つかなかった」と言わない。
+// 脇道でも食糧が50を割ったときは、1行目も「里は傷つかなかった」と言わない。見つからずに時がかかって割ったときは「気づかれて」とも言わない（flankSlow）。
 export function summarize(s) {
   const { food, morale } = s.resources, approach = s.flags.approach, r = s.story.results;
   return { saved: s.flags.archerJoined ? 4 : 3, food, morale, trust: s.trust, approach,
-    lines: [approach === 'flank' && food < 50 ? r.flankLoud : r[approach || 'none'], r[food >= 50 ? 'plentiful' : food >= 35 ? 'meager' : 'scarce'],
+    lines: [approach === 'flank' && food < 50 ? (s.seen || !r.flankSlow ? r.flankLoud : r.flankSlow) : r[approach || 'none'], r[food >= 50 ? 'plentiful' : food >= 35 ? 'meager' : 'scarce'],
       morale >= 72 ? r.moraleHigh : morale >= 60 ? r.moraleMid : r.moraleLow, s.trust >= 58 ? r.trustHigh : s.trust >= 48 ? r.trustMid : r.trustLow] };
 }
 export function exportProgress(state) {
   // 戦闘中の保存は、消費された資源を含め直前の区切りへ戻す。
   const s = state.checkpointState ? { ...state, ...copy(state.checkpointState) } : createQuest(state.story);
   const saved = initialSave();
-  Object.assign(saved, { checkpoint: state.checkpoint, beat: s.beat, flags: copy(s.flags), resources: copy(s.resources), trust: s.trust });
+  // seen（里で見つかったか）も残す。結果の文と久作の言葉が、つづきからでも遊んだとおりになる（任意の項目。旧い保存は見つかっていない扱い）
+  Object.assign(saved, { checkpoint: state.checkpoint, beat: s.beat, flags: { ...copy(s.flags), seen: !!s.seen }, resources: copy(s.resources), trust: s.trust });
   saved.party.archer.joined = s.flags.archerJoined;
   saved.world.enemies = Object.fromEntries(Object.keys(s.down).map(id => [id, { alive: false }]));
   return saved;
@@ -121,7 +122,8 @@ export function restoreProgress(story = STORY, saved) {
   let clean;
   try { clean = sanitize(saved); } catch { return createQuest(story); }
   const s = createQuest(story);
-  Object.assign(s, { beat: clean.beat, checkpoint: clean.checkpoint, flags: copy(clean.flags), resources: copy(clean.resources), trust: clean.trust });
+  Object.assign(s, { beat: clean.beat, checkpoint: clean.checkpoint, flags: copy(clean.flags), resources: copy(clean.resources), trust: clean.trust, seen: clean.flags.seen });
+  delete s.flags.seen;
   s.down = Object.fromEntries(Object.entries(clean.world.enemies).filter(([, e]) => !e.alive).map(([id]) => [id, 'killed']));
   s.captiveFreed = s.flags.archerJoined;
   if (s.checkpoint) s.checkpointState = snapshot(s);

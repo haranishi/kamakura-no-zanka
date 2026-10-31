@@ -35,7 +35,7 @@ export function areasAt(areas, pos) {
 // 一行を読む時間（秒）。短い行でも2.4秒、長くても4.6秒
 export const lineSeconds = text => Math.max(2.4, Math.min(4.6, 1.4 + 0.11 * [...String(text)].length));
 
-export function createBanterState() { return { shown: [], groups: [], playing: null, lastEnd: -1e9, calmSince: null }; }
+export function createBanterState() { return { shown: [], groups: [], playing: null, lastEnd: -1e9, calmSince: null, quietSince: null }; }
 
 // 1コマ分進める。返す show は、いま字幕に出す一行（無ければ null）。list は STORY.banter。
 // waiting は「掛け合いの最中か、出せる台詞が静まるのを待っている」。そのあいだ、急がない案内（G の案内）は譲る（掛け合い＞ヒント）
@@ -45,7 +45,7 @@ export function stepBanter(state, sit, list) {
   if (sit.blocked) {
     // 割り込まれたら、掛け合いの残りの行は捨てる（掛け声や会話の上に、続きを重ねない）
     if (s.playing) { s.playing = null; s.lastEnd = sit.t; }
-    s.calmSince = null;
+    s.calmSince = null; s.quietSince = null;
     return none;
   }
   if (s.playing) {
@@ -59,13 +59,14 @@ export function stepBanter(state, sit, list) {
     s.lastEnd = s.playing.until; s.playing = null;
     return none;
   }
-  // held（案内の表示中）：新しい掛け合いは始めないが、始まった掛け合いは最後まで出す（掛け合い＞ヒント）
-  if (sit.held) { s.calmSince = null; return none; }
+  // held（案内の表示中）：新しい掛け合いは始めないが、始まった掛け合いは最後まで出す（掛け合い＞ヒント）。
+  // overHint の台詞（目覚めた直後の一言）だけは、案内と並んで出す（案内は上、字幕は下で重ならない）
   if (s.calmSince === null) s.calmSince = sit.t;
+  if (sit.held) s.quietSince = null; else if (s.quietSince === null) s.quietSince = sit.t;
   if (sit.t - s.lastEnd < BANTER_GAP) return none;
-  const entry = list.find(e => !s.shown.includes(e.id) && !(e.group && s.groups.includes(e.group)) && matches(e.when, sit));
+  const entry = list.find(e => !s.shown.includes(e.id) && !(e.group && s.groups.includes(e.group)) && (e.overHint || !sit.held) && matches(e.when, sit));
   if (!entry) return none;
-  if (sit.t - s.calmSince < BANTER_CALM) return { ...none, waiting: true };
+  if (sit.t - s.calmSince < BANTER_CALM || (!entry.overHint && sit.t - s.quietSince < BANTER_CALM)) return { ...none, waiting: true };
   s.shown.push(entry.id); if (entry.group) s.groups.push(entry.group);
   const line = entry.lines[0], seconds = lineSeconds(line.text);
   s.playing = { id: entry.id, line: 0, until: sit.t + seconds };
