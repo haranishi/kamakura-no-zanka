@@ -430,13 +430,19 @@ export class Game {
   // 子を見つめる画角：主人公の右肩の後ろから、子の顔へ
   gazeShot(boy) {
     const h = this.hero.pos, b = boy.pos, d = Math.hypot(b.x - h.x, b.z - h.z) || 1, ux = (b.x - h.x) / d, uz = (b.z - h.z) / d;
+    if (d < 2) {
+      // すぐ隣に座る子（結末）：肩越しだと主人公の背で子が隠れる。二人を横から、焚き火と反対の側から撮る（子へ向く横顔が見える）
+      const f = WORLD.props.find(p => p.id === 'bonfire'), mx = (h.x + b.x) / 2, mz = (h.z + b.z) / 2;
+      const s = Math.hypot(mx - uz * 2.4 - f.x, mz + ux * 2.4 - f.z) > Math.hypot(mx + uz * 2.4 - f.x, mz - ux * 2.4 - f.z) ? 1 : -1;
+      return { pos: [mx - s * uz * 2.6, 1.2, mz + s * ux * 2.6], look: [mx, 1.3, mz], fov: 44 };   // 子の顔と主人公の顔が、どちらも会話の枠より上に入る高さ
+    }
     return { pos: [h.x - ux * 1.7 + uz * 0.55, 1.62, h.z - uz * 1.7 - ux * 0.55], look: [b.x, 0.85, b.z], fov: 36 };
   }
-  // 結末の画角（焚き火の向こうから二人を／主人公に寄る）
+  // 結末の画角（焚き火の向こうから二人を／火越しに主人公を）
   endingShot(id) {
     const f = WORLD.props.find(p => p.id === 'bonfire');
     return id === 'ending_truth' ? { pos: [f.x - 0.2, 1.35, f.z + 2.5], look: [f.x - 0.5, 0.9, f.z - 1.8], fov: 44 }
-      : { pos: [f.x - 0.6, 1.3, f.z + 1.4], look: [f.x + 1.0, 1.15, f.z - 2.5], fov: 38 };
+      : { pos: [f.x - 0.75, 0.6, f.z + 1.9], look: [f.x + 0.3, 0.85, f.z - 0.8], fov: 46 };   // 結び：低く火越しに。炎が画の中ほど（会話の枠の上）に来て、くべた袖印の炎も見える
   }
   // 体力と構えを戻す（里を守ったあと・待ち伏せを退けたあと。戦いの合間に息をつける）
   healHero(amount, text) {
@@ -482,10 +488,10 @@ export class Game {
         const p = at(dx * ring.scale, dz * ring.scale); n.place(p.x, p.z, p.yaw); n.route = null; n.goal = null; n.lookAt({ x: f.x, z: f.z });
         if (ring.sit) n.setCower(true); else n.mode = 'idle';
       }
-      // 穂太は火のそばに座る（結末で景継が見る相手）
+      // 穂太は火のそば、主人公の隣にいる（結末で景継が見る相手）
 
       const boy = this.npcs.get('boy') || this.makeNpc('boy');
-      if (boy) { const bp = at(2.1, -1.5); boy.goal = null; boy.place(bp.x, bp.z, bp.yaw); boy.setCower(true); }   // 主人公の右隣（火の北東2.6mの茂みを画角から外す）
+      if (boy) { const bp = at(2.1, -1.5); boy.goal = null; boy.place(bp.x, bp.z, bp.yaw); boy.setCower(false); boy.lookAt({ x: f.x, z: f.z }); }   // 主人公の右隣に立つ（座ると、見つめる間の画で子の顔が会話の枠に隠れた）
       const walker = this.npcs.get('r_walker'); if (walker) { walker.remove(); this.npcs.delete('r_walker'); }
       this.npcs.get('v_old')?.place(old.x, old.z, old.yaw); this.npcs.get('v_old')?.setCower(false);
       this.npcs.get('v_tsubaki')?.place(tsu.x, tsu.z, tsu.yaw); this.npcs.get('v_tsubaki')?.setCower(false);
@@ -913,7 +919,7 @@ export class Game {
       const p = { x: f.x, y: this.terrain.heightAt(f.x, f.z) + 0.15, z: f.z };
       this.fx.flame(p); if (this.rng() < 0.4) this.fx.ember({ ...p, y: p.y + 0.4 }); if (this.rng() < 0.12) this.fx.smoke({ ...p, y: p.y + 0.9 });
       // 袖印をくべた：炎が少しのあいだ高く上がり、火の粉が増える（音なし）
-      if (this.flareT > 0) { this.flareT -= 0.06; for (let i = 0; i < 3; i++) this.fx.flame({ ...p, y: p.y + 0.15 + i * 0.12 }); this.fx.ember({ ...p, y: p.y + 0.5 }); this.fx.ember({ ...p, y: p.y + 0.7 }); }
+      if (this.flareT > 0) { this.flareT -= 0.06; for (let i = 0; i < 2; i++) this.fx.flame({ ...p, y: p.y + 0.15 + i * 0.14 }); this.fx.ember({ ...p, y: p.y + 0.6 }); }
     }
     // 農家の煙突から細い煙（近くの家だけ）
     this.chimneyT = (this.chimneyT || 0) - 0.06;
