@@ -6,11 +6,14 @@ import { mulberry32 } from './scatter.js';
 const patched = new WeakSet();
 
 // 材質を複製したら、もう一度呼ぶ（複製は onBeforeCompile を引き継がない）。
-export function patchGrade(material, { whiteMax = 0.34, blueFix = 0.85, mossFix = 0.5, satMax = 1 } = {}) {
+// tintFirst：まとめ描き（InstancedMesh）で1つずつ付けた色（setColorAt）を、補正の前に掛ける。1つずつ材質を複製して
+// 色を掛けてから補正していた頃と同じ順になる（補正は明るさで効き方が変わるので、後から掛けると色がずれる）。頂点色の無い形に使う。
+export function patchGrade(material, { whiteMax = 0.34, blueFix = 0.85, mossFix = 0.5, satMax = 1, tintFirst = false } = {}) {
   if (!material || patched.has(material)) return material;
   patched.add(material);
   material.onBeforeCompile = shader => {
-    shader.fragmentShader = shader.fragmentShader.replace('#include <map_fragment>', `#include <map_fragment>
+    const fs = tintFirst ? shader.fragmentShader.replace('#include <color_fragment>', '') : shader.fragmentShader;
+    shader.fragmentShader = fs.replace('#include <map_fragment>', `#include <map_fragment>${tintFirst ? '\n#include <color_fragment>' : ''}
       {
         vec3 gc = diffuseColor.rgb;
         float gl = dot(gc, vec3(0.2126, 0.7152, 0.0722));
@@ -26,7 +29,7 @@ export function patchGrade(material, { whiteMax = 0.34, blueFix = 0.85, mossFix 
         diffuseColor.rgb = gc;
       }`);
   };
-  material.customProgramCacheKey = () => `grade-${whiteMax}-${blueFix}-${mossFix}-${satMax}`;
+  material.customProgramCacheKey = () => `grade-${whiteMax}-${blueFix}-${mossFix}-${satMax}${tintFirst ? '-tint' : ''}`;
   material.needsUpdate = true;
   return material;
 }
