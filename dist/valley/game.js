@@ -13,6 +13,7 @@ import { createQuest, reduce, exportProgress, restoreProgress, summarize } from 
 import { STORY } from './story-data.js';
 import { loadValley, saveValley } from './save.js';
 import { FEEL } from './config.js';
+import { warpScale, requestSlow } from './time-warp.js';
 import { mulberry32 } from './scatter.js';
 import { createWind, stepWind, toUniforms, requestGuide, particleCount } from './wind.js';
 import { SHOTS } from './shots.js';
@@ -30,7 +31,7 @@ export class Game {
     Object.assign(this, { scene, camera, renderer, post, atmosphere, veg, props, water, terrain, scatter, roster, hud, audio, input, storage });
     this.wind = createWind(); this.windUniforms = veg.wind;
     this.world = WORLD; this.rng = mulberry32(seed);
-    this.time = 0; this.stopT = 0; this.timers = []; this.paused = false; this.aiPaused = false;
+    this.time = 0; this.stopT = 0; this.slowT = 0; this.slowDur = 0; this.timers = []; this.paused = false; this.aiPaused = false;
     this.flow = 'idle';                       // idle | play | choice | dead | result
     this.enemies = []; this.npcs = new Map(); this.ally = null; this.noises = [];
     this.exitPoint = { ...WORLD.exit };
@@ -58,6 +59,8 @@ export class Game {
   // ------------------------------------------------------------------ 時間・小道具
   after(sec, fn) { this.timers.push({ t: this.time + sec, fn }); }
   hitStop(sec) { this.stopT = Math.max(this.stopT, sec * (this.settings.shake > 0 ? 1 : 0.5)); }
+  // とどめ・弾きの瞬間の軽いスロー（8.5a・time-warp.js）。停止が明けてから約0.25秒。揺れの設定では短くしない（揺れでも光でもない）
+  slowMo(sec) { requestSlow(this, sec); }
   pan(p) {
     const dx = p.x - this.camera.position.x, dz = p.z - this.camera.position.z, l = Math.hypot(dx, dz) || 1;
     const rx = Math.cos(this.rig.yaw), rz = -Math.sin(this.rig.yaw);
@@ -465,8 +468,8 @@ export class Game {
       for (const a of [this.hero, ...this.enemies, this.ally, ...this.npcs.values()]) a?.character.resetContacts();
     }
     this.guideTime += rawDt;
-    // 命中の停止：時間を完全には止めず、ごく遅くする
-    if (this.stopT > 0) { this.stopT -= dt; dt *= FEEL.hitStopScale; }
+    // 命中の停止：時間を完全には止めず、ごく遅くする。とどめ・弾きでは、停止が明けてから軽いスロー（重ねない。time-warp.js）
+    dt *= warpScale(this, dt, FEEL.hitStopScale);
     this.contactTimeScale = rawDt > 0 ? dt / rawDt : 1;
     this.time += dt;
     this.hud.tick(rawDt);

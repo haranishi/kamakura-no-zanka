@@ -11,6 +11,7 @@ import { createBrain, think } from './enemy-ai.js';
 import { createCompanion, thinkCompanion } from './companion-ai.js';
 import { createSwordLayer, poseAt } from './sword-layer.js';
 import { LUNGE_VIEW, LUNGE_IO, CONTACT_POSE, createLungeIO, solveLunge, lungeInReach, lungeShare, gapScale } from './lunge.js';
+import { KNOCK_MOVE, createKnock, startKnock, endKnock, knockStep, knockGap } from './knockback.js';
 
 export const angleDiff = (a, b) => Math.atan2(Math.sin(b - a), Math.cos(b - a));
 const turnToward = (cur, target, rate, dt) => { const d = angleDiff(cur, target); return cur + Math.sign(d) * Math.min(Math.abs(d), rate * dt); };
@@ -35,6 +36,7 @@ class Actor {
     this.vis = { x: 0, y: 0, z: 0, turn: 0, t: 0, inst: null, io: createLungeIO(), wx: 0, wz: 0,
       sx: 0, sz: 0, fx: 0, fz: 0, roomF: 0, roomB: 0, gx: 0, gz: 0 };
     this.foe = null;                         // 振りの相手（技を始めたときに決める。踏み込む先）
+    this.knock = createKnock();              // 押し戻し（8.4a・knockback.js）。論理の位置を動かす
     this.character = new Character(game.roster, who, { tint, scale, style });
     this.character.onContact = c => this.onFootContact(c);
     game.scene.add(this.character.root);
@@ -145,7 +147,32 @@ class Actor {
   place(x, z, yaw = this.yaw) {
     this.pos = { x, y: this.game.terrain.heightAt(x, z), z }; this.yaw = yaw; this.character.resetContacts();
     const v = this.vis; v.x = v.y = v.z = v.turn = 0; v.inst = null;   // 置き直し・やり直しでは、見た目の踏み込みを残さない
+    endKnock(this.knock);                                               // 押し戻しの残りも残さない
     this.sync();
+  }
+  // 押し戻し（8.4a）：向き（水平）と距離を受けて、次のコマから updateKnock で論理の位置を動かす
+  knockBack(dirX, dirZ, dist) { return startKnock(this.knock, dirX, dirZ, dist); }
+  // 1コマ分を押す。壁・水・段差・急な斜面（下りも46度まで）は moveActor の規則で止め、ほかの人へは中心0.72mより近づけない（押された人だけ止める）。
+  // 止められたら残りは捨てる（壁に沿って滑らせ続けない）。共用の乱数は使わない
+  updateKnock(dt) {
+    const k = this.knock;
+    if (!(k.dist > 0)) return;
+    const d = knockStep(k, dt);
+    if (!(d > 0)) return;
+    const g = this.game, sx = k.dx * d, sz = k.dz * d;
+    let s = this.knockRoom(g.hero, sx, sz, 1);
+    for (let i = 0; i < g.enemies.length; i++) s = this.knockRoom(g.enemies[i], sx, sz, s);
+    s = this.knockRoom(g.ally, sx, sz, s);
+    for (const n of g.npcs.values()) s = this.knockRoom(n, sx, sz, s);
+    if (!(s > 0)) { endKnock(k); return; }
+    const r = moveActor(g.col, g.terrain, this.pos, sx * s, sz * s, this.radius, KNOCK_MOVE);
+    this.pos = { x: r.x, y: r.y, z: r.z };
+    if (r.blocked || s < 1) endKnock(k);
+  }
+  knockRoom(o, sx, sz, s) {
+    if (!o || o === this || o.departed || !o.character.root.visible || (o.fighter && !o.fighter.alive) || s <= 0) return s;
+    if (Math.abs(o.pos.x - this.pos.x) > 2 || Math.abs(o.pos.z - this.pos.z) > 2) return s;
+    return Math.min(s, knockGap(this.pos.x, this.pos.z, sx, sz, o.pos.x, o.pos.z));
   }
   chest() { return { x: this.pos.x, y: this.pos.y + this.character.height * 0.62, z: this.pos.z }; }
   head() { return { x: this.pos.x, y: this.pos.y + this.character.height * 1.02, z: this.pos.z }; }
@@ -303,7 +330,8 @@ export class HeroActor extends Actor {
     if (!t.fighter.alive || t.fighter.state !== 'stagger') { this.dash = null; return; }
     const dx = t.pos.x - this.pos.x, dz = t.pos.z - this.pos.z, dist = Math.hypot(dx, dz);
     this.faceTo(t);
-    if (dist > 1.35) {
+    // 1.35mへ詰め終えたかは1mmの幅で見る（ちょうど1.35mへ寄せた後も、丸めで1.3500000000000003mになると、0mずつ詰め続けてとどめが出なかった）
+    if (dist > 1.35 + 1e-3) {
       const k = Math.min(dist - 1.35, d.speed * dt);
       this.step(dx / dist * k, dz / dist * k);
       this.speed = d.speed; this.character.locomote(this.speed, 'guard');
@@ -482,6 +510,7 @@ export class EnemyActor extends Actor {
   update(dt) {
     const f = this.fighter, g = this.game;
     for (const e of tick(f, dt)) this.onCombatEvent(e);
+    if (!this.departed) this.updateKnock(dt);            // 押し戻し（8.4a）：論理の位置を、技の判定へ写す前に動かす（倒れた体も押す）
     f.x = this.pos.x; f.z = this.pos.z; f.yaw = this.yaw;
     if (this.departed) return;
     if (!f.alive) {
@@ -600,7 +629,10 @@ export class EnemyActor extends Actor {
     if (res.dead) { this.die(); return; }
     const from = att ? yawOf(att.pos.x - this.pos.x, att.pos.z - this.pos.z) - this.yaw : 0, push = hit?.push || null;
     if (res.outcome === 'hit') {
-      if (f.state === 'hit') ch.playAction(['hit', 'hit2', 'hit_waist'][(this.game.rng() * 3) | 0], { timeScale: 2.4 });
+      // 被弾の動作は Hit_Reaction_1（hit2）だけにする（8.4a）。Hit_Reaction と Hit_Reaction_to_Waist は、刀を持った腕が横へ80〜100度跳ね上がり、
+      // 両腕を水平に広げた棒立ち（T字）に見えた（実測：上腕の横への開き。hit2 は判定の0.3秒の間ずっと37度以下）。
+      // 共用の乱数は前と同じだけ使う（引く回数を変えると、その後の敵の判断がずれる）
+      if (f.state === 'hit') { this.game.rng(); ch.playAction('hit2', { timeScale: 2.4 }); }
       ch.kick((this.kind === 'officer' ? 0.8 : 1.15) * (STRONG_KICK.has(res.moveId) ? 1.25 : 1), from, push);
     } else if (res.outcome === 'blocked') ch.kick(0.4, from, push);
     else if (res.outcome === 'parried') ch.play('Hit_Reaction_to_Waist', { fade: 0.06, from: 0.1, timeScale: 1.9, restart: true });
