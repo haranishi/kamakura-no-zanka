@@ -56,6 +56,36 @@ export function loadValley(storage) {
     return { state: initialSave(), hasSave: false, notice: '保存が壊れているため最初から始める' };
   }
 }
+// 端末ごとの小さな記録（オープニングを見たか）。進行の保存とは別のキーに置く。「はじめから」は進行の保存を作り直すので、同じ所に置くと消える。
+export const META_KEY = 'kamakura-valley-meta';
+export const META_VERSION = 1;
+export function initialMeta() { return { schema: META_KEY, version: META_VERSION, openingSeen: false }; }
+export function sanitizeMeta(raw) {
+  object(raw);
+  if (raw.schema !== META_KEY || raw.version !== META_VERSION) fail();
+  return { schema: META_KEY, version: META_VERSION, openingSeen: bool(raw.openingSeen) };
+}
+// 無い・読めない・壊れている・知らない版は、初回（まだ見ていない）として扱う
+export function loadMeta(storage) {
+  try {
+    if (!storage || typeof storage.getItem !== 'function') return { meta: initialMeta(), notice: '記録を読み込めない' };
+    const text = storage.getItem(META_KEY);
+    if (text === null || text === undefined) return { meta: initialMeta(), notice: '' };
+    return { meta: sanitizeMeta(JSON.parse(text)), notice: '' };
+  } catch {
+    return { meta: initialMeta(), notice: '記録が壊れているため初回として扱う' };
+  }
+}
+// 書けなくても遊びは止めない。戻り値で知らせるだけ
+export function saveMeta(storage, patch) {
+  try {
+    if (!storage || typeof storage.setItem !== 'function') return { ok: false, notice: 'この環境では記録できない' };
+    storage.setItem(META_KEY, JSON.stringify(sanitizeMeta({ ...loadMeta(storage).meta, ...patch })));
+    return { ok: true, notice: '' };
+  } catch {
+    return { ok: false, notice: '記録を保存できない' };
+  }
+}
 // fresh: はじめからの最初の保存。前の遊びの死亡記録を引き継がない（引き継ぐと、つづきから再開したとき倒していない敵が倒した扱いになり、里の戦いが終わらなくなる）。
 export function saveValley(storage, state, { fresh = false } = {}) {
   try {

@@ -111,7 +111,8 @@ async function boot() {
   const atmosphere = createAtmosphere({ scene, renderer, quality });
   resize();
   await step(0.95, '道と見通しを調べています');
-  game = new Game({ scene, camera, renderer, post, atmosphere, veg, props, water, terrain, scatter, roster, hud, audio, input, storage: (() => { try { return localStorage; } catch { return null; } })(), seed: Number(q.get('seed') || 1333) });
+  game = new Game({ scene, camera, renderer, post, atmosphere, veg, props, water, terrain, scatter, roster, hud, audio, input, storage: (() => { try { return localStorage; } catch { return null; } })(), seed: Number(q.get('seed') || 1333),
+    models: { ...models, ...propModels } });   // オープニングの舞台が、建物・小道具の複製を作るのに使う（形と材質は共有）
   game.skipIntro = q.get('intro') === '0';
   applySettings(saved);
   await step(0.98, '道しるべを用意しています');
@@ -173,28 +174,30 @@ function openPause() {
   if (dlg.open) return;
   if (game?.flow !== 'idle') { game.paused = true; audio.setPaused(true); }
   input.releaseLock(); input.clear();
-  // タイトルから開いたときは、遊びの途中の項目（区切りへ戻る・タイトルへ）を出さない
+  // タイトルから開いたときは、遊びの途中の項目（区切りへ戻る・タイトルへ）を出さない。オープニングの間は、戻る区切りがまだ無い
   const inGame = game?.flow !== 'idle';
-  for (const id of ['pause-checkpoint', 'pause-title']) $(id).classList.toggle('hidden', !inGame);
+  $('pause-checkpoint').classList.toggle('hidden', !inGame || game?.flow === 'intro'); $('pause-title').classList.toggle('hidden', !inGame);
   $('pause-resume').textContent = inGame ? 'つづける' : '閉じる';
   dlg.showModal();
 }
 
+// 遊びの間とオープニングの間は、Esc（ポインターの解放）・P・画面の切り替えで休止する
+const pausable = () => game?.flow === 'play' || game?.flow === 'intro';
 function wire() {
   $('btn-start').onclick = () => start('new');
   $('btn-continue').onclick = () => start('continue');
   $('btn-howto').onclick = openPause;
   $('menu-btn').onclick = openPause;
   const dlg = $('pause');
-  dlg.addEventListener('close', () => { if (!game) return; game.paused = false; if (game.flow !== 'idle') audio.setPaused(false); if (game.flow === 'play' && !QA) input.requestLock(); });
+  dlg.addEventListener('close', () => { if (!game) return; game.paused = false; if (game.flow !== 'idle') audio.setPaused(false); if (pausable() && !QA) input.requestLock(); });
   $('pause-resume').onclick = () => dlg.close();
   $('pause-checkpoint').onclick = () => { dlg.close(); if (game.flow !== 'idle') game.toCheckpoint(); };
   $('pause-title').onclick = () => { location.href = location.pathname; };
   $('result-again').onclick = () => { game.hud.hideResult(); game.flow = 'idle'; start('new'); };
   $('result-title').onclick = () => { location.href = location.pathname; };
   $('death-retry').onclick = () => game.retry();
-  input.onLockChange = locked => { if (!locked && game.flow === 'play' && !dlg.open && !QA) openPause(); };
-  addEventListener('keydown', e => { if (e.code === 'KeyP' && game?.flow === 'play' && !dlg.open) openPause(); });
+  input.onLockChange = locked => { if (!locked && pausable() && !dlg.open && !QA) openPause(); };
+  addEventListener('keydown', e => { if (e.code === 'KeyP' && pausable() && !dlg.open) openPause(); });
   $('set-waymarks').onchange = e => game.setWaymarks(e.target.value);
   $('set-quality').onchange = e => { setQuality(e.target.value); };
   $('set-sens').oninput = e => { saved.sens = Number(e.target.value); game.rig.sensitivity = saved.sens; persist(); };
@@ -203,7 +206,7 @@ function wire() {
   $('set-volume').oninput = e => { saved.volume = Number(e.target.value); audio.setVolume(saved.volume); persist(); };
   $('set-subs').onchange = e => { saved.subs = e.target.checked; hud.subsOn = saved.subs; persist(); };
   addEventListener('resize', resize);
-  document.addEventListener('visibilitychange', () => { if (document.hidden && game?.flow === 'play' && !dlg.open) openPause(); });
+  document.addEventListener('visibilitychange', () => { if (document.hidden && pausable() && !dlg.open) openPause(); });
 }
 
 // タイトル：焚き火の向こうに廃寺が見える固定画角を、ゆっくり揺らす
