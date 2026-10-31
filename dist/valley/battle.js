@@ -10,6 +10,7 @@ import { FEEL, AUDIO_NOISE } from './config.js';
 import { yawOf, dist2 } from './actors.js';
 import { TRAIL, trailStyleFor, inTrailWindow } from './slash-trail.js';
 import { STRIKE, strikePoint, entryPoint, clashPoint, closestSegments, pushDirection } from './clash.js';
+import { knockDistance } from './knockback.js';
 
 const GRAVITY = 9.8;
 const _a = new THREE.Vector3(), _b = new THREE.Vector3(), _up = new THREE.Vector3(0, 1, 0), _q = new THREE.Quaternion();
@@ -106,6 +107,9 @@ export class Battle {
         g.hitStop(strong ? FEEL.hitStop.heavy : FEEL.hitStop.hit);
         if (heroDef) { g.rig.kick(0.7); g.rig.punchFov(1.8); g.hud.hurt(); g.hud.hint('dodge', STORY.hints.dodge); }
         else if (heroAtt) { g.rig.kick(strong ? 0.5 : finale ? 0.42 : 0.25); g.rig.punchFov(strong ? 1.6 : finale ? 1.3 : 0.8); }
+        // 押し戻し（8.4a）：主人公の刀が当たった敵を、攻め手から離れる向きへ約0.2m（強い技0.25m・侍大将は半分）。論理の位置を動かす
+        if (heroAtt && res.outcome === 'hit' && !arrow && def.brain) def.knockBack?.(dir.x, dir.z, knockDistance(res.moveId, def.fighter.armor));
+        if (heroAtt && res.moveId === 'finisher') g.slowMo();          // とどめの瞬間のスロー（8.5a）
         break;
       }
       case 'blocked':
@@ -120,7 +124,7 @@ export class Battle {
         g.fx.parry(at, dir, g.fx.trails.velocityOf(swing));             // 火花は、弾かれた刃が逸れる向きへ（8.3a）
         g.audio.play('parry', { pan });
         g.hitStop(FEEL.hitStop.parry);
-        if (heroDef) { g.rig.kick(0.5); g.rig.punchFov(3.2); g.hud.toast('弾いた', 900); g.hud.hint('finisher', STORY.hints.finisher); }
+        if (heroDef) { g.rig.kick(0.5); g.rig.punchFov(3.2); g.hud.toast('弾いた', 900); g.hud.hint('finisher', STORY.hints.finisher); g.slowMo(); }   // 弾いた瞬間のスロー（8.5a）
         break;
       }
       default: return;

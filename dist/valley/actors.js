@@ -11,6 +11,7 @@ import { createBrain, think } from './enemy-ai.js';
 import { createCompanion, thinkCompanion } from './companion-ai.js';
 import { createSwordLayer, poseAt } from './sword-layer.js';
 import { LUNGE_VIEW, LUNGE_IO, CONTACT_POSE, createLungeIO, solveLunge, lungeInReach, lungeShare, gapScale } from './lunge.js';
+import { KNOCK_MOVE, createKnock, startKnock, endKnock, knockStep, knockGap } from './knockback.js';
 
 export const angleDiff = (a, b) => Math.atan2(Math.sin(b - a), Math.cos(b - a));
 const turnToward = (cur, target, rate, dt) => { const d = angleDiff(cur, target); return cur + Math.sign(d) * Math.min(Math.abs(d), rate * dt); };
@@ -24,6 +25,8 @@ const BUSY = ['attack', 'hit', 'stagger', 'recoil', 'dodge'];
 const LUNGE = { light1: 0.55, light2: 0.45, light3: 0.85, heavy: 0.6, finisher: 0.3, counter: 0.75, soldier_slash: 0.5, soldier_thrust: 0.9, officer_a: 0.5, officer_b: 0.4, officer_c: 0.8 };
 // ひるみ（見た目だけ）を強める技：三段目・強斬り・反撃・とどめ（combat.js の STRONG と同じ顔ぶれ＋とどめ）
 const STRONG_KICK = new Set(['light3', 'heavy', 'counter', 'finisher']);
+// とどめで倒れるときに飛ばす、倒れる動作の始めの秒（膝をついた姿から、立ち上がらずに崩れる。8.5a 第2周）
+const KNEEL_DEATH_FROM = { die: 0.6, die2: 0.12 };
 export const SPEED = { walk: 2.5, sprint: 5.0, crouch: 1.3, guard: 1.5, patrol: 1.3, orbit: 0.95, run: 3.6, officerRun: 3.2, ally: 2.0, child: 4.2, villager: 1.2 };
 
 class Actor {
@@ -35,6 +38,7 @@ class Actor {
     this.vis = { x: 0, y: 0, z: 0, turn: 0, t: 0, inst: null, io: createLungeIO(), wx: 0, wz: 0,
       sx: 0, sz: 0, fx: 0, fz: 0, roomF: 0, roomB: 0, gx: 0, gz: 0 };
     this.foe = null;                         // 振りの相手（技を始めたときに決める。踏み込む先）
+    this.knock = createKnock();              // 押し戻し（8.4a・knockback.js）。論理の位置を動かす
     this.character = new Character(game.roster, who, { tint, scale, style });
     this.character.onContact = c => this.onFootContact(c);
     game.scene.add(this.character.root);
@@ -145,7 +149,32 @@ class Actor {
   place(x, z, yaw = this.yaw) {
     this.pos = { x, y: this.game.terrain.heightAt(x, z), z }; this.yaw = yaw; this.character.resetContacts();
     const v = this.vis; v.x = v.y = v.z = v.turn = 0; v.inst = null;   // 置き直し・やり直しでは、見た目の踏み込みを残さない
+    endKnock(this.knock);                                               // 押し戻しの残りも残さない
     this.sync();
+  }
+  // 押し戻し（8.4a）：向き（水平）と距離を受けて、次のコマから updateKnock で論理の位置を動かす
+  knockBack(dirX, dirZ, dist) { return startKnock(this.knock, dirX, dirZ, dist); }
+  // 1コマ分を押す。壁・水・段差・急な斜面（下りも46度まで）は moveActor の規則で止め、ほかの人へは中心0.72mより近づけない（押された人だけ止める）。
+  // 止められたら残りは捨てる（壁に沿って滑らせ続けない）。共用の乱数は使わない
+  updateKnock(dt) {
+    const k = this.knock;
+    if (!(k.dist > 0)) return;
+    const d = knockStep(k, dt);
+    if (!(d > 0)) return;
+    const g = this.game, sx = k.dx * d, sz = k.dz * d;
+    let s = this.knockRoom(g.hero, sx, sz, 1);
+    for (let i = 0; i < g.enemies.length; i++) s = this.knockRoom(g.enemies[i], sx, sz, s);
+    s = this.knockRoom(g.ally, sx, sz, s);
+    for (const n of g.npcs.values()) s = this.knockRoom(n, sx, sz, s);
+    if (!(s > 0)) { endKnock(k); return; }
+    const r = moveActor(g.col, g.terrain, this.pos, sx * s, sz * s, this.radius, KNOCK_MOVE);
+    this.pos = { x: r.x, y: r.y, z: r.z };
+    if (r.blocked || s < 1) endKnock(k);
+  }
+  knockRoom(o, sx, sz, s) {
+    if (!o || o === this || o.departed || !o.character.root.visible || (o.fighter && !o.fighter.alive) || s <= 0) return s;
+    if (Math.abs(o.pos.x - this.pos.x) > 2 || Math.abs(o.pos.z - this.pos.z) > 2) return s;
+    return Math.min(s, knockGap(this.pos.x, this.pos.z, sx, sz, o.pos.x, o.pos.z));
   }
   chest() { return { x: this.pos.x, y: this.pos.y + this.character.height * 0.62, z: this.pos.z }; }
   head() { return { x: this.pos.x, y: this.pos.y + this.character.height * 1.02, z: this.pos.z }; }
@@ -303,7 +332,8 @@ export class HeroActor extends Actor {
     if (!t.fighter.alive || t.fighter.state !== 'stagger') { this.dash = null; return; }
     const dx = t.pos.x - this.pos.x, dz = t.pos.z - this.pos.z, dist = Math.hypot(dx, dz);
     this.faceTo(t);
-    if (dist > 1.35) {
+    // 1.35mへ詰め終えたかは1mmの幅で見る（ちょうど1.35mへ寄せた後も、丸めで1.3500000000000003mになると、0mずつ詰め続けてとどめが出なかった）
+    if (dist > 1.35 + 1e-3) {
       const k = Math.min(dist - 1.35, d.speed * dt);
       this.step(dx / dist * k, dz / dist * k);
       this.speed = d.speed; this.character.locomote(this.speed, 'guard');
@@ -451,6 +481,7 @@ export class EnemyActor extends Actor {
     this.brain = createBrain(def.kind, { id: def.id, home: { x: def.x, z: def.z }, patrol: (def.patrol || []).map(([x, z]) => ({ x, z })), seed: h, exit: def.exit || game.exitPoint });
     if (alert === 'high') { this.brain.state = 'combat'; this.brain.awareness = 1; this.brain.lastSeen = { x: game.hero.pos.x, z: game.hero.pos.z }; }
     this.lunge = null; this.speedNow = 0; this.deadT = 0; this.idleT = 0; this.departed = false; this.reported = null; this.surrendered = false; this.dormant = false; this.recoverT = 0;
+    this.reactT = 0;                         // 見た目だけの被弾の動作の残り（8.4a 第2周）。この間は待機・歩きの動作へ戻さない
     if (isArcher) this.character.attachBow(GRIP, makeArrow());
     else this.character.setTachi(GRIP, true);
     this.character.rate = 0.94 + (h % 9) * 0.015;
@@ -482,6 +513,8 @@ export class EnemyActor extends Actor {
   update(dt) {
     const f = this.fighter, g = this.game;
     for (const e of tick(f, dt)) this.onCombatEvent(e);
+    this.reactT = f.state === 'idle' ? Math.max(0, this.reactT - dt) : 0;   // 技・ひるみ・崩れに入ったら、見た目の被弾の動作は終わり
+    if (!this.departed) this.updateKnock(dt);            // 押し戻し（8.4a）：論理の位置を、技の判定へ写す前に動かす（倒れた体も押す）
     f.x = this.pos.x; f.z = this.pos.z; f.yaw = this.yaw;
     if (this.departed) return;
     if (!f.alive) {
@@ -580,6 +613,7 @@ export class EnemyActor extends Actor {
 
   animateFree(dt) {
     if (this.recoverT > 0) { this.recoverT -= dt; return; }
+    if (this.reactT > 0) return;                                        // 見た目の被弾の動作を見せている間（8.4a 第2周）
     const brain = this.brain, ch = this.character, style = this.kind === 'archer' ? 'relaxed' : brain.state === 'combat' ? 'guard' : 'relaxed';
     if (this.speedNow > 0.15) { this.idleT = 0; ch.locomote(this.speedNow, style); return; }
     if (brain.state === 'patrol' && this.def.idleClip) {
@@ -597,17 +631,26 @@ export class EnemyActor extends Actor {
     const f = this.fighter, ch = this.character, brain = this.brain;
     if (!['combat', 'retreat', 'surrendered'].includes(brain.state) && f.alive) { brain.state = 'combat'; brain.awareness = 1; brain.lastSeen = { x: this.game.hero.pos.x, z: this.game.hero.pos.z }; f.aware = true; }
     this.dormant = false;
-    if (res.dead) { this.die(); return; }
+    if (res.dead) { this.die(res.moveId === 'finisher'); return; }
     const from = att ? yawOf(att.pos.x - this.pos.x, att.pos.z - this.pos.z) - this.yaw : 0, push = hit?.push || null;
     if (res.outcome === 'hit') {
-      if (f.state === 'hit') ch.playAction(['hit', 'hit2', 'hit_waist'][(this.game.rng() * 3) | 0], { timeScale: 2.4 });
+      // 被弾の動作は Hit_Reaction_1（hit2）だけにする（8.4a）。Hit_Reaction と Hit_Reaction_to_Waist は、刀を持った腕が横へ80〜100度跳ね上がり、
+      // 両腕を水平に広げた棒立ち（T字）に見えた（実測：上腕の横への開き。hit2 は判定の0.3秒の間ずっと37度以下）。
+      // 共用の乱数は前と同じだけ使う（引く回数を変えると、その後の敵の判断がずれる）
+      if (f.state === 'hit') { this.game.rng(); ch.playAction('hit2', { timeScale: 2.4 }); }
+      // 鎧でひるまない一・二発目（論理は idle のまま）：押される0.3秒だけ、同じ被弾の動作を見せる（見た目だけ。8.4a 第2周）。
+      // 構えたまま0.2m滑って見えた（別役の採点）。技・受けの最中は動作を替えない（予兆を隠さない）。侍大将（重い鎧）は上体のしなりだけ
+      else if (f.alive && f.state === 'idle' && !f.blocking && f.armor !== 'heavy') { ch.playAction('hit2', { timeScale: 2.4 }); this.reactT = 0.3; }
       ch.kick((this.kind === 'officer' ? 0.8 : 1.15) * (STRONG_KICK.has(res.moveId) ? 1.25 : 1), from, push);
     } else if (res.outcome === 'blocked') ch.kick(0.4, from, push);
     else if (res.outcome === 'parried') ch.play('Hit_Reaction_to_Waist', { fade: 0.06, from: 0.1, timeScale: 1.9, restart: true });
   }
-  die() {
+  // kneeling：とどめ（膝をついた相手）で倒れたとき。倒れる動作の始めの立ち姿を飛ばす（8.5a 第2周。刺された相手が背筋を伸ばして
+  // 刀を立て直してから崩れ、とどめが効いていないように見えた。dying_backwards は約0.97秒まで立ったままよろめく）。共用の乱数の回数は同じ
+  die(kneeling = false) {
     this.deadT = 0; this.character.armRelax = false;
-    this.character.playAction(this.game.rng() < 0.5 ? 'die' : 'die2', { timeScale: 1.25 });
+    const key = this.game.rng() < 0.5 ? 'die' : 'die2';
+    this.character.playAction(key, { timeScale: 1.25, from: kneeling ? KNEEL_DEATH_FROM[key] : 0 });
     this.game.audio.play('die', { pan: this.game.pan(this.pos) });
     this.game.fx.dust(this.pos, 8);
     if (this.character.bow) this.character.bow.rest();
