@@ -1,0 +1,231 @@
+{
+ "note": "変更前（feat/polish3-combat-trail）との比較。off は全コマ一致（斥候320・侍大将520）。数値は regress-attack-timing.mjs の比較の出力",
+ "offMatches": {
+  "scout": 320,
+  "officer": 520
+ },
+ "scoutOn": {
+  "before": {
+   "attack": [
+    20,
+    83,
+    252
+   ],
+   "moves": [
+    "20:light1",
+    "44:light2",
+    "83:light1",
+    "120:heavy",
+    "252:light1"
+   ],
+   "foe": [
+    "8:soldier_thrust",
+    "123:soldier_slash"
+   ],
+   "heroHp": 100,
+   "foeHp": 0,
+   "heroHits": 1
+  },
+  "after": {
+   "attack": [
+    20,
+    83,
+    252
+   ],
+   "moves": [
+    "20:light1",
+    "44:light2",
+    "83:light1",
+    "120:heavy",
+    "252:light1"
+   ],
+   "foe": [
+    "8:soldier_thrust",
+    "123:soldier_slash"
+   ],
+   "heroHp": 100,
+   "foeHp": 0,
+   "heroHits": 1
+  },
+  "maxPosDiff": {
+   "hero": 0.234,
+   "foe": 0.472
+  }
+ },
+ "officerOn": {
+  "before": {
+   "attack": [
+    153,
+    332
+   ],
+   "moves": [
+    "153:light1",
+    "332:heavy"
+   ],
+   "foe": [
+    "17:officer_a",
+    "74:officer_a",
+    "106:officer_b",
+    "161:officer_a",
+    "199:officer_b",
+    "253:officer_a",
+    "285:officer_b",
+    "321:officer_c",
+    "412:officer_a",
+    "444:officer_b",
+    "499:officer_a"
+   ],
+   "heroHp": 100,
+   "foeHp": 188,
+   "heroHits": 9
+  },
+  "after": {
+   "attack": [
+    130,
+    163,
+    320
+   ],
+   "moves": [
+    "130:light1",
+    "163:light1",
+    "320:heavy"
+   ],
+   "foe": [
+    "17:officer_a",
+    "83:officer_a",
+    "116:officer_b",
+    "171:officer_a",
+    "209:officer_b",
+    "244:officer_c",
+    "332:officer_a",
+    "372:officer_b",
+    "426:officer_a",
+    "459:officer_b"
+   ],
+   "heroHp": 100,
+   "foeHp": 158,
+   "heroHits": 8
+  },
+  "maxPosDiff": {
+   "hero": 2.522,
+   "foe": 0.661
+  }
+ },
+ "officerKnockOnly": {
+  "before": {
+   "attack": [
+    153,
+    332
+   ],
+   "moves": [
+    "153:light1",
+    "332:heavy"
+   ],
+   "foe": [
+    "17:officer_a",
+    "74:officer_a",
+    "106:officer_b",
+    "161:officer_a",
+    "199:officer_b",
+    "253:officer_a",
+    "285:officer_b",
+    "321:officer_c",
+    "412:officer_a",
+    "444:officer_b",
+    "499:officer_a"
+   ],
+   "heroHp": 100,
+   "foeHp": 188,
+   "heroHits": 9
+  },
+  "after": {
+   "attack": [
+    153,
+    332
+   ],
+   "moves": [
+    "153:light1",
+    "332:heavy"
+   ],
+   "foe": [
+    "17:officer_a",
+    "74:officer_a",
+    "106:officer_b",
+    "161:officer_a",
+    "199:officer_b",
+    "253:officer_a",
+    "285:officer_b",
+    "321:officer_c",
+    "412:officer_a",
+    "444:officer_b",
+    "499:officer_a"
+   ],
+   "heroHp": 100,
+   "foeHp": 188,
+   "heroHits": 9
+  },
+  "maxPosDiff": {
+   "hero": 0.045,
+   "foe": 0.045
+  }
+ },
+ "officerSlowOnly": {
+  "before": {
+   "attack": [
+    153,
+    332
+   ],
+   "moves": [
+    "153:light1",
+    "332:heavy"
+   ],
+   "foe": [
+    "17:officer_a",
+    "74:officer_a",
+    "106:officer_b",
+    "161:officer_a",
+    "199:officer_b",
+    "253:officer_a",
+    "285:officer_b",
+    "321:officer_c",
+    "412:officer_a",
+    "444:officer_b",
+    "499:officer_a"
+   ],
+   "heroHp": 100,
+   "foeHp": 188,
+   "heroHits": 9
+  },
+  "after": {
+   "attack": [
+    130,
+    163,
+    320
+   ],
+   "moves": [
+    "130:light1",
+    "163:light1",
+    "320:heavy"
+   ],
+   "foe": [
+    "17:officer_a",
+    "83:officer_a",
+    "116:officer_b",
+    "171:officer_a",
+    "209:officer_b",
+    "244:officer_c",
+    "332:officer_a",
+    "372:officer_b",
+    "426:officer_a",
+    "459:officer_b"
+   ],
+   "heroHp": 100,
+   "foeHp": 158,
+   "heroHits": 8
+  },
+  "maxPosDiff": {
+   "hero": 2.608,
+   "foe": 0.585
+  }
+ }
+}
