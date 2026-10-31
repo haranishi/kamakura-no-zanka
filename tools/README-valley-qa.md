@@ -45,6 +45,7 @@ b0 庭へ降りる（`temple_yard` に入る）→ b1 穂太の話 → b2 林道
 - `tools/scenarios/regress-attack-timing.mjs`：同じ入力列で、戦闘の論理（状態・体力・構え・位置）を毎コマ記録し、変更前と変更後が一致することを比べる（`node tools/scenarios/regress-attack-timing.mjs 前.json 後.json`）。
 - `tools/scenarios/capture-draw-sheathe.mjs`：抜刀・納刀を、実ゲームの固定カメラ（主人公の左側）で一定間隔に撮る（敵が気づく→抜刀／納刀済みで攻撃→速い抜刀／戦闘後の納刀）。変更前と変更後を同じ条件で撮って比べる。
 - `tools/scenarios/measure-draw-sheathe.mjs`：既存の抜刀・納刀の動作で、握りと腰の鞘がどう動くかを測る（前値は `reports/polish3/baseline/draw-sheathe-before.json`）。
+- `tools/scenarios/capture-calls.mjs`：capture-set と同じ画角を、画面の繰り返し・時計・乱数を止めて撮り（同じコードなら2回撮っても全画素が一致する）、画角ごとの描画の呼び出しと置き物の内訳を `calls.json` に残す。`KZ_MASK=1` で置き物だけの輪郭も残す。前後の画素は `node tools/compare-shots.mjs <前> <後> [--masks]` で比べる（S7-0 の記録は `reports/valley-life/`）。
 - 検査の流れの見本：`tools/scenarios/` のシナリオ。
 
 ## 第2弾の前測定（7.0・7.0b）
