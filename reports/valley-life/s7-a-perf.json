@@ -1,0 +1,136 @@
+{
+ "note": "tools/measure-perf.mjs と同じ8試行（600コマ暖機→1800コマ。標準/軽量×移動/戦闘×2回）を、前（kz-life0＝feat/valley-life-0 733bbdc）と後（この枝）で1試行ずつ交互に回した。各試行の前に、ほかのヘッドレスのブラウザが動いていないことを ps で確かめた（16回とも0）。nice -n 19、本人のプレイ用サーバー（8080番）が動いたままの測定なので、値は前後の比べ合い用で、単独の合格の実績ではない。",
+ "env": "M4 Pro・Chrome 156 ヘッドレス・1280×720・DPR1・seed 1333",
+ "limits": {
+  "p95_standard_ms": 20,
+  "p95_light_ms": 33.3,
+  "calls": 900,
+  "tris": 5000000
+ },
+ "runs": [
+  {
+   "run": "standard-move-1",
+   "before": {
+    "pass": true,
+    "p95": 15.1,
+    "maxCalls": 458,
+    "maxTris": 4456285
+   },
+   "after": {
+    "pass": true,
+    "p95": 13.8,
+    "maxCalls": 486,
+    "maxTris": 4529553
+   }
+  },
+  {
+   "run": "standard-move-2",
+   "before": {
+    "pass": true,
+    "p95": 14.9,
+    "maxCalls": 461,
+    "maxTris": 4130657
+   },
+   "after": {
+    "pass": true,
+    "p95": 13.5,
+    "maxCalls": 489,
+    "maxTris": 4144041
+   }
+  },
+  {
+   "run": "standard-combat-1",
+   "before": {
+    "pass": true,
+    "p95": 14.1,
+    "maxCalls": 428,
+    "maxTris": 4188713
+   },
+   "after": {
+    "pass": true,
+    "p95": 13.4,
+    "maxCalls": 453,
+    "maxTris": 4250823
+   }
+  },
+  {
+   "run": "standard-combat-2",
+   "before": {
+    "pass": true,
+    "p95": 14.6,
+    "maxCalls": 422,
+    "maxTris": 4201990
+   },
+   "after": {
+    "pass": true,
+    "p95": 12.8,
+    "maxCalls": 441,
+    "maxTris": 4240610
+   }
+  },
+  {
+   "run": "light-move-1",
+   "before": {
+    "pass": true,
+    "p95": 12.1,
+    "maxCalls": 434,
+    "maxTris": 3665305
+   },
+   "after": {
+    "pass": true,
+    "p95": 11.9,
+    "maxCalls": 462,
+    "maxTris": 3693213
+   }
+  },
+  {
+   "run": "light-move-2",
+   "before": {
+    "pass": true,
+    "p95": 11.6,
+    "maxCalls": 437,
+    "maxTris": 3405670
+   },
+   "after": {
+    "pass": true,
+    "p95": 11.8,
+    "maxCalls": 465,
+    "maxTris": 3419054
+   }
+  },
+  {
+   "run": "light-combat-1",
+   "before": {
+    "pass": true,
+    "p95": 10.9,
+    "maxCalls": 397,
+    "maxTris": 3372000
+   },
+   "after": {
+    "pass": true,
+    "p95": 11.8,
+    "maxCalls": 420,
+    "maxTris": 3432700
+   }
+  },
+  {
+   "run": "light-combat-2",
+   "before": {
+    "pass": true,
+    "p95": 11,
+    "maxCalls": 389,
+    "maxTris": 3400725
+   },
+   "after": {
+    "pass": true,
+    "p95": 11.8,
+    "maxCalls": 405,
+    "maxTris": 3438142
+   }
+  }
+ ],
+ "pass": {
+  "before": true,
+  "after": true
+ }
+}
