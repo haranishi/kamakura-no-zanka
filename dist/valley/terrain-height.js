@@ -235,6 +235,7 @@ export function createTerrain(world = WORLD) {
     dirt = Math.max(dirt, yard * (0.55 + 0.4 * fbm(x * 0.3, z * 0.3, seed + 31, 2)));
     const forecourt = 1 - smooth(6, 13, Math.hypot(x + 88, z + 78));
     dirt = Math.max(dirt, forecourt * 0.7);
+    for (const t of world.life?.trodden || []) dirt = Math.max(dirt, (1 - smooth(t.r * 0.55, t.r, Math.hypot(x - t.x, z - t.z))) * 0.85);   // 踏み固めた土（S7-A・野営）
     let gravel = (1 - smooth(-1, 4.5, water)) * 0.95;
     if (water < -0.5) gravel = 1;
     let mud = T && x > T.x0 - 4 && x < T.x1 + 4 && z > T.z0 - 2 && z < T.z1 + 2 ? 0.5 * (0.5 + 0.5 * fbm(x * 0.2, z * 0.2, seed + 33, 2)) : 0;

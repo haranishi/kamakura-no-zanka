@@ -61,6 +61,7 @@ export function createGrassField(world, terrain, { box = GRASS.box, padding = GR
     if (world.buildings.some(b => insideFootprint(b, x, z, 0.4 + halfDiagonal))) continue;
     if ((world.plots || []).some(p => insidePlot(p, x, z, 0.4 + halfDiagonal))) continue;
     if (world.props.some(p => Math.hypot(x - p.x, z - p.z) < (p.r || 1) + 0.4 + halfDiagonal)) continue;
+    if ((world.life?.trodden || []).some(t => Math.hypot(x - t.x, z - t.z) < t.r)) continue;              // 踏み固めた土には生えない（S7-A・野営）
     if (circles.some(r => Math.hypot(x - r.x, z - r.z) < r.r + halfDiagonal)) continue;
     if (terrain.slopeAt(x, z, 1) > 32) continue;
     // Corner gradients catch steep changes hidden by the centre's averaged slope.

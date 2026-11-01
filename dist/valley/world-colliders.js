@@ -11,6 +11,13 @@ export function propColliders(world) {
     else if (d.kind === 'banner') circles.push({ x: d.x, z: d.z, r: 0.12, height: 3.6, id: 'banner' });
   }
   for (const d of world.distant || []) if (d.collider) boxes.push({ x: d.x, z: d.z, rotY: d.rotY || 0, w: d.collider.w, d: d.collider.d, height: d.collider.height, id: d.id });
+  // 暮らしの小物（S7-A）：膝より高い物の当たり。場面で消える物（show のある物）には付けない（消えたあとに見えない壁が残るので）。
+  for (const d of world.life?.items || []) {
+    if (!d.hit || d.show) continue;
+    const x = d.hit.x ?? d.x, z = d.hit.z ?? d.z;
+    if (d.hit.w) boxes.push({ x, z, rotY: d.rotY || 0, w: d.hit.w, d: d.hit.d, height: d.hit.height, id: d.id });
+    else circles.push({ x, z, r: d.hit.r, height: d.hit.height, id: d.id });
+  }
   return { circles, boxes };
 }
 

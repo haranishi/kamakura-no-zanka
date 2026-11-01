@@ -33,28 +33,29 @@ export async function loadPropModels({ anisotropy = 8 } = {}) {
   return out;
 }
 
-// 幟の布の絵（色と紋）。
+// 流れ旗の布の絵（色と紋。紋は架空）。布は幅0.44m・長さ2.6mなので、絵も細長く描く（円が楕円にならないように）。
 function bannerTexture({ color = '#7b1f1a', mark = '#e8dfc6' } = {}) {
-  const c = document.createElement('canvas'); c.width = 128; c.height = 512;
+  const c = document.createElement('canvas'); c.width = 96; c.height = 640;
   const x = c.getContext('2d');
-  x.fillStyle = color; x.fillRect(0, 0, 128, 512);
-  x.strokeStyle = 'rgba(0,0,0,0.25)'; x.lineWidth = 3; for (let i = 0; i < 512; i += 6) { x.beginPath(); x.moveTo(0, i); x.lineTo(128, i); x.stroke(); }
-  x.strokeStyle = mark; x.lineWidth = 7; x.beginPath(); x.arc(64, 150, 34, 0, Math.PI * 2); x.stroke();
-  x.fillStyle = mark; for (const k of [-1, 0, 1]) x.fillRect(54 + k * 12, 215, 6, 130);
-  x.fillStyle = '#e8dfc6'; x.fillRect(0, 0, 128, 10); x.fillRect(0, 502, 128, 10);
+  x.fillStyle = color; x.fillRect(0, 0, 96, 640);
+  x.strokeStyle = 'rgba(0,0,0,0.25)'; x.lineWidth = 3; for (let i = 0; i < 640; i += 6) { x.beginPath(); x.moveTo(0, i); x.lineTo(96, i); x.stroke(); }
+  x.strokeStyle = mark; x.lineWidth = 6; x.beginPath(); x.arc(48, 92, 26, 0, Math.PI * 2); x.stroke();
+  x.fillStyle = mark; for (const k of [-1, 0, 1]) x.fillRect(45 + k * 10, 142, 5, 110);
+  x.fillStyle = '#e8dfc6'; x.fillRect(0, 0, 96, 8);
   const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8;
   return tex;
 }
 
-// 幟（のぼり）。上辺を横木に結び、下ほど風で大きくなびく。竿と横木（同じ木の材質）は1つの形にしてまとめ描き、
+// 流れ旗（S7-A。幟は江戸の形なので、鎌倉期の「横木から細長い布を垂らす旗」へ替えた。research-valley-life-period.md）。
+// 竿の頭に横木を十字に結び、布は上辺だけを横木に結ぶ。下ほど風で大きくなびく。竿と横木（同じ木の材質）は1つの形にしてまとめ描き、
 // 布は色ごとに1つの形へつなぐ（布は1本ずつ動くので、置き場所の行列でなく頂点を毎コマ書く）。
 function buildBanners(list, terrain) {
   const group = new THREE.Group(); group.name = 'banners';
   const placements = list.map(d => placementMatrix(d.x, terrain.heightAt(d.x, d.z), d.z, d.rotY || 0, d.scale || 1));
   const sets = [];
   if (!list.length) return { group, sets };
-  const pole = new THREE.CylinderGeometry(0.035, 0.045, 3.6, 8).translate(0, 1.8, 0);
-  const bar = new THREE.CylinderGeometry(0.022, 0.022, 0.8, 6).rotateZ(Math.PI / 2).translate(0.4, 3.35, 0);
+  const pole = new THREE.CylinderGeometry(0.035, 0.045, FLAG.top + 0.25, 8).translate(0, (FLAG.top + 0.25) / 2, 0);
+  const bar = new THREE.CylinderGeometry(0.02, 0.02, FLAG.width + 0.12, 6).rotateZ(Math.PI / 2).translate(0, FLAG.top + 0.02, 0.055);
   const wood = new THREE.Mesh(mergeIndexed([pole, bar]), new THREE.MeshStandardMaterial({ color: '#4a3a2a', roughness: 0.85 }));
   wood.name = 'banner-wood'; wood.castShadow = true;
   group.add(...batchParts(wood, placements).children);
@@ -65,17 +66,18 @@ function buildBanners(list, terrain) {
     byLook.get(look).banners.push({ x: d.x, z: d.z, matrix: placements[k] });
   });
   for (const { d, banners } of byLook.values()) {
-    const plane = new THREE.PlaneGeometry(0.7, 2.6, 4, 12).translate(0.4, 3.3 - 1.3, 0), n = plane.attributes.position.count;
+    const plane = new THREE.PlaneGeometry(FLAG.width, FLAG.length, 3, 16).translate(0, FLAG.top - FLAG.length / 2, 0.075), n = plane.attributes.position.count;
     const geo = mergeIndexed(banners.map(b => plane.clone().applyMatrix4(b.matrix)));
     banners.forEach((b, i) => { b.start = i * n; });
     const cloth = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ map: bannerTexture(d), roughness: 0.95, side: THREE.DoubleSide }));
     cloth.name = 'banner-cloth'; cloth.castShadow = true;
-    geo.computeBoundingSphere(); geo.boundingSphere.radius += 0.3;          // なびく分（最大約0.23m）を見込み、画面の端で布だけ消えないようにする
+    geo.computeBoundingSphere(); geo.boundingSphere.radius += 0.6;          // なびく分（最大約0.5m）を見込み、画面の端で布だけ消えないようにする
     group.add(cloth); sets.push({ cloth, base: Float32Array.from(plane.attributes.position.array), n, banners });
   }
   return { group, sets };
 }
 
+const FLAG = { top: 3.6, width: 0.44, length: 2.6 };      // 流れ旗の横木の高さ・布の幅・長さ（m）。背は前の幟と同じ（高くすると固定画角で画面の上を切った）
 const PROP_KEYS = { well: 'well', cart: 'cart', stone_lantern: 'lantern', drying_rack: 'hasa', bonfire: 'firepit', jizo: 'jizo', haystack: 'wara', scarecrow: 'kakashi', shrine: 'hokora' };
 
 export function buildProps({ world, terrain, models }) {
@@ -132,9 +134,10 @@ export function buildProps({ world, terrain, models }) {
         const pos = s.cloth.geometry.attributes.position, base = s.base;
         for (const b of s.banners) {
           for (let i = 0; i < s.n; i++) {
-            const y = base[i * 3 + 1], down = Math.max(0, (3.3 - y) / 2.6);      // 上辺は結ばれている。下ほど大きく
-            v.set(base[i * 3] - 0.04 * down * Math.sin(time * 1.3 + b.z), y,
-              Math.sin(time * 2.1 + down * 3.2 + b.x) * 0.16 * down * down + Math.sin(time * 5.3 + down * 6) * 0.03 * down).applyMatrix4(b.matrix);
+            const y = base[i * 3 + 1], down = Math.max(0, (FLAG.top - y) / FLAG.length);      // 上辺は結ばれている。下ほど大きく
+            const lift = 0.17 * down * down * (0.6 + 0.4 * Math.sin(time * 0.7 + b.z));          // 風を受けて裾が流れる（0.22 では画面を斜めに切り、0.12 では板に見えた）
+            v.set(base[i * 3] + Math.sin(time * 1.3 + b.z + down * 1.5) * 0.12 * down * down, y + lift * 0.25,
+              base[i * 3 + 2] + lift + Math.sin(time * 2.1 + down * 3.6 + b.x) * 0.2 * down * down + Math.sin(time * 5.3 + down * 7) * 0.035 * down).applyMatrix4(b.matrix);
             pos.setXYZ(b.start + i, v.x, v.y, v.z);
           }
         }

@@ -13,6 +13,7 @@ import { buildRidges } from './ridges.js';
 import { buildVegetation } from './vegetation.js';
 import { loadModels, buildBuildings, buildRocks } from './buildings.js';
 import { loadPropModels, buildProps } from './props.js';
+import { buildLifeView } from './life-view.js';
 import { buildWater } from './water.js';
 import { loadRoster } from './characters.js';
 import { HUD } from './hud.js';
@@ -103,6 +104,7 @@ async function boot() {
   scene.add(buildBuildings({ world: WORLD, terrain, models }).group);
   scene.add(buildRocks({ data: scatter.rocks, model: models.boulder_lo || models.boulder }));
   const props = buildProps({ world: WORLD, terrain, models: { ...models, ...propModels } }); scene.add(props.group);
+  props.life = buildLifeView({ world: WORLD, terrain, models: { ...models, ...propModels }, quality: () => quality }); scene.add(props.life.group);   // 暮らしの小物（S7-A）
   const water = buildWater({ terrain, world: WORLD, sunDir: ATMOS.sunDir }); scene.add(water.mesh);
   scene.add(buildRidges({ center: [WORLD.valley.cx, WORLD.valley.cz] }));          // 谷の外の山並み（霧で霞む稜線）
   await step(0.42, '人物を読み込んでいます');

@@ -104,8 +104,8 @@ export class FX {
     this.norm.emit({ pos: [pos.x, pos.y, pos.z], vel: [rnd(0.1, 0.5), rnd(0.7, 1.2), rnd(-0.2, 0.2)], life: rnd(3, 5.5), size: 0.3, sizeEnd: 1.5, color: [0.18, 0.17, 0.18], alpha: 0.09, drag: 0.2 });          // 焚き火の煙は小さく暗く薄く（重なって光る玉に見えた）
   }
   // 煙突の煙：細く立ち上り、風下へなびきながら広がって消える。夕空に映えるよう淡い暖灰色で、少し濃い
-  chimney(pos) {
-    this.norm.emit({ pos: [pos.x, pos.y, pos.z], vel: [rnd(0.35, 0.7), rnd(0.9, 1.4), rnd(-0.1, 0.25)], life: rnd(7, 11), size: 0.7, sizeEnd: 6.5, color: [0.4, 0.37, 0.36], alpha: 0.36, drag: 0.12 });
+  chimney(pos, color = [0.4, 0.37, 0.36], scale = 1) {
+    this.norm.emit({ pos: [pos.x, pos.y, pos.z], vel: [rnd(0.35, 0.7) * scale, rnd(0.9, 1.4), rnd(-0.1, 0.25) * scale], life: rnd(7, 11), size: 0.7 * scale, sizeEnd: 6.5 * scale, color, alpha: 0.36, drag: 0.12 });
   }
 
   update(dt, camera, viewportHeight) {

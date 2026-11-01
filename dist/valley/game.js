@@ -16,6 +16,7 @@ import { FEEL } from './config.js';
 import { mulberry32 } from './scatter.js';
 import { createWind, stepWind, toUniforms, requestGuide, particleCount } from './wind.js';
 import { SHOTS } from './shots.js';
+import { lifeScene, lifeInputFromQuest, lifeItem } from './life-rules.js';
 
 import { buildBaseline, buildRecovery, assess, roadDistance } from './guide.js';
 import { createGuideNav } from './guide-nav.js';
@@ -53,6 +54,7 @@ export class Game {
     this.guideMotion = globalThis.matchMedia?.('(prefers-reduced-motion: reduce)');
     this.guideTime = 0; this.guideEpoch = 0; this.guide = null;
     this.settings = { waymarks: 'bold', sens: 1, invert: false, shake: 1, subs: true };
+    this.syncLife();
   }
 
   // ------------------------------------------------------------------ 時間・小道具
@@ -114,7 +116,7 @@ export class Game {
 
   // 任務の段階に合わせて、世界にいる人を作り直す（はじめから・つづきから・やり直しで共通）
   buildWorld() {
-    this.clearActors();
+    this.clearActors(); this.syncLife();
     const q = this.quest, beat = q.beat, flags = q.flags;
     const order = ['b0_temple', 'b1_boy', 'b2_road', 'b3_viewpoint', 'b4_village', 'b5_archer', 'b6_escort', 'b7_result', 'done'];
     const at = order.indexOf(beat);
@@ -247,6 +249,7 @@ export class Game {
     this.quest = state;
     for (const fx of effects) this.applyEffect(fx);
     if (state.beat !== prev) this.onBeatChange(prev, state.beat);
+    this.syncLife();
     this.log?.push({ t: +this.time.toFixed(2), event, beat: state.beat });
   }
   applyEffect(e) {
@@ -271,6 +274,9 @@ export class Game {
     const hints = { b2_road: 'crouch', b6_escort: 'command' };
     if (hints[next]) this.hud.hint(hints[next], STORY.hints[hints[next]], 7000);
   }
+  // 谷の暮らしの「見せる物」（life-rules）を、任務の段階・選んだ道・残った米から決め直して、置き物（life-view）へ配る
+  syncLife() { this.lifeState = lifeScene(lifeInputFromQuest(this.quest)); this.props?.life?.apply(this.lifeState); }
+  lifeShows(id) { return !!(this.lifeState && lifeItem(this.lifeState, id)?.show); }
   reportDown(enemy, how, extra = {}) {
     if (enemy.reported) return;
     enemy.reported = how; this.tokens.release(enemy.id); this.aiWorld.forget(enemy.id);
@@ -536,7 +542,7 @@ export class Game {
     const wind = toUniforms(this.wind, { reduced: this.reducedMotion() });
     this.veg.wind.uTime.value = wind.uTime; this.veg.wind.uWind.value = wind.uWind;
     this.veg.wind.uWindDir.value.set(...wind.uWindDir); this.veg.wind.uGuideMix.value = wind.uGuideMix;
-    this.veg.trees.update(this.camera); this.veg.grass.update(this.camera); this.veg.rice.update(this.camera); this.veg.crops?.update(this.camera); this.props?.update(this.time); this.water?.update(this.time);
+    this.veg.trees.update(this.camera); this.veg.grass.update(this.camera); this.veg.rice.update(this.camera); this.veg.crops?.update(this.camera); this.props?.update(this.time); this.props?.life?.update(this.time, this.camera, this.veg.wind); this.water?.update(this.time);
     const h = this.hero.pos;
     this.atmosphere.follow(new THREE.Vector3(h.x - Math.sin(this.rig.yaw) * 8, h.y, h.z - Math.cos(this.rig.yaw) * 8));
     this.listenerT -= dt;
@@ -813,11 +819,13 @@ export class Game {
       const p = { x: f.x, y: this.terrain.heightAt(f.x, f.z) + 0.15, z: f.z };
       this.fx.flame(p); if (this.rng() < 0.4) this.fx.ember({ ...p, y: p.y + 0.4 }); if (this.rng() < 0.12) this.fx.smoke({ ...p, y: p.y + 0.9 });
     }
-    // 農家の煙突から細い煙（近くの家だけ）
+    // 農家の煙突から細い煙（近くの家だけ）。兵に荒らされている間は止め、野営の燠から灰色の煙を1本だけ上げる（S7-A 見4）
     this.chimneyT = (this.chimneyT || 0) - 0.06;
     if (this.chimneyT <= 0) {
       this.chimneyT = 0.45;
-      for (const b of WORLD.buildings) {
+      const camp = this.lifeShows('camp_smoke') && WORLD.life?.items.find(d => d.id === 'hearth');
+      if (camp && Math.hypot(hp.x - camp.x, hp.z - camp.z) < 140) for (const o of [0, 0.6]) this.fx.chimney({ x: camp.x, y: this.terrain.heightAt(camp.x, camp.z) + 0.2 + o, z: camp.z }, [0.3, 0.3, 0.32], 0.5);   // 細く暗い灰色の1本（近くで白い塊・遠くで光に見えないように）
+      if (this.lifeShows('house_smoke')) for (const b of WORLD.buildings) {
         if (b.kind !== 'farmhouse' || Math.hypot(hp.x - b.x, hp.z - b.z) > 140) continue;
         const y = this.terrain.heightAt(b.x, b.z) + 5.6 * (0.98 + (b.variant || 0) * 0.04);
         this.fx.chimney({ x: b.x + Math.sin(b.rotY) * 0.8, y, z: b.z + Math.cos(b.rotY) * 0.8 });

@@ -18,8 +18,9 @@ const TALLY = `(() => {
   const classify = obj => {
     if (cache.has(obj)) return cache.get(obj);
     let o = obj, top = null;
-    while (o && o.parent) { if (o.parent.name === 'props' || o.parent.name === 'buildings') { top = o; break; } o = o.parent; }
+    while (o && o.parent) { if (o.parent.name === 'props' || o.parent.name === 'buildings' || o.parent.name === 'life') { top = o; break; } o = o.parent; }
     let kind = 'other';
+    if (top && top.parent.name === 'life') { cache.set(obj, 'life'); return 'life'; }                // S7-A の暮らしの小物（life-view.js）
     if (top) {
       if (BATCH[top.name]) kind = BATCH[top.name];                                   // まとめ描きのあと
       else if (top.parent.name === 'buildings') kind = /^house\\d+$/.test(top.name) ? 'farmhouse' : 'building';
@@ -67,6 +68,33 @@ const TALLY = `(() => {
 const sum = (o, keys) => keys.reduce((a, k) => a + (o[k] || 0), 0);
 
 export default async function (ctx) {
+  await deterministic(ctx);
+  await ctx.v(TALLY);
+  const shots = [], shot = ctx.shot;
+  ctx.shot = async name => {
+    const file = await shot(name), t = await ctx.v('window.__drawTally()');
+    if (process.env.KZ_MASK === '1') {
+      const url = await ctx.v(`window.__kindsMask(${JSON.stringify(KINDS)})`);
+      await fs.mkdir(path.join(ctx.out, 'masks'), { recursive: true });
+      await fs.writeFile(path.join(ctx.out, 'masks', name + '.png'), Buffer.from(url.split(',')[1], 'base64'));
+    }
+    const total = { main: Object.values(t.main).reduce((a, b) => a + b, 0), shadow: Object.values(t.shadow).reduce((a, b) => a + b, 0) };
+    shots.push({ name, calls: t.calls, tris: t.tris, counted: total.main + total.shadow,
+      props: { main: sum(t.main, KINDS), shadow: sum(t.shadow, KINDS), total: sum(t.main, KINDS) + sum(t.shadow, KINDS) }, main: t.main, shadow: t.shadow });
+    return file;
+  };
+  const placed = await ctx.v('window.__drawStatic()');
+  await captureSet(ctx);
+  const staticTotal = KINDS.reduce((a, k) => a + (placed[k] ? placed[k].draws + placed[k].shadowDraws : 0), 0);
+  const result = { note: '画角ごとの値は撮影の直前の1コマ。props＝KINDSの合計（main＋shadow）。static は置かれた形の数の上限（同時に全部が画面と影に入るとは限らない）。',
+    kinds: KINDS, static: placed, staticPropsDrawsWithShadow: staticTotal,
+    maxCalls: Math.max(...shots.map(s => s.calls)), maxProps: Math.max(...shots.map(s => s.props.total)), shots };
+  await fs.writeFile(path.join(ctx.out, 'calls.json'), JSON.stringify(result, null, 2) + '\n');
+  ctx.log(`calls: max ${result.maxCalls}, props max ${result.maxProps}, props static upper bound ${staticTotal}`);
+}
+
+// 撮影を決定的にする下ごしらえ（capture-walk.mjs も使う）。ctx の操作を、指示ごとに乱数を作り直す版へ差し替える。
+export async function deterministic(ctx) {
   // 同じコードなら同じ絵になるよう、実時間と乱数で変わる所を止めて読み込み直す（2026-11-01。止めずに2回撮ると26組中5組しか一致しなかった）。
   // 進行：画面の繰り返し（requestAnimationFrame）を最初から止め、時間は step だけで進める。止めないと、読み込みから撮影開始までの
   //   実時間の分だけ、題名画面の間に煙・空・風・時刻が進み、回ごとに絵が変わる（煙の粒の並びが変わり、重なりの色が変わった）。
@@ -95,26 +123,4 @@ export default async function (ctx) {
     release: (button = 0) => ev(`__valley.release(${button}), 0`),
     call: (fn, ...a) => ev(`__valley.${fn}(${a.map(x => JSON.stringify(x)).join(',')})`),
   });
-  await ctx.v(TALLY);
-  const shots = [], shot = ctx.shot;
-  ctx.shot = async name => {
-    const file = await shot(name), t = await ctx.v('window.__drawTally()');
-    if (process.env.KZ_MASK === '1') {
-      const url = await ctx.v(`window.__kindsMask(${JSON.stringify(KINDS)})`);
-      await fs.mkdir(path.join(ctx.out, 'masks'), { recursive: true });
-      await fs.writeFile(path.join(ctx.out, 'masks', name + '.png'), Buffer.from(url.split(',')[1], 'base64'));
-    }
-    const total = { main: Object.values(t.main).reduce((a, b) => a + b, 0), shadow: Object.values(t.shadow).reduce((a, b) => a + b, 0) };
-    shots.push({ name, calls: t.calls, tris: t.tris, counted: total.main + total.shadow,
-      props: { main: sum(t.main, KINDS), shadow: sum(t.shadow, KINDS), total: sum(t.main, KINDS) + sum(t.shadow, KINDS) }, main: t.main, shadow: t.shadow });
-    return file;
-  };
-  const placed = await ctx.v('window.__drawStatic()');
-  await captureSet(ctx);
-  const staticTotal = KINDS.reduce((a, k) => a + (placed[k] ? placed[k].draws + placed[k].shadowDraws : 0), 0);
-  const result = { note: '画角ごとの値は撮影の直前の1コマ。props＝KINDSの合計（main＋shadow）。static は置かれた形の数の上限（同時に全部が画面と影に入るとは限らない）。',
-    kinds: KINDS, static: placed, staticPropsDrawsWithShadow: staticTotal,
-    maxCalls: Math.max(...shots.map(s => s.calls)), maxProps: Math.max(...shots.map(s => s.props.total)), shots };
-  await fs.writeFile(path.join(ctx.out, 'calls.json'), JSON.stringify(result, null, 2) + '\n');
-  ctx.log(`calls: max ${result.maxCalls}, props max ${result.maxProps}, props static upper bound ${staticTotal}`);
 }

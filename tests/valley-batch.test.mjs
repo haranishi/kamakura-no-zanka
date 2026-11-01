@@ -49,9 +49,10 @@ function legacyProps(models) {
     } else if (d.kind === 'firewood') out.firewood.push(place(models.firewood.clone(true), d.x, d.z, d.rotY || 0, d.scale || 1.2, -0.03));
     else if (d.kind === 'banner') {
       const g = new THREE.Group();
-      const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.045, 3.6, 8)); pole.position.y = 1.8;
-      const bar = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.8, 6)); bar.rotation.z = Math.PI / 2; bar.position.set(0.4, 3.35, 0);
-      const geo = new THREE.PlaneGeometry(0.7, 2.6, 4, 12); geo.translate(0.4, 3.3 - 1.3, 0);
+      // S7-A で幟を流れ旗へ替えた（竿3.85m・頭に十字の横木・幅0.44m×長さ2.6mの布を横木から垂らす）。1本ずつ組んだ参照も同じ寸法にする。
+      const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.045, 3.85, 8)); pole.position.y = 3.85 / 2;
+      const bar = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.56, 6)); bar.rotation.z = Math.PI / 2; bar.position.set(0, 3.62, 0.055);
+      const geo = new THREE.PlaneGeometry(0.44, 2.6, 3, 16); geo.translate(0, 3.6 - 1.3, 0.075);
       const cloth = new THREE.Mesh(geo); cloth.userData.base = Float32Array.from(geo.attributes.position.array);
       g.add(pole, bar, cloth); place(g, d.x, d.z, d.rotY || 0, d.scale || 1); out.banners.push({ g, pole, bar, cloth, color: d.color || '#7b1f1a' });
     }
@@ -59,13 +60,14 @@ function legacyProps(models) {
   group.updateMatrixWorld(true);
   return out;
 }
-// 変更前の幟の布の動き（1本ずつ・布の座標で動かし、法線を計算）
+// 1本ずつ組んだ流れ旗の布の動き（布の座標で動かし、法線を計算）。まとめ描きの布がこれと同じ形になるかを比べる。
 function legacyCloth(b, time) {
-  const geo = b.cloth.geometry.clone(), pos = geo.attributes.position, base = b.cloth.userData.base;
+  const geo = b.cloth.geometry.clone(), pos = geo.attributes.position, base = b.cloth.userData.base, gx = b.g.position.x, gz = b.g.position.z;
   for (let i = 0; i < pos.count; i++) {
-    const y = base[i * 3 + 1], down = Math.max(0, (3.3 - y) / 2.6);
-    pos.setZ(i, Math.sin(time * 2.1 + down * 3.2 + b.g.position.x) * 0.16 * down * down + Math.sin(time * 5.3 + down * 6) * 0.03 * down);
-    pos.setX(i, base[i * 3] - 0.04 * down * Math.sin(time * 1.3 + b.g.position.z));
+    const y = base[i * 3 + 1], down = Math.max(0, (3.6 - y) / 2.6), lift = 0.17 * down * down * (0.6 + 0.4 * Math.sin(time * 0.7 + gz));
+    pos.setX(i, base[i * 3] + Math.sin(time * 1.3 + gz + down * 1.5) * 0.12 * down * down);
+    pos.setY(i, y + lift * 0.25);
+    pos.setZ(i, base[i * 3 + 2] + lift + Math.sin(time * 2.1 + down * 3.6 + gx) * 0.2 * down * down + Math.sin(time * 5.3 + down * 7) * 0.035 * down);
   }
   geo.computeVertexNormals();
   return geo.applyMatrix4(b.cloth.matrixWorld);
@@ -101,7 +103,7 @@ test('props: every placed part keeps the matrix it had as a clone, one batched d
       clones.forEach((c, i) => sameMatrix(instanceMatrix(mesh, i), meshesOf(c)[j].matrixWorld.elements, `[props-${name}] #${i}`));
     });
   }
-  assert.equal(legacy.fences.length, 22, '[props-fences] 22 fence sections as before');
+  assert.equal(legacy.fences.length, 20, '[props-fences] 20 fence sections (S7-A moved 2 of the 22 sections of house 1 to the life table: one fallen, one that leans)');
   assert.deepEqual(snapshot(models), before, '[models-untouched] the loaded models are not changed (the opening clones them)');
   const lights = []; built.group.traverse(o => { if (o.isPointLight) lights.push(o); });
   assert.equal(lights.length, 1, '[props-bonfire-light] the bonfire light stays');
