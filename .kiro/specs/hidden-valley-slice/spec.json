@@ -254,5 +254,27 @@
     ],
     "ready_for_implementation": true,
     "ready_for_implementation_scope": "C0a（演出を動かす枠）から。以降のCは前の関門の本人確認のあと"
+  },
+  "polish_round6_locomotion": {
+    "requirements": "requirements-locomotion.md（R33〜R39・案）",
+    "design": [
+      "design-locomotion-smooth.md",
+      "design-locomotion.md（前の担当の見た目の直し）"
+    ],
+    "tasks": "tasks-locomotion.md（L0・M0〜M5・案）",
+    "date": "2026-11-04",
+    "status": "文書の追加のみ。実装は L0（前の担当の直しの取り込み）→ M0（計測の土台）から。",
+    "decided": [
+      "本人の感想：画面の一瞬の停止は直った。残るのは走り出しと走っている最中の不自然さ（足が滑る・足踏みに見える／体や腕がロボットのよう）",
+      "主人公の速さは上げてよい（旧決定の「通常移動2.5m/秒を保つ」を撤回）。戦闘の規則は変えない",
+      "止まるときに位置も約0.18秒かけて減速させる案を試す（本人が選んだ）",
+      "U9 5m/秒に合う走りの動作が無い件は、歩調と歩幅の分担＋脚IKで吸収する。足りないときだけ再収録か速さの表の見直し",
+      "進め方は『動きの滑らかさの契約』（計測→実装→検証の周回、1件ずつ切替、盲検採点、本人の試遊）"
+    ],
+    "open": [
+      "U10 通常移動と走りの新しい速さ（M1 の候補の表を遊んで選ぶ）"
+    ],
+    "ready_for_implementation": true,
+    "ready_for_implementation_scope": "L0 と M0 から。以降は前の単位の合格ゲートのあと"
   }
 }
