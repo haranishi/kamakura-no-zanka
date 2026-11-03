@@ -1,10 +1,10 @@
 // narrative.js — 会話の組み立てと、調べられる物の判定（純粋層）。台詞の文は story-data.js、拾った断片の記録は quest.js が持つ。
 // ・会話の行は when（banter.js の matches）で選ぶ：久作の第一声は道×食糧、結末は拾った断片の数で一言深くなる。
-// ・結末は result → ending_truth → ending_coda の三つの会話（1回あたり約5行）。game.js が ENDING_NEXT でつなぐ。
+// ・結末は result → ending_truth →（章末の演出 chapter1_end）→ ending_coda。会話のつなぎは ENDING_NEXT、演出から ending_coda へは game.js の復帰先 result。
 // 時計・乱数・DOM に触れない。
 import { matches, trustTier } from './banter.js';
 
-export const ENDING_NEXT = { result: 'ending_truth', ending_truth: 'ending_coda' };
+export const ENDING_NEXT = { result: 'ending_truth' };
 // 結末の段（R20.3）：0〜2は真相の3行だけ、3〜4は一言深く、5は袖印をくべる
 export const endingTier = n => (n >= 5 ? 'full' : n >= 3 ? 'deep' : 'plain');
 

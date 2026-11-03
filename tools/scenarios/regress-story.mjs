@@ -1,6 +1,7 @@
 // 回帰：物語の本体（S5・S6）を実ゲームの主人公で通す。
 //  F1（袖印を E で調べる）・穂太を見る間・C1（物見の書き付け）・F2（遠くを見る）・C3（侍大将の一言）・やり直しで断片が二重にならない・
 //  久作の第一声（F3）・F4・掛け合い（戦闘中は出ない／同じ台詞を繰り返さない）・F5 と無言の間・保存の断片・結末（断片0・3・5個）・焚き火の輪。
+//  結末の袖印・穂太を見る間・最後の語りは、2026-11-04（C1）から章末の演出（chapter1_end）の中で見せる。細かな検査は regress-cinematic-end。
 // 実行：PLAYWRIGHT_MODULE=… node tools/valley-play.mjs tools/scenarios/regress-story.mjs --strict --out reports/polish3/story
 export default async function ({ st, step, call, v, freeze, start, tap, shot, log }) {
   const fail = m => { throw new Error(m); };
@@ -16,7 +17,7 @@ export default async function ({ st, step, call, v, freeze, start, tap, shot, lo
     for (let i = 0; i < 160; i++) {
       const q = await st();
       if (q.talking) { const d = await dlg(); if (!seen.length || seen.at(-1).id !== d.id) seen.push(d); await call('advanceDialogue', true); await step(6); }
-      else if (q.pending) await step(20); else break;
+      else if (q.pending || q.flow === 'cinematic') await step(20); else break;   // 章末の演出（自動）は流れ終わるまで待つ
     }
     return seen;
   };
@@ -142,44 +143,52 @@ export default async function ({ st, step, call, v, freeze, start, tap, shot, lo
   // ---- 結末（断片5つ）：三つの会話・袖印をくべる・穂太を見る間・語り
   await call('teleport', -74, -66, 2.4); await ev('arrived', { place: 'temple_steps' });
   if ((await st()).beat !== 'b7_result') fail('did not reach the result');
-  const seen5 = [];
-  for (let i = 0; i < 200; i++) {
+  const seen5 = [], cine5 = { lines: new Set() };
+  const cs = () => v('__valley.cinematic.state()');
+  for (let i = 0; i < 400; i++) {
     const q = await st();
+    if (q.flow === 'cinematic') {                                  // 章末の演出：手→袖印→火→穂太→灯（自動。E を押さずに流す）
+      const c = await cs(); if (c.frame.line) cine5.lines.add(c.frame.line);
+      const shotNo = c.active?.shot ?? -1;
+      if (!cine5.hudChecked) { cine5.hudChecked = true; if (!(await v("document.getElementById('dialogue').classList.contains('hidden')"))) fail('the dialogue box covers the chapter end'); }
+      if (shotNo === 1 && !cine5.shot2) {                          // 袖印が手を離れ、火へ落ちる
+        await step(18); await shot('story-09a-sode-falls');
+        if (!(await v(`${G}.relicView.items.has('sode_burn')`))) fail('the badge is not seen falling into the fire');
+        await step(40); await shot('story-09-sode-burn'); cine5.shot2 = true;
+        const b = (await cs()).stage; if (!b?.burned || !(await v(`${G}.cinema.cast.flare > 0`))) fail('no flare when the badge lands ' + JSON.stringify(b));
+        continue;
+      }
+      if (shotNo === 3 && !cine5.shot3) { await step(40); await shot('story-10-ending-gaze'); cine5.shot3 = true; continue; }
+      if (shotNo === 4 && c.frame.line.startsWith('燃え残った火') && !cine5.shot4) { await step(10); await shot('story-11-narration'); cine5.shot4 = true; continue; }
+      await step(6); continue;
+    }
     if (q.talking) {
       const dd = await dlg(); if (!seen5.length || seen5.at(-1).id !== dd.id) seen5.push(dd);
       if (dd.id === 'ending_truth' && !seen5.shot1) { await step(20); await shot('story-08-ending-truth'); seen5.shot1 = true; }
-      if (dd.id === 'ending_coda' && dd.i === 0 && dd.texts[1] === 'もう、いい。' && !seen5.shot2) {   // 袖印をくべる無言の間（会話の枠は消える）
-        await step(18); await shot('story-09a-sode-falls');
-        if (!(await v(`${G}.relicView.items.has('sode_burn')`))) fail('the badge is not seen falling into the fire');
-        if (!(await v("getComputedStyle(document.getElementById('dialogue')).opacity === '0'"))) fail('the dialogue box covers the badge going in');
-        await step(40); await shot('story-09-sode-burn'); seen5.shot2 = true;
-        if (!(await v(`${G}.flareT > 0`))) fail('no flare when the badge lands');
-        continue;                                                    // 無言の間は E を押さずに進む
-      }
       if (!seen5.hudChecked) { seen5.hudChecked = true; if (!(await v("document.getElementById('hud').classList.contains('hidden')"))) fail('the HUD bars and objective show during the ending'); }
-      if (dd.id === 'ending_coda' && dd.texts[dd.i] === '……' && !seen5.shot3) { await step(40); await shot('story-10-ending-gaze'); seen5.shot3 = true; }
-      if (dd.id === 'ending_coda' && dd.texts[dd.i].startsWith('燃え残った火') && !seen5.shot4) { await step(10); await shot('story-11-narration'); seen5.shot4 = true; }
       await tap('KeyE'); await step(3);
     } else if (q.pending) await step(10); else if (await v("!document.getElementById('result').classList.contains('hidden')")) break; else await step(10);
   }
   const ids = seen5.map(x => x.id).join('>');
   if (ids !== 'result>ending_truth>ending_coda') fail('ending order: ' + ids);
   if (!seen5[0].texts.includes('あの兵たちも、腹を空かせていた。')) fail('the enemy clue is missing from the result');
-  if (seen5[1].texts.length !== 5 || !seen5[2].texts.includes('もう、いい。') || !seen5[2].texts.includes('燃え残った火は、谷で、人の灯になった。')) fail('ending with 5: ' + JSON.stringify(seen5.slice(1)));
+  if (seen5[1].texts.length !== 5 || !cine5.lines.has('もう、いい。') || !cine5.lines.has('燃え残った火は、谷で、人の灯になった。') || !seen5[2].texts.includes('……明日、考える。')) fail('ending with 5: ' + JSON.stringify([...seen5.slice(1), [...cine5.lines]]));
+  if (!cine5.shot2 || !cine5.shot3 || !cine5.shot4) fail('the chapter end did not show the badge, the gaze and the narration: ' + JSON.stringify(cine5));
   if (!(await v(`${G}.npcs.has('boy')`))) fail('the boy is not at the fire');
   log('ending with five fragments: three talks, the badge burns, the gaze, the narration');
 
   // ---- 結末の段（0・3個）と焚き火の輪：区切りの保存を書き換えて、つづきから（旧い保存＝断片なし、も同じ道）
   for (const [list, truthLines, burn, trust] of [[[], 3, false, 40], [['F3', 'F4', 'F5'], 5, false, 60]]) {
-    await v(`(() => { const s = JSON.parse(localStorage.getItem('kamakura-valley-progress')); s.flags.fragments = ${JSON.stringify(list)}; s.trust = ${trust}; localStorage.setItem('kamakura-valley-progress', JSON.stringify(s)); })()`);
+    await v(`(() => { const s = JSON.parse(localStorage.getItem('kamakura-valley-progress')); s.flags.fragments = ${JSON.stringify(list)}; s.trust = ${trust}; localStorage.setItem('kamakura-valley-progress', JSON.stringify(s));
+      localStorage.removeItem('kamakura-valley-cinematics'); })()`);   // 章末を見終えた記録を消す（残すと結果へ直行する。R29.4）
     await toTitle(); await start('continue'); await step(5);
     if (await frags() !== list.join(',')) fail('restored fragments: ' + await frags());
     const ring = await v(`(() => { const g = ${G}, f = g.world.props.find(p => p.id === 'bonfire'), n = g.npcs.get('r_man'); return { d: Math.hypot(n.pos.x - f.x, n.pos.z - f.z), mode: n.mode }; })()`);
     if (trust >= 58 ? !(ring.d < 3.6 && ring.mode === 'cower') : !(ring.d > 7)) fail(`fire ring for trust ${trust}: ${JSON.stringify(ring)}`);
     const seen = await adv();
     await until(() => v("!document.getElementById('result').classList.contains('hidden')"), 60, 'the result screen');   // 結果画面まで待つ（次のつづきからへ、前の遊びの時計を持ち込まない）
-    const truth = seen.find(x => x.id === 'ending_truth'), coda = seen.find(x => x.id === 'ending_coda');
-    if (truth?.texts.length !== truthLines || coda.texts.includes('もう、いい。') !== burn) fail(`ending with ${list.length}: ${JSON.stringify([truth, coda])}`);
+    const truth = seen.find(x => x.id === 'ending_truth'), coda = seen.find(x => x.id === 'ending_coda'), stage = (await v('__valley.cinematic.state()')).stage;
+    if (truth?.texts.length !== truthLines || !coda || stage?.id !== 'chapter1_end' || stage.burned !== burn) fail(`ending with ${list.length}: ${JSON.stringify([truth, coda, stage])}`);
     log(`ending with ${list.length}: truth ${truth.texts.length} lines, burn ${burn}; ring ${ring.d.toFixed(1)} m (${ring.mode})`);
   }
 
