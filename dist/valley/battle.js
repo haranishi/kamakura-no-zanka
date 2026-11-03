@@ -124,7 +124,9 @@ export class Battle {
         g.fx.parry(at, dir, g.fx.trails.velocityOf(swing));             // 火花は、弾かれた刃が逸れる向きへ（8.3a）
         g.audio.play('parry', { pan });
         g.hitStop(FEEL.hitStop.parry);
-        if (heroDef) { g.rig.kick(0.5); g.rig.punchFov(3.2); g.hud.toast('弾いた', 900); g.hud.hint('finisher', STORY.hints.finisher); g.slowMo(); }   // 弾いた瞬間のスロー（8.5a）
+        // 弾いた瞬間のスロー（8.5a）。「E で、とどめ」の案内はここでは出さない（8.3b）：弾かれた相手は崩れておらず、右下の「弾いた。いま反撃」と
+        // 同時に出て、どちらを押すか迷わせた（別役の採点）。とどめの案内は、とどめを刺せる表示が出たとき（game.js の updatePrompt）に出る
+        if (heroDef) { g.rig.kick(0.5); g.rig.punchFov(3.2); g.hud.toast('弾いた', 900); g.slowMo(); }
         break;
       }
       default: return;
