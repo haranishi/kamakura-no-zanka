@@ -22,6 +22,8 @@ export const SCENES = [
   // M2a で足した：通常移動からの停止と、走り→通常移動（Shift を離す）
   { name: 'walk_stop', lead: [[1.5, WALK]], at: { 2: { keys: NONE } } },
   { name: 'run_to_walk', lead: [[1.5, RUN]], at: { 2: { keys: WALK } } },
+  // M3 で足した：通常移動の定速（腕・体は後ろからが一番見える。KZ_EVERY=8 の長い窓で撮る）
+  { name: 'walk_steady', lead: [[1.5, WALK]], at: {} },
 ];
 const tagOf = () => { const i = process.argv.indexOf('--tag'); return (i >= 0 ? process.argv[i + 1] : process.env.KZ_TAG) || 'shot'; };
 
