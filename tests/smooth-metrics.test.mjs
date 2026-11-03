@@ -43,6 +43,20 @@ test('a sliding stance foot raises the slip per metre and the window drift', () 
   assert.equal(windowDrift(walker().frames).max, 0);
 });
 
+test('the window drift counts only the motion inside the window, not what the foot did before it opened', () => {
+  // 両足が着いたまま、左足が最初の10コマで20cm流れ（止まった直後に足を待ちの姿へ寄せた動き）、あとは止まっている
+  const frames = [];
+  for (let i = 0; i < 80; i++) {
+    const bones = {};
+    for (const b of BONES) bones[b] = [0, 1, 0, ...ID];
+    bones.LeftFoot = [Math.min(i, 10) * 0.02, 0.08, -0.1, ...ID]; bones.RightFoot = [0, 0.08, 0.1, ...ID];
+    frames.push({ t: i * DT, tag: 'a', event: i === 4 ? 'stop' : i === 40 ? 'reverse' : null, pos: [0, 0, 0], yaw: 0, modelYaw: 0, speed: 0, gait: 'idle', contact: [true, true], bones, cam: [0, 1.6, 0, ...ID, 58] });
+  }
+  const w = windowDrift(frames), stop = w.list.find(e => e.kind === 'stop'), reverse = w.list.find(e => e.kind === 'reverse');
+  assert(stop.maxCm >= 11.5 && stop.maxCm <= 12.5, `the slide inside the stop window: ${stop.maxCm}`);   // 4コマ目（8cm）から10コマ目（20cm）まで＝12cm
+  assert.equal(reverse.maxCm, 0);   // 窓の前の動きは数えない（接地の始めからの累積なら、ここも20cm になる）
+});
+
 test('a forearm that snaps 60 degrees in one frame counts once over 45 and not over 90; 120 counts over 90', () => {
   const r = walker();
   r.frames[50].bones.LeftForeArm = [0, 1, 0, ...qz(60)];      // 跳んで、次のコマで戻る → 2回（行きと帰り）

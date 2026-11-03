@@ -13,6 +13,8 @@ import { FOOT_CONTACTS } from './anim-contacts.js';
 import { BowRig } from './bow.js';
 import { SwordRig } from './sword-rig.js';
 import { HandRig, HAND_RIG_WHO, prepareHands } from './hand-rig.js';
+import { LegRig } from './leg-ik.js';
+import { strideScale } from './leg-plant.js';
 import { makeTachi, makeNaginata, makeYumi, makeArrow, makeQuiver } from './weapons.js';
 import { patchLift } from './grade.js';
 import { spreadWeight, spreadFix } from './arm-spread.js';
@@ -91,7 +93,7 @@ export class Character {
     this.mixer = new THREE.AnimationMixer(this.model);
     this.actions = new Map();
     this.current = null; this.currentName = null;
-    this.gait = 'idle'; this.style = style; this.locoName = null; this.locoOut = null; this.locoOutRef = 0;
+    this.gait = 'idle'; this.style = style; this.strideWant = 1; this.locoName = null; this.locoOut = null; this.locoOutRef = 0;
     this.segment = null; this.onSegmentEnd = null; this.warp = null;
     this.time = 0; this.rate = 1;
     this.bones = new Map();
@@ -104,6 +106,8 @@ export class Character {
     this.cinePose = null;   // 節目の演出の間だけ置く、骨の後処理（うなずき・視線・袖印を持つ手。cinematics-view.js）。見た目だけ
     // 指の骨と見える腕の写し（8.6a）。this.bones（動作の骨）を作ったあとに足すので、写しは this.bones に入らない
     this.hands = HAND_RIG_WHO.has(who) ? new HandRig(this) : null;
+    // 脚のIKと接地（M2b・leg-ik.js）。game.js が押し分けの後に finishPose を呼ぶコマだけ使う（splitPose・legIk はそのコマごとに置かれる）
+    this.legs = new LegRig(this); this.splitPose = false; this.legIk = false; this.legTerrain = null; this.poseDt = null;
   }
 
   bone(name) { return this.bones.get(name); }
@@ -195,7 +199,11 @@ export class Character {
     const meta = this.meta(name);
     const frozen = this.gait === 'idle' && table.idleFreeze;
     const ref = STANCE_SPEED[name] ?? meta?.avgSpeed;   // 着いている足の速さに合わせる（anim-data.js の STANCE_SPEED）
-    const ts = this.gait === 'idle' ? (frozen ? 0 : 1) : (style === 'injured' ? Math.max(1, Math.min(1.5, locomotionTimeScale(speed, ref))) : locomotionTimeScale(speed, ref, floor));   // 負傷でも急ぐときは足を速める
+    let ts = this.gait === 'idle' ? (frozen ? 0 : 1) : (style === 'injured' ? Math.max(1, Math.min(1.5, locomotionTimeScale(speed, ref))) : locomotionTimeScale(speed, ref, floor));   // 負傷でも急ぐときは足を速める
+    // 歩幅の伸縮（M2b・leg-plant.js の strideScale）：主人公の新しい経路だけ。歩幅を伸ばした分だけ歩調を下げる（伸ばすのは脚のIK。leg-ik.js）。
+    // 歩調は前のコマにならした歩幅で割る（脚のIKと同じ値を使わないと、着いた足の動作の速さと進む速さがずれる）
+    this.strideWant = phaseOn && LOCO.smoothStride && this.gait !== 'idle' && style !== 'crouch' && ref > 0.3 ? strideScale(speed / ref) : 1;
+    if (this.gait !== 'idle' && this.legs && this.legs.ks > 1) ts /= this.legs.ks;
     const out = this.locoOut;
     if (out && (!phaseOn || out === this.current || !(out.getEffectiveWeight() > 0))) this.locoOut = null;
     else if (out) out.timeScale = locomotionTimeScale(speed, this.locoOutRef, 0);   // ①
@@ -267,10 +275,14 @@ export class Character {
     f.v += amount * 7; f.px = l > 1e-9 ? push.x / l : Math.sin(yaw); f.pz = l > 1e-9 ? push.z / l : Math.cos(yaw);
   }
 
-  resetContacts() { this.contactReset = true; }
+  resetContacts() { this.contactReset = true; if (this.legs) this.legs.reset = true; }
 
+  // 人物の更新は2つに分かれる：①mixer・接地通知（update）②脚のIK→体幹ばね→腕→刀→握り（finishPose）。
+  // splitPose のコマ（?smooth=ik で戻していない間、game.js が遊びのコマごとに置く）は①だけを行い、押し分けの後に game.js が②を呼ぶ（骨盤を動かすと刀・握りも動くので、
+  // 脚の姿勢と模型の根の位置を決めてから刀と握りを解く）。それ以外（演出・見本の画面・?smooth=ik）は①②を続けて行う＝M2a までと同じ順
   update(dt) {
     this.sword?.undo();   // 前のコマの抜刀・納刀の骨の後処理を戻してから、動作を当てる
+    this.legs?.undo();    // 脚のIK（M2b）の補正も戻す（刀の後に当てたので、刀の次に戻す）
     this.time += dt;
     if (this.warp) this.followWarp(dt);
     this.mixer.update(dt * this.rate);
@@ -286,6 +298,18 @@ export class Character {
       const cb = this.onSegmentEnd; this.segment = null; this.onSegmentEnd = null;
       if (cb) cb(this);
     }
+    if (this.splitPose) { this.poseDt = dt; return; }
+    this.finishPose(dt);
+  }
+
+  finishPose(dt = this.poseDt) {
+    this.splitPose = false; this.poseDt = null;
+    if (dt == null) return;
+    const legs = this.legs;
+    if (legs && !this.legIk && legs.ks !== 1) legs.ks = 1;   // IK を使わないコマ（範囲の外・軽量）では歩幅の伸縮も使わない。古い値を残すと歩調だけが下がる
+    if (legs && this.legIk && this.legTerrain) legs.apply(dt, this.legTerrain, true);
+    else if (legs && (legs.feet[0].mode || legs.feet[1].mode || legs.drop)) legs.apply(dt, null, false);
+    this.legIk = false;
     const f = this.flinch;
     if (f.v !== 0 || f.x !== 0) {
       f.v += (-f.x * 120 - f.v * 14) * dt; f.x += f.v * dt;

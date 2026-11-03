@@ -22,6 +22,7 @@ import { OPENING } from './opening-data.js';
 import { createOpening, stepOpening } from './opening.js';
 import { OpeningStage } from './opening-stage.js';
 import { FEEL } from './config.js';
+import { LOCO } from './loco.js';
 import { warpScale, requestSlow } from './time-warp.js';
 import { mulberry32 } from './scatter.js';
 import { createWind, stepWind, toUniforms, requestGuide, particleCount } from './wind.js';
@@ -688,12 +689,15 @@ export class Game {
         this.startDialogue(pd.id);
       }
     }
+    const legIk = LOCO.smoothIk;
+    if (legIk) this.markLegIk();   // 脚のIK（M2b）：人物の更新を分け、押し分けの後に脚→刀→握りを解く（?smooth=ik で M2a の順へ戻る）
     this.hero.update(dt, ctl);
     if (this.gaze) { const t = this.gaze.target.pos, h = this.hero, d = angleDiff(h.yaw, yawOf(t.x - h.pos.x, t.z - h.pos.z)); h.yaw += Math.sign(d) * Math.min(Math.abs(d), 4 * dt); h.sync(); }   // 見つめる相手へ、ゆっくり向く
     for (const e of this.enemies) e.update(dt);
     this.ally?.update(dt);
     for (const n of this.npcs.values()) n.update(dt);
     this.separateActors();
+    if (legIk) this.finishPoses();
     this.battle.update(dt);
     this.noises = this.noises.filter(n => this.time - n.t < 0.6);
     if (this.flow === 'intro') this.updateIntro(dt);
@@ -710,6 +714,23 @@ export class Game {
     this.updateWorld(dt);
     input.endFrame();
   }
+
+  // 脚のIK（M2b・leg-ik.js）を使う人：主人公と、近くの敵・仲間（上限8人・24m以内）。軽量の品質は主人公だけ。どの人も更新を2つに分ける
+  markLegIk() {
+    const hero = this.hero, pick = this.legPick ||= [];
+    pick.length = 0;
+    this.legPrep(hero); for (const e of this.enemies) this.legPrep(e); this.legPrep(this.ally); for (const n of this.npcs.values()) this.legPrep(n);
+    hero.character.legIk = true;
+    if (this.post?.quality === 'light') return;
+    for (const e of this.enemies) this.legCand(e); this.legCand(this.ally);
+    if (pick.length > 8) pick.sort(this.legNearer ||= (a, b) => dist2(a.pos, this.hero.pos) - dist2(b.pos, this.hero.pos));
+    for (let i = 0; i < pick.length && i < 8; i++) pick[i].character.legIk = true;
+  }
+  // 毎コマ呼ぶので、関数を作らない（使い回すメソッドで1人ずつ）
+  legPrep(a) { if (!a) return; const ch = a.character; ch.splitPose = true; ch.legIk = false; ch.legTerrain = this.terrain; }
+  legCand(a) { if (a && !a.departed && a.character.root.visible && (!a.fighter || a.fighter.alive) && dist2(a.pos, this.hero.pos) < 24) this.legPick.push(a); }
+  legDone(a) { if (!a) return; const ch = a.character; if (ch.poseDt != null) { a.sync(); ch.finishPose(); } else { ch.splitPose = false; ch.legIk = false; } }
+  finishPoses() { this.legDone(this.hero); for (const e of this.enemies) this.legDone(e); this.legDone(this.ally); for (const n of this.npcs.values()) this.legDone(n); }
 
   // 人物どうしが重ならないよう、近すぎる組を左右へ押し分ける（死んだ・倒れた・降った者は押さない）
   separateActors() {

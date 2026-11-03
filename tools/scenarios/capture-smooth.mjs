@@ -2,13 +2,16 @@
 // 1枚＝8コマ（60コマ/秒で4コマごと＝約67ms）。主人公の周りを切り抜き、4×2に並べて幅1280のJPGにする（番号だけを入れ、版の名前は入れない）。
 // 乱数・時計は capture-calls.mjs の deterministic で止める。入力は実際のキーと視点の向きだけ。固定カメラの置き場所は、その場面の撮り始めの論理の位置から決める
 // （論理が同じ版どうしなら同じ置き場所。速さの表を変えた版とも、撮り始めの位置からの同じ相対位置で比べられる）。
+// 場面の前に主人公を瞬間移動させるので、そのコマの足（脚のIKは着いた足を留める）が走りの姿のまま残る。立ち止まって足が待ちの姿に戻るまで、KZ_PRE コマ（既定150＝2.5秒。
+// 以前は36コマで、走り出しの1コマ目から足を開いた姿に撮れて、IK の版だけ走り出しが悪く見えた＝2026-11-04 に盲検採点の誤読で発覚）待つ。
+// KZ_EVERY＝1枚のコマの間隔（既定4＝約67ms。停止の後まで見るなら 6〜8）、KZ_ONLY＝撮る場面をカンマ区切りで絞る。
 // 使い方: PLAYWRIGHT_MODULE=… node tools/valley-play.mjs tools/scenarios/capture-smooth.mjs --out <dir> --tag before --strict（KZ_TAG でも可）
 //   出力: <dir>/<tag>-<場面>-<side|follow>.jpg と <dir>/<tag>-capture-smooth.json（各コマの論理の位置・速さ）
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { prepare, START } from './smooth-journey.mjs';
 
-const EVERY = 4, TILES = 8, CROP = { w: 400, h: 600 }, TILE = { w: 320, h: 480 };
+const EVERY = Number(process.env.KZ_EVERY || 4), TILES = 8, CROP = { w: 400, h: 600 }, TILE = { w: 320, h: 480 };
 const RUN = { KeyW: true, ShiftLeft: true }, WALK = { KeyW: true, ShiftLeft: false }, NONE = { KeyW: false, ShiftLeft: false };
 // lead：撮り始めるまでの準備（秒・キー）。at：何枚目の前の操作（keys・turn＝その枚から視点を回す角とコマ数）
 export const SCENES = [
@@ -26,7 +29,7 @@ async function playScene(ctx, sc, cam) {
   const { v, step, key, call, st, page } = ctx;
   await call('camera', null);
   for (const k of ['KeyW', 'KeyS', 'ShiftLeft']) await key(k, false);
-  await call('teleport', START.x, START.z, START.yaw); await call('look', START.yaw, 0.2); await v('(__valley.game.hero.speed = 0, __valley.game.hero.crouch = false, 0)'); await step(36);
+  await call('teleport', START.x, START.z, START.yaw); await call('look', START.yaw, 0.2); await v('(__valley.game.hero.speed = 0, __valley.game.hero.crouch = false, 0)'); await step(Number(process.env.KZ_PRE || 150));
   for (const [secs, keys] of sc.lead) { for (const [k, on] of Object.entries(keys)) await key(k, on); await step(Math.round(secs * 60)); }
   const h0 = (await st()).hero;
   if (cam === 'side') {
@@ -74,6 +77,7 @@ export default async function (ctx) {
   // 1回目の場面だけ、草の区画の作り始めなどで回ごとに絵が変わった（2026-11-04）。同じ場面を1回空撮りしてから撮る
   await playScene(ctx, SCENES[0], 'side');
   for (const sc of SCENES) for (const cam of ['side', 'follow']) {
+    if (process.env.KZ_ONLY && !process.env.KZ_ONLY.split(',').includes(sc.name)) continue;
     const { shots, log } = await playScene(ctx, sc, cam);
     const file = path.join(ctx.out, `${tag}-${sc.name}-${cam}.jpg`);
     await sheet(ctx.page, shots, file); ctx.log('sheet', file); all.push(...log);

@@ -100,12 +100,21 @@ export function events(frames) {
   return out;
 }
 
-// (b) 出来事の窓（既定0.5秒）での接地のずれの最大（cm）
+// (b) 出来事の窓（既定0.5秒）での接地のずれの最大（cm）。窓の中の動きだけを測る：足ごとに、窓の中で最初に接地したコマの位置からのずれ。
+// （M2b 以前は stanceDrift＝接地の始めからの累積だった。累積だと、窓の前に起きた動き＝止まった直後に足を待ちの姿へ寄せた分が、1秒後の反転の窓にも数えられた。
+//  掃引の回帰（regress-locomotion-*）の SWEEP はもともと窓の中だけを測っているので、それと同じ決め方に揃えた。旧い数字は stanceMaxByTag 側に残る）
 export function windowDrift(frames, opts = {}) {
-  const { window } = { ...DEFAULTS, ...opts }, d = stanceDrift(frames), list = [];
+  const { window } = { ...DEFAULTS, ...opts }, list = [];
   for (const e of events(frames)) {
-    let m = 0;
-    for (let i = e.i; i < frames.length && frames[i].t - e.t < window - 1e-9; i++) for (const s of [0, 1]) if (d[s][i] != null) m = Math.max(m, d[s][i]);
+    let m = 0; const anchor = [null, null];
+    for (let i = e.i; i < frames.length && frames[i].t - e.t < window - 1e-9; i++) {
+      const f = frames[i];
+      FEET.forEach((foot, s) => {
+        if (!f.contact?.[s] || !f.bones?.[foot]) { anchor[s] = null; return; }
+        if (!anchor[s]) anchor[s] = f.bones[foot];
+        m = Math.max(m, hdist(f.bones[foot], anchor[s]) * 100);
+      });
+    }
     list.push({ ...e, maxCm: round(m) });
   }
   const byKind = {};
