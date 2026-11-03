@@ -181,11 +181,13 @@ export class Character {
     const ts = this.gait === 'idle' ? (frozen ? 0 : 1) : (style === 'injured' ? Math.max(1, Math.min(1.5, locomotionTimeScale(speed, ref))) : locomotionTimeScale(speed, ref));   // 負傷でも急ぐときは足を速める
     if (this.locoName !== name) {
       const prev = this.locoName && this.current && this.currentName === this.locoName ? this.current : null;
-      const from = prev ? phaseMatchedTime(FOOT_CONTACTS, this.locoName, prev.time, name) : null;
+      // 引き継ぐのは同じ構え（style）の中の歩き↔小走り↔走りだけ。構えの替わり目（待ち構え↔ふだん）は抜刀・納刀と重なり、
+      // 引き継ぐと納刀の右腕のIKが届かない姿の位相に入った（regress-draw-sheathe の sheatheWalking で80mm。先頭からなら12mm）
+      const from = prev && this.locoStyle === style ? phaseMatchedTime(FOOT_CONTACTS, this.locoName, prev.time, name) : null;
       // 止まる：出ていく足の動作をその姿で止めてから待ちへ混ぜる（体は止まったのに、着いている足だけ後ろへ流れて見えた）
       if (prev && this.gait === 'idle') prev.timeScale = 0;
       this.play(name, from == null ? { fade: 0.2, timeScale: ts } : { fade: 0.2, timeScale: ts, from });
-      this.locoName = name;
+      this.locoName = name; this.locoStyle = style;
       if (frozen && this.current) this.current.time = 0.3;
     } else if (this.current) this.current.timeScale = ts;
   }
