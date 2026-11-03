@@ -3,6 +3,7 @@
 import fs from 'node:fs/promises';
 import assert from 'node:assert/strict';
 import { createServer } from './serve.mjs';
+import { guardBrowser } from './lib/pointerlock-guard.mjs';
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || 'playwright');
 const server = createServer();
 await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
@@ -10,6 +11,7 @@ const base = `http://127.0.0.1:${server.address().port}`;
 const directory = new URL('../reports/screenshots/current/', import.meta.url);
 await fs.mkdir(directory, { recursive: true });
 const browser = await chromium.launch({ channel: 'chrome', headless: true });
+guardBrowser(browser); // 固定の要求を本物のOSへ届かせない（試験中に使う人のカーソルが飛ぶのを防ぐ。画面・状態は変わらない）
 const errors = [], results = [], startedAt = Date.now();
 const record = (name, details = '') => { results.push({ name, passed: true, details }); console.log('PASS', name, details); };
 const state = page => page.evaluate(() => window.__walktest.state);
