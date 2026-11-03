@@ -1,0 +1,70 @@
+{
+  "scope": "記録した環境のみ。他端末へ当てはめない。",
+  "pass": false,
+  "runs": [
+    {
+      "pass": false,
+      "p95": 23.59999999962747,
+      "maxCalls": 473,
+      "maxTris": 4176164,
+      "reasons": [
+        "p95が20msを超えています"
+      ]
+    },
+    {
+      "pass": false,
+      "p95": 21.699999999254942,
+      "maxCalls": 476,
+      "maxTris": 3779733,
+      "reasons": [
+        "p95が20msを超えています"
+      ]
+    },
+    {
+      "pass": true,
+      "p95": 17.800000000745058,
+      "maxCalls": 440,
+      "maxTris": 3855281,
+      "reasons": []
+    },
+    {
+      "pass": true,
+      "p95": 16.300000000745058,
+      "maxCalls": 430,
+      "maxTris": 3841203,
+      "reasons": []
+    },
+    {
+      "pass": true,
+      "p95": 13.300000000745058,
+      "maxCalls": 449,
+      "maxTris": 3483657,
+      "reasons": []
+    },
+    {
+      "pass": true,
+      "p95": 13.700000001117587,
+      "maxCalls": 452,
+      "maxTris": 3195174,
+      "reasons": []
+    },
+    {
+      "pass": true,
+      "p95": 13.300000000745058,
+      "maxCalls": 407,
+      "maxTris": 3189704,
+      "reasons": []
+    },
+    {
+      "pass": true,
+      "p95": 12.800000000745058,
+      "maxCalls": 392,
+      "maxTris": 3184843,
+      "reasons": []
+    }
+  ],
+  "reasons": [
+    "1回目：p95が20msを超えています",
+    "2回目：p95が20msを超えています"
+  ]
+}
