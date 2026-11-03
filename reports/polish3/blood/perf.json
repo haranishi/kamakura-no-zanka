@@ -1,0 +1,101 @@
+{
+ "before": [
+  {
+   "p95": 22,
+   "maxCalls": 476,
+   "maxTris": 4179882
+  },
+  {
+   "p95": 19.7,
+   "maxCalls": 479,
+   "maxTris": 3782443
+  },
+  {
+   "p95": 16.7,
+   "maxCalls": 441,
+   "maxTris": 3856875
+  },
+  {
+   "p95": 16.9,
+   "maxCalls": 431,
+   "maxTris": 3842955
+  },
+  {
+   "p95": 20,
+   "maxCalls": 452,
+   "maxTris": 3488599
+  },
+  {
+   "p95": 14.5,
+   "maxCalls": 455,
+   "maxTris": 3198820
+  },
+  {
+   "p95": 12.8,
+   "maxCalls": 407,
+   "maxTris": 3192392
+  },
+  {
+   "p95": 13.3,
+   "maxCalls": 393,
+   "maxTris": 3186386
+  }
+ ],
+ "before_pass": false,
+ "after": [
+  {
+   "p95": 16.8,
+   "maxCalls": 476,
+   "maxTris": 4179882
+  },
+  {
+   "p95": 14.5,
+   "maxCalls": 479,
+   "maxTris": 3782443
+  },
+  {
+   "p95": 13.4,
+   "maxCalls": 441,
+   "maxTris": 3856875
+  },
+  {
+   "p95": 13.7,
+   "maxCalls": 431,
+   "maxTris": 3842955
+  },
+  {
+   "p95": 14,
+   "maxCalls": 452,
+   "maxTris": 3488599
+  },
+  {
+   "p95": 14.6,
+   "maxCalls": 455,
+   "maxTris": 3198820
+  },
+  {
+   "p95": 13.6,
+   "maxCalls": 407,
+   "maxTris": 3192392
+  },
+  {
+   "p95": 13.9,
+   "maxCalls": 393,
+   "maxTris": 3186386
+  }
+ ],
+ "after_pass": true,
+ "order": "standard move1,move2,combat1,combat2, light move1,move2,combat1,combat2",
+ "ab_standard_combat_p95": {
+  "base": [
+   13.4,
+   15.5,
+   14.1
+  ],
+  "new": [
+   14.5,
+   13.3,
+   13.8
+  ]
+ }
+}

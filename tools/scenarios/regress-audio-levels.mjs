@@ -3,9 +3,9 @@
 // 実行：PLAYWRIGHT_MODULE=… node tools/valley-play.mjs tools/scenarios/regress-audio-levels.mjs --strict
 // 音の出ない環境（AudioContext が running にならない）では、測れないので何も確かめずに終わる。
 const SINGLE = { min: -32, max: -3 };          // 1つずつ鳴らしたピーク：小さすぎて聞こえない／大きすぎる、を弾く
-const KINDS = ['swing', 'swing_heavy', 'hit', 'hit_heavy', 'clash', 'block', 'parry', 'hurt', 'die', 'bow_draw', 'bow_release', 'arrow_hit', 'taiko', 'bell', 'alert',
+const KINDS = ['swing', 'swing_heavy', 'hit', 'hit_heavy', 'clash', 'block', 'parry', 'hurt', 'die', 'bow_draw', 'bow_release', 'arrow_hit', 'hit_armor', 'hit_armor_heavy', 'sword_drop', 'spark', 'taiko', 'bell', 'alert',
   'step_grass', 'step_dirt', 'step_gravel', 'step_wood', 'roll', 'draw', 'sheathe', 'ui', 'dialogue'];
-const MIXED = ['hit_heavy', 'clash', 'parry', 'hurt', 'taiko', 'bow_release'];       // 戦闘のつもりで一度に鳴らす
+const MIXED = ['hit_heavy', 'clash', 'parry', 'hurt', 'taiko', 'bow_release', 'hit_armor_heavy', 'block'];       // 戦闘のつもりで一度に鳴らす
 
 export default async function ({ v, freeze, start, step, log, wait }) {
   await start('new'); await freeze(true); await step(10);
@@ -31,11 +31,11 @@ export default async function ({ v, freeze, start, step, log, wait }) {
     await wait(150);
   }
   log(rows.join('  '));
-  // 重ねても割れない：戦闘の6音、さらに全種類を2回ずつ（乱戦の最悪を超える重ね方。limiter が無いと 0dBFS を超える）
+  // 重ねても割れない：戦闘の8音、さらに全種類を2回ずつ（乱戦の最悪を超える重ね方。limiter が無いと 0dBFS を超える）
   const mixed = await v(`window.__measure(${JSON.stringify(MIXED)}, 700)`);
   const worst = await v(`window.__measure(${JSON.stringify([...KINDS, ...KINDS])}, 900)`);
-  log('six at once peak dBFS', db(mixed).toFixed(1), ' every kind twice', db(worst).toFixed(1));
-  if (mixed >= 0.99) bad.push(`six sounds at once clip (${db(mixed).toFixed(1)}dBFS)`);
+  log('combat mix at once peak dBFS', db(mixed).toFixed(1), ' every kind twice', db(worst).toFixed(1));
+  if (mixed >= 0.99) bad.push(`combat sounds at once clip (${db(mixed).toFixed(1)}dBFS)`);
   if (worst >= 0.99) bad.push(`every sound twice at once clips (${db(worst).toFixed(1)}dBFS)`);
   if (bad.length) throw new Error('audio levels out of range: ' + bad.join('; '));
 }

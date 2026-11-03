@@ -1,0 +1,41 @@
+{
+ "fails": [],
+ "off": {
+  "maxDrops": 0,
+  "maxStains": 0
+ },
+ "subtle": {
+  "maxDrops": 12,
+  "maxStains": 0
+ },
+ "standard": {
+  "maxDrops": 29,
+  "maxStains": 8
+ },
+ "light": 8,
+ "melee": {
+  "maxDrops": 64,
+  "maxStains": 16,
+  "hits": 11
+ },
+ "stress": {
+  "md": 64,
+  "ms": 16
+ },
+ "frames": 261,
+ "calls": {
+  "off": [
+   334,
+   338
+  ],
+  "subtle": [
+   336,
+   339
+  ],
+  "standard": [
+   336,
+   339
+  ]
+ },
+ "objects": 1177
+}

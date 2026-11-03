@@ -3,10 +3,42 @@
 import { GameAudio } from '../audio.js';
 import { stepLayers } from './step-synth.js';
 import { mulberry32 } from './scatter.js';
+import { COMBAT_KINDS, combatLayers, layersEndMs } from './combat-synth.js';
+
+// 戦いの金属音の層（combat-synth.js の設計図）を、渡されたコンテキストのノードへ変える。play() と書き出し（OfflineAudioContext）の両方から呼ぶ。
+// ノイズは、コンテキストごとに1つだけ作る種つきの白色雑音（1秒）を、層ごとに違う位置から読む（発音のたびにバッファを作らない）。
+const NOISE = new WeakMap();
+function noiseBuffer(ctx) {
+  let b = NOISE.get(ctx);
+  if (!b) { b = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate); const d = b.getChannelData(0), r = mulberry32(0x5eed); for (let i = 0; i < d.length; i++) d[i] = r() * 2 - 1; NOISE.set(ctx, b); }
+  return b;
+}
+export function scheduleCombat(ctx, out, t, layers, nodes = []) {
+  const ny = ctx.sampleRate * 0.45, buf = noiseBuffer(ctx);
+  for (const l of layers) {
+    const s = t + l.startMs / 1000, a = (l.attackMs || 0.5) / 1000, len = (l.type === 'mode' ? l.decayMs : l.durMs) / 1000, g = ctx.createGain();
+    g.gain.setValueAtTime(0, s); g.gain.linearRampToValueAtTime(l.gain, s + a); g.gain.exponentialRampToValueAtTime(Math.max(1e-7, l.gain * 0.001), s + a + len);
+    g.connect(out); nodes.push(g);
+    let src;
+    if (l.type === 'noise') {
+      src = ctx.createBufferSource(); src.buffer = buf;
+      const f = ctx.createBiquadFilter(); f.type = l.filter; f.Q.value = l.q; f.frequency.setValueAtTime(Math.min(l.freq, ny), s);
+      if (l.freq2) f.frequency.exponentialRampToValueAtTime(Math.min(l.freq2, ny), s + a + len);
+      src.connect(f); f.connect(g); nodes.push(f); src.start(s, l.offset || 0);
+    } else {
+      src = ctx.createOscillator(); src.type = 'sine'; src.frequency.setValueAtTime(Math.min(l.freq, ny), s);
+      if (l.type === 'thud') src.frequency.exponentialRampToValueAtTime(Math.min(l.freq2, ny), s + a + len);
+      src.connect(g); src.start(s);
+    }
+    src.stop(s + a + len + 0.02); nodes.push(src);
+  }
+  return t + layersEndMs(layers) / 1000 + 0.02;
+}
+const COMBAT = new Set(COMBAT_KINDS);
 
 // 音ごとの音量の補正（実測のピーク dBFS で、強い音は -6〜-10・弱い音は -15〜-22 に寄せる。以前は命中・弾きが -4〜-6、足音・振りが -23〜-33 で、
 // 足音と振りがほとんど聞こえず、強い音は同時に鳴ると 0 dBFS を超えて割れた）。tools/scenarios/regress-audio-levels.mjs が守る。
-const LEVEL = { swing: 2.3, swing_heavy: 1.2, hit: 0.7, hit_heavy: 0.6, clash: 0.75, block: 0.65, parry: 0.65, hurt: 2.5, die: 1.0, bow_draw: 2.5, bow_release: 0.9, arrow_hit: 0.85, taiko: 0.65,
+const LEVEL = { swing: 2.3, swing_heavy: 1.2, hit: 0.7, hit_heavy: 0.6, clash: 0.45, block: 0.35, parry: 0.4, hit_armor: 0.49, hit_armor_heavy: 0.48, sword_drop: 0.7, spark: 0.5, hurt: 2.5, die: 1.0, bow_draw: 2.5, bow_release: 0.9, arrow_hit: 0.85, taiko: 0.65,
   step: 0.65, // 全面の共通の補正。圧縮器が暖まった状態の実測で決める（regress-step-levels.mjs が守る）。
   bell: 1.0, alert: 1.6, step_grass: 3.2, step_dirt: 3.2, step_gravel: 3.2, step_wood: 2.0, roll: 2.2, draw: 2.5, sheathe: 2.5, ui: 2.0, dialogue: 2.0 };
 
@@ -14,6 +46,7 @@ export class ValleyAudio extends GameAudio {
   constructor(onUnavailable) {
     super(onUnavailable);
     this.volume = 0.8; this.master = null; this.listener = { river: Infinity, fire: Infinity }; this.crackle = 0;
+    this.fxRng = mulberry32(0x6b616e); this.fxLast = {};   // 戦いの金属音の揺らぎ（種つき＝書き出しが毎回同じ）と、種類ごとの前回の変奏
   }
 
   ensureMaster() {
@@ -143,7 +176,8 @@ export class ValleyAudio extends GameAudio {
   updateListener({ river = this.listener.river, fire = this.listener.fire } = {}) { this.listener = { river, fire }; this.startAmbient(); }
 
   // 効果音。戻りは鳴らせたか。同時に鳴る数は上限つき。
-  play(kind, { gain = 1, pitch = 1, pan = 0 } = {}) {
+  // armor（'light'|'heavy'）は鎧に当たる音（hit_armor*）の板の重さ。
+  play(kind, { gain = 1, pitch = 1, pan = 0, armor = 'heavy' } = {}) {
     const ctx = this.context;
     if (!ctx || this.paused || this.muted || ctx.state !== 'running' || this.sources.size >= 28) return false;
     const master = this.ensureMaster();
@@ -163,15 +197,17 @@ export class ValleyAudio extends GameAudio {
       fl.type = type; fl.frequency.setValueAtTime(f, t); if (f2) fl.frequency.exponentialRampToValueAtTime(f2, t + dur); fl.Q.value = q;
       env(g, peak, attack, dur); s.connect(fl); fl.connect(g); g.connect(out); s.start(t); s.stop(t + dur + 0.06); nodes.push(s, fl, g); return s;
     };
-    const metal = (partials, decay, peak) => partials.forEach(([f, k], i) => tone(f * (1 + 0.012 * i), 0, decay * (1 - i * 0.12), 'sine', peak * k, 0.002));
-    switch (kind) {
+    let life = kind === 'bell' ? 5200 : 1800;
+    if (COMBAT.has(kind)) {
+      const plan = combatLayers(kind, { rng: this.fxRng, last: this.fxLast[kind] ?? null, pitch, armor });
+      this.fxLast[kind] = plan.variant;
+      life = Math.ceil((scheduleCombat(ctx, out, t, plan.layers, nodes) - t) * 1000) + 100;   // 声の束は余韻の終わりまで数える
+    } else switch (kind) {
       case 'swing': noise(0.2, 'bandpass', 700, 1.1, 0.3, 2600, 0.07); break;
       case 'swing_heavy': noise(0.3, 'bandpass', 380, 1.0, 0.4, 2100, 0.11); tone(110, 70, 0.25, 'sine', 0.12, 0.08); break;
       case 'hit': tone(130, 52, 0.14, 'sine', 0.55); noise(0.09, 'lowpass', 1500, 0.7, 0.32); noise(0.05, 'highpass', 2400, 0.5, 0.1); break;
-      case 'hit_heavy': tone(95, 40, 0.22, 'sine', 0.75); noise(0.14, 'lowpass', 1100, 0.7, 0.42); metal([[620, 0.5], [1480, 0.3]], 0.18, 0.1); break;
-      case 'clash': metal([[1250, 1], [2230, 0.7], [3170, 0.55], [4900, 0.3]], 0.5, 0.2); noise(0.04, 'highpass', 3200, 0.6, 0.18); break;
-      case 'block': metal([[620, 1], [1480, 0.6], [2300, 0.35]], 0.3, 0.22); tone(150, 80, 0.1, 'sine', 0.3); break;
-      case 'parry': metal([[1560, 1], [2780, 0.8], [3900, 0.6], [5600, 0.4]], 0.75, 0.24); noise(0.05, 'highpass', 3600, 0.6, 0.22); tone(3400, 3300, 0.5, 'sine', 0.07); break;
+      // 肉への命中は金属を混ぜない（以前は重い一撃に金属の部分音が少し入っていた。鎧への命中は hit_armor*）
+      case 'hit_heavy': tone(95, 40, 0.22, 'sine', 0.75); noise(0.14, 'lowpass', 1100, 0.7, 0.42); break;
       case 'hurt': noise(0.22, 'bandpass', 650, 3.5, 0.28, 480); tone(150, 100, 0.2, 'sawtooth', 0.05); break;
       case 'die': noise(0.5, 'bandpass', 520, 3, 0.26, 260); tone(120, 60, 0.5, 'sawtooth', 0.06); tone(70, 38, 0.5, 'sine', 0.3); break;
       case 'bow_draw': noise(0.4, 'bandpass', 300, 2.2, 0.08, 900, 0.3, 0.5); break;
@@ -194,7 +230,7 @@ export class ValleyAudio extends GameAudio {
     const voice = { source: nodes.find(n => n.start), gain: bus, filter: null, extra: nodes };
     this.sources.set(voice.source || voice, voice);
     const finish = () => { for (const n of nodes) { try { n.disconnect(); } catch {} } this.sources.delete(voice.source || voice); };
-    setTimeout(finish, kind === 'bell' ? 5200 : 1800);
+    setTimeout(finish, life);
     return true;
   }
 }

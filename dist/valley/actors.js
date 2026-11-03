@@ -535,9 +535,11 @@ export class EnemyActor extends Actor {
     if (this.departed) return;
     if (!f.alive) {
       this.deadT += dt; g.tokens.release(this.id);
-      if (this.deadT >= 0.3) this.character.dropWeapon('tachiDrawn', (x, z) => g.terrain.heightAt(x, z));   // 倒れてから、刀が手を離れて落ちる
+      // 倒れてから、刀が手を離れて落ちる。地面に着いたらカラン（音だけ）。続きから始めて最初から倒れている者は鳴らさない（読み込みの直後に一斉に鳴ってしまう）
+      if (this.deadT >= 0.3 && !this.character.drops) this.character.dropWeapon('tachiDrawn', (x, z) => g.terrain.heightAt(x, z), this.seenAlive ? () => g.audio.play('sword_drop', { pan: g.pan(this.pos) }) : null);
       this.tickCharacter(dt); this.sync(); return;
     }
+    this.seenAlive = true;
     if (this.brain.state === 'surrendered') { g.tokens.release(this.id); this.tickCharacter(dt); this.sync(); return; }
     if (this.brain.departed) { this.departed = true; g.tokens.release(this.id); this.character.root.visible = false; return; }
     if (this.dormant || g.aiPaused) { this.animateFree(dt); this.tickCharacter(dt); this.sync(); return; }
