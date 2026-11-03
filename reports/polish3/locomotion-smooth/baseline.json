@@ -1,0 +1,640 @@
+{
+ "date": "2026-11-04",
+ "tool": "tools/scenarios/smooth-journey.mjs + tools/lib/smooth-metrics.mjs (opts camExclude [turn])",
+ "A": {
+  "what": "main b3b01a3 + the new measuring tools copied in",
+  "journey": {
+   "framesSha": "ec7985bc08af7113",
+   "frames": 762,
+   "summary": {
+    "slip.cmPerM": 20.58,
+    "slipLow.cmPerM": 18.37,
+    "window.maxCm": 50.79,
+    "window.start.maxCm": 41.34,
+    "window.switch.maxCm": 50.79,
+    "window.stop.maxCm": 30.69,
+    "window.reverse.maxCm": 50.79,
+    "window.turn.maxCm": 6.26,
+    "pops.legs.over45": 0,
+    "pops.legs.over90": 0,
+    "pops.arms.over45": 0,
+    "pops.arms.over90": 0,
+    "facing.yaw.over30": 0,
+    "facing.model.over30": 0,
+    "gait.flips": 0,
+    "cam.posJerkP99": 753.9,
+    "cam.rotAccelP99": 0,
+    "speed.logicalJumps": 0,
+    "speed.travelJumps": 3
+   },
+   "slipByTag": {
+    "stand": null,
+    "start": 49.78,
+    "jog": 5.45,
+    "run_start": 5.87,
+    "run": 3.78,
+    "stop": null,
+    "reverse": 48.91,
+    "run2": 11.07,
+    "turn": 3.61,
+    "run3": 4.2,
+    "stop2": null,
+    "slow": 62.63,
+    "stop3": null
+   },
+   "slipLowByTag": {
+    "stand": null,
+    "start": 49.78,
+    "jog": 5.45,
+    "run_start": 4.54,
+    "run": 3.34,
+    "stop": null,
+    "reverse": 48.91,
+    "run2": 5.11,
+    "turn": 2.64,
+    "run3": 3.65,
+    "stop2": null,
+    "slow": 53.69,
+    "stop3": null
+   },
+   "stanceMaxByTag": {
+    "stand": 0.62,
+    "start": 38.52,
+    "jog": 5.06,
+    "run_start": 4.38,
+    "run": 6.64,
+    "stop": 30.69,
+    "reverse": 50.79,
+    "run2": 6.04,
+    "turn": 6.26,
+    "run3": 4.25,
+    "stop2": 14.42,
+    "slow": 60.77,
+    "stop3": 16.35
+   },
+   "windows": [
+    {
+     "kind": "start",
+     "t": 1.01667,
+     "maxCm": 38.52
+    },
+    {
+     "kind": "switch",
+     "t": 1.11667,
+     "from": "walk",
+     "to": "jog",
+     "maxCm": 38.52
+    },
+    {
+     "kind": "switch",
+     "t": 3.08333,
+     "from": "jog",
+     "to": "run",
+     "maxCm": 3.38
+    },
+    {
+     "kind": "stop",
+     "t": 5.11667,
+     "maxCm": 30.69
+    },
+    {
+     "kind": "switch",
+     "t": 5.16667,
+     "from": "run",
+     "to": "jog",
+     "maxCm": 30.69
+    },
+    {
+     "kind": "switch",
+     "t": 5.21667,
+     "from": "jog",
+     "to": "walk",
+     "maxCm": 21.95
+    },
+    {
+     "kind": "reverse",
+     "t": 6.11667,
+     "maxCm": 50.79
+    },
+    {
+     "kind": "switch",
+     "t": 6.21667,
+     "from": "walk",
+     "to": "jog",
+     "maxCm": 50.79
+    },
+    {
+     "kind": "switch",
+     "t": 7.38333,
+     "from": "jog",
+     "to": "run",
+     "maxCm": 6.04
+    },
+    {
+     "kind": "turn",
+     "t": 7.91667,
+     "maxCm": 6.26
+    },
+    {
+     "kind": "stop",
+     "t": 9.11667,
+     "maxCm": 14.42
+    },
+    {
+     "kind": "switch",
+     "t": 9.16667,
+     "from": "run",
+     "to": "jog",
+     "maxCm": 14.42
+    },
+    {
+     "kind": "switch",
+     "t": 9.21667,
+     "from": "jog",
+     "to": "walk",
+     "maxCm": 14.42
+    },
+    {
+     "kind": "start",
+     "t": 9.71667,
+     "maxCm": 41.34
+    },
+    {
+     "kind": "stop",
+     "t": 11.51667,
+     "maxCm": 16.35
+    }
+   ],
+   "camByTag": {
+    "stand": {
+     "posJerkP99": 0,
+     "rotAccelP99": 0
+    },
+    "start": {
+     "posJerkP99": 252.7,
+     "rotAccelP99": 0
+    },
+    "jog": {
+     "posJerkP99": 6.1,
+     "rotAccelP99": 0
+    },
+    "run_start": {
+     "posJerkP99": 250.6,
+     "rotAccelP99": 0
+    },
+    "run": {
+     "posJerkP99": 7.8,
+     "rotAccelP99": 0
+    },
+    "stop": {
+     "posJerkP99": 4209.9,
+     "rotAccelP99": 0
+    },
+    "reverse": {
+     "posJerkP99": 458.5,
+     "rotAccelP99": 0
+    },
+    "run2": {
+     "posJerkP99": 257,
+     "rotAccelP99": 0
+    },
+    "turn": {
+     "posJerkP99": 2322.1,
+     "rotAccelP99": 21.51
+    },
+    "run3": {
+     "posJerkP99": 2250.6,
+     "rotAccelP99": 10.75
+    },
+    "stop2": {
+     "posJerkP99": 4212,
+     "rotAccelP99": 0
+    },
+    "slow": {
+     "posJerkP99": 263.2,
+     "rotAccelP99": 0
+    },
+    "stop3": {
+     "posJerkP99": 1099.5,
+     "rotAccelP99": 0
+    }
+   },
+   "camAll": {
+    "posJerkP99All": 985,
+    "rotAccelP99All": 20.21
+   },
+   "popsWorst": {
+    "legs": {
+     "bone": "LeftLeg",
+     "t": 5.21667,
+     "tag": "stop",
+     "deg": 27.2
+    },
+    "arms": {
+     "bone": "RightForeArm",
+     "t": 5.28333,
+     "tag": "stop",
+     "deg": 21.5
+    },
+    "core": {
+     "bone": "Head",
+     "t": 5.28333,
+     "tag": "stop",
+     "deg": 9.5
+    }
+   },
+   "gaitChanges": 14
+  },
+  "oldMeasure60": {
+   "run.run_start": {
+    "stanceMaxCm": 15.43,
+    "adv": 0,
+    "camAcc": 17.7
+   },
+   "run.run_steady": {
+    "stanceMaxCm": 6.94,
+    "adv": 0,
+    "camAcc": 0.5
+   },
+   "run.run_stop": {
+    "stanceMaxCm": 7.64,
+    "adv": 0.266,
+    "camAcc": 70.2
+   },
+   "turn.pre": {
+    "stanceMaxCm": 15.43,
+    "adv": 0,
+    "camAcc": 17.7
+   },
+   "turn.run_turn": {
+    "stanceMaxCm": 3.75,
+    "adv": 0,
+    "camAcc": 18193
+   },
+   "turn.post": {
+    "stanceMaxCm": 6.94,
+    "adv": 0,
+    "camAcc": 0
+   },
+   "turn.end": {
+    "stanceMaxCm": 5.51,
+    "adv": 0.259,
+    "camAcc": 70.2
+   },
+   "wall.approach": {
+    "stanceMaxCm": 16.24,
+    "adv": 0,
+    "camAcc": 17.7
+   },
+   "wall.run_wall": {
+    "stanceMaxCm": 42.39,
+    "adv": 0,
+    "camAcc": 59.8
+   },
+   "wall.end": {
+    "stanceMaxCm": 5.51,
+    "adv": 0.266,
+    "camAcc": 20.8
+   },
+   "walk.walk_start": {
+    "stanceMaxCm": 8.34,
+    "adv": 0,
+    "camAcc": 15.9
+   },
+   "walk.walk_steady": {
+    "stanceMaxCm": 4.9,
+    "adv": 0,
+    "camAcc": 0.2
+   },
+   "walk.walk_stop": {
+    "stanceMaxCm": 6.57,
+    "adv": 0.127,
+    "camAcc": 35.1
+   },
+   "switch.pre": {
+    "stanceMaxCm": 8.13,
+    "adv": 0,
+    "camAcc": 15.9
+   },
+   "switch.walk_to_run": {
+    "stanceMaxCm": 8.74,
+    "adv": 0,
+    "camAcc": 15.9
+   },
+   "switch.post": {
+    "stanceMaxCm": 4.25,
+    "adv": 0,
+    "camAcc": 0
+   },
+   "switch.end": {
+    "stanceMaxCm": 11.96,
+    "adv": 0.259,
+    "camAcc": 70.2
+   }
+  }
+ },
+ "B": {
+  "what": "feat/smooth-m0-measure (= feat/locomotion-polish f1839b4 + tools)",
+  "journey": {
+   "framesSha": "9792e0c50868bd68",
+   "frames": 762,
+   "summary": {
+    "slip.cmPerM": 14.75,
+    "slipLow.cmPerM": 13.83,
+    "window.maxCm": 51.67,
+    "window.start.maxCm": 32.59,
+    "window.switch.maxCm": 51.67,
+    "window.stop.maxCm": 20.28,
+    "window.reverse.maxCm": 51.67,
+    "window.turn.maxCm": 4.99,
+    "pops.legs.over45": 0,
+    "pops.legs.over90": 0,
+    "pops.arms.over45": 0,
+    "pops.arms.over90": 0,
+    "facing.yaw.over30": 0,
+    "facing.model.over30": 0,
+    "gait.flips": 0,
+    "cam.posJerkP99": 367.2,
+    "cam.rotAccelP99": 0,
+    "speed.logicalJumps": 0,
+    "speed.travelJumps": 3
+   },
+   "slipByTag": {
+    "stand": null,
+    "start": 47.52,
+    "jog": 3.68,
+    "run_start": 6.34,
+    "run": 2.61,
+    "stop": null,
+    "reverse": 42.01,
+    "run2": 5.1,
+    "turn": 4.23,
+    "run3": 2.37,
+    "stop2": null,
+    "slow": 48.96,
+    "stop3": null
+   },
+   "slipLowByTag": {
+    "stand": null,
+    "start": 47.52,
+    "jog": 3.68,
+    "run_start": 6.34,
+    "run": 2.3,
+    "stop": null,
+    "reverse": 42.01,
+    "run2": 4.62,
+    "turn": 3.58,
+    "run3": 1.95,
+    "stop2": null,
+    "slow": 42.69,
+    "stop3": null
+   },
+   "stanceMaxByTag": {
+    "stand": 0.62,
+    "start": 30.37,
+    "jog": 2.98,
+    "run_start": 10.32,
+    "run": 3.98,
+    "stop": 20.28,
+    "reverse": 51.67,
+    "run2": 6.22,
+    "turn": 4.99,
+    "run3": 1.94,
+    "stop2": 14.8,
+    "slow": 32.59,
+    "stop3": 10.32
+   },
+   "windows": [
+    {
+     "kind": "start",
+     "t": 1.01667,
+     "maxCm": 30.37
+    },
+    {
+     "kind": "switch",
+     "t": 1.11667,
+     "from": "walk",
+     "to": "jog",
+     "maxCm": 30.37
+    },
+    {
+     "kind": "switch",
+     "t": 3.08333,
+     "from": "jog",
+     "to": "run",
+     "maxCm": 10.32
+    },
+    {
+     "kind": "stop",
+     "t": 5.11667,
+     "maxCm": 20.28
+    },
+    {
+     "kind": "reverse",
+     "t": 6.11667,
+     "maxCm": 51.67
+    },
+    {
+     "kind": "switch",
+     "t": 6.21667,
+     "from": "walk",
+     "to": "jog",
+     "maxCm": 51.67
+    },
+    {
+     "kind": "switch",
+     "t": 7.38333,
+     "from": "jog",
+     "to": "run",
+     "maxCm": 6.22
+    },
+    {
+     "kind": "turn",
+     "t": 7.91667,
+     "maxCm": 4.99
+    },
+    {
+     "kind": "stop",
+     "t": 9.11667,
+     "maxCm": 14.8
+    },
+    {
+     "kind": "start",
+     "t": 9.71667,
+     "maxCm": 32.59
+    },
+    {
+     "kind": "stop",
+     "t": 11.51667,
+     "maxCm": 10.32
+    }
+   ],
+   "camByTag": {
+    "stand": {
+     "posJerkP99": 0,
+     "rotAccelP99": 0
+    },
+    "start": {
+     "posJerkP99": 118.8,
+     "rotAccelP99": 0
+    },
+    "jog": {
+     "posJerkP99": 7.8,
+     "rotAccelP99": 0
+    },
+    "run_start": {
+     "posJerkP99": 118.9,
+     "rotAccelP99": 0
+    },
+    "run": {
+     "posJerkP99": 7.8,
+     "rotAccelP99": 0
+    },
+    "stop": {
+     "posJerkP99": 861.8,
+     "rotAccelP99": 0
+    },
+    "reverse": {
+     "posJerkP99": 293,
+     "rotAccelP99": 0
+    },
+    "run2": {
+     "posJerkP99": 116.6,
+     "rotAccelP99": 0
+    },
+    "turn": {
+     "posJerkP99": 2307.2,
+     "rotAccelP99": 21.51
+    },
+    "run3": {
+     "posJerkP99": 2235.8,
+     "rotAccelP99": 10.75
+    },
+    "stop2": {
+     "posJerkP99": 868.3,
+     "rotAccelP99": 0
+    },
+    "slow": {
+     "posJerkP99": 154.2,
+     "rotAccelP99": 0
+    },
+    "stop3": {
+     "posJerkP99": 226.8,
+     "rotAccelP99": 0
+    }
+   },
+   "camAll": {
+    "posJerkP99All": 663.1,
+    "rotAccelP99All": 20.21
+   },
+   "popsWorst": {
+    "legs": {
+     "bone": "LeftLeg",
+     "t": 5,
+     "tag": "run",
+     "deg": 20
+    },
+    "arms": {
+     "bone": "LeftArm",
+     "t": 1.11667,
+     "tag": "start",
+     "deg": 13.6
+    },
+    "core": {
+     "bone": "Spine02",
+     "t": 8.15,
+     "tag": "turn",
+     "deg": 5.5
+    }
+   },
+   "gaitChanges": 10
+  },
+  "oldMeasure60": {
+   "run.run_start": {
+    "stanceMaxCm": 3.98,
+    "adv": 0,
+    "camAcc": 17.1
+   },
+   "run.run_steady": {
+    "stanceMaxCm": 4.16,
+    "adv": 0,
+    "camAcc": 0.5
+   },
+   "run.run_stop": {
+    "stanceMaxCm": 0,
+    "adv": 0,
+    "camAcc": 33
+   },
+   "turn.pre": {
+    "stanceMaxCm": 7.78,
+    "adv": 0,
+    "camAcc": 17.1
+   },
+   "turn.run_turn": {
+    "stanceMaxCm": 2.17,
+    "adv": 0,
+    "camAcc": 18183.5
+   },
+   "turn.post": {
+    "stanceMaxCm": 4.16,
+    "adv": 0,
+    "camAcc": 0.1
+   },
+   "turn.end": {
+    "stanceMaxCm": 0,
+    "adv": 0,
+    "camAcc": 33
+   },
+   "wall.approach": {
+    "stanceMaxCm": 8.03,
+    "adv": 0,
+    "camAcc": 17.1
+   },
+   "wall.run_wall": {
+    "stanceMaxCm": 31.38,
+    "adv": 0,
+    "camAcc": 31.4
+   },
+   "wall.end": {
+    "stanceMaxCm": 0,
+    "adv": 0,
+    "camAcc": 9.7
+   },
+   "walk.walk_start": {
+    "stanceMaxCm": 4.47,
+    "adv": 0,
+    "camAcc": 13.1
+   },
+   "walk.walk_steady": {
+    "stanceMaxCm": 10.15,
+    "adv": 0,
+    "camAcc": 0.2
+   },
+   "walk.walk_stop": {
+    "stanceMaxCm": 0,
+    "adv": 0,
+    "camAcc": 16.5
+   },
+   "switch.pre": {
+    "stanceMaxCm": 4.35,
+    "adv": 0,
+    "camAcc": 13.1
+   },
+   "switch.walk_to_run": {
+    "stanceMaxCm": 4.29,
+    "adv": 0,
+    "camAcc": 13.1
+   },
+   "switch.post": {
+    "stanceMaxCm": 4.54,
+    "adv": 0,
+    "camAcc": 0
+   },
+   "switch.end": {
+    "stanceMaxCm": 0,
+    "adv": 0,
+    "camAcc": 33
+   }
+  }
+ }
+}
