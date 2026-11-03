@@ -1,0 +1,620 @@
+{
+ "seed": 1333,
+ "fails": [],
+ "knock": {
+  "soldierLight": {
+   "outcome": "hit",
+   "move": "light1",
+   "push": 0.2,
+   "side": 0
+  },
+  "soldierHeavy": {
+   "outcome": "hit",
+   "move": "heavy",
+   "push": 0.25,
+   "side": 0
+  },
+  "officerLight": {
+   "outcome": "hit",
+   "move": "light1",
+   "push": 0.1,
+   "side": 0
+  },
+  "officerHeavy": {
+   "outcome": "hit",
+   "move": "heavy",
+   "push": 0.125,
+   "side": 0
+  }
+ },
+ "combo": [
+  {
+   "D": 1.2,
+   "moves": [
+    "light1",
+    "light2",
+    "light3"
+   ],
+   "dists": [
+    0.793,
+    0.72,
+    0.72
+   ]
+  },
+  {
+   "D": 1.6,
+   "moves": [
+    "light1",
+    "light2",
+    "light3"
+   ],
+   "dists": [
+    1.193,
+    0.95,
+    0.72
+   ]
+  },
+  {
+   "D": 2,
+   "moves": [
+    "light1",
+    "light2",
+    "light3"
+   ],
+   "dists": [
+    1.593,
+    1.35,
+    0.824
+   ]
+  },
+  {
+   "D": 2.15,
+   "moves": [
+    "light1",
+    "light2",
+    "light3"
+   ],
+   "dists": [
+    1.743,
+    1.5,
+    0.974
+   ]
+  }
+ ],
+ "wall": {
+  "blocked": "wall",
+  "hit": true,
+  "moved": 0.0007,
+  "penetration": 0
+ },
+ "cliff": {
+  "found": true,
+  "at": [
+   -33.57,
+   -42.21
+  ],
+  "freeAlong": 0.146,
+  "walkAlong": 0.488,
+  "hit": true,
+  "overshoot": 0.0078,
+  "steepest": 46,
+  "startSlope": 39.4
+ },
+ "bystander": {
+  "hit": true,
+  "nearest": 0.72,
+  "pushed": 0.1317,
+  "bystanderMoved": 0
+ },
+ "parry": {
+  "outcome": "parried",
+  "stop": 6,
+  "slow": 15,
+  "slowMin": 0.3,
+  "minScale": 0.05
+ },
+ "finisher": {
+  "outcome": "hit",
+  "move": "finisher",
+  "dead": true,
+  "push": 0.25,
+  "stop": 7,
+  "slow": 15,
+  "slowMin": 0.3,
+  "minScale": 0.05
+ },
+ "plain": {
+  "outcome": "hit",
+  "stop": 5,
+  "slow": 0,
+  "slowMin": null,
+  "minScale": 0.05
+ },
+ "calm": {
+  "parry": {
+   "outcome": "parried",
+   "stop": 3,
+   "slow": 15,
+   "slowMin": 0.3,
+   "minScale": 0.05
+  },
+  "knock": {
+   "outcome": "hit",
+   "move": "light1",
+   "push": 0.2,
+   "side": 0
+  }
+ },
+ "difficulty": {
+  "off": {
+   "scout": {
+    "fights": 4,
+    "killed": 4,
+    "seconds": 2.31,
+    "taken": 1,
+    "blocked": 0,
+    "parried": 3,
+    "light1": 2,
+    "light3": 1,
+    "comboRate": 0.5,
+    "finisher": 3
+   },
+   "officer": {
+    "fights": 4,
+    "killed": 4,
+    "seconds": 7.86,
+    "taken": 18,
+    "blocked": 0,
+    "parried": 5,
+    "light1": 21,
+    "light3": 3,
+    "comboRate": 0.14,
+    "finisher": 7
+   }
+  },
+  "knock": {
+   "scout": {
+    "fights": 4,
+    "killed": 4,
+    "seconds": 2.33,
+    "taken": 1,
+    "blocked": 0,
+    "parried": 3,
+    "light1": 2,
+    "light3": 1,
+    "comboRate": 0.5,
+    "finisher": 3
+   },
+   "officer": {
+    "fights": 4,
+    "killed": 4,
+    "seconds": 7.92,
+    "taken": 17,
+    "blocked": 0,
+    "parried": 5,
+    "light1": 21,
+    "light3": 1,
+    "comboRate": 0.05,
+    "finisher": 8
+   }
+  },
+  "on": {
+   "scout": {
+    "fights": 4,
+    "killed": 4,
+    "seconds": 2.52,
+    "taken": 1,
+    "blocked": 0,
+    "parried": 3,
+    "light1": 2,
+    "light3": 1,
+    "comboRate": 0.5,
+    "finisher": 3
+   },
+   "officer": {
+    "fights": 4,
+    "killed": 4,
+    "seconds": 8.39,
+    "taken": 17,
+    "blocked": 0,
+    "parried": 5,
+    "light1": 21,
+    "light3": 1,
+    "comboRate": 0.05,
+    "finisher": 8
+   }
+  }
+ },
+ "fights": {
+  "off": [
+   {
+    "id": "road_scout",
+    "trial": 0,
+    "brain": "combat",
+    "killed": true,
+    "seconds": 2.08,
+    "gameSeconds": 1.88,
+    "taken": 0,
+    "blocked": 0,
+    "parried": 1,
+    "light1": 0,
+    "light3": 0,
+    "finisher": 1,
+    "landed": 2,
+    "slowFrames": 0
+   },
+   {
+    "id": "road_scout",
+    "trial": 1,
+    "brain": "combat",
+    "killed": true,
+    "seconds": 2.22,
+    "gameSeconds": 1.9,
+    "taken": 0,
+    "blocked": 0,
+    "parried": 1,
+    "light1": 0,
+    "light3": 0,
+    "finisher": 1,
+    "landed": 2,
+    "slowFrames": 0
+   },
+   {
+    "id": "road_scout",
+    "trial": 2,
+    "brain": "combat",
+    "killed": true,
+    "seconds": 2.62,
+    "gameSeconds": 2.11,
+    "taken": 1,
+    "blocked": 0,
+    "parried": 0,
+    "light1": 2,
+    "light3": 1,
+    "finisher": 0,
+    "landed": 5,
+    "slowFrames": 0
+   },
+   {
+    "id": "road_scout",
+    "trial": 3,
+    "brain": "combat",
+    "killed": true,
+    "seconds": 2.3,
+    "gameSeconds": 2.01,
+    "taken": 0,
+    "blocked": 0,
+    "parried": 1,
+    "light1": 0,
+    "light3": 0,
+    "finisher": 1,
+    "landed": 2,
+    "slowFrames": 0
+   },
+   {
+    "id": "officer",
+    "trial": 0,
+    "brain": "retreat",
+    "killed": true,
+    "seconds": 8.23,
+    "gameSeconds": 6.73,
+    "taken": 7,
+    "blocked": 0,
+    "parried": 1,
+    "light1": 7,
+    "light3": 0,
+    "finisher": 2,
+    "landed": 10,
+    "slowFrames": 0
+   },
+   {
+    "id": "officer",
+    "trial": 1,
+    "brain": "retreat",
+    "killed": true,
+    "seconds": 8.08,
+    "gameSeconds": 6.4,
+    "taken": 7,
+    "blocked": 0,
+    "parried": 0,
+    "light1": 8,
+    "light3": 1,
+    "finisher": 1,
+    "landed": 13,
+    "slowFrames": 0
+   },
+   {
+    "id": "officer",
+    "trial": 2,
+    "brain": "retreat",
+    "killed": true,
+    "seconds": 7.55,
+    "gameSeconds": 6.44,
+    "taken": 2,
+    "blocked": 0,
+    "parried": 2,
+    "light1": 3,
+    "light3": 1,
+    "finisher": 2,
+    "landed": 8,
+    "slowFrames": 0
+   },
+   {
+    "id": "officer",
+    "trial": 3,
+    "brain": "retreat",
+    "killed": true,
+    "seconds": 7.57,
+    "gameSeconds": 6.49,
+    "taken": 2,
+    "blocked": 0,
+    "parried": 2,
+    "light1": 3,
+    "light3": 1,
+    "finisher": 2,
+    "landed": 8,
+    "slowFrames": 0
+   }
+  ],
+  "knock": [
+   {
+    "id": "road_scout",
+    "trial": 0,
+    "brain": "combat",
+    "killed": true,
+    "seconds": 2.17,
+    "gameSeconds": 1.88,
+    "taken": 0,
+    "blocked": 0,
+    "parried": 1,
+    "light1": 0,
+    "light3": 0,
+    "finisher": 1,
+    "landed": 2,
+    "slowFrames": 0
+   },
+   {
+    "id": "road_scout",
+    "trial": 1,
+    "brain": "combat",
+    "killed": true,
+    "seconds": 2.22,
+    "gameSeconds": 1.9,
+    "taken": 0,
+    "blocked": 0,
+    "parried": 1,
+    "light1": 0,
+    "light3": 0,
+    "finisher": 1,
+    "landed": 2,
+    "slowFrames": 0
+   },
+   {
+    "id": "road_scout",
+    "trial": 2,
+    "brain": "combat",
+    "killed": true,
+    "seconds": 2.62,
+    "gameSeconds": 2.11,
+    "taken": 1,
+    "blocked": 0,
+    "parried": 0,
+    "light1": 2,
+    "light3": 1,
+    "finisher": 0,
+    "landed": 5,
+    "slowFrames": 0
+   },
+   {
+    "id": "road_scout",
+    "trial": 3,
+    "brain": "combat",
+    "killed": true,
+    "seconds": 2.3,
+    "gameSeconds": 2.01,
+    "taken": 0,
+    "blocked": 0,
+    "parried": 1,
+    "light1": 0,
+    "light3": 0,
+    "finisher": 1,
+    "landed": 2,
+    "slowFrames": 0
+   },
+   {
+    "id": "officer",
+    "trial": 0,
+    "brain": "retreat",
+    "killed": true,
+    "seconds": 7.8,
+    "gameSeconds": 6.61,
+    "taken": 3,
+    "blocked": 0,
+    "parried": 2,
+    "light1": 4,
+    "light3": 0,
+    "finisher": 2,
+    "landed": 8,
+    "slowFrames": 0
+   },
+   {
+    "id": "officer",
+    "trial": 1,
+    "brain": "retreat",
+    "killed": true,
+    "seconds": 8.72,
+    "gameSeconds": 7.07,
+    "taken": 7,
+    "blocked": 0,
+    "parried": 0,
+    "light1": 8,
+    "light3": 1,
+    "finisher": 2,
+    "landed": 13,
+    "slowFrames": 0
+   },
+   {
+    "id": "officer",
+    "trial": 2,
+    "brain": "retreat",
+    "killed": true,
+    "seconds": 8.13,
+    "gameSeconds": 6.95,
+    "taken": 3,
+    "blocked": 0,
+    "parried": 2,
+    "light1": 4,
+    "light3": 0,
+    "finisher": 2,
+    "landed": 8,
+    "slowFrames": 0
+   },
+   {
+    "id": "officer",
+    "trial": 3,
+    "brain": "combat",
+    "killed": true,
+    "seconds": 7.05,
+    "gameSeconds": 5.94,
+    "taken": 4,
+    "blocked": 0,
+    "parried": 1,
+    "light1": 5,
+    "light3": 0,
+    "finisher": 2,
+    "landed": 8,
+    "slowFrames": 0
+   }
+  ],
+  "on": [
+   {
+    "id": "road_scout",
+    "trial": 0,
+    "brain": "combat",
+    "killed": true,
+    "seconds": 2.35,
+    "gameSeconds": 1.89,
+    "taken": 0,
+    "blocked": 0,
+    "parried": 1,
+    "light1": 0,
+    "light3": 0,
+    "finisher": 1,
+    "landed": 2,
+    "slowFrames": 15
+   },
+   {
+    "id": "road_scout",
+    "trial": 1,
+    "brain": "combat",
+    "killed": true,
+    "seconds": 2.52,
+    "gameSeconds": 1.92,
+    "taken": 0,
+    "blocked": 0,
+    "parried": 1,
+    "light1": 0,
+    "light3": 0,
+    "finisher": 1,
+    "landed": 2,
+    "slowFrames": 30
+   },
+   {
+    "id": "road_scout",
+    "trial": 2,
+    "brain": "combat",
+    "killed": true,
+    "seconds": 2.77,
+    "gameSeconds": 2.12,
+    "taken": 1,
+    "blocked": 0,
+    "parried": 0,
+    "light1": 2,
+    "light3": 1,
+    "finisher": 0,
+    "landed": 5,
+    "slowFrames": 15
+   },
+   {
+    "id": "road_scout",
+    "trial": 3,
+    "brain": "combat",
+    "killed": true,
+    "seconds": 2.45,
+    "gameSeconds": 2.02,
+    "taken": 0,
+    "blocked": 0,
+    "parried": 1,
+    "light1": 0,
+    "light3": 0,
+    "finisher": 1,
+    "landed": 2,
+    "slowFrames": 15
+   },
+   {
+    "id": "officer",
+    "trial": 0,
+    "brain": "retreat",
+    "killed": true,
+    "seconds": 8.52,
+    "gameSeconds": 6.62,
+    "taken": 3,
+    "blocked": 0,
+    "parried": 2,
+    "light1": 4,
+    "light3": 0,
+    "finisher": 2,
+    "landed": 8,
+    "slowFrames": 75
+   },
+   {
+    "id": "officer",
+    "trial": 1,
+    "brain": "retreat",
+    "killed": true,
+    "seconds": 8.87,
+    "gameSeconds": 7.08,
+    "taken": 7,
+    "blocked": 0,
+    "parried": 0,
+    "light1": 8,
+    "light3": 1,
+    "finisher": 2,
+    "landed": 13,
+    "slowFrames": 15
+   },
+   {
+    "id": "officer",
+    "trial": 2,
+    "brain": "retreat",
+    "killed": true,
+    "seconds": 8.85,
+    "gameSeconds": 6.96,
+    "taken": 3,
+    "blocked": 0,
+    "parried": 2,
+    "light1": 4,
+    "light3": 0,
+    "finisher": 2,
+    "landed": 8,
+    "slowFrames": 75
+   },
+   {
+    "id": "officer",
+    "trial": 3,
+    "brain": "combat",
+    "killed": true,
+    "seconds": 7.33,
+    "gameSeconds": 5.94,
+    "taken": 4,
+    "blocked": 0,
+    "parried": 1,
+    "light1": 5,
+    "light3": 0,
+    "finisher": 2,
+    "landed": 8,
+    "slowFrames": 30
+   }
+  ]
+ }
+}

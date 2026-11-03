@@ -12,6 +12,10 @@ try{
   const files=['valley',...['assets/valley/terrain','assets/valley/models','assets/characters']].flatMap(d=>fs.readdirSync(root+'/'+d,{withFileTypes:true}).filter(e=>e.isFile()).map(e=>d+'/'+e.name)).filter(f=>types[f.slice(f.lastIndexOf('.'))]);
   for(const f of files){const r=await fetch(base+'/'+f);assert.equal(r.status,200,f);assert(r.headers.get('content-type').startsWith(types[f.slice(f.lastIndexOf('.'))]),f);assert((await r.arrayBuffer()).byteLength>0,f);}
   console.log('Valley routes: '+files.length+' files served with MIME types.');}
+ // ディレクトリのURL：/valley/ は index.html を返す。/valley は / を付けて飛ばす（// で始まるURLでも外へ飛ばさない）。一覧は出さない。
+ {const r=await fetch(base+'/valley/');assert.equal(r.status,200,'/valley/');assert(r.headers.get('content-type').startsWith('text/html'),'/valley/');}
+ for(const u of ['/valley','//valley']){const r=await fetch(base+u,{redirect:'manual'});assert.equal(r.status,301,u);assert.equal(r.headers.get('location'),'/valley/',u);}
+ assert.equal((await fetch(base+'/assets/')).status,404);
  assert.equal((await fetch(base+'/missing-file')).status,404);
  assert.equal((await fetch(base+'/',{method:'POST'})).status,405);
  assert.equal((await fetch(base+'/%2e%2e%2fpackage.json')).status,403);
