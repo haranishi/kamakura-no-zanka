@@ -4,6 +4,7 @@ import { TREES } from './config.js';
 import { treeGeometry } from './tree-geometry.js';
 import { treeMaterials } from './tree-materials.js';
 import { lodMembership, uLodFor, fadeWeight } from './tree-lod.js';
+import { treeImpostors } from './tree-bake.js';
 const names = ['cedar', 'zelkova', 'pine', 'maple', 'sapling', 'shrub'];
 const clamp = v => Math.max(0, Math.min(1, v));
 export function stageColor(species, stage = 0, tint = .5, variant = 0) {
@@ -35,6 +36,19 @@ export function createTreeSet({ species, level, capacity, materials, variant = 0
     m.castShadow = level === 0; m.receiveShadow = level < 2; return m;
   }
   return { leaf: mesh(g.leaf, pair.leaf, 'tree-specimen-leaf'), wood: g.tris.wood ? mesh(g.wood, pair.wood, 'tree-specimen-wood') : null };
+}
+// The far level of an adult family as one baked board per tree (tree-bake.js): no trunk mesh, the board carries the trunk
+// and takes the individual's bark brightness from aImpWood. It neither casts nor receives shadows, like the far cones.
+export function createImpostorSet({ impostors, species, shape = 0, capacity }) {
+  if (!Number.isInteger(capacity) || capacity < 0) throw new RangeError('tree capacity');
+  const geometry = impostors.geometry(species, shape);
+  geometry.setAttribute('aImpWood', new THREE.InstancedBufferAttribute(new Float32Array(capacity).fill(1), 1).setUsage(THREE.DynamicDrawUsage));
+  const m = new THREE.InstancedMesh(geometry, impostors.material(species, shape), capacity);
+  m.name = 'tree-impostor'; m.count = 0; m.frustumCulled = false;
+  m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+  m.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(capacity * 3).fill(1), 3).setUsage(THREE.DynamicDrawUsage);
+  m.castShadow = false; m.receiveShadow = false;
+  return { leaf: m, wood: null, impostor: true };
 }
 export function buildSpecimens({ terrain, wind, sunDir, quality = 'standard', at = [0, 0], yaw = 0, spacing = 10, items = [] }) {
   // Validate the complete request before allocating owned resources.
@@ -72,7 +86,7 @@ export function buildSpecimens({ terrain, wind, sunDir, quality = 'standard', at
 
 // Full species capacity at every level permits overlap without reallocating GPU buffers.
 export class TreeField {
-  constructor({ data, species, understory, wind, sunDir, quality = 'standard' }) {
+  constructor({ data, species, understory, wind, sunDir, quality = 'standard', renderer = null }) {
     this.data = data;
     this.species = species ?? { species: data.kind, stage: new Uint8Array(data.x.length) };
     this.understory = understory ?? { x: [] };
@@ -82,6 +96,13 @@ export class TreeField {
     this.group = new THREE.Group(); this.group.name = 'trees';
     this.last = new THREE.Vector2(1e9, 1e9);
     this.materials = treeMaterials({ wind, sunDir, quality });
+    // With a renderer the far adults are baked boards (8.1a, second round); without one (Node, a failed bake) they keep the far meshes.
+    this.impostors = null; this.bakeMs = 0;
+    if (renderer) {
+      const impostors = treeImpostors({ wind, sunDir, quality, materials: this.materials });
+      try { this.bakeMs = impostors.bake(renderer); this.impostors = impostors; }
+      catch (error) { impostors.dispose(); console.warn('tree impostor bake failed; far trees keep their meshes', error); }
+    }
     this.sets = []; this.lookup = new Map(); this.disposed = false;
     this.stats = { near: 0, mid: 0, far: 0, understory: 0 };
     const counts = new Map();
@@ -91,13 +112,14 @@ export class TreeField {
     for (const [key, capacity] of counts) {
       const [sp, variant, shape] = key.split('/').map(Number), cfg = sp >= 4 ? TREES[names[sp]] : null;
       for (let level = 0; level < (cfg ? 2 : 3); level++) {
-        const set = createTreeSet({ species: sp, level, capacity, materials: this.materials, variant, shape });
+        const set = !cfg && level === 2 && this.impostors ? createImpostorSet({ impostors: this.impostors, species: sp, shape, capacity })
+          : createTreeSet({ species: sp, level, capacity, materials: this.materials, variant, shape });
         Object.assign(set, { species: sp, level, variant, shape, capacity });
         // Reserve both hard-split levels during the five-metre allocation cadence.
         // Their shader masks are binary, so the reserve never cross-fades.
         const values = cfg ? [-1, -1, -1, -1] : uLodFor(level, this.policy);
         for (const mesh of [set.leaf, set.wood]) if (mesh) {
-          mesh.name = `tree-${sp}-${level}-${variant}-${shape}-${mesh === set.leaf ? 'leaf' : 'wood'}`;
+          mesh.name = `tree-${sp}-${level}-${variant}-${shape}-${set.impostor ? 'board' : mesh === set.leaf ? 'leaf' : 'wood'}`;
           mesh.material.userData.uLod.value.set(...values);
           const compile = mesh.material.onBeforeCompile, cacheKey = mesh.material.customProgramCacheKey();
           const range = cfg ? (this.light ? cfg.lightDistance : cfg.distance) : null, blend = this.policy.blend;
@@ -145,7 +167,7 @@ export class TreeField {
       if (set.wood) {
         set.wood.setMatrixAt(k, this.m); this.color.setRGB(1, 1, 1).multiplyScalar(.85 + tv * .3);
         set.wood.setColorAt(k, this.color); set.wood.count++;
-      }
+      } else if (set.impostor) set.leaf.geometry.attributes.aImpWood.array[k] = .85 + tv * .3;
       if (sp < 4) this.stats[['near', 'mid', 'far'][level]]++;
       else this.stats.understory++;
     };
@@ -167,13 +189,14 @@ export class TreeField {
         put(d, i, sp, d.stage[i], sp === 4 ? d.variant[i] ?? 0 : 0, 0, level, d.s[i] / treeGeometry(sp, 0).height);
       }
     }
-    for (const set of this.sets) for (const mesh of [set.leaf, set.wood]) if (mesh) {
-      mesh.instanceMatrix.needsUpdate = true; mesh.instanceColor.needsUpdate = true;
+    for (const set of this.sets) {
+      for (const mesh of [set.leaf, set.wood]) if (mesh) { mesh.instanceMatrix.needsUpdate = true; mesh.instanceColor.needsUpdate = true; }
+      if (set.impostor) set.leaf.geometry.attributes.aImpWood.needsUpdate = true;
     }
   }
   dispose() {
     if (this.disposed) return; this.disposed = true; this.group.removeFromParent();
     for (const set of this.sets) for (const mesh of [set.leaf, set.wood]) if (mesh) { mesh.geometry.dispose(); mesh.dispose(); }
-    this.materials.dispose(); this.group.clear();
+    this.materials.dispose(); this.impostors?.dispose(); this.group.clear();
   }
 }

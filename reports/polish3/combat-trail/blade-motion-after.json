@@ -1,0 +1,379 @@
+{
+ "tool": "tools/scenarios/measure-combat-trail.mjs",
+ "seed": 1333,
+ "environment": "M4 Pro・Chrome（ヘッドレス）・1280×720・DPR1・標準品質・2026-10-30",
+ "note": "技の開始からの秒。山は判定の0.25秒前〜0.25秒後かつ開始0.1秒以降で探す（開始の混ぜの跳びは fadePopM）。敵の個体の速さ（rate）も残す。",
+ "summary": [
+  {
+   "actor": "hero",
+   "name": "light1",
+   "rate": 1,
+   "moves": [
+    {
+     "id": "light1",
+     "judge": [
+      0.17,
+      0.27
+     ],
+     "tipPeakAt": 0.192,
+     "tipPeakMax": 25.188,
+     "tipHalf": [
+      0.125,
+      0.292
+     ],
+     "wristPeakAt": 0.208,
+     "wristPeakMax": 13.528,
+     "wristHalf": [
+      0.142,
+      0.275
+     ],
+     "tipPeakVsJudgeStartMs": 22,
+     "wristPeakVsJudgeStartMs": 38,
+     "wristHalfStartVsJudgeStartMs": -28,
+     "wristHalfEndVsJudgeEndMs": 5,
+     "trailWindowPathM": 3.635,
+     "maxStepM": 0.42,
+     "fadePopM": 0.363,
+     "trailMaxVerts": 66,
+     "trailMaxActive": 1
+    }
+   ]
+  },
+  {
+   "actor": "hero",
+   "name": "light1-2-3",
+   "rate": 1,
+   "moves": [
+    {
+     "id": "light1",
+     "judge": [
+      0.17,
+      0.27
+     ],
+     "tipPeakAt": 0.192,
+     "tipPeakMax": 25.188,
+     "tipHalf": [
+      0.125,
+      0.292
+     ],
+     "wristPeakAt": 0.208,
+     "wristPeakMax": 13.528,
+     "wristHalf": [
+      0.142,
+      0.275
+     ],
+     "tipPeakVsJudgeStartMs": 22,
+     "wristPeakVsJudgeStartMs": 38,
+     "wristHalfStartVsJudgeStartMs": -28,
+     "wristHalfEndVsJudgeEndMs": 5,
+     "trailWindowPathM": 3.488,
+     "maxStepM": 0.42,
+     "fadePopM": 0.358,
+     "trailMaxVerts": 66,
+     "trailMaxActive": 1
+    },
+    {
+     "id": "light2",
+     "judge": [
+      0.15,
+      0.25
+     ],
+     "tipPeakAt": 0.192,
+     "tipPeakMax": 26.505,
+     "tipHalf": [
+      0.158,
+      0.342
+     ],
+     "wristPeakAt": 0.192,
+     "wristPeakMax": 9.36,
+     "wristHalf": [
+      0.142,
+      0.342
+     ],
+     "tipPeakVsJudgeStartMs": 42,
+     "wristPeakVsJudgeStartMs": 42,
+     "wristHalfStartVsJudgeStartMs": -8,
+     "wristHalfEndVsJudgeEndMs": 92,
+     "trailWindowPathM": 4.682,
+     "maxStepM": 0.442,
+     "fadePopM": 1.033,
+     "trailMaxVerts": 66,
+     "trailMaxActive": 1
+    },
+    {
+     "id": "light3",
+     "judge": [
+      0.2,
+      0.32
+     ],
+     "tipPeakAt": 0.208,
+     "tipPeakMax": 23.259,
+     "tipHalf": [
+      0.175,
+      0.242
+     ],
+     "wristPeakAt": 0.258,
+     "wristPeakMax": 11.437,
+     "wristHalf": [
+      0.208,
+      0.342
+     ],
+     "tipPeakVsJudgeStartMs": 8,
+     "wristPeakVsJudgeStartMs": 58,
+     "wristHalfStartVsJudgeStartMs": 8,
+     "wristHalfEndVsJudgeEndMs": 22,
+     "trailWindowPathM": 3.891,
+     "maxStepM": 0.388,
+     "fadePopM": 1.192,
+     "trailMaxVerts": 82,
+     "trailMaxActive": 1
+    }
+   ]
+  },
+  {
+   "actor": "hero",
+   "name": "heavy",
+   "rate": 1,
+   "moves": [
+    {
+     "id": "heavy",
+     "judge": [
+      0.42,
+      0.54
+     ],
+     "tipPeakAt": 0.508,
+     "tipPeakMax": 26.729,
+     "tipHalf": [
+      0.425,
+      0.542
+     ],
+     "wristPeakAt": 0.492,
+     "wristPeakMax": 11.608,
+     "wristHalf": [
+      0.425,
+      0.542
+     ],
+     "tipPeakVsJudgeStartMs": 88,
+     "wristPeakVsJudgeStartMs": 72,
+     "wristHalfStartVsJudgeStartMs": 5,
+     "wristHalfEndVsJudgeEndMs": 2,
+     "trailWindowPathM": 3.361,
+     "maxStepM": 0.445,
+     "fadePopM": 0.198,
+     "trailMaxVerts": 82,
+     "trailMaxActive": 1
+    }
+   ]
+  },
+  {
+   "actor": "hero",
+   "name": "counter",
+   "rate": 1,
+   "moves": [
+    {
+     "id": "counter",
+     "judge": [
+      0.12,
+      0.22
+     ],
+     "tipPeakAt": 0.125,
+     "tipPeakMax": 40.843,
+     "tipHalf": [
+      0.108,
+      0.175
+     ],
+     "wristPeakAt": 0.125,
+     "wristPeakMax": 15.018,
+     "wristHalf": [
+      0.108,
+      0.192
+     ],
+     "tipPeakVsJudgeStartMs": 5,
+     "wristPeakVsJudgeStartMs": 5,
+     "wristHalfStartVsJudgeStartMs": -12,
+     "wristHalfEndVsJudgeEndMs": -28,
+     "trailWindowPathM": 4.067,
+     "maxStepM": 0.681,
+     "fadePopM": 0.555,
+     "trailMaxVerts": 66,
+     "trailMaxActive": 1
+    }
+   ]
+  },
+  {
+   "actor": "road_scout",
+   "name": "soldier_slash",
+   "rate": 1.045,
+   "moves": [
+    {
+     "id": "soldier_slash",
+     "judge": [
+      0.55,
+      0.67
+     ],
+     "tipPeakAt": 0.592,
+     "tipPeakMax": 47.267,
+     "tipHalf": [
+      0.558,
+      0.608
+     ],
+     "wristPeakAt": 0.575,
+     "wristPeakMax": 21.14,
+     "wristHalf": [
+      0.558,
+      0.608
+     ],
+     "tipPeakVsJudgeStartMs": 42,
+     "wristPeakVsJudgeStartMs": 25,
+     "wristHalfStartVsJudgeStartMs": 8,
+     "wristHalfEndVsJudgeEndMs": -62,
+     "trailWindowPathM": 3.048,
+     "maxStepM": 0.788,
+     "fadePopM": 0.438,
+     "trailMaxVerts": 66,
+     "trailMaxActive": 1
+    }
+   ]
+  },
+  {
+   "actor": "road_scout",
+   "name": "soldier_thrust",
+   "rate": 1.045,
+   "moves": [
+    {
+     "id": "soldier_thrust",
+     "judge": [
+      0.7,
+      0.8
+     ],
+     "tipPeakAt": 0.792,
+     "tipPeakMax": 8.955,
+     "tipHalf": [
+      0.692,
+      0.808
+     ],
+     "wristPeakAt": 0.708,
+     "wristPeakMax": 6.17,
+     "wristHalf": [
+      0.692,
+      0.808
+     ],
+     "tipPeakVsJudgeStartMs": 92,
+     "wristPeakVsJudgeStartMs": 8,
+     "wristHalfStartVsJudgeStartMs": -8,
+     "wristHalfEndVsJudgeEndMs": 8,
+     "trailWindowPathM": 1.131,
+     "maxStepM": 0.149,
+     "fadePopM": 0.325,
+     "trailMaxVerts": 66,
+     "trailMaxActive": 1
+    }
+   ]
+  },
+  {
+   "actor": "officer",
+   "name": "officer_a",
+   "rate": 1,
+   "moves": [
+    {
+     "id": "officer_a",
+     "judge": [
+      0.35,
+      0.47
+     ],
+     "tipPeakAt": 0.392,
+     "tipPeakMax": 30.426,
+     "tipHalf": [
+      0.358,
+      0.408
+     ],
+     "wristPeakAt": 0.358,
+     "wristPeakMax": 23.515,
+     "wristHalf": [
+      0.358,
+      0.392
+     ],
+     "tipPeakVsJudgeStartMs": 42,
+     "wristPeakVsJudgeStartMs": 8,
+     "wristHalfStartVsJudgeStartMs": 8,
+     "wristHalfEndVsJudgeEndMs": -78,
+     "trailWindowPathM": 1.729,
+     "maxStepM": 0.507,
+     "fadePopM": 0.305,
+     "trailMaxVerts": 66,
+     "trailMaxActive": 1
+    }
+   ]
+  },
+  {
+   "actor": "officer",
+   "name": "officer_b",
+   "rate": 1,
+   "moves": [
+    {
+     "id": "officer_b",
+     "judge": [
+      0.4,
+      0.52
+     ],
+     "tipPeakAt": 0.458,
+     "tipPeakMax": 25.855,
+     "tipHalf": [
+      0.425,
+      0.508
+     ],
+     "wristPeakAt": 0.458,
+     "wristPeakMax": 10.122,
+     "wristHalf": [
+      0.408,
+      0.508
+     ],
+     "tipPeakVsJudgeStartMs": 58,
+     "wristPeakVsJudgeStartMs": 58,
+     "wristHalfStartVsJudgeStartMs": 8,
+     "wristHalfEndVsJudgeEndMs": -12,
+     "trailWindowPathM": 3.215,
+     "maxStepM": 0.431,
+     "fadePopM": 0.297,
+     "trailMaxVerts": 66,
+     "trailMaxActive": 1
+    }
+   ]
+  },
+  {
+   "actor": "officer",
+   "name": "officer_c",
+   "rate": 1,
+   "moves": [
+    {
+     "id": "officer_c",
+     "judge": [
+      0.45,
+      0.59
+     ],
+     "tipPeakAt": 0.575,
+     "tipPeakMax": 24.212,
+     "tipHalf": [
+      0.475,
+      0.608
+     ],
+     "wristPeakAt": 0.542,
+     "wristPeakMax": 11.154,
+     "wristHalf": [
+      0.458,
+      0.608
+     ],
+     "tipPeakVsJudgeStartMs": 125,
+     "wristPeakVsJudgeStartMs": 92,
+     "wristHalfStartVsJudgeStartMs": 8,
+     "wristHalfEndVsJudgeEndMs": 18,
+     "trailWindowPathM": 3.544,
+     "maxStepM": 0.404,
+     "fadePopM": 0.553,
+     "trailMaxVerts": 74,
+     "trailMaxActive": 1
+    }
+   ]
+  }
+ ]
+}

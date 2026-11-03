@@ -45,6 +45,17 @@ b0 庭へ降りる（`temple_yard` に入る）→ b1 穂太の話 → b2 林道
 - `tools/scenarios/regress-attack-timing.mjs`：同じ入力列で、戦闘の論理（状態・体力・構え・位置）を毎コマ記録し、変更前と変更後が一致することを比べる（`node tools/scenarios/regress-attack-timing.mjs 前.json 後.json`）。
 - `tools/scenarios/capture-draw-sheathe.mjs`：抜刀・納刀を、実ゲームの固定カメラ（主人公の左側）で一定間隔に撮る（敵が気づく→抜刀／納刀済みで攻撃→速い抜刀／戦闘後の納刀）。変更前と変更後を同じ条件で撮って比べる。
 - `tools/scenarios/measure-draw-sheathe.mjs`：既存の抜刀・納刀の動作で、握りと腰の鞘がどう動くかを測る（前値は `reports/polish3/baseline/draw-sheathe-before.json`）。
+- `tools/scenarios/regress-attack-timing.mjs` に `KZ_SCENE=officer` を付けると、相手が侍大将になる（連続技の二段目 officer_b を含む520コマ）。
+- `tools/scenarios/regress-slash-trail.mjs`：刃の軌跡（8.3a）を毎コマ確かめる（区間の外・戻りで足さない・閉じて0.05秒で消える・ちらつかない・停止中に詰まらない・抜刀の層の間は足さない・やり直しで消える・揺れ0でも出る・描画呼出の増加1・三段目の停止0.07秒・弾きの火花の向き）。第2周：停止のコマで刃が頭の上にない・火花は刃の進む向き・弾きは刃同士が触れる・敵の刃は予兆の間だけ照る・ひるみは相手から離れる。
+- `tools/scenarios/measure-combat-trail.mjs`：技ごとに刀の根元・切先・手首を毎コマ記録し、切先と手首の速さの山と判定の区間の差、帯の区間の切先の道のりを測る（`KZ_OUT=…`）。第2周：接触時刻（相手を間合いの距離に置き、刃が胴の高さを通って最も近づく時刻）と判定の始めの差も測る（`KZ_ONLY=contact` で接触だけ、`KZ_RAW=1` で生サンプル）。
+- `tools/scenarios/capture-combat-trail.mjs`：通常三連・強斬り・突き・弾き・侍大将の二段目を、固定カメラ・同じ入力でコマ割りに撮る（`KZ_TAG=before|after|after2`、`KZ_FULL=A:12,…` で等倍も残す）。
+- `tools/scenarios/regress-hand-grip.mjs`：刀を握る手（8.6a）を毎コマ測る（指・親指の皮と柄・鞘のすき間とめり込み、手首と指の跳び、腕の写しの長さ、動作の骨と切先が層を切った人物と一致）。31場面。`KZ_OUT=…` でJSONを残す。
+- `tools/scenarios/regress-hand-grip-game.mjs`：実ゲームの主人公で、敵が気づいて抜く・納刀のまま攻撃・戦闘後の自動の納刀・抜く途中に倒れる、の4場面を通し、見える手を毎コマ測る。
+- `tools/scenarios/record-sword-tips.mjs`：全動作クリップと抜刀・納刀の切先の位置を毎コマ記録し、変更前と変更後を比べる（`node tools/scenarios/record-sword-tips.mjs 前.json 後.json`）。
+- `tools/scenarios/capture-hand-grip.mjs`：握りの前後をラボで撮る（`tools/lab-play.mjs` で動かす。`KZ_SHEET=guard|draw|walk|enemy`）。前＝同じ版で層を切った人物。
+- `tools/lab-play.mjs`：人物ラボ（`lab.html`）を開いてシナリオを動かす（valley-play のラボ版。`--query "who=hero&weapon=drawn"`）。
+- `tools/scenarios/capture-trees-detail.mjs`：木（8.1a）の近景（林道・枝の下から見上げ・幹と根元の寄り・広葉・庭・楓の寄り・林道の斥候）・中景（林の縁）・遠景（見晴らし・谷の川・太陽の方位）と、杉と広葉の標本（12〜30m、順光と、太陽の方位へ低く向けた逆光）を、HUDなし・乱数・時刻・風を固定して撮る。第2周で画角の重複を外した。`--q light` では5枚に light- を付ける。変更前のコードでも同じシナリオで撮って比べる。純粋層の変異検査は `node tools/verify-tree-branches-mutations.mjs` と `verify-tree-impostor-mutations.mjs`。
+- `tools/scenarios/capture-tree-lod-far.mjs`：遠景の絵の板（8.1a第2周）と中景が入れ替わる帯（標準150m・軽量100m）を、同じ木へ近づきながら10°の画角で撮る。
 - `tools/scenarios/capture-calls.mjs`：capture-set と同じ画角を、画面の繰り返し・時計・乱数を止めて撮り（同じコードなら2回撮っても全画素が一致する）、画角ごとの描画の呼び出しと置き物の内訳を `calls.json` に残す。`KZ_MASK=1` で置き物だけの輪郭も残す。前後の画素は `node tools/compare-shots.mjs <前> <後> [--masks]` で比べる（S7-0 の記録は `reports/valley-life/`）。
 - `tools/scenarios/capture-walk.mjs`：見晴らし岩（見1）から里の入口まで林道を走る様子を、45コマごとのコマ画像で残す（capture-calls と同じく乱数と時計を止める。S7-A の二次運動と密度の確かめ用）。
 - 検査の流れの見本：`tools/scenarios/` のシナリオ。
