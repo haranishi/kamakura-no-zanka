@@ -4,6 +4,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { createServer } from './serve.mjs';
+import { guardPointerLock } from './lib/pointerlock-guard.mjs';
 
 const args = process.argv.slice(2);
 const flag = (name, fallback) => { const i = args.indexOf('--' + name); return i >= 0 ? args[i + 1] : fallback; };
@@ -16,6 +17,7 @@ if (!base) { server = createServer(); await new Promise(r => server.listen(0, '1
 const browser = await chromium.launch({ channel: 'chrome', headless: true, args: ['--use-angle=metal', '--enable-gpu-rasterization', '--ignore-gpu-blocklist', '--enable-unsafe-swiftshader'] });
 try {
   const page = await browser.newPage({ viewport: { width: Number(flag('w', 1280)), height: Number(flag('h', 800)) }, deviceScaleFactor: Number(flag('dpr', 1)) });
+  await guardPointerLock(page);   // 試験のたびに、使っている人の本物のカーソルが飛ばないように、マウスの固定をOSへ届かせない（見た目は変わらない）
   const logs = [];
   page.on('console', m => { if (args.includes('--log') || m.type() === 'error') logs.push(`[${m.type()}] ${m.text()}`); });
   page.on('pageerror', e => logs.push('[pageerror] ' + e));

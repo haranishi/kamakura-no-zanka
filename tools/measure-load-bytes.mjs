@@ -2,6 +2,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { createServer } from './serve.mjs';
 import journey from './scenarios/load-journey.mjs';
+import { guardPointerLock } from './lib/pointerlock-guard.mjs';
 // design-validation.md「読み込み」の仕様値。上位15件は今回の測定出力契約。
 const MIB = 1048576, RESERVE_LIMIT = 84.5, LIMIT = 90, TOP = 15;
 const args = process.argv.slice(2), outIndex = args.indexOf('--out');
@@ -14,6 +15,7 @@ try {
   browser = await chromium.launch({ channel: 'chrome', headless: true, args: ['--use-angle=metal', '--enable-gpu-rasterization', '--ignore-gpu-blocklist', '--enable-unsafe-swiftshader'] });
   // R14.8の画面条件を読み込みにも使用。
   const page = await browser.newPage({ viewport: { width: 1280, height: 720 }, deviceScaleFactor: 1 });
+  await guardPointerLock(page);   // 試験のたびに、使っている人の本物のカーソルが飛ばないように、マウスの固定をOSへ届かせない（読み込む量は変わらない）
   const entries = new Map(), pending = [], failures = [], pageErrors = [];
   page.on('pageerror', e => pageErrors.push(e.message));
   // blob: はブラウザ内の一時データ（GLBから取り出した画像など）。通信ではなく、本体は元のGLBに数えている。
