@@ -18,7 +18,7 @@ export class UpperRig {
   constructor(ch) {
     this.ch = ch;
     this.b = NAMES.map(n => ch.bone(n));
-    this.hips = ch.bone('Hips');
+    this.hips = ch.bone('Hips'); this.handL = ch.bone('LeftHand'); this.handR = ch.bone('RightHand');
     this.legs = [['LeftUpLeg', 'LeftLeg'], ['RightUpLeg', 'RightLeg']].map(([a, b]) => [ch.bone(a), ch.bone(b)]);
     this.ok = !!this.hips && this.b.every(Boolean) && this.legs.every(l => l[0] && l[1]);
     this.saved = this.b.map(() => new THREE.Quaternion());
@@ -91,11 +91,16 @@ export class UpperRig {
     // 腕：反対側の太ももの角度から、減衰の弱いばねで。鞘・柄・弓を持つ腕は弱く
     const period = a && meta?.seconds && ts > 0 ? meta.seconds / ts : 0, om = armOmega(period);
     const holdR = ch.weapons?.tachiDrawn?.holder?.visible || ch.weapons?.naginata?.holder?.visible, holdL = ch.weapons?.yumi?.holder?.visible;
-    springStep(this.armL, armTarget(thighR, this.v, w, holdL ? UPPER.arm.constrained : 1, reduce), om, UPPER.arm.zeta, dt);
-    springStep(this.armR, armTarget(thighL, this.v, w, holdR ? UPPER.arm.constrained : 1, reduce), om, UPPER.arm.zeta, dt);
+    // 腕と前腕は速さでも弱める（止まりの0.2秒で効きが残ると、待ちへ混ぜる間に前へ開いた脚の角度で腕が前へ水平に上がった＝撮影で確認）。目標が0へ向かう間は減衰を強く（行き過ぎて後ろへ振れない）
+    // 強い減速（止まり）でも弱める：止まりで待ちの姿へ混ぜる間、動作の腕は前へ上がる。補正を残すと、奥の腕が前へ水平に伸びて見えた（真横の撮影で確認）
+    const wa = w * Math.min(1, this.v / UPPER.arm.fullSpeed) * Math.max(0, Math.min(1, 1 + this.acc / UPPER.arm.brake)), zA = want > 0.5 ? UPPER.arm.zeta : UPPER.arm.zetaStop;
+    springStep(this.armL, armTarget(thighR, this.v, wa, holdL ? UPPER.arm.constrained : 1, reduce), om, zA, dt);
+    springStep(this.armR, armTarget(thighL, this.v, wa, holdR ? UPPER.arm.constrained : 1, reduce), om, zA, dt);
     const sL = holdL ? UPPER.arm.constrained : 1, sR = holdR ? UPPER.arm.constrained : 1;
-    this.rot(this.b[4], RIGHT, this.armL.x * D2R); this.rot(this.b[6], RIGHT, forearmFix(this.armL.x, this.v, w, sL, reduce) * D2R);
-    this.rot(this.b[5], RIGHT, this.armR.x * D2R); this.rot(this.b[7], RIGHT, forearmFix(this.armR.x, this.v, w, sR, reduce) * D2R);
+    // 上腕の前への傾きは、動作の角＋補正が cap 度を超えない（止まりで待ちの姿へ混ぜる間、動作の腕が前へ45度ほど上がり、補正を足すと水平に突き出た＝撮影で確認）
+    const xL = Math.min(this.armL.x, Math.max(0, UPPER.arm.cap - this.sag(this.b[4], this.b[6]))), xR = Math.min(this.armR.x, Math.max(0, UPPER.arm.cap - this.sag(this.b[5], this.b[7])));
+    this.rot(this.b[4], RIGHT, xL * D2R); this.rot(this.b[6], RIGHT, this.elbowKeep(this.b[4], this.b[6], this.handL, forearmFix(xL, this.v, wa, sL, reduce)) * D2R);
+    this.rot(this.b[5], RIGHT, xR * D2R); this.rot(this.b[7], RIGHT, this.elbowKeep(this.b[5], this.b[7], this.handR, forearmFix(xR, this.v, wa, sR, reduce)) * D2R);
     // 頭：進む向きから見た頭の向きを、ゆっくりならした向きへ寄せる（揺れを打ち消す）
     const head = this.b[3];
     head.parent.updateMatrixWorld(true);
@@ -107,7 +112,7 @@ export class UpperRig {
     head.parent.getWorldQuaternion(PQ); head.quaternion.copy(PQ.invert().multiply(HQ));
     head.updateMatrixWorld(true);
     this.hips.updateMatrixWorld(true);
-    const L = this.last; L.w = w; L.pelvis = pf / D2R; L.armL = this.armL.x; L.armR = this.armR.x; L.lean = this.lean.x; L.bank = this.bank.x; L.twist = tw; L.lift = this.lift; L.v = this.v;
+    const L = this.last; L.w = w; L.pelvis = pf / D2R; L.armL = xL; L.armR = xR; L.lean = this.lean.x; L.bank = this.bank.x; L.twist = tw; L.lift = this.lift; L.v = this.v;
   }
 
   // 骨を世界の軸 axis まわりに ang だけ回す（親の局所へ直して）
@@ -115,6 +120,14 @@ export class UpperRig {
     if (Math.abs(ang) < 1e-7) return;
     bone.parent.getWorldQuaternion(PQ); RQ.setFromAxisAngle(axis, ang);
     bone.quaternion.premultiply(PQ).premultiply(RQ).premultiply(PQ.invert());
+  }
+  // 前腕の補正 fix（度）を、腕が前にある間は肘の曲がりが minFlex 度を下回らないように減らす（伸ばしすぎて腕が棒になるのを防ぐ。伸ばす向きの補正だけを削る）
+  elbowKeep(arm, fore, hand, fix) {
+    if (!(fix < 0) || !hand) return fix;
+    const us = this.sag(arm, fore);
+    if (us <= 0) return fix;
+    const fs = this.sag(fore, hand), room = fs - (us + UPPER.arm.minFlex);
+    return Math.max(fix, Math.min(0, -room));
   }
   // 骨 a→b の線の、体の前への傾き（度・真下が0）
   sag(a, b) {
