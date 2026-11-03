@@ -14,6 +14,7 @@ import { BowRig } from './bow.js';
 import { SwordRig } from './sword-rig.js';
 import { HandRig, HAND_RIG_WHO, prepareHands } from './hand-rig.js';
 import { LegRig } from './leg-ik.js';
+import { UpperRig } from './upper-rig.js';
 import { strideScale } from './leg-plant.js';
 import { makeTachi, makeNaginata, makeYumi, makeArrow, makeQuiver } from './weapons.js';
 import { patchLift } from './grade.js';
@@ -108,6 +109,8 @@ export class Character {
     this.hands = HAND_RIG_WHO.has(who) ? new HandRig(this) : null;
     // 脚のIKと接地（M2b・leg-ik.js）。game.js が押し分けの後に finishPose を呼ぶコマだけ使う（splitPose・legIk はそのコマごとに置かれる）
     this.legs = new LegRig(this); this.splitPose = false; this.legIk = false; this.legTerrain = null; this.poseDt = null;
+    // 走りの形（M3・upper-rig.js）：脚のIKを使う人だけ、脚の前に当てる（?smooth=arms で M2b の姿勢）
+    this.upper = new UpperRig(this);
   }
 
   bone(name) { return this.bones.get(name); }
@@ -283,6 +286,7 @@ export class Character {
   update(dt) {
     this.sword?.undo();   // 前のコマの抜刀・納刀の骨の後処理を戻してから、動作を当てる
     this.legs?.undo();    // 脚のIK（M2b）の補正も戻す（刀の後に当てたので、刀の次に戻す）
+    this.upper?.undo();   // 走りの形（M3）は脚の前に当てたので、最後に戻す
     this.time += dt;
     if (this.warp) this.followWarp(dt);
     this.mixer.update(dt * this.rate);
@@ -306,6 +310,8 @@ export class Character {
     this.splitPose = false; this.poseDt = null;
     if (dt == null) return;
     const legs = this.legs;
+    // 走りの形（M3）：mixer の直後・脚のIKの前（骨盤の上下 lift は脚のIKが当てる）。使うのは脚のIKを使う人だけ
+    if (this.upper) this.upper.apply(dt, this.legIk && !!this.legTerrain && LOCO.smoothArms);
     if (legs && !this.legIk && legs.ks !== 1) legs.ks = 1;   // IK を使わないコマ（範囲の外・軽量）では歩幅の伸縮も使わない。古い値を残すと歩調だけが下がる
     if (legs && this.legIk && this.legTerrain) legs.apply(dt, this.legTerrain, true);
     else if (legs && (legs.feet[0].mode || legs.feet[1].mode || legs.drop)) legs.apply(dt, null, false);
