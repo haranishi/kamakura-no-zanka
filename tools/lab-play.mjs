@@ -6,6 +6,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { createServer } from './serve.mjs';
+import { guardPointerLock } from './lib/pointerlock-guard.mjs';
 
 const args = process.argv.slice(2);
 const flag = (name, fallback) => { const i = args.indexOf('--' + name); return i >= 0 ? args[i + 1] : fallback; };
@@ -21,6 +22,7 @@ const logs = [];
 try {
   const W = Number(flag('w', 900)), H = Number(flag('h', 1100));
   const page = await browser.newPage({ viewport: { width: W, height: H }, deviceScaleFactor: 1 });
+  await guardPointerLock(page);   // 試験のたびに、使っている人の本物のカーソルが飛ばないように、マウスの固定をOSへ届かせない（見た目は変わらない）
   page.on('console', m => { if (args.includes('--log') || m.type() === 'error' || m.type() === 'warning') logs.push(`[${m.type()}] ${m.text()}`); });
   page.on('pageerror', e => logs.push('[pageerror] ' + (e.stack || e)));
   await page.goto(`${base}/valley/lab.html?shot=1&w=${W}&h=${H}&${flag('query', 'who=hero')}`);
