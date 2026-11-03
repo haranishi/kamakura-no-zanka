@@ -45,6 +45,11 @@ b0 庭へ降りる（`temple_yard` に入る）→ b1 穂太の話 → b2 林道
 - `tools/scenarios/regress-attack-timing.mjs`：同じ入力列で、戦闘の論理（状態・体力・構え・位置）を毎コマ記録し、変更前と変更後が一致することを比べる（`node tools/scenarios/regress-attack-timing.mjs 前.json 後.json`）。
 - `tools/scenarios/capture-draw-sheathe.mjs`：抜刀・納刀を、実ゲームの固定カメラ（主人公の左側）で一定間隔に撮る（敵が気づく→抜刀／納刀済みで攻撃→速い抜刀／戦闘後の納刀）。変更前と変更後を同じ条件で撮って比べる。
 - `tools/scenarios/measure-draw-sheathe.mjs`：既存の抜刀・納刀の動作で、握りと腰の鞘がどう動くかを測る（前値は `reports/polish3/baseline/draw-sheathe-before.json`）。
+- `tools/scenarios/regress-hand-grip.mjs`：刀を握る手（8.6a）を毎コマ測る（指・親指の皮と柄・鞘のすき間とめり込み、手首と指の跳び、腕の写しの長さ、動作の骨と切先が層を切った人物と一致）。31場面。`KZ_OUT=…` でJSONを残す。
+- `tools/scenarios/regress-hand-grip-game.mjs`：実ゲームの主人公で、敵が気づいて抜く・納刀のまま攻撃・戦闘後の自動の納刀・抜く途中に倒れる、の4場面を通し、見える手を毎コマ測る。
+- `tools/scenarios/record-sword-tips.mjs`：全動作クリップと抜刀・納刀の切先の位置を毎コマ記録し、変更前と変更後を比べる（`node tools/scenarios/record-sword-tips.mjs 前.json 後.json`）。
+- `tools/scenarios/capture-hand-grip.mjs`：握りの前後をラボで撮る（`tools/lab-play.mjs` で動かす。`KZ_SHEET=guard|draw|walk|enemy`）。前＝同じ版で層を切った人物。
+- `tools/lab-play.mjs`：人物ラボ（`lab.html`）を開いてシナリオを動かす（valley-play のラボ版。`--query "who=hero&weapon=drawn"`）。
 - 検査の流れの見本：`tools/scenarios/` のシナリオ。
 
 ## 第2弾の前測定（7.0・7.0b）
