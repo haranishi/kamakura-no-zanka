@@ -87,6 +87,13 @@ const limitMB = { temple: 11, farmhouse: 7 };      // 建物は大きい。そ�
 for (const p of props) { const f = path.join(root, 'dist/assets/valley/models', p + '.glb'), g = glbInfo(f), lim = limitMB[p] ?? 2; assert(g.bytes <= lim * 1024 * 1024, `${p}.glb over ${lim} MB`); total += g.bytes; shas['dist/assets/valley/models/' + p + '.glb'] = g.sha256; }
 assert(total <= 115 * 1024 * 1024, `model budget exceeded: ${(total / 1048576).toFixed(1)} MB`);
 
+// 3b 8.4a・8.5a の純粋な層（押し戻し・時間の進み）：あること、Three.js・DOM・乱数・時計に触れないこと（表とは別に置き、ほかの枝の表の変更と重ねない）
+for (const m of ['knockback', 'time-warp']) {
+  assert(sources[m + '.js'], `missing dist/valley/${m}.js`);
+  const code = sources[m + '.js'].replace(/\/\/.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, '');
+  for (const bad of [/from\s+'three/, /\bMath\.random\b/, /\bDate\.now\b/, /\bperformance\.now\b/, /\bdocument\./, /\bwindow\./, /\blocalStorage\b/]) assert(!bad.test(code), `${m}.js (pure layer) uses ${bad}`);
+}
+
 // 6 出所：Meshy で作った素材は provenance/meshy-v19.json に task_id と SHA256 がある
 const prov = JSON.parse(read('provenance/meshy-v19.json'));
 for (const [file, sha] of Object.entries(shas)) {

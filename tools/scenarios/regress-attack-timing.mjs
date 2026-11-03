@@ -4,6 +4,8 @@
 //   KZ_OUT=<json> PLAYWRIGHT_MODULE=… node tools/valley-play.mjs tools/scenarios/regress-attack-timing.mjs --seed 1333 --out <フォルダ>
 // 比べる:  node tools/scenarios/regress-attack-timing.mjs <変更前.json> <変更後.json>   （同一なら終了コード0）
 // KZ_SCENE=officer：相手を侍大将にする（8.3a。連続技の二段目 officer_b の表示を変えたので、その論理も前後で比べる）。既定は斥候。
+// KZ_IMPACT（8.4a・8.5a）：off＝押し戻しとスローを止める（変更前と一致するはず）／knock＝押し戻しだけ／slow＝スローだけ／既定（on）＝両方。
+//   比べるとき、一致しなければ、攻撃の開始コマ・技の開始・相手の技・体力・位置のずれの最大を並べる（ずれの理由と量を残すため）。
 import fs from 'node:fs';
 
 const yawTo = (dx, dz) => Math.atan2(-dx, -dz);
@@ -19,7 +21,9 @@ export default async function ({ st, step, call, v, freeze, start, click, releas
   await adv(); await step(20);
   const sc = (await st()).enemies.find(e => e.id === 'road_scout');
   await call('camera', null); await call('teleport', sc.x - 6, sc.z - 5, yawTo(6, 5)); await call('look', yawTo(6, 5), 0.22); await step(25);
-  const officer = process.env.KZ_SCENE === 'officer', foe = officer ? 'officer' : 'road_scout';
+  const officer = process.env.KZ_SCENE === 'officer', foe = officer ? 'officer' : 'road_scout', impact = process.env.KZ_IMPACT || 'on';
+  if (impact === 'off' || impact === 'slow') await v(`(() => { const g = __valley.game; Object.getPrototypeOf(Object.getPrototypeOf(g.hero)).knockBack = () => false; return true; })()`);
+  if (impact === 'off' || impact === 'knock') await v(`(() => { __valley.game.slowMo = () => {}; return true; })()`);
   if (officer) await v(`(() => { const g = __valley.game; g.makeEnemies('village_enemies', { alert: 'unaware', dormant: true });
     const s = g.enemies.find(e => e.id === 'road_scout'); s.dormant = true; s.place(s.pos.x + 30, s.pos.z + 30, 0); return true; })()`);
   await v(`(() => { const g = __valley.game, e = g.enemies.find(e => e.id === '${foe}'), h = g.hero.pos; e.place(h.x + 2.4, h.z + 0.9, 0); e.dormant = false; e.brain.state = 'combat'; e.brain.awareness = 1; e.fighter.aware = true; })()`);
@@ -47,7 +51,18 @@ export default async function ({ st, step, call, v, freeze, start, click, releas
 if (process.argv[1] && process.argv[1].endsWith('regress-attack-timing.mjs') && process.argv.length === 4) {
   const [a, b] = process.argv.slice(2).map(p => JSON.parse(fs.readFileSync(p, 'utf8')));
   let diffs = 0;
-  for (let i = 0; i < Math.max(a.length, b.length); i++) if (JSON.stringify(a[i]) !== JSON.stringify(b[i])) { if (diffs++ < 5) console.log('差', i, JSON.stringify(a[i]), JSON.stringify(b[i])); }
-  console.log(diffs === 0 ? `一致：${a.length}コマ` : `不一致：${diffs}コマ`);
+  let first = -1;
+  for (let i = 0; i < Math.max(a.length, b.length); i++) if (JSON.stringify(a[i]) !== JSON.stringify(b[i])) { if (first < 0) first = i; if (diffs++ < 3) console.log('差', i, JSON.stringify(a[i]), JSON.stringify(b[i])); }
+  console.log(diffs === 0 ? `一致：${a.length}コマ` : `不一致：${diffs}コマ（最初は ${first} コマ目）`);
+  if (diffs) {
+    const sum = rec => ({ attack: rec.filter((r, i) => r[1] === 'attack' && (i === 0 || rec[i - 1][1] !== 'attack')).map(r => r[0]),
+      moves: rec.filter((r, i) => r[10] && (i === 0 || rec[i - 1][10] !== r[10] || rec[i - 1][11] === 'end')).map(r => `${r[0]}:${r[10]}`),
+      foe: rec.filter((r, i) => r[18] && (i === 0 || !rec[i - 1][18] || rec[i - 1][18][0] !== r[18][0])).map(r => `${r[0]}:${r[18][0]}`),
+      heroHp: rec.at(-1)[2], foeHp: rec.at(-1)[14], heroHits: rec.filter((r, i) => i > 0 && r[2] < rec[i - 1][2]).length });
+    const sa = sum(a), sb = sum(b);
+    let heroPos = 0, foePos = 0;
+    for (let i = 0; i < Math.min(a.length, b.length); i++) { heroPos = Math.max(heroPos, Math.hypot(a[i][5] - b[i][5], a[i][6] - b[i][6])); foePos = Math.max(foePos, Math.hypot(a[i][16] - b[i][16], a[i][17] - b[i][17])); }
+    console.log(JSON.stringify({ before: sa, after: sb, maxPosDiff: { hero: +heroPos.toFixed(3), foe: +foePos.toFixed(3) } }));
+  }
   process.exit(diffs === 0 ? 0 : 1);
 }
