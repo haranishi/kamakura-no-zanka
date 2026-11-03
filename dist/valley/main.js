@@ -26,9 +26,11 @@ import { loadValley } from './save.js';
 import { applyLookOverrides, LOOK } from './config.js';
 import { ATMOS } from './atmosphere.js';
 import { installQA } from './qa.js';
+import { configureLoco } from './actors.js';
 
 const q = new URLSearchParams(location.search);
 const QA = q.get('qa') === '1';
+configureLoco(location.search);   // 速さの表と加減速の切替（?loco=old|a|b|c・&walk=&sprint=・?smooth=…。loco.js）
 const SETTINGS_KEY = 'kamakura-valley-settings';
 const store = { get(k) { try { return localStorage.getItem(k); } catch { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch { /* 保存できない環境でも遊べる */ } } };
 const $ = id => document.getElementById(id);

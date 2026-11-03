@@ -10,12 +10,16 @@ import { AUDIO_NOISE } from '../dist/valley/config.js';
 import { createContactTracker, observeContacts } from '../dist/valley/foot-contacts.js';
 import { FOOT_CONTACTS } from '../dist/valley/anim-contacts.js';
 import { installQA } from '../dist/valley/qa.js';
+import * as loco from '../dist/valley/loco.js';
+import { GAITS } from '../dist/valley/anim-data.js';
 const read = name => fs.readFileSync(new URL(`../dist/valley/${name}.js`, import.meta.url), 'utf8');
 const strip = s => s.replace(/^import .*;\n/gm, '').replace(/export /g, '').replace(/import\.meta\.url/g, JSON.stringify(new URL('../dist/valley/characters.js', import.meta.url).href));
 // Imports are replaced only in this test harness; methods remain production source.
 const dummy = class { constructor() {} set() {} };
-const Character = new Function('THREE', 'createContactTracker', 'observeContacts', 'FOOT_CONTACTS', `${strip(read('characters'))}; return Character;`)({ Quaternion: dummy, Vector3: dummy }, createContactTracker, observeContacts, FOOT_CONTACTS);
-const Actor = new Function('pickStep', 'distanceRule', 'roleOf', 'gaitOfClip', 'stepSurfaceAt', 'AUDIO_NOISE', `${strip(read('actors'))}; return Actor;`)(pickStep, distanceRule, roleOf, gaitOfClip, stepSurfaceAt, AUDIO_NOISE);
+const Character = new Function('THREE', 'createContactTracker', 'observeContacts', 'FOOT_CONTACTS', 'LOCO', 'gaitsFor', 'GAITS', `${strip(read('characters'))}; return Character;`)({ Quaternion: dummy, Vector3: dummy }, createContactTracker, observeContacts, FOOT_CONTACTS, loco.LOCO, loco.gaitsFor, GAITS);
+// actors.js は読み込み時に速さの表（loco.js）を SPEED へ写すので、その関数も渡す（M1）
+const LOCO_NAMES = ['LOCO', 'parseLoco', 'useLoco', 'dependents', 'speedStep', 'turnRate', 'turnTargetScale'];
+const Actor = new Function('pickStep', 'distanceRule', 'roleOf', 'gaitOfClip', 'stepSurfaceAt', 'AUDIO_NOISE', ...LOCO_NAMES, `${strip(read('actors'))}; return Actor;`)(pickStep, distanceRule, roleOf, gaitOfClip, stepSurfaceAt, AUDIO_NOISE, ...LOCO_NAMES.map(n => loco[n]));
 function observer() {
   const c = Object.create(Character.prototype), events = [];
   const a = { time: 0, getEffectiveWeight: () => 1, getEffectiveTimeScale: () => 1 };

@@ -13,6 +13,7 @@ import { createSwordLayer, poseAt } from './sword-layer.js';
 import { LUNGE_VIEW, LUNGE_IO, CONTACT_POSE, createLungeIO, solveLunge, lungeInReach, lungeShare, sayaHoldScale, gapScale } from './lunge.js';
 import { spreadCap } from './arm-spread.js';
 import { KNOCK_MOVE, createKnock, startKnock, endKnock, knockStep, knockGap } from './knockback.js';
+import { LOCO, parseLoco, useLoco, dependents, speedStep, turnRate, turnTargetScale } from './loco.js';
 
 export const angleDiff = (a, b) => Math.atan2(Math.sin(b - a), Math.cos(b - a));
 const turnToward = (cur, target, rate, dt) => { const d = angleDiff(cur, target); return cur + Math.sign(d) * Math.min(Math.abs(d), rate * dt); };
@@ -28,7 +29,14 @@ const LUNGE = { light1: 0.55, light2: 0.45, light3: 0.85, heavy: 0.6, finisher: 
 const STRONG_KICK = new Set(['light3', 'heavy', 'counter', 'finisher']);
 // とどめで倒れるときに飛ばす、倒れる動作の始めの秒（膝をついた姿から、立ち上がらずに崩れる。8.5a 第2周）
 const KNEEL_DEATH_FROM = { die: 0.6, die2: 0.12 };
-export const SPEED = { walk: 2.5, sprint: 5.0, crouch: 1.3, guard: 1.5, patrol: 1.3, orbit: 0.95, run: 3.6, officerRun: 3.2, ally: 2.0, child: 4.2, villager: 1.2 };
+export const SPEED = { walk: 2.5, sprint: 5.0, crouch: 1.3, guard: 1.5, patrol: 1.3, orbit: 0.95, run: 3.6, officerRun: 3.2, ally: 2.0, child: 4.2, villager: 1.2, allyCatchUp: 1.6, allyStep: 2.1 };
+// 速さの表（loco.js）を SPEED へ写す。主人公の通常移動・走りと、それに合わせる仲間・敵の値（M1・調査 §6）。旧い表では上の値のまま
+export function configureLoco(search = '') {
+  const cfg = useLoco(parseLoco(search)), d = dependents(cfg);
+  Object.assign(SPEED, { walk: cfg.walk, sprint: cfg.sprint, ally: d.ally, allyCatchUp: d.allyCatchUp, allyStep: d.allyStep, run: d.run, officerRun: d.officerRun });
+  return cfg;
+}
+configureLoco('');
 
 class Actor {
   constructor(game, { id, who, x, z, yaw = 0, scale = 1, tint = null, style = 'relaxed', radius = 0.3 }) {
@@ -202,7 +210,7 @@ export class HeroActor extends Actor {
     // 抜刀・納刀の進み具合（8.2）。納刀から始まる
     this.swordLayer = createSwordLayer(); this.character.sword?.reset();
     this.trailCue = null;                // 闇討ちの刃の軌跡の時間割（8.3a）
-    this.steepT = 0; this.deadT = 0; this.lockTarget = null; this.lockT = 0; this.speed = 0; this.blockPosed = false; this.dead = false;
+    this.steepT = 0; this.deadT = 0; this.lockTarget = null; this.lockT = 0; this.speed = 0; this.locoA = 0; this.locoV = 0; this.travel = 0; this.blockPosed = false; this.dead = false;
     this.scripted = false;               // 演出中は動作を外から決める（冒頭の目覚めなど）
     this.recoverT = 0;
   }
@@ -434,7 +442,12 @@ export class HeroActor extends Actor {
     this.step(-Math.sin(this.yaw) * l.rate * k, -Math.cos(this.yaw) * l.rate * k);
   }
 
+  // 矢の先読みに使う速さ：新しい加減速では実際に進んだ速さ（止まりかけ・壁際で論理の速さと違う）、旧い経路では論理の速さ
+  leadSpeed() { return LOCO.smoothAccel ? this.travel : this.speed; }
+
   updateLocomotion(dt, ctl, locked) {
+    this.travel = 0;
+    if (LOCO.smoothAccel && !locked && !(this.recoverT > 0)) { this.updateLocomotionSmooth(dt, ctl); return; }
     if (this.recoverT > 0) { this.recoverT -= dt; this.speed = approach(this.speed, 0, 30, dt); this.blockPosed = false; return; }   // 立ち上がる間は歩かない
     const f = this.fighter, ax = locked ? { active: false } : ctl.axis;
     const sprint = !locked && (ctl.input.down('ShiftLeft') || ctl.input.down('ShiftRight')) && !this.crouch && !f.blocking && ax.active;
@@ -464,6 +477,43 @@ export class HeroActor extends Actor {
     this.blockPosed = false;
     // 足は実際に進んだ速さで回す：キーを離すと位置は1コマで止まるので、そのコマから待ちへ。壁・急な斜面で進めないときは足踏みしない
     this.character.locomote(travel, this.crouch ? 'crouch' : (this.guardStance || f.blocking) ? 'guard' : 'relaxed');
+    this.travel = travel;
+  }
+
+  // M1（design-locomotion-smooth §3）：速さは時間で決める（臨界減衰のばね・loco.js）。位置は速さの積分で、キーを離しても速さが0になるまで進む。
+  // 旋回の上限は速さで14→7rad/秒、向きの差が広いほど目標の速さを下げ、逆向きの入力は減速しながら回る（スキッド）。
+  // 会話・固定・技の後の硬直・立ち上がりの停止は旧い経路のまま（updateLocomotion）。足は実際に進んだ距離で回す（壁・斜面で足踏みしない）
+  updateLocomotionSmooth(dt, ctl) {
+    const f = this.fighter, ax = ctl.axis;
+    const sprint = (ctl.input.down('ShiftLeft') || ctl.input.down('ShiftRight')) && !this.crouch && !f.blocking && ax.active;
+    if (sprint) this.crouch = false;
+    this.stepGait = this.crouch ? 'crouch' : sprint ? 'run' : 'walk';
+    if (Math.abs(this.speed - this.locoV) > 1e-9) this.locoA = 0;   // 回避・突進・技が速さを書き換えた：ばねの勢いを捨てる
+    let target = 0, want = 0;                // want＝向き変えで下げる前の目標（走り出しの歩容をこれで選ぶ）
+    if (ax.active) {
+      want = this.crouch ? SPEED.crouch : f.blocking ? SPEED.guard : sprint ? SPEED.sprint : SPEED.walk;
+      target = want * turnTargetScale(angleDiff(this.yaw, ctl.moveYaw));
+      this.yaw = turnToward(this.yaw, ctl.moveYaw, turnRate(this.speed, LOCO, f.blocking), dt);
+    } else if (this.lockTarget && this.lockTarget.fighter.alive && this.speed < 0.3) this.yaw = turnToward(this.yaw, yawOf(this.lockTarget.pos.x - this.pos.x, this.lockTarget.pos.z - this.pos.z), 8, dt);
+    const st = { v: this.speed, a: this.locoA }, dist = speedStep(st, target, dt);
+    this.speed = st.v; this.locoA = st.a; this.locoV = st.v;
+    let travel = 0;
+    if (dist > 1e-6) {
+      const before = this.pos;
+      const moved = this.step(-Math.sin(this.yaw) * dist, -Math.cos(this.yaw) * dist);
+      const mx = this.pos.x - before.x, mz = this.pos.z - before.z;
+      if (dt > 0) travel = Math.min(dist / dt, Math.hypot(mx, mz) / dt);
+      if (travel > 0.3) { const d = angleDiff(this.yaw, yawOf(mx, mz)); if (Math.abs(d) > 0.35) this.slideWant = d; }
+      if (ax.active && moved.blocked === 'slope' && Math.hypot(mx, mz) < 0.01) { this.steepT += dt; if (this.steepT > 1.1) this.game.hud.hint('steep', '斜面が急で進めない。別の向きへ回り込もう', 4500); }
+      else this.steepT = Math.max(0, this.steepT - dt * 2);
+    }
+    this.travel = travel;
+    if (f.blocking && this.speed < 0.3) {
+      if (!this.blockPosed) { this.blockPosed = true; this.character.play('Two_Handed_Parry', { fade: 0.07, from: 0, to: 0.3, onEnd: c => { if (c.current) c.current.paused = true; }, restart: true }); }
+      return;
+    }
+    this.blockPosed = false;
+    this.character.locomote(travel, this.crouch ? 'crouch' : (this.guardStance || f.blocking) ? 'guard' : 'relaxed', target < this.speed - 0.05, 0, target > this.speed + 0.05 ? want : undefined);
   }
 
   // hit は当たりの見た目の情報（battle.js の strikeGeometry）：push＝ひるみの押す向き（相手から自分へ＋刃の進む向き）
@@ -729,7 +779,7 @@ export class AllyActor extends Actor {
     if (this.standT > 0) { this.standT -= dt; this.tickCharacter(dt); this.sync(); if (this.standT <= 0) this.character.locoName = null; return; }
     // 倒れても死なない：論理側が「倒れ」を保つので、戦闘側の死亡をここで受ける
     const self = this.snapshot();
-    const view = { t: g.time, self, hero: { ...g.hero.snapshot() }, enemies: g.enemies.filter(e => e.fighter.alive && !e.departed && e.brain.state !== 'surrendered').map(e => e.snapshot()), world: g.aiWorld };
+    const view = { t: g.time, self, stepSpeed: SPEED.allyStep, hero: { ...g.hero.snapshot() }, enemies: g.enemies.filter(e => e.fighter.alive && !e.departed && e.brain.state !== 'surrendered').map(e => e.snapshot()), world: g.aiWorld };
     const { intent, events } = thinkCompanion(this.companion, view, dt);
     for (const e of events) {
       if (e.type === 'down') {
@@ -755,7 +805,7 @@ export class AllyActor extends Actor {
     if (!busy && intent.move && intent.speed !== 'stop') {
       dir = intent.move;                     // 仲間AIの move は「進む向き」（単位ベクトル）
       const d = dist2(this.pos, g.hero.pos);
-      target = SPEED.ally * Math.min(1, 0.6 + d * 0.12) * (1 + Math.max(0, Math.min(1.6, (d - 5) / 6)));   // 離れたら急いで追いつく。15m離れれば主人公の走り(5m/s)を超える（主人公の走りに19m離された）
+      target = SPEED.ally * Math.min(1, 0.6 + d * 0.12) * (1 + Math.max(0, Math.min(SPEED.allyCatchUp, (d - 5) / 6)));   // 離れたら急いで追いつく。15m離れれば主人公の走り(5m/s)を超える（主人公の走りに19m離された）
     }
     this.speedNow = approach(this.speedNow, target, 9, dt);
     if (intent.startMove && !busy && intent.shoot) {

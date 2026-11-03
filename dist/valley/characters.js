@@ -3,7 +3,9 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
-import { LOCOMOTION, MOVE_CLIPS, ACTION_CLIPS, pickGait, locomotionTimeScale, moveSegment, clipTimeAt, phaseMatchedTime, STANCE_SPEED } from './anim-data.js';
+import { LOCO, gaitsFor } from './loco.js';
+const GAIT_RANK = { idle: 0, walk: 1, jog: 2, run: 3 };
+import { GAITS, LOCOMOTION, MOVE_CLIPS, ACTION_CLIPS, pickGait, locomotionTimeScale, moveSegment, clipTimeAt, phaseMatchedTime, STANCE_SPEED } from './anim-data.js';
 import { createContactTracker, observeContacts } from './foot-contacts.js';
 import { FOOT_CONTACTS } from './anim-contacts.js';
 import { BowRig } from './bow.js';
@@ -170,15 +172,22 @@ export class Character {
   }
 
   // 移動：速さ(m/s)から歩き・小走り・走りを選ぶ。style は LOCOMOTION の表。
-  locomote(speed, style = this.style) {
+  // hold：減速の間は下の歩容へ替えない（M1。止まりきる・スキッドの0.2〜0.3秒に走り→小走り→歩きの混ぜが3回重なり、着いた足が流れた）。
+  // floor：再生の倍率の下限。主人公の新しい加減速では0（走り出し・止まりの間も、着いた足の速さ＝進む速さにする。定速の倍率は0.55を下回らない）
+  // aim：加速の間に歩容を選ぶ速さ（目標の速さ）。走り出しで歩き→小走り→走りの混ぜが0.1秒に2回重なり、着いた足が10cm流れたので、
+  // 動き出したら目標の歩容へ直接入る（倍率の下限0で、遅いうちはゆっくり回す）
+  locomote(speed, style = this.style, hold = false, floor = undefined, aim = undefined) {
     this.style = style;
-    const table = LOCOMOTION[style] || LOCOMOTION.relaxed;
-    this.gait = pickGait(this.gait, speed);
+    const table = LOCOMOTION[style] || LOCOMOTION.relaxed, G = gaitsFor(LOCO, GAITS);
+    const pickAt = aim != null && speed >= G.walkUp ? Math.max(speed, aim) : speed;
+    let next = pickGait(this.gait, pickAt, G);   // 歩容の境は速さの表と一緒に替える（loco.js）
+    if (aim != null && this.gait === 'idle' && next !== 'idle') next = pickGait(next, pickAt, G);
+    this.gait = hold && next !== 'idle' && GAIT_RANK[next] < GAIT_RANK[this.gait] ? this.gait : next;
     const name = table[this.gait];
     const meta = this.meta(name);
     const frozen = this.gait === 'idle' && table.idleFreeze;
     const ref = STANCE_SPEED[name] ?? meta?.avgSpeed;   // 着いている足の速さに合わせる（anim-data.js の STANCE_SPEED）
-    const ts = this.gait === 'idle' ? (frozen ? 0 : 1) : (style === 'injured' ? Math.max(1, Math.min(1.5, locomotionTimeScale(speed, ref))) : locomotionTimeScale(speed, ref));   // 負傷でも急ぐときは足を速める
+    const ts = this.gait === 'idle' ? (frozen ? 0 : 1) : (style === 'injured' ? Math.max(1, Math.min(1.5, locomotionTimeScale(speed, ref))) : locomotionTimeScale(speed, ref, floor));   // 負傷でも急ぐときは足を速める
     if (this.locoName !== name) {
       const prev = this.locoName && this.current && this.currentName === this.locoName ? this.current : null;
       // 引き継ぐのは同じ構え（style）の中の歩き↔小走り↔走りだけ。構えの替わり目（待ち構え↔ふだん）は抜刀・納刀と重なり、

@@ -64,7 +64,7 @@ export function thinkCompanion(c, view, dt) {
       const ahead = (self.x - hero.x) * forward.x + (self.z - hero.z) * forward.z;
       const along = dx * forward.x + dz * forward.z;
       // 経路が主人公の前へ回り込む場合も、後方の半平面から出ない。
-      if (!['follow', 'cover'].includes(c.mode) || along <= 0 || ahead + along * elapsed * 2.1 <= -0.5) {
+      if (!['follow', 'cover'].includes(c.mode) || along <= 0 || ahead + along * elapsed * (finite(view.stepSpeed) ? view.stepSpeed : 2.1) <= -0.5) {
         intent.move = { x: dx, z: dz }; intent.speed = 'walk';
         intent.face = Math.atan2(-dx, -dz);
       }
