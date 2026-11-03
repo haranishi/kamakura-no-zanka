@@ -21,6 +21,18 @@ test('gait-table agrees with the measured STANCE_SPEED within 10% and covers the
   assert.equal(Object.keys(GAIT_TABLE.CMU_Run).length, 7);
 });
 
+test('gait-table v2: flat-foot windows are inside the cycle, one per side per stride, and narrower than clips.json for the crouch walk', () => {
+  const span = ([s, e]) => (e >= s ? e - s : 1 - s + e);
+  for (const [name, by] of Object.entries(GAIT_TABLE)) for (const [who, g] of Object.entries(by)) for (const side of ['left', 'right']) {
+    const w = g.flat?.[side]; assert(w?.length >= 1, `${name} ${who} ${side}`);
+    for (const [s, e] of w) assert(s >= 0 && s < 1 && e > 0 && e <= 1, `${name} ${who} ${side} ${s} ${e}`);
+    assert(w.reduce((a, x) => a + span(x), 0) < 0.75, `${name} ${who} ${side} flat for most of the cycle`);
+  }
+  assert.equal(GAIT_TABLE.CMU_Run.hero.flat.left[0][0], GAIT_TABLE.CMU_Run.hero.leftLand);   // 平らな着地の始まり＝位相0
+  // clips.json の屈み歩きの接地 [.971,.559]（約0.59周）より狭い（上がり始めの足を数えない）
+  assert(span(GAIT_TABLE.Cautious_Crouch_Walk_Forward.hero.flat.left[0]) < 0.45);
+});
+
 test('smooth flags: default all new, off/all turns every change back, names turn back one by one', () => {
   const all = parseSmoothFlags('');
   for (const n of SMOOTH_NAMES) assert.equal(all[n], true);

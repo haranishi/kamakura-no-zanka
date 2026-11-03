@@ -2,7 +2,9 @@
 // 台本：立つ→歩き出す（歩き→小走り）→小走り→走り→キーを離す→停止→反転（S）→走り→旋回（視点を0.6秒で90°回す＝マウスの操作）→キーを離す→
 //   屈んでゆっくり歩く→停止。入力は実際のキー（W・S・Shift・C）と視点の向きだけ。論理・見た目のコードには触れない（読むだけ）。
 // 記録：論理の位置・向き・速さ・歩容、模型の向き、腰・背骨・首・頭・肩・腕・手・脚・足首・つま先の世界の位置と向き、カメラの位置・向き・画角。
-// 接地は clips.json の contacts（周期の割合）から：重み0.5以上の周期の動作があればその位相で、無ければ（待ち・混ぜの途中）両足を着いているものとする。
+// 接地は gait-table.js（v2）の「足裏が平ら」な区間 flat から：重み0.5以上の周期の動作があればその位相で、無ければ（待ち・混ぜの途中）両足を着いているものとする。
+//   M1（2026-11-04）で替えた。旧い物差し（clips.json の contacts。両足支持の縁まで含み、屈み歩きで上がり始めの足を数えた）は contactLegacy の列と
+//   指標 slipLegacy に残す（M0 の基準 baseline.md と比べるとき用）。表に無い動作は clips.json の contacts を使う。
 // 補助の列 low：接地かつ足首が地面から「立って待つ姿の足首の高さ＋3cm」より低い（clips.json の区間は両足支持の縁で上がり始めの足を含むため）。
 // 乱数・時計・画面の繰り返しは capture-calls.mjs の deterministic で止める。同じコードなら同じ値：別々に3回起動して、記録の指紋（framesSha）が一致する。
 //   同じページで続けて流すと、待ちの動作の時刻や人物の状態が前の回から引き継がれて一致しない（2026-11-04 に確かめた）。比べるのは起動ごと。
@@ -14,6 +16,10 @@ import { createHash } from 'node:crypto';
 import path from 'node:path';
 import { deterministic } from './capture-calls.mjs';
 import { smoothMetrics, BONES } from '../lib/smooth-metrics.mjs';
+import { GAIT_TABLE } from '../../dist/valley/gait-table.js';
+
+// 主人公の各動作の平らな区間（v1 の表には無い＝null）
+export const FLAT = Object.fromEntries(Object.entries(GAIT_TABLE).map(([n, by]) => [n, by.hero?.flat ?? null]).filter(([, f]) => f));
 
 export const START = { x: 2, z: 4, yaw: 0 };            // 里の中ほどの平らな所（measure-locomotion.mjs の FLAT と同じ）。yaw 0 は −z へ進む
 const W = { KeyW: true, KeyS: false, ShiftLeft: false }, RUN = { KeyW: true, KeyS: false, ShiftLeft: true }, NONE = { KeyW: false, KeyS: false, ShiftLeft: false };
@@ -36,10 +42,10 @@ export const SCRIPT = [
 export const DT = 1 / 60;
 
 // ページの中で台本を1回流し、毎コマの記録を返す
-export function recordJourney(v, { script = SCRIPT, start = START, dt = DT, settle = 0.6 } = {}) {
+export function recordJourney(v, { script = SCRIPT, start = START, dt = DT, settle = 0.6, flat = FLAT } = {}) {
   return v(`(() => {
     const g = __valley.game, h = g.hero, ch = h.character, meta = g.roster.meta.clips;
-    const dt = ${dt}, script = ${JSON.stringify(script)}, start = ${JSON.stringify(start)}, BONES = ${JSON.stringify(BONES)};
+    const dt = ${dt}, script = ${JSON.stringify(script)}, start = ${JSON.stringify(start)}, BONES = ${JSON.stringify(BONES)}, FLAT = ${JSON.stringify(flat)};
     const keys = ['KeyW', 'KeyS', 'ShiftLeft', 'KeyC'];
     for (const k of keys) __valley.key(k, false);
     h.crouch = false; h.place(start.x, start.z, start.yaw); h.speed = 0; g.rig.yaw = start.yaw; g.rig.pitch = 0.2; g.rig.snap();
@@ -65,15 +71,19 @@ export function recordJourney(v, { script = SCRIPT, start = START, dt = DT, sett
         if (moving && h.speed > 0.5 && movedNow < h.speed * 0.8) blocked++;   // 壁・斜面で進めなかったコマ（台本の場所の点検用）
         let best = null, bw = 0;
         for (const [name, a] of ch.actions) { const m = meta[name]; if (!m?.contacts || m.kind !== 'cycle') continue; const w = a.getEffectiveWeight(); if (w > bw) { bw = w; best = { name, a, m }; } }
-        let contact = [true, true], phase = null;
-        if (best && bw >= 0.5) { phase = (best.a.time / best.m.seconds) % 1; contact = ['left', 'right'].map(s => (best.m.contacts[s] || []).some(w => inWin(phase, w))); }
+        let contact = [true, true], contactLegacy = [true, true], phase = null;
+        if (best && bw >= 0.5) {
+          phase = (best.a.time / best.m.seconds) % 1;
+          contactLegacy = ['left', 'right'].map(s => (best.m.contacts[s] || []).some(w => inWin(phase, w)));
+          const fl = FLAT[best.name]; contact = fl ? ['left', 'right'].map(s => fl[s].some(w => inWin(phase, w))) : contactLegacy;
+        }
         ch.model.updateMatrixWorld(true);
         const low = ['LeftFoot', 'RightFoot'].map((b, s) => { if (!contact[s]) return false; ch.bone(b).getWorldPosition(V); return V.y - g.terrain.heightAt(V.x, V.z) < lowY; });
         const bones = {};
         for (const b of BONES) { const o = ch.bone(b); if (!o) continue; o.getWorldPosition(V); o.getWorldQuaternion(Q); bones[b] = [V.x, V.y, V.z, Q.x, Q.y, Q.z, Q.w].map(r5); }
         const c = g.camera;
         frames.push({ t: r5(t), tag: seg.tag, event: i === 0 && seg.event ? seg.event : null, pos: [h.pos.x, h.pos.y ?? 0, h.pos.z].map(r5), yaw: r5(h.yaw), modelYaw: r5(ch.root.rotation.y), speed: r5(h.speed),
-          gait: ch.gait ?? null, clip: best?.name ?? null, weight: r5(bw), phase: phase == null ? null : r5(phase), timeScale: best ? r5(best.a.timeScale) : null, contact, low, bones,
+          gait: ch.gait ?? null, clip: best?.name ?? null, weight: r5(bw), phase: phase == null ? null : r5(phase), timeScale: best ? r5(best.a.timeScale) : null, contact, contactLegacy, low, bones,
           cam: [c.position.x, c.position.y, c.position.z, c.quaternion.x, c.quaternion.y, c.quaternion.z, c.quaternion.w, c.fov].map(r5) });
       }
     }

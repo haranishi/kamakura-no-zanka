@@ -2,7 +2,7 @@
 // 記録 run = { dt, frames: [フレーム] }。フレーム:
 //   t 秒・tag 台本の区間名・event 操作の出来事（'start'|'stop'|'turn'|'reverse'|… そのコマで操作した。無ければ null）
 //   pos [x,y,z] 論理の位置・yaw 論理の向き・modelYaw 模型の向き（rad）・speed 論理の速さ（m/秒）・gait 歩容（'idle'|'walk'|'jog'|'run'…）
-//   contact [左,右] 足が着いているか（呼ぶ側が clips.json の contacts から決める）
+//   contact [左,右] 足が着いているか（呼ぶ側が gait-table の平らな区間から決める）・contactLegacy 旧い物差し（clips.json の contacts。指標 slipLegacy）
 //   bones { 骨の名前: [px,py,pz, qx,qy,qz,qw] } 世界の位置と向き・cam [px,py,pz, qx,qy,qz,qw, fov]
 // 物差しの決め方（手本の契約の考え方を借りて一から書いた。数値は持ち込んでいない）:
 //   足の滑り＝接地が続くコマの間の足首の水平移動の合計 ÷ 論理の位置が進んだ距離（cm/m）。進んでいない区間は合計（cm）だけを見る。
@@ -185,13 +185,13 @@ export function speedJumps(frames, dt, opts = {}) {
 // まとめ：表に出す値と、細目
 export function smoothMetrics(run, opts = {}) {
   const { frames, dt } = run;
-  const slip = footSlip(frames), slipLow = frames.some(f => f.low) ? footSlip(frames, 'low') : null, win = windowDrift(frames, opts), pops = jointPops(frames, opts), face = facingJumps(frames, opts), flips = gaitFlips(frames, opts), cam = cameraMotion(frames, dt, opts.camExclude || []), spd = speedJumps(frames, dt, opts);
+  const slip = footSlip(frames), slipLegacy = frames.some(f => f.contactLegacy) ? footSlip(frames, 'contactLegacy') : null, slipLow = frames.some(f => f.low) ? footSlip(frames, 'low') : null, win = windowDrift(frames, opts), pops = jointPops(frames, opts), face = facingJumps(frames, opts), flips = gaitFlips(frames, opts), cam = cameraMotion(frames, dt, opts.camExclude || []), spd = speedJumps(frames, dt, opts);
   const summary = {
-    'slip.cmPerM': slip.total.cmPerM, 'slipLow.cmPerM': slipLow?.total.cmPerM ?? null, 'window.maxCm': win.max,
+    'slip.cmPerM': slip.total.cmPerM, 'slipLegacy.cmPerM': slipLegacy?.total.cmPerM ?? null, 'slipLow.cmPerM': slipLow?.total.cmPerM ?? null, 'window.maxCm': win.max,
     ...Object.fromEntries(Object.entries(win.byKind).map(([k, v]) => [`window.${k}.maxCm`, v])),
     'pops.legs.over45': pops.legs.over45, 'pops.legs.over90': pops.legs.over90, 'pops.arms.over45': pops.arms.over45, 'pops.arms.over90': pops.arms.over90,
     'facing.yaw.over30': face.yaw.over, 'facing.model.over30': face.modelYaw.over, 'gait.flips': flips.flips,
     'cam.posJerkP99': cam.posJerkP99, 'cam.rotAccelP99': cam.rotAccelP99, 'speed.logicalJumps': spd.logical, 'speed.travelJumps': spd.travel,
   };
-  return { summary, slip, slipLow, stanceMax: stanceMaxByTag(frames), windows: win, pops, facing: face, gait: flips, camera: cam, speed: spd };
+  return { summary, slip, slipLegacy, slipLow, stanceMax: stanceMaxByTag(frames), windows: win, pops, facing: face, gait: flips, camera: cam, speed: spd };
 }

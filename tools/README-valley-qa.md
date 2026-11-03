@@ -60,6 +60,7 @@ b0 庭へ降りる（`temple_yard` に入る）→ b1 穂太の話 → b2 林道
 - `tools/scenarios/measure-arm-spread.mjs`：被弾・弾かれ・倒れの動作で、腕全体が胴の下向きから開く角を、腕の開きの上限（8.3b・arm-spread.js）の前後で毎コマ測る（`KZ_OUT`）。
 - `tools/scenarios/capture-combat-impact.mjs`：8.4a・8.5a の前後比較。押し戻しと、とどめ・弾きのスローを、固定カメラ・同じ乱数・同じ入力でコマ割りに撮る（`KZ_TAG=before|after`）。
 - `tools/scenarios/smooth-journey.mjs`：走り・歩きの滑らかさの台本（立つ→歩き出す→小走り→走り→停止→反転→旋回→屈み歩き→停止）を固定60Hzで毎コマ記録し、`tools/lib/smooth-metrics.mjs` の指標（足の滑りcm/m・出来事の窓の接地のずれ・関節と向きの跳ね・歩容の往復・カメラの加加速度と角加速度p99・速さの段差）を出す。`KZ_RAW=1` で毎コマの記録も残す。記録の指紋が起動ごとに同じこと（基準は `reports/polish3/locomotion-smooth/baseline.md`）。
+- `tools/scenarios/regress-locomotion-speed.mjs`：速さの表と時間で決める加減速（M1・`dist/valley/loco.js`）。止まる距離と時間が30・60・144Hzで一致・旧い経路は1コマで止まる・走り出し／止まり／反転で速さが1コマ1m/秒を超えて跳ばない・候補の表（old・a・b・c・個別の walk/sprint・`?smooth=speed|off`）の定速と仲間・敵の値。止まりの位相を12通りずらした接地のずれも記録する（合否なし）。URL の切替は `valley-play.mjs --query "loco=old&smooth=off"` で渡せる。smooth-journey の接地は M1 から gait-table v2 の「足裏が平ら」の区間（旧い物差しは `slipLegacy`）。
 - `tools/scenarios/capture-smooth.mjs`：同じ台本の走り出し・定速・停止・旋回を、固定の横カメラと追従カメラで8コマのコマ割り（幅1280のJPG）にする（`--tag` で出力名を替え、新旧を同じ条件で撮る。盲検採点用）。
 - `node tools/gait-sample.mjs`：周期の移動動作を7体ぶん Node だけで標本化し、`dist/valley/gait-table.js`（生成物）を作り直す（`--check` で一致の確認、`--print` で STANCE_SPEED との照合）。
 - `tools/scenarios/regress-hand-grip.mjs`：刀を握る手（8.6a）を毎コマ測る（指・親指の皮と柄・鞘のすき間とめり込み、手首と指の跳び、腕の写しの長さ、動作の骨と切先が層を切った人物と一致）。31場面。`KZ_OUT=…` でJSONを残す。

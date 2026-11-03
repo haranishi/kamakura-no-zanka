@@ -281,7 +281,7 @@ export class Battle {
     const fx = -Math.sin(shooter.yaw), fz = -Math.cos(shooter.yaw);
     const from = new THREE.Vector3(shooter.pos.x + fx * 0.5, shooter.pos.y + shooter.character.height * 0.82, shooter.pos.z + fz * 0.5);
     const tp = target.chest(), dist = Math.hypot(tp.x - from.x, tp.z - from.z), speed = FEEL.arrowSpeed, t = dist / speed;
-    const tv = target === g.hero ? g.hero.speed : (target.speedNow || 0);
+    const tv = target === g.hero ? g.hero.leadSpeed() : (target.speedNow || 0);   // 主人公は実際に進んでいる速さ（止まりかけ・壁際で論理の速さと違う。loco.js）
     const aim = new THREE.Vector3(tp.x - Math.sin(target.yaw) * tv * t * 0.7, tp.y + 0.5 * GRAVITY * t * t, tp.z - Math.cos(target.yaw) * tv * t * 0.7);
     const dir = aim.sub(from).normalize();
     const spread = FEEL.arrowSpread * (1 + dist / 18);

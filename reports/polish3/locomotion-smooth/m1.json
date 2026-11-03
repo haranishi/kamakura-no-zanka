@@ -1,0 +1,1109 @@
+{
+ "note": "M1 2026-11-04. before = main 7828636 with the M1 measuring tools copied (same as ?loco=old and ?smooth=off on this branch: identical 762-frame fingerprint 0bd188aa90a361c8). after = this branch default (?loco=a). Stance = gait-table v2 flat-foot windows; slipLegacy = clips.json contacts.",
+ "before": {
+  "start": {
+   "x": 2,
+   "z": 4,
+   "yaw": 0
+  },
+  "dt": 0.016666666666666666,
+  "opts": {
+   "camExclude": [
+    "turn"
+   ]
+  },
+  "frames": 762,
+  "blocked": 0,
+  "lowY": 0.16508,
+  "framesSha": "0bd188aa90a361c8",
+  "metrics": {
+   "summary": {
+    "slip.cmPerM": 10.95,
+    "slipLegacy.cmPerM": 14.75,
+    "slipLow.cmPerM": 10.77,
+    "window.maxCm": 51.67,
+    "window.start.maxCm": 32.59,
+    "window.switch.maxCm": 51.67,
+    "window.stop.maxCm": 14.8,
+    "window.reverse.maxCm": 51.67,
+    "window.turn.maxCm": 2.17,
+    "pops.legs.over45": 0,
+    "pops.legs.over90": 0,
+    "pops.arms.over45": 0,
+    "pops.arms.over90": 0,
+    "facing.yaw.over30": 0,
+    "facing.model.over30": 0,
+    "gait.flips": 0,
+    "cam.posJerkP99": 367.2,
+    "cam.rotAccelP99": 0,
+    "speed.logicalJumps": 0,
+    "speed.travelJumps": 3
+   },
+   "slip": {
+    "total": {
+     "slipCm": 319.76,
+     "distM": 29.19,
+     "cmPerM": 10.95
+    },
+    "byTag": {
+     "stand": {
+      "slipCm": 4.48,
+      "distM": 0,
+      "cmPerM": null
+     },
+     "start": {
+      "slipCm": 47.53,
+      "distM": 1.097,
+      "cmPerM": 43.34
+     },
+     "jog": {
+      "slipCm": 4.3,
+      "distM": 3.75,
+      "cmPerM": 1.15
+     },
+     "run_start": {
+      "slipCm": 11.24,
+      "distM": 2.847,
+      "cmPerM": 3.95
+     },
+     "run": {
+      "slipCm": 13.33,
+      "distM": 7.5,
+      "cmPerM": 1.78
+     },
+     "stop": {
+      "slipCm": 24.64,
+      "distM": 0,
+      "cmPerM": null
+     },
+     "reverse": {
+      "slipCm": 111.56,
+      "distM": 2.847,
+      "cmPerM": 39.19
+     },
+     "run2": {
+      "slipCm": 4.53,
+      "distM": 2.847,
+      "cmPerM": 1.59
+     },
+     "turn": {
+      "slipCm": 7.81,
+      "distM": 3,
+      "cmPerM": 2.6
+     },
+     "run3": {
+      "slipCm": 5.95,
+      "distM": 3,
+      "cmPerM": 1.98
+     },
+     "stop2": {
+      "slipCm": 19.51,
+      "distM": 0,
+      "cmPerM": null
+     },
+     "slow": {
+      "slipCm": 64.87,
+      "distM": 2.303,
+      "cmPerM": 28.16
+     },
+     "stop3": {
+      "slipCm": 0,
+      "distM": 0,
+      "cmPerM": null
+     }
+    }
+   },
+   "slipLegacy": {
+    "total": {
+     "slipCm": 430.61,
+     "distM": 29.19,
+     "cmPerM": 14.75
+    },
+    "byTag": {
+     "stand": {
+      "slipCm": 4.48,
+      "distM": 0,
+      "cmPerM": null
+     },
+     "start": {
+      "slipCm": 52.12,
+      "distM": 1.097,
+      "cmPerM": 47.52
+     },
+     "jog": {
+      "slipCm": 13.8,
+      "distM": 3.75,
+      "cmPerM": 3.68
+     },
+     "run_start": {
+      "slipCm": 18.05,
+      "distM": 2.847,
+      "cmPerM": 6.34
+     },
+     "run": {
+      "slipCm": 19.59,
+      "distM": 7.5,
+      "cmPerM": 2.61
+     },
+     "stop": {
+      "slipCm": 36.35,
+      "distM": 0,
+      "cmPerM": null
+     },
+     "reverse": {
+      "slipCm": 119.6,
+      "distM": 2.847,
+      "cmPerM": 42.01
+     },
+     "run2": {
+      "slipCm": 14.52,
+      "distM": 2.847,
+      "cmPerM": 5.1
+     },
+     "turn": {
+      "slipCm": 12.69,
+      "distM": 3,
+      "cmPerM": 4.23
+     },
+     "run3": {
+      "slipCm": 7.1,
+      "distM": 3,
+      "cmPerM": 2.37
+     },
+     "stop2": {
+      "slipCm": 19.51,
+      "distM": 0,
+      "cmPerM": null
+     },
+     "slow": {
+      "slipCm": 112.78,
+      "distM": 2.303,
+      "cmPerM": 48.96
+     },
+     "stop3": {
+      "slipCm": 0,
+      "distM": 0,
+      "cmPerM": null
+     }
+    }
+   },
+   "slipLow": {
+    "total": {
+     "slipCm": 314.3,
+     "distM": 29.19,
+     "cmPerM": 10.77
+    },
+    "byTag": {
+     "stand": {
+      "slipCm": 4.48,
+      "distM": 0,
+      "cmPerM": null
+     },
+     "start": {
+      "slipCm": 47.53,
+      "distM": 1.097,
+      "cmPerM": 43.34
+     },
+     "jog": {
+      "slipCm": 4.3,
+      "distM": 3.75,
+      "cmPerM": 1.15
+     },
+     "run_start": {
+      "slipCm": 11.24,
+      "distM": 2.847,
+      "cmPerM": 3.95
+     },
+     "run": {
+      "slipCm": 13.33,
+      "distM": 7.5,
+      "cmPerM": 1.78
+     },
+     "stop": {
+      "slipCm": 19.69,
+      "distM": 0,
+      "cmPerM": null
+     },
+     "reverse": {
+      "slipCm": 111.56,
+      "distM": 2.847,
+      "cmPerM": 39.19
+     },
+     "run2": {
+      "slipCm": 4.53,
+      "distM": 2.847,
+      "cmPerM": 1.59
+     },
+     "turn": {
+      "slipCm": 7.81,
+      "distM": 3,
+      "cmPerM": 2.6
+     },
+     "run3": {
+      "slipCm": 5.95,
+      "distM": 3,
+      "cmPerM": 1.98
+     },
+     "stop2": {
+      "slipCm": 18.99,
+      "distM": 0,
+      "cmPerM": null
+     },
+     "slow": {
+      "slipCm": 64.87,
+      "distM": 2.303,
+      "cmPerM": 28.16
+     },
+     "stop3": {
+      "slipCm": 0,
+      "distM": 0,
+      "cmPerM": null
+     }
+    }
+   },
+   "stanceMax": {
+    "stand": 0.62,
+    "start": 30.37,
+    "jog": 1.11,
+    "run_start": 7.44,
+    "run": 2.33,
+    "stop": 13.36,
+    "reverse": 51.67,
+    "run2": 2.75,
+    "turn": 2.17,
+    "run3": 1.94,
+    "stop2": 14.8,
+    "slow": 32.59
+   },
+   "windows": {
+    "list": [
+     {
+      "kind": "start",
+      "i": 60,
+      "t": 1.01667,
+      "maxCm": 30.37
+     },
+     {
+      "kind": "switch",
+      "i": 66,
+      "t": 1.11667,
+      "from": "walk",
+      "to": "jog",
+      "maxCm": 30.37
+     },
+     {
+      "kind": "switch",
+      "i": 184,
+      "t": 3.08333,
+      "from": "jog",
+      "to": "run",
+      "maxCm": 7.44
+     },
+     {
+      "kind": "stop",
+      "i": 306,
+      "t": 5.11667,
+      "maxCm": 13.36
+     },
+     {
+      "kind": "reverse",
+      "i": 366,
+      "t": 6.11667,
+      "maxCm": 51.67
+     },
+     {
+      "kind": "switch",
+      "i": 372,
+      "t": 6.21667,
+      "from": "walk",
+      "to": "jog",
+      "maxCm": 51.67
+     },
+     {
+      "kind": "switch",
+      "i": 442,
+      "t": 7.38333,
+      "from": "jog",
+      "to": "run",
+      "maxCm": 2.75
+     },
+     {
+      "kind": "turn",
+      "i": 474,
+      "t": 7.91667,
+      "maxCm": 2.17
+     },
+     {
+      "kind": "stop",
+      "i": 546,
+      "t": 9.11667,
+      "maxCm": 14.8
+     },
+     {
+      "kind": "start",
+      "i": 582,
+      "t": 9.71667,
+      "maxCm": 32.59
+     },
+     {
+      "kind": "stop",
+      "i": 690,
+      "t": 11.51667,
+      "maxCm": 0
+     }
+    ],
+    "byKind": {
+     "start": 32.59,
+     "switch": 51.67,
+     "stop": 14.8,
+     "reverse": 51.67,
+     "turn": 2.17
+    },
+    "max": 51.67
+   },
+   "pops": {
+    "legs": {
+     "over45": 0,
+     "over90": 0,
+     "maxStepDeg": 20
+    },
+    "arms": {
+     "over45": 0,
+     "over90": 0,
+     "maxStepDeg": 13.6
+    },
+    "core": {
+     "over45": 0,
+     "over90": 0,
+     "maxStepDeg": 5.5
+    },
+    "worst": {
+     "legs": {
+      "bone": "LeftLeg",
+      "t": 5,
+      "tag": "run",
+      "deg": 20
+     },
+     "arms": {
+      "bone": "LeftArm",
+      "t": 1.11667,
+      "tag": "start",
+      "deg": 13.6
+     },
+     "core": {
+      "bone": "Spine02",
+      "t": 8.15,
+      "tag": "turn",
+      "deg": 5.5
+     }
+    }
+   },
+   "facing": {
+    "yaw": {
+     "over": 0,
+     "maxStepDeg": 13.4
+    },
+    "modelYaw": {
+     "over": 0,
+     "maxStepDeg": 13.4
+    }
+   },
+   "gait": {
+    "changes": 10,
+    "flips": 0,
+    "list": []
+   },
+   "camera": {
+    "exclude": [
+     "turn"
+    ],
+    "posJerkP99": 367.2,
+    "posJerkP99All": 663.1,
+    "rotAccelP99All": 20.21,
+    "posJerkMax": 2307.2,
+    "rotAccelP99": 0,
+    "rotAccelMax": 21.51,
+    "fovRange": [
+     58,
+     58
+    ],
+    "byTag": {
+     "stand": {
+      "posJerkP99": 0,
+      "rotAccelP99": 0
+     },
+     "start": {
+      "posJerkP99": 118.8,
+      "rotAccelP99": 0
+     },
+     "jog": {
+      "posJerkP99": 7.8,
+      "rotAccelP99": 0
+     },
+     "run_start": {
+      "posJerkP99": 118.9,
+      "rotAccelP99": 0
+     },
+     "run": {
+      "posJerkP99": 7.8,
+      "rotAccelP99": 0
+     },
+     "stop": {
+      "posJerkP99": 861.8,
+      "rotAccelP99": 0
+     },
+     "reverse": {
+      "posJerkP99": 293,
+      "rotAccelP99": 0
+     },
+     "run2": {
+      "posJerkP99": 116.6,
+      "rotAccelP99": 0
+     },
+     "turn": {
+      "posJerkP99": 2307.2,
+      "rotAccelP99": 21.51
+     },
+     "run3": {
+      "posJerkP99": 2235.8,
+      "rotAccelP99": 10.75
+     },
+     "stop2": {
+      "posJerkP99": 868.3,
+      "rotAccelP99": 0
+     },
+     "slow": {
+      "posJerkP99": 154.2,
+      "rotAccelP99": 0
+     },
+     "stop3": {
+      "posJerkP99": 226.8,
+      "rotAccelP99": 0
+     }
+    }
+   },
+   "speed": {
+    "logical": 0,
+    "travel": 3,
+    "maxLogicalStep": 0.47,
+    "maxTravelStep": 5,
+    "list": [
+     {
+      "t": 5.11667,
+      "tag": "stop",
+      "dv": 5
+     },
+     {
+      "t": 9.11667,
+      "tag": "stop2",
+      "dv": 5
+     },
+     {
+      "t": 11.51667,
+      "tag": "stop3",
+      "dv": 1.3
+     }
+    ]
+   }
+  }
+ },
+ "after": {
+  "start": {
+   "x": 2,
+   "z": 4,
+   "yaw": 0
+  },
+  "dt": 0.016666666666666666,
+  "opts": {
+   "camExclude": [
+    "turn"
+   ]
+  },
+  "frames": 762,
+  "blocked": 1,
+  "lowY": 0.16508,
+  "framesSha": "7b8477dc5f14b312",
+  "metrics": {
+   "summary": {
+    "slip.cmPerM": 10.65,
+    "slipLegacy.cmPerM": 14.09,
+    "slipLow.cmPerM": 9.22,
+    "window.maxCm": 44.06,
+    "window.start.maxCm": 28.12,
+    "window.stop.maxCm": 26.3,
+    "window.reverse.maxCm": 44.06,
+    "window.turn.maxCm": 1.39,
+    "pops.legs.over45": 0,
+    "pops.legs.over90": 0,
+    "pops.arms.over45": 0,
+    "pops.arms.over90": 0,
+    "facing.yaw.over30": 0,
+    "facing.model.over30": 0,
+    "gait.flips": 0,
+    "cam.posJerkP99": 239.8,
+    "cam.rotAccelP99": 0,
+    "speed.logicalJumps": 0,
+    "speed.travelJumps": 0
+   },
+   "slip": {
+    "total": {
+     "slipCm": 328.37,
+     "distM": 30.84,
+     "cmPerM": 10.65
+    },
+    "byTag": {
+     "stand": {
+      "slipCm": 4.48,
+      "distM": 0,
+      "cmPerM": null
+     },
+     "start": {
+      "slipCm": 34.04,
+      "distM": 1.222,
+      "cmPerM": 27.86
+     },
+     "jog": {
+      "slipCm": 10.29,
+      "distM": 4.5,
+      "cmPerM": 2.29
+     },
+     "run_start": {
+      "slipCm": 5.6,
+      "distM": 2.815,
+      "cmPerM": 1.99
+     },
+     "run": {
+      "slipCm": 12.56,
+      "distM": 7.5,
+      "cmPerM": 1.67
+     },
+     "stop": {
+      "slipCm": 40.71,
+      "distM": 0.379,
+      "cmPerM": 107.5
+     },
+     "reverse": {
+      "slipCm": 94.92,
+      "distM": 3.038,
+      "cmPerM": 31.25
+     },
+     "run2": {
+      "slipCm": 6.53,
+      "distM": 2.815,
+      "cmPerM": 2.32
+     },
+     "turn": {
+      "slipCm": 6.39,
+      "distM": 3,
+      "cmPerM": 2.13
+     },
+     "run3": {
+      "slipCm": 3.34,
+      "distM": 3,
+      "cmPerM": 1.11
+     },
+     "stop2": {
+      "slipCm": 36.62,
+      "distM": 0.379,
+      "cmPerM": 96.68
+     },
+     "slow": {
+      "slipCm": 71.47,
+      "distM": 2.096,
+      "cmPerM": 34.09
+     },
+     "stop3": {
+      "slipCm": 1.41,
+      "distM": 0.098,
+      "cmPerM": 14.38
+     }
+    }
+   },
+   "slipLegacy": {
+    "total": {
+     "slipCm": 434.49,
+     "distM": 30.84,
+     "cmPerM": 14.09
+    },
+    "byTag": {
+     "stand": {
+      "slipCm": 4.48,
+      "distM": 0,
+      "cmPerM": null
+     },
+     "start": {
+      "slipCm": 41.87,
+      "distM": 1.222,
+      "cmPerM": 34.27
+     },
+     "jog": {
+      "slipCm": 17.58,
+      "distM": 4.5,
+      "cmPerM": 3.91
+     },
+     "run_start": {
+      "slipCm": 8.2,
+      "distM": 2.815,
+      "cmPerM": 2.91
+     },
+     "run": {
+      "slipCm": 25.97,
+      "distM": 7.5,
+      "cmPerM": 3.46
+     },
+     "stop": {
+      "slipCm": 40.71,
+      "distM": 0.379,
+      "cmPerM": 107.5
+     },
+     "reverse": {
+      "slipCm": 105.61,
+      "distM": 3.038,
+      "cmPerM": 34.77
+     },
+     "run2": {
+      "slipCm": 7.21,
+      "distM": 2.815,
+      "cmPerM": 2.56
+     },
+     "turn": {
+      "slipCm": 13.47,
+      "distM": 3,
+      "cmPerM": 4.49
+     },
+     "run3": {
+      "slipCm": 7.48,
+      "distM": 3,
+      "cmPerM": 2.49
+     },
+     "stop2": {
+      "slipCm": 36.62,
+      "distM": 0.379,
+      "cmPerM": 96.68
+     },
+     "slow": {
+      "slipCm": 123.88,
+      "distM": 2.096,
+      "cmPerM": 59.09
+     },
+     "stop3": {
+      "slipCm": 1.41,
+      "distM": 0.098,
+      "cmPerM": 14.38
+     }
+    }
+   },
+   "slipLow": {
+    "total": {
+     "slipCm": 284.4,
+     "distM": 30.84,
+     "cmPerM": 9.22
+    },
+    "byTag": {
+     "stand": {
+      "slipCm": 4.48,
+      "distM": 0,
+      "cmPerM": null
+     },
+     "start": {
+      "slipCm": 31.9,
+      "distM": 1.222,
+      "cmPerM": 26.11
+     },
+     "jog": {
+      "slipCm": 10.29,
+      "distM": 4.5,
+      "cmPerM": 2.29
+     },
+     "run_start": {
+      "slipCm": 5.6,
+      "distM": 2.815,
+      "cmPerM": 1.99
+     },
+     "run": {
+      "slipCm": 12.56,
+      "distM": 7.5,
+      "cmPerM": 1.67
+     },
+     "stop": {
+      "slipCm": 24.16,
+      "distM": 0.379,
+      "cmPerM": 63.8
+     },
+     "reverse": {
+      "slipCm": 80.96,
+      "distM": 3.038,
+      "cmPerM": 26.65
+     },
+     "run2": {
+      "slipCm": 6.53,
+      "distM": 2.815,
+      "cmPerM": 2.32
+     },
+     "turn": {
+      "slipCm": 6.39,
+      "distM": 3,
+      "cmPerM": 2.13
+     },
+     "run3": {
+      "slipCm": 3.34,
+      "distM": 3,
+      "cmPerM": 1.11
+     },
+     "stop2": {
+      "slipCm": 25.31,
+      "distM": 0.379,
+      "cmPerM": 66.82
+     },
+     "slow": {
+      "slipCm": 71.47,
+      "distM": 2.096,
+      "cmPerM": 34.09
+     },
+     "stop3": {
+      "slipCm": 1.41,
+      "distM": 0.098,
+      "cmPerM": 14.38
+     }
+    }
+   },
+   "stanceMax": {
+    "stand": 0.62,
+    "start": 14.5,
+    "jog": 2.46,
+    "run_start": 2.73,
+    "run": 1.77,
+    "stop": 26.3,
+    "reverse": 44.06,
+    "run2": 1.92,
+    "turn": 2.12,
+    "run3": 1.9,
+    "stop2": 19.83,
+    "slow": 28.12,
+    "stop3": 1.84
+   },
+   "windows": {
+    "list": [
+     {
+      "kind": "start",
+      "i": 60,
+      "t": 1.01667,
+      "maxCm": 14.5
+     },
+     {
+      "kind": "stop",
+      "i": 306,
+      "t": 5.11667,
+      "maxCm": 26.3
+     },
+     {
+      "kind": "reverse",
+      "i": 366,
+      "t": 6.11667,
+      "maxCm": 44.06
+     },
+     {
+      "kind": "turn",
+      "i": 474,
+      "t": 7.91667,
+      "maxCm": 1.39
+     },
+     {
+      "kind": "stop",
+      "i": 546,
+      "t": 9.11667,
+      "maxCm": 19.83
+     },
+     {
+      "kind": "start",
+      "i": 582,
+      "t": 9.71667,
+      "maxCm": 28.12
+     },
+     {
+      "kind": "stop",
+      "i": 690,
+      "t": 11.51667,
+      "maxCm": 1.84
+     }
+    ],
+    "byKind": {
+     "start": 28.12,
+     "stop": 26.3,
+     "reverse": 44.06,
+     "turn": 1.39
+    },
+    "max": 44.06
+   },
+   "pops": {
+    "legs": {
+     "over45": 0,
+     "over90": 0,
+     "maxStepDeg": 20
+    },
+    "arms": {
+     "over45": 0,
+     "over90": 0,
+     "maxStepDeg": 11.3
+    },
+    "core": {
+     "over45": 0,
+     "over90": 0,
+     "maxStepDeg": 5.7
+    },
+    "worst": {
+     "legs": {
+      "bone": "LeftLeg",
+      "t": 3.4,
+      "tag": "run_start",
+      "deg": 20
+     },
+     "arms": {
+      "bone": "LeftArm",
+      "t": 8.08333,
+      "tag": "turn",
+      "deg": 11.3
+     },
+     "core": {
+      "bone": "Spine02",
+      "t": 3.88333,
+      "tag": "run",
+      "deg": 5.7
+     }
+    }
+   },
+   "facing": {
+    "yaw": {
+     "over": 0,
+     "maxStepDeg": 13.4
+    },
+    "modelYaw": {
+     "over": 0,
+     "maxStepDeg": 13.4
+    }
+   },
+   "gait": {
+    "changes": 6,
+    "flips": 0,
+    "list": []
+   },
+   "camera": {
+    "exclude": [
+     "turn"
+    ],
+    "posJerkP99": 239.8,
+    "posJerkP99All": 598.9,
+    "rotAccelP99All": 20.21,
+    "posJerkMax": 2309.3,
+    "rotAccelP99": 0,
+    "rotAccelMax": 21.51,
+    "fovRange": [
+     58,
+     58
+    ],
+    "byTag": {
+     "stand": {
+      "posJerkP99": 0,
+      "rotAccelP99": 0
+     },
+     "start": {
+      "posJerkP99": 149,
+      "rotAccelP99": 0
+     },
+     "jog": {
+      "posJerkP99": 11,
+      "rotAccelP99": 0
+     },
+     "run_start": {
+      "posJerkP99": 101.5,
+      "rotAccelP99": 0
+     },
+     "run": {
+      "posJerkP99": 6.1,
+      "rotAccelP99": 0
+     },
+     "stop": {
+      "posJerkP99": 287.3,
+      "rotAccelP99": 0
+     },
+     "reverse": {
+      "posJerkP99": 169.8,
+      "rotAccelP99": 0
+     },
+     "run2": {
+      "posJerkP99": 95.1,
+      "rotAccelP99": 0
+     },
+     "turn": {
+      "posJerkP99": 2309.3,
+      "rotAccelP99": 21.51
+     },
+     "run3": {
+      "posJerkP99": 2235,
+      "rotAccelP99": 10.75
+     },
+     "stop2": {
+      "posJerkP99": 287.3,
+      "rotAccelP99": 0
+     },
+     "slow": {
+      "posJerkP99": 68.6,
+      "rotAccelP99": 0
+     },
+     "stop3": {
+      "posJerkP99": 79.9,
+      "rotAccelP99": 0
+     }
+    }
+   },
+   "speed": {
+    "logical": 0,
+    "travel": 0,
+    "maxLogicalStep": 0.8,
+    "maxTravelStep": 0.78,
+    "list": []
+   }
+  }
+ },
+ "stopSweep": {
+  "old": [
+   16,
+   21.5,
+   19.9,
+   26.3,
+   28.4,
+   29.9,
+   30.8,
+   26.4,
+   25.7,
+   23.9,
+   21,
+   20.1
+  ],
+  "a": [
+   23.6,
+   30.1,
+   26.1,
+   26.6,
+   30.7,
+   24.7,
+   22.1,
+   21.6,
+   14.4,
+   10.5,
+   15.3,
+   14.5
+  ]
+ },
+ "stops": [
+  {
+   "loco": "a",
+   "gait": "sprint",
+   "hz": 30,
+   "v0": 4.999999999999816,
+   "dist": 0.37874236856529864,
+   "time": 0.3
+  },
+  {
+   "loco": "a",
+   "gait": "sprint",
+   "hz": 60,
+   "v0": 4.999999999999817,
+   "dist": 0.37874236856529775,
+   "time": 0.3
+  },
+  {
+   "loco": "a",
+   "gait": "sprint",
+   "hz": 144,
+   "v0": 4.999999999999804,
+   "dist": 0.37859145658324245,
+   "time": 0.29166666666666663
+  },
+  {
+   "loco": "a",
+   "gait": "walk",
+   "hz": 30,
+   "v0": 2.9999999999998894,
+   "dist": 0.227245421139179,
+   "time": 0.3
+  },
+  {
+   "loco": "a",
+   "gait": "walk",
+   "hz": 60,
+   "v0": 2.9999999999998894,
+   "dist": 0.2270449047083346,
+   "time": 0.2833333333333333
+  },
+  {
+   "loco": "a",
+   "gait": "walk",
+   "hz": 144,
+   "v0": 2.999999999999882,
+   "dist": 0.22683439002221328,
+   "time": 0.2708333333333333
+  },
+  {
+   "loco": "old",
+   "gait": "sprint",
+   "hz": 30,
+   "v0": 5,
+   "dist": 0,
+   "time": 0
+  },
+  {
+   "loco": "old",
+   "gait": "sprint",
+   "hz": 60,
+   "v0": 5,
+   "dist": 0,
+   "time": 0
+  },
+  {
+   "loco": "old",
+   "gait": "sprint",
+   "hz": 144,
+   "v0": 5,
+   "dist": 0,
+   "time": 0
+  },
+  {
+   "loco": "old",
+   "gait": "walk",
+   "hz": 30,
+   "v0": 2.5,
+   "dist": 0,
+   "time": 0
+  },
+  {
+   "loco": "old",
+   "gait": "walk",
+   "hz": 60,
+   "v0": 2.5,
+   "dist": 0,
+   "time": 0
+  },
+  {
+   "loco": "old",
+   "gait": "walk",
+   "hz": 144,
+   "v0": 2.5,
+   "dist": 0,
+   "time": 0
+  }
+ ],
+ "jumps": {
+  "maxLogicalStep": 0.798959110600086,
+  "maxTravelStep": 0.7847385265119122,
+  "worst": {
+   "keys": {
+    "KeyW": false,
+    "ShiftLeft": false
+   },
+   "i": 2,
+   "tv": 3.499833145348692,
+   "prevT": 4.284571671860604
+  }
+ }
+}

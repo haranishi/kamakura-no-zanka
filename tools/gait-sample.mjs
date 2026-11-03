@@ -6,6 +6,8 @@
 //   leftLand    左足が平らに着いた最初の位相（0〜1）。clips.json の contacts とは別に骨から測る
 //   pass        左右の足首の前後が入れ替わる（すれ違う）位相の一覧
 //   hipsY       骨盤（Hips）の高さの最小・最大（m）
+//   flat        v2：左右の足ごとの「足裏が平ら」な区間の一覧 {left:[[始,終],…], right:[…]}（位相。始＞終は周期をまたぐ）。
+//               計測（smooth-journey）の接地をこの区間で決める。clips.json の contacts は両足支持の縁まで含み、屈み歩きで上がり始めの足を数えたため
 // 使い方: node tools/gait-sample.mjs            → dist/valley/gait-table.js を書き直す
 //         node tools/gait-sample.mjs --check    → 書かずに作り直し、ファイルと一致するか確かめる（不一致なら終了コード1）
 //         node tools/gait-sample.mjs --print    → 表と STANCE_SPEED の照合を表示するだけ
@@ -16,7 +18,7 @@ import { fileURLToPath } from 'node:url';
 import { parseGlb, decodedAccessor } from './lib/glb.mjs';
 import * as THREE from '../dist/vendor/three.module.min.js';
 
-export const VERSION = 1;
+export const VERSION = 2;
 export const CLIPS = ['CMU_Jog', 'CMU_Run', 'Samurai_Walk', 'Walk_Fight_Forward', 'Casual_Walk', 'Cautious_Crouch_Walk_Forward'];
 export const CHARACTERS = ['hero', 'archer', 'soldier', 'officer', 'villager_m', 'villager_f', 'child'];
 const SAMPLES_PER_SECOND = 480;   // 30コマ/秒の焼き込みを16倍で読む（キーの間の補間も拾う）
@@ -83,7 +85,14 @@ export function gaitOf({ N, s }, seconds) {
   const lands = []; for (let i = 0; i < N; i++) if (fl.left[i] && !fl.left[(i + N - 1) % N]) lands.push(i / N);
   const pass = []; for (let i = 0; i < N; i++) { const d0 = at(s.lf, i)[2] - at(s.rf, i)[2], d1 = at(s.lf, i + 1)[2] - at(s.rf, i + 1)[2]; if (d0 * d1 < 0 || (d0 === 0 && d1 !== 0)) pass.push(r4((i + Math.abs(d0) / (Math.abs(d0) + Math.abs(d1))) / N)); }
   const hy = s.hips.map(p => p[1]);
-  return { period: r4(seconds), strides: lands.length, stanceSpeed: r4(median(speeds)), leftLand: lands.length ? r4(lands[0]) : null, pass, hipsY: [r4(Math.min(...hy)), r4(Math.max(...hy))] };
+  // 平らな区間を [始,終] の位相に（周期の継ぎ目をまたぐ区間は1つにつなぐ。全周が平らなら [0,1]）
+  const windows = arr => {
+    if (arr.every(Boolean)) return [[0, 1]];
+    const out = []; let s0 = arr.findIndex((v, i) => !v && arr[(i + 1) % N]);
+    for (let k = 1; k <= N; k++) { const i = (s0 + k) % N; if (arr[i] && !arr[(i + N - 1) % N]) { let e = i; while (arr[(e + 1) % N]) e = (e + 1) % N; out.push([r4(i / N), r4((e + 1) / N % 1 || 1)]); } }
+    return out.sort((a, b) => a[0] - b[0]);
+  };
+  return { period: r4(seconds), strides: lands.length, stanceSpeed: r4(median(speeds)), leftLand: lands.length ? r4(lands[0]) : null, pass, hipsY: [r4(Math.min(...hy)), r4(Math.max(...hy))], flat: { left: windows(fl.left), right: windows(fl.right) } };
 }
 
 export function buildTable() {

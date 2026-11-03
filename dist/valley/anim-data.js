@@ -71,15 +71,16 @@ const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 export const CLIP_SEGMENTS = { Archery_Shot: { from: 2.0, release: 4.0, end: 4.95 } };
 
 // 移動の速さから、歩き・小走り・走りのどれを再生するかと再生速度を決める（pure）。
-export function pickGait(prev, speed) {
+// G は境の表（既定は GAITS。速さの表を変えた版は loco.js の GAITS_SMOOTH を渡す）
+export function pickGait(prev, speed, G = GAITS) {
   let gait = prev;
-  if (speed < GAITS.walkDown) gait = 'idle';
-  else if (prev === 'idle') gait = speed >= GAITS.walkUp ? 'walk' : 'idle';
+  if (speed < G.walkDown) gait = 'idle';
+  else if (prev === 'idle') gait = speed >= G.walkUp ? 'walk' : 'idle';
   if (gait !== 'idle') {
-    if (speed >= GAITS.runUp) gait = 'run';
-    else if (gait === 'run' && speed >= GAITS.runDown) gait = 'run';
-    else if (speed >= GAITS.jogUp) gait = 'jog';
-    else if (gait === 'jog' && speed >= GAITS.jogDown) gait = 'jog';
+    if (speed >= G.runUp) gait = 'run';
+    else if (gait === 'run' && speed >= G.runDown) gait = 'run';
+    else if (speed >= G.jogUp) gait = 'jog';
+    else if (gait === 'jog' && speed >= G.jogDown) gait = 'jog';
     else gait = 'walk';
   }
   return gait;
