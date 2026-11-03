@@ -98,3 +98,15 @@ export function dropToReach(hy, ty, horiz, R) {
   const need = (hy - ty) - Math.sqrt(R * R - horiz * horiz);
   return need > 0 ? need : 0;
 }
+
+// 歩幅の伸縮（設計 §4・M2b の第2段）：速さの比 k＝進む速さ÷動作の接地中の足の速さ を、歩調 kc（再生の速さ）と歩幅 ks に分ける（kc×ks＝k）。
+// 伸ばすだけ（k≦1 は今までどおり歩調だけ。止まりかけ・走り出しで歩幅を縮めると、着いた足の位置が動いた）。対数で share を歩調へ、残りを歩幅へ。
+// 歩調が maxCadence を超える分は歩幅へ回し、歩幅は maxStride まで（要件 R33.2 の±25%。設計の1.4では走りの骨盤が平均11cm・最大21cm下がり、
+// 低い踏み込みに見えた。1.25で平均4.5cm・最大8.8cm）。走り5m/秒（Run の約1.74倍）→ 歩幅1.25・歩調1.39（歩調は目標の1.25を超える）
+export const STRIDE = Object.freeze({ share: 0.35, maxCadence: 1.25, maxStride: 1.25, rate: 8, swingLift: 0.5 });
+export function strideScale(k, cfg = STRIDE) {
+  if (!(k > 1)) return 1;
+  let ks = Math.exp(Math.log(k) * (1 - cfg.share));
+  if (k / ks > cfg.maxCadence) ks = k / cfg.maxCadence;
+  return Math.max(1, Math.min(cfg.maxStride, ks));
+}

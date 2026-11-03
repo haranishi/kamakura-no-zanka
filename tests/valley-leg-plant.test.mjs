@@ -1,7 +1,7 @@
 // M2b（走り・歩きの滑らかさ）：足の接地の保持の純粋層（dist/valley/leg-plant.js）と、?smooth=ik の切替（loco.js）。
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { PLANT, FREE, LOCK, RELEASE, SETTLE, createFoot, stepFoot, releaseFoot, maybeSettle, abortSettle, dropToReach, inFlat, follow } from '../dist/valley/leg-plant.js';
+import { PLANT, STRIDE, strideScale, FREE, LOCK, RELEASE, SETTLE, createFoot, stepFoot, releaseFoot, maybeSettle, abortSettle, dropToReach, inFlat, follow } from '../dist/valley/leg-plant.js';
 import { solveTwoBoneInto } from '../dist/valley/hand-grip.js';
 import { parseLoco } from '../dist/valley/loco.js';
 
@@ -95,4 +95,22 @@ test('?smooth=ik, ?smooth=off and ?loco=old turn the leg IK back', () => {
   assert.equal(parseLoco('').smoothIk, true);
   for (const q of ['?smooth=ik', '?smooth=off', '?loco=old', '?smooth=phase,ik']) assert.equal(parseLoco(q).smoothIk, false, q);
   assert.equal(parseLoco('?smooth=phase').smoothIk, true);
+});
+
+test('stride split: only stretches, keeps cadence x stride = k inside the limits, and run 5 m/s lands on stride 1.25 x cadence 1.39', () => {
+  for (const k of [0, 0.4, 0.99, 1]) assert.equal(strideScale(k), 1);
+  for (let k = 1.01; k <= 2.2; k += 0.07) {
+    const ks = strideScale(k), kc = k / ks;
+    assert.ok(ks >= 1 && ks <= STRIDE.maxStride, `ks ${ks}`);
+    if (ks < STRIDE.maxStride - 1e-9) assert.ok(kc <= STRIDE.maxCadence + 1e-9, `kc ${kc} at k ${k}`);
+  }
+  const k = 5 / 2.8706, ks = strideScale(k);
+  assert.ok(near(ks, STRIDE.maxStride) && near(k / ks, 1.393, 0.002), `${ks} ${k / ks}`);
+  assert.ok(strideScale(1.05) > 1 && strideScale(1.05) < 1.05);   // 通常移動3.0（Run の約1.05倍）は少しだけ
+});
+
+test('?smooth=stride turns only the stride stretch back; ?smooth=ik turns both back', () => {
+  assert.equal(parseLoco('').smoothStride, true);
+  assert.equal(parseLoco('?smooth=stride').smoothStride, false); assert.equal(parseLoco('?smooth=stride').smoothIk, true);
+  assert.equal(parseLoco('?smooth=ik').smoothStride, false);
 });

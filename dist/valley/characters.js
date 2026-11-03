@@ -14,6 +14,7 @@ import { BowRig } from './bow.js';
 import { SwordRig } from './sword-rig.js';
 import { HandRig, HAND_RIG_WHO, prepareHands } from './hand-rig.js';
 import { LegRig } from './leg-ik.js';
+import { strideScale } from './leg-plant.js';
 import { makeTachi, makeNaginata, makeYumi, makeArrow, makeQuiver } from './weapons.js';
 import { patchLift } from './grade.js';
 import { spreadWeight, spreadFix } from './arm-spread.js';
@@ -92,7 +93,7 @@ export class Character {
     this.mixer = new THREE.AnimationMixer(this.model);
     this.actions = new Map();
     this.current = null; this.currentName = null;
-    this.gait = 'idle'; this.style = style; this.locoName = null; this.locoOut = null; this.locoOutRef = 0;
+    this.gait = 'idle'; this.style = style; this.strideWant = 1; this.locoName = null; this.locoOut = null; this.locoOutRef = 0;
     this.segment = null; this.onSegmentEnd = null; this.warp = null;
     this.time = 0; this.rate = 1;
     this.bones = new Map();
@@ -198,7 +199,11 @@ export class Character {
     const meta = this.meta(name);
     const frozen = this.gait === 'idle' && table.idleFreeze;
     const ref = STANCE_SPEED[name] ?? meta?.avgSpeed;   // 着いている足の速さに合わせる（anim-data.js の STANCE_SPEED）
-    const ts = this.gait === 'idle' ? (frozen ? 0 : 1) : (style === 'injured' ? Math.max(1, Math.min(1.5, locomotionTimeScale(speed, ref))) : locomotionTimeScale(speed, ref, floor));   // 負傷でも急ぐときは足を速める
+    let ts = this.gait === 'idle' ? (frozen ? 0 : 1) : (style === 'injured' ? Math.max(1, Math.min(1.5, locomotionTimeScale(speed, ref))) : locomotionTimeScale(speed, ref, floor));   // 負傷でも急ぐときは足を速める
+    // 歩幅の伸縮（M2b・leg-plant.js の strideScale）：主人公の新しい経路だけ。歩幅を伸ばした分だけ歩調を下げる（伸ばすのは脚のIK。leg-ik.js）。
+    // 歩調は前のコマにならした歩幅で割る（脚のIKと同じ値を使わないと、着いた足の動作の速さと進む速さがずれる）
+    this.strideWant = phaseOn && LOCO.smoothStride && this.gait !== 'idle' && style !== 'crouch' && ref > 0.3 ? strideScale(speed / ref) : 1;
+    if (this.gait !== 'idle' && this.legs && this.legs.ks > 1) ts /= this.legs.ks;
     const out = this.locoOut;
     if (out && (!phaseOn || out === this.current || !(out.getEffectiveWeight() > 0))) this.locoOut = null;
     else if (out) out.timeScale = locomotionTimeScale(speed, this.locoOutRef, 0);   // ①

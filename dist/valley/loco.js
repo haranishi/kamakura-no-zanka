@@ -1,7 +1,7 @@
 // loco.js — 主人公の速さの表と、時間で決める加速・減速・旋回（design-locomotion-smooth §2・§3、M1）。純粋（渡された値だけで進める）。
 // 速さの候補を URL で見比べる：?loco=old|a|b|c と個別の ?walk=3.1&sprint=5.2。既定は a。
 //   ?loco=old と ?smooth=off は、速さの表・加減速・歩容の境・波及の値をすべて旧い経路へ戻す（位置の列が旧 main と一致する）。
-//   ?smooth=speed は表と歩容の境だけ、?smooth=accel は加減速と旋回だけ、?smooth=phase は足の位相と歩調（M2a・gait-phase.js）だけ、?smooth=ik は脚のIKと接地（M2b・leg-ik.js）だけを旧い経路へ戻す（smooth-flags.js）。
+//   ?smooth=speed は表と歩容の境だけ、?smooth=accel は加減速と旋回だけ、?smooth=phase は足の位相と歩調（M2a・gait-phase.js）だけ、?smooth=ik は脚のIKと接地（M2b・leg-ik.js）を、?smooth=stride は歩幅の伸縮（M2b の第2段。IKが前提）だけを旧い経路へ戻す（smooth-flags.js）。
 // 加減速は臨界減衰のばねで、速さとその変化の速さを状態に持つ。設計の「smootherstep の曲線」と同じく始まりと終わりが滑らかで、
 // 途中で目標が変わっても（鋭い向き変え・Shift の押し離し）速さが跳ばない。1コマで進む距離はばねの式を dt で厳密に積分するので、
 // 30・60・144 コマ/秒のどれでも止まる距離と時間はほぼ同じ（差は止めきる最後の1コマ分だけ）。
@@ -41,7 +41,7 @@ export function parseLoco(search = '') {
   const sprint = custom ? Math.max(walk, num(q.sprint, 2, 8) ?? base.sprint) : base.sprint;
   const accel = !allOld && flags.accel;
   return Object.freeze({ name: custom && (walk !== base.walk || sprint !== base.sprint) ? `${name}*` : name, walk, sprint, ...SLOW,
-    smoothSpeed: custom, smoothAccel: accel, smoothPhase: !allOld && flags.phase, smoothIk: !allOld && flags.ik, unknownLoco: asked && !LOCO_TABLES[asked] ? asked : null });
+    smoothSpeed: custom, smoothAccel: accel, smoothPhase: !allOld && flags.phase, smoothIk: !allOld && flags.ik, smoothStride: !allOld && flags.ik && flags.stride, unknownLoco: asked && !LOCO_TABLES[asked] ? asked : null });
 }
 
 // 速さを上げたときの波及（調査 §6）。旧い表では旧い値そのもの（計算で丸めが混ざらないよう直書き）

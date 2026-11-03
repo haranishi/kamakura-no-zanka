@@ -9,7 +9,7 @@
 import * as THREE from 'three';
 import { solveTwoBoneInto } from './hand-grip.js';
 import { GAIT_TABLE } from './gait-table.js';
-import { PLANT, LOCK, SETTLE, FREE, createFoot, resetFoot, stepFoot, releaseFoot, maybeSettle, abortSettle, dropToReach, follow, inFlat } from './leg-plant.js';
+import { PLANT, STRIDE, LOCK, SETTLE, FREE, createFoot, resetFoot, stepFoot, releaseFoot, maybeSettle, abortSettle, dropToReach, follow, inFlat } from './leg-plant.js';
 
 const SIDES = [['LeftUpLeg', 'LeftLeg', 'LeftFoot'], ['RightUpLeg', 'RightLeg', 'RightFoot']];
 const V = new THREE.Vector3(), W = new THREE.Vector3(), Q = new THREE.Quaternion(), Q2 = new THREE.Quaternion(), UP = new THREE.Vector3(0, 1, 0), N = new THREE.Vector3(), FWD = new THREE.Vector3();
@@ -24,6 +24,7 @@ export class LegRig {
     this.ok = !!this.hips && this.legs.every(l => l.up && l.low && l.foot);
     this.feet = [createFoot(), createFoot()];
     this.drop = 0; this.idleT = 0; this.applied = false; this.reset = true; this.rootX = 0; this.rootZ = 0;
+    this.ks = 1; this.baseY = [NaN, NaN];   // 歩幅の伸縮（ならした値）と、着いている足首の高さ（根から。遊脚を高くする基準）
     // undo 用の元の値（腰の位置と、脚の骨の回り）
     this.hipsPos = new THREE.Vector3();
     this.saved = this.legs.map(() => [new THREE.Quaternion(), new THREE.Quaternion(), new THREE.Quaternion()]);
@@ -79,6 +80,19 @@ export class LegRig {
     this.rootX = rp.x; this.rootZ = rp.z;
     this.idleT = kind === 'both' && ch.gait === 'idle' && still ? this.idleT + dt : 0;
     for (let i = 0; i < 2; i++) { const an = this.anim[i]; this.legs[i].foot.getWorldPosition(an.p); this.legs[i].foot.getWorldQuaternion(an.q); }
+    // 歩幅の伸縮：動作の足を、骨盤を中心に進む向き（模型の前）へ ks 倍に伸ばす（骨の長さは伸ばさない。届かない分は骨盤を下げ、遊脚は少し高く）
+    this.ks = follow(this.ks, ch.strideWant || 1, STRIDE.rate, dt);
+    if (Math.abs(this.ks - 1) < 1e-4 && (ch.strideWant || 1) === 1) this.ks = 1;
+    if (this.ks !== 1) {
+      this.hips.getWorldPosition(W); ch.model.getWorldQuaternion(Q); FWD.set(0, 0, 1).applyQuaternion(Q); FWD.y = 0; FWD.normalize();
+      for (let i = 0; i < 2; i++) {
+        const p = this.anim[i].p, d = (p.x - W.x) * FWD.x + (p.z - W.z) * FWD.z, f = feet[i];
+        p.x += FWD.x * d * (this.ks - 1); p.z += FWD.z * d * (this.ks - 1);
+        const b = this.baseY[i], up = p.y - rootY;
+        if (f.mode === LOCK) this.baseY[i] = Number.isFinite(b) ? follow(b, up, 5, dt) : up;
+        else if (Number.isFinite(b) && up > b) p.y += (up - b) * STRIDE.swingLift * (this.ks - 1);
+      }
+    }
     if (!(this.idleT > 0)) for (let i = 0; i < 2; i++) abortSettle(feet[i], this.anim[i].p.x, this.anim[i].p.z);
     else if (this.idleT > PLANT.settleDelay) maybeSettle(feet, this.anim[0].p.x, this.anim[0].p.z, this.anim[1].p.x, this.anim[1].p.z);
     let need = 0;
