@@ -1,0 +1,373 @@
+{
+ "conditions": {
+  "date": "2026-11-01",
+  "machine": "M4 Pro・Chrome 156（ヘッドレス・Metal）",
+  "size": "1280x720 DPR1",
+  "quality": "standard",
+  "seed": 1333,
+  "scenario": "tools/scenarios/capture-calls.mjs（capture-set.mjs と同じ画角。画面の繰り返し・時計・乱数を止める）",
+  "before": "origin/main 614ed6d",
+  "after": "feat/valley-life-0"
+ },
+ "note": "同じ名前の画像の画素を比べた。changed＝少しでも違う画素、over2/8/32＝色の差（0〜255）がそれより大きい画素。nearMask＝まとめ描きした物の輪郭（2画素ふくらませた範囲）の内の over2。輪郭は KZ_MASK=1 の撮影（乱数の番号が1つずつずれるので別に撮り、差の数がほぼ同じことを確かめた）。",
+ "repeatOfBefore": {
+  "identical": 26,
+  "pairs": 26
+ },
+ "totals": {
+  "pairs": 26,
+  "identical": 4,
+  "changed": 4035,
+  "over2": 1312,
+  "over32": 98,
+  "maxChangedRatio": 0.000405,
+  "maxMeanDelta": 0.0014,
+  "maskRun": {
+   "nearMask": 1264,
+   "elsewhere": 48,
+   "changedAnyDelta": 4036,
+   "changedOutsideMaskAnyDelta": 78,
+   "maxDeltaOutsideMask": 9
+  }
+ },
+ "rows": [
+  {
+   "name": "01-start-thirdperson.png",
+   "changed": 25,
+   "over2": 5,
+   "over8": 3,
+   "over32": 2,
+   "maxDelta": 103,
+   "meanDelta": 0.00015,
+   "maskRun": {
+    "nearMask": 5,
+    "elsewhere": 0
+   }
+  },
+  {
+   "name": "02-hero-closeup.png",
+   "changed": 0,
+   "over2": 0,
+   "over8": 0,
+   "over32": 0,
+   "maxDelta": 0,
+   "meanDelta": 0,
+   "maskRun": {
+    "nearMask": 0,
+    "elsewhere": 0
+   }
+  },
+  {
+   "name": "03-boy-dialogue.png",
+   "changed": 291,
+   "over2": 40,
+   "over8": 18,
+   "over32": 4,
+   "maxDelta": 58,
+   "meanDelta": 0.00056,
+   "maskRun": {
+    "nearMask": 40,
+    "elsewhere": 0
+   }
+  },
+  {
+   "name": "04-forest-road-scout.png",
+   "changed": 135,
+   "over2": 70,
+   "over8": 29,
+   "over32": 10,
+   "maxDelta": 59,
+   "meanDelta": 0.00078,
+   "maskRun": {
+    "nearMask": 70,
+    "elsewhere": 0
+   }
+  },
+  {
+   "name": "05-duel-telegraph-0.png",
+   "changed": 135,
+   "over2": 69,
+   "over8": 29,
+   "over32": 11,
+   "maxDelta": 59,
+   "meanDelta": 0.00077,
+   "maskRun": {
+    "nearMask": 69,
+    "elsewhere": 0
+   }
+  },
+  {
+   "name": "05-duel-telegraph-1.png",
+   "changed": 134,
+   "over2": 69,
+   "over8": 29,
+   "over32": 10,
+   "maxDelta": 59,
+   "meanDelta": 0.00078,
+   "maskRun": {
+    "nearMask": 69,
+    "elsewhere": 0
+   }
+  },
+  {
+   "name": "06-viewpoint-dialogue.png",
+   "changed": 193,
+   "over2": 96,
+   "over8": 40,
+   "over32": 8,
+   "maxDelta": 53,
+   "meanDelta": 0.00092,
+   "maskRun": {
+    "nearMask": 90,
+    "elsewhere": 6
+   }
+  },
+  {
+   "name": "07-viewpoint-choice.png",
+   "changed": 82,
+   "over2": 42,
+   "over8": 10,
+   "over32": 0,
+   "maxDelta": 13,
+   "meanDelta": 0.00022,
+   "maskRun": {
+    "nearMask": 27,
+    "elsewhere": 15
+   }
+  },
+  {
+   "name": "08-overlook-village.png",
+   "changed": 254,
+   "over2": 127,
+   "over8": 33,
+   "over32": 6,
+   "maxDelta": 51,
+   "meanDelta": 0.001,
+   "maskRun": {
+    "nearMask": 100,
+    "elsewhere": 27
+   }
+  },
+  {
+   "name": "09-village-front.png",
+   "changed": 368,
+   "over2": 128,
+   "over8": 64,
+   "over32": 11,
+   "maxDelta": 49,
+   "meanDelta": 0.00127,
+   "maskRun": {
+    "nearMask": 128,
+    "elsewhere": 0
+   }
+  },
+  {
+   "name": "10-enemy-archer-0.png",
+   "changed": 301,
+   "over2": 14,
+   "over8": 3,
+   "over32": 1,
+   "maxDelta": 33,
+   "meanDelta": 0.0002,
+   "maskRun": {
+    "nearMask": 14,
+    "elsewhere": 0
+   }
+  },
+  {
+   "name": "10-enemy-archer-1.png",
+   "changed": 289,
+   "over2": 14,
+   "over8": 3,
+   "over32": 0,
+   "maxDelta": 32,
+   "meanDelta": 0.0002,
+   "maskRun": {
+    "nearMask": 14,
+    "elsewhere": 0
+   }
+  },
+  {
+   "name": "11-village-fight-wide.png",
+   "changed": 267,
+   "over2": 107,
+   "over8": 48,
+   "over32": 7,
+   "maxDelta": 56,
+   "meanDelta": 0.00099,
+   "maskRun": {
+    "nearMask": 107,
+    "elsewhere": 0
+   }
+  },
+  {
+   "name": "12-captive-prompt.png",
+   "changed": 130,
+   "over2": 42,
+   "over8": 24,
+   "over32": 1,
+   "maxDelta": 38,
+   "meanDelta": 0.00041,
+   "maskRun": {
+    "nearMask": 42,
+    "elsewhere": 0
+   }
+  },
+  {
+   "name": "13-ally-joined.png",
+   "changed": 111,
+   "over2": 34,
+   "over8": 18,
+   "over32": 0,
+   "maxDelta": 32,
+   "meanDelta": 0.00034,
+   "maskRun": {
+    "nearMask": 34,
+    "elsewhere": 0
+   }
+  },
+  {
+   "name": "14-ambush.png",
+   "changed": 0,
+   "over2": 0,
+   "over8": 0,
+   "over32": 0,
+   "maxDelta": 0,
+   "meanDelta": 0,
+   "maskRun": {
+    "nearMask": 0,
+    "elsewhere": 0
+   }
+  },
+  {
+   "name": "15-ambush-ally-shot.png",
+   "changed": 0,
+   "over2": 0,
+   "over8": 0,
+   "over32": 0,
+   "maxDelta": 0,
+   "meanDelta": 0,
+   "maskRun": {
+    "nearMask": 0,
+    "elsewhere": 0
+   }
+  },
+  {
+   "name": "16-result-scene-dialogue.png",
+   "changed": 88,
+   "over2": 7,
+   "over8": 4,
+   "over32": 1,
+   "maxDelta": 45,
+   "meanDelta": 0.00012,
+   "maskRun": {
+    "nearMask": 7,
+    "elsewhere": 0
+   }
+  },
+  {
+   "name": "17-result-screen.png",
+   "changed": 8,
+   "over2": 1,
+   "over8": 0,
+   "over32": 0,
+   "maxDelta": 3,
+   "meanDelta": 0,
+   "maskRun": {
+    "nearMask": 1,
+    "elsewhere": 0
+   }
+  },
+  {
+   "name": "18-well-closeup.png",
+   "changed": 373,
+   "over2": 118,
+   "over8": 44,
+   "over32": 15,
+   "maxDelta": 92,
+   "meanDelta": 0.0014,
+   "maskRun": {
+    "nearMask": 118,
+    "elsewhere": 0
+   }
+  },
+  {
+   "name": "19-cart-banners.png",
+   "changed": 369,
+   "over2": 89,
+   "over8": 37,
+   "over32": 2,
+   "maxDelta": 56,
+   "meanDelta": 0.00084,
+   "maskRun": {
+    "nearMask": 89,
+    "elsewhere": 0
+   }
+  },
+  {
+   "name": "20-valley-river-distance.png",
+   "changed": 110,
+   "over2": 33,
+   "over8": 5,
+   "over32": 1,
+   "maxDelta": 42,
+   "meanDelta": 0.00021,
+   "maskRun": {
+    "nearMask": 33,
+    "elsewhere": 0
+   }
+  },
+  {
+   "name": "21-far-mountains.png",
+   "changed": 285,
+   "over2": 156,
+   "over8": 25,
+   "over32": 0,
+   "maxDelta": 31,
+   "meanDelta": 0.00084,
+   "maskRun": {
+    "nearMask": 156,
+    "elsewhere": 0
+   }
+  },
+  {
+   "name": "22-grass-closeup.png",
+   "changed": 86,
+   "over2": 51,
+   "over8": 36,
+   "over32": 8,
+   "maxDelta": 61,
+   "meanDelta": 0.00067,
+   "maskRun": {
+    "nearMask": 51,
+    "elsewhere": 0
+   }
+  },
+  {
+   "name": "23-cedar-interior.png",
+   "changed": 0,
+   "over2": 0,
+   "over8": 0,
+   "over32": 0,
+   "maxDelta": 0,
+   "meanDelta": 0,
+   "maskRun": {
+    "nearMask": 0,
+    "elsewhere": 0
+   }
+  },
+  {
+   "name": "24-maple-broadleaf.png",
+   "changed": 1,
+   "over2": 0,
+   "over8": 0,
+   "over32": 0,
+   "maxDelta": 1,
+   "meanDelta": 0,
+   "maskRun": {
+    "nearMask": 0,
+    "elsewhere": 0
+   }
+  }
+ ]
+}

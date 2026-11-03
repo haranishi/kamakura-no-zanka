@@ -1,0 +1,1017 @@
+{
+ "conditions": {
+  "date": "2026-11-01",
+  "machine": "M4 Pro・Chrome 156（ヘッドレス・Metal）",
+  "size": "1280x720 DPR1",
+  "quality": "standard",
+  "seed": 1333,
+  "scenario": "tools/scenarios/capture-calls.mjs（capture-set.mjs と同じ画角。画面の繰り返し・時計・乱数を止める）",
+  "before": "origin/main 614ed6d",
+  "after": "feat/valley-life-0"
+ },
+ "note": "値は撮影の直前の1コマ。props＝柵・薪・置き物・幟・農家（main＋shadow）。static＝置かれた形の数の上限（同時に全部が画面と影に入るとは限らない）。",
+ "static": {
+  "before": 396,
+  "after": 62,
+  "perKind": {
+   "fence": {
+    "before": 176,
+    "after": 8
+   },
+   "firewood": {
+    "before": 42,
+    "after": 6
+   },
+   "meshy": {
+    "before": 40,
+    "after": 18
+   },
+   "banner": {
+    "before": 18,
+    "after": 6
+   },
+   "farmhouse": {
+    "before": 120,
+    "after": 24
+   }
+  }
+ },
+ "max": {
+  "calls": [
+   756,
+   460
+  ],
+  "props": [
+   368,
+   62
+  ],
+  "tris": [
+   4377193,
+   4377193
+  ]
+ },
+ "shots": [
+  {
+   "name": "01-start-thirdperson",
+   "calls": [
+    710,
+    450
+   ],
+   "props": [
+    322,
+    62
+   ],
+   "tris": [
+    3898154,
+    3898154
+   ],
+   "perKind": {
+    "fence": [
+     140,
+     8
+    ],
+    "firewood": [
+     36,
+     6
+    ],
+    "meshy": [
+     32,
+     18
+    ],
+    "banner": [
+     18,
+     6
+    ],
+    "farmhouse": [
+     96,
+     24
+    ]
+   }
+  },
+  {
+   "name": "02-hero-closeup",
+   "calls": [
+    435,
+    342
+   ],
+   "props": [
+    124,
+    31
+   ],
+   "tris": [
+    3138370,
+    3138370
+   ],
+   "perKind": {
+    "fence": [
+     52,
+     4
+    ],
+    "firewood": [
+     15,
+     3
+    ],
+    "meshy": [
+     12,
+     9
+    ],
+    "banner": [
+     9,
+     3
+    ],
+    "farmhouse": [
+     36,
+     12
+    ]
+   }
+  },
+  {
+   "name": "03-boy-dialogue",
+   "calls": [
+    713,
+    443
+   ],
+   "props": [
+    331,
+    61
+   ],
+   "tris": [
+    3996928,
+    3996928
+   ],
+   "perKind": {
+    "fence": [
+     152,
+     8
+    ],
+    "firewood": [
+     33,
+     6
+    ],
+    "meshy": [
+     32,
+     17
+    ],
+    "banner": [
+     18,
+     6
+    ],
+    "farmhouse": [
+     96,
+     24
+    ]
+   }
+  },
+  {
+   "name": "04-forest-road-scout",
+   "calls": [
+    753,
+    445
+   ],
+   "props": [
+    368,
+    60
+   ],
+   "tris": [
+    4144686,
+    4144686
+   ],
+   "perKind": {
+    "fence": [
+     172,
+     8
+    ],
+    "firewood": [
+     36,
+     6
+    ],
+    "meshy": [
+     32,
+     16
+    ],
+    "banner": [
+     18,
+     6
+    ],
+    "farmhouse": [
+     110,
+     24
+    ]
+   }
+  },
+  {
+   "name": "05-duel-telegraph-0",
+   "calls": [
+    754,
+    446
+   ],
+   "props": [
+    368,
+    60
+   ],
+   "tris": [
+    4145024,
+    4145024
+   ],
+   "perKind": {
+    "fence": [
+     172,
+     8
+    ],
+    "firewood": [
+     36,
+     6
+    ],
+    "meshy": [
+     32,
+     16
+    ],
+    "banner": [
+     18,
+     6
+    ],
+    "farmhouse": [
+     110,
+     24
+    ]
+   }
+  },
+  {
+   "name": "05-duel-telegraph-1",
+   "calls": [
+    756,
+    448
+   ],
+   "props": [
+    368,
+    60
+   ],
+   "tris": [
+    4145372,
+    4145372
+   ],
+   "perKind": {
+    "fence": [
+     172,
+     8
+    ],
+    "firewood": [
+     36,
+     6
+    ],
+    "meshy": [
+     32,
+     16
+    ],
+    "banner": [
+     18,
+     6
+    ],
+    "farmhouse": [
+     110,
+     24
+    ]
+   }
+  },
+  {
+   "name": "06-viewpoint-dialogue",
+   "calls": [
+    717,
+    427
+   ],
+   "props": [
+    349,
+    59
+   ],
+   "tris": [
+    4223355,
+    4223355
+   ],
+   "perKind": {
+    "fence": [
+     156,
+     8
+    ],
+    "firewood": [
+     36,
+     6
+    ],
+    "meshy": [
+     31,
+     15
+    ],
+    "banner": [
+     18,
+     6
+    ],
+    "farmhouse": [
+     108,
+     24
+    ]
+   }
+  },
+  {
+   "name": "07-viewpoint-choice",
+   "calls": [
+    716,
+    426
+   ],
+   "props": [
+    349,
+    59
+   ],
+   "tris": [
+    4209150,
+    4209150
+   ],
+   "perKind": {
+    "fence": [
+     156,
+     8
+    ],
+    "firewood": [
+     36,
+     6
+    ],
+    "meshy": [
+     31,
+     15
+    ],
+    "banner": [
+     18,
+     6
+    ],
+    "farmhouse": [
+     108,
+     24
+    ]
+   }
+  },
+  {
+   "name": "08-overlook-village",
+   "calls": [
+    714,
+    432
+   ],
+   "props": [
+    341,
+    59
+   ],
+   "tris": [
+    4133895,
+    4133895
+   ],
+   "perKind": {
+    "fence": [
+     148,
+     8
+    ],
+    "firewood": [
+     36,
+     6
+    ],
+    "meshy": [
+     31,
+     15
+    ],
+    "banner": [
+     18,
+     6
+    ],
+    "farmhouse": [
+     108,
+     24
+    ]
+   }
+  },
+  {
+   "name": "09-village-front",
+   "calls": [
+    684,
+    421
+   ],
+   "props": [
+    321,
+    58
+   ],
+   "tris": [
+    3984824,
+    3984824
+   ],
+   "perKind": {
+    "fence": [
+     136,
+     8
+    ],
+    "firewood": [
+     33,
+     6
+    ],
+    "meshy": [
+     29,
+     15
+    ],
+    "banner": [
+     15,
+     5
+    ],
+    "farmhouse": [
+     108,
+     24
+    ]
+   }
+  },
+  {
+   "name": "10-enemy-archer-0",
+   "calls": [
+    548,
+    390
+   ],
+   "props": [
+    216,
+    58
+   ],
+   "tris": [
+    3059822,
+    3059822
+   ],
+   "perKind": {
+    "fence": [
+     88,
+     8
+    ],
+    "firewood": [
+     27,
+     6
+    ],
+    "meshy": [
+     23,
+     14
+    ],
+    "banner": [
+     18,
+     6
+    ],
+    "farmhouse": [
+     60,
+     24
+    ]
+   }
+  },
+  {
+   "name": "10-enemy-archer-1",
+   "calls": [
+    555,
+    397
+   ],
+   "props": [
+    216,
+    58
+   ],
+   "tris": [
+    3059896,
+    3059896
+   ],
+   "perKind": {
+    "fence": [
+     88,
+     8
+    ],
+    "firewood": [
+     27,
+     6
+    ],
+    "meshy": [
+     23,
+     14
+    ],
+    "banner": [
+     18,
+     6
+    ],
+    "farmhouse": [
+     60,
+     24
+    ]
+   }
+  },
+  {
+   "name": "11-village-fight-wide",
+   "calls": [
+    573,
+    368
+   ],
+   "props": [
+    260,
+    55
+   ],
+   "tris": [
+    3345741,
+    3345741
+   ],
+   "perKind": {
+    "fence": [
+     116,
+     8
+    ],
+    "firewood": [
+     27,
+     6
+    ],
+    "meshy": [
+     24,
+     14
+    ],
+    "banner": [
+     9,
+     3
+    ],
+    "farmhouse": [
+     84,
+     24
+    ]
+   }
+  },
+  {
+   "name": "12-captive-prompt",
+   "calls": [
+    601,
+    407
+   ],
+   "props": [
+    253,
+    59
+   ],
+   "tris": [
+    3090732,
+    3090732
+   ],
+   "perKind": {
+    "fence": [
+     108,
+     8
+    ],
+    "firewood": [
+     30,
+     6
+    ],
+    "meshy": [
+     25,
+     15
+    ],
+    "banner": [
+     18,
+     6
+    ],
+    "farmhouse": [
+     72,
+     24
+    ]
+   }
+  },
+  {
+   "name": "13-ally-joined",
+   "calls": [
+    654,
+    460
+   ],
+   "props": [
+    253,
+    59
+   ],
+   "tris": [
+    3519802,
+    3519802
+   ],
+   "perKind": {
+    "fence": [
+     108,
+     8
+    ],
+    "firewood": [
+     30,
+     6
+    ],
+    "meshy": [
+     25,
+     15
+    ],
+    "banner": [
+     18,
+     6
+    ],
+    "farmhouse": [
+     72,
+     24
+    ]
+   }
+  },
+  {
+   "name": "14-ambush",
+   "calls": [
+    498,
+    401
+   ],
+   "props": [
+    134,
+    37
+   ],
+   "tris": [
+    3509805,
+    3509805
+   ],
+   "perKind": {
+    "fence": [
+     52,
+     4
+    ],
+    "firewood": [
+     21,
+     6
+    ],
+    "meshy": [
+     16,
+     12
+    ],
+    "banner": [
+     9,
+     3
+    ],
+    "farmhouse": [
+     36,
+     12
+    ]
+   }
+  },
+  {
+   "name": "15-ambush-ally-shot",
+   "calls": [
+    498,
+    401
+   ],
+   "props": [
+    134,
+    37
+   ],
+   "tris": [
+    3509805,
+    3509805
+   ],
+   "perKind": {
+    "fence": [
+     52,
+     4
+    ],
+    "firewood": [
+     21,
+     6
+    ],
+    "meshy": [
+     16,
+     12
+    ],
+    "banner": [
+     9,
+     3
+    ],
+    "farmhouse": [
+     36,
+     12
+    ]
+   }
+  },
+  {
+   "name": "16-result-scene-dialogue",
+   "calls": [
+    490,
+    394
+   ],
+   "props": [
+    132,
+    36
+   ],
+   "tris": [
+    3627155,
+    3627155
+   ],
+   "perKind": {
+    "fence": [
+     52,
+     4
+    ],
+    "firewood": [
+     21,
+     6
+    ],
+    "meshy": [
+     14,
+     11
+    ],
+    "banner": [
+     9,
+     3
+    ],
+    "farmhouse": [
+     36,
+     12
+    ]
+   }
+  },
+  {
+   "name": "17-result-screen",
+   "calls": [
+    486,
+    390
+   ],
+   "props": [
+    132,
+    36
+   ],
+   "tris": [
+    3626459,
+    3626459
+   ],
+   "perKind": {
+    "fence": [
+     52,
+     4
+    ],
+    "firewood": [
+     21,
+     6
+    ],
+    "meshy": [
+     14,
+     11
+    ],
+    "banner": [
+     9,
+     3
+    ],
+    "farmhouse": [
+     36,
+     12
+    ]
+   }
+  },
+  {
+   "name": "18-well-closeup",
+   "calls": [
+    547,
+    361
+   ],
+   "props": [
+    241,
+    55
+   ],
+   "tris": [
+    4030188,
+    4030188
+   ],
+   "perKind": {
+    "fence": [
+     108,
+     8
+    ],
+    "firewood": [
+     24,
+     6
+    ],
+    "meshy": [
+     28,
+     14
+    ],
+    "banner": [
+     9,
+     3
+    ],
+    "farmhouse": [
+     72,
+     24
+    ]
+   }
+  },
+  {
+   "name": "19-cart-banners",
+   "calls": [
+    632,
+    430
+   ],
+   "props": [
+    261,
+    59
+   ],
+   "tris": [
+    4377193,
+    4377193
+   ],
+   "perKind": {
+    "fence": [
+     108,
+     8
+    ],
+    "firewood": [
+     24,
+     6
+    ],
+    "meshy": [
+     27,
+     15
+    ],
+    "banner": [
+     18,
+     6
+    ],
+    "farmhouse": [
+     84,
+     24
+    ]
+   }
+  },
+  {
+   "name": "20-valley-river-distance",
+   "calls": [
+    474,
+    313
+   ],
+   "props": [
+    193,
+    32
+   ],
+   "tris": [
+    3551420,
+    3551420
+   ],
+   "perKind": {
+    "fence": [
+     88,
+     4
+    ],
+    "firewood": [
+     15,
+     3
+    ],
+    "meshy": [
+     21,
+     10
+    ],
+    "banner": [
+     9,
+     3
+    ],
+    "farmhouse": [
+     60,
+     12
+    ]
+   }
+  },
+  {
+   "name": "21-far-mountains",
+   "calls": [
+    464,
+    345
+   ],
+   "props": [
+    159,
+    40
+   ],
+   "tris": [
+    3426978,
+    3426978
+   ],
+   "perKind": {
+    "fence": [
+     64,
+     4
+    ],
+    "firewood": [
+     18,
+     3
+    ],
+    "meshy": [
+     14,
+     9
+    ],
+    "banner": [
+     9,
+     3
+    ],
+    "farmhouse": [
+     54,
+     21
+    ]
+   }
+  },
+  {
+   "name": "22-grass-closeup",
+   "calls": [
+    649,
+    434
+   ],
+   "props": [
+    269,
+    54
+   ],
+   "tris": [
+    4041175,
+    4041175
+   ],
+   "perKind": {
+    "fence": [
+     124,
+     8
+    ],
+    "firewood": [
+     26,
+     6
+    ],
+    "meshy": [
+     26,
+     13
+    ],
+    "banner": [
+     9,
+     3
+    ],
+    "farmhouse": [
+     84,
+     24
+    ]
+   }
+  },
+  {
+   "name": "23-cedar-interior",
+   "calls": [
+    500,
+    333
+   ],
+   "props": [
+    198,
+    31
+   ],
+   "tris": [
+    3582958,
+    3582958
+   ],
+   "perKind": {
+    "fence": [
+     88,
+     4
+    ],
+    "firewood": [
+     21,
+     3
+    ],
+    "meshy": [
+     20,
+     9
+    ],
+    "banner": [
+     9,
+     3
+    ],
+    "farmhouse": [
+     60,
+     12
+    ]
+   }
+  },
+  {
+   "name": "24-maple-broadleaf",
+   "calls": [
+    445,
+    325
+   ],
+   "props": [
+    149,
+    29
+   ],
+   "tris": [
+    3819089,
+    3819089
+   ],
+   "perKind": {
+    "fence": [
+     56,
+     4
+    ],
+    "firewood": [
+     18,
+     6
+    ],
+    "meshy": [
+     15,
+     7
+    ],
+    "banner": [
+     0,
+     0
+    ],
+    "farmhouse": [
+     60,
+     12
+    ]
+   }
+  }
+ ]
+}
