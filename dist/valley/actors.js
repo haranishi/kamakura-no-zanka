@@ -13,7 +13,7 @@ import { createSwordLayer, poseAt } from './sword-layer.js';
 import { LUNGE_VIEW, LUNGE_IO, CONTACT_POSE, createLungeIO, solveLunge, lungeInReach, lungeShare, sayaHoldScale, gapScale } from './lunge.js';
 import { spreadCap } from './arm-spread.js';
 import { KNOCK_MOVE, createKnock, startKnock, endKnock, knockStep, knockGap } from './knockback.js';
-import { LOCO, parseLoco, useLoco, dependents, speedStep, turnRate, turnTargetScale } from './loco.js';
+import { LOCO, parseLoco, useLoco, dependents, speedStep, stopLeft, turnRate, turnTargetScale } from './loco.js';
 
 export const angleDiff = (a, b) => Math.atan2(Math.sin(b - a), Math.cos(b - a));
 const turnToward = (cur, target, rate, dt) => { const d = angleDiff(cur, target); return cur + Math.sign(d) * Math.min(Math.abs(d), rate * dt); };
@@ -514,7 +514,8 @@ export class HeroActor extends Actor {
       return;
     }
     this.blockPosed = false;
-    this.character.locomote(travel, this.crouch ? 'crouch' : (this.guardStance || f.blocking) ? 'guard' : 'relaxed', !ax.active && this.speed > 0 ? 'stop' : target < this.speed - 0.05, 0, target > this.speed + 0.05 ? want : undefined);
+    const stopping = !ax.active && this.speed > 0;   // 止まりの残りの距離（M2a：最後の一歩をすれ違いの位相へ着かせる。?smooth=phase では渡さない）
+    this.character.locomote(travel, this.crouch ? 'crouch' : (this.guardStance || f.blocking) ? 'guard' : 'relaxed', stopping ? 'stop' : target < this.speed - 0.05, 0, target > this.speed + 0.05 ? want : undefined, stopping && LOCO.smoothPhase ? stopLeft(st) : undefined);
   }
 
   // hit は当たりの見た目の情報（battle.js の strikeGeometry）：push＝ひるみの押す向き（相手から自分へ＋刃の進む向き）
