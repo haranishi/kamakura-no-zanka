@@ -149,16 +149,20 @@ export function crownNormal(point, cardNormal, axis) {
 // 第3周：房を22個に増やし、大きさを0.2〜0.4（樹冠の半径比）に広げ、外形の出入り（depth .62〜.88）を強めた。同じ大きさの殻が並ぶと
 // 「葉の絵を貼った球」に見えた（盲検 Q08・Q14・Q16）。inner 個の房を樹冠の内側（depth .25〜.45）に詰め、下から殻の中が空に見えないようにする（Q10）。
 // 二次の枝は主枝の40〜70%から出す（同じ割合だと傘の骨に見えた：Q10）。
-export const BROAD_CLUSTERS = 22;
-export function broadClusterPlan({ center, radii, tips, fork, vase = false, flat = false, shape = 0, count = BROAD_CLUSTERS, depth: [d0, dr] = [.62, .22], size: [s0, sr] = [.2, .2], salt = 0, inner = 0, leave: [l0, lr] = [.4, .3], reach = 0 }) {
+// 第4手（2026-11-03）：房の数・大きさ・出入り（22個・0.2〜0.4・depth .62〜.88・壺 .6・縦1.12）は第2周（16個・0.3〜0.4・.72〜.86・.4・1）へ戻した。
+// 第3周の盲検で「小さな球の房の束」に見え、第2周に負けた。内側の房・枝の出る位置・枝先の止め方（破綻の修正）は残す。
+export const BROAD_CLUSTERS = 16;
+export function broadClusterPlan({ center, radii, tips, fork, vase = false, flat = false, shape = 0, count = BROAD_CLUSTERS, depth: [d0, dr] = [.72, .14], size: [s0, sr] = [.3, .1], salt = 0, inner = 0, leave: [l0, lr] = [.4, .3], reach = 0 }) {
   if (!tips?.length || !Number.isInteger(count) || count < 4 || !Number.isInteger(inner) || inner < 0) throw new RangeError('broad cluster plan');
   const rnd = seeded(66011 + shape * 97 + (vase ? 7 : 0) + (flat ? 13 : 0) + salt), clusters = [], root = [.08, fork, .05];
+  // The limb's leave fraction draws from its own stream, so the clusters keep the second round's places and sizes.
+  const rndLeave = seeded(70913 + shape * 97 + (vase ? 7 : 0) + (flat ? 13 : 0) + salt);
   const nearest = c => { let primary = 0; for (let k = 1; k < tips.length; k++) if (Math.hypot(...tips[k].map((v, q) => v - c[q])) < Math.hypot(...tips[primary].map((v, q) => v - c[q]))) primary = k; return primary; };
   for (let i = 0; i < count; i++) {
     const y = 1 - 1.85 * (i + .5) / count, a = i * GOLDEN + shape * .73 + (rnd() - .5) * .5, ring = Math.sqrt(Math.max(0, 1 - y * y));
-    const depth = d0 + dr * rnd(), widen = vase ? 1 + .6 * y : 1, size = s0 + sr * rnd();
-    const c = [center[0] + radii[0] * ring * Math.cos(a) * depth * widen, center[1] + radii[1] * y * depth * 1.12, center[2] + radii[2] * ring * Math.sin(a) * depth * widen];
-    const r = [radii[0] * size, radii[1] * size * (flat ? .92 : .95), radii[2] * size], primary = nearest(c), at = l0 + (lr > 0 ? lr * rnd() : 0);
+    const depth = d0 + dr * rnd(), widen = vase ? 1 + .4 * y : 1, size = s0 + sr * rnd();
+    const c = [center[0] + radii[0] * ring * Math.cos(a) * depth * widen, center[1] + radii[1] * y * depth, center[2] + radii[2] * ring * Math.sin(a) * depth * widen];
+    const r = [radii[0] * size, radii[1] * size * (flat ? .92 : .95), radii[2] * size], primary = nearest(c), at = l0 + lr * rndLeave();
     // The secondary limb leaves its primary at `leave` and stops inside the cluster: at `reach` of the way to its centre, or
     // (reach 0) 0.55 of the cluster's smallest radius short of it, so a long limb still ends inside a small cluster.
     const from = root.map((v, q) => v + (tips[primary][q] - v) * at), span = Math.hypot(...c.map((v, q) => v - from[q])) || 1;

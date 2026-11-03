@@ -71,8 +71,8 @@ const cases = [
   ['shrink toward the tree origin', material, 'transformed = aPivot.xyz + (transformed - aPivot.xyz)*nearKeep;', 'transformed = transformed*nearKeep;'],
   ['inner faces flipped again', material, 'nonPerturbedNormal = normal; tbn[2] = normal;', 'nonPerturbedNormal = normal;'],
   ['middle crowns gapped again', material, '${level === 0 ? `// A few gaps', '${level < 2 ? `// A few gaps'],
-  ['inner foliage glows as the rim', material, 'backlight *= smoothstep(${TREES.backlight.inner[0].toFixed(2)}, ${TREES.backlight.inner[1].toFixed(2)}, vTreeLift);', ''],
-  ['saturated shade side', material, '${TREES.shade.cool.toFixed(2)})*.24;', '0.00)*.24;'],
+  // 2026-11-03: the third round's grey shade side and wider backlight went back to the second round's (lost the blind review).
+  ['grey shade side returned', material, "totalEmissiveRadiance += diffuseColor.rgb*${leaf ? '.24' : '.10'};", "totalEmissiveRadiance += mix(diffuseColor.rgb, vec3(dot(diffuseColor.rgb, vec3(.2126,.7152,.0722))), .45)*${leaf ? '.24' : '.10'};"],
   ['full leaf shadows', material, 'if (leaf) shader.fragmentShader = shader.fragmentShader.replace(\'#include <lights_fragment_begin>\'', 'if (false) shader.fragmentShader = shader.fragmentShader.replace(\'#include <lights_fragment_begin>\''],
   ['round cluster rims', material, '+ (leafGroup-.5)*${group.toFixed(2)});', ');'],
   ['no gaps in clusters', material, "diffuseColor.a *= smoothstep(${gap.toFixed(2)}, ${(gap + .08).toFixed(2)}, texture2D(normalMap, vNormalMapUv*.23+.61).a);", ''],

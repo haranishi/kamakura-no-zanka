@@ -56,7 +56,7 @@ export function treeMaterials({ wind, sunDir, quality = 'standard' }) {
         attribute float aSway; attribute vec4 aPivot;
         uniform float uTime; uniform float uWind; uniform vec2 uWindDir; uniform float uGuideMix;
         uniform vec4 uLod;
-        varying vec3 vTreeWorld; varying float vTreeDistance; varying float vTreeWeight; varying float vTreeLift;
+        varying vec3 vTreeWorld; varying float vTreeDistance; varying float vTreeWeight;
         ${leaf ? '' : 'varying vec2 vBarkUv; varying float vBarkHeight;'}
         float treeNoise(vec2 p) {
           vec2 a=floor(p), f=fract(p); f=f*f*(3.0-2.0*f);
@@ -69,8 +69,6 @@ export function treeMaterials({ wind, sunDir, quality = 'standard' }) {
           treeOrigin = instanceMatrix[3].xyz;
         #endif
         treeOrigin = (modelMatrix*vec4(treeOrigin,1.0)).xyz;
-        // Exposure (vertex grey before the instance tint): inner foliage passes less backlight.
-        vTreeLift = dot(color.rgb, vec3(.3333));
         ${nearFade ? `// Third round: a tuft, cluster or limb right in front of the camera folds toward its pivot (tree-lod.js nearShrink),
         // by the camera's distance to the segment pivot→vertex: the side facing the camera goes first. No dotted veil.
         if (aPivot.w > .5) {
@@ -120,7 +118,7 @@ export function treeMaterials({ wind, sunDir, quality = 'standard' }) {
       `);
       shader.fragmentShader = shader.fragmentShader.replace('#include <common>', `#include <common>
         uniform vec3 uSunDir;
-        varying vec3 vTreeWorld; varying float vTreeDistance; varying float vTreeWeight; varying float vTreeLift;
+        varying vec3 vTreeWorld; varying float vTreeDistance; varying float vTreeWeight;
         ${leaf ? '' : 'uniform sampler2D uBark; uniform float uBarkRelief; varying vec2 vBarkUv; varying float vBarkHeight;'}`)
         .replace('#include <color_fragment>', `#include <color_fragment>
         ${leaf ? 'float leafAlpha = diffuseColor.a;' : ''}
@@ -171,14 +169,12 @@ export function treeMaterials({ wind, sunDir, quality = 'standard' }) {
         gl_FragColor.rgb = mix(gl_FragColor.rgb, vec3(dot(gl_FragColor.rgb, vec3(.2126,.7152,.0722)))*vec3(.94,.98,1.08), leafAir);` : ''}`)
         .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
         // diffuseColor includes map, exposure vertex color and instanceColor (color_fragment).
-        ${leaf ? `// Third round: the shade side is the self-lit part. It takes a cooler, greyer foliage colour, so orange and yellow
-        // crowns no longer glow saturated out of their own shadow (blind review Q04, Q09, Q16).
-        totalEmissiveRadiance += mix(diffuseColor.rgb, vec3(dot(diffuseColor.rgb, vec3(.2126,.7152,.0722)))*vec3(${TREES.shade.tint.map(v => v.toFixed(2)).join(',')}), ${TREES.shade.cool.toFixed(2)})*.24;` : 'totalEmissiveRadiance += diffuseColor.rgb*.10;'}
+        // The shade side keeps the foliage's own colour (the third round's cooler, greyer shade read as dull blue-grey cedars
+        // and lost the blind review to the second round; reverted 2026-11-03).
+        totalEmissiveRadiance += diffuseColor.rgb*${leaf ? '.24' : '.10'};
         ${leaf ? `vec3 sight = normalize(vTreeWorld-cameraPosition);
         float backlight = pow(max(0.0,dot(sight,normalize(uSunDir))),3.0);
         backlight *= 1.0-smoothstep(30.0,100.0,vTreeDistance);
-        // Light passes the thin outer leaves; the crown's inner, sheltered foliage (low exposure) stays dark (Q03, Q15).
-        backlight *= smoothstep(${TREES.backlight.inner[0].toFixed(2)}, ${TREES.backlight.inner[1].toFixed(2)}, vTreeLift);
         // Thin leaves turned away from the sun pass more light; the shell's inner leaves stay dark (exposure).
         float leafThrough = ${detail ? `.55 + .45*max(0.0, dot(normal, -normalize((viewMatrix*vec4(uSunDir,0.0)).xyz)))` : '1.0'};
         // Against the sun the thin edges of leaves and needle sprays glow (low image alpha = thin foliage).

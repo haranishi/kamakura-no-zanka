@@ -132,9 +132,9 @@ test('Lambert color, two-layer wind, shared objects and limited transmission [sh
       assert(!/objectNormal\s*=/.test(v), '[wind] normals moved');
       assert.match(v, /treeOrigin = instanceMatrix\[3\].xyz/, '[lod] distance from instance origin');
       assert.match(v, /distance\(treeOrigin,cameraPosition\)/, '[lod] full camera distance');
-      // Third round: the leaf lift is the foliage colour pulled toward a cooler grey (TREES.shade), still proportional to it.
-      assert(kind === 'leaf' ? f.includes('totalEmissiveRadiance += mix(diffuseColor.rgb, vec3(dot(diffuseColor.rgb, vec3(.2126,.7152,.0722)))*vec3(') : /totalEmissiveRadiance \+= diffuseColor.rgb\*/.test(f), '[color] diffuse-proportional lift');
-      if (kind === 'leaf') assert(f.includes(`, ${TREES.shade.cool.toFixed(2)})*.24;`) && TREES.shade.cool >= .2 && TREES.shade.tint[2] > TREES.shade.tint[0], '[color] shade side keeps the full saturation');
+      // The lift keeps the foliage's own colour: the third round's cooler, greyer shade read as blue-grey cedars (reverted 2026-11-03).
+      assert(f.includes(`totalEmissiveRadiance += diffuseColor.rgb*${kind === 'leaf' ? '.24' : '.10'};`), '[color] diffuse-proportional lift');
+      assert(!/totalEmissiveRadiance \+= mix\(diffuseColor/.test(f), '[color] shade side pulled toward grey');
       // Third round: leaves keep part of the light in the sun's shadow (hard round blotches of one cluster on the next).
       const lambert = { uniforms: {}, vertexShader: THREE.ShaderLib.lambert.vertexShader, fragmentShader: THREE.ShaderLib.lambert.fragmentShader }; mat.onBeforeCompile(lambert);
       assert.equal(lambert.fragmentShader.includes(`${TREES.leafShadow.toFixed(2)} + ${(1 - TREES.leafShadow).toFixed(2)}*getShadow( directionalShadowMap[ i ]`), kind === 'leaf', '[leaf-shadow] foliage shadow strength');
@@ -143,9 +143,7 @@ test('Lambert color, two-layer wind, shared objects and limited transmission [sh
       assert.match(THREE.ShaderChunk.color_vertex, /vColor.xyz \*= instanceColor.xyz/, '[color] shipped Three instanceColor contract');
       if (kind === 'leaf') {
         assert.match(f, /pow\(max\(0.0,dot\(sight,normalize\(uSunDir\)\)\),3.0\)/, '[shader] sun backlight');
-        assert(f.includes(`min(vec3(${TREES.backlight.cap.toFixed(2)}),diffuseColor.rgb*`) && TREES.backlight.cap <= .5, '[shader] bounded diffuse-proportional transmission');
-        // Third round: the inner, sheltered foliage (low vertex exposure) passes less backlight.
-        assert(f.includes(`backlight *= smoothstep(${TREES.backlight.inner[0].toFixed(2)}, ${TREES.backlight.inner[1].toFixed(2)}, vTreeLift);`), '[shader] inner foliage glows as much as the rim');
+        assert(f.includes(`min(vec3(${TREES.backlight.cap.toFixed(2)}),diffuseColor.rgb*`) && TREES.backlight.cap <= .35, '[shader] bounded diffuse-proportional transmission');
         assert.match(f, /1.0-smoothstep\(30.0,100.0,vTreeDistance\)/, '[shader] transmission distance');
         // 8.1a second round: conifer sprays pass more light (.2 -> TREES.backlight.conifer) and thin edges glow (blind review: backlit).
         assert(f.includes(`backlight*${species === 0 || species === 2 ? TREES.backlight.conifer.toFixed(2) : '1.0'}`), '[shader] species transmission');

@@ -272,8 +272,11 @@ function broad(wood, leaf, species, level, rnd, shape) {
     // Near crown (8.1a, second round): small leaf clusters on secondary limbs, with sky and limbs between them.
     // Third round: 22 clusters of uneven size (0.2-0.4 of the crown) set in and out (relief), and four inner clusters, so the
     // crown is no hollow shell from below (blind review Q08, Q10, Q14, Q16: "a ball painted with leaves", "an empty shell").
+    // 2026-11-03: the 22 small clusters read as "a bunch of small balls" and lost to the second round; the outer clusters are
+    // the second round's 16 again (tree-branches.js), at 11x6 so that with the four inner clusters (the hollow fix, kept) the
+    // triangles stay within the third round's (12x6 added about 6,000 at the start site).
     const plan = broadClusterPlan({ center, radii, tips: wood.tips, fork, vase: species === 1, flat: maple, shape, inner: 4 });
-    for (const c of plan.clusters) cluster(c, 10, 5, 1, .09);
+    for (const c of plan.clusters) cluster(c, 11, 6, 1, .09);
     for (const c of plan.inner) cluster(c, 10, 4, 1, .09);
     return;
   }
