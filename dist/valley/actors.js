@@ -10,7 +10,7 @@ import { MOVES, createFighter, startMove, setBlock, startDodge, tick, finish, st
 import { createBrain, think } from './enemy-ai.js';
 import { createCompanion, thinkCompanion } from './companion-ai.js';
 import { createSwordLayer, poseAt } from './sword-layer.js';
-import { LUNGE_VIEW, LUNGE_IO, CONTACT_POSE, createLungeIO, solveLunge, lungeInReach, lungeShare, gapScale } from './lunge.js';
+import { LUNGE_VIEW, LUNGE_IO, CONTACT_POSE, createLungeIO, solveLunge, lungeInReach, lungeShare, sayaHoldScale, gapScale } from './lunge.js';
 
 export const angleDiff = (a, b) => Math.atan2(Math.sin(b - a), Math.cos(b - a));
 const turnToward = (cur, target, rate, dt) => { const d = angleDiff(cur, target); return cur + Math.sign(d) * Math.min(Math.abs(d), rate * dt); };
@@ -61,7 +61,7 @@ class Actor {
     v.t = t1;
     let wx = 0, wz = 0, wt = 0;
     if (pose && t1 <= m.windup + m.active && this.lungeWant(m, mv, pose, dt)) { wx = v.wx; wz = v.wz; wt = v.io[LUNGE_IO.turn]; }
-    const k = lungeShare(pose ? m : null, t0, t1, dt);
+    const k = lungeShare(pose ? m : null, t0, t1, dt) * (pose ? sayaHoldScale(this.character.sword?.frame) : 1);   // 左手が鞘を持つ間は根を待たせる
     v.x += (wx - v.x) * k; v.z += (wz - v.z) * k; v.turn += (wt - v.turn) * k;
     // 壁・崖：技の始めに測った、前後へ出られる長さ（論理の踏み込みで進んだ分を引く）の内へ
     const along = v.x * v.fx + v.z * v.fz, moved = (this.pos.x - v.sx) * v.fx + (this.pos.z - v.sz) * v.fz;
