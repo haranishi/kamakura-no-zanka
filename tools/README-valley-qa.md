@@ -37,6 +37,7 @@ b0 庭へ降りる（`temple_yard` に入る）→ b1 穂太の話 → b2 林道
 - `tools/scenarios/regress-arrow-death.mjs`：矢で倒れても描画が止まらず、倒れた画面が出る（`--strict` で回す）。
 - `tools/scenarios/regress-retry-leak.mjs`：やり直しを4回繰り返しても形・画像が増えず、毎回主人公が立ち直って見晴らしへ戻り、里の敵5人が作り直される。
 - `tools/scenarios/regress-cleared-dialogue.mjs`：里を守った瞬間に振りかぶっていた兵の一撃・飛んでいる矢が、会話の最中に主人公へ当たらない（体力10で見守る）。
+- `tools/scenarios/regress-guide-hitch.mjs`：案内あり（既定）で林道を走り、基準路から25m以上離れて迷いの助けの復帰探索が0.5秒ごとに働いている間も、暖機後720コマで100ms以上のコマが0・p99が33.4ms以下（強調300コマ以上・復帰路8回以上の作り直しが無ければ、検査が空なので落とす）。
 - `tools/scenarios/regress-continue.mjs`：つづきから。見晴らしの区切りでは道の選択が、クリア後の区切りでは結果の会話と結果画面が出る。
 - `tools/scenarios/regress-bank-descent.mjs`：待ち伏せの斜面の土手から道へ降りられ、林道のS字の西の縁（傾斜45度の帯）からも道へ出られる。
 - `tools/scenarios/regress-rock-colliders.mjs`：当たりの表に岩が登録され（20個以上）、岩へ向かって歩くと岩の縁で止まる（歩ける場所で比べる）。
@@ -66,6 +67,9 @@ b0 庭へ降りる（`temple_yard` に入る）→ b1 穂太の話 → b2 林道
 - `tools/scenarios/regress-story.mjs`：物語の本体（S5・S6）を実ゲームの主人公で通す（断片F1〜F5・手がかり・掛け合いが戦闘中に出ない／同じ台詞を繰り返さない・やり直しで断片が二重にならない・保存・結末・焚き火の輪）。`--strict --out reports/polish3/story`。
 - `tools/scenarios/capture-calls.mjs`：capture-set と同じ画角を、画面の繰り返し・時計・乱数を止めて撮り（同じコードなら2回撮っても全画素が一致する）、画角ごとの描画の呼び出しと置き物の内訳を `calls.json` に残す。`KZ_MASK=1` で置き物だけの輪郭も残す。前後の画素は `node tools/compare-shots.mjs <前> <後> [--masks]` で比べる（S7-0 の記録は `reports/valley-life/`）。
 - `tools/scenarios/capture-walk.mjs`：見晴らし岩（見1）から里の入口まで林道を走る様子を、45コマごとのコマ画像で残す（capture-calls と同じく乱数と時計を止める。S7-A の二次運動と密度の確かめ用）。
+- `tools/scenarios/regress-opening.mjs`（`--intro 1` が要る）：オープニング。区間の時刻、語り（字幕OFFでも出る・字と帯の比・帯からはみ出さない）、飛ばす（E・Space・クリック）、短い版、休止、動きを減らす、続きから、旧保存、やり直し、再上映、記録が書けない場合、解放後の谷の描画と資源、場面ごとの描画呼出・三角形、作り込んだ場面の朱の面積（2割以下）と明滅（1秒に3回以下）を確かめる。`KZ_OUT=…` でJSONを残す。純粋層の変異試験は `node tools/verify-opening-mutations.mjs` と `node tools/verify-opening-scenes-mutations.mjs`（場面の置き場・炎・粒子・測り方）。
+- `tools/scenarios/measure-opening-perf.mjs`（`--intro 1`）：場面A〜Dごとの1コマの時間（p50・p95・最大）と描画呼出・三角形、始まりと目覚めの最初の1コマの時間。`KZ_OUT=…` でJSON。
+- `tools/scenarios/capture-opening.mjs`（`--intro 1`）：オープニングの固定画角（O1〜O4＝場面A〜D、題名、目覚め）を撮る。`KZ_SHOTS=O1a,title` で絞り、`KZ_REDUCED=1` で「動きを減らす」。
 - 検査の流れの見本：`tools/scenarios/` のシナリオ。
 
 ## 第2弾の前測定（7.0・7.0b）

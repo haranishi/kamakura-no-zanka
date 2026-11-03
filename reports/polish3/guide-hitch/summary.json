@@ -1,0 +1,119 @@
+{
+ "date": "2026-11-03",
+ "note": "この環境（macOS・ヘッドレスChrome・1280x720）だけ。tools/measure-perf.mjs move 場面 PERF_RUN=1 を同じ条件で2回ずつ。before=main eeafbf8、after=修正後。ge50after1=最初の1コマを除く50ms以上のコマ数。p95は同じ機械の他の負荷で±4ms揺れる。",
+ "measurePerfMove": [
+  {
+   "side": "before",
+   "q": "standard",
+   "i": 1,
+   "p95": 22.1,
+   "p99": 85.8,
+   "max": 725,
+   "ge50": 19,
+   "ge50after1": 18,
+   "ge100": 14
+  },
+  {
+   "side": "before",
+   "q": "standard",
+   "i": 2,
+   "p95": 15,
+   "p99": 85,
+   "max": 695,
+   "ge50": 19,
+   "ge50after1": 18,
+   "ge100": 15
+  },
+  {
+   "side": "before",
+   "q": "light",
+   "i": 1,
+   "p95": 13.1,
+   "p99": 82.8,
+   "max": 717,
+   "ge50": 19,
+   "ge50after1": 18,
+   "ge100": 16
+  },
+  {
+   "side": "before",
+   "q": "light",
+   "i": 2,
+   "p95": 16.7,
+   "p99": 89.1,
+   "max": 708,
+   "ge50": 19,
+   "ge50after1": 18,
+   "ge100": 13
+  },
+  {
+   "side": "after",
+   "q": "standard",
+   "i": 1,
+   "p95": 19.7,
+   "p99": 23,
+   "max": 124,
+   "ge50": 1,
+   "ge50after1": 0,
+   "ge100": 1
+  },
+  {
+   "side": "after",
+   "q": "standard",
+   "i": 2,
+   "p95": 15.2,
+   "p99": 20.6,
+   "max": 126,
+   "ge50": 1,
+   "ge50after1": 0,
+   "ge100": 1
+  },
+  {
+   "side": "after",
+   "q": "light",
+   "i": 1,
+   "p95": 16,
+   "p99": 21.3,
+   "max": 122,
+   "ge50": 1,
+   "ge50after1": 0,
+   "ge100": 1
+  },
+  {
+   "side": "after",
+   "q": "light",
+   "i": 2,
+   "p95": 13.8,
+   "p99": 18.6,
+   "max": 121,
+   "ge50": 1,
+   "ge50after1": 0,
+   "ge100": 1
+  }
+ ],
+ "regressGuideHitch": {
+  "before": "main で 15コマが100ms以上（最大717ms）→ 不合格",
+  "after": {
+   "frames": 720,
+   "p99": 25.400000002235174,
+   "max": 28.600000001490116,
+   "over50": 0,
+   "over100": 0,
+   "emphasized": 510,
+   "rebuilt": 17,
+   "quality": "standard",
+   "size": "1280x720",
+   "beat": "b2_road",
+   "lastRecoveryMs": 11.400000002235174
+  }
+ },
+ "profile": {
+  "before": "refreshGuideRecovery 初回673ms（1259コマ目）、以後31コマごとに73〜124ms",
+  "after": "1コマ2ms前後に分割。最大でも約15ms（見通しの検査をまとめて行うコマ）"
+ },
+ "node": {
+  "baselines": "基準路10本は修正前とビット単位で同じ（構築 約800ms→約390ms）",
+  "recovery121": "有無・合流点は全て同じ。経路の長さが変わったのは22点（中央値-1.5%、最大-10%）",
+  "walkableCalls": "復帰探索1回の通れる判定の呼出し 約9〜10万回→初回1.3万・以後約3千回"
+ }
+}

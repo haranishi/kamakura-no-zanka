@@ -1,0 +1,43 @@
+{
+  "quality": "standard",
+  "startFrameMs": 624.7,
+  "scenes": {
+    "A": {
+      "frames": 480,
+      "p50": 3.9,
+      "p95": 5.5,
+      "max": 15.3,
+      "calls": 154,
+      "tris": 478805,
+      "shot": "A"
+    },
+    "B": {
+      "frames": 498,
+      "p50": 3.7,
+      "p95": 4.7,
+      "max": 6.6,
+      "calls": 62,
+      "tris": 131655,
+      "shot": "B"
+    },
+    "C": {
+      "frames": 498,
+      "p50": 2.6,
+      "p95": 3,
+      "max": 7.1,
+      "calls": 62,
+      "tris": 358433,
+      "shot": "C"
+    },
+    "D": {
+      "frames": 618,
+      "p50": 2.1,
+      "p95": 3.4,
+      "max": 6,
+      "calls": 41,
+      "tris": 92967,
+      "shot": "D"
+    }
+  },
+  "wakeFirstFrameMs": 32.1
+}
