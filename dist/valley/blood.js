@@ -16,7 +16,7 @@ export function normalizeBlood(level) {
 
 // 色（線形の値）。朱〜濃い赤を主に、墨の濃淡を少し混ぜる。しみは乾いた濃い赤
 export const BLOOD_COLOR = Object.freeze({
-  shu: [0.62, 0.06, 0.025], deep: [0.24, 0.012, 0.01], ink: [0.05, 0.035, 0.03], stain: [0.2, 0.012, 0.01],
+  shu: [0.9, 0.07, 0.03], deep: [0.36, 0.015, 0.012], ink: [0.06, 0.04, 0.035], stain: [0.17, 0.012, 0.01],
   inkShare: 0.18,          // 飛沫のうち墨寄りの色にする割合
 });
 
@@ -31,10 +31,10 @@ const STAINS = {
   light: { hit: 1, strong: 1, kill: 3 },
 };
 const LOOK = {
-  subtle: { speed: [1.6, 3.2], life: [0.22, 0.42], size: [0.028, 0.05], stretch: [1.2, 2.4] },
-  standard: { speed: [2.0, 4.4], life: [0.32, 0.65], size: [0.032, 0.066], stretch: [1.4, 3.0] },
+  subtle: { speed: [1.4, 2.8], life: [0.24, 0.44], size: [0.035, 0.06], stretch: [0.6, 1.6] },
+  standard: { speed: [1.7, 3.8], life: [0.34, 0.68], size: [0.04, 0.075], stretch: [0.8, 2.0] },
 };
-const STAIN_LOOK = { life: [2.6, 3.6], size: [0.2, 0.34], reach: [0.25, 0.9] };
+const STAIN_LOOK = { life: [2.6, 3.6], size: [0.16, 0.3], reach: [0.3, 0.9] };   // size はしみの長い径（m）
 const ZERO = Object.freeze({ drops: 0, speed: [0, 0], life: [0, 0], size: [0, 0], stretch: [0, 0], stains: 0, stainLife: [0, 0], stainSize: [0, 0], stainReach: [0, 0], color: BLOOD_COLOR });
 const KINDS = ['hit', 'strong', 'kill'];
 

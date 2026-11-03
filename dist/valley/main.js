@@ -20,6 +20,7 @@ import { HUD } from './hud.js';
 import { Input } from './input.js';
 import { ValleyAudio } from './audio-valley.js';
 import { normalizeWaymarks } from './guide-view.js';
+import { normalizeBlood } from './blood.js';
 import { Game } from './game.js';
 import { loadValley } from './save.js';
 import { applyLookOverrides, LOOK } from './config.js';
@@ -130,12 +131,16 @@ async function boot() {
   if (q.get('autostart')) start(q.get('autostart') === 'continue' ? 'continue' : 'new');
 }
 
-// 設定（感度・反転・揺れ・音量・字幕・品質）。保存は端末の中だけ。
+// 設定（感度・反転・揺れ・音量・字幕・品質・道しるべ・血の表現）。保存は端末の中だけ。
 function applySettings(s) {
   const set = { quality, sens: 1, invert: false, shake: 1, volume: 0.8, subs: true, ...s };
   set.waymarks = normalizeWaymarks(set.waymarks);
   game.settings.waymarks = set.waymarks; $('set-waymarks').value = set.waymarks;
   game.setWaymarks = level => { saved.waymarks = normalizeWaymarks(level); game.settings.waymarks = saved.waymarks; $('set-waymarks').value = saved.waymarks; persist(); game.updateGuide(0); };
+  // 血の表現（R18.11）：未設定・未知の値は既定「ひかえめ」。揺れ・動きを減らすとは独立
+  set.blood = normalizeBlood(set.blood);
+  game.settings.blood = set.blood; $('set-blood').value = set.blood;
+  game.setBlood = level => { saved.blood = normalizeBlood(level); game.settings.blood = saved.blood; $('set-blood').value = saved.blood; persist(); };
   game.rig.sensitivity = set.sens; game.rig.invert = set.invert; game.rig.shakeScale = set.shake; game.settings.shake = set.shake;
   audio.setVolume(set.volume); hud.subsOn = set.subs;
   $('set-quality').value = set.quality; $('set-sens').value = set.sens; $('set-invert').checked = set.invert; $('set-shake').value = set.shake; $('set-volume').value = set.volume; $('set-subs').checked = set.subs;
@@ -201,6 +206,7 @@ function wire() {
   input.onLockChange = locked => { if (!locked && pausable() && !dlg.open && !QA) openPause(); };
   addEventListener('keydown', e => { if (e.code === 'KeyP' && pausable() && !dlg.open) openPause(); });
   $('set-waymarks').onchange = e => game.setWaymarks(e.target.value);
+  $('set-blood').onchange = e => game.setBlood(e.target.value);
   $('set-quality').onchange = e => { setQuality(e.target.value); };
   $('set-sens').oninput = e => { saved.sens = Number(e.target.value); game.rig.sensitivity = saved.sens; persist(); };
   $('set-invert').onchange = e => { saved.invert = e.target.checked; game.rig.invert = saved.invert; persist(); };
