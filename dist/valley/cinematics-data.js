@@ -48,8 +48,8 @@ export function validateCinematicTable(table, { textById = {}, returnTargets = [
       }
       if (chars > CINEMATIC_LIMITS.maxTextChars) bad(`shot ${j}: subtitles exceed 40 characters`);
     }
-    // #32の章頭だけが長尺の例外。openingフラグだけでは免除しない。
-    const opening = e.kind === 'open' && e.opening === true;
+    // #32の章頭（第1章のopen）だけが長尺の例外。openingフラグだけでは免除せず、後続章にも広げない（R26.1）。
+    const opening = e.kind === 'open' && e.opening === true && e.chapter === 1;
     if (!Number.isFinite(total) || (!opening && (total < CINEMATIC_LIMITS.minDurationSec || total > CINEMATIC_LIMITS.maxDurationSec))) bad('duration outside limits');
   }
   return errors;

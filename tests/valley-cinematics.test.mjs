@@ -33,6 +33,7 @@ test('only explicitly marked open entries are exempt from the duration range', (
   assert.deepEqual(validate(e), []);
   assert(validate({ ...e, opening: false }).length);
   for (const kind of ['event', 'end']) assert(validate({ ...e, kind }).length);
+  assert(validate({ ...e, chapter: 2 }).length, 'the long exemption is for the chapter 1 opening (#32) only');
 });
 test('reject duplicate ids, invalid chapters/kinds, empty and malformed scenes', () => {
   assert(validateCinematicTable([entry(), entry()], ctx).some(e => e.includes('duplicate')));
