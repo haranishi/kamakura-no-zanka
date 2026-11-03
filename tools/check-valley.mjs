@@ -14,7 +14,7 @@ const dir = path.join(root, 'dist/valley');
 const read = f => fs.readFileSync(path.join(root, f), 'utf8');
 
 // 1 入口・主要なモジュールと素材がある
-const modules = ['opening-data', 'opening', 'opening-scenes', 'opening-fire', 'opening-stage', 'banter', 'narrative', 'relic-view', 'sword-path', 'arm-ik', 'sword-layer', 'hand-grip', 'hand-rig', 'slash-trail', 'clash', 'actors', 'ai-world', 'anim-data', 'atmosphere', 'audio-valley', 'audio-rules', 'voice-bank', 'foot-contacts', 'step-surface', 'step-synth', 'battle', 'bow', 'buildings', 'batch', 'life-rules', 'life-kit', 'life-view', 'camera-rig', 'characters', 'collision', 'combat', 'companion-ai', 'config',
+const modules = ['opening-data', 'opening', 'opening-scenes', 'opening-fire', 'opening-stage', 'banter', 'narrative', 'relic-view', 'sword-path', 'arm-ik', 'sword-layer', 'hand-grip', 'hand-rig', 'slash-trail', 'clash', 'actors', 'ai-world', 'anim-data', 'atmosphere', 'audio-valley', 'audio-rules', 'combat-synth', 'voice-bank', 'foot-contacts', 'step-surface', 'step-synth', 'battle', 'bow', 'buildings', 'batch', 'life-rules', 'life-kit', 'life-view', 'camera-rig', 'characters', 'collision', 'combat', 'companion-ai', 'config',
   'enemy-ai', 'fx', 'game', 'guide-nav', 'guide-view', 'guide-renderer', 'guide', 'grade', 'grass-view', 'grass-schedule', 'grass-field', 'hud', 'input', 'main', 'nav', 'perf-stats', 'wind', 'post', 'props', 'qa', 'quest', 'ridges', 'save', 'scatter', 'tree-species', 'tree-lod', 'tree-branches', 'tree-impostor', 'tree-geometry', 'tree-textures', 'tree-materials', 'tree-bake', 'tree-view', 'shots', 'story-data', 'terrain-height', 'terrain', 'vegetation', 'water', 'weapons', 'world-colliders', 'world-data'];
 for (const m of modules) assert(fs.statSync(path.join(dir, m + '.js')).size > 0, `missing dist/valley/${m}.js`);
 for (const f of ['index.html', 'valley.css']) assert(fs.statSync(path.join(dir, f)).size > 0, `missing dist/valley/${f}`);
@@ -35,7 +35,7 @@ for (const [file, src] of Object.entries(sources)) {
 }
 
 // 3 純粋な層（規則・データ）は Three.js・DOM・乱数・時計に触れない
-const pure = ['opening-data', 'opening', 'opening-scenes', 'banter', 'narrative', 'sword-path', 'arm-ik', 'sword-layer', 'hand-grip', 'slash-trail', 'clash', 'audio-rules', 'voice-bank', 'foot-contacts', 'step-surface', 'step-synth', 'guide-nav', 'guide-view', 'guide', 'perf-stats', 'wind', 'combat', 'enemy-ai', 'companion-ai', 'quest', 'life-rules', 'save', 'nav', 'terrain-height', 'scatter', 'tree-species', 'tree-lod', 'tree-branches', 'tree-impostor', 'grass-schedule', 'grass-field', 'collision', 'anim-data', 'world-data', 'world-colliders', 'story-data', 'ai-world'];
+const pure = ['opening-data', 'opening', 'opening-scenes', 'banter', 'narrative', 'sword-path', 'arm-ik', 'sword-layer', 'hand-grip', 'slash-trail', 'clash', 'audio-rules', 'combat-synth', 'voice-bank', 'foot-contacts', 'step-surface', 'step-synth', 'guide-nav', 'guide-view', 'guide', 'perf-stats', 'wind', 'combat', 'enemy-ai', 'companion-ai', 'quest', 'life-rules', 'save', 'nav', 'terrain-height', 'scatter', 'tree-species', 'tree-lod', 'tree-branches', 'tree-impostor', 'grass-schedule', 'grass-field', 'collision', 'anim-data', 'world-data', 'world-colliders', 'story-data', 'ai-world'];
 for (const m of pure) {
   const code = sources[m + '.js'].replace(/\/\/.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, '');
   for (const bad of [/from\s+'three/, /\bMath\.random\b/, /\bDate\.now\b/, /\bperformance\.now\b/, /\bdocument\./, /\bwindow\./, /\blocalStorage\b/, /\b(?:AudioContext|OfflineAudioContext|webkitAudioContext)\b/]) assert(!bad.test(code), `${m}.js (pure layer) uses ${bad}`);
@@ -89,10 +89,10 @@ const limitMB = { temple: 11, farmhouse: 7 };      // 建物は大きい。そ�
 for (const p of props) { const f = path.join(root, 'dist/assets/valley/models', p + '.glb'), g = glbInfo(f), lim = limitMB[p] ?? 2; assert(g.bytes <= lim * 1024 * 1024, `${p}.glb over ${lim} MB`); total += g.bytes; shas['dist/assets/valley/models/' + p + '.glb'] = g.sha256; }
 assert(total <= 115 * 1024 * 1024, `model budget exceeded: ${(total / 1048576).toFixed(1)} MB`);
 
-// 3b 8.3a・8.3b・8.4a・8.5a の純粋な層（見た目の踏み込み・線状の火花・腕の開きの上限・押し戻し・時間の進み）：あること、Three.js・DOM・乱数・時計に触れないこと
+// 3b 8.3a・8.3b・8.4a・8.4b・8.5a の純粋な層（見た目の踏み込み・線状の火花・腕の開きの上限・押し戻し・血の表現・時間の進み）：あること、Three.js・DOM・乱数・時計に触れないこと
 // （表とは別に置いてある。lunge と spark-streaks は 2026-11-03 の統合の点検で、純粋と自称しながら検査に入っていなかったのを足した）
 // gait-table（生成物の足運びの表）と smooth-flags（滑らかさの切替）も同じ扱い（2026-11-04 M0。まだ誰も読まない）
-for (const m of ['knockback', 'time-warp', 'lunge', 'spark-streaks', 'arm-spread', 'cinematics-data', 'cinematics', 'gait-table', 'smooth-flags']) {
+for (const m of ['knockback', 'time-warp', 'lunge', 'spark-streaks', 'arm-spread', 'blood', 'cinematics-data', 'cinematics', 'gait-table', 'smooth-flags']) {
   assert(sources[m + '.js'], `missing dist/valley/${m}.js`);
   const code = sources[m + '.js'].replace(/\/\/.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, '');
   for (const bad of [/from\s+'three/, /\bMath\.random\b/, /\bDate\.now\b/, /\bperformance\.now\b/, /\bdocument\./, /\bwindow\./, /\blocalStorage\b/]) assert(!bad.test(code), `${m}.js (pure layer) uses ${bad}`);

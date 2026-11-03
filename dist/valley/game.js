@@ -62,7 +62,7 @@ export class Game {
     this.guideRenderer = new GuideRenderer(scene, terrain);
     this.guideMotion = globalThis.matchMedia?.('(prefers-reduced-motion: reduce)');
     this.guideTime = 0; this.guideEpoch = 0; this.guide = null;
-    this.settings = { waymarks: 'bold', sens: 1, invert: false, shake: 1, subs: true };
+    this.settings = { waymarks: 'bold', blood: 'subtle', sens: 1, invert: false, shake: 1, subs: true };   // blood：血の表現（R18.11。既定ひかえめ）
     this.relicView = new RelicView(scene, terrain);
     this.resetStory();
     this.syncLife();
@@ -96,6 +96,7 @@ export class Game {
     this.enemies = []; this.npcs.clear(); this.ally = null; this.tokens.reset(); this.aiWorld.clear(); this.battle.clear(); this.lock = null; this.hero.lockTarget = null;
     this.fx.trails.clear();                   // 刃の軌跡（8.3a）：作り直す前の人の帯を残さない（やり直し・つづき・はじめから）
     this.fx.streaks.clear();                  // 線状の火花（8.3a 第3周）も同じ
+    this.fx.clearBlood();                     // 血の飛沫としみ（8.4b）も同じ
   }
 
   makeEnemies(group, { alert = 'unaware', dormant = false } = {}) {
