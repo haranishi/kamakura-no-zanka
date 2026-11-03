@@ -67,6 +67,15 @@ body.talking .subtitle{bottom:calc(clamp(20px,6vh,58px) + 168px)}
 
 .marker.sus span{background:#d8cf8c}.marker.tele span{background:#ffd08a;box-shadow:0 0 8px #ffd08a}.marker.tele::after{content:'!';position:absolute;left:50%;top:-22px;transform:translateX(-50%);font:700 17px var(--serif);color:#ff9a6a;text-shadow:0 0 8px #000}.marker.lock{outline:1px solid var(--gold);outline-offset:2px}
 .fade{position:fixed;inset:0;background:#05080a;opacity:0;pointer-events:none;transition:opacity .55s;z-index:30}.fade.on{opacity:1}
+/* オープニングの語り（HUDの外。字幕の設定に依らず出す）。上下の帯は不透明で、字は帯の上に置く。色と不透明度は hud.js が opening-data.js から毎コマ書く */
+.narration{position:fixed;inset:0;pointer-events:none;z-index:28}
+.nr-veil{position:absolute;inset:0;background:#05080a}
+.nr-bar{position:absolute;left:0;right:0;height:clamp(56px,12.5vh,120px);background:#05080a;display:flex;align-items:center;justify-content:center;padding:0 clamp(16px,4vw,48px)}
+.nr-top{top:0;justify-content:flex-end}.nr-bottom{bottom:0}
+.nr-line{margin:0;max-width:min(1000px,92vw);text-align:center;font:500 clamp(16px,1.6vw,22px)/1.75 var(--serif);letter-spacing:.12em;opacity:0}
+.nr-title{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);text-align:center;opacity:0;white-space:nowrap}
+.nr-title h2{margin:0;font:400 clamp(40px,5.4vw,72px)/1.5 var(--serif);letter-spacing:.24em}.nr-title p{margin:16px 0 0;font:14px/1.8 var(--serif);letter-spacing:.16em}
+.nr-skip{margin:0;font-size:12px;letter-spacing:.14em;opacity:0}.nr-skip kbd{color:inherit;border-color:currentColor;background:none}
 .granary{position:absolute;left:clamp(16px,2.6vw,38px);bottom:calc(clamp(18px,3vw,40px) + 48px);width:min(260px,40vw);display:grid;grid-template-columns:44px 1fr;gap:8px;align-items:center;font-size:11px;letter-spacing:.18em;color:var(--muted)}.granary .track span{display:block;height:100%;width:100%;transform-origin:left;background:var(--gold);transition:transform .4s}
 body.hide-hud .hud{opacity:0}
 
