@@ -1,0 +1,118 @@
+[
+ {
+  "name": "parry",
+  "kind": "parry",
+  "opts": {},
+  "peak": -9.140116384611504,
+  "rms": -31.441303983351034,
+  "centroid": 2255.8359338710097,
+  "tail40ms": 1035,
+  "finite": true
+ },
+ {
+  "name": "block",
+  "kind": "block",
+  "opts": {},
+  "peak": -9.05469795855181,
+  "rms": -32.050559579670185,
+  "centroid": 924.4912876289177,
+  "tail40ms": 295,
+  "finite": true
+ },
+ {
+  "name": "clash",
+  "kind": "clash",
+  "opts": {},
+  "peak": -9.229760312560737,
+  "rms": -30.47054627242806,
+  "centroid": 1539.3450224504568,
+  "tail40ms": 360,
+  "finite": true
+ },
+ {
+  "name": "hit_armor",
+  "kind": "hit_armor",
+  "opts": {
+   "armor": "heavy"
+  },
+  "peak": -9.441668699856322,
+  "rms": -29.467408466334646,
+  "centroid": 720.9552026432286,
+  "tail40ms": 260,
+  "finite": true
+ },
+ {
+  "name": "hit_armor_light",
+  "kind": "hit_armor",
+  "opts": {
+   "armor": "light"
+  },
+  "peak": -10.198954499634496,
+  "rms": -30.84029880413037,
+  "centroid": 729.82056778658,
+  "tail40ms": 145,
+  "finite": true
+ },
+ {
+  "name": "hit_armor_heavy",
+  "kind": "hit_armor_heavy",
+  "opts": {
+   "armor": "heavy"
+  },
+  "peak": -8.462252732953415,
+  "rms": -28.744743753089764,
+  "centroid": 546.6192451465108,
+  "tail40ms": 325,
+  "finite": true
+ },
+ {
+  "name": "hit",
+  "kind": "hit",
+  "opts": {},
+  "peak": -10.16861443854452,
+  "rms": -26.824564798530677,
+  "centroid": 142.73587618530334,
+  "tail40ms": 80,
+  "finite": true
+ },
+ {
+  "name": "hit_heavy",
+  "kind": "hit_heavy",
+  "opts": {},
+  "peak": -9.729720730868046,
+  "rms": -25.004064003298655,
+  "centroid": 98.2577318148959,
+  "tail40ms": 120,
+  "finite": true
+ },
+ {
+  "name": "arrow_hit",
+  "kind": "arrow_hit",
+  "opts": {},
+  "peak": -10.05772660946036,
+  "rms": -26.88855092186654,
+  "centroid": 167.8311864902669,
+  "tail40ms": 55,
+  "finite": true
+ },
+ {
+  "name": "sword_drop",
+  "kind": "sword_drop",
+  "opts": {},
+  "peak": -11.450986908971323,
+  "rms": -29.9925150571279,
+  "centroid": 1973.1947764609808,
+  "tail40ms": 310,
+  "finite": true
+ },
+ {
+  "name": "spark",
+  "kind": "spark",
+  "opts": {},
+  "peak": -14.198120072980615,
+  "rms": -33.68912829141058,
+  "centroid": 9899.496900146305,
+  "tail40ms": 55,
+  "finite": true
+ }
+]
