@@ -77,6 +77,8 @@ export class Game {
     for (const n of this.npcs.values()) n.remove();
     this.ally?.remove();
     this.enemies = []; this.npcs.clear(); this.ally = null; this.tokens.reset(); this.aiWorld.clear(); this.battle.clear(); this.lock = null; this.hero.lockTarget = null;
+    this.fx.trails.clear();                   // 刃の軌跡（8.3a）：作り直す前の人の帯を残さない（やり直し・つづき・はじめから）
+    this.fx.streaks.clear();                  // 線状の火花（8.3a 第3周）も同じ
   }
 
   makeEnemies(group, { alert = 'unaware', dormant = false } = {}) {
