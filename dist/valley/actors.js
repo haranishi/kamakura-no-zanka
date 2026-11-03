@@ -514,7 +514,7 @@ export class HeroActor extends Actor {
       return;
     }
     this.blockPosed = false;
-    this.character.locomote(travel, this.crouch ? 'crouch' : (this.guardStance || f.blocking) ? 'guard' : 'relaxed', target < this.speed - 0.05, 0, target > this.speed + 0.05 ? want : undefined);
+    this.character.locomote(travel, this.crouch ? 'crouch' : (this.guardStance || f.blocking) ? 'guard' : 'relaxed', !ax.active && this.speed > 0 ? 'stop' : target < this.speed - 0.05, 0, target > this.speed + 0.05 ? want : undefined);
   }
 
   // hit は当たりの見た目の情報（battle.js の strikeGeometry）：push＝ひるみの押す向き（相手から自分へ＋刃の進む向き）

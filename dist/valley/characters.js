@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
 import { LOCO, gaitsFor } from './loco.js';
-const GAIT_RANK = { idle: 0, walk: 1, jog: 2, run: 3 };
+const GAIT_RANK = { idle: 0, walk: 1, jog: 2, run: 3 }, STOP_BLEND_BELOW = 1.0;
 import { GAITS, LOCOMOTION, MOVE_CLIPS, ACTION_CLIPS, pickGait, locomotionTimeScale, moveSegment, clipTimeAt, phaseMatchedTime, STANCE_SPEED } from './anim-data.js';
 import { createContactTracker, observeContacts } from './foot-contacts.js';
 import { FOOT_CONTACTS } from './anim-contacts.js';
@@ -172,7 +172,7 @@ export class Character {
   }
 
   // 移動：速さ(m/s)から歩き・小走り・走りを選ぶ。style は LOCOMOTION の表。
-  // hold：減速の間は下の歩容へ替えない（M1。止まりきる・スキッドの0.2〜0.3秒に走り→小走り→歩きの混ぜが3回重なり、着いた足が流れた）。
+  // hold：減速の間は下の歩容へ替えない（'stop'＝入力を離して止まる途中）（M1。止まりきる・スキッドの0.2〜0.3秒に走り→小走り→歩きの混ぜが3回重なり、着いた足が流れた）。
   // floor：再生の倍率の下限。主人公の新しい加減速では0（走り出し・止まりの間も、着いた足の速さ＝進む速さにする。定速の倍率は0.55を下回らない）
   // aim：加速の間に歩容を選ぶ速さ（目標の速さ）。走り出しで歩き→小走り→走りの混ぜが0.1秒に2回重なり、着いた足が10cm流れたので、
   // 動き出したら目標の歩容へ直接入る（倍率の下限0で、遅いうちはゆっくり回す）
@@ -183,6 +183,8 @@ export class Character {
     let next = pickGait(this.gait, pickAt, G);   // 歩容の境は速さの表と一緒に替える（loco.js）
     if (aim != null && this.gait === 'idle' && next !== 'idle') next = pickGait(next, pickAt, G);
     this.gait = hold && next !== 'idle' && GAIT_RANK[next] < GAIT_RANK[this.gait] ? this.gait : next;
+    // 止まりかけ（1m/秒未満）で待ちへ混ぜ始める：0まで走りの姿で回すと、浮いた脚が上がったまま0.3秒止まって見えた（盲検用のコマ割り）
+    if (hold === 'stop' && speed < STOP_BLEND_BELOW && this.gait !== 'idle' && style !== 'crouch') this.gait = 'idle';
     const name = table[this.gait];
     const meta = this.meta(name);
     const frozen = this.gait === 'idle' && table.idleFreeze;
