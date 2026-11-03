@@ -65,6 +65,8 @@ async function sheet(page, shots, file) {
 export default async function (ctx) {
   await prepare(ctx);
   await ctx.v("document.body.classList.add('hide-hud')");
+  // 背の高い草が足首を隠す（走った先の草地で足が見えなかった）。足運びを見る撮影なので草だけ消す（KZ_GRASS=1 で残す）。論理には触れない
+  if (!process.env.KZ_GRASS) await ctx.v('(__valley.game.veg.grass.group.visible = false, 0)');
   const tag = tagOf(), all = [];
   // 1回目の場面だけ、草の区画の作り始めなどで回ごとに絵が変わった（2026-11-04）。同じ場面を1回空撮りしてから撮る
   await playScene(ctx, SCENES[0], 'side');
