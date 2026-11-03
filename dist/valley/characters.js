@@ -13,6 +13,7 @@ import { FOOT_CONTACTS } from './anim-contacts.js';
 import { BowRig } from './bow.js';
 import { SwordRig } from './sword-rig.js';
 import { HandRig, HAND_RIG_WHO, prepareHands } from './hand-rig.js';
+import { LegRig } from './leg-ik.js';
 import { makeTachi, makeNaginata, makeYumi, makeArrow, makeQuiver } from './weapons.js';
 import { patchLift } from './grade.js';
 import { spreadWeight, spreadFix } from './arm-spread.js';
@@ -104,6 +105,8 @@ export class Character {
     this.cinePose = null;   // 節目の演出の間だけ置く、骨の後処理（うなずき・視線・袖印を持つ手。cinematics-view.js）。見た目だけ
     // 指の骨と見える腕の写し（8.6a）。this.bones（動作の骨）を作ったあとに足すので、写しは this.bones に入らない
     this.hands = HAND_RIG_WHO.has(who) ? new HandRig(this) : null;
+    // 脚のIKと接地（M2b・leg-ik.js）。game.js が押し分けの後に finishPose を呼ぶコマだけ使う（splitPose・legIk はそのコマごとに置かれる）
+    this.legs = new LegRig(this); this.splitPose = false; this.legIk = false; this.legTerrain = null; this.poseDt = null;
   }
 
   bone(name) { return this.bones.get(name); }
@@ -267,10 +270,14 @@ export class Character {
     f.v += amount * 7; f.px = l > 1e-9 ? push.x / l : Math.sin(yaw); f.pz = l > 1e-9 ? push.z / l : Math.cos(yaw);
   }
 
-  resetContacts() { this.contactReset = true; }
+  resetContacts() { this.contactReset = true; if (this.legs) this.legs.reset = true; }
 
+  // 人物の更新は2つに分かれる：①mixer・接地通知（update）②脚のIK→体幹ばね→腕→刀→握り（finishPose）。
+  // splitPose のコマ（?smooth=ik で戻していない間、game.js が遊びのコマごとに置く）は①だけを行い、押し分けの後に game.js が②を呼ぶ（骨盤を動かすと刀・握りも動くので、
+  // 脚の姿勢と模型の根の位置を決めてから刀と握りを解く）。それ以外（演出・見本の画面・?smooth=ik）は①②を続けて行う＝M2a までと同じ順
   update(dt) {
     this.sword?.undo();   // 前のコマの抜刀・納刀の骨の後処理を戻してから、動作を当てる
+    this.legs?.undo();    // 脚のIK（M2b）の補正も戻す（刀の後に当てたので、刀の次に戻す）
     this.time += dt;
     if (this.warp) this.followWarp(dt);
     this.mixer.update(dt * this.rate);
@@ -286,6 +293,17 @@ export class Character {
       const cb = this.onSegmentEnd; this.segment = null; this.onSegmentEnd = null;
       if (cb) cb(this);
     }
+    if (this.splitPose) { this.poseDt = dt; return; }
+    this.finishPose(dt);
+  }
+
+  finishPose(dt = this.poseDt) {
+    this.splitPose = false; this.poseDt = null;
+    if (dt == null) return;
+    const legs = this.legs;
+    if (legs && this.legIk && this.legTerrain) legs.apply(dt, this.legTerrain, true);
+    else if (legs && (legs.feet[0].mode || legs.feet[1].mode || legs.drop)) legs.apply(dt, null, false);
+    this.legIk = false;
     const f = this.flinch;
     if (f.v !== 0 || f.x !== 0) {
       f.v += (-f.x * 120 - f.v * 14) * dt; f.x += f.v * dt;
