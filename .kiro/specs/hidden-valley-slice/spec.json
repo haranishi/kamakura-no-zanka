@@ -26,7 +26,7 @@
       "design-wayfinding.md"
     ],
     "tasks": "tasks.md §7",
-    "implementation": "7.1完了。2026-10-27の本人依頼で7.2・7.3の画面側を実装、親のブラウザ検証待ち。草木・音・容量は対象外",
+    "implementation": "7.0a・7.0b・7.1・7.2・7.3・7.5は完了（tasks.md §7の記録）。7.0・7.4・7.6〜7.13は未完了（7.8・7.9は実装を進めたが未完了）",
     "validation": "design-validation.md",
     "review": "2026-10-27の独立レビュー（15件）を仕様へ反映。実装と実機検証は未実施",
     "ready_for_implementation": true
@@ -183,25 +183,30 @@
       "design-combat-presentation.md",
       "design-draw-sheathe.md",
       "design-combat-trail.md",
-      "design-hand-grip.md"
+      "design-hand-grip.md",
+      "design-combat-impact.md",
+      "design-trees-detail.md"
     ],
     "tasks": "tasks-polish3.md §8",
     "validation": "design-validation-polish3.md",
     "research": "research-polish3.md",
-    "status": "2026-10-30に8.0の前半（静的な前測定）と8.2（抜刀・納刀）を実装し、PR #26・#27を本人の指示でマージした。同日のプレイ後の評価（手の持ち方が変・戦闘に迫力がない・木が張りぼてっぽい）を受け、8.6a（手の握り）と8.3a（斬撃の軌跡）を並行で進めている。ほかのタスクは未着手",
+    "status": "2026-11-03時点。10/30にPR #26（8.0の前半）と#27（8.2）を本人の指示でマージした。11/3に、承認済みの順でPR #30（8.6aの手の握り。8.6a-1・8.6a-2）・#31（8.3aの刃の軌跡と見た目の踏み込み）・#36（8.4aの押し戻し・8.5aのスロー）・#33（8.1aの木）をmainへ取り込んだ（独立している#34・#35と、物語・暮らしの#37・#38・#39も同日）。#30と#31を重ねたとき、納刀のまま攻撃すると左手の指先が1コマ跳ぶ不具合が出て、lunge.js の sayaHoldScale（踏み込みを待たせるのは3割まで）で直した。どれも本人のプレイでの確認を待っている。残りは、8.1の画づくりの方向の画面での確認と8.7への展開、8.3の残り（8.3b以降）と8.4〜8.8、オープニングのPR #32（未完成のため取り込んでいない）、速い抜刀で鞘を引く量が1コマで16cm跳び左腕が鞘へ届かないコマがあるという別件（8.2・未検証）である。",
     "date": "2026-10-28",
     "ready_for_implementation": true,
-    "implementation_scope": "本人の依頼（2026-10-30「続きをやっていってほしい」）：8.0の前測定と8.2の抜刀・納刀。続けて同日、「手の持ち方を直す」「戦闘の迫力」「何回かハーネスを回す」「PRをこまめに作り、commit・pushしていく」の指示で、8.6a・8.3aを追加。マージは本人が依頼したときだけ"
+    "implementation_scope": "本人の依頼（2026-10-30「続きをやっていってほしい」）：8.0の前測定と8.2の抜刀・納刀。続けて同日、「手の持ち方を直す」「戦闘の迫力」「何回かハーネスを回す」「PRをこまめに作り、commit・pushしていく」の指示で、8.6a・8.3aを追加。その後、8.1a（木。絵の方向は本人が選んだ）と、本人が「どちらも入れる」を選んだ8.4a・8.5aを進めた。マージは本人が依頼したときだけ"
   },
   "polish_round4_story": {
     "requirements": "requirements-story.md（R19〜R24・草案）",
     "design": [
       "design-narrative.md",
-      "design-opening.md"
+      "design-opening.md",
+      "design-story-impl.md",
+      "design-valley-life.md",
+      "design-valley-life-places.md"
     ],
     "tasks": "tasks-story.md §9（草案）",
     "date": "2026-10-30",
-    "status": "設計書2本（S1・S2）を書き、Codexが草案をコードと突き合わせて直した。S1は済み。次は、語りの全文の確認（本人）と、S3（燃える鎌倉の場面の制作）。絵の方向が決まったので、8.1a（木）も進められる",
+    "status": "S1は済み。S5・S6（掛け合い・選択と結果・敵の手がかり）はPR #37、S7-0（まとめ描きとlife-rules）はPR #38、S7-A（見晴らし岩と里の入口）はPR #39として、2026-11-03にmainへ取り込んだ。S5とS7-0は済み。S6（選択の前に代償を伝える部分の実装の有無が不明）とS7-A（第3周は未実施）は未完了。S2〜S4（オープニング・燃える鎌倉の町）は、PR #32が未完成のため取り込んでいない。本人のプレイでの確認はどれも未実施。",
     "decided": [
       "オープニングは「語りと絵のような場面（約1分）」・字幕のみ・飛ばせる",
       "最初に作る舞台は「燃える鎌倉の町（回想の舞台）」",
