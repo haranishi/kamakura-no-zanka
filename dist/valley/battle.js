@@ -106,7 +106,9 @@ export class Battle {
         g.fx.hit(pos, dir, { strong: strong || finale, travel: geo.travel });
         // 血の表現（R18.11・8.4b）：刃が体に入ったときだけ（受け・弾き・矢には出さない）。倒れる当たりは少し多く、1回きり。見た目だけで規則に触れない
         if (!arrow) g.fx.blood(pos, dir, { level: g.settings.blood, kind: bloodKind({ dead: !!res.dead, strong: strong || finale }), travel: geo.travel, ground: g.terrain, quality: g.post.quality });
-        g.audio.play(arrow ? 'arrow_hit' : strong || finale ? 'hit_heavy' : 'hit', { pan });
+        // 音だけの分岐：鎧の相手（兵＝軽い・侍大将＝重い）は金属の板の鳴り（ガン）。闇討ちは静かな技なので鎧でも肉の音のまま
+        const armor = def.fighter.armor, plate = !arrow && res.outcome !== 'stealth' && armor && armor !== 'none';
+        g.audio.play(arrow ? 'arrow_hit' : plate ? (strong || finale ? 'hit_armor_heavy' : 'hit_armor') : strong || finale ? 'hit_heavy' : 'hit', { pan, armor });
         g.hitStop(strong ? FEEL.hitStop.heavy : FEEL.hitStop.hit);
         if (heroDef) { g.rig.kick(0.7); g.rig.punchFov(1.8); g.hud.hurt(); g.hud.hint('dodge', STORY.hints.dodge); }
         else if (heroAtt) { g.rig.kick(strong ? 0.5 : finale ? 0.42 : 0.25); g.rig.punchFov(strong ? 1.6 : finale ? 1.3 : 0.8); }
