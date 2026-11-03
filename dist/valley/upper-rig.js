@@ -26,7 +26,7 @@ export class UpperRig {
     this.w = 0; this.armL = { x: 0, v: 0 }; this.armR = { x: 0, v: 0 }; this.lean = { x: 0, v: 0 }; this.bank = { x: 0, v: 0 };
     this.v = 0; this.vPrev = 0; this.acc = 0; this.yawRate = 0; this.rx = NaN; this.rz = 0; this.ryaw = 0;
     this.pMean = 0; this.cMean = 0; this.hipMid = NaN; this.headS = new THREE.Quaternion(); this.headOn = false;
-    this.last = null;   // 試験用：直近コマの値
+    this.last = { w: 0, pelvis: 0, armL: 0, armR: 0, lean: 0, bank: 0, twist: 0, lift: 0, v: 0 };   // 試験用：直近コマの値（毎コマ新しく作らない）
   }
 
   undo() {
@@ -107,7 +107,7 @@ export class UpperRig {
     head.parent.getWorldQuaternion(PQ); head.quaternion.copy(PQ.invert().multiply(HQ));
     head.updateMatrixWorld(true);
     this.hips.updateMatrixWorld(true);
-    this.last = { w, pelvis: pf / D2R, armL: this.armL.x, armR: this.armR.x, lean: this.lean.x, bank: this.bank.x, twist: tw, lift: this.lift, v: this.v };
+    const L = this.last; L.w = w; L.pelvis = pf / D2R; L.armL = this.armL.x; L.armR = this.armR.x; L.lean = this.lean.x; L.bank = this.bank.x; L.twist = tw; L.lift = this.lift; L.v = this.v;
   }
 
   // 骨を世界の軸 axis まわりに ang だけ回す（親の局所へ直して）
