@@ -15,10 +15,16 @@ const after = (a, d, o) => {
 };
 const down = [0, -1, 0];
 
-test('上限の選び方：倒れた人だけ（生きている人には0）', () => {
+test('上限の選び方：倒れ・被弾・見た目の被弾・弾かれだけ。技・受け・待機・崩れには0', () => {
   assert.equal(spreadCap(true), SPREAD.dead);
+  assert.equal(spreadCap(true, 'attack'), SPREAD.dead, '倒れが先');
+  assert.equal(spreadCap(false, 'hit'), SPREAD.hit);
+  assert.equal(spreadCap(false, 'idle', true), SPREAD.hit, '鎧でひるまない一・二発目の見た目の被弾');
+  assert.equal(spreadCap(false, 'recoil'), SPREAD.recoil);
+  for (const st of ['idle', 'attack', 'stagger', 'dodge', null]) assert.equal(spreadCap(false, st), 0, st);
   assert.equal(spreadCap(false), 0);
   assert(SPREAD.dead >= 30 && SPREAD.dead <= 60, '倒れの上限は体の横〜斜め下');
+  for (const k of ['hit', 'recoil']) assert(SPREAD[k] >= 40 && SPREAD[k] <= 65, `${k} は手が肩の高さより下`);
 });
 
 test('寄せる角：上限を越えた分だけ、腕を胴の下向きへ近づける', () => {
@@ -57,25 +63,25 @@ test('効き：上限の越えた分に掛かり、0〜1で頭打ち', () => {
   assert.equal(out[3], 0);
 });
 
-test('効きの追い方：上限をかけると1へ、外すと0へ、刻み幅によらず滑らか。dt0では変えない', () => {
+test('効きの追い方：上限をかけたコマで1、外すと0へ刻み幅によらず滑らか。dt0・負では変えない', () => {
+  assert.equal(spreadWeight(0, true, 1 / 60), 1, 'かけたコマで1（命中の停止の間も効く）');
+  assert.equal(spreadWeight(0, true, 0), 1, '停止で dt が0でも効く');
   for (const dt of [1 / 30, 1 / 60, 1 / 144]) {
-    let w = 0; const n = Math.round(0.1 / dt);
-    for (let i = 0; i < n; i++) w = spreadWeight(w, true, dt);
-    assert(Math.abs(w - (1 - Math.exp(-SPREAD.rate * n * dt))) < 1e-9, `同じ秒で同じ効き dt ${dt}`);
-    let u = 1; for (let i = 0; i < n; i++) u = spreadWeight(u, false, dt);
+    const n = Math.round(0.1 / dt); let u = 1;
+    for (let i = 0; i < n; i++) u = spreadWeight(u, false, dt);
     assert(Math.abs(u - Math.exp(-SPREAD.rate * n * dt)) < 1e-9, `外すと戻る dt ${dt}`);
   }
-  assert.equal(spreadWeight(0.3, true, 0), 0.3);
-  assert.equal(spreadWeight(0.3, true, -1 / 60), 0.3, '負の刻みでは変えない');
-  assert.equal(spreadWeight(0.3, true, NaN), 0.3);
-  assert(spreadWeight(0, true, 1 / 60) < 0.4, '1コマで跳ばない');
+  assert(spreadWeight(1, false, 1 / 60) > 0.6, '外して1コマで跳ばない');
+  assert.equal(spreadWeight(0.3, false, 0), 0.3);
+  assert.equal(spreadWeight(0.3, false, -1 / 60), 0.3, '負の刻みでは変えない');
+  assert.equal(spreadWeight(0.3, false, NaN), 0.3);
 });
 
 test('毎コマの新規確保をしない（受け渡しの配列に書く）', () => {
   assert.equal(spreadFix(1, 0, 0, ...down, 55, 1, out), out);
   const before = process.memoryUsage().heapUsed;
   let s = 0;
-  for (let i = 0; i < 200000; i++) { spreadFix(1, (i % 7) * 0.01, 0.2, 0, -1, 0.1, 55, 1, out); s += out[3] + spreadCap(i % 2 === 0) + spreadWeight(0.5, true, 1 / 60); }
+  for (let i = 0; i < 200000; i++) { spreadFix(1, (i % 7) * 0.01, 0.2, 0, -1, 0.1, 55, 1, out); s += out[3] + spreadCap(i % 2 === 0, 'hit', false) + spreadWeight(0.5, false, 1 / 60); }
   assert(s > 0);
   assert(process.memoryUsage().heapUsed - before < 2_000_000, '20万回で2MB未満');
 });

@@ -8,7 +8,11 @@ const A = 'dist/valley/arm-spread.js', T = 'tests/valley-arm-spread.test.mjs';
 // 名前、対象、置換前、置換後、対象の試験名（正規表現）
 const cases = [
   ['倒れの上限を90度にする', A, 'dead: 40,', 'dead: 90,', '上限の選び方'],
-  ['生きている人にも上限をかける', A, '  if (dead) return SPREAD.dead;\n', '  return SPREAD.dead;\n', '上限の選び方'],
+  ['被弾の上限を90度にする', A, 'hit: 50,', 'hit: 90,', '上限の選び方'],
+  ['弾かれの上限を外す', A, "  if (state === 'recoil') return SPREAD.recoil;\n", '', '上限の選び方'],
+  ['見た目の被弾を数えない', A, "if (state === 'hit' || react)", "if (state === 'hit')", '上限の選び方'],
+  ['崩れにも被弾の上限をかける', A, "if (state === 'hit' || react)", "if (state === 'hit' || state === 'stagger' || react)", '上限の選び方'],
+  ['生きている人にも倒れの上限をかける', A, '  if (dead) return SPREAD.dead;\n', '  if (dead || !state) return SPREAD.dead;\n', '上限の選び方'],
   ['越えた分でなく角の全部を寄せる', A, 'const over = theta - capDeg * Math.PI / 180;', 'const over = theta;', '寄せる角'],
   ['軸の向きを逆にする（腕を外へ開く）', A, 'out[0] = cx / lc; out[1] = cy / lc; out[2] = cz / lc;', 'out[0] = -cx / lc; out[1] = -cy / lc; out[2] = -cz / lc;', '寄せる角'],
   ['軸を正規化しない', A, 'out[0] = cx / lc; out[1] = cy / lc; out[2] = cz / lc;', 'out[0] = cx; out[1] = cy; out[2] = cz;', '寄せる角'],
@@ -18,9 +22,10 @@ const cases = [
   ['上限0でも寄せる', A, "if (!(capDeg > 0) || !(weight > 0)", "if (!(weight > 0)", '上限の内'],
   ['効きを掛けない', A, 'out[3] = over * Math.min(1, weight);', 'out[3] = over;', '効き：'],
   ['効きの頭打ちを外す', A, 'out[3] = over * Math.min(1, weight);', 'out[3] = over * weight;', '効き：'],
-  ['効きを1コマで1へ跳ばす', A, 'return w + ((on ? 1 : 0) - w) * k;', 'return on ? 1 : 0;', '効きの追い方'],
-  ['効きの速さを刻み幅に比例させる', A, 'const k = 1 - Math.exp(-SPREAD.rate * dt);', 'const k = Math.min(1, SPREAD.rate / 60);', '効きの追い方'],
-  ['負の刻みでも効きを進める', A, '  if (!(dt > 0)) return w;\n', '', '効きの追い方'],
+  ['かけるときも指数で追う', A, '  if (on) return 1;\n', '  if (on) return dt > 0 ? w + (1 - w) * (1 - Math.exp(-SPREAD.rate * dt)) : w;\n', '効きの追い方'],
+  ['外したコマで0へ跳ばす', A, 'return w * Math.exp(-SPREAD.rate * dt);', 'return 0;', '効きの追い方'],
+  ['戻る速さを刻み幅に比例させない', A, 'return w * Math.exp(-SPREAD.rate * dt);', 'return w * Math.exp(-SPREAD.rate / 60);', '効きの追い方'],
+  ['負の刻みでも効きを戻す', A, '  if (!(dt > 0)) return w;\n', '', '効きの追い方'],
   ['受け渡しの配列でなく新しい配列を返す', A, '  out[0] = 0; out[1] = 0; out[2] = 0; out[3] = 0;\n', '  out = [0, 0, 0, 0];\n', '新規確保'],
 ];
 const run = pattern => spawnSync(process.execPath, ['--test', '--test-name-pattern', pattern, T], { encoding: 'utf8', timeout: 120000 });

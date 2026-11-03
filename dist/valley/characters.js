@@ -269,7 +269,7 @@ export class Character {
       }
     }
     if (this.armRelax) this.relaxArms(dt);
-    if (this.spreadCapDeg > 0 || this.spreadW > 0) this.spreadArms(dt);   // 倒れの腕の開き（8.3b）：動作の骨の後処理。握りの層の前
+    if (this.spreadCapDeg > 0 || this.spreadW > 0) this.spreadArms(dt);   // 被弾・弾かれ・倒れの腕の開き（8.3b）：動作の骨の後処理。握りの層の前
     if (this.sword) this.sword.apply();   // 抜刀・納刀：骨の後処理なので relaxArms のあと
     if (this.hands) this.hands.apply(dt);   // 握り（8.6a）：抜刀の層が決めた刀・鞘を読み、見える腕の写しだけを動かす
     if (this.bow) this.bow.update();
