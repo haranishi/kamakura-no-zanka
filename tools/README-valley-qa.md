@@ -54,6 +54,8 @@ b0 庭へ降りる（`temple_yard` に入る）→ b1 穂太の話 → b2 林道
 - `tools/scenarios/record-sword-tips.mjs`：全動作クリップと抜刀・納刀の切先の位置を毎コマ記録し、変更前と変更後を比べる（`node tools/scenarios/record-sword-tips.mjs 前.json 後.json`）。
 - `tools/scenarios/capture-hand-grip.mjs`：握りの前後をラボで撮る（`tools/lab-play.mjs` で動かす。`KZ_SHEET=guard|draw|walk|enemy`）。前＝同じ版で層を切った人物。
 - `tools/lab-play.mjs`：人物ラボ（`lab.html`）を開いてシナリオを動かす（valley-play のラボ版。`--query "who=hero&weapon=drawn"`）。
+- `tools/scenarios/capture-trees-detail.mjs`：木（8.1a）の近景（林道・枝の下から見上げ・幹と根元の寄り・広葉・庭・楓の寄り・林道の斥候）・中景（林の縁）・遠景（見晴らし・谷の川・太陽の方位）と、杉と広葉の標本（12〜30m、順光と、太陽の方位へ低く向けた逆光）を、HUDなし・乱数・時刻・風を固定して撮る。第2周で画角の重複を外した。`--q light` では5枚に light- を付ける。変更前のコードでも同じシナリオで撮って比べる。純粋層の変異検査は `node tools/verify-tree-branches-mutations.mjs` と `verify-tree-impostor-mutations.mjs`。
+- `tools/scenarios/capture-tree-lod-far.mjs`：遠景の絵の板（8.1a第2周）と中景が入れ替わる帯（標準150m・軽量100m）を、同じ木へ近づきながら10°の画角で撮る。
 - 検査の流れの見本：`tools/scenarios/` のシナリオ。
 
 ## 第2弾の前測定（7.0・7.0b）

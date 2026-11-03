@@ -5,7 +5,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { field, data, camera, setAt, THREE, treeShape, wind } from './helpers/tree-field.mjs';
+import { field, data, camera, setAt, THREE, treeShape, wind, stubRenderer } from './helpers/tree-field.mjs';
 import { load } from './helpers/tree-modules.mjs';
 import { TREES } from '../dist/valley/config.js';
 import { installQA } from '../dist/valley/qa.js';
@@ -132,28 +132,39 @@ test('owned buffers/materials/textures disposed once, templates survive [dispose
 });
 test('vegetation and quality switch wiring [wiring]',()=>{
   const read=p=>fs.readFileSync(new URL('../dist/valley/'+p,import.meta.url),'utf8');
-  assert.match(read('vegetation.js'),/new TreeField\(\{ data: scatter.trees, species: scatter.species, understory: scatter.understory, wind, sunDir, quality \}\)/,'[wiring] missing species/wind/understory');
+  assert.match(read('vegetation.js'),/new TreeField\(\{ data: scatter.trees, species: scatter.species, understory: scatter.understory, wind, sunDir, quality, renderer \}\)/,'[wiring] missing species/wind/understory/renderer');
   assert.match(read('main.js'),/old\.trees\.dispose\(\)/,'[dispose] quality switch bypasses owner');
+  // Both vegetation builds (boot and quality switch) hand over the renderer, or the far trees silently keep their meshes.
+  assert.equal((read('main.js').match(/buildVegetation\(\{[^}]*\brenderer \}\)/g)||[]).length,2,'[wiring] a vegetation build without the renderer');
   assert(!read('vegetation.js').includes('function cedarGeometry'),'[wiring] legacy tree code retained');
 });
 test('real scatter, four site budgets, QA accounting and capacities [budget]',()=>{
   const {trees,species,understory}=real();
-  const f=field([],{data:trees,species,understory});const api=qa(f);
-  // Hashed shape families and the terrace/tread/dress understory exclusions moved the four totals.
-  const sites=[[WORLD.start.x,WORLD.start.z,1438000,1285672],[-5,2.2,1387000,1069778],[-6,20,1344000,1046796],[-36,-48,1394000,1242466]];
+  // The game path: the far adults are baked boards (a renderer is present). Node bakes through the stub (blank atlases).
+  const f=field([],{data:trees,species,understory,renderer:stubRenderer()});const api=qa(f);
+  assert(f.impostors,'[budget] far boards missing from the game path');
+  // 8.1a second round: the far level became boards (2 triangles, ~650k fewer at each site); part of the saving went to the
+  // near cedar (root flare) and the middle cedar (one tuft per near limb, 185k->385k at the start). Totals fell 33-46% below the first round.
+  // Third round: 22+4 smaller adult broadleaf clusters (10x5, 10x4) in place of 16+1 (12x6): a few hundred triangles fewer at each site.
+  const sites=[[WORLD.start.x,WORLD.start.z,1328534,891796],[-5,2.2,1087372,601164],[-6,20,1056502,575464],[-36,-48,1278092,806308]];
   const at=new Map();for(const d of [trees,understory])d.x.forEach((x,i)=>at.set(`${Math.fround(x)},${Math.fround(d.z[i])}`,d.tint[i]));
   assert.deepEqual(sites.map(p=>p.slice(0,2)),[[-100.5,-89],[-5,2.2],[-6,20],[-36,-48]],'[budget-sites] four evaluation sites changed');
   assert.equal(f.sets.length,3*Object.values(TREES.variants).reduce((a,b)=>a+b,0)+6,'[sets] wrong species/variant level count');assert(f.group.children.length<=90,'[sets] draw set budget exceeded');
   for(const [x,z,old,expected] of sites) {
     const start=performance.now();f.update(camera(x,z),true);const ms=performance.now()-start,result=api.treeStats();
-    console.log(`[tree-budget] (${x},${z}) total=${result.total} old=${old} update=${ms.toFixed(3)}ms sets=${f.sets.length} meshes=${f.group.children.length}`);
-    assert(result.total<old,'[budget] tree triangles exceed old one-pass budget');
-    assert(result.total<=1300000,'[budget-target] tree triangles exceed 1.30M target');
+    console.log(`[tree-budget] (${x},${z}) total=${result.total} first-round=${old} update=${ms.toFixed(3)}ms sets=${f.sets.length} meshes=${f.group.children.length}`);
+    assert(result.total<old*.7,'[budget] tree triangles not below the first round by 30%');
     assert.equal(result.total,expected,'[budget-site] real scatter triangle count changed');
     const sum=Object.values(result.tris).flat().reduce((a,b)=>a+b,0);assert.equal(sum,result.total,'[qa] species triangles differ from total');
     for(let sp=0;sp<4;sp++)for(const s of f.sets.filter(s=>s.species===sp))assert.equal(s.capacity,Array.from(species.species).filter((v,i)=>v===sp && treeShape(sp,trees.tint[i])===s.shape).length,'[capacity] real species/shape count mismatch');
     for(const s of f.sets) {
-      for(const m of [s.leaf,s.wood])assert.equal(m.instanceMatrix.count,s.capacity,'[capacity] actual allocation differs');
+      for(const m of [s.leaf,s.wood].filter(Boolean))assert.equal(m.instanceMatrix.count,s.capacity,'[capacity] actual allocation differs');
+      if(s.impostor) {
+        // A board carries its trunk: the individual's bark brightness rides in aImpWood.
+        const wood=s.leaf.geometry.getAttribute('aImpWood').array,leaf=s.leaf.instanceMatrix.array;
+        for(let k=0;k<s.leaf.count;k++){const tint=at.get(`${leaf[k*16+12]},${leaf[k*16+14]}`);assert(tint!==undefined&&Math.abs(wood[k]-(.85+.3*tint))<1e-6,'[wood-color] board trunk brightness not written per individual');}
+        continue;
+      }
       assert.equal(s.wood.count,s.leaf.count,'[instance-wood] trunk count differs from crown');
       const leaf=s.leaf.instanceMatrix.array,wood=s.wood.instanceMatrix.array,colors=s.wood.instanceColor.array;
       for(let k=0;k<s.leaf.count;k++) {
@@ -167,6 +178,39 @@ test('real scatter, four site budgets, QA accounting and capacities [budget]',()
     assert.equal(Object.values(result.bySpecies).flat().reduce((a,b)=>a+b,0),count(f),'[qa] instance counts incorrect');
   }
   f.dispose();
+});
+
+// なぜ失敗したか（8.1a第2周）: 遠景の円錐は見晴らしで「段の針葉樹」に見え、三角形の約半分を使っていた。遠景を焼いた絵の板にする。
+// 板は近景から焼いた家族ごとの絵（帳の行）を使い、中景と同じ行列・葉の色で並び、幹の明るさは個体ごと。焼けなければ円錐に戻る。
+test('far adults are baked boards with the middle level transform and colour [impostor-field]',()=>{
+  const r=stubRenderer(),points=[];
+  for(let sp=0;sp<4;sp++)for(let k=0;k<TREES.variants[['cedar','zelkova','pine','maple'][sp]];k++)points.push({x:150,kind:sp,tint:tintFor(sp,k),rot:.6,s:1.3});
+  const f=field(points,{renderer:r});f.update(camera());
+  assert.equal(r.calls.filter(c=>c[0]==='render').length,2,'[impostor-field] the bake must render the albedo and the normal atlas once each');
+  assert.equal(r.state.target,'screen','[impostor-field] bake left the render target bound');
+  for(const s of f.sets.filter(s=>s.species<4)) {
+    if(s.level<2){assert(!s.impostor&&s.wood,'[impostor-field] near or middle level became a board');continue;}
+    assert(s.impostor&&s.wood===null,'[impostor-field] far level still draws a mesh and a trunk');
+    assert.equal(s.leaf.geometry.index.count,6,'[impostor-field] board is not two triangles');
+    assert(!s.leaf.castShadow&&!s.leaf.receiveShadow,'[impostor-field] far board shadows');
+    assert.equal(s.leaf.material,f.impostors.material(s.species,s.shape),'[impostor-field] board material is not its family');
+    assert.deepEqual(s.leaf.material.userData.uLod.value.toArray(),[142,150,-1,-1],'[impostor-field] far LOD weights');
+    const mid=f.sets.find(m=>m.species===s.species&&m.shape===s.shape&&m.level===1);
+    assert.equal(s.leaf.count,1,'[impostor-field] tree missing from its board set');
+    assert.deepEqual(matrix(s),matrix(mid),'[impostor-field] board transform differs from the middle level');
+    const fam=f.impostors.family(s.species,s.shape),uv=s.leaf.material.userData.impostor.uImpFrame.value.toArray();
+    assert.deepEqual(uv,fam.frame,'[impostor-field] board samples another family');
+  }
+  assert(f.impostors.families.length===13&&f.bakeMs>=0,'[impostor-field] families');
+  const events={rt:0};for(const t of Object.values(f.impostors.targets))t.addEventListener('dispose',()=>events.rt++);
+  f.dispose();f.dispose();assert.equal(events.rt,2,'[impostor-field] atlases not released exactly once');
+  // Without a renderer (or when the bake throws) the far level keeps its meshes.
+  const plain=field(points);plain.update(camera());
+  assert(!plain.impostors&&plain.sets.filter(s=>s.level===2&&s.species<4).every(s=>!s.impostor&&s.wood),'[impostor-fallback] no renderer must keep the far meshes');plain.dispose();
+  const warn=console.warn;let warned=0;console.warn=()=>warned++;
+  try{let lost;assert.doesNotThrow(()=>{lost=field(points,{renderer:stubRenderer({fail:true})});},'[impostor-fallback] a failed bake breaks the field');
+    lost.update(camera());assert(!lost.impostors&&warned===1&&lost.sets.filter(s=>s.level===2&&s.species<4).every(s=>!s.impostor),'[impostor-fallback] failed bake must fall back');lost.dispose();}
+  finally{console.warn=warn;}
 });
 
 // なぜ失敗したか: 変種を段ごとに選び直すと樹形が跳ね、同じ材質の多重パッチでLODが壊れる。
