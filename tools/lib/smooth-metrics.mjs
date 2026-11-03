@@ -24,7 +24,7 @@ export const GROUPS = Object.freeze({
 });
 export const BONES = Object.freeze(['Hips', ...Object.keys(PARENT)]);
 export const FEET = Object.freeze(['LeftFoot', 'RightFoot']);
-export const DEFAULTS = Object.freeze({ window: 0.5, popDeg: [45, 90], facingDeg: 30, flipWindow: 0.4, speedJump: 1.0 });
+export const DEFAULTS = Object.freeze({ window: 0.5, popDeg: [45, 90], facingDeg: 30, flipWindow: 0.4, speedJump: 1.0, camExclude: [] });
 
 const round = (x, n = 2) => Number.isFinite(x) ? Math.round(x * 10 ** n) / 10 ** n : x;
 export function percentile(values, p) {
@@ -56,12 +56,13 @@ const tagsOf = frames => [...new Set(frames.map(f => f.tag))];
 const hdist = (a, b) => Math.hypot(a[0] - b[0], a[2] - b[2]);
 
 // (a) 足の滑り。区間（tag）ごとと全体
-export function footSlip(frames) {
+// key は接地の列の名前（既定 'contact'。'low' なら呼ぶ側が「接地かつ足首が地面の近く」で決めた列）
+export function footSlip(frames, key = 'contact') {
   const by = {}, add = (tag, k, v) => { (by[tag] ||= { slipCm: 0, distM: 0 })[k] += v; };
   for (let i = 1; i < frames.length; i++) {
     const f = frames[i], g = frames[i - 1];
     add(f.tag, 'distM', hdist(f.pos, g.pos));
-    FEET.forEach((foot, s) => { if (f.contact?.[s] && g.contact?.[s] && f.bones?.[foot] && g.bones?.[foot]) add(f.tag, 'slipCm', hdist(f.bones[foot], g.bones[foot]) * 100); });
+    FEET.forEach((foot, s) => { if (f[key]?.[s] && g[key]?.[s] && f.bones?.[foot] && g.bones?.[foot]) add(f.tag, 'slipCm', hdist(f.bones[foot], g.bones[foot]) * 100); });
   }
   const total = { slipCm: 0, distM: 0 };
   for (const v of Object.values(by)) { total.slipCm += v.slipCm; total.distM += v.distM; }
@@ -153,7 +154,8 @@ export function gaitFlips(frames, opts = {}) {
 }
 
 // (f) カメラ
-export function cameraMotion(frames, dt) {
+// exclude：要約の p99 から外す区間（操作者が視点を回した区間など。要件37.1は「入力以外で跳ばさない」）。区間ごとの値は全部出す
+export function cameraMotion(frames, dt, exclude = []) {
   const P = frames.map(f => f.cam?.slice(0, 3)), Q = frames.map(f => f.cam?.slice(3, 7)), jerk = [], alpha = [], at = [];
   for (let i = 3; i < frames.length; i++) {
     if (!P[i] || !P[i - 3]) continue;
@@ -165,7 +167,8 @@ export function cameraMotion(frames, dt) {
   const fov = frames.map(f => f.cam?.[7]).filter(Number.isFinite);
   const byTag = {};
   for (const tag of tagsOf(frames)) byTag[tag] = { posJerkP99: round(percentile(jerk.filter((_, i) => at[i] === tag), 99), 1), rotAccelP99: round(percentile(alpha.filter((_, i) => atA[i] === tag), 99), 2) };
-  return { posJerkP99: round(percentile(jerk, 99), 1), posJerkMax: round(Math.max(0, ...jerk), 1), rotAccelP99: round(percentile(alpha, 99), 2), rotAccelMax: round(Math.max(0, ...alpha), 2), fovRange: fov.length ? [round(Math.min(...fov)), round(Math.max(...fov))] : null, byTag };
+  const keepJ = jerk.filter((_, i) => !exclude.includes(at[i])), keepA = alpha.filter((_, i) => !exclude.includes(atA[i]));
+  return { exclude, posJerkP99: round(percentile(keepJ, 99), 1), posJerkP99All: round(percentile(jerk, 99), 1), rotAccelP99All: round(percentile(alpha, 99), 2), posJerkMax: round(Math.max(0, ...jerk), 1), rotAccelP99: round(percentile(keepA, 99), 2), rotAccelMax: round(Math.max(0, ...alpha), 2), fovRange: fov.length ? [round(Math.min(...fov)), round(Math.max(...fov))] : null, byTag };
 }
 
 // (g) 論理の速さの不連続：論理の速さ（speed）と、実際に位置が進んだ速さ（位置の差÷dt）の、1コマの変化がしきい値（m/秒）を超えた回数
@@ -182,13 +185,13 @@ export function speedJumps(frames, dt, opts = {}) {
 // まとめ：表に出す値と、細目
 export function smoothMetrics(run, opts = {}) {
   const { frames, dt } = run;
-  const slip = footSlip(frames), win = windowDrift(frames, opts), pops = jointPops(frames, opts), face = facingJumps(frames, opts), flips = gaitFlips(frames, opts), cam = cameraMotion(frames, dt), spd = speedJumps(frames, dt, opts);
+  const slip = footSlip(frames), slipLow = frames.some(f => f.low) ? footSlip(frames, 'low') : null, win = windowDrift(frames, opts), pops = jointPops(frames, opts), face = facingJumps(frames, opts), flips = gaitFlips(frames, opts), cam = cameraMotion(frames, dt, opts.camExclude || []), spd = speedJumps(frames, dt, opts);
   const summary = {
-    'slip.cmPerM': slip.total.cmPerM, 'window.maxCm': win.max,
+    'slip.cmPerM': slip.total.cmPerM, 'slipLow.cmPerM': slipLow?.total.cmPerM ?? null, 'window.maxCm': win.max,
     ...Object.fromEntries(Object.entries(win.byKind).map(([k, v]) => [`window.${k}.maxCm`, v])),
     'pops.legs.over45': pops.legs.over45, 'pops.legs.over90': pops.legs.over90, 'pops.arms.over45': pops.arms.over45, 'pops.arms.over90': pops.arms.over90,
     'facing.yaw.over30': face.yaw.over, 'facing.model.over30': face.modelYaw.over, 'gait.flips': flips.flips,
     'cam.posJerkP99': cam.posJerkP99, 'cam.rotAccelP99': cam.rotAccelP99, 'speed.logicalJumps': spd.logical, 'speed.travelJumps': spd.travel,
   };
-  return { summary, slip, stanceMax: stanceMaxByTag(frames), windows: win, pops, facing: face, gait: flips, camera: cam, speed: spd };
+  return { summary, slip, slipLow, stanceMax: stanceMaxByTag(frames), windows: win, pops, facing: face, gait: flips, camera: cam, speed: spd };
 }

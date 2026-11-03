@@ -81,3 +81,15 @@ test('helpers: percentile is nearest-rank, rotvec handles the double cover', () 
   const a = rotvec(qz(30)), b = rotvec(qz(30).map(x => -x));
   assert(Math.abs(a[2] - Math.PI / 6) < 1e-9 && Math.abs(b[2] - Math.PI / 6) < 1e-9);
 });
+
+test('the low-contact slip and the camera exclusion read only what they are told to', () => {
+  const r = walker({ slip: 0.01 });
+  r.frames.forEach(f => { f.low = [false, false]; });                 // 地面の近くの足が無ければ、低い接地の滑りは0
+  assert.equal(footSlip(r.frames, 'low').total.cmPerM, 0);
+  assert(footSlip(r.frames).total.cmPerM > 25);
+  const c = walker(); for (let i = 100; i < c.frames.length; i++) c.frames[i].cam[0] += 0.3;
+  c.frames.forEach(f => { if (f.t >= 1.6 && f.t < 1.8) f.tag = 'turn'; });   // 跳びを含む区間だけを外すと、要約の p99 は0に戻る
+  assert(cameraMotion(c.frames, DT).posJerkP99 > 0 || cameraMotion(c.frames, DT).posJerkMax > 1e5);
+  assert.equal(cameraMotion(c.frames, DT, ['turn']).posJerkMax > 1e5, true);
+  assert.equal(cameraMotion(c.frames, DT, ['turn']).posJerkP99, 0);
+});
