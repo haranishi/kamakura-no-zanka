@@ -103,7 +103,9 @@ export class Battle {
         // 三段目（締めの一撃）：規則では強い技（combat.js の STRONG）。停止の長さ（時間の進み）は変えず、火花・音・揺れだけを強い側へ寄せる（8.3a）
         const finale = !strong && res.moveId === 'light3';
         g.fx.hit(pos, dir, { strong: strong || finale, travel: geo.travel });
-        g.audio.play(arrow ? 'arrow_hit' : strong || finale ? 'hit_heavy' : 'hit', { pan });
+        // 音だけの分岐：鎧の相手（兵＝軽い・侍大将＝重い）は金属の板の鳴り（ガン）。闇討ちは静かな技なので鎧でも肉の音のまま
+        const armor = def.fighter.armor, plate = !arrow && res.outcome !== 'stealth' && armor && armor !== 'none';
+        g.audio.play(arrow ? 'arrow_hit' : plate ? (strong || finale ? 'hit_armor_heavy' : 'hit_armor') : strong || finale ? 'hit_heavy' : 'hit', { pan, armor });
         g.hitStop(strong ? FEEL.hitStop.heavy : FEEL.hitStop.hit);
         if (heroDef) { g.rig.kick(0.7); g.rig.punchFov(1.8); g.hud.hurt(); g.hud.hint('dodge', STORY.hints.dodge); }
         else if (heroAtt) { g.rig.kick(strong ? 0.5 : finale ? 0.42 : 0.25); g.rig.punchFov(strong ? 1.6 : finale ? 1.3 : 0.8); }

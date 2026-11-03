@@ -100,7 +100,8 @@ export default async function ({ st, step, call, v, freeze, start, log }) {
   if (combo.stopFrames < 3) fails.push(`combo: 命中の停止が起きていない（${combo.stopFrames}）`);
   const sounds = await v(`__rt.sounds.filter(s => s[0] >= ${t0}).map(s => s[1])`);
   results.combo.sounds = sounds.filter(s => /hit|swing/.test(s));
-  if (!sounds.includes('hit_heavy')) fails.push('combo: 三段目の当たりが強い当たりの音にならない');
+  // 斥候は軽い鎧なので、強い当たりの音は鎧の板の強い音（hit_armor_heavy。2026-11-03 戦いの金属音）。鎧なしの相手なら hit_heavy
+  if (!sounds.includes('hit_heavy') && !sounds.includes('hit_armor_heavy')) fails.push('combo: 三段目の当たりが強い当たりの音にならない');
   if (sounds.filter(s => s === 'swing_heavy').length !== 1) fails.push(`combo: 三段目の振りの音が1回でない（${sounds.filter(s => s === 'swing_heavy').length}）`);
 
   // 2 三段目の停止の長さは前と同じ（hit=0.07秒）：三段目が当たったコマの直後の stopT を読む

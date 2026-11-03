@@ -1,0 +1,87 @@
+[
+ {
+  "name": "parry",
+  "kind": "parry",
+  "opts": {},
+  "peak": -9.121515298342798,
+  "rms": -30.132491835154674,
+  "centroid": 2567.344391105397,
+  "tail40ms": 425,
+  "finite": true
+ },
+ {
+  "name": "block",
+  "kind": "block",
+  "opts": {},
+  "peak": -9.748740464218745,
+  "rms": -31.068844515560986,
+  "centroid": 697.1363446659077,
+  "tail40ms": 160,
+  "finite": true
+ },
+ {
+  "name": "clash",
+  "kind": "clash",
+  "opts": {},
+  "peak": -11.126489466660523,
+  "rms": -31.101950681373218,
+  "centroid": 1957.036905985653,
+  "tail40ms": 295,
+  "finite": true
+ },
+ {
+  "name": "hit_armor",
+  "kind": "hit_armor",
+  "absent": true
+ },
+ {
+  "name": "hit_armor_light",
+  "kind": "hit_armor",
+  "absent": true
+ },
+ {
+  "name": "hit_armor_heavy",
+  "kind": "hit_armor_heavy",
+  "absent": true
+ },
+ {
+  "name": "hit",
+  "kind": "hit",
+  "opts": {},
+  "peak": -10.818039875216268,
+  "rms": -26.767343014087817,
+  "centroid": 139.4505930189929,
+  "tail40ms": 80,
+  "finite": true
+ },
+ {
+  "name": "hit_heavy",
+  "kind": "hit_heavy",
+  "opts": {},
+  "peak": -9.206393700910604,
+  "rms": -24.911677231994748,
+  "centroid": 100.88918051424645,
+  "tail40ms": 120,
+  "finite": true
+ },
+ {
+  "name": "arrow_hit",
+  "kind": "arrow_hit",
+  "opts": {},
+  "peak": -8.619193510205656,
+  "rms": -26.962865483515642,
+  "centroid": 172.0991762166649,
+  "tail40ms": 55,
+  "finite": true
+ },
+ {
+  "name": "sword_drop",
+  "kind": "sword_drop",
+  "absent": true
+ },
+ {
+  "name": "spark",
+  "kind": "spark",
+  "absent": true
+ }
+]
