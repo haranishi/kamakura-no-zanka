@@ -87,9 +87,9 @@ test('pretend: a request without activation is allowed while the lock is already
 
 test('pretend: a second request while the first is still waiting succeeds at once, and the lock lands on the second element', async () => {
   const w = makeWorld('pretend'); const a = new w.Element('a'); const b = new w.Element('b');
-  w.request(a, 'x'); await w.request(b, 'y');
+  const first = w.request(a, 'x'); await w.request(b, 'y');
   assert.equal(w.document.pointerLockElement, null);   // 許可待ちの間は、まだ固定されていない
-  await tick();
+  await first; await tick();                           // 最初の要求の許可が届いてから、change が出きるのを待つ（許可の前に待ち時間を作ると、遅い機械で間に合わない）
   assert.equal(w.document.pointerLockElement, b);
   assert.deepEqual(w.events.slice(0, 3), [['request', 'x', null], ['request', 'y', null], ['resolved', 'y']]);   // 2つ目が先に成功する
   assert.deepEqual(w.events.filter(e => e[0] === 'resolved').map(e => e[1]), ['y', 'x']);
