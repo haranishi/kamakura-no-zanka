@@ -57,7 +57,8 @@ export class RelicView {
     this.group.add(root);
     return { root, glint, mesh };
   }
-  // list：いま見えている物 [{ id, kind: 'sode'|'note', x, z, yaw, y }]（y は地面からの高さ。袖印が火へ落ちる間だけ使う）。無くなった物は片づける
+  // list：いま見えている物 [{ id, kind: 'sode'|'note', x, z, yaw, y, tilt, face }]（y は地面からの高さ。袖印が火へ落ちる間だけ使う）。無くなった物は片づける
+  // tilt は地面からの起こし（rad。既定0.06＝ほぼ寝かせる）、face は起こした面を向ける方位（rad。手に持った袖印をカメラへ向ける。章末の演出）
   update(list, t, camera, reduced) {
     const seen = new Set();
     for (const it of list) {
@@ -65,6 +66,7 @@ export class RelicView {
       let v = this.items.get(it.id);
       if (!v) { v = this.make(it); this.items.set(it.id, v); }
       v.root.position.set(it.x, this.terrain.heightAt(it.x, it.z) + (it.y || 0), it.z); v.mesh.rotation.z = it.yaw || 0;
+      v.root.rotation.y = it.face || 0; v.mesh.rotation.x = -Math.PI / 2 + (it.tilt ?? 0.06);
       const d = camera.position.distanceTo(v.root.position);
       v.glint.material.opacity = d > 22 || it.y ? 0 : (reduced ? 0.32 : 0.22 + 0.2 * (0.5 + 0.5 * Math.sin(t * Math.PI))) * Math.min(1, (22 - d) / 6);
     }

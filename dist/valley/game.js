@@ -16,6 +16,7 @@ import { createQuest, reduce, exportProgress, restoreProgress, summarize } from 
 import { STORY } from './story-data.js';
 import { loadValley, saveValley, loadMeta, saveMeta, loadCinematicsRecord, saveCinematicsRecord } from './save.js';
 import { planResume } from './cinematics.js';
+import { cinematicFor } from './cinematics-data.js';
 import { CinematicDirector } from './cinematics-view.js';
 import { OPENING } from './opening-data.js';
 import { createOpening, stepOpening } from './opening.js';
@@ -31,6 +32,7 @@ import { buildBaseline, buildRecovery, assess, roadDistance, RECOVERY_PENDING } 
 import { createGuideNav } from './guide-nav.js';
 import { normalizeWaymarks, switchGuidePlan, nearestGuideEntrance, sampleGuidePath, guideRouteHead } from './guide-view.js';
 import { GuideRenderer } from './guide-renderer.js';
+const CINE_TEXT = Object.fromEntries(Object.entries(STORY.cineLines).map(([id, l]) => [id, l.text]));   // 演出の字幕の識別子→文
 
 // 迷いの助けの復帰探索に使う1コマの時間（ms）。未測定の設計値。探索全体（20〜70ms）を1コマでやると走行中に引っかかった（tasks-polish3.md G）。
 const RECOVERY_BUDGET_MS = 2;
@@ -67,6 +69,8 @@ export class Game {
     this.settings = { waymarks: 'bold', blood: 'subtle', sens: 1, invert: false, shake: 1, subs: true };   // blood：血の表現（R18.11。既定ひかえめ）
     this.relicView = new RelicView(scene, terrain);
     this.cinema = new CinematicDirector(this);           // 節目の演出（cinematics-view.js）
+    // 章末の演出（chapter1_end）の復帰先：手送りの会話 ending_coda へ（決定U8）。終わりの保存・結果画面は、その会話の終わりで1回だけ（onDialogueEnd）
+    this.cinema.returns.register('result', () => { this.flow = 'play'; this.pendingDialogue = { id: 'ending_coda', since: this.time, delay: 0 }; });
     this.resetStory();
     this.syncLife();
   }
@@ -196,7 +200,12 @@ export class Game {
     this.buildWorld(); this.begin();
     if (this.quest.beat === 'done') this.showResult();
     // クリア後の保存は結果の区切り(b7_result)。つづきからは焚き火の前で結果の会話を出し直す（出さないと何も起きない）
-    else if (this.quest.beat === 'b7_result') { this.ending = summarize(this.quest); this.queueDialogue('result'); this.hud.showHUD(false); }   // 結末の間は HUD を隠す
+    else if (this.quest.beat === 'b7_result') {
+      this.ending = summarize(this.quest); this.hud.showHUD(false);                 // 結末の間は HUD を隠す
+      // 章末の演出を見終えていれば結果へ直行（結果の会話を済ませた扱いにして保存・結果画面を1回）。未完了なら結果の会話から出し直す（R29.4）
+      if (this.resumePlan === 'to-result') { this.dispatch({ type: 'dialogue_end', id: 'result' }); this.persist(); this.showResult(); }
+      else this.queueDialogue('result');
+    }
     // 見晴らしの区切りからのつづきも、道を選ぶ場面を飛ばさない（やり直しと同じ）
     else if (this.quest.beat === 'b3_viewpoint') this.after(0.9, () => { if (this.flow === 'play' && this.quest.beat === 'b3_viewpoint') this.showChoice(); });
   }
@@ -484,7 +493,8 @@ export class Game {
     this.dispatch({ type: 'dialogue_end', id });
     if (id === 'viewpoint_overlook') this.after(0.2, () => this.clearCine());
     if (STORY.relics.some(r => r.dialogue === id)) this.after(0.2, () => this.clearCine());
-    if (ENDING_NEXT[id]) this.queueDialogue(ENDING_NEXT[id]);                   // 結末：result → ending_truth → ending_coda
+    if (ENDING_NEXT[id]) this.queueDialogue(ENDING_NEXT[id]);                   // 結末：result → ending_truth →（章末の演出）→ ending_coda
+    if (id === 'ending_truth') this.playChapterEnd();
     if (id === 'boy_arrives') { const boy = this.npcs.get('boy'); if (boy) boy.runTo(-88.4, -74.5, b => { b.setCower(true); }); }
     if (id === 'viewpoint_overlook') this.showChoice();
     if (id === 'village_cleared') this.healHero(40, 'つばきが傷の手当てをしてくれた');
@@ -543,9 +553,17 @@ export class Game {
     this.flow = 'result'; this.input.releaseLock();
     this.hud.showResult(s);
   }
-  // ------------------------------------------------------------------ 節目の演出（C0a。表 CINEMATICS は空。中身は C1〜C4）
+  // ------------------------------------------------------------------ 節目の演出（C0a の枠・C1 の章末。大将・救出・待ち伏せは C2〜C4）
   // 遊びの最中（flow='play'）だけ始まる。演出の間は世界を止め、終われば entry.returnTarget の復帰先へ1回だけ渡す
   playCinematic(entry, opts = {}) { return this.cinema.play(entry, opts); }
+  // 章末（帰還の区切り）：断片の数で版を選んで流す。カメラは先に結びの会話の画角へ置き、演出はそこから入ってそこへ戻る
+  playChapterEnd() {
+    const entry = cinematicFor('chapter1_end', { fragments: this.quest.flags.fragments.length });
+    this.setCine(this.endingShot('ending_coda'), 1); this.applyCine(0);
+    const r = this.cinema.play(entry, { textById: CINE_TEXT });
+    if (!r.ok && r.reason !== 'invalid') this.cinema.returns.resolve('result')({ entry, skipped: false, failed: true });   // 流せない（予約済み等）：会話へそのまま
+    return r;
+  }
   resetCinematicsRecord() {
     const r = saveCinematicsRecord(this.storage, { chapter1EndSeen: false });
     this.cineResetPending = !r.ok;
@@ -562,7 +580,7 @@ export class Game {
     this.cinema.step(rawDt);
     if (this.flow === 'cinematic') {
       this.updateGuide(0); this.updateWorld(0);            // 見た目だけ：新しい画角で木や草の近さを選び直す（風・時刻は進めない）
-      this.fx.update(0, this.camera, this.renderer.domElement.clientHeight || 800);
+      this.fx.update(this.cinema.cast.fxDt, this.camera, this.renderer.domElement.clientHeight || 800);   // 粒は焚き火の映る演出だけ進める（ほかは0）
     }
     this.input.endFrame();                                  // 演出中の押下は遊びへ持ち越さない
   }

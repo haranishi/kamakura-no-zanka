@@ -76,19 +76,22 @@ export const STORY = {
       { speaker: yajuro, text: 'ならば、離れたのも道理だ。', when: { fragments: [3, null] } },
       { speaker: hero, text: '……そう言われたのは、初めてだ。', when: { fragments: [3, null] } },
     ],
+    // 真相のあとは章末の演出（cinematics-data.js の chapter1_end。自動で約9秒）が先に流れ、そのあとこの手送りの会話（決定U7・U8）。
+    // もとの7行のうち、袖印をくべる間・「もう、いい。」・穂太を見る間・最後の語りは演出へ移した（cineLines）。続きへの引き（R19.3）はここに残す
     ending_coda: [
-      { speaker: hero, text: '……', pause: 1.2, veil: true, fx: 'sode_burn', when: { fragments: [5, null] } },   // 袖印が手から火へ落ちる（会話の枠を消して見せる。案。音なし）
-      { speaker: hero, text: 'もう、いい。', when: { fragments: [5, null] } },
-      { speaker: hero, text: '……', pause: 1.5, look: 'boy', when: { fragments: [5, null] } },
       { speaker: hero, text: '……飯にしよう。' },
       { speaker: yajuro, text: '橋の向こうに、追手の本隊がいるはずだ。' },
       { speaker: hero, text: '……明日、考える。' },
-      { speaker: narrator, text: '燃え残った火は、谷で、人の灯になった。', narration: true },
     ],
     // 調べる（E）で出す一行。断片 F1・F2 と手がかり C1
     relic_sode: [{ speaker: hero, text: '……あの門を。', fragment: 'F1' }],
     relic_far_look: [{ speaker: hero, text: 'あの夜、門を背に、山へ走った。', fragment: 'F2' }],
     clue_scout_note: [{ speaker: hero, text: '兵糧の書き付け。取り立てが、多すぎる。', clue: 'C1' }],
+  },
+  // 演出の字幕（識別子→行）。演出の表は文を持たず、この識別子で引く。章末の2行は、もとは ending_coda の行
+  cineLines: {
+    coda_let_go: { speaker: hero, text: 'もう、いい。' },
+    coda_lamp: { speaker: narrator, text: '燃え残った火は、谷で、人の灯になった。' },
   },
   // 敵の掛け声（字幕）。音に頼らず状況が分かるように、画面にも出す。raid は、まだ気づいていない里の兵が荒らしながら上げる声（C2。game.js）
   barks: {

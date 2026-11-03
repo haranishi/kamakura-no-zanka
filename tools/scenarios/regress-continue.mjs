@@ -3,7 +3,8 @@
 //  ・クリア後（保存は結果の区切り）は、焚き火の前で結果の会話が出て、結果画面へ進む（出ないと何も起きず進めない）。
 // 実行：PLAYWRIGHT_MODULE=… node tools/valley-play.mjs tools/scenarios/regress-continue.mjs --strict
 export default async function ({ st, step, call, v, freeze, start, log }) {
-  const adv = async () => { for (let i = 0; i < 80; i++) { const q = await st(); if (q.talking) { await call('advanceDialogue', true); await step(10); } else if (q.pending) await step(30); else break; } };
+  // 章末の演出（自動・約9秒。C1）は流れ終わるまで待つ
+  const adv = async () => { for (let i = 0; i < 80; i++) { const q = await st(); if (q.talking) { await call('advanceDialogue', true); await step(10); } else if (q.pending || q.flow === 'cinematic') await step(30); else break; } };
   const toTitle = () => v("(() => { const g = __valley.game; g.hud.hideResult(); g.hud.showChoice(false); g.pendingDialogue = null; g.flow = 'idle'; })()");
   const ev = async (type, f = {}) => { await call('dispatch', { type, ...f }); await step(2); };
   const shown = id => v(`(() => { const e = document.getElementById('${id}'); return !!e && !e.classList.contains('hidden'); })()`);

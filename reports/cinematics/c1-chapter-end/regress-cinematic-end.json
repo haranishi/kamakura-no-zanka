@@ -1,0 +1,267 @@
+{
+ "cases": [
+  {
+   "n": 0,
+   "variant": "plain",
+   "trust": 40,
+   "food": 20,
+   "muted": false,
+   "complete": {
+    "frames": 504,
+    "seconds": 8.4,
+    "lines": [
+     "燃え残った火は、谷で、人の灯になった。"
+    ],
+    "calls": 306,
+    "tris": 2722318,
+    "burnFrame": -1,
+    "sodeFrames": 0,
+    "skippedAt": -1,
+    "hintAt": 36,
+    "stage": {
+     "id": "chapter1_end",
+     "variant": "plain",
+     "burned": false,
+     "burnAt": null,
+     "sodeSeen": false,
+     "cast": [
+      "hero",
+      "boy",
+      "archer"
+     ]
+    },
+    "rngCalls": 123,
+    "coda": {
+     "startFrames": 1,
+     "firstIndex": 0,
+     "lines": 3,
+     "frames": 360
+    },
+    "persist": 1,
+    "result": 1
+   },
+   "skip": {
+    "skippedAt": 46,
+    "returnFrames": 24,
+    "burned": false,
+    "coda": {
+     "startFrames": 1,
+     "firstIndex": 0,
+     "lines": 3,
+     "frames": 360
+    },
+    "persist": 1,
+    "result": 1
+   }
+  },
+  {
+   "n": 3,
+   "variant": "deep",
+   "trust": 60,
+   "food": 55,
+   "muted": false,
+   "complete": {
+    "frames": 540,
+    "seconds": 9,
+    "lines": [
+     "燃え残った火は、谷で、人の灯になった。"
+    ],
+    "calls": 306,
+    "tris": 2707280,
+    "burnFrame": -1,
+    "sodeFrames": 0,
+    "skippedAt": -1,
+    "hintAt": 36,
+    "stage": {
+     "id": "chapter1_end",
+     "variant": "deep",
+     "burned": false,
+     "burnAt": null,
+     "sodeSeen": false,
+     "cast": [
+      "hero",
+      "boy",
+      "archer"
+     ]
+    },
+    "rngCalls": 1434,
+    "coda": {
+     "startFrames": 1,
+     "firstIndex": 0,
+     "lines": 3,
+     "frames": 360
+    },
+    "persist": 1,
+    "result": 1
+   },
+   "skip": {
+    "skippedAt": 46,
+    "returnFrames": 24,
+    "burned": false,
+    "coda": {
+     "startFrames": 1,
+     "firstIndex": 0,
+     "lines": 3,
+     "frames": 360
+    },
+    "persist": 1,
+    "result": 1
+   }
+  },
+  {
+   "n": 4,
+   "variant": "deep",
+   "trust": 50,
+   "food": 40,
+   "muted": true,
+   "complete": {
+    "frames": 540,
+    "seconds": 9,
+    "lines": [
+     "燃え残った火は、谷で、人の灯になった。"
+    ],
+    "calls": 306,
+    "tris": 2707280,
+    "burnFrame": -1,
+    "sodeFrames": 0,
+    "skippedAt": -1,
+    "hintAt": 36,
+    "stage": {
+     "id": "chapter1_end",
+     "variant": "deep",
+     "burned": false,
+     "burnAt": null,
+     "sodeSeen": false,
+     "cast": [
+      "hero",
+      "boy",
+      "archer"
+     ]
+    },
+    "rngCalls": 2766,
+    "coda": {
+     "startFrames": 1,
+     "firstIndex": 0,
+     "lines": 3,
+     "frames": 360
+    },
+    "persist": 1,
+    "result": 1
+   },
+   "skip": {
+    "skippedAt": 46,
+    "returnFrames": 24,
+    "burned": false,
+    "coda": {
+     "startFrames": 1,
+     "firstIndex": 0,
+     "lines": 3,
+     "frames": 360
+    },
+    "persist": 1,
+    "result": 1
+   }
+  },
+  {
+   "n": 5,
+   "variant": "full",
+   "trust": 60,
+   "food": 60,
+   "muted": false,
+   "complete": {
+    "frames": 564,
+    "seconds": 9.4,
+    "lines": [
+     "もう、いい。",
+     "燃え残った火は、谷で、人の灯になった。"
+    ],
+    "calls": 377,
+    "tris": 3443827,
+    "burnFrame": 175,
+    "sodeFrames": 139,
+    "skippedAt": -1,
+    "hintAt": 36,
+    "stage": {
+     "id": "chapter1_end",
+     "variant": "full",
+     "burned": true,
+     "burnAt": 2.917,
+     "sodeSeen": true,
+     "cast": [
+      "hero",
+      "boy",
+      "archer"
+     ]
+    },
+    "rngCalls": 4092,
+    "coda": {
+     "startFrames": 1,
+     "firstIndex": 0,
+     "lines": 3,
+     "frames": 360
+    },
+    "persist": 1,
+    "result": 1
+   },
+   "skip": {
+    "skippedAt": 46,
+    "returnFrames": 24,
+    "burned": true,
+    "coda": {
+     "startFrames": 1,
+     "firstIndex": 0,
+     "lines": 3,
+     "frames": 360
+    },
+    "persist": 1,
+    "result": 1
+   }
+  }
+ ],
+ "reduced": {
+  "lines": [
+   "もう、いい。",
+   "燃え残った火は、谷で、人の灯になった。"
+  ],
+  "cameras": [
+   {
+    "x": -88.3,
+    "y": 22.5,
+    "z": -81.15,
+    "fov": 40
+   },
+   {
+    "x": -90.1,
+    "y": 22.58,
+    "z": -82.2,
+    "fov": 46
+   },
+   {
+    "x": -88.4,
+    "y": 22.98,
+    "z": -78,
+    "fov": 44
+   },
+   {
+    "x": -87.4,
+    "y": 22.84,
+    "z": -80.95,
+    "fov": 42
+   },
+   {
+    "x": -88.6,
+    "y": 24.48,
+    "z": -75.4,
+    "fov": 46
+   }
+  ],
+  "burned": true
+ },
+ "resume": {
+  "midPlan": "play-end",
+  "midFrames": 540,
+  "donePlan": "to-result",
+  "doneSaves": 1,
+  "doneResults": 1
+ }
+}

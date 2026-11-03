@@ -7,6 +7,7 @@ import { matches, stepBanter, createBanterState, lineSeconds, trustTier, areasAt
 import { linesFor, endingTier, relicInReach, ringPlacement } from '../dist/valley/narrative.js';
 import { createQuest, reduce, exportProgress, restoreProgress } from '../dist/valley/quest.js';
 import { storyProblems } from '../tools/lib/story-check.mjs';
+import { cinematicFor } from '../dist/valley/cinematics-data.js';
 import { initialSave, sanitize, loadValley, saveValley, VALLEY_KEY } from '../dist/valley/save.js';
 
 const run = (s, type, f = {}) => reduce(s, { type, ...f }).state;
@@ -138,8 +139,12 @@ test('fragments: the three spoken ones come with their conversations, the two re
   // 真相の3行は、断片が0でも必ず出る（R20.3）
   for (const q of [none, spoken, all]) for (const t of ['あの夜、門を離れたのは、泣いている子がいたからだ。', '……その子は。', '山へ逃がした。名も知らぬ。']) assert(texts(q, 'ending_truth').includes(t));
   assert.equal(texts(none, 'ending_truth').length, 3); assert.equal(texts(spoken, 'ending_truth').length, 5); assert.equal(texts(all, 'ending_truth').length, 5);
-  assert(!texts(spoken, 'ending_coda').includes('もう、いい。') && texts(all, 'ending_coda').includes('もう、いい。'));
-  for (const q of [none, spoken, all]) assert(texts(q, 'ending_coda').includes('燃え残った火は、谷で、人の灯になった。') && texts(q, 'ending_coda').includes('……明日、考える。'));
+  // 結びは章末の演出（自動）と手送りの会話 ending_coda に分かれる（C1・決定U7/U8）。「もう、いい。」と袖印は5個の版だけ、最後の語りは全部の版
+  const cine = q => { const e = cinematicFor('chapter1_end', { fragments: q.flags.fragments.length });
+    return { subs: e.shots.flatMap(s => s.subtitleIds).map(id => STORY.cineLines[id].text), cues: e.shots.flatMap(s => s.scenery) }; };
+  assert(!cine(spoken).subs.includes('もう、いい。') && cine(all).subs.includes('もう、いい。'));
+  assert(!cine(spoken).cues.includes('sode_fall') && !cine(none).cues.includes('sode_fall') && cine(all).cues.includes('sode_fall'));
+  for (const q of [none, spoken, all]) assert(cine(q).subs.includes('燃え残った火は、谷で、人の灯になった。') && texts(q, 'ending_coda').includes('……明日、考える。') && texts(q, 'ending_coda').includes('橋の向こうに、追手の本隊がいるはずだ。'));
   assert.deepEqual([0, 2, 3, 4, 5].map(endingTier), ['plain', 'plain', 'deep', 'deep', 'full']);
 });
 test('fragments: examining twice, out of place, while down or an unknown relic adds nothing; the effect fires once', () => {

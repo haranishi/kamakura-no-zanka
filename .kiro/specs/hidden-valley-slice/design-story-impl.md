@@ -58,3 +58,4 @@ design-narrative.md §3〜§7 を実装した記録。2026-10-31〜11-01、枝 `
 - 調べると、主人公は対象へ瞬時に向き直る（画角の寄りに隠れる）。
 - `hud.startDialogue` に第4引数（行ごとの知らせ）を足し、`game.js` の会話の開始・終了・`updatePrompt`・`worldInteract` を変えた。kz-opening と同じ関数に触れるので、統合時に突き合わせる。
 - 袖印をくべる演出は2026-11-03に本人が採用した。細かな演技は tasks-cinematics.md の C5。
+- 2026-11-04（C1）：ending_coda の袖印をくべる間・「もう、いい。」・穂太を見る間・最後の語りは、章末の演出 chapter1_end へ移した（手送りに残すのは3行）。[C1の設計](design-cinematics-c1.md)。
