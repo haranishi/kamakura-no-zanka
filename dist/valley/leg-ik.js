@@ -32,6 +32,12 @@ export class LegRig {
     this.anim = this.legs.map(() => ({ p: new THREE.Vector3(), q: new THREE.Quaternion() }));
     this.want = this.legs.map(() => new THREE.Vector3());
     this.tilt = [0, 0];
+    this.bestA = null; this.bestW = 0; this.bestName = null;
+    this.scan = (a, name) => {   // stance() の走査（1回だけ作る）
+      const m = this.ch.roster.meta.clips[name], mixer = this.ch.mixer;
+      if (!m?.contacts || m.kind !== 'cycle' || !a.enabled || (mixer._isActiveAction && !mixer._isActiveAction(a))) return;
+      const w = a.getEffectiveWeight(); if (w > this.bestW) { this.bestW = w; this.bestA = a; this.bestName = name; }
+    };
   }
 
   undo() {
@@ -43,15 +49,13 @@ export class LegRig {
 
   // 着いている足（STANCE へ書く）。戻り値：'cycle'＝周期の動作の位相で決めた／'both'＝待ち・混ぜの途中で両足／null＝移動の動作でない
   stance() {
-    const ch = this.ch, meta = ch.roster.meta.clips, mixer = ch.mixer;
+    const ch = this.ch;
     if (!ch.locoName || ch.currentName !== ch.locoName) return null;
-    let best = null, bw = 0, bn = null;
-    for (const [name, a] of ch.actions) {
-      const m = meta[name]; if (!m?.contacts || m.kind !== 'cycle' || !a.enabled || (mixer._isActiveAction && !mixer._isActiveAction(a))) continue;
-      const w = a.getEffectiveWeight(); if (w > bw) { bw = w; best = a; bn = name; }
-    }
-    if (!best || bw < 0.5) { STANCE[0] = STANCE[1] = true; return 'both'; }
-    const m = meta[bn], ph = (best.time / m.seconds) % 1, fl = GAIT_TABLE[bn]?.[ch.who]?.flat;
+    this.bestA = null; this.bestW = 0; this.bestName = null;
+    ch.actions.forEach(this.scan);   // 毎コマ呼ぶので、Map の for…of（入れ物の配列を作る）を使わない
+    const best = this.bestA, bn = this.bestName;
+    if (!best || this.bestW < 0.5) { STANCE[0] = STANCE[1] = true; return 'both'; }
+    const m = ch.roster.meta.clips[bn], ph = (best.time / m.seconds) % 1, fl = GAIT_TABLE[bn]?.[ch.who]?.flat;
     STANCE[0] = inFlat(fl ? fl.left : m.contacts.left, ph); STANCE[1] = inFlat(fl ? fl.right : m.contacts.right, ph);
     return 'cycle';
   }

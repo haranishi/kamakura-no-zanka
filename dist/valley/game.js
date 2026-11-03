@@ -717,21 +717,20 @@ export class Game {
 
   // 脚のIK（M2b・leg-ik.js）を使う人：主人公と、近くの敵・仲間（上限8人・24m以内）。軽量の品質は主人公だけ。どの人も更新を2つに分ける
   markLegIk() {
-    const hero = this.hero, light = this.post?.quality === 'light', pick = this.legPick ||= [], NEAR = 24;
+    const hero = this.hero, pick = this.legPick ||= [];
     pick.length = 0;
-    const each = a => { if (!a) return; const ch = a.character; ch.splitPose = true; ch.legIk = false; ch.legTerrain = this.terrain; };
-    each(hero); for (const e of this.enemies) each(e); each(this.ally); for (const n of this.npcs.values()) each(n);
+    this.legPrep(hero); for (const e of this.enemies) this.legPrep(e); this.legPrep(this.ally); for (const n of this.npcs.values()) this.legPrep(n);
     hero.character.legIk = true;
-    if (light) return;
-    const cand = a => { if (a && !a.departed && a.character.root.visible && (!a.fighter || a.fighter.alive)) { const d = dist2(a.pos, hero.pos); if (d < NEAR) pick.push(a); } };
-    for (const e of this.enemies) cand(e); cand(this.ally);
-    if (pick.length > 8) pick.sort((a, b) => dist2(a.pos, hero.pos) - dist2(b.pos, hero.pos));
+    if (this.post?.quality === 'light') return;
+    for (const e of this.enemies) this.legCand(e); this.legCand(this.ally);
+    if (pick.length > 8) pick.sort(this.legNearer ||= (a, b) => dist2(a.pos, this.hero.pos) - dist2(b.pos, this.hero.pos));
     for (let i = 0; i < pick.length && i < 8; i++) pick[i].character.legIk = true;
   }
-  finishPoses() {
-    const done = a => { if (!a) return; const ch = a.character; if (ch.poseDt != null) { a.sync(); ch.finishPose(); } else { ch.splitPose = false; ch.legIk = false; } };
-    done(this.hero); for (const e of this.enemies) done(e); done(this.ally); for (const n of this.npcs.values()) done(n);
-  }
+  // 毎コマ呼ぶので、関数を作らない（使い回すメソッドで1人ずつ）
+  legPrep(a) { if (!a) return; const ch = a.character; ch.splitPose = true; ch.legIk = false; ch.legTerrain = this.terrain; }
+  legCand(a) { if (a && !a.departed && a.character.root.visible && (!a.fighter || a.fighter.alive) && dist2(a.pos, this.hero.pos) < 24) this.legPick.push(a); }
+  legDone(a) { if (!a) return; const ch = a.character; if (ch.poseDt != null) { a.sync(); ch.finishPose(); } else { ch.splitPose = false; ch.legIk = false; } }
+  finishPoses() { this.legDone(this.hero); for (const e of this.enemies) this.legDone(e); this.legDone(this.ally); for (const n of this.npcs.values()) this.legDone(n); }
 
   // 人物どうしが重ならないよう、近すぎる組を左右へ押し分ける（死んだ・倒れた・降った者は押さない）
   separateActors() {
