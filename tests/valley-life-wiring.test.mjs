@@ -21,7 +21,7 @@ const terrain = createTerrain(WORLD), hearth = WORLD.life.items.find(d => d.id =
 function fakeGame(quest) {
   const applied = [], smoke = [];
   const g = Object.assign(Object.create(proto), { quest, applied, smoke, terrain, flow: 'play', rng: () => 0.99, hero: { pos: { x: -40, y: 10, z: -25 } },
-    props: { life: { apply: s => applied.push(s) } }, fx: { flame() {}, ember() {}, smoke() {}, mote() {}, chimney: (p, c) => smoke.push({ p, grey: !!c }) } });
+    props: { life: { apply: s => applied.push(s) } }, fx: { flame() {}, ember() {}, smoke() {}, mote() {}, chimney: (p, c, k = 1) => smoke.push({ p, grey: !!c, k }) } });
   return g;
 }
 const quest = (beat, extra = {}) => ({ beat, flags: { approach: 'front', ...extra }, resources: { food: 60 }, trust: 40 });
@@ -31,18 +31,26 @@ test('syncLife hands the scene of life-rules to the life view, and lifeShows rea
   g.syncLife();
   assert.equal(g.applied.length, 1);
   assert.deepEqual(g.applied[0], lifeScene(lifeInputFromQuest(g.quest)), '[life-wiring-sync] the view gets exactly the life-rules scene');
-  assert.equal(g.lifeShows('camp_smoke'), true); assert.equal(g.lifeShows('house_smoke'), false);
+  assert.equal(g.lifeShows('camp_smoke'), true); assert.equal(lifeItem(g.lifeState, 'house_smoke').state, 'thin');
   g.quest = quest('b5_archer'); g.syncLife();
   assert.equal(g.lifeShows('camp_smoke'), false); assert.equal(g.lifeShows('house_smoke'), true);
   assert.equal(Object.assign(fakeGame(null), { lifeState: null }).lifeShows('house_smoke'), false, '[life-wiring-sync] no scene, no smoke');
 });
 
-test('smoke: during the raid one grey plume from the camp embers and no kitchen smoke from the houses; after the rescue the houses smoke again [life-wiring-smoke]', () => {
-  for (const [beat, camp, houses] of [['b3_viewpoint', 1, 0], ['b4_village', 1, 0], ['b5_archer', 0, 5], ['b7_result', 0, 5]]) {
-    const g = fakeGame(quest(beat)); g.syncLife(); g.updateAmbientFx(0.1);
+test('smoke: during the raid one grey plume from the camp embers and only 1-2 thin kitchen plumes from the houses farthest from the camp; after the rescue every house smokes [life-wiring-smoke]', () => {
+  const houses = WORLD.buildings.filter(b => b.kind === 'farmhouse'), far = id => Math.hypot(houses.find(b => b.id === id).x - hearth.x, houses.find(b => b.id === id).z - hearth.z);
+  const hp = { x: -10, y: 10, z: 0 };   // 里の真ん中から（5軒とも140m以内）
+  for (const [beat, food, camp, n] of [['b3_viewpoint', 60, 1, 2], ['b4_village', 60, 1, 2], ['b4_village', 20, 1, 1], ['b5_archer', 60, 0, 5], ['b7_result', 60, 0, 5]]) {
+    const g = fakeGame({ ...quest(beat), resources: { food } }); g.hero.pos = hp; g.syncLife(); g.updateAmbientFx(0.1);
     const grey = g.smoke.filter(s => s.grey), plain = g.smoke.filter(s => !s.grey);
     assert.equal(grey.length > 0, camp > 0, `[life-wiring-smoke] ${beat}: camp plume`);
-    assert.equal(plain.length, houses, `[life-wiring-smoke] ${beat}: house chimneys`);
+    assert.equal(plain.length, n, `[life-wiring-smoke] ${beat} food ${food}: house chimneys`);
+    for (const s of plain) assert.equal(s.k, camp ? 0.45 : 1, `[life-wiring-smoke] ${beat}: thin while raided, full after`);
+    if (camp) {   // 襲撃中に煙を出すのは、炊き場から遠い家（隠れて暮らしている）
+      const lit = plain.map(s => houses.reduce((a, b) => (Math.hypot(b.x - s.p.x, b.z - s.p.z) < Math.hypot(a.x - s.p.x, a.z - s.p.z) ? b : a)).id);
+      const order = houses.map(b => b.id).sort((a, b) => far(b) - far(a));
+      assert.deepEqual(lit, order.slice(0, n), `[life-wiring-smoke] ${beat}: the farthest houses`);
+    }
     for (const s of grey) assert(Math.hypot(s.p.x - hearth.x, s.p.z - hearth.z) < 0.5, '[life-wiring-smoke] the grey plume rises from the camp hearth');
   }
 });

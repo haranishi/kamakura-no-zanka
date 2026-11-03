@@ -121,6 +121,16 @@ export const WORLD = {
       { id: 'north_stake_3', kind: 'stake', x: -34.09, z: -21.57, rotY: 0.5, tilt: [0.07, 0.02], scale: [1, 1.08, 1], hit: { r: 0.08, height: 0.95 } },
       { id: 'north_stake_4', kind: 'stake', x: -32.68, z: -23.27, rotY: 2.0, tilt: [-0.06, -0.05], hit: { r: 0.08, height: 0.9 } },
       { id: 'north_stake_5', kind: 'stake', x: -31.89, z: -25.47, rotY: 0.9, tilt: [0.02, 0.08], scale: [1, 0.85, 1], hit: { r: 0.08, height: 0.8 } },
+      // 見3 三つの道の目印（第3周）：脇道（北・南）は道の縁に柴垣＝外から隠れて回り込む道。正面は道の口に兵の流れ旗＝敵が押さえた道（襲撃中だけ）
+      { id: 'north_hedge_1', kind: 'hedge', x: -36.2, z: -19.03, rotY: 0.8819, scale: [1.276, 1, 1], hit: { w: 2.04, d: 0.25, height: 0.85 } },
+      { id: 'north_hedge_2', kind: 'hedge', x: -34.795, z: -20.725, rotY: 0.8755, scale: [1.276, 1, 1], hit: { w: 2.04, d: 0.25, height: 0.85 } },
+      { id: 'north_hedge_3', kind: 'hedge', x: -33.385, z: -22.42, rotY: 0.8784, scale: [1.28, 1, 1], hit: { w: 2.05, d: 0.25, height: 0.85 } },
+      { id: 'north_hedge_4', kind: 'hedge', x: -32.285, z: -24.37, rotY: 1.226, scale: [1.361, 1, 1], hit: { w: 2.18, d: 0.25, height: 0.85 } },
+      { id: 'south_hedge_1', kind: 'hedge', x: -15.877, z: 34.041, rotY: 1.249, hit: { w: 1.6, d: 0.25, height: 0.85 } },
+      { id: 'south_hedge_2', kind: 'hedge', x: -15.369, z: 32.517, rotY: 1.249, hit: { w: 1.6, d: 0.25, height: 0.85 } },
+      { id: 'south_hedge_3', kind: 'hedge', x: -14.861, z: 30.993, rotY: 1.249, hit: { w: 1.6, d: 0.25, height: 0.85 } },
+      { id: 'south_hedge_4', kind: 'hedge', x: -14.353, z: 29.469, rotY: 1.249, hit: { w: 1.6, d: 0.25, height: 0.85 } },
+      { id: 'front_flag', kind: 'flag', x: -34.2, z: -6.6, rotY: 1.2, show: { item: 'road_flag', state: ['planted'] } },
       // 入1 俵の列：蔵の戸口から荷車へ（2は破れて米がこぼれる）。荒れるほど積み増す（5は3・4の上、6は1の横。当たりは組ごとに1つ）
       { id: 'bale_1', kind: 'bale', x: -30.62, z: 9.5, rotY: 0.35, hit: { x: -30.54, z: 9.72, r: 0.55, height: 0.45 } },
       { id: 'bale_2', kind: 'bale_torn', x: -30.1, z: 7.7, rotY: 0.95, hit: { r: 0.4, height: 0.4 } },
@@ -134,14 +144,14 @@ export const WORLD = {
       // 入2 空の鍋の炊き場（炎は出さない。燠と灰色の煙1本は襲撃中だけ）
       { id: 'hearth', kind: 'hearth', x: -25.6, z: 8.4, rotY: 0.3 },
       { id: 'embers', kind: 'embers', x: -25.6, z: 8.4, rotY: 1.1, show: { item: 'camp_kitchen', state: ['embers'] } },
-      // 空の鍋は火から下ろして横に倒し、底まで空なのを口から見せる（煙は炉の燠から）。柄杓は地面に落ちている
-      { id: 'pot', kind: 'pot', x: -24.95, z: 8.95, rotY: 0.39, tilt: [1.25, 0], lift: 0.155 },
+      // 空の鍋は火から下ろして斜めに倒し、底まで空なのを口から見せる（煙は炉の燠から）。柄杓は地面に落ちている
+      { id: 'pot', kind: 'pot', x: -24.85, z: 9.05, rotY: 1.28, tilt: [0.95, 0], lift: 0.16, scale: 1.5 },   // 第3周：径0.42→0.63m（兵の大鍋。小さくて読まれなかった）。口を炊き場の側（寄りの画角）へ向け、傾きを浅くして中の底まで見せる
       { id: 'ladle', kind: 'ladle', x: -24.55, z: 9.45, rotY: 2.4, lift: 0.0 },
       { id: 'mat_1', kind: 'mat', x: -27.0, z: 8.6, rotY: 0.15 },
       { id: 'mat_2', kind: 'mat', x: -25.4, z: 7.05, rotY: 1.6 },
-      // 入3 祠の注連縄：杭2本（動かない）の間で、襲撃中は切れて垂れ、救ったあとは張り直す。縄の中心は2本の杭の中点
-      { id: 'shrine_post_l', kind: 'post', x: -26.6, z: -7.5, rotY: -0.46, hit: { r: 0.08, height: 1.15 } },
-      { id: 'shrine_post_r', kind: 'post', x: -28.04, z: -8.22, rotY: -0.46, hit: { r: 0.08, height: 1.15 } },
+      // 入3 祠の注連縄：杭2本（動かない）の間で、襲撃中は切れて垂れ、救ったあとは張り直す。縄の中心は2本の杭の中点。第3周で杭の間を2.1m・高さ1.5mへ広げた（小さくて読まれなかった）
+      { id: 'shrine_post_l', kind: 'post', x: -26.381, z: -7.39, rotY: -0.46, hit: { r: 0.1, height: 1.5 } },
+      { id: 'shrine_post_r', kind: 'post', x: -28.259, z: -8.33, rotY: -0.46, hit: { r: 0.1, height: 1.5 } },
       { id: 'rope_cut', kind: 'rope_cut', x: -27.32, z: -7.86, rotY: -0.4636, show: { item: 'boundary_rope', state: ['cut'] } },
       { id: 'rope_tied', kind: 'rope_tied', x: -27.32, z: -7.86, rotY: -0.4636, show: { item: 'boundary_rope', state: ['retied'] } },
       // 入4 荒らされた跡：家1の柵の1区画が倒れ、荒れ方3でもう1区画が傾く（当たりは傾いても同じ箱）。畑に曲物の桶・倒れた籠・菜

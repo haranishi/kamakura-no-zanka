@@ -42,6 +42,13 @@ test('colliders: only items that are always shown carry one (no invisible walls)
     const covered = circles.some(c => Math.hypot(c.x - d.x, c.z - d.z) <= c.r + 0.05);
     assert(covered, `[life-hit] knee-high ${d.id} at ${d.x},${d.z} has no collider around it`);
   }
+  // 柴垣（見3・第3周）は箱の当たりで、描いた長さ（1.6m×scale[0]）をほぼ全部ふさぐ（垣の隙間を抜けられない）
+  const hedges = items.filter(d => d.kind === 'hedge');
+  assert(hedges.length >= 6, '[life-hit] the side roads lost their hedges');
+  for (const d of hedges) {
+    const b = boxes.find(c => c.id === d.id), len = 1.6 * (Array.isArray(d.scale) ? d.scale[0] : d.scale ?? 1);
+    assert(b && Math.hypot(b.x - d.x, b.z - d.z) < 0.05 && b.w >= len - 0.1 && b.rotY === d.rotY, `[life-hit] hedge ${d.id} is not solid along its length`);
+  }
   // 場面で出入りする物に当たりを書いても、当たりにはならない（表の書き間違いの保険）
   const world = { dress: [], distant: [], life: { items: [{ id: 'x', kind: 'bale', x: 0, z: 0, hit: { r: 0.4, height: 0.4 }, show: { item: 'bale_row', min: 5 } }] } };
   assert.equal(propColliders(world).circles.length, 0, '[life-hit] an item that can disappear got a collider');
@@ -72,11 +79,12 @@ test('tall things stay out of the middle of the village fight: only by a wall or
   }
 });
 
+const SPAN = 1.05;
 test('the shrine rope hangs between its two posts, and the shrine stands off the road [life-rope]', () => {
   const posts = ['shrine_post_l', 'shrine_post_r'].map(byId);
   for (const id of ['rope_cut', 'rope_tied']) {
     const r = byId(id), ax = Math.cos(r.rotY), az = -Math.sin(r.rotY);                    // 縄の X 軸（rotation.y で回した向き）
-    const ends = [[r.x + ax * 0.8, r.z + az * 0.8], [r.x - ax * 0.8, r.z - az * 0.8]];
+    const ends = [[r.x + ax * SPAN, r.z + az * SPAN], [r.x - ax * SPAN, r.z - az * SPAN]];   // SPAN＝life-kit の杭の間の半分（第3周で0.8→1.05m）
     for (const [x, z] of ends) assert(posts.some(p => Math.hypot(p.x - x, p.z - z) < 0.03), `[life-rope] ${id}: an end at ${x.toFixed(2)},${z.toFixed(2)} has no post`);
   }
   const shrine = WORLD.props.find(p => p.id === 'hokora1');

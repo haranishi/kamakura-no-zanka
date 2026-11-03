@@ -73,7 +73,9 @@ export const LIFE_ITEMS = [
   { id: 'steps_lantern', place: 'road', ref: '道6', states: ['unlit', 'lit'], rule: c => lantern(c.stage >= 6) },                 // 帰り道で穂太が灯をともして待つ
   { id: 'scout_sword', place: 'road', ref: '帰3', states: ['none', 'dropped'], rule: c => ({ show: c.scoutDown, state: c.scoutDown ? 'dropped' : 'none' }) },
   // 見晴らし岩から見える煙と鳥（b3・b6）
-  { id: 'house_smoke', place: 'viewpoint', ref: '見4', states: ['stopped', 'rising'], rule: c => ({ show: c.phase !== 'raid', state: c.phase === 'raid' ? 'stopped' : 'rising' }) },
+  // 家の煙：襲撃中も1〜2軒だけ細く残す（隠れて暮らしが続いている。2026-11-01 本人の決定）。ひどく荒れたら1軒。救ったあとは全部の家に戻る
+  { id: 'house_smoke', place: 'viewpoint', ref: '見4', states: ['thin', 'rising'],
+    rule: c => (c.phase === 'raid' ? { show: true, state: 'thin', count: c.damage >= 3 ? 1 : 2 } : { show: true, state: 'rising' }) },
   { id: 'camp_smoke', place: 'viewpoint', ref: '見4', states: ['none', 'rising'], rule: c => ({ show: c.phase === 'raid', state: c.phase === 'raid' ? 'rising' : 'none' }) },   // 灰色の煙を1本だけ
   { id: 'crows', place: 'viewpoint', ref: '見5', states: ['circling', 'to_peak'], rule: c => ({ show: true, state: c.phase === 'ending' ? 'to_peak' : 'circling' }) },
   // 里の入口（b3・b4）
@@ -83,6 +85,8 @@ export const LIFE_ITEMS = [
     rule: c => ({ show: true, state: c.phase === 'raid' ? 'carried_out' : 'left_behind', count: 3 + c.damage }) },                // 蔵から荷車まで4〜6個（1つは破れる）
   { id: 'camp_kitchen', place: 'entrance', ref: '入2', states: ['embers', 'cold'], rule: c => ({ show: true, state: c.phase === 'raid' ? 'embers' : 'cold' }) },   // 空の鍋。炎は出さない
   { id: 'boundary_rope', place: 'entrance', ref: '入3', states: ['cut', 'retied'], rule: c => ({ show: true, state: c.phase === 'raid' ? 'cut' : 'retied' }) },
+  // 三つの道の目印（見3）：正面の道の口に兵が立てた流れ旗（道を押さえている）。救ったあとは抜かれて無い。脇道（北・南）の柴垣は動かないので配置の表だけ
+  { id: 'road_flag', place: 'entrance', ref: '見3', states: ['planted', 'removed'], rule: c => ({ show: c.phase === 'raid', state: c.phase === 'raid' ? 'planted' : 'removed' }) },
   { id: 'captive_bow', place: 'entrance', ref: '入6', states: ['none', 'on_cart'], rule: c => ({ show: !c.archerJoined, state: c.archerJoined ? 'none' : 'on_cart' }) },
   // 里の中（b4〜b6）
   { id: 'threshing_floor', place: 'village', ref: '中1', states: ['scattered', 'tidy'], rule: c => ({ show: true, state: c.phase === 'raid' ? 'scattered' : 'tidy' }) },
