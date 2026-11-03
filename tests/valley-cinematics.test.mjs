@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { CINEMATIC_LIMITS, CINEMATICS, validateCinematicTable } from '../dist/valley/cinematics-data.js';
+import { CINEMATIC_LIMITS, CINEMATICS, validateCinematicTable, cinematicFor } from '../dist/valley/cinematics-data.js';
+import { STORY } from '../dist/valley/story-data.js';
 import { createCinematicPlayer, stepCinematic, planSafeStart, createPlayedSet, canReserve,
   markReserved, markEnded, CINEMATICS_STORAGE_KEY, normalizeCinematicsRecord, planResume } from '../dist/valley/cinematics.js';
 
@@ -10,6 +11,7 @@ const shot = durationSec => ({ durationSec, camera: camera(), subtitleIds: ['lin
 const entry = (total = 5) => ({ id: 'test', chapter: 1, kind: 'event', trigger: 'confirmed', stage: 'valley',
   prepareSec: 0.2, transitionSec: 0.3, returnSec: 0.5, returnTarget: 'battle', shots: [shot(total - 1)] });
 const ctx = { textById: { line: '帰ろう。' }, returnTargets: ['battle'] };
+const real = { textById: Object.fromEntries(Object.entries(STORY.cineLines).map(([k, l]) => [k, l.text])), returnTargets: ['play', 'result'] };
 const validate = e => validateCinematicTable([e], ctx);
 const player = (battle = false) => createCinematicPlayer(entry(), { fromBattle: battle });
 const tick = (s, dt, down = {}, flags = {}) => stepCinematic(s, dt, { down, ...flags });
@@ -17,11 +19,34 @@ const ended = r => r.events.filter(e => e.type === 'ended');
 const skipped = r => r.events.some(e => e.type === 'skip');
 const near = (a, b) => assert(Math.abs(a - b) < 1e-8, `${a} != ${b}`);
 
-test('limits are fixed and the production table is empty/frozen', () => {
+test('limits are fixed and the production table is frozen and valid against the story lines', () => {
   assert.deepEqual(CINEMATIC_LIMITS, { minDurationSec: 5, maxDurationSec: 10, skipHintSec: 0.6,
     skipHoldSec: 0.6, maxSkipReturnSec: 0.6, safeWaitSec: 3, maxTextChars: 40 });
   assert(Object.isFrozen(CINEMATIC_LIMITS)); assert(Object.isFrozen(CINEMATICS));
-  assert.deepEqual(CINEMATICS, []); assert.deepEqual(validateCinematicTable(CINEMATICS, ctx), []);
+  assert.deepEqual(validateCinematicTable(CINEMATICS, real), []);
+  assert(validateCinematicTable(CINEMATICS, { ...real, returnTargets: ['play'] }).length, 'the chapter end must return to the result flow');
+});
+// C1：章末（帰還の区切り）。断片の数で3通り、自動で流れる部分（準備・移行・復帰を含む）は8〜10秒
+test('chapter1_end: end of chapter 1, returns to the result flow, one variant per fragment tier', () => {
+  const total = e => e.prepareSec + e.transitionSec + e.returnSec + e.shots.reduce((n, s) => n + s.durationSec, 0);
+  const byCount = [0, 1, 2, 3, 4, 5].map(fragments => cinematicFor('chapter1_end', { fragments }));
+  assert.deepEqual(byCount.map(e => e.variant), ['plain', 'plain', 'plain', 'deep', 'deep', 'full']);
+  for (const e of byCount) {
+    assert.equal(e.kind, 'end'); assert.equal(e.chapter, 1); assert.equal(e.returnTarget, 'result');
+    assert(total(e) >= 8 - 1e-9 && total(e) <= 10 + 1e-9, `${e.variant}: ${total(e)}s`);
+    assert(e.shots.every(s => s.camera.anchor === 'bonfire' && s.still.camera.from.join() === s.still.camera.to.join()), 'relative to the fire; still shots do not move');
+    assert(e.shots.at(-1).subtitleIds.includes('coda_lamp'), 'every variant closes on the fire-to-lamp line (R25.3)');
+    assert.deepEqual(validateCinematicTable([e], real), []);
+  }
+  const cues = e => e.shots.flatMap(s => s.scenery);
+  assert(byCount.slice(0, 5).every(e => !cues(e).some(c => c.startsWith('sode') || c === 'fire_flare')), 'the badge burns only with all five');
+  assert.deepEqual(byCount[5].shots.map(s => s.scenery.find(c => c !== 'fire') ?? null), ['sode_hand', 'sode_fall', 'fire_flare', null, null], 'hand, badge, fire, then the boy');
+  assert(byCount[5].shots[3].gestures.includes('look:hero>boy'));
+  assert.equal(cinematicFor('missing'), null);
+  // 版の検査：どれか1つの版が尺を超えたら表全体を拒む
+  const long = { ...CINEMATICS[0], variants: { ...CINEMATICS[0].variants, full: [...CINEMATICS[0].variants.full, CINEMATICS[0].shots[0]] } };
+  assert(validateCinematicTable([long], real).some(m => m.includes('variant full') && m.includes('duration')));
+  assert(validateCinematicTable([{ ...CINEMATICS[0], cast: ['hero', 3] }], real).some(m => m.includes('cast')));
 });
 for (const [sec, valid] of [[4.99, false], [5, true], [10, true], [10.01, false], [11, false]]) {
   test(`total duration ${sec}s includes preparation, transition and return`, () => {

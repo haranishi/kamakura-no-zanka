@@ -99,6 +99,7 @@ export class Character {
     this.flinch = { x: 0, v: 0, px: 0, pz: 1 };
     this.armRelax = true; this.relax = { Left: 0, Right: 0 };
     this.spreadCapDeg = 0; this.spreadLastCap = 0; this.spreadW = 0;   // 腕の開きの上限（度・人物が毎コマ置く）と、その効き（8.3b）
+    this.cinePose = null;   // 節目の演出の間だけ置く、骨の後処理（うなずき・視線・袖印を持つ手。cinematics-view.js）。見た目だけ
     // 指の骨と見える腕の写し（8.6a）。this.bones（動作の骨）を作ったあとに足すので、写しは this.bones に入らない
     this.hands = HAND_RIG_WHO.has(who) ? new HandRig(this) : null;
   }
@@ -288,6 +289,7 @@ export class Character {
     }
     if (this.armRelax) this.relaxArms(dt);
     if (this.spreadCapDeg > 0 || this.spreadW > 0) this.spreadArms(dt);   // 被弾・弾かれ・倒れの腕の開き（8.3b）：動作の骨の後処理。握りの層の前
+    if (this.cinePose) this.cinePose(this);   // 演出の身振り：動作の骨へ。見える腕の写し（握りの層）より前に当てる
     if (this.sword) this.sword.apply();   // 抜刀・納刀：骨の後処理なので relaxArms のあと
     if (this.hands) this.hands.apply(dt);   // 握り（8.6a）：抜刀の層が決めた刀・鞘を読み、見える腕の写しだけを動かす
     if (this.bow) this.bow.update();

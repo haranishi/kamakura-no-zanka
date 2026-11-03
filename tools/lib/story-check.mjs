@@ -26,15 +26,16 @@ export function storyProblems({ story, speakers, sources }) {
   const beats = Object.keys(story.beats);
   const dlg = Object.entries(story.dialogues).flatMap(([id, lines]) => lines.map(l => ({ id, ...l })));
   const ban = story.banter.flatMap(e => e.lines.map(l => ({ id: e.id, ...l })));
+  const cine = Object.entries(story.cineLines || {}).map(([id, l]) => ({ id: 'cine ' + id, ...l }));   // 演出の字幕（会話と同じ規則）
   for (const [name, list] of [['banter', story.banter], ['relics', story.relics], ['fragments', story.fragments], ['clues', story.clues]]) {
     const ids = list.map(x => x.id);
     for (const id of ids.filter((x, i) => ids.indexOf(x) !== i)) bad(`${name}: duplicate id ${id}`);
   }
-  for (const l of [...dlg, ...ban]) {
+  for (const l of [...dlg, ...ban, ...cine]) {
     if (!speakers.includes(l.speaker)) bad(`${l.id}: unknown speaker "${l.speaker}"`);
     if (!(len(l.text) > 0 && len(l.text) <= 40)) bad(`${l.id}: "${l.text}" is ${len(l.text)} characters`);
   }
-  const texts = [...dlg, ...ban].filter(l => !l.pause).map(l => l.text);
+  const texts = [...dlg, ...ban, ...cine].filter(l => !l.pause).map(l => l.text);
   for (const t of texts.filter((x, i) => texts.indexOf(x) !== i)) bad(`duplicate line "${t}"`);
   for (const [k, list] of Object.entries(story.barks)) for (const t of list) if (len(t) > 14) bad(`bark ${k}: "${t}" is ${len(t)} characters`);
   for (const c of story.clues) if (c.text && (len(c.text) > 40 || !speakers.includes(c.speaker))) bad(`clue ${c.id}: text or speaker`);
@@ -82,7 +83,7 @@ export function storyProblems({ story, speakers, sources }) {
   for (const id of Object.values(ENDING_NEXT)) called.add(id);
   for (const id of Object.keys(story.dialogues)) if (!called.has(id)) bad(`dialogue ${id} is never called`);
   // 画面に出す語は裏取りした範囲（「斥候」「割り符」「足軽」は出さない）
-  const shown = JSON.stringify([story.dialogues, story.banter, story.barks, story.hints, story.clues, story.relics.map(r => r.prompt), story.beats, story.results]);
+  const shown = JSON.stringify([story.dialogues, story.cineLines, story.banter, story.barks, story.hints, story.clues, story.relics.map(r => r.prompt), story.beats, story.results]);
   for (const word of ['斥候', '割り符', '足軽']) if (shown.includes(word)) bad(`on-screen text uses ${word}`);
   return out;
 }
