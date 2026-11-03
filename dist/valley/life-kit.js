@@ -151,7 +151,9 @@ function mat() {
 function pot() {
   const P = new Parts();
   // 内側は底をさらった跡の乾いた灰色（外の黒い鉄と分け、空なのが口から読めるように）。外は煤けた鉄。
-  P.add(lathe([[0.2, 0.2], [0.189, 0.185], [0.175, 0.125], [0.14, 0.07], [0.08, 0.035], [0.001, 0.03]], 16), { cell: 'ash', color: '#c9b49a', shade: (x, y) => 0.7 + 0.3 * smooth(0.03, 0.2, y) });
+  // 第3周：内側が明るいと「茶色の円盤（蓋）」に見えたので、内は煤けた暗い穴にし（底だけ少し明るい＝さらった跡）、口の縁を明るい擦れた鉄の輪で縁取る。
+  P.add(lathe([[0.2, 0.2], [0.189, 0.185], [0.175, 0.125], [0.14, 0.07], [0.08, 0.035], [0.001, 0.03]], 16), { cell: 'ash', color: '#c9b49a', shade: (x, y) => 0.22 + 0.6 * (1 - smooth(0.04, 0.1, y)) });
+  P.add(new THREE.TorusGeometry(0.2, 0.011, 4, 24), { cell: 'iron', color: '#e8e8e8', at: M(0, 0.2, 0, Math.PI / 2, 0, 0) });
   P.add(lathe([[0.001, 0], [0.11, 0.017], [0.173, 0.064], [0.201, 0.13], [0.213, 0.194], [0.2, 0.2]], 16), { cell: 'iron', color: '#ffffff', shade: (x, y) => 0.8 + 0.2 * smooth(0.02, 0.19, y) });
   for (const s of [-1, 1]) P.add(new THREE.BoxGeometry(0.03, 0.035, 0.03), { cell: 'iron', at: M(s * 0.215, 0.188, 0) });
   P.add(tube([[-0.215, 0.19, 0], [-0.15, 0.26, -0.22], [0, 0.29, -0.3], [0.15, 0.26, -0.22], [0.215, 0.19, 0]], 0.0055, 16, 4), { cell: 'iron', color: '#bbbbbb' });
@@ -201,7 +203,7 @@ const door = () => {
   for (const y of [0.25, 0.87, 1.5]) P.add(new THREE.BoxGeometry(0.8, 0.07, 0.022), { cell: 'wood', color: '#ddd3c4', at: M(0, y, -0.026), shade: age });
   return P.build();
 };
-// 杭（畑の縁。0.9m）と、祠の前の杭（1.15m）。根元は湿って暗い。
+// 杭（畑の縁。0.9m）と、祠の前の杭（1.5m。注連縄を大きくした第3周から）。根元は湿って暗い。
 const stake = (h, r) => new Parts().add(new THREE.CylinderGeometry(r * 0.78, r, h + 0.05, 5), { cell: 'wood', color: '#f0e8dc', at: M(0, h / 2 - 0.025, 0), shade: (x, y) => (0.6 + 0.4 * smooth(0, 0.3, y)) * (y > h - 0.03 ? 0.75 : 1) }).build();
 // 板碑（高さ1m・幅0.3m・厚さ3.5cm の板石。頭は山形。15cm は土に埋める）。飯田市の1294年の板碑（緑泥片岩）に倣う。
 function itabi() {
@@ -224,25 +226,49 @@ function embers() {
     P.add(new THREE.BoxGeometry(0.06 + rnd() * 0.06, 0.03 + rnd() * 0.025, 0.04 + rnd() * 0.04), { cell: null, at: M(Math.cos(a) * r, 0.045, Math.sin(a) * r, (rnd() - 0.5) * 0.6, rnd() * 3, (rnd() - 0.5) * 0.6) }); }
   return P.build();
 }
-// 注連縄（祠の前の杭2本の間。張った姿と、切れて垂れた姿）。杭は縄の中心から ±0.8m（world-data の表と合わせる）。
-const SPAN = 0.8, TIE = 1.0;
+// 注連縄（祠の前の杭2本の間。張った姿と、切れて垂れた姿）。杭は縄の中心から ±SPAN m（world-data の表と合わせる）。
+// 第3周（2026-11-03）：盲検で「拡大して初めて気づく」と言われたので、杭の間を1.6→2.1m、結ぶ高さを1.0→1.35m、縄の太さを1.7倍、房を大きくした。
+const SPAN = 1.05, TIE = 1.35, ROPE = 0.075, sx = SPAN / 0.8, sy = TIE / 1.0;
 function ropeTied() {
-  const P = new Parts(), y = x => TIE - 0.13 * (1 - (x / SPAN) ** 2);
-  P.add(tube([[-SPAN, TIE, 0], [-0.4, y(0.4), 0.03], [0, y(0), 0.04], [0.4, y(0.4), 0.03], [SPAN, TIE, 0]], 0.045, 40, 8), { cell: 'rope', color: '#fffaeb', uv: (u, v) => [v, u] });
-  for (const s of [-1, 1]) P.add(new THREE.TorusGeometry(0.058, 0.016, 4, 10), { cell: 'rope', color: '#fffaeb', at: M(s * SPAN, TIE, 0, Math.PI / 2, 0, 0) });
-  for (const x of [-0.42, 0, 0.42]) {
-    P.add(new THREE.ConeGeometry(0.05, 0.32, 7), { cell: 'straw', color: '#fffbf0', at: M(x, y(x) - 0.2, 0.045, Math.PI, 0, 0) });
-    P.add(new THREE.SphereGeometry(0.024, 6, 4), { cell: 'rope', color: '#f2ead6', at: M(x, y(x) - 0.03, 0.04) });
+  const P = new Parts(), y = x => TIE - 0.17 * (1 - (x / SPAN) ** 2);
+  P.add(tube([[-SPAN, TIE, 0], [-0.52, y(0.52), 0.04], [0, y(0), 0.05], [0.52, y(0.52), 0.04], [SPAN, TIE, 0]], ROPE, 40, 8), { cell: 'rope', color: '#fffaeb', uv: (u, v) => [v, u] });
+  for (const s of [-1, 1]) P.add(new THREE.TorusGeometry(0.09, 0.024, 4, 10), { cell: 'rope', color: '#fffaeb', at: M(s * SPAN, TIE, 0, Math.PI / 2, 0, 0) });
+  for (const x of [-0.55, 0, 0.55]) {
+    P.add(new THREE.ConeGeometry(0.085, 0.52, 7), { cell: 'straw', color: '#fffbf0', at: M(x, y(x) - 0.32, 0.06, Math.PI, 0, 0) });
+    P.add(new THREE.SphereGeometry(0.04, 6, 4), { cell: 'rope', color: '#f2ead6', at: M(x, y(x) - 0.05, 0.06) });
   }
   return P.build();
 }
 function ropeCut() {
-  const P = new Parts(), dirty = '#fff6e2';
-  P.add(tube([[-SPAN, TIE, 0], [-0.75, 0.72, 0.05], [-0.71, 0.32, 0.1], [-0.66, 0.035, 0.19], [-0.46, 0.045, 0.32], [-0.3, 0.045, 0.4]], 0.045, 30, 8), { cell: 'rope', color: dirty, uv: (u, v) => [v, u] });
-  P.add(tube([[SPAN, TIE, 0], [0.78, 0.76, 0.06], [0.74, 0.36, 0.12], [0.7, 0.04, 0.21], [0.55, 0.045, 0.37], [0.42, 0.045, 0.5]], 0.045, 30, 8), { cell: 'rope', color: dirty, uv: (u, v) => [v, u] });
-  for (const s of [-1, 1]) P.add(new THREE.TorusGeometry(0.058, 0.016, 4, 10), { cell: 'rope', color: dirty, at: M(s * SPAN, TIE, 0, Math.PI / 2, 0, 0) });
-  for (const [x, z] of [[-0.3, 0.4], [0.42, 0.5]]) P.add(new THREE.ConeGeometry(0.03, 0.09, 6), { cell: 'straw', color: '#efe6d0', at: M(x + Math.sign(x) * -0.03, 0.03, z, 0, 0, Math.sign(x) * Math.PI / 2) });   // ほつれた切り口
-  for (const [x, z, ry] of [[-0.05, 0.62, 0.4], [0.22, 0.78, -0.7]]) P.add(new THREE.ConeGeometry(0.065, 0.4, 7), { cell: 'straw', color: '#e2d8c0', at: M(x, 0.04, z, 0, ry, Math.PI / 2) });
+  const P = new Parts(), dirty = '#fff6e2', at = (x, h, z) => [x * sx, h > 0.05 ? h * sy : h, z * sx];   // 第2周の形を、杭の間と高さに合わせて引き伸ばす（地面に落ちた所は地面のまま）
+  P.add(tube([[-SPAN, TIE, 0], at(-0.75, 0.72, 0.05), at(-0.71, 0.32, 0.1), at(-0.66, 0.05, 0.19), at(-0.46, 0.06, 0.32), at(-0.3, 0.06, 0.4)], ROPE, 30, 8), { cell: 'rope', color: dirty, uv: (u, v) => [v, u] });
+  P.add(tube([[SPAN, TIE, 0], at(0.78, 0.76, 0.06), at(0.74, 0.36, 0.12), at(0.7, 0.055, 0.21), at(0.55, 0.06, 0.37), at(0.42, 0.06, 0.5)], ROPE, 30, 8), { cell: 'rope', color: dirty, uv: (u, v) => [v, u] });
+  for (const s of [-1, 1]) P.add(new THREE.TorusGeometry(0.09, 0.024, 4, 10), { cell: 'rope', color: dirty, at: M(s * SPAN, TIE, 0, Math.PI / 2, 0, 0) });
+  for (const [x, z] of [[-0.3, 0.4], [0.42, 0.5]]) P.add(new THREE.ConeGeometry(0.05, 0.14, 6), { cell: 'straw', color: '#efe6d0', at: M((x + Math.sign(x) * -0.03) * sx, 0.05, z * sx, 0, 0, Math.sign(x) * Math.PI / 2) });   // ほつれた切り口
+  for (const [x, z, ry] of [[-0.05, 0.62, 0.4], [0.22, 0.78, -0.7]]) P.add(new THREE.ConeGeometry(0.1, 0.6, 7), { cell: 'straw', color: '#e2d8c0', at: M(x * sx, 0.06, z * sx, 0, ry, Math.PI / 2) });
+  return P.build();
+}
+// 流れ旗（見3・正面の道の口に兵が立てた旗）。竿3.2m・横木0.5m・布は横木から垂らす（幅0.42m・長さ1.9m）。props.js の流れ旗と同じ考えの形で、
+// 襲撃中だけ出す（救ったあとは抜かれる）ので life の表に置く。布はゆるく波打たせ、風では動かさない（遠くで旗と読めれば足りる）。
+function flag() {
+  const P = new Parts(), H = 3.2, W = 0.42, L = 1.9;
+  P.add(new THREE.CylinderGeometry(0.026, 0.034, H, 6), { cell: 'wood', color: '#e2d6c4', at: M(0, H / 2, 0), shade: (x, y) => 0.6 + 0.4 * smooth(0, 0.6, y) });
+  P.add(new THREE.CylinderGeometry(0.018, 0.018, W + 0.12, 5), { cell: 'wood', color: '#e2d6c4', at: M(W / 2, H - 0.06, 0, 0, 0, Math.PI / 2) });
+  const g = new THREE.PlaneGeometry(W, L, 2, 8), p = g.attributes.position;
+  for (let i = 0; i < p.count; i++) { const yy = p.getY(i), t = (L / 2 - yy) / L; p.setZ(i, 0.07 * Math.sin(t * 5.5) * t + 0.05 * t * t); }
+  P.both(g, { cell: 'plain', color: '#7b2a22', at: M(W / 2 + 0.02, H - 0.08 - L / 2, 0), shade: (x, y) => 0.72 + 0.28 * smooth(H - 2.1, H - 0.2, y) });
+  return P.build();
+}
+// 柴垣（見3・脇道の縁。雑木の枝を立て並べ、横木2本で押さえた低い垣。research-valley-life-period.md の「柵（柴垣）」〇）。
+// 長さ1.6m・高さ0.85m を1区画とし、置く表の scale[0] で杭と杭の間へ伸ばす。道を外から隠す「脇道」を遠くから読ませる。
+function hedge() {
+  const P = new Parts(), rnd = mulberry32(53), N = 30;
+  for (let i = 0; i < N; i++) {
+    const x = -0.78 + 1.56 * (i + rnd() * 0.6) / N, h = 0.72 + rnd() * 0.22;
+    P.add(new THREE.CylinderGeometry(0.008 + rnd() * 0.006, 0.013 + rnd() * 0.007, h, 4), { cell: 'wood', color: ['#cdbfa9', '#b8a993', '#ddd2bf'][i % 3],
+      at: M(x, h / 2 - 0.03, (rnd() - 0.5) * 0.08, (rnd() - 0.5) * 0.16, rnd() * 3, (rnd() - 0.5) * 0.2), shade: (xx, y) => 0.55 + 0.45 * smooth(0, 0.6, y) });
+  }
+  for (const y of [0.24, 0.62]) for (const z of [-0.055, 0.055]) P.add(new THREE.CylinderGeometry(0.022, 0.022, 1.62, 5), { cell: 'wood', color: '#efe5d4', at: M(0, y, z, 0, 0, Math.PI / 2) });
   return P.build();
 }
 // 草の葉の束（ススキ・道の縁の草むら）。葉は根元から外へ反り、穂は先で垂れる。裏面も足す。
@@ -285,8 +311,9 @@ export const KIT = {
   bale: { make: () => bale(false), blob: [0.95, 0.62] }, bale_torn: { make: () => bale(true), blob: [1.0, 0.7] }, rice: { make: rice, small: true },
   mat: { make: mat }, pot: { make: pot, blob: [0.55, 0.55] }, ladle: { make: ladle, small: true },
   bucket: { make: bucket, blob: [0.6, 0.45] }, basket: { make: basket, blob: [0.65, 0.5] }, veg: { make: veg, small: true }, brush: { make: brush, small: true, blob: [1.0, 0.35] },
-  sandal: { make: sandal, small: true }, door: { make: door, blob: [0.95, 0.35] }, stake: { make: () => stake(0.9, 0.04), blob: [0.2, 0.2] }, post: { make: () => stake(1.15, 0.05), blob: [0.24, 0.24] },
+  sandal: { make: sandal, small: true }, door: { make: door, blob: [0.95, 0.35] }, stake: { make: () => stake(0.9, 0.04), blob: [0.2, 0.2] }, post: { make: () => stake(1.5, 0.065), blob: [0.3, 0.3] },
   itabi: { make: itabi, blob: [0.55, 0.3] }, hearth: { make: hearth }, embers: { make: embers, material: 'ember' }, rope_tied: { make: ropeTied }, rope_cut: { make: ropeCut },
+  flag: { make: flag, blob: [0.3, 0.3] }, hedge: { make: hedge, blob: [1.7, 0.3] },
   susuki: { make: susuki, material: 'sway' }, tuft: { make: tuft, material: 'sway', small: true }, crow: { make: crow, material: 'crow' },
   bow: { make: () => fromGroup(makeYumi()) }, quiver: { make: () => fromGroup(makeQuiver()) },
 };

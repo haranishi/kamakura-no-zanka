@@ -949,10 +949,14 @@ export class Game {
       this.chimneyT = 0.45;
       const camp = this.lifeShows('camp_smoke') && WORLD.life?.items.find(d => d.id === 'hearth');
       if (camp && Math.hypot(hp.x - camp.x, hp.z - camp.z) < 140) for (const o of [0, 0.6]) this.fx.chimney({ x: camp.x, y: this.terrain.heightAt(camp.x, camp.z) + 0.2 + o, z: camp.z }, [0.3, 0.3, 0.32], 0.5);   // 細く暗い灰色の1本（近くで白い塊・遠くで光に見えないように）
-      if (this.lifeShows('house_smoke')) for (const b of WORLD.buildings) {
+      // 襲撃中（thin）は、野営から遠い家の順に1〜2軒だけ細く（隠れて暮らしが続いている）。救ったあと（rising）は全部の家
+      const hs = this.lifeShows('house_smoke') ? lifeItem(this.lifeState, 'house_smoke') : null, thin = hs?.state === 'thin';
+      const away = this.smokeOrder ||= ((h = WORLD.life?.items.find(d => d.id === 'hearth') || { x: 0, z: 0 }) => WORLD.buildings.filter(b => b.kind === 'farmhouse')
+        .sort((a, b) => Math.hypot(b.x - h.x, b.z - h.z) - Math.hypot(a.x - h.x, a.z - h.z)))();   // 炊き場（入2）から遠い順。1回だけ作る
+      if (hs) for (const b of thin ? away.slice(0, hs.count) : WORLD.buildings) {
         if (b.kind !== 'farmhouse' || Math.hypot(hp.x - b.x, hp.z - b.z) > 140) continue;
         const y = this.terrain.heightAt(b.x, b.z) + 5.6 * (0.98 + (b.variant || 0) * 0.04);
-        this.fx.chimney({ x: b.x + Math.sin(b.rotY) * 0.8, y, z: b.z + Math.cos(b.rotY) * 0.8 });
+        this.fx.chimney({ x: b.x + Math.sin(b.rotY) * 0.8, y, z: b.z + Math.cos(b.rotY) * 0.8 }, undefined, thin ? 0.45 : 1);
       }
       // 里の荒れ（§5.2。見た目だけ）：倉が荒らされたほど、荷車のあたりから煙が上がる（蓄え35未満は太く、50未満は細く。帰り道まで）
       const q = this.quest, food = q.resources.food;

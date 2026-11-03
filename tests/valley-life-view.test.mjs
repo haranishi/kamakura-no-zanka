@@ -44,15 +44,18 @@ test('kit: solid shapes face outward (a shape turned inside out shows its inner 
     assert(signedVolume(kit.models[kind].children[0].geometry) > 0, `[kit-outward] ${kind} is inside out`);
 });
 
-test('kit: shapes stand on the ground at their real size (bale, bucket, stake, post, door, itabi, mat, rope) [kit-sizes]', () => {
+test('kit: shapes stand on the ground at their real size (bale, bucket, stake, post, door, itabi, mat, rope, flag, hedge) [kit-sizes]', () => {
   const near = (v, want, eps, label) => assert(Math.abs(v - want) <= eps, `[kit-sizes] ${label}: ${v.toFixed(3)} vs ${want}`);
   let b = box('bale'); near(b.max.x - b.min.x, 0.75, 0.05, 'bale length'); near(b.max.y, 0.39, 0.04, 'bale height'); assert(b.min.y > -0.03, '[kit-sizes] bale sinks');
   b = box('bucket'); near(b.max.y, 0.3, 0.01, 'bucket height'); near(b.max.x * 2, 0.34, 0.01, 'bucket width');
-  b = box('stake'); near(b.max.y, 0.9, 0.01, 'stake height'); b = box('post'); near(b.max.y, 1.15, 0.01, 'post height');
+  b = box('stake'); near(b.max.y, 0.9, 0.01, 'stake height'); b = box('post'); near(b.max.y, 1.5, 0.01, 'post height');   // 第3周で1.15→1.5m（注連縄を大きく）
   b = box('door'); near(b.max.y, 1.74, 0.01, 'door height'); near(b.max.x * 2, 0.88, 0.01, 'door width');
   b = box('itabi'); near(b.max.y, 1.0, 0.01, 'itabi top'); near(b.min.y, -0.15, 0.01, 'itabi buried part'); near(b.max.z - b.min.z, 0.035, 0.002, 'itabi thickness');
   b = box('mat'); assert(b.max.y < 0.07, '[kit-sizes] the mat lies flat');
-  b = box('rope_tied'); near(b.max.x, 0.8 + 0.07, 0.03, 'rope reaches the right post'); near(b.min.x, -0.8 - 0.07, 0.03, 'rope reaches the left post');
+  b = box('rope_tied'); near(b.max.x, 1.05 + 0.11, 0.03, 'rope reaches the right post'); near(b.min.x, -1.05 - 0.11, 0.03, 'rope reaches the left post');
+  near(b.max.y, 1.35 + 0.075, 0.03, 'rope is tied at 1.35 m');
+  b = box('flag'); near(b.max.y, 3.2, 0.03, 'flag pole height'); assert(b.max.x > 0.4 && b.min.y > -0.01, '[kit-sizes] the flag cloth hangs from the crossbar');
+  b = box('hedge'); near(b.max.x - b.min.x, 1.62, 0.04, 'hedge length'); assert(b.max.y > 0.75 && b.max.y < 0.98, '[kit-sizes] hedge height');
 });
 
 test('one batched draw per shape, whatever the number placed; the loaded models are not changed [life-draws]', () => {
@@ -74,9 +77,11 @@ test('raid, rescue and the archer: the cut rope, the embers and the bow show onl
   v.apply(raid());
   assert(visible(v, 'rope_cut') && !visible(v, 'rope_tied'), '[life-states] the rope hangs cut during the raid');
   assert(visible(v, 'embers') && visible(v, 'captive_bow') && visible(v, 'captive_quiver'), '[life-states] embers and the bow on the cart during the raid');
+  assert(visible(v, 'front_flag') && visible(v, 'north_hedge_1') && visible(v, 'south_hedge_1'), '[life-states] the three roads are marked during the raid');
   v.apply(lifeScene({ beat: 'b5_archer', approach: 'front', food: 60 }));
   assert(!visible(v, 'rope_cut') && visible(v, 'rope_tied'), '[life-states] the rope is tied again after the rescue');
   assert(!visible(v, 'embers'), '[life-states] the embers go cold after the rescue');
+  assert(!visible(v, 'front_flag'), '[life-states] the enemy flag on the front road is pulled out after the rescue');
   assert(visible(v, 'captive_bow'), '[life-states] the bow stays until Yajuro joins');
   v.apply(lifeScene({ beat: 'b5_archer', approach: 'front', food: 60, archerJoined: true }));
   assert(!visible(v, 'captive_bow') && !visible(v, 'captive_quiver'), '[life-states] the bow leaves the cart when Yajuro joins');

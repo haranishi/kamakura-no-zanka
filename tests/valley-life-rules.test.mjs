@@ -57,7 +57,9 @@ test('decision 1: while raided there are no flames, the raid is plain to see and
     assert(!all.some(i => i.flame), `[raid-no-fire] flame at ${input.beat}`);
     const at = id => lifeItem(scene, id);
     assert.equal(at('camp_kitchen').state, 'embers', '[raid-kitchen] embers, no flame');
-    assert(!at('house_smoke').show && at('house_smoke').state === 'stopped', '[raid-house-smoke] houses are silent');
+    assert(at('house_smoke').show && at('house_smoke').state === 'thin', '[raid-house-smoke] only thin kitchen smoke');
+    assert.equal(at('house_smoke').count, scene.damage.level >= 3 ? 1 : 2, '[raid-house-smoke] 2 houses, 1 when ravaged');
+    assert(at('road_flag').show && at('road_flag').state === 'planted', '[raid-road-flag] the enemy holds the front road');
     assert(at('camp_smoke').show && at('camp_smoke').count === 1, '[raid-camp-smoke] one grey column marks the camp');
     assert.equal(at('boundary_rope').state, 'cut', '[raid-rope]');
     assert.equal(at('threshing_floor').state, 'scattered', '[raid-threshing]');
@@ -109,6 +111,7 @@ test('decision 2: once saved, life starts again: smoke, the re-tied rope, worker
     const scene = lifeScene({ beat, approach: 'front', food }), at = id => lifeItem(scene, id);
     assert(at('house_smoke').show && at('house_smoke').state === 'rising', `[saved-house-smoke] ${beat}`);
     assert(!at('camp_smoke').show, `[saved-camp-smoke] ${beat}`);
+    assert(!at('road_flag').show && at('road_flag').state === 'removed', `[saved-road-flag] ${beat}`);
     assert.equal(at('camp_kitchen').state, 'cold', `[saved-kitchen] ${beat}`);
     assert.equal(at('boundary_rope').state, 'retied', `[saved-rope] ${beat}`);
     assert.equal(at('threshing_floor').state, 'tidy', `[saved-threshing] ${beat}`);
