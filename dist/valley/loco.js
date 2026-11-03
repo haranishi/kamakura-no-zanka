@@ -81,13 +81,6 @@ export function speedStep(st, target, dt, accel = ACCEL) {
   return Math.max(0, dist);
 }
 
-// 目標0へ止まるまでに、まだ進む距離（m）。st＝{ v, a }。x(t)＝(v＋(a＋ωv)t)e^(−ωt) を0〜∞で積分した 2v/ω＋a/ω²（M2a の止まりの最後の一歩）
-export function stopLeft(st, accel = ACCEL) {
-  if (!(st.v > 0)) return 0;
-  const w = K95 / accel.down;
-  return Math.max(0, 2 * st.v / w + st.a / (w * w));
-}
-
 // 一定の目標へ向けて止まる・走り出すときの距離と時間（試験と報告用）。hz コマ/秒で回す
 export function simulateRamp(from, target, hz, maxT = 2) {
   const st = { v: from, a: 0 }, dt = 1 / hz; let dist = 0, t = 0, reach = null;
