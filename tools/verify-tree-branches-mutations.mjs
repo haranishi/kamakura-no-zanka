@@ -5,7 +5,9 @@ import { spawnSync } from 'node:child_process';
 const file = 'dist/valley/tree-branches.js';
 const cases = [
   ['inner fill outside the core', 'depth = .25 + .2 * rnd()', 'depth = .85 + .2 * rnd()'],
-  ['broad clusters of one size', 'size: [s0, sr] = [.2, .2]', 'size: [s0, sr] = [.3, 0]'],
+  // 2026-11-03: the cluster count, sizes and relief went back to the second round (the third round's lost the blind review).
+  ['broad clusters back to small balls', 'size: [s0, sr] = [.3, .1]', 'size: [s0, sr] = [.2, .2]'],
+  ['limb leave shuffles the clusters', 'at = l0 + lr * rndLeave();', 'at = l0 + lr * rnd();'],
   ['limbs leave at one fraction', 'leave: [l0, lr] = [.4, .3]', 'leave: [l0, lr] = [.55, 0]'],
   ['tufts back on the outer two thirds', '.27 + .73 * (j + 1) / count + (rnd() - .5) * .1, .24, .97', '.36 + .64 * (j + 1) / count + (rnd() - .5) * .1, .34, .97'],
   ['whorl returned (six limbs per height)', 'const s = (i + .5 + .9 * (rnd() - .5)) / n', 'const s = (Math.floor(i / 6) * 6 + .5) / n'],
@@ -34,7 +36,7 @@ const cases = [
   ['one tip tuft size', '(1 + .95 * u)', '(1.45 + 0 * u)'],
   ['broad clusters buried at the centre', 'const depth = d0 + dr * rnd()', 'const depth = .1 * (d0 + dr * rnd())'],
   ['broad limb off its primary', 'v + (tips[primary][q] - v) * at)', 'v + (tips[primary][q] - v) * at * .5)'],
-  ['zelkova clusters narrow upward', 'widen = vase ? 1 + .6 * y : 1', 'widen = vase ? 1 - .6 * y : 1'],
+  ['zelkova clusters narrow upward', 'widen = vase ? 1 + .4 * y : 1', 'widen = vase ? 1 - .4 * y : 1'],
   ['broad clusters swollen together', 'size = s0 + sr * rnd()', 'size = 1.6 * (s0 + sr * rnd())'],
   ['even bark strips', 'export function barkStripWarp(u) { return .22 * Math.sin(TAU * 3 * u + 1.3) + .11 * Math.sin(TAU * 5 * u + .4); }', 'export function barkStripWarp(u) { return 0 * u; }'],
 ];
