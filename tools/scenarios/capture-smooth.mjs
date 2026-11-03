@@ -9,13 +9,16 @@ import path from 'node:path';
 import { prepare, START } from './smooth-journey.mjs';
 
 const EVERY = 4, TILES = 8, CROP = { w: 400, h: 600 }, TILE = { w: 320, h: 480 };
-const RUN = { KeyW: true, ShiftLeft: true }, NONE = { KeyW: false, ShiftLeft: false };
+const RUN = { KeyW: true, ShiftLeft: true }, WALK = { KeyW: true, ShiftLeft: false }, NONE = { KeyW: false, ShiftLeft: false };
 // lead：撮り始めるまでの準備（秒・キー）。at：何枚目の前の操作（keys・turn＝その枚から視点を回す角とコマ数）
 export const SCENES = [
   { name: 'run_start', lead: [], at: { 0: { keys: RUN } } },
   { name: 'run_steady', lead: [[1.5, RUN]], at: {} },
   { name: 'run_stop', lead: [[1.5, RUN]], at: { 2: { keys: NONE } } },
   { name: 'turn', lead: [[1.2, RUN]], at: { 1: { turn: Math.PI / 2, frames: 24 } } },
+  // M2a で足した：通常移動からの停止と、走り→通常移動（Shift を離す）
+  { name: 'walk_stop', lead: [[1.5, WALK]], at: { 2: { keys: NONE } } },
+  { name: 'run_to_walk', lead: [[1.5, RUN]], at: { 2: { keys: WALK } } },
 ];
 const tagOf = () => { const i = process.argv.indexOf('--tag'); return (i >= 0 ? process.argv[i + 1] : process.env.KZ_TAG) || 'shot'; };
 
