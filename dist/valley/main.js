@@ -188,8 +188,8 @@ function openPause() {
   dlg.showModal();
 }
 
-// 遊びの間とオープニングの間は、Esc（ポインターの解放）・P・画面の切り替えで休止する
-const pausable = () => game?.flow === 'play' || game?.flow === 'intro';
+// 遊びの間・オープニングの間・節目の演出の間は、Esc（ポインターの解放）・P・画面の切り替えで休止する
+const pausable = () => game?.flow === 'play' || game?.flow === 'intro' || game?.flow === 'cinematic';
 function wire() {
   $('btn-start').onclick = () => start('new');
   $('btn-continue').onclick = () => start('continue');
