@@ -26,7 +26,7 @@ export async function runPlan(v, { start, plan, dt = 1 / 60, settle = 0.6 }) {
     let lowY = 0; for (const foot of feet) { ch.bone(foot).getWorldPosition(V); lowY = Math.max(lowY, V.y - g.terrain.heightAt(V.x, V.z)); }
     lowY += 0.04;
     const inWin = (p, [s, e]) => s <= e ? p >= s && p <= e : p >= s || p <= e;
-    let tag = null, t = 0, pi = -1, prevPos = null;
+    let tag = null, t = 0, pi = -1, prevPos = null, prevClip = null; const adv = {};
     const total = plan.reduce((s, p) => s + p.t, 0);
     while (t < total - 1e-9) {
       let acc = 0, idx = 0; for (; idx < plan.length; idx++) { acc += plan[idx].t; if (t < acc - 1e-9) break; }
@@ -60,6 +60,9 @@ export async function runPlan(v, { start, plan, dt = 1 / 60, settle = 0.6 }) {
       }
       const c = g.camera.position; cam.push({ tag, x: c.x, y: c.y, z: c.z });
       const moved = prevPos ? Math.hypot(h.pos.x - prevPos.x, h.pos.z - prevPos.z) / dt : 0; prevPos = { x: h.pos.x, z: h.pos.z };
+      // 体が止まっているのに、移動の動作だけが進んだ量（1周を1とする）。キーを離したあと「足だけ続く」の物差し
+      if (best && bw >= 0.5 && prevClip && prevClip.name === best.name && moved === 0) adv[tag] = (adv[tag] || 0) + (((best.a.time - prevClip.time) % best.m.seconds) + best.m.seconds) % best.m.seconds / best.m.seconds;
+      prevClip = best ? { name: best.name, time: best.a.time } : null;
       frames.push({ tag, t: +t.toFixed(4), x: +h.pos.x.toFixed(4), z: +h.pos.z.toFixed(4), yaw: +h.yaw.toFixed(4), speed: +h.speed.toFixed(3), moved: +moved.toFixed(3), clip: best?.name || null, w: +bw.toFixed(2), gait: ch.gait, ts: best ? +best.a.timeScale.toFixed(3) : 0, ct: best ? +best.a.time.toFixed(3) : 0, slide: +(h.slideTurn || 0).toFixed(3) });
     }
     for (const foot of feet) { const s = stance[foot]; if (s && s.n >= 2) out.push({ tag: s.tag, clip: s.clip, foot, slip: +(s.slip * 100).toFixed(2), n: s.n }); }
@@ -71,7 +74,7 @@ export async function runPlan(v, { start, plan, dt = 1 / 60, settle = 0.6 }) {
       const a = Math.hypot(cam[i].x - 2 * cam[i - 1].x + cam[i - 2].x, cam[i].y - 2 * cam[i - 1].y + cam[i - 2].y, cam[i].z - 2 * cam[i - 1].z + cam[i - 2].z) / (dt * dt);
       const k = cam[i].tag; camAcc[k] = Math.max(camAcc[k] || 0, a);
     }
-    return { stances: out, lows, lowY: +lowY.toFixed(3), camAcc, frames };
+    return { stances: out, lows, lowY: +lowY.toFixed(3), camAcc, adv, frames };
   })()`);
 }
 
@@ -103,7 +106,7 @@ export async function measureAll(v, { rates = [60] } = {}) {
       if (hz !== 60 && !['run', 'walk'].includes(name)) continue;
       const r = await runPlan(v, { ...p, dt: 1 / hz });
       const tags = [...new Set(p.plan.map(x => x.tag))];
-      result[`${name}@${hz}`] = { slip: Object.fromEntries(tags.map(t => [t, summarize(r.stances, t)])), low: Object.fromEntries(tags.map(t => [t, summarize(r.lows, t)])), lowY: r.lowY, stances: r.stances, camAcc: Object.fromEntries(Object.entries(r.camAcc).map(([k, a]) => [k, +a.toFixed(1)])), frames: r.frames };
+      result[`${name}@${hz}`] = { slip: Object.fromEntries(tags.map(t => [t, summarize(r.stances, t)])), low: Object.fromEntries(tags.map(t => [t, summarize(r.lows, t)])), lowY: r.lowY, stances: r.stances, adv: Object.fromEntries(Object.entries(r.adv).map(([k, a]) => [k, +a.toFixed(3)])), camAcc: Object.fromEntries(Object.entries(r.camAcc).map(([k, a]) => [k, +a.toFixed(1)])), frames: r.frames };
     }
   }
   return result;
@@ -118,10 +121,10 @@ export async function prepare({ start, freeze, step, call, st }) {
 export default async function (ctx) {
   await prepare(ctx);
   const res = await measureAll(ctx.v, { rates: [60, 30, 144] });
-  ctx.log('場面@コマ/秒   区間          [着地区間] 数 最大 平均（cm）  [地面の近く] 数 最大 平均（cm）  カメラの加速度の最大（m/秒²）');
+  ctx.log('場面@コマ/秒   区間          [着地区間] 数 最大 平均（cm）  [地面の近く] 数 最大 平均（cm）  カメラの加速度（m/秒²）');
   for (const [k, r] of Object.entries(res)) for (const [tag, s] of Object.entries(r.slip)) {
     const l = r.low[tag];
-    ctx.log(`${k.padEnd(14)} ${tag.padEnd(13)} ${String(s.n).padStart(3)} ${String(s.max).padStart(6)} ${String(s.mean).padStart(6)}    ${String(l.n).padStart(3)} ${String(l.max).padStart(6)} ${String(l.mean).padStart(6)}    ${r.camAcc[tag] ?? '-'}`);
+    ctx.log(`${k.padEnd(14)} ${tag.padEnd(13)} ${String(s.n).padStart(3)} ${String(s.max).padStart(6)} ${String(s.mean).padStart(6)}    ${String(l.n).padStart(3)} ${String(l.max).padStart(6)} ${String(l.mean).padStart(6)}    ${String(r.camAcc[tag] ?? '-').padStart(7)}   止まった体で進んだ足の周期 ${r.adv[tag] ?? 0}`);
   }
   if (process.env.KZ_OUT) fs.writeFileSync(process.env.KZ_OUT, JSON.stringify(res, null, 1));
 }
