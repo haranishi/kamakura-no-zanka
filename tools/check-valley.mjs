@@ -91,7 +91,8 @@ assert(total <= 115 * 1024 * 1024, `model budget exceeded: ${(total / 1048576).t
 
 // 3b 8.3a・8.3b・8.4a・8.4b・8.5a の純粋な層（見た目の踏み込み・線状の火花・腕の開きの上限・押し戻し・血の表現・時間の進み）：あること、Three.js・DOM・乱数・時計に触れないこと
 // （表とは別に置いてある。lunge と spark-streaks は 2026-11-03 の統合の点検で、純粋と自称しながら検査に入っていなかったのを足した）
-for (const m of ['knockback', 'time-warp', 'lunge', 'spark-streaks', 'arm-spread', 'blood', 'cinematics-data', 'cinematics']) {
+// gait-table（生成物の足運びの表）と smooth-flags（滑らかさの切替）も同じ扱い（2026-11-04 M0。まだ誰も読まない）
+for (const m of ['knockback', 'time-warp', 'lunge', 'spark-streaks', 'arm-spread', 'blood', 'cinematics-data', 'cinematics', 'gait-table', 'smooth-flags']) {
   assert(sources[m + '.js'], `missing dist/valley/${m}.js`);
   const code = sources[m + '.js'].replace(/\/\/.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, '');
   for (const bad of [/from\s+'three/, /\bMath\.random\b/, /\bDate\.now\b/, /\bperformance\.now\b/, /\bdocument\./, /\bwindow\./, /\blocalStorage\b/]) assert(!bad.test(code), `${m}.js (pure layer) uses ${bad}`);
@@ -105,6 +106,11 @@ for (const [file, sha] of Object.entries(shas)) {
   assert(e.task_id && e.sha256, `provenance entry incomplete: ${file}`);
   assert.equal(e.sha256, sha, `provenance sha256 differs from the shipped file: ${file}`);
 }
+// 足運びの表は生成物：生成元が記録した GLB・clips.json の SHA256 が同梱のものと同じ（素材を差し替えたら node tools/gait-sample.mjs で作り直す）
+const { GAIT_SOURCE } = await import('../dist/valley/gait-table.js');
+assert.equal(GAIT_SOURCE.tool, 'tools/gait-sample.mjs', 'gait-table.js must name its generator');
+assert.equal(GAIT_SOURCE.clipsJson, createHash('sha256').update(fs.readFileSync(path.join(root, 'dist/assets/characters/clips.json'))).digest('hex'), 'gait-table.js was sampled from another clips.json: rerun node tools/gait-sample.mjs');
+for (const c of characters) assert.equal(GAIT_SOURCE.glb[c], shas['dist/assets/characters/' + c + '.glb'], `gait-table.js was sampled from another ${c}.glb: rerun node tools/gait-sample.mjs`);
 for (const c of characters) assert(prov.assets.some(a => a.file === 'dist/assets/characters/' + c + '.glb'), `provenance lacks ${c}`);
 for (const p of ['well', 'cart', 'lantern', 'hasa', 'jizo', 'firepit', 'gatehouse', 'fort', 'barricade', 'dozo', 'naya', 'wara', 'kakashi', 'hokora']) assert(prov.assets.some(a => a.file === 'dist/assets/valley/models/' + p + '.glb'), `provenance lacks ${p}`);
 
