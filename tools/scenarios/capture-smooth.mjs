@@ -66,6 +66,8 @@ export default async function (ctx) {
   await prepare(ctx);
   await ctx.v("document.body.classList.add('hide-hud')");
   const tag = tagOf(), all = [];
+  // 1回目の場面だけ、草の区画の作り始めなどで回ごとに絵が変わった（2026-11-04）。同じ場面を1回空撮りしてから撮る
+  await playScene(ctx, SCENES[0], 'side');
   for (const sc of SCENES) for (const cam of ['side', 'follow']) {
     const { shots, log } = await playScene(ctx, sc, cam);
     const file = path.join(ctx.out, `${tag}-${sc.name}-${cam}.jpg`);
