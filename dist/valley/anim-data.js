@@ -13,6 +13,10 @@ export const LOCOMOTION = {
 // 歩き↔小走り↔走りの切り替え速度（m/s）。往復で揺れないよう、上がるときと下がるときで境を変える。
 export const GAITS = { walkUp: 0.15, walkDown: 0.08, jogUp: 2.1, jogDown: 1.8, runUp: 3.7, runDown: 3.3 };
 export const TIME_SCALE_RANGE = [0.55, 2.0];
+// 着いている足が体に対して後ろへ動く速さ（m/秒・等倍。主人公の骨で測った値。tools/scenarios/measure-stance-speed.mjs）。
+// 再生の倍率は「移動の速さ÷この速さ」で決める。1周の平均 avgSpeed で決めると、走り・小走りは足が1歩ごとに前へ流れ（5〜7cm）、
+// 屈み歩きは足が体より遅れて後ろへ流れた。表に無い動作は avgSpeed を使う。兵・村人の骨では1〜3%小さいだけなので共通にする。
+export const STANCE_SPEED = Object.freeze({ CMU_Run: 2.903, CMU_Jog: 2.13, Samurai_Walk: 1.217, Walk_Fight_Forward: 0.769, Casual_Walk: 0.648, Cautious_Crouch_Walk_Forward: 1.357 });
 
 // 技 → 動作。clip は動作の名前、cut は当たりの後にどれだけ長く残すか（戻りを短く切るための上限・動作の秒）。
 export const MOVE_CLIPS = {
@@ -81,9 +85,23 @@ export function pickGait(prev, speed) {
   return gait;
 }
 
-export function locomotionTimeScale(speed, avgSpeed) {
+export function locomotionTimeScale(speed, avgSpeed, floor = TIME_SCALE_RANGE[0]) {
   if (!avgSpeed || avgSpeed < 0.3) return 1;
-  return clamp(speed / avgSpeed, TIME_SCALE_RANGE[0], TIME_SCALE_RANGE[1]);
+  return clamp(speed / avgSpeed, floor, TIME_SCALE_RANGE[1]);
+}
+
+// 移動の動作を替えるときに、足の周期を引き継ぐ（pure）。table は anim-contacts.js の FOOT_CONTACTS。
+// 左足が着く時刻をそろえる：前の動作の「左足が着いてから何割進んだか」を、次の動作の同じ割合の時刻にする。
+// 前は次の動作を先頭（0秒）から始めていたので、歩き↔小走り↔走りの替わり目で、左右の足の周期が最大で半周ずれて跳んだ。
+// 1周に左足が何回も着く動作（村人の歩き）は、左足の間隔を1歩の周期とする。表に無い・左足が無い動作は null（先頭から）。
+export function phaseMatchedTime(table, fromClip, fromTime, toClip) {
+  const a = table[fromClip], b = table[toClip];
+  if (!a || !b) return null;
+  const la = a.contacts.filter(c => c.foot === 'left'), lb = b.contacts.filter(c => c.foot === 'left');
+  if (!la.length || !lb.length) return null;
+  const pa = a.duration / la.length, pb = b.duration / lb.length;
+  const phase = ((((fromTime - la[0].t) % pa) + pa) % pa) / pa;
+  return (lb[0].t + phase * pb) % b.duration;
 }
 
 // 技の時間割（予備・当たり・戻り・秒）に合わせて、動作のどの区間をどの速さで再生するかを決める（pure）。

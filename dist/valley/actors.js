@@ -39,6 +39,7 @@ class Actor {
     this.vis = { x: 0, y: 0, z: 0, turn: 0, t: 0, inst: null, io: createLungeIO(), wx: 0, wz: 0,
       sx: 0, sz: 0, fx: 0, fz: 0, roomF: 0, roomB: 0, gx: 0, gz: 0 };
     this.foe = null;                         // 振りの相手（技を始めたときに決める。踏み込む先）
+    this.slideTurn = 0; this.slideWant = 0;  // 壁沿いに滑るとき、模型だけを滑る向きへ回す角（見た目だけ。論理の向き yaw は変えない）
     this.knock = createKnock();              // 押し戻し（8.4a・knockback.js）。論理の位置を動かす
     this.character = new Character(game.roster, who, { tint, scale, style });
     this.character.onContact = c => this.onFootContact(c);
@@ -146,7 +147,7 @@ class Actor {
     const success = g.audio.playStep(step, { pan: hero ? 0 : g.pan(this.pos), lowpassHz: rule.lowpassHz, gainScale: rule.gain });
     g.footQA?.played(record, before, { surface, gait, role, pitch: step.pitch, gain: step.gain, seed: step.seed, success, rejected: g.audio.stepRejectReason === 'limit' });
   }
-  sync() { const r = this.character.root, v = this.vis; r.position.set(this.pos.x + v.x, this.pos.y + v.y, this.pos.z + v.z); r.rotation.y = this.yaw + v.turn + Math.PI; }
+  sync() { const r = this.character.root, v = this.vis; r.position.set(this.pos.x + v.x, this.pos.y + v.y, this.pos.z + v.z); r.rotation.y = this.yaw + v.turn + this.slideTurn + Math.PI; }
   step(dx, dz) {
     const r = moveActor(this.game.col, this.game.terrain, this.pos, dx, dz, this.radius);
     this.pos = { x: r.x, y: r.y, z: r.z };
@@ -155,6 +156,7 @@ class Actor {
   place(x, z, yaw = this.yaw) {
     this.pos = { x, y: this.game.terrain.heightAt(x, z), z }; this.yaw = yaw; this.character.resetContacts();
     const v = this.vis; v.x = v.y = v.z = v.turn = 0; v.inst = null;   // 置き直し・やり直しでは、見た目の踏み込みを残さない
+    this.slideTurn = this.slideWant = 0;
     endKnock(this.knock);                                               // 押し戻しの残りも残さない
     this.sync();
   }
@@ -396,6 +398,7 @@ export class HeroActor extends Actor {
     else if (f.state === 'attack') this.updateLunge(dt);
     else if (f.state === 'idle') this.updateLocomotion(dt, ctl, locked);
     else this.speed = approach(this.speed, 0, 22, dt);
+    this.slideTurn += (this.slideWant - this.slideTurn) * (dt > 0 ? 1 - Math.exp(-12 * dt) : 1); this.slideWant = 0;
     this.tickSword(dt);
     this.tickCharacter(dt);
     this.sync();
@@ -440,10 +443,16 @@ export class HeroActor extends Actor {
     let target = 0;
     if (ax.active) target = this.crouch ? SPEED.crouch : f.blocking ? SPEED.guard : sprint ? SPEED.sprint : SPEED.walk;
     this.speed = approach(this.speed, target, target > this.speed ? 18 : 28, dt);
+    let travel = 0;                          // このコマで実際に進んだ速さ（m/秒）。足の動作はこれで回す（見た目だけ。論理の速さ this.speed は変えない）
     if (this.speed > 0.01 && ax.active) {
       this.yaw = turnToward(this.yaw, ctl.moveYaw, f.blocking ? 6 : sprint ? 9 : 14, dt);
       const before = this.pos;
       const moved = this.step(-Math.sin(this.yaw) * this.speed * dt, -Math.cos(this.yaw) * this.speed * dt);
+      const mx = this.pos.x - before.x, mz = this.pos.z - before.z;
+      if (dt > 0) travel = Math.min(this.speed, Math.hypot(mx, mz) / dt);
+      // 壁・岩に斜めに当たって横へ滑るとき：論理の向きは壁へ向いたまま、体は横へ動く。模型を滑る向きへ回し、足を前へ運ばせる
+      // （回さないと、前向きの足の動作のまま体が横へ流れ、着いた足が1歩で50cm以上横へ滑った）。向きのずれが20°未満なら回さない
+      if (travel > 0.3) { const d = angleDiff(this.yaw, yawOf(mx, mz)); if (Math.abs(d) > 0.35) this.slideWant = d; }
       // 急な斜面に阻まれて進めないまま歩き続けたら、理由を案内する（見えない壁に感じる。第3周の評価：斜面の縁で身動きが取れなかった）
       if (moved.blocked === 'slope' && Math.hypot(this.pos.x - before.x, this.pos.z - before.z) < 0.01) { this.steepT += dt; if (this.steepT > 1.1) this.game.hud.hint('steep', '斜面が急で進めない。別の向きへ回り込もう', 4500); }
       else this.steepT = Math.max(0, this.steepT - dt * 2);
@@ -453,7 +462,8 @@ export class HeroActor extends Actor {
       return;
     }
     this.blockPosed = false;
-    this.character.locomote(this.speed, this.crouch ? 'crouch' : (this.guardStance || f.blocking) ? 'guard' : 'relaxed');
+    // 足は実際に進んだ速さで回す：キーを離すと位置は1コマで止まるので、そのコマから待ちへ。壁・急な斜面で進めないときは足踏みしない
+    this.character.locomote(travel, this.crouch ? 'crouch' : (this.guardStance || f.blocking) ? 'guard' : 'relaxed');
   }
 
   // hit は当たりの見た目の情報（battle.js の strikeGeometry）：push＝ひるみの押す向き（相手から自分へ＋刃の進む向き）
@@ -525,9 +535,11 @@ export class EnemyActor extends Actor {
     if (this.departed) return;
     if (!f.alive) {
       this.deadT += dt; g.tokens.release(this.id);
-      if (this.deadT >= 0.3) this.character.dropWeapon('tachiDrawn', (x, z) => g.terrain.heightAt(x, z));   // 倒れてから、刀が手を離れて落ちる
+      // 倒れてから、刀が手を離れて落ちる。地面に着いたらカラン（音だけ）。続きから始めて最初から倒れている者は鳴らさない（読み込みの直後に一斉に鳴ってしまう）
+      if (this.deadT >= 0.3 && !this.character.drops) this.character.dropWeapon('tachiDrawn', (x, z) => g.terrain.heightAt(x, z), this.seenAlive ? () => g.audio.play('sword_drop', { pan: g.pan(this.pos) }) : null);
       this.tickCharacter(dt); this.sync(); return;
     }
+    this.seenAlive = true;
     if (this.brain.state === 'surrendered') { g.tokens.release(this.id); this.tickCharacter(dt); this.sync(); return; }
     if (this.brain.departed) { this.departed = true; g.tokens.release(this.id); this.character.root.visible = false; return; }
     if (this.dormant || g.aiPaused) { this.animateFree(dt); this.tickCharacter(dt); this.sync(); return; }

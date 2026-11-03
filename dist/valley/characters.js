@@ -3,7 +3,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
-import { LOCOMOTION, MOVE_CLIPS, ACTION_CLIPS, pickGait, locomotionTimeScale, moveSegment, clipTimeAt } from './anim-data.js';
+import { LOCOMOTION, MOVE_CLIPS, ACTION_CLIPS, pickGait, locomotionTimeScale, moveSegment, clipTimeAt, phaseMatchedTime, STANCE_SPEED } from './anim-data.js';
 import { createContactTracker, observeContacts } from './foot-contacts.js';
 import { FOOT_CONTACTS } from './anim-contacts.js';
 import { BowRig } from './bow.js';
@@ -177,10 +177,17 @@ export class Character {
     const name = table[this.gait];
     const meta = this.meta(name);
     const frozen = this.gait === 'idle' && table.idleFreeze;
-    const ts = this.gait === 'idle' ? (frozen ? 0 : 1) : (style === 'injured' ? Math.max(1, Math.min(1.5, locomotionTimeScale(speed, meta?.avgSpeed))) : locomotionTimeScale(speed, meta?.avgSpeed));   // 負傷でも急ぐときは足を速める
+    const ref = STANCE_SPEED[name] ?? meta?.avgSpeed;   // 着いている足の速さに合わせる（anim-data.js の STANCE_SPEED）
+    const ts = this.gait === 'idle' ? (frozen ? 0 : 1) : (style === 'injured' ? Math.max(1, Math.min(1.5, locomotionTimeScale(speed, ref))) : locomotionTimeScale(speed, ref));   // 負傷でも急ぐときは足を速める
     if (this.locoName !== name) {
-      this.play(name, { fade: 0.2, timeScale: ts });
-      this.locoName = name;
+      const prev = this.locoName && this.current && this.currentName === this.locoName ? this.current : null;
+      // 引き継ぐのは同じ構え（style）の中の歩き↔小走り↔走りだけ。構えの替わり目（待ち構え↔ふだん）は抜刀・納刀と重なり、
+      // 引き継ぐと納刀の右腕のIKが届かない姿の位相に入った（regress-draw-sheathe の sheatheWalking で80mm。先頭からなら12mm）
+      const from = prev && this.locoStyle === style ? phaseMatchedTime(FOOT_CONTACTS, this.locoName, prev.time, name) : null;
+      // 止まる：出ていく足の動作をその姿で止めてから待ちへ混ぜる（体は止まったのに、着いている足だけ後ろへ流れて見えた）
+      if (prev && this.gait === 'idle') prev.timeScale = 0;
+      this.play(name, from == null ? { fade: 0.2, timeScale: ts } : { fade: 0.2, timeScale: ts, from });
+      this.locoName = name; this.locoStyle = style;
       if (frozen && this.current) this.current.time = 0.3;
     } else if (this.current) this.current.timeScale = ts;
   }
@@ -277,7 +284,8 @@ export class Character {
   }
 
   // 倒れた人の武器を手から外して地面へ置く（手に付いたままだと、死んだ姿で刀が真上に立った）。武器の長い軸は +Y（weapons.js の約束）。
-  dropWeapon(key, groundAt) {
+  // onLand は地面に着いた瞬間に1回だけ呼ぶ（刀が落ちる音。無ければ鳴らさない）。
+  dropWeapon(key, groundAt, onLand = null) {
     const w = this.weapons[key], parent = this.root.parent;
     if (!w || !w.holder.visible || !parent || this.drops?.some(d => d.key === key)) return;
     const obj = w.object, p0 = new THREE.Vector3(), q0 = new THREE.Quaternion(), sc = new THREE.Vector3();
@@ -286,7 +294,7 @@ export class Character {
     const th = (Math.sin(p0.x * 12.9898 + p0.z * 78.233) * 43758.5453 % 1) * Math.PI * 2, dir = new THREE.Vector3(Math.cos(th), 0, Math.sin(th));
     const qEnd = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
     const pEnd = new THREE.Vector3(p0.x + dir.x * 0.1, groundAt(p0.x, p0.z) + 0.035, p0.z + dir.z * 0.1);
-    (this.drops ||= []).push({ key, obj, t: 0, p0, q0, pEnd, qEnd });
+    (this.drops ||= []).push({ key, obj, t: 0, p0, q0, pEnd, qEnd, onLand });
     w.holder.visible = false;
   }
   updateDrops(dt) {
@@ -296,6 +304,7 @@ export class Character {
       const k = d.t, fall = k * k;
       d.obj.position.set(d.p0.x + (d.pEnd.x - d.p0.x) * k, d.p0.y + (d.pEnd.y - d.p0.y) * fall, d.p0.z + (d.pEnd.z - d.p0.z) * k);
       d.obj.quaternion.slerpQuaternions(d.q0, d.qEnd, 1 - (1 - k) * (1 - k));
+      if (d.t >= 1 && d.onLand) { const f = d.onLand; d.onLand = null; f(); }
     }
   }
 
