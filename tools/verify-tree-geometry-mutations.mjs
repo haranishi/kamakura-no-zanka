@@ -26,7 +26,7 @@ const cases = [
   ['one fork branch', 'const branches = small ? (shrub ? 5 : 4) : [4, 3, 5][shape];', 'const branches = 1;'],
   ['unnormalized normals', 'this.n.push(...norm(n))', 'this.n.push(...n)'],
   ['protruding trunk head', '[.12, fork, .1]', '[.12, h * 1.6, .1]'],
-  ['triangle budget overflow', 'for (const c of plan.clusters) cluster(c, 10, 5, 1, .09);', 'for (const c of plan.clusters) cluster(c, 40, 5, 1, .09);'],
+  ['triangle budget overflow', 'for (const c of plan.clusters) cluster(c, 11, 6, 1, .09);', 'for (const c of plan.clusters) cluster(c, 40, 6, 1, .09);'],
   ['tufts without pivots', 'leaf.pivot = [...root, 1];', 'leaf.pivot = NO_PIVOT;'],
   ['pivots lost in the shell rebuild', 'grid.s[i],grid.v.slice(i*4,i*4+4));', 'grid.s[i],[0,0,0,0]);'],
   ['broadleaf crown without its inner fill', 'for (const c of plan.inner) cluster(c, 10, 4, 1, .09);', ''],

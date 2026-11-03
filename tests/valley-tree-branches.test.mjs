@@ -192,8 +192,9 @@ test('broadleaf clusters sit on secondary limbs around the crown with gaps betwe
   for (const c of plan.clusters) {
     const r = c.center.map((v, q) => (v - center[q]) / radii[q]), depth = Math.hypot(...r);
     assert(depth > .5 && depth < 1.25, '[broad] cluster inside the trunk or outside the crown');
-    // Third round: sizes 0.2-0.4 of the crown (equal shells read as a ball painted with leaves, blind review Q08/Q14).
-    assert(c.radii.every((v, q) => v / radii[q] >= .17 && v / radii[q] <= .41), '[broad] cluster size');
+    // Sizes 0.3-0.4 of the crown. The third round's 0.2-0.4 read as "a bunch of small balls" and lost the blind review to the
+    // second round; the sizes, count and relief went back to the second round on 2026-11-03.
+    assert(c.radii.every((v, q) => v / radii[q] >= .27 && v / radii[q] <= .41), '[broad] cluster size');
     // The limb leaves its primary somewhere in 40-70% (one fixed fraction read as umbrella ribs, Q10) and ends inside the cluster.
     const along = [0, 1, 2].map(q => (c.limb.from[q] - plan.root[q]) / (tips[c.primary][q] - plan.root[q])).filter(Number.isFinite);
     assert(along.every(t => t >= .4 - 1e-9 && t <= .7 + 1e-9) && along.every(t => near(t, along[0])), '[broad] limb not on its primary');
@@ -209,8 +210,6 @@ test('broadleaf clusters sit on secondary limbs around the crown with gaps betwe
   assert.deepEqual(filled.clusters, plan.clusters, '[broad] the fill moved the outer clusters');
   const leaves = plan.clusters.map(c => { const q = Math.abs(tips[c.primary][0] - plan.root[0]) > .1 ? 0 : 2; return (c.limb.from[q] - plan.root[q]) / (tips[c.primary][q] - plan.root[q]); });
   assert(Math.max(...leaves) - Math.min(...leaves) > .15, '[broad] every limb leaves its primary at one fraction (umbrella ribs)');
-  const sizes = plan.clusters.map(c => c.radii[0] / radii[0]);
-  assert(Math.max(...sizes) - Math.min(...sizes) > .12, '[broad] clusters of one size');
   const upper = plan.clusters.filter(c => c.center[1] > center[1]), lower = plan.clusters.filter(c => c.center[1] < center[1]);
   const spread = cs => Math.max(...cs.map(c => Math.hypot(c.center[0], c.center[2])));
   assert(spread(upper) > spread(lower), '[broad] zelkova clusters do not widen upward');
