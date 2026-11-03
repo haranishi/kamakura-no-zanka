@@ -1,0 +1,423 @@
+{
+  "basis": "NOTICE.md の「モーションキャプチャ（CMU）」は商品同梱可・動き単体の転売不可を示し、「人物の動き（Meshy）」は動き単体の再配布条件を未確認としており、個別の出所台帳と再配布条件の確認が揃わないため全件 unconfirmed とする。",
+  "clips": [
+    {
+      "clip": "Alert",
+      "seconds": 4,
+      "category": "meshy-motion-library-or-text-to-motion",
+      "status": "unconfirmed"
+    },
+    {
+      "clip": "Archery_Shot",
+      "seconds": 5,
+      "category": "meshy-motion-library-or-text-to-motion",
+      "status": "unconfirmed"
+    },
+    {
+      "clip": "Attack_r1",
+      "seconds": 2.8,
+      "category": "meshy-motion-library-or-text-to-motion",
+      "status": "unconfirmed"
+    },
+    {
+      "clip": "CMU_Jog",
+      "seconds": 0.8,
+      "category": "cmu-mocap",
+      "status": "unconfirmed"
+    },
+    {
+      "clip": "CMU_Run",
+      "seconds": 0.73,
+      "category": "cmu-mocap",
+      "status": "unconfirmed"
+    },
+    {
+      "clip": "CMU_Walk",
+      "seconds": 1.07,
+      "category": "cmu-mocap",
+      "status": "unconfirmed"
+    },
+    {
+      "clip": "Casual_Walk",
+      "seconds": 4.2,
+      "category": "meshy-motion-library-or-text-to-motion",
+      "status": "unconfirmed"
+    },
+    {
+      "clip": "Catching_Breath",
+      "seconds": 7,
+      "category": "meshy-motion-library-or-text-to-motion",
+      "status": "unconfirmed"
+    },
+    {
+      "clip": "Cautious_Crouch_Walk_Backward",
+      "seconds": 1.27,
+      "category": "meshy-motion-library-or-text-to-motion",
+      "status": "unconfirmed"
+    },
+    {
+      "clip": "Cautious_Crouch_Walk_Forward",
+      "seconds": 1.13,
+      "category": "meshy-motion-library-or-text-to-motion",
+      "status": "unconfirmed"
+    },
+    {
+      "clip": "Cautious_Crouch_Walk_Left",
+      "seconds": 1.17,
+      "category": "meshy-motion-library-or-text-to-motion",
+      "status": "unconfirmed"
+    },
+    {
+      "clip": "Collect_Object",
+      "seconds": 6,
+      "category": "meshy-motion-library-or-text-to-motion",
+      "status": "unconfirmed"
+    },
+    {
+      "clip": "Crouch_Walk_with_Torch",
+      "seconds": 1.1,
+      "category": "meshy-motion-library-or-text-to-motion",
+      "status": "unconfirmed"
+    },
+    {
+      "clip": "Dozing_Elderly",
+      "seconds": 10.83,
+      "category": "meshy-motion-library-or-text-to-motion",
+      "status": "unconfirmed"
+    },
+    {
+      "clip": "Draw_and_Shoot_from_Back",
+      "seconds": 7.83,
+      "category": "meshy-motion-library-or-text-to-motion",
+      "status": "unconfirmed"
+    },
+    {
+      "clip": "Fall_Dead_from_Abdominal_Injury",
+      "seconds": 3.5,
+      "category": "meshy-motion-library-or-text-to-motion",
+      "status": "unconfirmed"
+    },
+    {
+      "clip": "Formal_Bow",
+      "seconds": 7.67,
+      "category": "meshy-motion-library-or-text-to-motion",
+      "status": "unconfirmed"
+    },
+    {
+      "clip": "Hit_Reaction",
+      "seconds": 1.63,
+      "category": "meshy-motion-library-or-text-to-motion",
+      "status": "unconfirmed"
+    },
+    {
+      "clip": "Hit_Reaction_1",
+      "seconds": 1.23,
+      "category": "meshy-motion-library-or-text-to-motion",
+      "status": "unconfirmed"
+    },
+    {
+      "clip": "Hit_Reaction_to_Waist",
+      "seconds": 1.63,
+      "category": "meshy-motion-library-or-text-to-motion",
+      "status": "unconfirmed"
+    },
+    {
+      "clip": "Iai_Draw_Cut",
+      "seconds": 2.47,
+      "category": "meshy-motion-library-or-text-to-motion",
+      "status": "unconfirmed"
+    },
+    {
+      "clip": "Idle_Turn_Left",
+      "seconds": 0.93,
+      "category": "meshy-motion-library-or-text-to-motion",
+      "status": "unconfirmed"
+    },
+    {
+      "clip": "Injured_Walk",
+      "seconds": 8.67,
+      "category": "meshy-motion-library-or-text-to-motion",
+      "status": "unconfirmed"
+    },
+    {
+      "clip": "Katana_Charged_Cut",
+      "seconds": 3.47,
+      "category": "meshy-motion-library-or-text-to-motion",
+      "status": "unconfirmed"
+    },
+    {
+      "clip": "Katana_Counter_Cut",
+      "seconds": 1.97,
+      "category": "meshy-motion-library-or-text-to-motion",
+      "status": "unconfirmed"
+    },
+    {
+      "clip": "Katana_Draw_v2",
+      "seconds": 2.97,
+      "category": "meshy-motion-library-or-text-to-motion",
+      "status": "unconfirmed"
+    },
+    {
+      "clip": "Katana_Finisher",
+      "seconds": 3.47,
+      "category": "meshy-motion-library-or-text-to-motion",
+      "status": "unconfirmed"
+    },
+    {
+      "clip": "Katana_Guard_Idle",
+      "seconds": 3.97,
+      "category": "meshy-motion-library-or-text-to-motion",
+      "status": "unconfirmed"
+    },
+    {
+      "clip": "Katana_Gyakukesa_Cut",
+      "seconds": 1.97,
+      "category": "meshy-motion-library-or-text-to-motion",
+      "status": "unconfirmed"
+    },
+    {
+      "clip": "Katana_Karatake_Heavy",
+      "seconds": 2.97,
+      "category": "meshy-motion-library-or-text-to-motion",
+      "status": "unconfirmed"
+    },
+    {
+      "clip": "Katana_Kesa_Cut",
+      "seconds": 2.47,
+      "category": "meshy-motion-library-or-text-to-motion",
+      "status": "unconfirmed"
+    },
+    {
+      "clip": "Katana_Parry",
+      "seconds": 1.97,
+      "category": "meshy-motion-library-or-text-to-motion",
+      "status": "unconfirmed"
+    },
+    {
+      "clip": "Katana_Sheathe",
+      "seconds": 2.97,
+      "category": "meshy-motion-library-or-text-to-motion",
+      "status": "unconfirmed"
+    },
+    {
+      "clip": "Katana_Thrust",
+      "seconds": 1.97,
+      "category": "meshy-motion-library-or-text-to-motion",
+      "status": "unconfirmed"
+    },
+    {
+      "clip": "Katana_Yokonagi_Cut",
+      "seconds": 2.47,
+      "category": "meshy-motion-library-or-text-to-motion",
+      "status": "unconfirmed"
+    },
+    {
+      "clip": "Kneel_on_One_Knee_and_Stand",
+      "seconds": 2.57,
+      "category": "meshy-motion-library-or-text-to-motion",
+      "status": "unconfirmed"
+    },
+    {
+      "clip": "Kneeling_Reload",
+      "seconds": 6.9,
+      "category": "meshy-motion-library-or-text-to-motion",
+      "status": "unconfirmed"
+    },
+    {
+      "clip": "Knock_Down",
+      "seconds": 2.5,
+      "category": "meshy-motion-library-or-text-to-motion",
+      "status": "unconfirmed"
+    },
+    {
+      "clip": "Long_Breathe_and_Look_Around",
+      "seconds": 11.27,
+      "category": "meshy-motion-library-or-text-to-motion",
+      "status": "unconfirmed"
+    },
+    {
+      "clip": "Lower_Weapon_Look_Raise",
+      "seconds": 5.2,
+      "category": "meshy-motion-library-or-text-to-motion",
+      "status": "unconfirmed"
+    },
+    {
+      "clip": "Male_Bend_Over_Pick_Up",
+      "seconds": 7.2,
+      "category": "meshy-motion-library-or-text-to-motion",
+      "status": "unconfirmed"
+    },
+    {
+      "clip": "Officer_Attack",
+      "seconds": 2.8,
+      "category": "meshy-motion-library-or-text-to-motion",
+      "status": "unconfirmed"
+    },
+    {
+      "clip": "Pull_Radish",
+      "seconds": 4.73,
+      "category": "meshy-motion-library-or-text-to-motion",
+      "status": "unconfirmed"
+    },
+    {
+      "clip": "Push_and_Walk_Forward",
+      "seconds": 8,
+      "category": "meshy-motion-library-or-text-to-motion",
+      "status": "unconfirmed"
+    },
+    {
+      "clip": "Roll_Dodge",
+      "seconds": 1.83,
+      "category": "meshy-motion-library-or-text-to-motion",
+      "status": "unconfirmed"
+    },
+    {
+      "clip": "Run_Turn_Left",
+      "seconds": 1.6,
+      "category": "meshy-motion-library-or-text-to-motion",
+      "status": "unconfirmed"
+    },
+    {
+      "clip": "Run_to_Walk_Transition",
+      "seconds": 2.27,
+      "category": "meshy-motion-library-or-text-to-motion",
+      "status": "unconfirmed"
+    },
+    {
+      "clip": "Samurai_Walk",
+      "seconds": 1.33,
+      "category": "meshy-motion-library-or-text-to-motion",
+      "status": "unconfirmed"
+    },
+    {
+      "clip": "Sit_Cross_Legged_on_Floor",
+      "seconds": 2.5,
+      "category": "meshy-motion-library-or-text-to-motion",
+      "status": "unconfirmed"
+    },
+    {
+      "clip": "Sprint_and_Sudden_Stop",
+      "seconds": 2.03,
+      "category": "meshy-motion-library-or-text-to-motion",
+      "status": "unconfirmed"
+    },
+    {
+      "clip": "Stand_Dodge",
+      "seconds": 1.43,
+      "category": "meshy-motion-library-or-text-to-motion",
+      "status": "unconfirmed"
+    },
+    {
+      "clip": "Stand_Up2",
+      "seconds": 3.1,
+      "category": "meshy-motion-library-or-text-to-motion",
+      "status": "unconfirmed"
+    },
+    {
+      "clip": "Stand_Up3",
+      "seconds": 6.07,
+      "category": "meshy-motion-library-or-text-to-motion",
+      "status": "unconfirmed"
+    },
+    {
+      "clip": "Stand_and_Chat",
+      "seconds": 5.17,
+      "category": "meshy-motion-library-or-text-to-motion",
+      "status": "unconfirmed"
+    },
+    {
+      "clip": "Stand_and_Drink",
+      "seconds": 8.9,
+      "category": "meshy-motion-library-or-text-to-motion",
+      "status": "unconfirmed"
+    },
+    {
+      "clip": "Sword_Parry_Backward",
+      "seconds": 1.37,
+      "category": "meshy-motion-library-or-text-to-motion",
+      "status": "unconfirmed"
+    },
+    {
+      "clip": "Sword_Shout",
+      "seconds": 6.17,
+      "category": "meshy-motion-library-or-text-to-motion",
+      "status": "unconfirmed"
+    },
+    {
+      "clip": "Talk_with_Hands_Open",
+      "seconds": 3.97,
+      "category": "meshy-motion-library-or-text-to-motion",
+      "status": "unconfirmed"
+    },
+    {
+      "clip": "Torch_Look_Around",
+      "seconds": 9.33,
+      "category": "meshy-motion-library-or-text-to-motion",
+      "status": "unconfirmed"
+    },
+    {
+      "clip": "Two_Handed_Parry",
+      "seconds": 1.37,
+      "category": "meshy-motion-library-or-text-to-motion",
+      "status": "unconfirmed"
+    },
+    {
+      "clip": "Wake_Up_and_Look_Up",
+      "seconds": 3.5,
+      "category": "meshy-motion-library-or-text-to-motion",
+      "status": "unconfirmed"
+    },
+    {
+      "clip": "Walk_Fight_Back",
+      "seconds": 1.73,
+      "category": "meshy-motion-library-or-text-to-motion",
+      "status": "unconfirmed"
+    },
+    {
+      "clip": "Walk_Fight_Forward",
+      "seconds": 1.73,
+      "category": "meshy-motion-library-or-text-to-motion",
+      "status": "unconfirmed"
+    },
+    {
+      "clip": "Walk_Slowly_and_Look_Around",
+      "seconds": 2.53,
+      "category": "meshy-motion-library-or-text-to-motion",
+      "status": "unconfirmed"
+    },
+    {
+      "clip": "Walk_Turn_Left",
+      "seconds": 2.03,
+      "category": "meshy-motion-library-or-text-to-motion",
+      "status": "unconfirmed"
+    },
+    {
+      "clip": "Walking_Scan_with_Sudden_Look_Back",
+      "seconds": 6.73,
+      "category": "meshy-motion-library-or-text-to-motion",
+      "status": "unconfirmed"
+    },
+    {
+      "clip": "Wave_One_Hand",
+      "seconds": 4.1,
+      "category": "meshy-motion-library-or-text-to-motion",
+      "status": "unconfirmed"
+    },
+    {
+      "clip": "dying_backwards",
+      "seconds": 2.23,
+      "category": "meshy-motion-library-or-text-to-motion",
+      "status": "unconfirmed"
+    },
+    {
+      "clip": "open_door",
+      "seconds": 4.73,
+      "category": "meshy-motion-library-or-text-to-motion",
+      "status": "unconfirmed"
+    }
+  ],
+  "counts": {
+    "cmu-mocap": 3,
+    "meshy-motion-library-or-text-to-motion": 66
+  }
+}
