@@ -8,6 +8,7 @@ export class HUD {
       'narration', 'nr-veil', 'nr-top', 'nr-bottom', 'nr-line', 'nr-title', 'nr-title-text', 'nr-note', 'nr-skip'].map(k => [k, $(k)]));
     this.dialogue = null; this.markers = new Map(); this.timers = new Map(); this.subsOn = true;   // timers: 案内・通知・字幕が消えるまで（ゲーム内の時間。休止中は進まない）
     this.hintsShown = new Set();
+    this.skipHTML = this.el['nr-skip'].innerHTML;   // 語りの枠の飛ばしの案内（節目の演出が戦闘から始まったときだけ書き換え、閉じたら戻す）
   }
 
   setState(state) { document.body.dataset.state = state; }
@@ -75,9 +76,10 @@ export class HUD {
     this.hurtTimer = setTimeout(() => h.classList.remove('on'), 90);          // 画面の赤みは短い演出なので実時間で消す
   }
 
-  // オープニングの語りの枠（HUDの外）。字幕の設定（subsOn）に依らず出す。o = { colors, title, note }（opening-data.js）
+  // オープニングと節目の演出の語りの枠（HUDの外）。字幕の設定（subsOn）に依らず出す。o = { colors, title, note, skip? }（opening-data.js）
   narration(on, o = null) {
     this.el.narration.classList.toggle('hidden', !on);
+    this.el['nr-skip'].innerHTML = (on && o?.skip) || this.skipHTML;
     this.nr = on ? { line: undefined, black: -1, title: -1, hint: -1, alpha: -1 } : null;
     if (!on || !o) return;
     for (const k of ['nr-veil', 'nr-top', 'nr-bottom']) this.el[k].style.background = o.colors.bar;

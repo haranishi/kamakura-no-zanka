@@ -65,6 +65,20 @@ export function installQA(game, ctl) {
     setWaymarks(level) { game.setWaymarks(level); return game.guideView(); },
     setBlood(level) { game.setBlood(level); return game.settings.blood; },
     pressGuide() { return game.pressGuide(); },
+    // 節目の演出の枠（C0a）。表は空のまま。試験の仮の演出は、試験の側から entry として渡す
+    cinematic: {
+      play(entry, opts = {}) { return game.playCinematic(entry, opts); },
+      state() {
+        const $ = id => document.getElementById(id), c = game.camera, line = $('nr-line');
+        return { ...game.cinema.snapshot(), time: game.time, paused: game.paused,
+          frame: { narration: !$('narration').classList.contains('hidden'), line: line.textContent, lineOpacity: +(line.style.opacity || 0),
+            hint: +($('nr-skip').style.opacity || 0), hintText: $('nr-skip').textContent, hudHidden: getComputedStyle($('hud')).visibility === 'hidden' },
+          camera: { x: num(c.position.x), y: num(c.position.y), z: num(c.position.z), fov: num(c.fov) }, cine: !!game.cine,
+          record: JSON.parse(localStorage.getItem('kamakura-valley-cinematics') || 'null'), resumePlan: game.resumePlan ?? null };
+      },
+      reset() { game.cinema.abort(); game.cinema.resetRun(); return game.cinema.snapshot(); },
+      resume() { return game.cinematicResumePlan(); },
+    },
     async treeSpecimens(opts = {}) {
       const request = ++specimenRequest;
       const [{ buildSpecimens }, { ATMOS }] = await Promise.all([import('./tree-view.js'), import('./atmosphere.js')]);

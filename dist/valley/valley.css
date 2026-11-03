@@ -78,6 +78,7 @@ body.talking .subtitle{bottom:calc(clamp(20px,6vh,58px) + 168px)}
 .nr-skip{margin:0;font-size:12px;letter-spacing:.14em;opacity:0}.nr-skip kbd{color:inherit;border-color:currentColor;background:none}
 .granary{position:absolute;left:clamp(16px,2.6vw,38px);bottom:calc(clamp(18px,3vw,40px) + 48px);width:min(260px,40vw);display:grid;grid-template-columns:44px 1fr;gap:8px;align-items:center;font-size:11px;letter-spacing:.18em;color:var(--muted)}.granary .track span{display:block;height:100%;width:100%;transform-origin:left;background:var(--gold);transition:transform .4s}
 body.hide-hud .hud{opacity:0}
+body.cinematic .hud{visibility:hidden}   /* 節目の演出の間は HUD を隠す（字幕は語りの枠で出す） */
 
 /* 道しるべは形と数字で読む。距離の文字は回転しない。 */
 .compass i{display:none}
