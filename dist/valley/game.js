@@ -14,7 +14,9 @@ import { CameraRig } from './camera-rig.js';
 import { FX } from './fx.js';
 import { createQuest, reduce, exportProgress, restoreProgress, summarize } from './quest.js';
 import { STORY } from './story-data.js';
-import { loadValley, saveValley, loadMeta, saveMeta } from './save.js';
+import { loadValley, saveValley, loadMeta, saveMeta, loadCinematicsRecord, saveCinematicsRecord } from './save.js';
+import { planResume } from './cinematics.js';
+import { CinematicDirector } from './cinematics-view.js';
 import { OPENING } from './opening-data.js';
 import { createOpening, stepOpening } from './opening.js';
 import { OpeningStage } from './opening-stage.js';
@@ -41,7 +43,7 @@ export class Game {
     this.wind = createWind(); this.windUniforms = veg.wind;
     this.world = WORLD; this.rng = mulberry32(seed);
     this.time = 0; this.stopT = 0; this.slowT = 0; this.slowDur = 0; this.timers = []; this.paused = false; this.aiPaused = false;
-    this.flow = 'idle';                       // idle | intro | play | choice | dead | result
+    this.flow = 'idle';                       // idle | intro | play | cinematic | choice | dead | result（cinematic：節目の演出。世界を止める）
     this.enemies = []; this.npcs = new Map(); this.ally = null; this.noises = [];
     this.exitPoint = { ...WORLD.exit };
     const extra = propColliders(WORLD);
@@ -64,6 +66,7 @@ export class Game {
     this.guideTime = 0; this.guideEpoch = 0; this.guide = null;
     this.settings = { waymarks: 'bold', blood: 'subtle', sens: 1, invert: false, shake: 1, subs: true };   // blood：血の表現（R18.11。既定ひかえめ）
     this.relicView = new RelicView(scene, terrain);
+    this.cinema = new CinematicDirector(this);           // 節目の演出（cinematics-view.js）
     this.resetStory();
     this.syncLife();
   }
@@ -169,6 +172,7 @@ export class Game {
   }
   startNew() {
     this.stopOpening();
+    this.cinema.abort(); this.cinema.resetRun(); this.resetCinematicsRecord();   // はじめから・もう一度：章末の完了も今回の上映記録も初期化（openingSeen は別キーで残す）
     this.freshRun = true;
     this.quest = createQuest(); this.cpPos = {}; this.ending = null; this.lostFood = 0; this.stats = { kills: 0, parries: 0, stealth: 0 };
     this.resetStory();
@@ -185,6 +189,8 @@ export class Game {
     this.freshRun = false;
     this.quest = restoreProgress(STORY, state); this.ending = null; this.lostFood = 0;
     this.resetStory();
+    this.cinema.abort(); this.cinema.resetRun();
+    this.resumePlan = this.cinematicResumePlan();      // 章末の出し直し／結果へ直行の判定（R29.4）。再生の接続は C1
     const cp = WORLD.checkpoints[this.quest.checkpoint] || { x: WORLD.start.x, z: WORLD.start.z, yaw: -2.2 };
     this.placeHeroAt(cp);
     this.buildWorld(); this.begin();
@@ -208,6 +214,7 @@ export class Game {
     this.hud.showDeath(false); this.hud.fade(true);
     this.after(0.6, () => {
       this.dispatch({ type: 'retry' });
+      this.cinema.nextAttempt();                                           // 区切りへのやり直し：予約を捨て、新しい試行で節目を1回出せる（R29.5）
       const cp = WORLD.checkpoints[this.quest.checkpoint];
       const y = WORLD.zones.temple_yard;
       this.placeHeroAt(cp || { x: WORLD.start.x, z: WORLD.start.z, yaw: yawOf(y.x - WORLD.start.x, y.z - WORLD.start.z) });
@@ -221,7 +228,7 @@ export class Game {
       this.hud.fade(false);
     });
   }
-  toCheckpoint() { if (this.flow === 'play' || this.flow === 'dead') { this.flow = 'dead'; if (!this.quest.pendingRetry) this.dispatch({ type: 'player_down' }); this.retry(); } }
+  toCheckpoint() { if (this.flow === 'cinematic') this.cinema.abort(); if (this.flow === 'play' || this.flow === 'dead') { this.flow = 'dead'; if (!this.quest.pendingRetry) this.dispatch({ type: 'player_down' }); this.retry(); } }
 
   // ------------------------------------------------------------------ オープニング・冒頭の目覚め・演出カメラ
   // オープニング（語りと絵のような場面）→ 廃寺の庭で目覚める。進行は opening.js（純粋層）、舞台は谷とは別のシーン（opening-stage.js）。
@@ -381,6 +388,7 @@ export class Game {
   }
   // 保存。はじめからの最初の保存だけは、前の遊びの記録を引き継がない
   persist() {
+    if (this.cineResetPending && !this.resetCinematicsRecord()) return;   // 前回の章末の完了を新しい遊びへ混ぜない（書けるまで進行の保存を保留）
     const r = saveValley(this.storage, exportProgress(this.quest), { fresh: this.freshRun });
     if (r.ok) this.freshRun = false;
   }
@@ -535,6 +543,30 @@ export class Game {
     this.flow = 'result'; this.input.releaseLock();
     this.hud.showResult(s);
   }
+  // ------------------------------------------------------------------ 節目の演出（C0a。表 CINEMATICS は空。中身は C1〜C4）
+  // 遊びの最中（flow='play'）だけ始まる。演出の間は世界を止め、終われば entry.returnTarget の復帰先へ1回だけ渡す
+  playCinematic(entry, opts = {}) { return this.cinema.play(entry, opts); }
+  resetCinematicsRecord() {
+    const r = saveCinematicsRecord(this.storage, { chapter1EndSeen: false });
+    this.cineResetPending = !r.ok;
+    if (!r.ok) this.hud.toast(r.notice + '（進行の保存を待っている）', 3200);
+    return r.ok;
+  }
+  cinematicResumePlan() {
+    const { record, notice } = loadCinematicsRecord(this.storage);
+    if (notice) this.hud.toast(notice, 3200);
+    return planResume({ checkpoint: this.quest.checkpoint, record });
+  }
+  // 演出の毎コマ：演出の時計・カメラ・語りの枠だけを進める。人物・戦闘・判断・押し出し・米と区域・矢・タイマー・ゲームの時計は呼ばない
+  updateCinematic(rawDt) {
+    this.cinema.step(rawDt);
+    if (this.flow === 'cinematic') {
+      this.updateGuide(0); this.updateWorld(0);            // 見た目だけ：新しい画角で木や草の近さを選び直す（風・時刻は進めない）
+      this.fx.update(0, this.camera, this.renderer.domElement.clientHeight || 800);
+    }
+    this.input.endFrame();                                  // 演出中の押下は遊びへ持ち越さない
+  }
+
   worldInteract() {
     const a = this.ally;
     if (this.quest.beat === 'b5_archer' && a && a.role === 'captive' && dist2(this.hero.pos, a.pos) < 2.8 && !this.quest.captiveFreed) return this.dispatch({ type: 'interact', id: 'archer_captive' });
@@ -607,9 +639,11 @@ export class Game {
   update(rawDt) {
     let dt = Math.min(rawDt, 0.05);
     if (this.paused) {
+      this.cinema.pauseStep();
       for (const a of [this.hero, ...this.enemies, this.ally, ...this.npcs.values()]) a?.character.resetContacts();
       this.updateGuide(0); return;
     }
+    if (this.flow === 'cinematic') { this.updateCinematic(Math.min(rawDt, 0.1)); return; }
     if (rawDt > 0.05) {
       for (const a of [this.hero, ...this.enemies, this.ally, ...this.npcs.values()]) a?.character.resetContacts();
     }
@@ -623,6 +657,7 @@ export class Game {
     const input = this.input;
     if (this.flow === 'idle') { this.fx.update(dt, this.camera, this.renderer.domElement.clientHeight || 800); this.updateAmbientFx(dt); this.updateWorld(dt); input.endFrame(); return; }
 
+    this.cinema.filterInput(input);           // 飛ばしに使った操作は、離すまで遊びへ渡さない
     if (this.god) { const f = this.hero.fighter; if (f.alive) { f.hp = f.hpMax; f.posture = f.postureMax; } }
     const ctl = this.controlFrame();          // 会話を閉じる E が、同じ瞬間に別の操作にならないよう先に作る
     this.handleUiKeys();

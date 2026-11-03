@@ -1,4 +1,5 @@
 import { STORY } from './story-data.js';
+import { CINEMATICS_STORAGE_KEY, normalizeCinematicsRecord } from './cinematics.js';
 export const VALLEY_KEY = 'kamakura-valley-progress';
 export const VALLEY_SCHEMA_VERSION = 1;
 const beats = ['b0_temple', 'b1_boy', 'b2_road', 'b3_viewpoint', 'b4_village', 'b5_archer', 'b6_escort', 'b7_result', 'done'];
@@ -93,6 +94,28 @@ export function saveMeta(storage, patch) {
     return { ok: true, notice: '' };
   } catch {
     return { ok: false, notice: '記録を保存できない' };
+  }
+}
+// 節目の演出の記録（章末を見終えたか）。進行・meta とは別のキー。形の検査は normalizeCinematicsRecord（cinematics.js）。
+// 無い・読めない・型が違う・知らない版は未完了（false）として読み、読めなかったときだけ notice で知らせる。
+export function loadCinematicsRecord(storage) {
+  let raw;
+  try {
+    if (!storage || typeof storage.getItem !== 'function') throw new Error('no storage');
+    raw = storage.getItem(CINEMATICS_STORAGE_KEY);
+  } catch (e) { raw = e instanceof Error ? e : new Error('read failed'); }
+  return normalizeCinematicsRecord(raw);
+}
+// 書けなくても遊びは止めない。読み直した記録に patch を重ね、同じ検査を通った形だけを書く
+export function saveCinematicsRecord(storage, patch) {
+  try {
+    if (!storage || typeof storage.setItem !== 'function') return { ok: false, notice: 'この環境では演出の記録を保存できない' };
+    const { record, notice } = normalizeCinematicsRecord({ ...loadCinematicsRecord(storage).record, ...patch });
+    if (notice) return { ok: false, notice: '演出の記録の形が正しくない' };
+    storage.setItem(CINEMATICS_STORAGE_KEY, JSON.stringify(record));
+    return { ok: true, notice: '' };
+  } catch {
+    return { ok: false, notice: '演出の記録を保存できない' };
   }
 }
 // fresh: はじめからの最初の保存。前の遊びの死亡記録を引き継がない（引き継ぐと、つづきから再開したとき倒していない敵が倒した扱いになり、里の戦いが終わらなくなる）。
