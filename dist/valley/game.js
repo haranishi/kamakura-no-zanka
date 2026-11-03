@@ -22,11 +22,13 @@ import { createWind, stepWind, toUniforms, requestGuide, particleCount } from '.
 import { SHOTS } from './shots.js';
 import { lifeScene, lifeInputFromQuest, lifeItem } from './life-rules.js';
 
-import { buildBaseline, buildRecovery, assess, roadDistance } from './guide.js';
+import { buildBaseline, buildRecovery, assess, roadDistance, RECOVERY_PENDING } from './guide.js';
 import { createGuideNav } from './guide-nav.js';
 import { normalizeWaymarks, switchGuidePlan, nearestGuideEntrance, sampleGuidePath, guideRouteHead } from './guide-view.js';
 import { GuideRenderer } from './guide-renderer.js';
 
+// 迷いの助けの復帰探索に使う1コマの時間（ms）。未測定の設計値。探索全体（20〜70ms）を1コマでやると走行中に引っかかった（tasks-polish3.md G）。
+const RECOVERY_BUDGET_MS = 2;
 const PLACE_ZONES = ['viewpoint', 'temple_steps'];
 const GROUP_KINDS = { boy: 'npc', road_scout: 'enemy', village_enemies: 'enemy', escort_ambush: 'enemy' };
 
@@ -768,7 +770,7 @@ export class Game {
         const next = switchGuidePlan(g.plan,g.switchState,{currentDistance:roadDistance(g.variantRoads[g.plan],pos),
           otherDistance:roadDistance(g.variantRoads[other],pos),t:this.guideTime,active:mode==='free'});
         g.switchState=next.state;
-        if(next.plan!==g.plan) { g.plan=next.plan; g.baseline=g.variants[g.plan]; g.state=null; g.recovery=null; g.recoveryAt=-Infinity; }
+        if(next.plan!==g.plan) { g.plan=next.plan; g.baseline=g.variants[g.plan]; g.state=null; g.recovery=null; g.recoveryJob=null; g.recoveryAt=-Infinity; }
       }
     }
     const baseline = g.baseline;
@@ -782,8 +784,9 @@ export class Game {
     const center=WORLD.zones.village_center;
     if(objectiveId==='b4_village' && Math.hypot(pos.x-center.x,pos.z-center.z)<=center.r) g.reached=true;
     const helping=g.assessment.emphasized && normalizeWaymarks(this.settings.waymarks)!=='off';
-    if ((helping || this.wind.guideElapsed!==null) && (mode==='free' || mode==='combat') && !g.reached && this.guideTime-g.recoveryAt>=.5) this.refreshGuideRecovery();
-    if (!helping && this.wind.guideElapsed===null) g.recovery=null;
+    // 復帰探索は0.5秒ごとに始め、1コマRECOVERY_BUDGET_MSまでで区切って数コマで仕上げる（途中は前の復帰路を使う）。
+    if ((helping || this.wind.guideElapsed!==null) && (mode==='free' || mode==='combat') && !g.reached && (g.recoveryJob || this.guideTime-g.recoveryAt>=.5)) this.refreshGuideRecovery(RECOVERY_BUDGET_MS);
+    if (!helping && this.wind.guideElapsed===null) { g.recovery=null; g.recoveryJob=null; }
     let direction=g.assessment.direction;
     if(g.recovery) {
       const head=guideRouteHead(g.recovery.points,pos,g.recoverySegment || 0);
@@ -800,10 +803,20 @@ export class Game {
     const g=this.guide, pos=this.hero.pos;
     return [{x:pos.x,z:pos.z},...(g.recovery?.points.slice((g.recoverySegment || 0)+1) || g.baseline.points.slice((g.state?.segment || 0)+1))];
   }
-  refreshGuideRecovery() {
+  // budgetMsなし（Gを押したとき）は、その場で現在地から最後まで探す。あり（迷いの助け）は、始めた位置から区切って探す。
+  refreshGuideRecovery(budgetMs) {
     const g=this.guide, start=performance.now();
-    g.recovery=buildRecovery(g.baseline,this.guideNav,{pos:{x:this.hero.pos.x,z:this.hero.pos.z},progress:g.state?.progress || 0});
-    g.recoverySegment=0; g.recoveryMs=performance.now()-start; g.recoveryAt=this.guideTime;
+    if(budgetMs===undefined || !g.recoveryJob) {
+      g.recoveryJob={pos:{x:this.hero.pos.x,z:this.hero.pos.z},progress:g.state?.progress || 0,ms:0}; g.recoveryAt=this.guideTime;
+    }
+    const job=g.recoveryJob, until=start+(budgetMs ?? 0);
+    let cells=0; // 1コマに最低8セルは進め、やり直しだけで予算が尽きても止まらないようにする
+    const spend=budgetMs===undefined ? null : () => cells++ < 8 || performance.now() < until;
+    const recovery=buildRecovery(g.baseline,this.guideNav,{pos:job.pos,progress:job.progress,spend});
+    job.ms+=performance.now()-start;
+    if(recovery===RECOVERY_PENDING) return false;
+    g.recovery=recovery; g.recoverySegment=0; g.recoveryMs=job.ms; g.recoveryJob=null;
+    return true;
   }
   pressGuide() {
     if(!['free','combat'].includes(this.guideMode())) return false;

@@ -66,13 +66,78 @@ function gridAround(nav, a, b, margin) {
 }
 // 狭い格子から順に。最後（world）は世界全体で、呼出側が使い回せるように渡す。
 const looseGrids = (nav, a, b, world = () => gridFor(nav)) => [...LOCAL_MARGINS.map(m => () => gridAround(nav, a, b, m)), world];
+// 復帰路（0.5秒ごと）専用：格子を世界の格子目に揃え、セルの通れる結果をnavごとに覚え、探索が読んだセルだけを判定する（grid.at）。
+// 旧来は格子の原点が現在地で毎回ずれて判定の覚えが効かず、毎回約2万セル×5点を作り直した（実機で約0.1秒、初回約0.7秒の停止）。
+// セルの値は gridFor（帯なし）と同じ規則（中心と四隅が通れる）。基準路の構築は結果を変えないため従来のまま。
+// spend()がfalseを返したら、未判定の点を調べる前に打ち切る（覚えた分は残り、次の呼出しで同じ探索を先へ進める）。
+// 打ち切ったセルのまわりの未判定セルを、次の呼出しで近い順にFILL個まで先に判定してから探索をやり直す。
+// 毎回すぐやり直すと、やり直し自体（2〜3ms）が予算を食って数セルしか進まず、1回の探索に70コマ以上かかった。
+const lattices = new WeakMap(), PAUSE = Symbol('guide budget');
+const FILL = 256, REACH = 24; // 未測定の設計値：先に判定するセル数と、探す半径（セル）
+function latticeOf(nav) {
+  const w = nav.bounds, cell = nav.cell ?? CELL;
+  const W = Math.ceil((w.maxX - w.minX) / cell), H = Math.ceil((w.maxZ - w.minZ) / cell);
+  let L = lattices.get(nav);
+  if (!L || L.known.length !== W * H) lattices.set(nav, L = { W, H, cell, known: new Uint8Array(W * H), block: null }); // known: 0=未判定 1=通れる 2=通れない
+  return L;
+}
+export const RECOVERY_PENDING = Symbol('recovery pending');
+function latticeCell(nav, L, gx, gz) {
+  const w = nav.bounds, cell = L.cell, k = gz * L.W + gx;
+  // nav.jsのcenter()と同じ式（世界の端の半端なセルも同じ中心）。値は gridFor（帯なし）と同じ規則（中心と四隅）。
+  const x = w.minX + gx * cell + Math.min(cell, w.maxX - w.minX - gx * cell) / 2;
+  const z = w.minZ + gz * cell + Math.min(cell, w.maxZ - w.minZ - gz * cell) / 2;
+  L.known[k] = nav.walkable(x, z) && [-1, 1].every(dx => [-1, 1].every(dz => nav.walkable(x + dx * cell / 2, z + dz * cell / 2))) ? 1 : 2;
+}
+// 前回打ち切ったセルのまわりの未判定セルを、近い順にFILL個まで判定する。予算が尽きたらfalse（数えた個数は続きへ持ち越す）。
+function fillBlock(nav, L, spend) {
+  const B = L.block;
+  if (!B) return true;
+  for (let r = 0; r <= REACH && B.done < FILL; r++) for (let z = B.gz - r; z <= B.gz + r && B.done < FILL; z++) for (let x = B.gx - r; x <= B.gx + r && B.done < FILL; x++) {
+    if ((Math.abs(x - B.gx) !== r && Math.abs(z - B.gz) !== r) || x < 0 || z < 0 || x >= L.W || z >= L.H || L.known[z * L.W + x]) continue;
+    if (!spend()) return false;
+    latticeCell(nav, L, x, z); B.done++;
+  }
+  L.block = null;
+  return true;
+}
+function latticeGrids(nav, a, b, spend) {
+  const w = nav.bounds, L = latticeOf(nav), { W, H, cell, known } = L;
+  const window = (x0, z0, x1, z1) => {
+    const width = x1 - x0, height = z1 - z0, minX = w.minX + x0 * cell, minZ = w.minZ + z0 * cell;
+    const maxX = x1 === W ? w.maxX : w.minX + x1 * cell, maxZ = z1 === H ? w.maxZ : w.minZ + z1 * cell;
+    const at = i => {
+      const gx = x0 + i % width, gz = z0 + (i / width | 0), k = gz * W + gx;
+      if (!known[k]) {
+        if (spend && !spend()) { L.block = { gx, gz, done: 0 }; throw PAUSE; }
+        latticeCell(nav, L, gx, gz);
+      }
+      return known[k] === 1;
+    };
+    return { minX, minZ, maxX, maxZ, cell, width, height, at };
+  };
+  const clamped = (x0, z0, x1, z1) => x1 > x0 && z1 > z0 ? window(x0, z0, x1, z1) : window(0, 0, W, H);
+  const around = margin => () => clamped(
+    Math.max(0, Math.floor((Math.min(a.x, b.x) - margin - w.minX) / cell)), Math.max(0, Math.floor((Math.min(a.z, b.z) - margin - w.minZ) / cell)),
+    Math.min(W, Math.ceil((Math.max(a.x, b.x) + margin - w.minX) / cell)), Math.min(H, Math.ceil((Math.max(a.z, b.z) + margin - w.minZ) / cell)));
+  return [...LOCAL_MARGINS.map(around), () => window(0, 0, W, H)];
+}
+// bが通れるセルの内側（境界上でない・半端でない）にあれば、nearestWalkable(g, b)はそのセルの中心で、
+// 同じ始点・同じ終点セルの探索をやり直しても必ず同じく失敗する。全セルの走査と2回目の探索を省く（結果は同じ）。
+function ownCellOpen(g, b) {
+  const fx = (b.x - g.minX) / g.cell, fz = (b.z - g.minZ) / g.cell, ix = Math.floor(fx), iz = Math.floor(fz);
+  if (ix < 0 || iz < 0 || ix >= g.width || iz >= g.height || fx - ix < 1e-9 || fx - ix > 1 - 1e-9 || fz - iz < 1e-9 || fz - iz > 1 - 1e-9 ||
+      g.minX + (ix + 1) * g.cell > g.maxX || g.minZ + (iz + 1) * g.cell > g.maxZ) return false;
+  const i = iz * g.width + ix;
+  return !!(g.at ? g.at(i) : g.cells[i]);
+}
 function connect(nav, a, b, band, grids) {
   const clear = (x, z) => inside(nav, { x, z }) && band(x, z) && nav.walkable(x, z);
   if (losClear(clear, a, b, STEP)) return dist(a, b) ? [a, b] : [a];
   for (const grid of grids) {
     const g = grid();
     let path = findPath(g, a, b);
-    if (!path) {
+    if (!path && !ownCellOpen(g, b)) {
       const end = nearestWalkable(g, b);
       path = end && findPath(g, a, end);
     }
@@ -232,12 +297,20 @@ export function directions(baseline, pos, segment = 0) {
   return { along, direct, angleDeg, direction: angleDeg + EPS >= TURN_DEG ? along : direct, next: copyPoint(baseline.points[next]) };
 }
 // 復帰用経路を返すだけ。assessには渡さない。呼出側が0.5秒ごとに要求する（仕様の値）。
-export function buildRecovery(baseline, nav, { pos, progress = 0 }) {
+export function buildRecovery(baseline, nav, { pos, progress = 0, spend = null }) {
   validateBaseline(baseline); validNav(nav); point(pos);
   if (!Number.isFinite(progress) || progress < 0 || progress > baseline.length) throw new TypeError('Invalid guide progress');
   const p = projection(baseline, pos, 0, baseline.points.length - 2, progress);
   if (!p) return null;
-  const path = connect(nav, pos, p.point, () => true, looseGrids(nav, pos, p.point));
+  if (spend !== null && typeof spend !== 'function') throw new TypeError('Invalid guide budget');
+  // 予算に数えるのは格子のセルだけ。見通しの点（経路1本で数百点）は数msなので、その場で調べる。
+  // 見通しの点まで打ち切ると、やり直しのたびに探索全体を繰り返し、1回の探索に60コマ以上かかった。
+  let path;
+  try {
+    if (spend && !fillBlock(nav, latticeOf(nav), spend)) return RECOVERY_PENDING;
+    path = connect(nav, pos, p.point, () => true, latticeGrids(nav, pos, p.point, spend));
+  }
+  catch (e) { if (e === PAUSE) return RECOVERY_PENDING; throw e; }
   return path ? { points: [...path, ...baseline.points.slice(p.segment + 1).map(copyPoint)], join: p.point, segment: p.segment, progress: p.s } : null;
 }
 // state=nullで開始。入力・状態を変更しない。返り値は {state, offRoad, remaining, stalled, emphasized, direction, ...}。

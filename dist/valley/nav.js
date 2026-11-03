@@ -1,4 +1,7 @@
 const point = p => !!p && Number.isFinite(p.x) && Number.isFinite(p.z);
+// 格子は cells（配列）か、at(i)（読まれたセルだけ判定する遅延格子。guideの復帰路）のどちらかを持つ。
+const open = (g, i) => g.at ? g.at(i) : g.cells[i];
+const size = g => g.at ? g.width * g.height : g.cells.length;
 
 export function buildNavGrid({minX, minZ, maxX, maxZ, cell = 2, walkable}) {
   if (![minX, minZ, maxX, maxZ, cell].every(Number.isFinite) ||
@@ -32,8 +35,8 @@ function index(g, p) {
 export function nearestWalkable(grid, p, maxRadius = Number.MAX_VALUE) {
   if (!point(p) || !(maxRadius >= 0)) return null;
   let best = null, distance = maxRadius;
-  for (let i = 0; i < grid.cells.length; i++) {
-    if (!grid.cells[i]) continue;
+  for (let i = 0, n = size(grid); i < n; i++) {
+    if (!open(grid, i)) continue;
     const c = center(grid, i), d = Math.hypot(c.x - p.x, c.z - p.z);
     if (d <= distance && (!best || d < distance)) { best = c; distance = d; }
   }
@@ -109,7 +112,7 @@ function gridLineClear(g, a, b) {
   if (i < 0 || end < 0) return false;
   let x = i % g.width, z = Math.floor(i / g.width);
   const dx = b.x - a.x, dz = b.z - a.z, sx = Math.sign(dx), sz = Math.sign(dz);
-  const valid = (cx, cz) => cx >= 0 && cz >= 0 && cx < g.width && cz < g.height && g.cells[cz * g.width + cx];
+  const valid = (cx, cz) => cx >= 0 && cz >= 0 && cx < g.width && cz < g.height && open(g, cz * g.width + cx);
   const txStep = dx ? g.cell / Math.abs(dx) : Infinity;
   const tzStep = dz ? g.cell / Math.abs(dz) : Infinity;
   let tx = dx ? (g.minX + (x + (sx > 0 ? 1 : 0)) * g.cell - a.x) / dx : Infinity;
@@ -129,15 +132,15 @@ function gridLineClear(g, a, b) {
 export function findPath(grid, from, to) {
   if (!point(from) || !point(to)) return null;
   const goal = index(grid, to);
-  if (goal < 0 || !grid.cells[goal]) return null;
+  if (goal < 0 || !open(grid, goal)) return null;
   let start = index(grid, from), first = {x: from.x, z: from.z};
-  if (start < 0 || !grid.cells[start]) {
+  if (start < 0 || !open(grid, start)) {
     first = nearestWalkable(grid, from);
     if (!first) return null;
     start = index(grid, first);
   }
   if (first.x === to.x && first.z === to.z) return [first];
-  const n = grid.cells.length, costs = new Float64Array(n).fill(Infinity);
+  const n = size(grid), costs = new Float64Array(n).fill(Infinity);
   const parents = new Int32Array(n).fill(-1), closed = new Uint8Array(n);
   const heap = new Heap(), target = center(grid, goal);
   const h = i => { const p = center(grid, i); return Math.hypot(p.x - target.x, p.z - target.z); };
@@ -152,7 +155,7 @@ export function findPath(grid, from, to) {
       // 中心を通してから実座標へつなぎ、セル内の端点で壁を横切らない。
       path.unshift(first); path.push({x: to.x, z: to.z});
       const unique = path.filter((p, j) => j === 0 || p.x !== path[j - 1].x || p.z !== path[j - 1].z);
-      const walkable = (x, z) => { const k = index(grid, {x, z}); return k >= 0 && grid.cells[k]; };
+      const walkable = (x, z) => { const k = index(grid, {x, z}); return k >= 0 && open(grid, k); };
       return smoothPath(unique, walkable, Math.min(0.5, grid.cell / 2), (a, b) => gridLineClear(grid, a, b));
     }
     closed[i] = 1;
@@ -160,8 +163,8 @@ export function findPath(grid, from, to) {
     for (let dz = -1; dz <= 1; dz++) for (let dx = -1; dx <= 1; dx++) {
       if ((!dx && !dz) || x + dx < 0 || z + dz < 0 || x + dx >= grid.width || z + dz >= grid.height) continue;
       const k = (z + dz) * grid.width + x + dx;
-      if (!grid.cells[k] || closed[k]) continue;
-      if (dx && dz && (!grid.cells[z * grid.width + x + dx] || !grid.cells[(z + dz) * grid.width + x])) continue;
+      if (closed[k] || !open(grid, k)) continue;
+      if (dx && dz && (!open(grid, z * grid.width + x + dx) || !open(grid, (z + dz) * grid.width + x))) continue;
       const q = center(grid, k), cost = costs[i] + Math.hypot(q.x - p.x, q.z - p.z);
       if (cost >= costs[k]) continue;
       costs[k] = cost; parents[k] = i; heap.push({i: k, f: cost + h(k)});
