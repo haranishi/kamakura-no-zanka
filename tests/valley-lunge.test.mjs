@@ -2,7 +2,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { LUNGE_VIEW, LUNGE_IO, CONTACT_POSE, createLungeIO, solveLunge as solveRaw, lungeInReach, easeShare, lungeShare, gapScale, hitTime } from '../dist/valley/lunge.js';
+import { LUNGE_VIEW, LUNGE_IO, CONTACT_POSE, createLungeIO, solveLunge as solveRaw, lungeInReach, easeShare, lungeShare, sayaHoldScale, SAYA_HOLD_FLOOR, gapScale, hitTime } from '../dist/valley/lunge.js';
+import { createSwordLayer } from '../dist/valley/sword-layer.js';
+import { readFileSync } from 'node:fs';
 import { STREAK, createStreaks, emitStreak, stepStreaks, buildStreaks, streakIndex, STREAK_VERTS, STREAK_INDICES } from '../dist/valley/spark-streaks.js';
 import { STRIKE, entryPoint } from '../dist/valley/clash.js';
 import { MOVES } from '../dist/valley/combat.js';
@@ -88,6 +90,43 @@ test('時間の配り方：予備は判定の始めでちょうど望みに着�
   // 戻りが短い技（三段目の戻り0.46秒）でも、戻りの returnShare のうちに戻る
   const s = MOVES.light2, Rs = Math.min(V.returnTime, s.recover * V.returnShare);
   assert(Rs <= s.recover * V.returnShare + 1e-12);
+});
+
+test('鞘に添う間：抜刀の層が左手で鞘に添う重みの分だけ根を待たせる（3割まで）。放してから判定の始めまでに寄せ、体は急に見えない（納刀のまま攻撃の左手の跳び）', () => {
+  // 倍率：層の外（u 0・1）・層の無い人は1、重みの分だけ 1−ikLeft、ただし SAYA_HOLD_FLOOR（0.7）より下げない
+  assert.equal(SAYA_HOLD_FLOOR, 0.7);
+  assert.equal(sayaHoldScale(null), 1); assert.equal(sayaHoldScale(undefined), 1);
+  assert.equal(sayaHoldScale({ u: 0, pose: { ikLeft: 1 } }), 1); assert.equal(sayaHoldScale({ u: 1, pose: { ikLeft: 1 } }), 1);
+  assert.equal(sayaHoldScale({ u: 0.5, pose: { ikLeft: 1 } }), SAYA_HOLD_FLOOR); assert.equal(sayaHoldScale({ u: 0.5, pose: { ikLeft: 0 } }), 1);
+  assert(Math.abs(sayaHoldScale({ u: 0.8, pose: { ikLeft: 0.1 } }) - 0.9) < 1e-12);                // 軽く添う間は 1−ikLeft
+  assert(Math.abs(sayaHoldScale({ u: 0.8, pose: { ikLeft: 0.6 } }) - SAYA_HOLD_FLOOR) < 1e-12);    // 下限で止まる
+  // 実ゲームと同じ配り方：速い抜刀と弱斬りを同じコマに始め、毎コマ 層の tick → lungeShare×倍率 で根を望みへ寄せる。待たせない走り(free)と並べる
+  const m = MOVES.light1, dt = 1 / 60, want = 0.84;
+  const run = scale => {
+    const layer = createSwordLayer(); assert(layer.requestDraw({ fast: true }));
+    let x = 0, t = 0, held = 0, released = null; const steps = [];
+    while (t < m.windup - 1e-9) {
+      const fr = layer.tick(dt), t1 = Math.min(m.windup, t + dt), before = x;
+      x += (want - x) * lungeShare(m, t, t1, dt) * scale(fr);
+      steps.push(x - before);
+      if (fr.u > 0 && fr.u < 1 && fr.pose.ikLeft >= 1) held++;
+      if (released == null && !(fr.u > 0 && fr.u < 1 && fr.pose.ikLeft > 0)) released = t1;
+      t = t1;
+    }
+    return { x, held, released, steps };
+  };
+  const hold = run(sayaHoldScale), free = run(() => 1);
+  assert(hold.held >= 2, `速い抜刀で左手が鞘に添い切るコマ ${hold.held}`);
+  assert(hold.released != null && hold.released < m.windup, `判定の始めより前に鞘を放す ${hold.released}`);
+  assert(Math.abs(hold.x - want) < 1e-12 && Math.abs(free.x - want) < 1e-12, `判定の始めで望みに着く（待たせても同じ） ${hold.x} ${free.x}`);
+  const sum = (a, n) => a.slice(0, n).reduce((s, v) => s + v, 0);
+  assert(sum(hold.steps, hold.held + 1) < sum(free.steps, hold.held + 1), '添い切る間は、待たせない走りより進みが小さい');
+  // 体が急に見えない：最初のコマのあと止まるコマが無く、1コマの前進の最大は待たせない走りの1.25倍以内（下限0にすると4コマ止まり、1.57倍になる）
+  assert(hold.steps.slice(1, 8).every(s => s > 0.005), `踏み込みが止まるコマがある ${hold.steps.slice(0, 8).map(s => s.toFixed(3))}`);
+  assert(Math.max(...hold.steps) <= Math.max(...free.steps) * 1.25, `1コマの前進の最大 ${Math.max(...hold.steps).toFixed(3)} / ${Math.max(...free.steps).toFixed(3)}`);
+  // 配線：actors.js の見た目の踏み込みが、寄せる割合にこの倍率を掛けている（外すと、回帰 regress-hand-grip-game の attackFromSheathed が tipL 3.1倍で落ちる）
+  const src = readFileSync(new URL('../dist/valley/actors.js', import.meta.url), 'utf8');
+  assert.match(src, /const k = lungeShare\(pose \? m : null, t0, t1, dt\) \* \(pose \? sayaHoldScale\(this\.character\.sword\?\.frame\) : 1\)/);
 });
 
 test('めり込み：見た目の中心が、ほかの人の見た目の中心から minGap 以上に保たれる最大の割合', () => {

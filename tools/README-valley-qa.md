@@ -49,6 +49,11 @@ b0 庭へ降りる（`temple_yard` に入る）→ b1 穂太の話 → b2 林道
 - `tools/scenarios/regress-slash-trail.mjs`：刃の軌跡（8.3a）を毎コマ確かめる（区間の外・戻りで足さない・閉じて0.05秒で消える・ちらつかない・停止中に詰まらない・抜刀の層の間は足さない・やり直しで消える・揺れ0でも出る・描画呼出の増加1・三段目の停止0.07秒・弾きの火花の向き）。第2周：停止のコマで刃が頭の上にない・火花は刃の進む向き・弾きは刃同士が触れる・敵の刃は予兆の間だけ照る・ひるみは相手から離れる。
 - `tools/scenarios/measure-combat-trail.mjs`：技ごとに刀の根元・切先・手首を毎コマ記録し、切先と手首の速さの山と判定の区間の差、帯の区間の切先の道のりを測る（`KZ_OUT=…`）。第2周：接触時刻（相手を間合いの距離に置き、刃が胴の高さを通って最も近づく時刻）と判定の始めの差も測る（`KZ_ONLY=contact` で接触だけ、`KZ_RAW=1` で生サンプル）。
 - `tools/scenarios/capture-combat-trail.mjs`：通常三連・強斬り・突き・弾き・侍大将の二段目を、固定カメラ・同じ入力でコマ割りに撮る（`KZ_TAG=before|after|after2`、`KZ_FULL=A:12,…` で等倍も残す）。
+- `tools/scenarios/regress-hand-grip.mjs`：刀を握る手（8.6a）を毎コマ測る（指・親指の皮と柄・鞘のすき間とめり込み、手首と指の跳び、腕の写しの長さ、動作の骨と切先が層を切った人物と一致）。31場面。`KZ_OUT=…` でJSONを残す。
+- `tools/scenarios/regress-hand-grip-game.mjs`：実ゲームの主人公で、敵が気づいて抜く・納刀のまま攻撃・戦闘後の自動の納刀・抜く途中に倒れる、の4場面を通し、見える手を毎コマ測る。
+- `tools/scenarios/record-sword-tips.mjs`：全動作クリップと抜刀・納刀の切先の位置を毎コマ記録し、変更前と変更後を比べる（`node tools/scenarios/record-sword-tips.mjs 前.json 後.json`）。
+- `tools/scenarios/capture-hand-grip.mjs`：握りの前後をラボで撮る（`tools/lab-play.mjs` で動かす。`KZ_SHEET=guard|draw|walk|enemy`）。前＝同じ版で層を切った人物。
+- `tools/lab-play.mjs`：人物ラボ（`lab.html`）を開いてシナリオを動かす（valley-play のラボ版。`--query "who=hero&weapon=drawn"`）。
 - 検査の流れの見本：`tools/scenarios/` のシナリオ。
 
 ## 第2弾の前測定（7.0・7.0b）

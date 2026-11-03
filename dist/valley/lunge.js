@@ -104,6 +104,21 @@ export function lungeShare(move, t0, t1, dt) {
   return easeShare(Math.max(0, t0 - W - A) / R, (t1 - W - A) / R);
 }
 
+// 左手が鞘に添う間に、踏み込みを待たせる量の上限は 1 − SAYA_HOLD_FLOOR（3割）。完全に待たせる（下限0）と、鞘を放した直後に一気に進んで体が急に見える
+// （納刀のまま攻撃・弱斬り・60Hz：隣のコマとの歩幅の差 3.9→8.4cm、1コマの前進 0.122→0.191m）。0.7なら差は4.7cmで、左の指先の跳びも基準3.0の内（2.50倍）。
+// 下限0.6は差が6.6cmに跳ね、0.8は指先が2.76倍で余裕が薄い（design-hand-grip.md 末尾の表）。
+export const SAYA_HOLD_FLOOR = 0.7;
+
+// 抜刀・納刀の層が左手で鞘に添う間の、寄せる割合の倍率（pure）。frame は sword-layer.js の tick の戻り（u・pose.ikLeft）。層の外・層の無い人は1。
+// 鞘を引く左手は体に対して後ろへ動く（速い抜刀で1コマ約9〜12cm）。同じコマに根を前へ出すと（約6〜15cm）、世界では左手が止まる・跳ぶ・止まるを
+// 繰り返した（納刀のまま攻撃：左手の指先が隣のコマの3.1〜3.4倍。握りの層 hand-rig.js と合わせて初めて出た）。左手が鞘に添う重み（ikLeft）の分だけ
+// 根を待たせ（SAYA_HOLD_FLOOR より下げない）、放してから判定の始めまでに寄せる（速い抜刀は判定の始めより前に鞘を放す）。
+export function sayaHoldScale(frame) {
+  if (!frame || !(frame.u > 0 && frame.u < 1)) return 1;
+  const h = frame.pose ? frame.pose.ikLeft : 0;
+  return h > 0 ? Math.max(SAYA_HOLD_FLOOR, 1 - h) : 1;
+}
+
 // 見た目の中心（p＋λ·s）が、ほかの人の見た目の中心 o から gap 以上離れる、最大の λ（0〜1）。初めから近すぎれば0。
 export function gapScale(px, pz, sx, sz, ox, oz, gap) {
   const dx = px - ox, dz = pz - oz, ss = sx * sx + sz * sz, c = dx * dx + dz * dz - gap * gap;

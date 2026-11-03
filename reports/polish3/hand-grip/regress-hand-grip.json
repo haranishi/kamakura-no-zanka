@@ -1,0 +1,4490 @@
+{
+ "limits": {
+  "gapMm": 6,
+  "sinkMm": 2,
+  "popRatio": 3,
+  "popFloorM": 0.03,
+  "popFloorRad": 0.25,
+  "leakRad": 0.000001,
+  "armLenMm": 1,
+  "tipMm": 1,
+  "reachMm": 0.5,
+  "unreachedFrames": 1,
+  "unreachedMm": 30,
+  "stretchMm": 45,
+  "tsubaCross": 0,
+  "tsubaLeftExtra": 6,
+  "tsubaCrossDraw": 5
+ },
+ "fails": [],
+ "materialIssues": [],
+ "cases": [
+  {
+   "name": "hero:Katana_Guard_Idle",
+   "frames": 239,
+   "contactFrames": {
+    "Right": 239,
+    "Left": 0,
+    "LeftT": 239
+   },
+   "sinkAll": {
+    "R": 0,
+    "L": 0,
+    "LT": 0
+   },
+   "unreached": 0,
+   "maxReachErrMm": 0,
+   "unreachedL": 0,
+   "maxReachErrLMm": 0,
+   "pops": {
+    "wristR": 0,
+    "wristRotR": 0,
+    "tipR": 0,
+    "wristL": 0,
+    "wristRotL": 0,
+    "tipL": 0
+   },
+   "stretchMm": 28.2,
+   "tsubaCross": 0,
+   "tsubaLeft": 0,
+   "tsubaLeftCtl": 0,
+   "armDevMm": 0.074,
+   "copyLeakRad": 0,
+   "realLeakRad": 4.2146848510894035e-8,
+   "realLeakBone": "LeftHand",
+   "maxTipDiffMm": 0,
+   "nan": 0,
+   "contact": {
+    "R:t0": [
+     1.5,
+     0,
+     239
+    ],
+    "R:f0/3": [
+     0.2,
+     0,
+     239
+    ],
+    "R:f0/2": [
+     0.7,
+     0,
+     239
+    ],
+    "R:t1": [
+     2.1,
+     0,
+     239
+    ],
+    "R:f0/1": [
+     0.7,
+     0,
+     239
+    ],
+    "R:f0/0": [
+     0.1,
+     0,
+     239
+    ],
+    "R:f2/2": [
+     2.1,
+     0,
+     239
+    ],
+    "R:f2/1": [
+     1.9,
+     0,
+     239
+    ],
+    "R:f1/1": [
+     2,
+     0,
+     239
+    ],
+    "R:f2/0": [
+     1.7,
+     0,
+     239
+    ],
+    "R:f1/2": [
+     1.3,
+     0,
+     239
+    ],
+    "R:f2/3": [
+     1.6,
+     0,
+     239
+    ],
+    "R:f1/0": [
+     1.6,
+     0,
+     239
+    ],
+    "R:f1/3": [
+     1,
+     0,
+     239
+    ],
+    "LT:t0": [
+     1.3,
+     0,
+     239
+    ],
+    "LT:t1": [
+     1.5,
+     0,
+     239
+    ],
+    "LT:f0/3": [
+     3.4,
+     0,
+     239
+    ],
+    "LT:f0/1": [
+     0.6,
+     0,
+     239
+    ],
+    "LT:f0/0": [
+     0.7,
+     0,
+     239
+    ],
+    "LT:f0/2": [
+     0.4,
+     0,
+     239
+    ],
+    "LT:f1/2": [
+     2.6,
+     0,
+     239
+    ],
+    "LT:f1/0": [
+     0.3,
+     0,
+     239
+    ],
+    "LT:f1/1": [
+     4.5,
+     0,
+     239
+    ],
+    "LT:f2/3": [
+     1.6,
+     0,
+     239
+    ],
+    "LT:f1/3": [
+     3.9,
+     0,
+     239
+    ],
+    "LT:f2/2": [
+     2.1,
+     0,
+     239
+    ],
+    "LT:f2/0": [
+     2.2,
+     0,
+     239
+    ],
+    "LT:f2/1": [
+     2,
+     0,
+     239
+    ]
+   }
+  },
+  {
+   "name": "hero:Walk_Fight_Forward",
+   "frames": 104,
+   "contactFrames": {
+    "Right": 104,
+    "Left": 0,
+    "LeftT": 0
+   },
+   "sinkAll": {
+    "R": 0,
+    "L": 0,
+    "LT": 0
+   },
+   "unreached": 0,
+   "maxReachErrMm": 0,
+   "unreachedL": 0,
+   "maxReachErrLMm": 0,
+   "pops": {
+    "wristR": 0,
+    "wristRotR": 0,
+    "tipR": 0,
+    "wristL": 0,
+    "wristRotL": 0,
+    "tipL": 0
+   },
+   "stretchMm": 15.7,
+   "tsubaCross": 0,
+   "tsubaLeft": 0,
+   "tsubaLeftCtl": 0,
+   "armDevMm": 0.024,
+   "copyLeakRad": 5.960464477539063e-8,
+   "realLeakRad": 4.2146848510894035e-8,
+   "realLeakBone": "LeftUpLeg",
+   "maxTipDiffMm": 0,
+   "nan": 0,
+   "contact": {
+    "R:t0": [
+     1.5,
+     0,
+     104
+    ],
+    "R:f0/3": [
+     0.2,
+     0,
+     104
+    ],
+    "R:f0/2": [
+     0.7,
+     0,
+     104
+    ],
+    "R:t1": [
+     2.1,
+     0,
+     104
+    ],
+    "R:f0/1": [
+     0.7,
+     0,
+     104
+    ],
+    "R:f0/0": [
+     0.2,
+     0,
+     104
+    ],
+    "R:f2/2": [
+     2.1,
+     0,
+     104
+    ],
+    "R:f2/1": [
+     1.9,
+     0,
+     104
+    ],
+    "R:f1/1": [
+     2,
+     0,
+     104
+    ],
+    "R:f2/0": [
+     1.7,
+     0,
+     104
+    ],
+    "R:f1/2": [
+     1.3,
+     0,
+     104
+    ],
+    "R:f2/3": [
+     1.7,
+     0,
+     104
+    ],
+    "R:f1/0": [
+     1.6,
+     0,
+     104
+    ],
+    "R:f1/3": [
+     1,
+     0,
+     104
+    ]
+   }
+  },
+  {
+   "name": "hero:Katana_Kesa_Cut",
+   "frames": 149,
+   "contactFrames": {
+    "Right": 149,
+    "Left": 0,
+    "LeftT": 0
+   },
+   "sinkAll": {
+    "R": 0,
+    "L": 0,
+    "LT": 0
+   },
+   "unreached": 0,
+   "maxReachErrMm": 0,
+   "unreachedL": 0,
+   "maxReachErrLMm": 0,
+   "pops": {
+    "wristR": 1.03,
+    "wristRotR": 1.04,
+    "tipR": 1.06,
+    "wristL": 1.04,
+    "wristRotL": 1.04,
+    "tipL": 1.06
+   },
+   "stretchMm": 29.1,
+   "tsubaCross": 0,
+   "tsubaLeft": 2,
+   "tsubaLeftCtl": 2,
+   "armDevMm": 0.023,
+   "copyLeakRad": 0,
+   "realLeakRad": 5.16191365590357e-8,
+   "realLeakBone": "LeftUpLeg",
+   "maxTipDiffMm": 0,
+   "nan": 0,
+   "contact": {
+    "R:t0": [
+     1.5,
+     0,
+     149
+    ],
+    "R:f0/3": [
+     0.2,
+     0,
+     149
+    ],
+    "R:f0/2": [
+     0.8,
+     0,
+     149
+    ],
+    "R:t1": [
+     2.1,
+     0,
+     149
+    ],
+    "R:f0/1": [
+     0.7,
+     0,
+     149
+    ],
+    "R:f0/0": [
+     0.2,
+     0,
+     149
+    ],
+    "R:f2/2": [
+     2.1,
+     0,
+     149
+    ],
+    "R:f2/1": [
+     1.9,
+     0,
+     149
+    ],
+    "R:f1/1": [
+     2,
+     0,
+     149
+    ],
+    "R:f2/0": [
+     1.7,
+     0,
+     149
+    ],
+    "R:f1/2": [
+     1.3,
+     0,
+     149
+    ],
+    "R:f2/3": [
+     1.7,
+     0,
+     149
+    ],
+    "R:f1/0": [
+     1.6,
+     0,
+     149
+    ],
+    "R:f1/3": [
+     1,
+     0,
+     149
+    ]
+   }
+  },
+  {
+   "name": "hero:Katana_Gyakukesa_Cut",
+   "frames": 119,
+   "contactFrames": {
+    "Right": 119,
+    "Left": 0,
+    "LeftT": 7
+   },
+   "sinkAll": {
+    "R": 0,
+    "L": 0,
+    "LT": 0
+   },
+   "unreached": 0,
+   "maxReachErrMm": 0,
+   "unreachedL": 0,
+   "maxReachErrLMm": 0,
+   "pops": {
+    "wristR": 1.06,
+    "wristRotR": 1.03,
+    "tipR": 1.03,
+    "wristL": 1.13,
+    "wristRotL": 1.02,
+    "tipL": 1.02
+   },
+   "stretchMm": 35.1,
+   "tsubaCross": 0,
+   "tsubaLeft": 0,
+   "tsubaLeftCtl": 17,
+   "armDevMm": 0.042,
+   "copyLeakRad": 0,
+   "realLeakRad": 5.16191365590357e-8,
+   "realLeakBone": "Spine01",
+   "maxTipDiffMm": 0,
+   "nan": 0,
+   "contact": {
+    "R:t0": [
+     1.5,
+     0,
+     119
+    ],
+    "R:f0/3": [
+     0.2,
+     0,
+     119
+    ],
+    "R:f0/2": [
+     0.8,
+     0,
+     119
+    ],
+    "R:t1": [
+     2.1,
+     0,
+     119
+    ],
+    "R:f0/1": [
+     0.7,
+     0,
+     119
+    ],
+    "R:f0/0": [
+     0.2,
+     0,
+     119
+    ],
+    "R:f2/2": [
+     2.1,
+     0,
+     119
+    ],
+    "R:f2/1": [
+     1.9,
+     0,
+     119
+    ],
+    "R:f1/1": [
+     2,
+     0,
+     119
+    ],
+    "R:f2/0": [
+     1.7,
+     0,
+     119
+    ],
+    "R:f1/2": [
+     1.3,
+     0,
+     119
+    ],
+    "R:f2/3": [
+     1.7,
+     0,
+     119
+    ],
+    "R:f1/0": [
+     1.6,
+     0,
+     119
+    ],
+    "R:f1/3": [
+     1,
+     0,
+     119
+    ],
+    "LT:t0": [
+     1.2,
+     0,
+     7
+    ],
+    "LT:t1": [
+     1.4,
+     0,
+     7
+    ],
+    "LT:f0/3": [
+     3.4,
+     0,
+     7
+    ],
+    "LT:f0/1": [
+     0.5,
+     0,
+     7
+    ],
+    "LT:f0/0": [
+     0.8,
+     0,
+     7
+    ],
+    "LT:f0/2": [
+     0.3,
+     0,
+     7
+    ],
+    "LT:f1/2": [
+     2.8,
+     0,
+     7
+    ],
+    "LT:f1/0": [
+     0.5,
+     0,
+     7
+    ],
+    "LT:f1/1": [
+     4.6,
+     0,
+     7
+    ],
+    "LT:f2/3": [
+     1.8,
+     0,
+     7
+    ],
+    "LT:f1/3": [
+     4,
+     0,
+     7
+    ],
+    "LT:f2/2": [
+     2.2,
+     0,
+     7
+    ],
+    "LT:f2/0": [
+     2.4,
+     0,
+     7
+    ],
+    "LT:f2/1": [
+     2.2,
+     0,
+     7
+    ]
+   }
+  },
+  {
+   "name": "hero:Katana_Yokonagi_Cut",
+   "frames": 149,
+   "contactFrames": {
+    "Right": 149,
+    "Left": 0,
+    "LeftT": 29
+   },
+   "sinkAll": {
+    "R": 0,
+    "L": 0,
+    "LT": 0
+   },
+   "unreached": 0,
+   "maxReachErrMm": 0,
+   "unreachedL": 0,
+   "maxReachErrLMm": 0,
+   "pops": {
+    "wristR": 1.11,
+    "wristRotR": 1.02,
+    "tipR": 1.1,
+    "wristL": 1.12,
+    "wristRotL": 1.05,
+    "tipL": 1.09
+   },
+   "stretchMm": 34.2,
+   "tsubaCross": 0,
+   "tsubaLeft": 3,
+   "tsubaLeftCtl": 22,
+   "armDevMm": 0.022,
+   "copyLeakRad": 0,
+   "realLeakRad": 5.16191365590357e-8,
+   "realLeakBone": "neck",
+   "maxTipDiffMm": 0,
+   "nan": 0,
+   "contact": {
+    "R:t0": [
+     1.5,
+     0,
+     149
+    ],
+    "R:f0/3": [
+     0.2,
+     0,
+     149
+    ],
+    "R:f0/2": [
+     0.7,
+     0,
+     149
+    ],
+    "R:t1": [
+     2.1,
+     0,
+     149
+    ],
+    "R:f0/1": [
+     0.7,
+     0,
+     149
+    ],
+    "R:f0/0": [
+     0.2,
+     0,
+     149
+    ],
+    "R:f2/2": [
+     2.1,
+     0,
+     149
+    ],
+    "R:f2/1": [
+     1.9,
+     0,
+     149
+    ],
+    "R:f1/1": [
+     2,
+     0,
+     149
+    ],
+    "R:f2/0": [
+     1.7,
+     0,
+     149
+    ],
+    "R:f1/2": [
+     1.3,
+     0,
+     149
+    ],
+    "R:f2/3": [
+     1.7,
+     0,
+     149
+    ],
+    "R:f1/0": [
+     1.6,
+     0,
+     149
+    ],
+    "R:f1/3": [
+     1,
+     0,
+     149
+    ],
+    "LT:t0": [
+     1.2,
+     0,
+     29
+    ],
+    "LT:t1": [
+     1.4,
+     0,
+     29
+    ],
+    "LT:f0/3": [
+     3.5,
+     0,
+     29
+    ],
+    "LT:f0/1": [
+     0.6,
+     0,
+     29
+    ],
+    "LT:f0/0": [
+     0.9,
+     0,
+     29
+    ],
+    "LT:f0/2": [
+     0.4,
+     0,
+     29
+    ],
+    "LT:f1/2": [
+     2.8,
+     0,
+     29
+    ],
+    "LT:f1/0": [
+     0.6,
+     0,
+     29
+    ],
+    "LT:f1/1": [
+     4.7,
+     0,
+     29
+    ],
+    "LT:f2/3": [
+     1.8,
+     0,
+     29
+    ],
+    "LT:f1/3": [
+     4,
+     0,
+     29
+    ],
+    "LT:f2/2": [
+     2.2,
+     0,
+     29
+    ],
+    "LT:f2/0": [
+     2.3,
+     0,
+     29
+    ],
+    "LT:f2/1": [
+     2.1,
+     0,
+     29
+    ]
+   }
+  },
+  {
+   "name": "hero:Katana_Karatake_Heavy",
+   "frames": 179,
+   "contactFrames": {
+    "Right": 179,
+    "Left": 0,
+    "LeftT": 99
+   },
+   "sinkAll": {
+    "R": 0,
+    "L": 0,
+    "LT": 0
+   },
+   "unreached": 0,
+   "maxReachErrMm": 0,
+   "unreachedL": 0,
+   "maxReachErrLMm": 0,
+   "pops": {
+    "wristR": 1.04,
+    "wristRotR": 1.01,
+    "tipR": 1.08,
+    "wristL": 1.07,
+    "wristRotL": 1.01,
+    "tipL": 1.03
+   },
+   "stretchMm": 25.8,
+   "tsubaCross": 0,
+   "tsubaLeft": 0,
+   "tsubaLeftCtl": 2,
+   "armDevMm": 0.035,
+   "copyLeakRad": 0,
+   "realLeakRad": 4.2146848510894035e-8,
+   "realLeakBone": "LeftUpLeg",
+   "maxTipDiffMm": 0,
+   "nan": 0,
+   "contact": {
+    "R:t0": [
+     1.5,
+     0,
+     179
+    ],
+    "R:f0/3": [
+     0.2,
+     0,
+     179
+    ],
+    "R:f0/2": [
+     0.8,
+     0,
+     179
+    ],
+    "R:t1": [
+     2.2,
+     0,
+     179
+    ],
+    "R:f0/1": [
+     0.7,
+     0,
+     179
+    ],
+    "R:f0/0": [
+     0.2,
+     0,
+     179
+    ],
+    "R:f2/2": [
+     2.2,
+     0,
+     179
+    ],
+    "R:f2/1": [
+     1.9,
+     0,
+     179
+    ],
+    "R:f1/1": [
+     2,
+     0,
+     179
+    ],
+    "R:f2/0": [
+     1.7,
+     0,
+     179
+    ],
+    "R:f1/2": [
+     1.3,
+     0,
+     179
+    ],
+    "R:f2/3": [
+     1.7,
+     0,
+     179
+    ],
+    "R:f1/0": [
+     1.6,
+     0,
+     179
+    ],
+    "R:f1/3": [
+     1,
+     0,
+     179
+    ],
+    "LT:t0": [
+     1.3,
+     0,
+     99
+    ],
+    "LT:t1": [
+     1.5,
+     0,
+     99
+    ],
+    "LT:f0/3": [
+     3.4,
+     0,
+     99
+    ],
+    "LT:f0/1": [
+     0.6,
+     0,
+     99
+    ],
+    "LT:f0/0": [
+     0.8,
+     0,
+     99
+    ],
+    "LT:f0/2": [
+     0.3,
+     0,
+     99
+    ],
+    "LT:f1/2": [
+     2.8,
+     0,
+     99
+    ],
+    "LT:f1/0": [
+     0.5,
+     0,
+     99
+    ],
+    "LT:f1/1": [
+     4.6,
+     0,
+     99
+    ],
+    "LT:f2/3": [
+     1.7,
+     0,
+     99
+    ],
+    "LT:f1/3": [
+     4,
+     0,
+     99
+    ],
+    "LT:f2/2": [
+     2.2,
+     0,
+     99
+    ],
+    "LT:f2/0": [
+     2.3,
+     0,
+     99
+    ],
+    "LT:f2/1": [
+     2.1,
+     0,
+     99
+    ]
+   }
+  },
+  {
+   "name": "hero:Katana_Finisher",
+   "frames": 209,
+   "contactFrames": {
+    "Right": 209,
+    "Left": 0,
+    "LeftT": 25
+   },
+   "sinkAll": {
+    "R": 0,
+    "L": 0,
+    "LT": 0
+   },
+   "unreached": 0,
+   "maxReachErrMm": 0,
+   "unreachedL": 0,
+   "maxReachErrLMm": 0,
+   "pops": {
+    "wristR": 1.02,
+    "wristRotR": 0,
+    "tipR": 1.03,
+    "wristL": 1.02,
+    "wristRotL": 1.04,
+    "tipL": 1.14
+   },
+   "stretchMm": 31,
+   "tsubaCross": 0,
+   "tsubaLeft": 2,
+   "tsubaLeftCtl": 15,
+   "armDevMm": 0.018,
+   "copyLeakRad": 4.2146848510894035e-8,
+   "realLeakRad": 5.16191365590357e-8,
+   "realLeakBone": "Spine01",
+   "maxTipDiffMm": 0,
+   "nan": 0,
+   "contact": {
+    "R:t0": [
+     1.5,
+     0,
+     209
+    ],
+    "R:f0/3": [
+     0.2,
+     0,
+     209
+    ],
+    "R:f0/2": [
+     0.8,
+     0,
+     209
+    ],
+    "R:t1": [
+     2.1,
+     0,
+     209
+    ],
+    "R:f0/1": [
+     0.7,
+     0,
+     209
+    ],
+    "R:f0/0": [
+     0.2,
+     0,
+     209
+    ],
+    "R:f2/2": [
+     2.1,
+     0,
+     209
+    ],
+    "R:f2/1": [
+     1.9,
+     0,
+     209
+    ],
+    "R:f1/1": [
+     2,
+     0,
+     209
+    ],
+    "R:f2/0": [
+     1.7,
+     0,
+     209
+    ],
+    "R:f1/2": [
+     1.3,
+     0,
+     209
+    ],
+    "R:f2/3": [
+     1.7,
+     0,
+     209
+    ],
+    "R:f1/0": [
+     1.6,
+     0,
+     209
+    ],
+    "R:f1/3": [
+     1,
+     0,
+     209
+    ],
+    "LT:t0": [
+     1.3,
+     0,
+     25
+    ],
+    "LT:t1": [
+     1.5,
+     0,
+     25
+    ],
+    "LT:f0/3": [
+     3.4,
+     0,
+     25
+    ],
+    "LT:f0/1": [
+     0.6,
+     0,
+     25
+    ],
+    "LT:f0/0": [
+     0.8,
+     0,
+     25
+    ],
+    "LT:f0/2": [
+     0.4,
+     0,
+     25
+    ],
+    "LT:f1/2": [
+     2.8,
+     0,
+     25
+    ],
+    "LT:f1/0": [
+     0.5,
+     0,
+     25
+    ],
+    "LT:f1/1": [
+     4.7,
+     0,
+     25
+    ],
+    "LT:f2/3": [
+     1.8,
+     0,
+     25
+    ],
+    "LT:f1/3": [
+     4,
+     0,
+     25
+    ],
+    "LT:f2/2": [
+     2.4,
+     0,
+     25
+    ],
+    "LT:f2/0": [
+     2.5,
+     0,
+     25
+    ],
+    "LT:f2/1": [
+     2.3,
+     0,
+     25
+    ]
+   }
+  },
+  {
+   "name": "hero:Katana_Counter_Cut",
+   "frames": 119,
+   "contactFrames": {
+    "Right": 119,
+    "Left": 0,
+    "LeftT": 25
+   },
+   "sinkAll": {
+    "R": 0,
+    "L": 0,
+    "LT": 0
+   },
+   "unreached": 0,
+   "maxReachErrMm": 0,
+   "unreachedL": 0,
+   "maxReachErrLMm": 0,
+   "pops": {
+    "wristR": 1.2,
+    "wristRotR": 1.03,
+    "tipR": 1.24,
+    "wristL": 1.02,
+    "wristRotL": 1.04,
+    "tipL": 1.1
+   },
+   "stretchMm": 39.8,
+   "tsubaCross": 0,
+   "tsubaLeft": 0,
+   "tsubaLeftCtl": 26,
+   "armDevMm": 0.015,
+   "copyLeakRad": 0,
+   "realLeakRad": 4.2146848510894035e-8,
+   "realLeakBone": "LeftHand",
+   "maxTipDiffMm": 0,
+   "nan": 0,
+   "contact": {
+    "R:t0": [
+     1.5,
+     0,
+     119
+    ],
+    "R:f0/3": [
+     0.2,
+     0,
+     119
+    ],
+    "R:f0/2": [
+     0.8,
+     0,
+     119
+    ],
+    "R:t1": [
+     2.1,
+     0,
+     119
+    ],
+    "R:f0/1": [
+     0.7,
+     0,
+     119
+    ],
+    "R:f0/0": [
+     0.2,
+     0,
+     119
+    ],
+    "R:f2/2": [
+     2.1,
+     0,
+     119
+    ],
+    "R:f2/1": [
+     1.9,
+     0,
+     119
+    ],
+    "R:f1/1": [
+     2,
+     0,
+     119
+    ],
+    "R:f2/0": [
+     1.7,
+     0,
+     119
+    ],
+    "R:f1/2": [
+     1.3,
+     0,
+     119
+    ],
+    "R:f2/3": [
+     1.7,
+     0,
+     119
+    ],
+    "R:f1/0": [
+     1.6,
+     0,
+     119
+    ],
+    "R:f1/3": [
+     1,
+     0,
+     119
+    ],
+    "LT:t0": [
+     1.3,
+     0,
+     25
+    ],
+    "LT:t1": [
+     1.5,
+     0,
+     25
+    ],
+    "LT:f0/3": [
+     3.4,
+     0,
+     25
+    ],
+    "LT:f0/1": [
+     0.6,
+     0,
+     25
+    ],
+    "LT:f0/0": [
+     0.8,
+     0,
+     25
+    ],
+    "LT:f0/2": [
+     0.4,
+     0,
+     25
+    ],
+    "LT:f1/2": [
+     2.7,
+     0,
+     25
+    ],
+    "LT:f1/0": [
+     0.5,
+     0,
+     25
+    ],
+    "LT:f1/1": [
+     4.5,
+     0,
+     25
+    ],
+    "LT:f2/3": [
+     1.6,
+     0,
+     25
+    ],
+    "LT:f1/3": [
+     3.9,
+     0,
+     25
+    ],
+    "LT:f2/2": [
+     2.1,
+     0,
+     25
+    ],
+    "LT:f2/0": [
+     2.2,
+     0,
+     25
+    ],
+    "LT:f2/1": [
+     2,
+     0,
+     25
+    ]
+   }
+  },
+  {
+   "name": "hero:Katana_Parry",
+   "frames": 119,
+   "contactFrames": {
+    "Right": 119,
+    "Left": 0,
+    "LeftT": 10
+   },
+   "sinkAll": {
+    "R": 0,
+    "L": 0,
+    "LT": 0
+   },
+   "unreached": 0,
+   "maxReachErrMm": 0,
+   "unreachedL": 0,
+   "maxReachErrLMm": 0,
+   "pops": {
+    "wristR": 1.04,
+    "wristRotR": 1.01,
+    "tipR": 1.03,
+    "wristL": 1.07,
+    "wristRotL": 1.01,
+    "tipL": 1.08
+   },
+   "stretchMm": 32.2,
+   "tsubaCross": 0,
+   "tsubaLeft": 0,
+   "tsubaLeftCtl": 5,
+   "armDevMm": 0.016,
+   "copyLeakRad": 0,
+   "realLeakRad": 4.2146848510894035e-8,
+   "realLeakBone": "Hips",
+   "maxTipDiffMm": 0,
+   "nan": 0,
+   "contact": {
+    "R:t0": [
+     1.5,
+     0,
+     119
+    ],
+    "R:f0/3": [
+     0.2,
+     0,
+     119
+    ],
+    "R:f0/2": [
+     0.7,
+     0,
+     119
+    ],
+    "R:t1": [
+     2.1,
+     0,
+     119
+    ],
+    "R:f0/1": [
+     0.7,
+     0,
+     119
+    ],
+    "R:f0/0": [
+     0.2,
+     0,
+     119
+    ],
+    "R:f2/2": [
+     2.1,
+     0,
+     119
+    ],
+    "R:f2/1": [
+     1.9,
+     0,
+     119
+    ],
+    "R:f1/1": [
+     2,
+     0,
+     119
+    ],
+    "R:f2/0": [
+     1.7,
+     0,
+     119
+    ],
+    "R:f1/2": [
+     1.3,
+     0,
+     119
+    ],
+    "R:f2/3": [
+     1.7,
+     0,
+     119
+    ],
+    "R:f1/0": [
+     1.6,
+     0,
+     119
+    ],
+    "R:f1/3": [
+     1,
+     0,
+     119
+    ],
+    "LT:t0": [
+     1.3,
+     0,
+     10
+    ],
+    "LT:t1": [
+     1.5,
+     0,
+     10
+    ],
+    "LT:f0/3": [
+     3.4,
+     0,
+     10
+    ],
+    "LT:f0/1": [
+     0.6,
+     0,
+     10
+    ],
+    "LT:f0/0": [
+     0.8,
+     0,
+     10
+    ],
+    "LT:f0/2": [
+     0.4,
+     0,
+     10
+    ],
+    "LT:f1/2": [
+     2.6,
+     0,
+     10
+    ],
+    "LT:f1/0": [
+     0.4,
+     0,
+     10
+    ],
+    "LT:f1/1": [
+     4.5,
+     0,
+     10
+    ],
+    "LT:f2/3": [
+     1.6,
+     0,
+     10
+    ],
+    "LT:f1/3": [
+     3.9,
+     0,
+     10
+    ],
+    "LT:f2/2": [
+     2.1,
+     0,
+     10
+    ],
+    "LT:f2/0": [
+     2.2,
+     0,
+     10
+    ],
+    "LT:f2/1": [
+     2,
+     0,
+     10
+    ]
+   }
+  },
+  {
+   "name": "hero:Two_Handed_Parry",
+   "frames": 83,
+   "contactFrames": {
+    "Right": 83,
+    "Left": 0,
+    "LeftT": 0
+   },
+   "sinkAll": {
+    "R": 0,
+    "L": 0,
+    "LT": 0
+   },
+   "unreached": 0,
+   "maxReachErrMm": 0,
+   "unreachedL": 0,
+   "maxReachErrLMm": 0,
+   "pops": {
+    "wristR": 0,
+    "wristRotR": 0,
+    "tipR": 0,
+    "wristL": 0,
+    "wristRotL": 0,
+    "tipL": 1.03
+   },
+   "stretchMm": 15.7,
+   "tsubaCross": 0,
+   "tsubaLeft": 0,
+   "tsubaLeftCtl": 0,
+   "armDevMm": 0.016,
+   "copyLeakRad": 5.960464477539063e-8,
+   "realLeakRad": 4.2146848510894035e-8,
+   "realLeakBone": "LeftLeg",
+   "maxTipDiffMm": 0,
+   "nan": 0,
+   "contact": {
+    "R:t0": [
+     1.5,
+     0,
+     83
+    ],
+    "R:f0/3": [
+     0.2,
+     0,
+     83
+    ],
+    "R:f0/2": [
+     0.7,
+     0,
+     83
+    ],
+    "R:t1": [
+     2.1,
+     0,
+     83
+    ],
+    "R:f0/1": [
+     0.7,
+     0,
+     83
+    ],
+    "R:f0/0": [
+     0.1,
+     0,
+     83
+    ],
+    "R:f2/2": [
+     2.1,
+     0,
+     83
+    ],
+    "R:f2/1": [
+     1.9,
+     0,
+     83
+    ],
+    "R:f1/1": [
+     2,
+     0,
+     83
+    ],
+    "R:f2/0": [
+     1.7,
+     0,
+     83
+    ],
+    "R:f1/2": [
+     1.3,
+     0,
+     83
+    ],
+    "R:f2/3": [
+     1.7,
+     0,
+     83
+    ],
+    "R:f1/0": [
+     1.6,
+     0,
+     83
+    ],
+    "R:f1/3": [
+     1,
+     0,
+     83
+    ]
+   }
+  },
+  {
+   "name": "hero:Katana_Thrust",
+   "frames": 119,
+   "contactFrames": {
+    "Right": 119,
+    "Left": 0,
+    "LeftT": 0
+   },
+   "sinkAll": {
+    "R": 0,
+    "L": 0,
+    "LT": 0
+   },
+   "unreached": 0,
+   "maxReachErrMm": 0,
+   "unreachedL": 0,
+   "maxReachErrLMm": 0,
+   "pops": {
+    "wristR": 1.03,
+    "wristRotR": 0,
+    "tipR": 1.04,
+    "wristL": 1.07,
+    "wristRotL": 0,
+    "tipL": 1.1
+   },
+   "stretchMm": 22,
+   "tsubaCross": 0,
+   "tsubaLeft": 0,
+   "tsubaLeftCtl": 0,
+   "armDevMm": 0.018,
+   "copyLeakRad": 0,
+   "realLeakRad": 4.2146848510894035e-8,
+   "realLeakBone": "RightFoot",
+   "maxTipDiffMm": 0,
+   "nan": 0,
+   "contact": {
+    "R:t0": [
+     1.5,
+     0,
+     119
+    ],
+    "R:f0/3": [
+     0.2,
+     0,
+     119
+    ],
+    "R:f0/2": [
+     0.7,
+     0,
+     119
+    ],
+    "R:t1": [
+     2.2,
+     0,
+     119
+    ],
+    "R:f0/1": [
+     0.7,
+     0,
+     119
+    ],
+    "R:f0/0": [
+     0.2,
+     0,
+     119
+    ],
+    "R:f2/2": [
+     2.1,
+     0,
+     119
+    ],
+    "R:f2/1": [
+     1.9,
+     0,
+     119
+    ],
+    "R:f1/1": [
+     2,
+     0,
+     119
+    ],
+    "R:f2/0": [
+     1.7,
+     0,
+     119
+    ],
+    "R:f1/2": [
+     1.3,
+     0,
+     119
+    ],
+    "R:f2/3": [
+     1.7,
+     0,
+     119
+    ],
+    "R:f1/0": [
+     1.6,
+     0,
+     119
+    ],
+    "R:f1/3": [
+     1,
+     0,
+     119
+    ]
+   }
+  },
+  {
+   "name": "hero:CMU_Run",
+   "frames": 44,
+   "contactFrames": {
+    "Right": 44,
+    "Left": 0,
+    "LeftT": 8
+   },
+   "sinkAll": {
+    "R": 0,
+    "L": 0,
+    "LT": 0
+   },
+   "unreached": 0,
+   "maxReachErrMm": 0,
+   "unreachedL": 0,
+   "maxReachErrLMm": 0,
+   "pops": {
+    "wristR": 0,
+    "wristRotR": 0,
+    "tipR": 1.04,
+    "wristL": 1.05,
+    "wristRotL": 0,
+    "tipL": 1.01
+   },
+   "stretchMm": 31.2,
+   "tsubaCross": 0,
+   "tsubaLeft": 0,
+   "tsubaLeftCtl": 0,
+   "armDevMm": 0.02,
+   "copyLeakRad": 0,
+   "realLeakRad": 4.2146848510894035e-8,
+   "realLeakBone": "Spine",
+   "maxTipDiffMm": 0,
+   "nan": 0,
+   "contact": {
+    "R:t0": [
+     1.4,
+     0,
+     44
+    ],
+    "R:f0/3": [
+     0.2,
+     0,
+     44
+    ],
+    "R:f0/2": [
+     0.8,
+     0,
+     44
+    ],
+    "R:t1": [
+     2.1,
+     0,
+     44
+    ],
+    "R:f0/1": [
+     0.7,
+     0,
+     44
+    ],
+    "R:f0/0": [
+     0.2,
+     0,
+     44
+    ],
+    "R:f2/2": [
+     2.1,
+     0,
+     44
+    ],
+    "R:f2/1": [
+     1.9,
+     0,
+     44
+    ],
+    "R:f1/1": [
+     2,
+     0,
+     44
+    ],
+    "R:f2/0": [
+     1.7,
+     0,
+     44
+    ],
+    "R:f1/2": [
+     1.3,
+     0,
+     44
+    ],
+    "R:f2/3": [
+     1.6,
+     0,
+     44
+    ],
+    "R:f1/0": [
+     1.6,
+     0,
+     44
+    ],
+    "R:f1/3": [
+     1,
+     0,
+     44
+    ],
+    "LT:t0": [
+     1.3,
+     0,
+     8
+    ],
+    "LT:t1": [
+     1.5,
+     0,
+     8
+    ],
+    "LT:f0/3": [
+     3.4,
+     0,
+     8
+    ],
+    "LT:f0/1": [
+     0.6,
+     0,
+     8
+    ],
+    "LT:f0/0": [
+     0.7,
+     0,
+     8
+    ],
+    "LT:f0/2": [
+     0.3,
+     0,
+     8
+    ],
+    "LT:f1/2": [
+     2.6,
+     0,
+     8
+    ],
+    "LT:f1/0": [
+     0.3,
+     0,
+     8
+    ],
+    "LT:f1/1": [
+     4.4,
+     0,
+     8
+    ],
+    "LT:f2/3": [
+     1.5,
+     0,
+     8
+    ],
+    "LT:f1/3": [
+     3.8,
+     0,
+     8
+    ],
+    "LT:f2/2": [
+     2,
+     0,
+     8
+    ],
+    "LT:f2/0": [
+     2.1,
+     0,
+     8
+    ],
+    "LT:f2/1": [
+     1.9,
+     0,
+     8
+    ]
+   }
+  },
+  {
+   "name": "hero:Roll_Dodge",
+   "frames": 110,
+   "contactFrames": {
+    "Right": 110,
+    "Left": 0,
+    "LeftT": 0
+   },
+   "sinkAll": {
+    "R": 0,
+    "L": 0,
+    "LT": 0
+   },
+   "unreached": 0,
+   "maxReachErrMm": 0,
+   "unreachedL": 0,
+   "maxReachErrLMm": 0,
+   "pops": {
+    "wristR": 1.19,
+    "wristRotR": 1.02,
+    "tipR": 1.24,
+    "wristL": 1.11,
+    "wristRotL": 1.1,
+    "tipL": 1.2
+   },
+   "stretchMm": 26.8,
+   "tsubaCross": 0,
+   "tsubaLeft": 2,
+   "tsubaLeftCtl": 0,
+   "armDevMm": 0.028,
+   "copyLeakRad": 5.960464477539063e-8,
+   "realLeakRad": 4.2146848510894035e-8,
+   "realLeakBone": "LeftToeBase",
+   "maxTipDiffMm": 0,
+   "nan": 0,
+   "contact": {
+    "R:t0": [
+     1.5,
+     0,
+     110
+    ],
+    "R:f0/3": [
+     0.2,
+     0,
+     110
+    ],
+    "R:f0/2": [
+     0.8,
+     0,
+     110
+    ],
+    "R:t1": [
+     2.1,
+     0,
+     110
+    ],
+    "R:f0/1": [
+     0.7,
+     0,
+     110
+    ],
+    "R:f0/0": [
+     0.2,
+     0,
+     110
+    ],
+    "R:f2/2": [
+     2.1,
+     0,
+     110
+    ],
+    "R:f2/1": [
+     1.9,
+     0,
+     110
+    ],
+    "R:f1/1": [
+     2,
+     0,
+     110
+    ],
+    "R:f2/0": [
+     1.7,
+     0,
+     110
+    ],
+    "R:f1/2": [
+     1.3,
+     0,
+     110
+    ],
+    "R:f2/3": [
+     1.7,
+     0,
+     110
+    ],
+    "R:f1/0": [
+     1.6,
+     0,
+     110
+    ],
+    "R:f1/3": [
+     1,
+     0,
+     110
+    ]
+   }
+  },
+  {
+   "name": "hero:Hit_Reaction",
+   "frames": 98,
+   "contactFrames": {
+    "Right": 98,
+    "Left": 0,
+    "LeftT": 0
+   },
+   "sinkAll": {
+    "R": 0,
+    "L": 0,
+    "LT": 0
+   },
+   "unreached": 0,
+   "maxReachErrMm": 0,
+   "unreachedL": 0,
+   "maxReachErrLMm": 0,
+   "pops": {
+    "wristR": 0,
+    "wristRotR": 0,
+    "tipR": 1.08,
+    "wristL": 1.2,
+    "wristRotL": 0,
+    "tipL": 1.22
+   },
+   "stretchMm": 15.7,
+   "tsubaCross": 0,
+   "tsubaLeft": 0,
+   "tsubaLeftCtl": 0,
+   "armDevMm": 0.02,
+   "copyLeakRad": 5.960464477539063e-8,
+   "realLeakRad": 5.16191365590357e-8,
+   "realLeakBone": "Spine02",
+   "maxTipDiffMm": 0,
+   "nan": 0,
+   "contact": {
+    "R:t0": [
+     1.5,
+     0,
+     98
+    ],
+    "R:f0/3": [
+     0.2,
+     0,
+     98
+    ],
+    "R:f0/2": [
+     0.7,
+     0,
+     98
+    ],
+    "R:t1": [
+     2.1,
+     0,
+     98
+    ],
+    "R:f0/1": [
+     0.7,
+     0,
+     98
+    ],
+    "R:f0/0": [
+     0.1,
+     0,
+     98
+    ],
+    "R:f2/2": [
+     2.1,
+     0,
+     98
+    ],
+    "R:f2/1": [
+     1.9,
+     0,
+     98
+    ],
+    "R:f1/1": [
+     2,
+     0,
+     98
+    ],
+    "R:f2/0": [
+     1.7,
+     0,
+     98
+    ],
+    "R:f1/2": [
+     1.3,
+     0,
+     98
+    ],
+    "R:f2/3": [
+     1.7,
+     0,
+     98
+    ],
+    "R:f1/0": [
+     1.6,
+     0,
+     98
+    ],
+    "R:f1/3": [
+     1,
+     0,
+     98
+    ]
+   }
+  },
+  {
+   "name": "soldier:Katana_Guard_Idle",
+   "frames": 239,
+   "contactFrames": {
+    "Right": 239,
+    "Left": 0,
+    "LeftT": 239
+   },
+   "sinkAll": {
+    "R": 1.4,
+    "L": 0,
+    "LT": 0.4
+   },
+   "unreached": 0,
+   "maxReachErrMm": 0,
+   "unreachedL": 0,
+   "maxReachErrLMm": 0,
+   "pops": {
+    "wristR": 0,
+    "wristRotR": 0,
+    "tipR": 0,
+    "wristL": 0,
+    "wristRotL": 0,
+    "tipL": 0
+   },
+   "stretchMm": 28.8,
+   "tsubaCross": 0,
+   "tsubaLeft": 0,
+   "tsubaLeftCtl": 0,
+   "armDevMm": 0.066,
+   "copyLeakRad": 0,
+   "realLeakRad": 5.16191365590357e-8,
+   "realLeakBone": "neck",
+   "maxTipDiffMm": 0,
+   "nan": 0,
+   "contact": {
+    "R:t0": [
+     -1.4,
+     1.4,
+     239
+    ],
+    "R:f2/2": [
+     1.4,
+     0,
+     239
+    ],
+    "R:f2/1": [
+     1.5,
+     0,
+     239
+    ],
+    "R:f1/1": [
+     0.9,
+     0,
+     239
+    ],
+    "R:f2/0": [
+     1.2,
+     0,
+     239
+    ],
+    "R:f1/0": [
+     0.3,
+     0,
+     239
+    ],
+    "R:f1/2": [
+     0.7,
+     0,
+     239
+    ],
+    "R:f0/2": [
+     1.6,
+     0,
+     239
+    ],
+    "R:f2/3": [
+     1,
+     0,
+     239
+    ],
+    "R:f0/1": [
+     2.7,
+     0,
+     239
+    ],
+    "R:f0/0": [
+     0.2,
+     0,
+     239
+    ],
+    "R:f1/3": [
+     1.2,
+     0,
+     239
+    ],
+    "R:f0/3": [
+     -1.1,
+     1.2,
+     239
+    ],
+    "R:t1": [
+     -0.3,
+     0.3,
+     239
+    ],
+    "LT:t0": [
+     0.5,
+     0,
+     239
+    ],
+    "LT:t1": [
+     2,
+     0,
+     239
+    ],
+    "LT:f0/3": [
+     -0.1,
+     0.1,
+     239
+    ],
+    "LT:f0/2": [
+     1.7,
+     0,
+     239
+    ],
+    "LT:f0/1": [
+     3.7,
+     0,
+     239
+    ],
+    "LT:f0/0": [
+     0.9,
+     0,
+     239
+    ],
+    "LT:f1/3": [
+     0.7,
+     0,
+     239
+    ],
+    "LT:f1/1": [
+     1.6,
+     0,
+     239
+    ],
+    "LT:f1/0": [
+     -0.1,
+     0.2,
+     239
+    ],
+    "LT:f2/3": [
+     2.5,
+     0,
+     239
+    ],
+    "LT:f1/2": [
+     0.4,
+     0,
+     239
+    ],
+    "LT:f2/2": [
+     2.2,
+     0,
+     239
+    ],
+    "LT:f2/0": [
+     5.5,
+     0,
+     239
+    ],
+    "LT:f2/1": [
+     2.2,
+     0,
+     239
+    ]
+   }
+  },
+  {
+   "name": "soldier:Walk_Fight_Forward",
+   "frames": 104,
+   "contactFrames": {
+    "Right": 104,
+    "Left": 0,
+    "LeftT": 0
+   },
+   "sinkAll": {
+    "R": 1.4,
+    "L": 0,
+    "LT": 0
+   },
+   "unreached": 0,
+   "maxReachErrMm": 0,
+   "unreachedL": 0,
+   "maxReachErrLMm": 0,
+   "pops": {
+    "wristR": 0,
+    "wristRotR": 0,
+    "tipR": 0,
+    "wristL": 0,
+    "wristRotL": 0,
+    "tipL": 0
+   },
+   "stretchMm": 14.1,
+   "tsubaCross": 0,
+   "tsubaLeft": 0,
+   "tsubaLeftCtl": 0,
+   "armDevMm": 0.028,
+   "copyLeakRad": 5.960464477539063e-8,
+   "realLeakRad": 5.16191365590357e-8,
+   "realLeakBone": "LeftToeBase",
+   "maxTipDiffMm": 0,
+   "nan": 0,
+   "contact": {
+    "R:t0": [
+     -1.4,
+     1.4,
+     104
+    ],
+    "R:f2/2": [
+     1.4,
+     0,
+     104
+    ],
+    "R:f2/1": [
+     1.5,
+     0,
+     104
+    ],
+    "R:f1/1": [
+     1,
+     0,
+     104
+    ],
+    "R:f2/0": [
+     1.2,
+     0,
+     104
+    ],
+    "R:f1/0": [
+     0.3,
+     0,
+     104
+    ],
+    "R:f1/2": [
+     0.7,
+     0,
+     104
+    ],
+    "R:f0/2": [
+     1.6,
+     0,
+     104
+    ],
+    "R:f2/3": [
+     1,
+     0,
+     104
+    ],
+    "R:f0/1": [
+     2.7,
+     0,
+     104
+    ],
+    "R:f0/0": [
+     0.2,
+     0,
+     104
+    ],
+    "R:f1/3": [
+     1.2,
+     0,
+     104
+    ],
+    "R:f0/3": [
+     -1.1,
+     1.2,
+     104
+    ],
+    "R:t1": [
+     -0.3,
+     0.3,
+     104
+    ]
+   }
+  },
+  {
+   "name": "soldier:Attack_r1",
+   "frames": 168,
+   "contactFrames": {
+    "Right": 168,
+    "Left": 0,
+    "LeftT": 0
+   },
+   "sinkAll": {
+    "R": 1.5,
+    "L": 0,
+    "LT": 0
+   },
+   "unreached": 0,
+   "maxReachErrMm": 0,
+   "unreachedL": 0,
+   "maxReachErrLMm": 0,
+   "pops": {
+    "wristR": 1.06,
+    "wristRotR": 1.03,
+    "tipR": 1.08,
+    "wristL": 1.09,
+    "wristRotL": 1.07,
+    "tipL": 1.19
+   },
+   "stretchMm": 32,
+   "tsubaCross": 0,
+   "tsubaLeft": 0,
+   "tsubaLeftCtl": 0,
+   "armDevMm": 0.037,
+   "copyLeakRad": 0,
+   "realLeakRad": 5.960464477539063e-8,
+   "realLeakBone": "RightToeBase",
+   "maxTipDiffMm": 0,
+   "nan": 0,
+   "contact": {
+    "R:t0": [
+     -1.2,
+     1.5,
+     168
+    ],
+    "R:f2/2": [
+     1.4,
+     0,
+     168
+    ],
+    "R:f2/1": [
+     1.5,
+     0,
+     168
+    ],
+    "R:f1/1": [
+     0.9,
+     0,
+     168
+    ],
+    "R:f2/0": [
+     1.2,
+     0,
+     168
+    ],
+    "R:f1/0": [
+     0.3,
+     0,
+     168
+    ],
+    "R:f1/2": [
+     0.7,
+     0,
+     168
+    ],
+    "R:f0/2": [
+     1.9,
+     0,
+     168
+    ],
+    "R:f2/3": [
+     1,
+     0,
+     168
+    ],
+    "R:f0/1": [
+     2.9,
+     0,
+     168
+    ],
+    "R:f0/0": [
+     0.4,
+     0,
+     168
+    ],
+    "R:f1/3": [
+     1.2,
+     0,
+     168
+    ],
+    "R:f0/3": [
+     -0.9,
+     1.2,
+     168
+    ],
+    "R:t1": [
+     -0.1,
+     0.4,
+     168
+    ]
+   }
+  },
+  {
+   "name": "soldier:Katana_Thrust",
+   "frames": 119,
+   "contactFrames": {
+    "Right": 119,
+    "Left": 0,
+    "LeftT": 0
+   },
+   "sinkAll": {
+    "R": 1.4,
+    "L": 0,
+    "LT": 0
+   },
+   "unreached": 0,
+   "maxReachErrMm": 0,
+   "unreachedL": 0,
+   "maxReachErrLMm": 0,
+   "pops": {
+    "wristR": 1.02,
+    "wristRotR": 0,
+    "tipR": 1.04,
+    "wristL": 1.08,
+    "wristRotL": 0,
+    "tipL": 1.11
+   },
+   "stretchMm": 23.6,
+   "tsubaCross": 0,
+   "tsubaLeft": 0,
+   "tsubaLeftCtl": 0,
+   "armDevMm": 0.017,
+   "copyLeakRad": 0,
+   "realLeakRad": 4.2146848510894035e-8,
+   "realLeakBone": "LeftShoulder",
+   "maxTipDiffMm": 0,
+   "nan": 0,
+   "contact": {
+    "R:t0": [
+     -1.4,
+     1.4,
+     119
+    ],
+    "R:f2/2": [
+     1.4,
+     0,
+     119
+    ],
+    "R:f2/1": [
+     1.5,
+     0,
+     119
+    ],
+    "R:f1/1": [
+     0.9,
+     0,
+     119
+    ],
+    "R:f2/0": [
+     1.2,
+     0,
+     119
+    ],
+    "R:f1/0": [
+     0.3,
+     0,
+     119
+    ],
+    "R:f1/2": [
+     0.7,
+     0,
+     119
+    ],
+    "R:f0/2": [
+     1.6,
+     0,
+     119
+    ],
+    "R:f2/3": [
+     1,
+     0,
+     119
+    ],
+    "R:f0/1": [
+     2.7,
+     0,
+     119
+    ],
+    "R:f0/0": [
+     0.2,
+     0,
+     119
+    ],
+    "R:f1/3": [
+     1.2,
+     0,
+     119
+    ],
+    "R:f0/3": [
+     -1.1,
+     1.2,
+     119
+    ],
+    "R:t1": [
+     -0.3,
+     0.4,
+     119
+    ]
+   }
+  },
+  {
+   "name": "soldier:Katana_Karatake_Heavy",
+   "frames": 179,
+   "contactFrames": {
+    "Right": 179,
+    "Left": 0,
+    "LeftT": 97
+   },
+   "sinkAll": {
+    "R": 1.5,
+    "L": 0,
+    "LT": 0.3
+   },
+   "unreached": 0,
+   "maxReachErrMm": 0,
+   "unreachedL": 0,
+   "maxReachErrLMm": 0,
+   "pops": {
+    "wristR": 1.03,
+    "wristRotR": 1.01,
+    "tipR": 1.08,
+    "wristL": 1.03,
+    "wristRotL": 1.01,
+    "tipL": 1.02
+   },
+   "stretchMm": 28.8,
+   "tsubaCross": 0,
+   "tsubaLeft": 0,
+   "tsubaLeftCtl": 2,
+   "armDevMm": 0.035,
+   "copyLeakRad": 0,
+   "realLeakRad": 5.16191365590357e-8,
+   "realLeakBone": "Hips",
+   "maxTipDiffMm": 0,
+   "nan": 0,
+   "contact": {
+    "R:t0": [
+     -1.4,
+     1.5,
+     179
+    ],
+    "R:f2/2": [
+     1.5,
+     0,
+     179
+    ],
+    "R:f2/1": [
+     1.5,
+     0,
+     179
+    ],
+    "R:f1/1": [
+     1,
+     0,
+     179
+    ],
+    "R:f2/0": [
+     1.2,
+     0,
+     179
+    ],
+    "R:f1/0": [
+     0.4,
+     0,
+     179
+    ],
+    "R:f1/2": [
+     0.7,
+     0,
+     179
+    ],
+    "R:f0/2": [
+     1.6,
+     0,
+     179
+    ],
+    "R:f2/3": [
+     1.1,
+     0,
+     179
+    ],
+    "R:f0/1": [
+     2.7,
+     0,
+     179
+    ],
+    "R:f0/0": [
+     0.2,
+     0,
+     179
+    ],
+    "R:f1/3": [
+     1.3,
+     0,
+     179
+    ],
+    "R:f0/3": [
+     -1.1,
+     1.2,
+     179
+    ],
+    "R:t1": [
+     -0.3,
+     0.4,
+     179
+    ],
+    "LT:t0": [
+     0.5,
+     0,
+     97
+    ],
+    "LT:t1": [
+     2,
+     0,
+     97
+    ],
+    "LT:f0/3": [
+     -0.1,
+     0.1,
+     97
+    ],
+    "LT:f0/2": [
+     1.8,
+     0,
+     97
+    ],
+    "LT:f0/1": [
+     3.7,
+     0,
+     97
+    ],
+    "LT:f0/0": [
+     0.9,
+     0,
+     97
+    ],
+    "LT:f1/3": [
+     0.7,
+     0,
+     97
+    ],
+    "LT:f1/1": [
+     1.7,
+     0,
+     97
+    ],
+    "LT:f1/0": [
+     0,
+     0.2,
+     97
+    ],
+    "LT:f2/3": [
+     2.5,
+     0,
+     97
+    ],
+    "LT:f1/2": [
+     0.5,
+     0,
+     97
+    ],
+    "LT:f2/2": [
+     2.3,
+     0,
+     97
+    ],
+    "LT:f2/0": [
+     5.6,
+     0,
+     97
+    ],
+    "LT:f2/1": [
+     2.2,
+     0,
+     97
+    ]
+   }
+  },
+  {
+   "name": "officer:Katana_Guard_Idle",
+   "frames": 239,
+   "contactFrames": {
+    "Right": 239,
+    "Left": 0,
+    "LeftT": 239
+   },
+   "sinkAll": {
+    "R": 1,
+    "L": 0,
+    "LT": 0.3
+   },
+   "unreached": 0,
+   "maxReachErrMm": 0,
+   "unreachedL": 0,
+   "maxReachErrLMm": 0,
+   "pops": {
+    "wristR": 0,
+    "wristRotR": 0,
+    "tipR": 0,
+    "wristL": 0,
+    "wristRotL": 0,
+    "tipL": 0
+   },
+   "stretchMm": 22.5,
+   "tsubaCross": 0,
+   "tsubaLeft": 0,
+   "tsubaLeftCtl": 0,
+   "armDevMm": 0.086,
+   "copyLeakRad": 0,
+   "realLeakRad": 4.2146848510894035e-8,
+   "realLeakBone": "Spine01",
+   "maxTipDiffMm": 0,
+   "nan": 0,
+   "contact": {
+    "R:t0": [
+     -1,
+     1,
+     239
+    ],
+    "R:f2/2": [
+     1.7,
+     0,
+     239
+    ],
+    "R:f2/1": [
+     1.8,
+     0,
+     239
+    ],
+    "R:f2/3": [
+     1.8,
+     0,
+     239
+    ],
+    "R:f2/0": [
+     1.4,
+     0,
+     239
+    ],
+    "R:f1/2": [
+     -0.1,
+     0.1,
+     239
+    ],
+    "R:f1/3": [
+     3,
+     0,
+     239
+    ],
+    "R:f1/1": [
+     4.5,
+     0,
+     239
+    ],
+    "R:f1/0": [
+     4.4,
+     0,
+     239
+    ],
+    "R:f0/0": [
+     -0.2,
+     0.2,
+     239
+    ],
+    "R:f0/1": [
+     0.8,
+     0,
+     239
+    ],
+    "R:f0/3": [
+     1.4,
+     0,
+     239
+    ],
+    "R:f0/2": [
+     5.3,
+     0,
+     239
+    ],
+    "R:t1": [
+     6.1,
+     0,
+     239
+    ],
+    "LT:t1": [
+     1.7,
+     0,
+     239
+    ],
+    "LT:t0": [
+     14.5,
+     0,
+     239
+    ],
+    "LT:f0/3": [
+     0.8,
+     0,
+     239
+    ],
+    "LT:f0/1": [
+     5.6,
+     0,
+     239
+    ],
+    "LT:f0/0": [
+     4.3,
+     0,
+     239
+    ],
+    "LT:f0/2": [
+     1.6,
+     0,
+     239
+    ],
+    "LT:f1/1": [
+     0.3,
+     0,
+     239
+    ],
+    "LT:f1/2": [
+     4.3,
+     0,
+     239
+    ],
+    "LT:f1/0": [
+     1.7,
+     0,
+     239
+    ],
+    "LT:f1/3": [
+     2.8,
+     0,
+     239
+    ],
+    "LT:f2/3": [
+     0.8,
+     0,
+     239
+    ],
+    "LT:f2/2": [
+     1.7,
+     0,
+     239
+    ],
+    "LT:f2/1": [
+     1.5,
+     0,
+     239
+    ],
+    "LT:f2/0": [
+     1,
+     0,
+     239
+    ]
+   }
+  },
+  {
+   "name": "officer:Walk_Fight_Forward",
+   "frames": 104,
+   "contactFrames": {
+    "Right": 104,
+    "Left": 0,
+    "LeftT": 0
+   },
+   "sinkAll": {
+    "R": 1,
+    "L": 0,
+    "LT": 0
+   },
+   "unreached": 0,
+   "maxReachErrMm": 0,
+   "unreachedL": 0,
+   "maxReachErrLMm": 0,
+   "pops": {
+    "wristR": 0,
+    "wristRotR": 0,
+    "tipR": 1.22,
+    "wristL": 0,
+    "wristRotL": 0,
+    "tipL": 0
+   },
+   "stretchMm": 21,
+   "tsubaCross": 0,
+   "tsubaLeft": 0,
+   "tsubaLeftCtl": 0,
+   "armDevMm": 0.04,
+   "copyLeakRad": 5.960464477539063e-8,
+   "realLeakRad": 4.2146848510894035e-8,
+   "realLeakBone": "LeftToeBase",
+   "maxTipDiffMm": 0,
+   "nan": 0,
+   "contact": {
+    "R:t0": [
+     -1,
+     1,
+     104
+    ],
+    "R:f2/2": [
+     1.7,
+     0,
+     104
+    ],
+    "R:f2/1": [
+     1.8,
+     0,
+     104
+    ],
+    "R:f2/3": [
+     1.8,
+     0,
+     104
+    ],
+    "R:f2/0": [
+     1.4,
+     0,
+     104
+    ],
+    "R:f1/2": [
+     -0.1,
+     0.1,
+     104
+    ],
+    "R:f1/3": [
+     3,
+     0,
+     104
+    ],
+    "R:f1/1": [
+     4.5,
+     0,
+     104
+    ],
+    "R:f1/0": [
+     4.4,
+     0,
+     104
+    ],
+    "R:f0/0": [
+     -0.2,
+     0.2,
+     104
+    ],
+    "R:f0/1": [
+     0.9,
+     0,
+     104
+    ],
+    "R:f0/3": [
+     1.5,
+     0,
+     104
+    ],
+    "R:f0/2": [
+     5.3,
+     0,
+     104
+    ],
+    "R:t1": [
+     6.1,
+     0,
+     104
+    ]
+   }
+  },
+  {
+   "name": "officer:Attack_r1",
+   "frames": 168,
+   "contactFrames": {
+    "Right": 168,
+    "Left": 0,
+    "LeftT": 0
+   },
+   "sinkAll": {
+    "R": 1.2,
+    "L": 0,
+    "LT": 0
+   },
+   "unreached": 0,
+   "maxReachErrMm": 0,
+   "unreachedL": 0,
+   "maxReachErrLMm": 0,
+   "pops": {
+    "wristR": 1.06,
+    "wristRotR": 1.03,
+    "tipR": 1.08,
+    "wristL": 1.15,
+    "wristRotL": 1.08,
+    "tipL": 1.25
+   },
+   "stretchMm": 33,
+   "tsubaCross": 0,
+   "tsubaLeft": 0,
+   "tsubaLeftCtl": 0,
+   "armDevMm": 0.013,
+   "copyLeakRad": 0,
+   "realLeakRad": 5.16191365590357e-8,
+   "realLeakBone": "RightShoulder",
+   "maxTipDiffMm": 0,
+   "nan": 0,
+   "contact": {
+    "R:t0": [
+     -1,
+     1.2,
+     168
+    ],
+    "R:f2/2": [
+     1.7,
+     0,
+     168
+    ],
+    "R:f2/1": [
+     1.8,
+     0,
+     168
+    ],
+    "R:f2/3": [
+     1.8,
+     0,
+     168
+    ],
+    "R:f2/0": [
+     1.4,
+     0,
+     168
+    ],
+    "R:f1/2": [
+     -0.1,
+     0.3,
+     168
+    ],
+    "R:f1/3": [
+     3,
+     0,
+     168
+    ],
+    "R:f1/1": [
+     4.8,
+     0,
+     168
+    ],
+    "R:f1/0": [
+     4.4,
+     0,
+     168
+    ],
+    "R:f0/0": [
+     -0.1,
+     0.2,
+     168
+    ],
+    "R:f0/1": [
+     1.1,
+     0,
+     168
+    ],
+    "R:f0/3": [
+     1.6,
+     0,
+     168
+    ],
+    "R:f0/2": [
+     5.7,
+     0,
+     168
+    ],
+    "R:t1": [
+     6.5,
+     0,
+     168
+    ]
+   }
+  },
+  {
+   "name": "officer:Katana_Thrust",
+   "frames": 119,
+   "contactFrames": {
+    "Right": 119,
+    "Left": 0,
+    "LeftT": 0
+   },
+   "sinkAll": {
+    "R": 1,
+    "L": 0,
+    "LT": 0
+   },
+   "unreached": 0,
+   "maxReachErrMm": 0,
+   "unreachedL": 0,
+   "maxReachErrLMm": 0,
+   "pops": {
+    "wristR": 1.02,
+    "wristRotR": 0,
+    "tipR": 1.04,
+    "wristL": 1.08,
+    "wristRotL": 0,
+    "tipL": 1.11
+   },
+   "stretchMm": 22.6,
+   "tsubaCross": 0,
+   "tsubaLeft": 0,
+   "tsubaLeftCtl": 0,
+   "armDevMm": 0.018,
+   "copyLeakRad": 0,
+   "realLeakRad": 2.9802322387695312e-8,
+   "realLeakBone": "Hips",
+   "maxTipDiffMm": 0,
+   "nan": 0,
+   "contact": {
+    "R:t0": [
+     -1,
+     1,
+     119
+    ],
+    "R:f2/2": [
+     1.7,
+     0,
+     119
+    ],
+    "R:f2/1": [
+     1.8,
+     0,
+     119
+    ],
+    "R:f2/3": [
+     1.8,
+     0,
+     119
+    ],
+    "R:f2/0": [
+     1.4,
+     0,
+     119
+    ],
+    "R:f1/2": [
+     -0.1,
+     0.1,
+     119
+    ],
+    "R:f1/3": [
+     3,
+     0,
+     119
+    ],
+    "R:f1/1": [
+     4.5,
+     0,
+     119
+    ],
+    "R:f1/0": [
+     4.4,
+     0,
+     119
+    ],
+    "R:f0/0": [
+     -0.2,
+     0.2,
+     119
+    ],
+    "R:f0/1": [
+     0.9,
+     0,
+     119
+    ],
+    "R:f0/3": [
+     1.5,
+     0,
+     119
+    ],
+    "R:f0/2": [
+     5.3,
+     0,
+     119
+    ],
+    "R:t1": [
+     6.1,
+     0,
+     119
+    ]
+   }
+  },
+  {
+   "name": "officer:Officer_Attack",
+   "frames": 168,
+   "contactFrames": {
+    "Right": 168,
+    "Left": 0,
+    "LeftT": 0
+   },
+   "sinkAll": {
+    "R": 1.1,
+    "L": 0,
+    "LT": 0
+   },
+   "unreached": 0,
+   "maxReachErrMm": 0,
+   "unreachedL": 0,
+   "maxReachErrLMm": 0,
+   "pops": {
+    "wristR": 1.08,
+    "wristRotR": 1.02,
+    "tipR": 1.09,
+    "wristL": 1.15,
+    "wristRotL": 1.58,
+    "tipL": 1.18
+   },
+   "stretchMm": 28.1,
+   "tsubaCross": 0,
+   "tsubaLeft": 0,
+   "tsubaLeftCtl": 0,
+   "armDevMm": 0.031,
+   "copyLeakRad": 5.960464477539063e-8,
+   "realLeakRad": 5.16191365590357e-8,
+   "realLeakBone": "Spine01",
+   "maxTipDiffMm": 0,
+   "nan": 0,
+   "contact": {
+    "R:t0": [
+     -1,
+     1.1,
+     168
+    ],
+    "R:f2/2": [
+     1.7,
+     0,
+     168
+    ],
+    "R:f2/1": [
+     1.8,
+     0,
+     168
+    ],
+    "R:f2/3": [
+     1.8,
+     0,
+     168
+    ],
+    "R:f2/0": [
+     1.4,
+     0,
+     168
+    ],
+    "R:f1/2": [
+     -0.1,
+     0.2,
+     168
+    ],
+    "R:f1/3": [
+     3,
+     0,
+     168
+    ],
+    "R:f1/1": [
+     4.6,
+     0,
+     168
+    ],
+    "R:f1/0": [
+     4.4,
+     0,
+     168
+    ],
+    "R:f0/0": [
+     -0.2,
+     0.2,
+     168
+    ],
+    "R:f0/1": [
+     0.9,
+     0,
+     168
+    ],
+    "R:f0/3": [
+     1.5,
+     0,
+     168
+    ],
+    "R:f0/2": [
+     5.4,
+     0,
+     168
+    ],
+    "R:t1": [
+     6.2,
+     0,
+     168
+    ]
+   }
+  },
+  {
+   "name": "officer:Katana_Gyakukesa_Cut",
+   "frames": 119,
+   "contactFrames": {
+    "Right": 119,
+    "Left": 0,
+    "LeftT": 1
+   },
+   "sinkAll": {
+    "R": 1,
+    "L": 0,
+    "LT": 0.3
+   },
+   "unreached": 0,
+   "maxReachErrMm": 0,
+   "unreachedL": 0,
+   "maxReachErrLMm": 0,
+   "pops": {
+    "wristR": 1.06,
+    "wristRotR": 1.03,
+    "tipR": 1.03,
+    "wristL": 1.08,
+    "wristRotL": 1.02,
+    "tipL": 1.06
+   },
+   "stretchMm": 24.7,
+   "tsubaCross": 0,
+   "tsubaLeft": 0,
+   "tsubaLeftCtl": 10,
+   "armDevMm": 0.035,
+   "copyLeakRad": 0,
+   "realLeakRad": 4.2146848510894035e-8,
+   "realLeakBone": "LeftToeBase",
+   "maxTipDiffMm": 0,
+   "nan": 0,
+   "contact": {
+    "R:t0": [
+     -1,
+     1,
+     119
+    ],
+    "R:f2/2": [
+     1.7,
+     0,
+     119
+    ],
+    "R:f2/1": [
+     1.8,
+     0,
+     119
+    ],
+    "R:f2/3": [
+     1.8,
+     0,
+     119
+    ],
+    "R:f2/0": [
+     1.4,
+     0,
+     119
+    ],
+    "R:f1/2": [
+     -0.1,
+     0.1,
+     119
+    ],
+    "R:f1/3": [
+     3,
+     0,
+     119
+    ],
+    "R:f1/1": [
+     4.6,
+     0,
+     119
+    ],
+    "R:f1/0": [
+     4.4,
+     0,
+     119
+    ],
+    "R:f0/0": [
+     -0.1,
+     0.2,
+     119
+    ],
+    "R:f0/1": [
+     0.9,
+     0,
+     119
+    ],
+    "R:f0/3": [
+     1.5,
+     0,
+     119
+    ],
+    "R:f0/2": [
+     5.4,
+     0,
+     119
+    ],
+    "R:t1": [
+     6.1,
+     0,
+     119
+    ],
+    "LT:t1": [
+     1.6,
+     0,
+     1
+    ],
+    "LT:t0": [
+     14.3,
+     0,
+     1
+    ],
+    "LT:f0/3": [
+     0.9,
+     0,
+     1
+    ],
+    "LT:f0/1": [
+     5.4,
+     0,
+     1
+    ],
+    "LT:f0/0": [
+     4.1,
+     0,
+     1
+    ],
+    "LT:f0/2": [
+     1.5,
+     0,
+     1
+    ],
+    "LT:f1/1": [
+     0.3,
+     0,
+     1
+    ],
+    "LT:f1/2": [
+     4.4,
+     0,
+     1
+    ],
+    "LT:f1/0": [
+     1.9,
+     0,
+     1
+    ],
+    "LT:f1/3": [
+     2.9,
+     0,
+     1
+    ],
+    "LT:f2/3": [
+     0.9,
+     0,
+     1
+    ],
+    "LT:f2/2": [
+     1.8,
+     0,
+     1
+    ],
+    "LT:f2/1": [
+     1.6,
+     0,
+     1
+    ],
+    "LT:f2/0": [
+     1.2,
+     0,
+     1
+    ]
+   }
+  },
+  {
+   "name": "officer:Katana_Karatake_Heavy",
+   "frames": 179,
+   "contactFrames": {
+    "Right": 179,
+    "Left": 0,
+    "LeftT": 91
+   },
+   "sinkAll": {
+    "R": 1.1,
+    "L": 0,
+    "LT": 0.4
+   },
+   "unreached": 0,
+   "maxReachErrMm": 0,
+   "unreachedL": 0,
+   "maxReachErrLMm": 0,
+   "pops": {
+    "wristR": 1.03,
+    "wristRotR": 1.01,
+    "tipR": 1.08,
+    "wristL": 1.16,
+    "wristRotL": 1.01,
+    "tipL": 1.08
+   },
+   "stretchMm": 24,
+   "tsubaCross": 0,
+   "tsubaLeft": 0,
+   "tsubaLeftCtl": 2,
+   "armDevMm": 0.024,
+   "copyLeakRad": 0,
+   "realLeakRad": 5.960464477539063e-8,
+   "realLeakBone": "LeftToeBase",
+   "maxTipDiffMm": 0,
+   "nan": 0,
+   "contact": {
+    "R:t0": [
+     -1,
+     1.1,
+     179
+    ],
+    "R:f2/2": [
+     1.8,
+     0,
+     179
+    ],
+    "R:f2/1": [
+     1.8,
+     0,
+     179
+    ],
+    "R:f2/3": [
+     1.8,
+     0,
+     179
+    ],
+    "R:f2/0": [
+     1.5,
+     0,
+     179
+    ],
+    "R:f1/2": [
+     0,
+     0.1,
+     179
+    ],
+    "R:f1/3": [
+     3,
+     0,
+     179
+    ],
+    "R:f1/1": [
+     4.6,
+     0,
+     179
+    ],
+    "R:f1/0": [
+     4.4,
+     0,
+     179
+    ],
+    "R:f0/0": [
+     -0.1,
+     0.2,
+     179
+    ],
+    "R:f0/1": [
+     0.9,
+     0,
+     179
+    ],
+    "R:f0/3": [
+     1.5,
+     0,
+     179
+    ],
+    "R:f0/2": [
+     5.4,
+     0,
+     179
+    ],
+    "R:t1": [
+     6.2,
+     0,
+     179
+    ],
+    "LT:t1": [
+     1.7,
+     0,
+     91
+    ],
+    "LT:t0": [
+     14.4,
+     0,
+     91
+    ],
+    "LT:f0/3": [
+     0.9,
+     0,
+     91
+    ],
+    "LT:f0/1": [
+     5.5,
+     0,
+     91
+    ],
+    "LT:f0/0": [
+     4.2,
+     0,
+     91
+    ],
+    "LT:f0/2": [
+     1.6,
+     0,
+     91
+    ],
+    "LT:f1/1": [
+     0.3,
+     0,
+     91
+    ],
+    "LT:f1/2": [
+     4.4,
+     0,
+     91
+    ],
+    "LT:f1/0": [
+     1.9,
+     0,
+     91
+    ],
+    "LT:f1/3": [
+     2.9,
+     0,
+     91
+    ],
+    "LT:f2/3": [
+     0.9,
+     0,
+     91
+    ],
+    "LT:f2/2": [
+     1.8,
+     0,
+     91
+    ],
+    "LT:f2/1": [
+     1.7,
+     0,
+     91
+    ],
+    "LT:f2/0": [
+     1.2,
+     0,
+     91
+    ]
+   }
+  },
+  {
+   "name": "calmDraw",
+   "frames": 60,
+   "contactFrames": {
+    "Right": 46,
+    "Left": 10,
+    "LeftT": 0
+   },
+   "sinkAll": {
+    "R": 0.5,
+    "L": 0,
+    "LT": 0
+   },
+   "unreached": 0,
+   "maxReachErrMm": 0,
+   "unreachedL": 0,
+   "maxReachErrLMm": 0,
+   "pops": {
+    "wristR": 1.15,
+    "wristRotR": 1.29,
+    "tipR": 1.04,
+    "wristL": 1.09,
+    "wristRotL": 1.18,
+    "tipL": 1.09
+   },
+   "stretchMm": 30,
+   "tsubaCross": 4,
+   "tsubaLeft": 1,
+   "tsubaLeftCtl": 1,
+   "armDevMm": 0.095,
+   "copyLeakRad": 4.2146848510894035e-8,
+   "realLeakRad": 4.2146848510894035e-8,
+   "realLeakBone": "Spine02",
+   "maxTipDiffMm": 0,
+   "nan": 0,
+   "contact": {
+    "R:t0": [
+     1.7,
+     0.5,
+     46
+    ],
+    "R:f0/3": [
+     1.5,
+     0,
+     46
+    ],
+    "R:f0/2": [
+     2.5,
+     0,
+     46
+    ],
+    "R:t1": [
+     2.1,
+     0.1,
+     46
+    ],
+    "R:f0/1": [
+     2.7,
+     0,
+     46
+    ],
+    "R:f0/0": [
+     1.7,
+     0.2,
+     46
+    ],
+    "R:f2/2": [
+     2.1,
+     0.2,
+     46
+    ],
+    "R:f2/1": [
+     2.1,
+     0,
+     46
+    ],
+    "R:f1/1": [
+     3.2,
+     0,
+     46
+    ],
+    "R:f2/0": [
+     2.2,
+     0,
+     46
+    ],
+    "R:f1/2": [
+     3.2,
+     0,
+     46
+    ],
+    "R:f2/3": [
+     2.1,
+     0,
+     46
+    ],
+    "R:f1/0": [
+     3.2,
+     0,
+     46
+    ],
+    "R:f1/3": [
+     2.7,
+     0,
+     46
+    ],
+    "L:t0": [
+     0.9,
+     0,
+     10
+    ],
+    "L:t1": [
+     1,
+     0,
+     10
+    ],
+    "L:f0/3": [
+     1,
+     0,
+     10
+    ],
+    "L:f0/1": [
+     0.8,
+     0,
+     10
+    ],
+    "L:f0/0": [
+     1.4,
+     0,
+     10
+    ],
+    "L:f0/2": [
+     2.7,
+     0,
+     10
+    ],
+    "L:f1/2": [
+     5.1,
+     0,
+     10
+    ],
+    "L:f1/0": [
+     1.3,
+     0,
+     10
+    ],
+    "L:f1/1": [
+     5.1,
+     0,
+     10
+    ],
+    "L:f2/3": [
+     1,
+     0,
+     10
+    ],
+    "L:f1/3": [
+     2.1,
+     0,
+     10
+    ],
+    "L:f2/2": [
+     0.9,
+     0,
+     10
+    ],
+    "L:f2/0": [
+     0.9,
+     0,
+     10
+    ],
+    "L:f2/1": [
+     0.9,
+     0,
+     10
+    ]
+   }
+  },
+  {
+   "name": "fastDraw",
+   "frames": 40,
+   "contactFrames": {
+    "Right": 35,
+    "Left": 2,
+    "LeftT": 0
+   },
+   "sinkAll": {
+    "R": 0.4,
+    "L": 0,
+    "LT": 0
+   },
+   "unreached": 1,
+   "maxReachErrMm": 22.8,
+   "unreachedL": 0,
+   "maxReachErrLMm": 0,
+   "pops": {
+    "wristR": 1.51,
+    "wristRotR": 2.98,
+    "tipR": 1.16,
+    "wristL": 2.11,
+    "wristRotL": 1.95,
+    "tipL": 1.84
+   },
+   "stretchMm": 27.6,
+   "tsubaCross": 0,
+   "tsubaLeft": 0,
+   "tsubaLeftCtl": 0,
+   "armDevMm": 0.09,
+   "copyLeakRad": 4.2146848510894035e-8,
+   "realLeakRad": 4.2146848510894035e-8,
+   "realLeakBone": "LeftHand",
+   "maxTipDiffMm": 0,
+   "nan": 0,
+   "contact": {
+    "R:t0": [
+     1.6,
+     0.3,
+     35
+    ],
+    "R:f0/3": [
+     1.1,
+     0,
+     35
+    ],
+    "R:f0/2": [
+     2.1,
+     0,
+     35
+    ],
+    "R:t1": [
+     2.1,
+     0.1,
+     35
+    ],
+    "R:f0/1": [
+     2.5,
+     0,
+     35
+    ],
+    "R:f0/0": [
+     1.4,
+     0.2,
+     35
+    ],
+    "R:f2/2": [
+     2.1,
+     0,
+     35
+    ],
+    "R:f2/1": [
+     2.1,
+     0,
+     35
+    ],
+    "R:f1/1": [
+     3.2,
+     0,
+     35
+    ],
+    "R:f2/0": [
+     2.2,
+     0,
+     35
+    ],
+    "R:f1/2": [
+     3.2,
+     0,
+     35
+    ],
+    "R:f2/3": [
+     2.1,
+     0,
+     35
+    ],
+    "R:f1/0": [
+     3.2,
+     0,
+     35
+    ],
+    "R:f1/3": [
+     2.7,
+     0,
+     35
+    ],
+    "L:t0": [
+     0.8,
+     0,
+     2
+    ],
+    "L:t1": [
+     0.9,
+     0,
+     2
+    ],
+    "L:f0/3": [
+     0.9,
+     0,
+     2
+    ],
+    "L:f0/1": [
+     0.8,
+     0,
+     2
+    ],
+    "L:f0/0": [
+     1.3,
+     0,
+     2
+    ],
+    "L:f0/2": [
+     2.7,
+     0,
+     2
+    ],
+    "L:f1/2": [
+     5,
+     0,
+     2
+    ],
+    "L:f1/0": [
+     1.2,
+     0,
+     2
+    ],
+    "L:f1/1": [
+     5,
+     0,
+     2
+    ],
+    "L:f2/3": [
+     0.9,
+     0,
+     2
+    ],
+    "L:f1/3": [
+     2,
+     0,
+     2
+    ],
+    "L:f2/2": [
+     0.8,
+     0,
+     2
+    ],
+    "L:f2/0": [
+     0.9,
+     0,
+     2
+    ],
+    "L:f2/1": [
+     0.9,
+     0,
+     2
+    ]
+   }
+  },
+  {
+   "name": "calmSheathe",
+   "frames": 72,
+   "contactFrames": {
+    "Right": 32,
+    "Left": 10,
+    "LeftT": 0
+   },
+   "sinkAll": {
+    "R": 0.5,
+    "L": 0,
+    "LT": 0
+   },
+   "unreached": 0,
+   "maxReachErrMm": 0,
+   "unreachedL": 0,
+   "maxReachErrLMm": 0,
+   "pops": {
+    "wristR": 1.07,
+    "wristRotR": 1.24,
+    "tipR": 1.06,
+    "wristL": 1.02,
+    "wristRotL": 1.1,
+    "tipL": 1.21
+   },
+   "stretchMm": 27.8,
+   "tsubaCross": 1,
+   "tsubaLeft": 1,
+   "tsubaLeftCtl": 2,
+   "armDevMm": 0.046,
+   "copyLeakRad": 5.960464477539063e-8,
+   "realLeakRad": 5.960464477539063e-8,
+   "realLeakBone": "Head",
+   "maxTipDiffMm": 0,
+   "nan": 0,
+   "contact": {
+    "R:t0": [
+     1.7,
+     0.5,
+     32
+    ],
+    "R:f0/3": [
+     1.5,
+     0,
+     32
+    ],
+    "R:f0/2": [
+     2.4,
+     0,
+     32
+    ],
+    "R:t1": [
+     2.1,
+     0.1,
+     32
+    ],
+    "R:f0/1": [
+     2.7,
+     0,
+     32
+    ],
+    "R:f0/0": [
+     1.7,
+     0.2,
+     32
+    ],
+    "R:f2/2": [
+     2.1,
+     0.2,
+     32
+    ],
+    "R:f2/1": [
+     2.1,
+     0,
+     32
+    ],
+    "R:f1/1": [
+     3.2,
+     0,
+     32
+    ],
+    "R:f2/0": [
+     2.2,
+     0,
+     32
+    ],
+    "R:f1/2": [
+     3.2,
+     0,
+     32
+    ],
+    "R:f2/3": [
+     2.1,
+     0,
+     32
+    ],
+    "R:f1/0": [
+     3.2,
+     0,
+     32
+    ],
+    "R:f1/3": [
+     2.7,
+     0,
+     32
+    ],
+    "L:t0": [
+     0.8,
+     0,
+     10
+    ],
+    "L:t1": [
+     0.9,
+     0,
+     10
+    ],
+    "L:f0/3": [
+     0.9,
+     0,
+     10
+    ],
+    "L:f0/1": [
+     0.8,
+     0,
+     10
+    ],
+    "L:f0/0": [
+     1.3,
+     0,
+     10
+    ],
+    "L:f0/2": [
+     2.7,
+     0,
+     10
+    ],
+    "L:f1/2": [
+     5,
+     0,
+     10
+    ],
+    "L:f1/0": [
+     1.2,
+     0,
+     10
+    ],
+    "L:f1/1": [
+     5,
+     0,
+     10
+    ],
+    "L:f2/3": [
+     0.9,
+     0,
+     10
+    ],
+    "L:f1/3": [
+     2,
+     0,
+     10
+    ],
+    "L:f2/2": [
+     0.8,
+     0,
+     10
+    ],
+    "L:f2/0": [
+     0.9,
+     0,
+     10
+    ],
+    "L:f2/1": [
+     0.9,
+     0,
+     10
+    ]
+   }
+  },
+  {
+   "name": "drawWalking",
+   "frames": 60,
+   "contactFrames": {
+    "Right": 46,
+    "Left": 10,
+    "LeftT": 0
+   },
+   "sinkAll": {
+    "R": 0.5,
+    "L": 0,
+    "LT": 0
+   },
+   "unreached": 0,
+   "maxReachErrMm": 0,
+   "unreachedL": 0,
+   "maxReachErrLMm": 0,
+   "pops": {
+    "wristR": 1.11,
+    "wristRotR": 1.34,
+    "tipR": 1.03,
+    "wristL": 1.19,
+    "wristRotL": 0,
+    "tipL": 1.19
+   },
+   "stretchMm": 42.3,
+   "tsubaCross": 0,
+   "tsubaLeft": 0,
+   "tsubaLeftCtl": 0,
+   "armDevMm": 0.023,
+   "copyLeakRad": 5.960464477539063e-8,
+   "realLeakRad": 5.960464477539063e-8,
+   "realLeakBone": "LeftFoot",
+   "maxTipDiffMm": 0,
+   "nan": 0,
+   "contact": {
+    "R:t0": [
+     1.7,
+     0.5,
+     46
+    ],
+    "R:f0/3": [
+     1.5,
+     0,
+     46
+    ],
+    "R:f0/2": [
+     2.5,
+     0,
+     46
+    ],
+    "R:t1": [
+     2.1,
+     0.1,
+     46
+    ],
+    "R:f0/1": [
+     2.7,
+     0,
+     46
+    ],
+    "R:f0/0": [
+     1.7,
+     0.2,
+     46
+    ],
+    "R:f2/2": [
+     2.1,
+     0.2,
+     46
+    ],
+    "R:f2/1": [
+     2.1,
+     0,
+     46
+    ],
+    "R:f1/1": [
+     3.2,
+     0,
+     46
+    ],
+    "R:f2/0": [
+     2.2,
+     0,
+     46
+    ],
+    "R:f1/2": [
+     3.2,
+     0,
+     46
+    ],
+    "R:f2/3": [
+     2.1,
+     0,
+     46
+    ],
+    "R:f1/0": [
+     3.2,
+     0,
+     46
+    ],
+    "R:f1/3": [
+     2.7,
+     0,
+     46
+    ],
+    "L:t0": [
+     1,
+     0,
+     10
+    ],
+    "L:t1": [
+     1,
+     0,
+     10
+    ],
+    "L:f0/3": [
+     1,
+     0,
+     10
+    ],
+    "L:f0/1": [
+     0.9,
+     0,
+     10
+    ],
+    "L:f0/0": [
+     1.4,
+     0,
+     10
+    ],
+    "L:f0/2": [
+     2.8,
+     0,
+     10
+    ],
+    "L:f1/2": [
+     5.1,
+     0,
+     10
+    ],
+    "L:f1/0": [
+     1.3,
+     0,
+     10
+    ],
+    "L:f1/1": [
+     5.1,
+     0,
+     10
+    ],
+    "L:f2/3": [
+     1,
+     0,
+     10
+    ],
+    "L:f1/3": [
+     2.1,
+     0,
+     10
+    ],
+    "L:f2/2": [
+     0.9,
+     0,
+     10
+    ],
+    "L:f2/0": [
+     0.9,
+     0,
+     10
+    ],
+    "L:f2/1": [
+     0.9,
+     0,
+     10
+    ]
+   }
+  },
+  {
+   "name": "walkSheathed",
+   "frames": 90,
+   "contactFrames": {
+    "Right": 0,
+    "Left": 0,
+    "LeftT": 0
+   },
+   "sinkAll": {
+    "R": 0,
+    "L": 0,
+    "LT": 0
+   },
+   "unreached": 0,
+   "maxReachErrMm": 0,
+   "unreachedL": 0,
+   "maxReachErrLMm": 0,
+   "pops": {
+    "wristR": 0,
+    "wristRotR": 0,
+    "tipR": 0,
+    "wristL": 0,
+    "wristRotL": 0,
+    "tipL": 0
+   },
+   "stretchMm": 2.7,
+   "tsubaCross": 0,
+   "tsubaLeft": 0,
+   "tsubaLeftCtl": 0,
+   "armDevMm": 0,
+   "copyLeakRad": 5.960464477539063e-8,
+   "realLeakRad": 5.960464477539063e-8,
+   "realLeakBone": "LeftLeg",
+   "maxTipDiffMm": 0,
+   "nan": 0,
+   "contact": {}
+  }
+ ]
+}
