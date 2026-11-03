@@ -23,7 +23,7 @@ const FLINCH_Q = new THREE.Quaternion(), FLINCH_AXIS = new THREE.Vector3();
 // full〜none は「腕が下がっている」と見なす範囲（下向きからの角）。構え・振りの腕には効かない。
 const ARM = { target: 9, max: 32, full: 48, none: 76, rate: 14 };
 const P0 = new THREE.Vector3(), P1 = new THREE.Vector3(), MQ = new THREE.Quaternion(), PQ = new THREE.Quaternion(), PQI = new THREE.Quaternion(), RQ = new THREE.Quaternion(), AX = new THREE.Vector3();
-const FIX = new Float64Array(4), SIDES = ['Left', 'Right'];   // 腕の開きの寄せ（arm-spread.js）の受け渡し。毎コマの新規確保をしない
+const FIX = new Float64Array(4), SPREAD_BONES = [['LeftArm', 'LeftHand'], ['RightArm', 'RightHand']];   // 骨の名前は先に作る（毎コマ文字列をつながない）   // 腕の開きの寄せ（arm-spread.js）の受け渡し。毎コマの新規確保をしない
 const smoothstep = (a, b, x) => { const t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 
 // 非ループ動作の水平な根の移動を取り除く（その場の動作にする）。取り除いた分は root に残す。
@@ -331,8 +331,8 @@ export class Character {
     this.model.updateMatrixWorld(true);
     neck.getWorldPosition(P0); hips.getWorldPosition(P1);
     const dx = P1.x - P0.x, dy = P1.y - P0.y, dz = P1.z - P0.z;
-    for (const side of SIDES) {
-      const arm = this.bones.get(side + 'Arm'), hand = this.bones.get(side + 'Hand');
+    for (let i = 0; i < 2; i++) {
+      const arm = this.bones.get(SPREAD_BONES[i][0]), hand = this.bones.get(SPREAD_BONES[i][1]);
       if (!arm || !hand) continue;
       arm.getWorldPosition(P0); hand.getWorldPosition(P1);
       spreadFix(P1.x - P0.x, P1.y - P0.y, P1.z - P0.z, dx, dy, dz, this.spreadLastCap, this.spreadW, FIX);

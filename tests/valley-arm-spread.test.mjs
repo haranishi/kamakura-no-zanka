@@ -2,6 +2,7 @@
 // 実ゲームの測り（焼き込んだ動作の開きの角・層の前後）は tools/scenarios/measure-arm-spread.mjs。
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
 import { SPREAD, spreadCap, spreadWeight, spreadFix } from '../dist/valley/arm-spread.js';
 
 const DEG = Math.PI / 180;
@@ -77,11 +78,31 @@ test('効きの追い方：上限をかけたコマで1、外すと0へ刻み幅
   assert.equal(spreadWeight(0.3, false, NaN), 0.3);
 });
 
-test('毎コマの新規確保をしない（受け渡しの配列に書く）', () => {
-  assert.equal(spreadFix(1, 0, 0, ...down, 55, 1, out), out);
-  const before = process.memoryUsage().heapUsed;
-  let s = 0;
-  for (let i = 0; i < 200000; i++) { spreadFix(1, (i % 7) * 0.01, 0.2, 0, -1, 0.1, 55, 1, out); s += out[3] + spreadCap(i % 2 === 0, 'hit', false) + spreadWeight(0.5, false, 1 / 60); }
-  assert(s > 0);
-  assert(process.memoryUsage().heapUsed - before < 2_000_000, '20万回で2MB未満');
+// 別のプロセスで測る（valley-lunge の試験と同じ形）：8人が毎コマ、上限を選び、効きを追い、左右の腕の寄せを解く
+const SPREAD_PROBE = `
+import v8 from 'node:v8';
+const A = await import(process.argv[1]);
+const space = () => v8.getHeapSpaceStatistics().find(s => s.space_name === 'new_space');
+if (!space()) { console.log('skip'); process.exit(0); }
+// 合計は配列へ足す（閉じた変数へ小数を足すと、足すたびに数の箱が作られ、測る側の確保が混ざる）
+const out = new Float64Array(4), w = new Float64Array(8), sink = new Float64Array(1), states = ['hit', 'recoil', 'idle', 'attack'];
+const frame = f => {
+  for (let k = 0; k < 8; k++) {
+    const cap = A.spreadCap((f + k) % 50 === 0, states[(f + k) % 4], k % 3 === 0);
+    w[k] = A.spreadWeight(w[k], cap > 0, 1 / 60 + (f % 3) * 0.004);
+    for (let side = 0; side < 2; side++) { A.spreadFix(Math.sin(f * 0.1 + k), Math.cos(f * 0.07) - side * 0.3, 0.2, 0.05, -1, 0.1 * side, cap || 40, w[k], out); sink[0] += out[3]; }
+  }
+};
+for (let f = 0; f < 20000; f++) frame(f);
+globalThis.gc(); const before = space().space_used_size, N = 5000;
+for (let f = 0; f < N; f++) frame(f);
+console.log(JSON.stringify({ perFrame: (space().space_used_size - before) / N, sink: sink[0] }));`;
+test('毎コマの新規確保をしない：8人の上限・効き・左右の寄せを解いても、若い世代の確保が増えない', () => {
+  assert.equal(spreadFix(1, 0, 0, ...down, 55, 1, out), out, '受け渡しの配列に書いて返す');
+  const r = spawnSync(process.execPath, ['--expose-gc', '--input-type=module', '-e', SPREAD_PROBE, new URL('../dist/valley/arm-spread.js', import.meta.url).href], { encoding: 'utf8', timeout: 60000 });
+  assert.equal(r.status, 0, r.stderr);
+  if (r.stdout.trim() === 'skip') return;
+  const { perFrame } = JSON.parse(r.stdout);
+  console.log(`arm-spread young-generation growth ${perFrame.toFixed(2)} bytes/frame`);
+  assert(perFrame < 8, `young-generation growth ${perFrame.toFixed(2)} bytes/frame`);
 });

@@ -33,13 +33,13 @@ export function spreadWeight(w, on, dt) {
 // 回すのは「腕と下向きを含む面」の中だけ（横へ広げた腕は体の横へ、前へ上げた腕は前の下へ下ろす）。
 export function spreadFix(ax, ay, az, dx, dy, dz, capDeg, weight, out) {
   out[0] = 0; out[1] = 0; out[2] = 0; out[3] = 0;
-  const la = Math.hypot(ax, ay, az), ld = Math.hypot(dx, dy, dz);
+  const la = Math.sqrt(ax * ax + ay * ay + az * az), ld = Math.sqrt(dx * dx + dy * dy + dz * dz);
   if (!(capDeg > 0) || !(weight > 0) || !(la > 1e-9) || !(ld > 1e-9)) return out;
   const c = (ax * dx + ay * dy + az * dz) / (la * ld), theta = Math.acos(Math.max(-1, Math.min(1, c)));
   const over = theta - capDeg * Math.PI / 180;
   if (!(over > 0)) return out;
   // 軸＝腕×下向き（この軸まわりに正に回すと、腕が下向きへ近づく）
-  const cx = ay * dz - az * dy, cy = az * dx - ax * dz, cz = ax * dy - ay * dx, lc = Math.hypot(cx, cy, cz);
+  const cx = ay * dz - az * dy, cy = az * dx - ax * dz, cz = ax * dy - ay * dx, lc = Math.sqrt(cx * cx + cy * cy + cz * cz);
   if (!(lc > 1e-6 * la * ld)) return out;   // 腕が胴の軸とほぼ平行（真上・真下）：向きが決まらない
   out[0] = cx / lc; out[1] = cy / lc; out[2] = cz / lc; out[3] = over * Math.min(1, weight);
   return out;
