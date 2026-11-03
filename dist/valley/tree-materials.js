@@ -50,26 +50,22 @@ export function treeMaterials({ wind, sunDir, quality = 'standard' }) {
     const group = species >= 4 ? TREES.leafDetail.smallGroup : TREES.leafDetail.group, gap = species >= 4 ? TREES.leafDetail.smallGap : TREES.leafDetail.gap;
     const fadeMode = quality === 'light' ? 'dither' : 'coverage';
     const lod = disabled(); m.userData.uLod = lod;
-    m.onBeforeCompile = shader => {
-      Object.assign(shader.uniforms, wind, { uSunDir: sun, uLod: lod }, leaf ? {} : { uBark: barkUniform, uBarkRelief: barkRelief });
-      shader.vertexShader = shader.vertexShader.replace('#include <common>', `#include <common>
-        attribute float aSway; attribute vec4 aPivot;
-        uniform float uTime; uniform float uWind; uniform vec2 uWindDir; uniform float uGuideMix;
-        uniform vec4 uLod;
-        varying vec3 vTreeWorld; varying float vTreeDistance; varying float vTreeWeight;
-        ${leaf ? '' : 'varying vec2 vBarkUv; varying float vBarkHeight;'}
-        float treeNoise(vec2 p) {
+    // Shared by the colour pass and the sun's depth pass (2026-11-04, plan A): the wind and the cedar's permanent profile
+    // must move the shadow exactly as they move the crown. Only the colour pass folds tufts in front of the camera (near):
+    // in the depth pass cameraPosition is the sun's camera, and a camera-only effect there would move the shade on the ground.
+    const declare = `attribute float aSway; attribute vec4 aPivot;
+        uniform float uTime; uniform float uWind; uniform vec2 uWindDir; uniform float uGuideMix;`;
+    const noise = `float treeNoise(vec2 p) {
           vec2 a=floor(p), f=fract(p); f=f*f*(3.0-2.0*f);
           return mix(mix(sin(dot(a,vec2(12.9898,78.233))),sin(dot(a+vec2(1,0),vec2(12.9898,78.233))),f.x),
             mix(sin(dot(a+vec2(0,1),vec2(12.9898,78.233))),sin(dot(a+vec2(1,1),vec2(12.9898,78.233))),f.x),f.y);
-        }`).replace('#include <begin_vertex>', `#include <begin_vertex>
-        ${leaf ? '' : 'vBarkUv = uv; vBarkHeight = position.y;'}
-        vec3 treeOrigin = vec3(0.0);
+        }`;
+    const shapeGLSL = near => `        vec3 treeOrigin = vec3(0.0);
         #ifdef USE_INSTANCING
           treeOrigin = instanceMatrix[3].xyz;
         #endif
         treeOrigin = (modelMatrix*vec4(treeOrigin,1.0)).xyz;
-        ${nearFade ? `// Third round: a tuft, cluster or limb right in front of the camera folds toward its pivot (tree-lod.js nearShrink),
+        ${near ? `// Third round: a tuft, cluster or limb right in front of the camera folds toward its pivot (tree-lod.js nearShrink),
         // by the camera's distance to the segment pivot→vertex: the side facing the camera goes first. No dotted veil.
         if (aPivot.w > .5) {
           mat4 pivotModel = modelMatrix;
@@ -106,7 +102,17 @@ export function treeMaterials({ wind, sunDir, quality = 'standard' }) {
         transformed += vec3(dot(treeBasis[0],worldMotion)/max(dot(treeBasis[0],treeBasis[0]),.0001),
           dot(treeBasis[1],worldMotion)/max(dot(treeBasis[1],treeBasis[1]),.0001),
           dot(treeBasis[2],worldMotion)/max(dot(treeBasis[2],treeBasis[2]),.0001));
-        vec4 treeWorld = vec4(transformed,1.0);
+`;
+    m.onBeforeCompile = shader => {
+      Object.assign(shader.uniforms, wind, { uSunDir: sun, uLod: lod }, leaf ? {} : { uBark: barkUniform, uBarkRelief: barkRelief });
+      shader.vertexShader = shader.vertexShader.replace('#include <common>', `#include <common>
+        ${declare}
+        uniform vec4 uLod;
+        varying vec3 vTreeWorld; varying float vTreeDistance; varying float vTreeWeight;
+        ${leaf ? '' : 'varying vec2 vBarkUv; varying float vBarkHeight;'}
+        ${noise}`).replace('#include <begin_vertex>', `#include <begin_vertex>
+        ${leaf ? '' : 'vBarkUv = uv; vBarkHeight = position.y;'}
+${shapeGLSL(nearFade)}        vec4 treeWorld = vec4(transformed,1.0);
         #ifdef USE_INSTANCING
           treeWorld = instanceMatrix*treeWorld;
         #endif
@@ -186,7 +192,46 @@ export function treeMaterials({ wind, sunDir, quality = 'standard' }) {
         .replace('getShadow( directionalShadowMap[ i ]', `${TREES.leafShadow.toFixed(2)} + ${(1 - TREES.leafShadow).toFixed(2)}*getShadow( directionalShadowMap[ i ]`));
     };
     m.customProgramCacheKey = () => `tree-specimen-v3-${species}-${level}-${leaf}-${variant}-${shape}-${quality}-${fadeMode}`;
+    // Only the near level casts (tree-view.js). Three copies map, alphaTest (0.5 under coverage) and side onto this material
+    // on every shadow render, as it did for its own depth material; what it cannot know is the shader's shape and leaf cut.
+    if (level === 0) m.userData.depth = depthMaterial({ leaf, map, detail, crownLit, gap, group, shapeGLSL, declare, noise,
+      key: `tree-depth-v1-${species}-${level}-${leaf}-${variant}-${shape}-${quality}` });
     owned.push(m); return m;
+  }
+  // The sun's depth pass for a near tree: same wind and profile as the colour pass (shapeGLSL without the camera fold), and
+  // the same leaf cut. No LOD weight or dither (the colour pass alone dissolves; a dithered depth would speckle the ground).
+  // The camera-facing cuts (rim erosion, the cedar card's edge fade) are taken from the sun's side: the light camera is
+  // orthographic, so its view direction is +z in its view space. The leaf detail image shares the leaf image's UV transform.
+  function depthMaterial({ leaf, map, detail, crownLit, gap, group, shapeGLSL, declare, noise, key }) {
+    const d = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking });
+    const cut = leaf && map && (detail || crownLit);
+    d.onBeforeCompile = shader => {
+      Object.assign(shader.uniforms, wind, detail ? { uLeafDetail: { value: detail } } : {});
+      shader.vertexShader = shader.vertexShader.replace('#include <common>', `#include <common>
+        ${declare}
+        ${cut ? 'varying vec3 vCutNormal; varying vec3 vCutView;' : ''}
+        ${noise}`).replace('#include <begin_vertex>', `#include <begin_vertex>
+${shapeGLSL(false)}`);
+      if (!cut) return;
+      shader.vertexShader = shader.vertexShader.replace('#include <project_vertex>', `#include <project_vertex>
+        mat3 cutBasis = mat3(modelViewMatrix);
+        #ifdef USE_INSTANCING
+          cutBasis = cutBasis*mat3(instanceMatrix);
+        #endif
+        vCutNormal = cutBasis*normal; vCutView = -mvPosition.xyz;`);
+      shader.fragmentShader = shader.fragmentShader.replace('#include <common>', `#include <common>
+        varying vec3 vCutNormal; varying vec3 vCutView;
+        ${detail ? 'uniform sampler2D uLeafDetail;' : ''}`).replace('#include <alphatest_fragment>', `#ifdef USE_MAP
+        ${detail ? `vec4 leafDetail = texture2D(uLeafDetail, vMapUv);
+        float leafGroup = texture2D(uLeafDetail, vMapUv*.31+.17).a;
+        diffuseColor.a *= smoothstep(.12, .46, abs(normalize(vCutNormal).z) + (leafDetail.a-.5)*${TREES.leafDetail.rim.toFixed(2)} + (leafGroup-.5)*${group.toFixed(2)});
+        diffuseColor.a *= smoothstep(${gap.toFixed(2)}, ${(gap + .08).toFixed(2)}, texture2D(uLeafDetail, vMapUv*.23+.61).a);` : `vec3 cardFace = cross(dFdx(vCutView), dFdy(vCutView));
+        diffuseColor.a *= smoothstep(.04, .22, abs(cardFace.z) / max(length(cardFace), 1e-8));`}
+        #endif
+        #include <alphatest_fragment>`);
+    };
+    d.customProgramCacheKey = () => key;
+    owned.push(d); return d;
   }
   let disposed = false;
   return {

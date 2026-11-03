@@ -1,6 +1,7 @@
 // atmosphere.js — 空・太陽・環境光・霧を、一つの設定（ATMOS）から作る（view層）。
 // 空・環境マップ・霧の色・水面の反射は同じ設定から取る（地平線に継ぎ目を出さない。design.md）。
 import * as THREE from 'three';
+import { shadowTexel, snapShadowCenter } from './shadow-snap.js';
 
 export const ATMOS = {
   // 夕景：太陽は南南東の低い位置（高さ約10°）。廃寺→里の道を歩くとき右前から逆光が当たり、帰り道は背中から長い影が伸びる。
@@ -160,20 +161,25 @@ export function createAtmosphere({ scene, renderer, quality = 'standard', a = AT
   const sh = sun.shadow;
   sh.mapSize.set(quality === 'light' ? 2048 : 4096, quality === 'light' ? 2048 : 4096);
   Object.assign(sh.camera, { left: -46, right: 46, top: 46, bottom: -46, near: 1, far: 260 });
-  sh.bias = -0.0003; sh.normalBias = 0.05; sh.radius = 2.2;
+  // radius は書かない：PCFSoftShadowMap（main.js）は radius を読まない（同梱の SHADOWMAP_TYPE_PCF_SOFT の分岐）。
+  // 2.2 と書いてあったが効いておらず、柔らかさは解像度と PCF_SOFT の固定の広がりで決まる（2026-11-04 案A）。
+  sh.bias = -0.0003; sh.normalBias = 0.05;
   scene.add(sun, sun.target);
   const fill = new THREE.DirectionalLight(a.fillColor, a.fillIntensity);
   scene.add(fill, fill.target);
   const fwd = new THREE.Vector3();
 
-  const texel = 92 / sh.mapSize.x;
+  const dir = [0, 0, 0], snapped = [0, 0, 0];
   return {
     sky, sun, hemi, fill, params: a,
-    // 影の範囲を注視点に追従させる（テクセルへ合わせて揺れを防ぐ）
+    // 影の範囲を注視点に追従させる。光の画面の軸で1画素の倍数へ丸める（shadow-snap.js）。
+    // 丸め幅は今の影の解像度から毎回出す（品質切替の後に古い幅が残っていた）。
     follow(target) {
-      const sx = Math.round(target.x / texel) * texel, sz = Math.round(target.z / texel) * texel;
-      sun.target.position.set(sx, target.y, sz);
-      sun.position.set(sx, target.y, sz).addScaledVector(a.sunDir, 150);
+      dir[0] = a.sunDir.x; dir[1] = a.sunDir.y; dir[2] = a.sunDir.z;
+      const texel = shadowTexel(sh.camera.right - sh.camera.left, sh.mapSize.x);
+      snapShadowCenter(target.x, target.y, target.z, dir, texel, snapped);
+      sun.target.position.set(snapped[0], snapped[1], snapped[2]);
+      sun.position.copy(sun.target.position).addScaledVector(a.sunDir, 150);
       sun.target.updateMatrixWorld();
     },
     update(camera, dt) {

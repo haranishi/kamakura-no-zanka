@@ -39,6 +39,7 @@ b0 庭へ降りる（`temple_yard` に入る）→ b1 穂太の話 → b2 林道
 - `tools/scenarios/regress-retry-leak.mjs`：やり直しを4回繰り返しても形・画像が増えず、毎回主人公が立ち直って見晴らしへ戻り、里の敵5人が作り直される。
 - `tools/scenarios/regress-cleared-dialogue.mjs`：里を守った瞬間に振りかぶっていた兵の一撃・飛んでいる矢が、会話の最中に主人公へ当たらない（体力10で見守る）。
 - `tools/scenarios/regress-guide-hitch.mjs`：案内あり（既定）で林道を走り、基準路から25m以上離れて迷いの助けの復帰探索が0.5秒ごとに働いている間も、暖機後720コマで100ms以上のコマが0・p99が33.4ms以下（強調300コマ以上・復帰路8回以上の作り直しが無ければ、検査が空なので落とす）。
+- `tools/scenarios/regress-tree-shadow-wind.mjs`（2026-11-04）：林道の杉で、太陽の影の画像（中央1/4角）を風の位相だけ変えて2回読み比べる。無風は0画素（完全一致）、風・突風は0.5%以上が変わる。標準（4096）と軽量（2048）の両方。時計を進めずに風の値だけ書き換えて `game.render` を呼ぶ。main（木の影に風が無い）では不合格になる。
 - `tools/scenarios/regress-continue.mjs`：つづきから。見晴らしの区切りでは道の選択が、クリア後の区切りでは結果の会話と結果画面が出る。
 - `tools/scenarios/regress-bank-descent.mjs`：待ち伏せの斜面の土手から道へ降りられ、林道のS字の西の縁（傾斜45度の帯）からも道へ出られる。
 - `tools/scenarios/regress-rock-colliders.mjs`：当たりの表に岩が登録され（20個以上）、岩へ向かって歩くと岩の縁で止まる（歩ける場所で比べる）。
@@ -67,6 +68,7 @@ b0 庭へ降りる（`temple_yard` に入る）→ b1 穂太の話 → b2 林道
 - `tools/scenarios/capture-hand-grip.mjs`：握りの前後をラボで撮る（`tools/lab-play.mjs` で動かす。`KZ_SHEET=guard|draw|walk|enemy`）。前＝同じ版で層を切った人物。
 - `tools/lab-play.mjs`：人物ラボ（`lab.html`）を開いてシナリオを動かす（valley-play のラボ版。`--query "who=hero&weapon=drawn"`）。
 - `tools/scenarios/capture-trees-detail.mjs`：木（8.1a）の近景（林道・枝の下から見上げ・幹と根元の寄り・広葉・庭・楓の寄り・林道の斥候）・中景（林の縁）・遠景（見晴らし・谷の川・太陽の方位）と、杉と広葉の標本（12〜30m、順光と、太陽の方位へ低く向けた逆光）を、HUDなし・乱数・時刻・風を固定して撮る。第2周で画角の重複を外した。`--q light` では5枚に light- を付ける。変更前のコードでも同じシナリオで撮って比べる。純粋層の変異検査は `node tools/verify-tree-branches-mutations.mjs` と `verify-tree-impostor-mutations.mjs`。
+- `tools/scenarios/capture-shadows.mjs`（2026-11-04）：林道の杉と廃寺の庭に近い広葉樹の影の落ちる地面を見下ろし、無風・通常風の2位相・案内の突風で撮る（風の値だけ書き換えて描く）。固定画で主人公だけ横へ動かす10枚（follow-、影の範囲の追従による縁の揺れを見る）と、林道の歩き10枚（walk-、標準のみ）も撮る。`--q light` は light- を付ける。
 - `tools/scenarios/capture-tree-lod-far.mjs`：遠景の絵の板（8.1a第2周）と中景が入れ替わる帯（標準150m・軽量100m）を、同じ木へ近づきながら10°の画角で撮る。
 - `tools/scenarios/regress-tree-near-breakage.mjs`：木の至近の破綻（8.1a 第3周）を実ブラウザの描画で測る（veil＝カメラ直前の葉の網点の膜、holes＝樹冠の黒い穴、bare＝葉のない枝の突き出し ほか）。
 - `tools/scenarios/regress-story.mjs`：物語の本体（S5・S6）を実ゲームの主人公で通す（断片F1〜F5・手がかり・掛け合いが戦闘中に出ない／同じ台詞を繰り返さない・やり直しで断片が二重にならない・保存・結末・焚き火の輪）。`--strict --out reports/polish3/story`。

@@ -1,0 +1,23 @@
+{
+  "scope": "2026-11-04 案A。M4 Pro・ヘッドレスChrome・1280x720・DPR1。別の担当のブラウザ計測が同じ機械で動いていた時間を含む。この環境のみ。",
+  "treeShadowWind_shadowMapTexelsChanged": {
+    "note": "regress-tree-shadow-wind.mjs。中央1/4角（標準1024^2・軽量512^2）",
+    "main": { "standard": { "calm": 0, "wind": 0 } },
+    "after": { "standard": { "calm": 0, "wind": 807283, "gust": 65162, "calmVsWind": 805038 }, "light": { "calm": 0, "wind": 202635, "gust": 16283, "calmVsWind": 202178 } }
+  },
+  "followShimmer_pixelsChangedPerStep": {
+    "note": "capture-shadows.mjs の follow-。無風・固定画で主人公だけ1コマ0.137m横へ。主人公の像と焚き火を除く。9区間の合計",
+    "main": { "standard": 281, "light": 596 }, "after": { "standard": 4, "light": 0 }
+  },
+  "perf_standard_move": {
+    "note": "measure-perf.mjs の手順を1試行ずつ、mainの写しと交互に。ms",
+    "main_p50": [13.7, 13.7, 14.0, 12.4, 12.3, 13.6], "after_p50": [14.7, 15.5, 14.2, 14.1, 13.6],
+    "main_p95": [17.1, 16.6, 21.1, 15.4, 14.8, 16.9], "after_p95": [17.5, 17.9, 17.4, 21.5, 21.1],
+    "noLeafCutInDepth_p50": [12.8, 14.2], "noLeafCutInDepth_p95": [15.5, 20.9],
+    "maxCalls": { "main": 476, "after": 476 }, "maxTris": { "main": 4179882, "after": 4179882 }
+  },
+  "perf_standard_combat": { "main_p50": [14.9, 12.3, 13.2, 12.0], "after_p50": [12.9, 13.6, 12.8], "main_p95": [26.0, 14.3, 15.5, 13.4], "after_p95": [14.2, 15.3, 14.1], "maxCalls": 441, "maxTris": 3856875 },
+  "perf_light_move": { "main": { "p50": 10.1, "p95": 13.1 }, "after": { "p50": 11.4, "p95": 14.3 }, "maxCalls": 452, "maxTris": 3488599 },
+  "guideHitch_p99": { "main": [25.8, 26.2, 23.5], "after": [26.4, 25.2, 25.8], "note": "回帰全本の1回目は37.5msで不合格、交互の3回はすべて合格" },
+  "attackTiming": { "scout320": "一致", "officer520": "一致" }
+}

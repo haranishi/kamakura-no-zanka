@@ -33,7 +33,10 @@ export function createTreeSet({ species, level, capacity, materials, variant = 0
     m.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(capacity * 3).fill(1), 3).setUsage(THREE.DynamicDrawUsage);
     // L1 starts at 13/18m (shrub/sapling) and 40m (adult), inside the ±46m shadow box:
     // unshadowed L1 glowed in shade and popped at the split. L2 lies outside it.
-    m.castShadow = level === 0; m.receiveShadow = level < 2; return m;
+    m.castShadow = level === 0; m.receiveShadow = level < 2;
+    // The near level's shadow moves with the same wind and cedar profile as its crown (tree-materials.js depthMaterial).
+    if (m.castShadow) m.customDepthMaterial = material.userData.depth;
+    return m;
   }
   return { leaf: mesh(g.leaf, pair.leaf, 'tree-specimen-leaf'), wood: g.tris.wood ? mesh(g.wood, pair.wood, 'tree-specimen-wood') : null };
 }

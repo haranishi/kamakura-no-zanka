@@ -21,6 +21,11 @@ const { treeGeometry } = await load('tree-geometry.js');
 const wind = () => ({ uTime: { value: 5 }, uWind: { value: 1 }, uWindDir: { value: new THREE.Vector2(1, 0) }, uGuideMix: { value: 0 } });
 const sunDir = new THREE.Vector3(.5, .2, .85).normalize();
 const make = (quality = 'standard') => { const w = wind(); return { w, m: treeMaterials({ wind: w, sunDir, quality }) }; };
+// The sun's depth pass, with the real MeshDepthMaterial shader (2026-11-04, plan A).
+function compileDepth(d) {
+  const shader = { uniforms: {}, vertexShader: THREE.ShaderLib.depth.vertexShader, fragmentShader: THREE.ShaderLib.depth.fragmentShader };
+  d.onBeforeCompile(shader); return shader;
+}
 function compile(m) {
   const shader = { uniforms: {}, vertexShader: '#include <common>\n#include <beginnormal_vertex>\n#include <begin_vertex>\n#include <color_vertex>', fragmentShader: '#include <common>\n#include <map_fragment>\n#include <color_fragment>\n#include <alphatest_fragment>\n#include <normal_fragment_begin>\n#include <normal_fragment_maps>\n#include <emissivemap_fragment>' };
   m.onBeforeCompile(shader); return shader;
@@ -163,10 +168,15 @@ test('same-direction stable dither only in color pass [lod]', () => {
   assert.match(s.fragmentShader, /gl_FragCoord.xy,vec2\(\.06711056,\.00583715\)/, '[lod] stable interleaved noise');
   assert.match(s.fragmentShader, /if \(n >= vTreeWeight\) discard;/, '[lod-hole] all levels keep n < weight');
   assert(!/vTreeEntering|1.0-vTreeWeight/.test(s.vertexShader+s.fragmentShader),'[lod-hole] complementary dither returned');
+  // 2026-11-04（案A）：近景は影専用の深度材質を持つようになった。そこへ LOD の重み・網点は入れない（溶かすのは色の描画だけ）。
   const set = createTreeSet({ species: 1, level: 0, capacity: 1, materials: m });
-  assert(!set.leaf.customDepthMaterial, '[lod] custom dithered depth');
-  assert(!set.wood.customDepthMaterial, '[lod] wood depth override');
-  assert(!/customDepthMaterial\s*=|MeshDepthMaterial/.test(source('tree-view.js') + source('tree-materials.js')), '[lod] depth path must stay unpatched');
+  for (const kind of ['leaf', 'wood']) {
+    const depth = set[kind].customDepthMaterial, d = compileDepth(depth);
+    assert(depth?.isMeshDepthMaterial && depth.depthPacking === THREE.RGBADepthPacking, `[lod] ${kind} depth material missing or not the shadow packing`);
+    assert(!/uLod|vTreeWeight|vTreeDistance|gl_FragCoord|discard/.test(d.vertexShader + d.fragmentShader) && !d.uniforms.uLod, `[lod] ${kind} depth carries the colour pass's LOD dissolve`);
+  }
+  for (const level of [1, 2]) { const other = createTreeSet({ species: 1, level, capacity: 1, materials: m });
+    for (const mesh of Object.values(other)) if (mesh) { assert(!mesh.castShadow && !mesh.customDepthMaterial, `[lod] level ${level} casts`); mesh.geometry.dispose(); mesh.dispose(); } }
   for (const mesh of Object.values(set)) { mesh.geometry.dispose(); mesh.dispose(); } m.dispose();
 });
 test('wind expression scales slow and flutter to .4, zero stops everything [wind]', () => {
@@ -551,7 +561,11 @@ test('near tufts, clusters and limbs fold toward their pivots in front of the ca
   const [a, b] = TREES.nearFade, smoothstep = (x, y, d) => { const t = Math.max(0, Math.min(1, (d - x) / (y - x))); return t * t * (3 - 2 * t); };
   for (let d = 0; d <= 3; d += .05) assert(Math.abs(nearFade(d, TREES.nearFade) - smoothstep(a, b, d)) < 1e-12, '[near-fade] shader and pure fade disagree');
   assert(a < b && b < 2.4 && a > 0, '[near-fade] distances outside the third-person camera (3.6m)');
-  assert(!/customDepthMaterial|MeshDepthMaterial/.test(source('tree-materials.js')), '[near-fade] shadows must keep the full crown');
+  // 影は樹冠をそのまま残す：深度の材質にはカメラ前の縮みを入れない（光のカメラでは cameraPosition が太陽側になる）。
+  for (const quality of ['standard', 'light']) { const { m } = make(quality);
+    for (let sp = 0; sp < 6; sp++) for (const kind of ['leaf', 'wood']) { const depth = m.get(sp, 0)[kind].userData.depth; if (!depth) continue;
+      assert(!/nearKeep|cameraPosition|aPivot.w/.test(compileDepth(depth).vertexShader), `[near-fade] ${sp}/${kind} shadows must keep the full crown`); }
+    m.dispose(); }
   const pivot = [0, 0, 0], tip = [2, 0, 0];
   assert.equal(nearShrink([5, 0, 0], pivot, tip, TREES.nearFade).keep, 1, '[near-fade] a far tuft shrank');
   assert.equal(nearShrink([1, .1, 0], pivot, tip, TREES.nearFade).keep, 0, '[near-fade] a tuft through the camera kept its size');
@@ -605,4 +619,40 @@ test('wood settles moss in the grooves of its foot [bark-moss]', () => {
   }
   assert(TREES.bark.relief >= 1 && TREES.bark.contact <= .55, '[bark] relief or foot shade weakened');
   m.dispose();
+});
+// なぜ失敗したか（2026-11-04・案A）: 木の風と杉の形補正は色の材質にしか入っておらず、Three.js の既定の深度材質で影を描いていた。
+// 木が揺れても影は同じ形のまま止まっていた。影の深度材質が色の材質と同じ形の式・同じ風の値・同じ葉の切り抜きを持つことを確かめる。
+test('near trees cast their shadow with the same wind, profile and leaf cut as the crown [shadow-wind]', () => {
+  const ends = v => { const a = v.indexOf('vec3 treeOrigin = vec3(0.0);'), b = v.indexOf('dot(treeBasis[2],worldMotion)/max(dot(treeBasis[2],treeBasis[2]),.0001));'); assert(a > 0 && b > a, '[shadow-wind] shape block not found'); return v.slice(a, b); };
+  const nearBlock = /\/\/ Third round: a tuft[\s\S]*?transformed = aPivot\.xyz \+ \(transformed - aPivot\.xyz\)\*nearKeep;\n        \}/;
+  for (const quality of ['standard', 'light']) {
+    const { w, m } = make(quality);
+    for (let sp = 0; sp < 6; sp++) for (const variant of sp === 4 ? [0, 1] : [0]) for (const shape of sp === 0 ? [0, 3, 4] : [0]) for (const kind of ['leaf', 'wood']) {
+      const mat = m.get(sp, 0, variant, shape)[kind], depth = mat.userData.depth;
+      if (kind === 'wood' && !treeGeometry(sp, 0, shape).tris.wood) continue;
+      assert(depth?.isMeshDepthMaterial, `[shadow-wind] ${sp}/${kind} has no depth material`);
+      const c = compileFull(mat), d = compileDepth(depth), tag = `${quality} ${sp}/${variant}/${shape}/${kind}`;
+      assert.equal(ends(d.vertexShader), ends(c.vertexShader).replace(nearBlock, ''), `[shadow-wind] ${tag} shadow shape differs from the crown`);
+      for (const u of ['uTime', 'uWind', 'uWindDir', 'uGuideMix']) assert.equal(d.uniforms[u], w[u], `[shadow-wind] ${tag} ${u} is not the shared wind`);
+      assert(d.vertexShader.includes('float gust = band*.18*step(.5,uWind)'), `[shadow-wind] ${tag} gust missing`);
+      if (sp === 0) assert(d.vertexShader.includes('transformed.xz *= prof;'), `[shadow-wind] ${tag} cedar profile missing`);
+      assert.notEqual(depth.customProgramCacheKey(), mat.customProgramCacheKey(), `[shadow-wind] ${tag} cache key shared with the colour pass`);
+      const f = d.fragmentShader, broad = kind === 'leaf' && mat.normalMap, card = kind === 'leaf' && sp === 0;
+      assert.equal(f.includes('abs(normalize(vCutNormal).z)'), !!broad, `[shadow-wind] ${tag} leaf rim cut`);
+      assert.equal(f.includes('texture2D(uLeafDetail, vMapUv*.23+.61).a'), !!broad, `[shadow-wind] ${tag} leaf gaps`);
+      assert.equal(f.includes('abs(cardFace.z)'), card, `[shadow-wind] ${tag} cedar card edge`);
+      if (broad) {
+        assert.equal(d.uniforms.uLeafDetail.value, mat.normalMap, `[shadow-wind] ${tag} detail image`);
+        // vMapUv stands in for vNormalMapUv: both images must keep the same UV transform and channel.
+        for (const t of [mat.map, mat.normalMap]) { t.updateMatrix(); assert(t.matrix.equals(new THREE.Matrix3()) && t.channel === 0, `[shadow-wind] ${tag} UV transform`); }
+        const gap = sp >= 4 ? TREES.leafDetail.smallGap : TREES.leafDetail.gap, group = sp >= 4 ? TREES.leafDetail.smallGroup : TREES.leafDetail.group;
+        assert(f.includes(`smoothstep(${gap.toFixed(2)}, ${(gap + .08).toFixed(2)}, texture2D(uLeafDetail`) && f.includes(`(leafGroup-.5)*${group.toFixed(2)}`) && f.includes(`(leafDetail.a-.5)*${TREES.leafDetail.rim.toFixed(2)}`), `[shadow-wind] ${tag} cut strengths differ from the crown`);
+        assert(c.fragmentShader.includes(`smoothstep(${gap.toFixed(2)}, ${(gap + .08).toFixed(2)}, texture2D(normalMap`), `[shadow-wind] ${tag} colour gaps changed`);
+      }
+      if (kind === 'leaf' && (broad || card)) assert(f.indexOf('diffuseColor.a *=') < f.indexOf('#include <alphatest_fragment>'), `[shadow-wind] ${tag} cut after the alpha test`);
+    }
+    for (let l = 1; l < 3; l++) assert(!m.get(1, l).leaf.userData.depth, '[shadow-wind] a level that does not cast owns a depth material');
+    // Disposal releases the depth materials too.
+    const depth = m.get(1, 0).leaf.userData.depth; let gone = 0; depth.addEventListener('dispose', () => gone++); m.dispose(); assert.equal(gone, 1, '[shadow-wind] depth material not disposed');
+  }
 });
