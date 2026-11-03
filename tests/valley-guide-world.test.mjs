@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import { measurementWorld as guideWorldWithoutCenter } from '../tools/lib/measurement-world.mjs';
 import { guideWorld, measureGuideBaselines } from '../tools/measure-guide-baselines.mjs';
 import { createGuideNav } from '../dist/valley/guide-nav.js';
-import { buildBaseline, buildRecovery, roadDistance } from '../dist/valley/guide.js';
-import { nearestFree } from '../dist/valley/collision.js';
+import { buildBaseline, buildRecovery, roadDistance, RECOVERY_PENDING } from '../dist/valley/guide.js';
+import { nearestFree, freeAt } from '../dist/valley/collision.js';
 import { STORY } from '../dist/valley/story-data.js';
 import { createQuest, reduce } from '../dist/valley/quest.js';
 const data = guideWorld(), { world } = data;
@@ -114,4 +114,44 @@ test('baseline and recovery searches stay local (no world-sized grid): cold call
   calls = 0;
   assert(buildRecovery(north, counted, { pos: { x: 0, z: 3 }, progress: 0 }), 'recovery from the lane exists');
   assert(calls <= 30000, `recovery: ${calls} walkable calls > 30000. 型: 復帰路の探索が世界全体の格子を作っている（Gと迷いの助けのたびに固まる）`);
+});
+
+// なぜ（2026-11-03 の実ブラウザ測定）: 林道を走って基準路から25m離れると、迷いの助けの復帰探索（0.5秒ごと）が毎回、
+// 現在地を原点にした新しい格子（約2万セル・通れる判定約10万回）を作り直し、0.1〜0.2秒の停止を繰り返した（最初の1回は約0.7秒）。
+// いまは格子を世界の格子目に揃えてセルの判定を覚え、読んだセルだけを判定する。続く探索は前の判定を使い回す（実測 約3千回、旧 約10万回）。
+test('recovery searches reuse earlier cell checks while running off the road (no rebuild every 0.5s)', () => {
+  const fresh = createGuideNav(data);
+  let calls = 0;
+  const counted = { bounds: fresh.bounds, walkable(x, z) { calls++; return fresh.walkable(x, z); } };
+  const b = buildBaseline(world, counted, { objectiveId: 'b2_road', plan: 'front', from: { x: -74, z: -66 } });
+  const runs = [{ x: -38.6, z: -11.3 }, { x: -36.3, z: -10.2 }, { x: -34, z: -9.1 }].map(pos => {
+    calls = 0; const r = buildRecovery(b, counted, { pos, progress: b.length }); return { r, calls };
+  });
+  assert(runs.every(({ r }) => r && r.points.length >= 2), 'recovery from the forest road beyond the b2 goal exists');
+  for (const { calls } of runs.slice(1)) assert(calls <= 10000, `${calls} walkable calls > 10000 on the next search 2.3m further. 型: 復帰探索が毎回格子を作り直している（走ると0.5秒ごとに引っかかる）`);
+});
+// 予算で区切っても、同じ位置からの探索は区切らない探索と同じ経路になる（途中は RECOVERY_PENDING）。1回に判定するセルは予算の分だけ。
+test('budgeted recovery returns pending, then the same path as an unbudgeted search', () => {
+  const pos = { x: -30, z: -6 };
+  const whole = buildRecovery(measured.rows.find(r => r.beat === 'b2_road').baseline, createGuideNav(data), { pos, progress: 0 });
+  const nav2 = createGuideNav(data), b = measured.rows.find(r => r.beat === 'b2_road').baseline;
+  let r, calls = 0, cells = 0, maxCells = 0;
+  do {
+    calls++; cells = 0;
+    r = buildRecovery(b, nav2, { pos, progress: 0, spend: () => ++cells <= 40 });
+    maxCells = Math.max(maxCells, cells);
+  } while (r === RECOVERY_PENDING && calls < 5000);
+  assert(calls > 1, 'the search was split into several calls');
+  assert.deepEqual(r, whole);
+  assert(maxCells <= 41, `one call checked ${maxCells} cells (budget 40)`);
+  assert.throws(() => buildRecovery(b, nav2, { pos, spend: 3 }), TypeError);
+});
+// guide-nav は nearestFree(…, 0) の代わりに freeAt を使う（地形の計算1回）。真偽が一致すること。
+test('freeAt matches nearestFree(radius 0.3, maxR 0) across the world', () => {
+  const b = world.bounds;
+  let n = 0;
+  for (let x = b.minX - 1; x <= b.maxX + 1; x += 2.3) for (let z = b.minZ - 1; z <= b.maxZ + 1; z += 2.3) {
+    n++; assert.equal(freeAt(data.col, data.terrain, x, z, 0.3), nearestFree(data.col, data.terrain, x, z, 0.3, 0) !== null, `(${x}, ${z})`);
+  }
+  assert(n > 5000);
 });

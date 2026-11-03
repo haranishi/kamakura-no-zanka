@@ -25,7 +25,10 @@ const cases = [
   ['recovery unpassed only', guide, 'baseline.points.length - 2, progress)', 'baseline.points.length - 2, 0)', unit],
   ['fixed baseline off-road', guide, 'const offRoad = distance >= OFF_ROAD;', 'const offRoad = false;', unit],
   ['finite state rejection', guide, "if (typeof v === 'number' && !Number.isFinite(v)) throw new TypeError('Non-finite guide data');", '', unit],
-  ['physical obstacle check', 'tools/measure-guide-baselines.mjs', 'nearestFree(data.col, data.terrain, x, z, 0.3, 0) !== null', 'true', world],
+  // 通行判定は guide-nav.js にある（measure-guide-baselines は createGuideNav を使う。旧来の変異先の文字列は無くなっていた）。
+  ['physical obstacle check', 'dist/valley/guide-nav.js', 'freeAt(col, terrain, x, z, 0.3)', 'true', world],
+  ['freeAt keeps obstacles', 'dist/valley/collision.js', 'if (penetration(o, x, z, radius)) return false;', '', world],
+  ['recovery budget pauses', guide, 'if (spend && !spend()) { L.block', 'if (false) { L.block', world],
   ['center target data', story, "b4_village: 'village_center'", "b4_village: 'village_front'", world],
   ['objective text', story, '見晴らし岩へ——石段を下り、林道を南東へ', '水穂の里へ向かう', world],
 ];

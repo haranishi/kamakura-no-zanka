@@ -37,6 +37,7 @@ b0 庭へ降りる（`temple_yard` に入る）→ b1 穂太の話 → b2 林道
 - `tools/scenarios/regress-arrow-death.mjs`：矢で倒れても描画が止まらず、倒れた画面が出る（`--strict` で回す）。
 - `tools/scenarios/regress-retry-leak.mjs`：やり直しを4回繰り返しても形・画像が増えず、毎回主人公が立ち直って見晴らしへ戻り、里の敵5人が作り直される。
 - `tools/scenarios/regress-cleared-dialogue.mjs`：里を守った瞬間に振りかぶっていた兵の一撃・飛んでいる矢が、会話の最中に主人公へ当たらない（体力10で見守る）。
+- `tools/scenarios/regress-guide-hitch.mjs`：案内あり（既定）で林道を走り、基準路から25m以上離れて迷いの助けの復帰探索が0.5秒ごとに働いている間も、暖機後720コマで100ms以上のコマが0・p99が33.4ms以下（強調300コマ以上・復帰路8回以上の作り直しが無ければ、検査が空なので落とす）。
 - `tools/scenarios/regress-continue.mjs`：つづきから。見晴らしの区切りでは道の選択が、クリア後の区切りでは結果の会話と結果画面が出る。
 - `tools/scenarios/regress-bank-descent.mjs`：待ち伏せの斜面の土手から道へ降りられ、林道のS字の西の縁（傾斜45度の帯）からも道へ出られる。
 - `tools/scenarios/regress-rock-colliders.mjs`：当たりの表に岩が登録され（20個以上）、岩へ向かって歩くと岩の縁で止まる（歩ける場所で比べる）。

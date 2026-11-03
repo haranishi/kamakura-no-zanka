@@ -209,6 +209,15 @@ export function rayClip(col, terrain, from, to, radius = 0.25, { ignoreThin = 0 
   }
   return hit <= 1 ? Math.max(0, hit - 0.03) : 1;
 }
+// nearestFree(col, terrain, x, z, radius, 0) !== null と同じ真偽を、地形の計算1回で返す（道しるべの通行判定用）。
+// nearestFreeは reason（水・斜度）と terrain.walkable（水・40度未満）で地形を2回計算し、1点約28µsかかった（walkableだけなら約13µs）。
+// terrain.walkableが真なら reason の水・斜度の条件も満たすので、残るのは半径つきの範囲と物の重なりだけ。
+export function freeAt(col, terrain, x, z, radius = 0.3) {
+  finite(x, z); size(radius);
+  if (!inBounds(col.bounds, x, z, radius) || !inBounds(terrain.bounds, x, z, radius)) return false;
+  for (const o of nearby(col, x, z, x, z, radius)) if (penetration(o, x, z, radius)) return false;
+  return terrain.walkable(x, z);
+}
 export function nearestFree(col, terrain, x, z, radius = 0.3, maxR = 6) {
   finite(x, z); size(radius); size(maxR);
   const free = (px, pz) => !reason(col, terrain, px, pz, radius, null, {}) && terrain.walkable(px, pz) &&
