@@ -8,7 +8,8 @@ export const RELEASE = 2;
 export const SETTLE = 3;
 export const PLANT = Object.freeze({
   release: 0.12,      // 放すのにかける秒（遊脚の始めは足が上がるので、差が動いても滑って見えない）
-  settleDelay: 0.8,   // 止まって（根が動かず）両足を着いてから、置き直しの一歩を始めるまでの秒
+  freeAfterStop: 0.3, // 待ちの歩容になってから、動作の足が待ちの足へ寄り終えるまでの秒。この間は着いた足を留めない（走りの最後の歩幅のまま留めると、足を開いたまま固まって見えた）
+  settleDelay: 0.8,   // ?stop=hold の版：止まって（根が動かず）両足を着いてから、置き直しの一歩を始めるまでの秒
   settleMin: 0.05,    // 動作の待ちの足の所から、この長さ（m）より離れて留まっている足だけ置き直す
   settleTime: 0.3,    // 置き直しの一歩の秒
   settleLift: 0.05,   // 置き直しの一歩で足を上げる高さ（m）
@@ -23,6 +24,10 @@ export const follow = (x, target, rate, dt) => dt > 0 ? target + (x - target) * 
 
 export function createFoot() { return { mode: FREE, lx: 0, lz: 0, ox: 0, oz: 0, sx: 0, sz: 0, t: 0, gy: 0, h: 0, ground: false }; }
 export function resetFoot(f) { f.mode = FREE; f.ox = f.oz = f.t = f.h = 0; f.ground = false; }
+
+// 待ちの歩容の間、着いた足を留めてよいか。既定は、待ちの歩容になって freeAfterStop 秒たってから（それまでは動作の足が待ちの足へ寄る＝M2a と同じ「すぐ足を揃える」）。
+// 寄り終えた所で留めるので、その後の向き変え・動き出しで足が滑らない。hold（?stop=hold）なら待ちの歩容になった瞬間から（走りの最後の歩幅のまま留め、後で一歩で寄せる）
+export const holdsIdleFeet = (idleFor, hold, cfg = PLANT) => !!hold || idleFor >= cfg.freeAfterStop;
 
 // 周期の動作の位相 phase（0〜1）で、平らな区間 windows（gait-table の flat.left など。[始め,終わり] の列・周期をまたいでよい）の中か
 export function inFlat(windows, phase) {

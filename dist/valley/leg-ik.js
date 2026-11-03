@@ -9,7 +9,8 @@
 import * as THREE from 'three';
 import { solveTwoBoneInto } from './hand-grip.js';
 import { GAIT_TABLE } from './gait-table.js';
-import { PLANT, STRIDE, LOCK, SETTLE, FREE, createFoot, resetFoot, stepFoot, releaseFoot, maybeSettle, abortSettle, dropToReach, follow, inFlat } from './leg-plant.js';
+import { LOCO } from './loco.js';
+import { PLANT, STRIDE, LOCK, SETTLE, FREE, createFoot, resetFoot, stepFoot, releaseFoot, maybeSettle, abortSettle, dropToReach, follow, inFlat, holdsIdleFeet } from './leg-plant.js';
 
 const SIDES = [['LeftUpLeg', 'LeftLeg', 'LeftFoot'], ['RightUpLeg', 'RightLeg', 'RightFoot']];
 const V = new THREE.Vector3(), W = new THREE.Vector3(), Q = new THREE.Quaternion(), Q2 = new THREE.Quaternion(), UP = new THREE.Vector3(0, 1, 0), N = new THREE.Vector3(), FWD = new THREE.Vector3();
@@ -23,7 +24,7 @@ export class LegRig {
     this.legs = SIDES.map(([u, l, f]) => ({ up: ch.bone(u), low: ch.bone(l), foot: ch.bone(f) }));
     this.ok = !!this.hips && this.legs.every(l => l.up && l.low && l.foot);
     this.feet = [createFoot(), createFoot()];
-    this.drop = 0; this.idleT = 0; this.applied = false; this.reset = true; this.rootX = 0; this.rootZ = 0;
+    this.drop = 0; this.idleT = 0; this.idleFor = 0; this.applied = false; this.reset = true; this.rootX = 0; this.rootZ = 0;
     this.ks = 1; this.baseY = [NaN, NaN];   // 歩幅の伸縮（ならした値）と、着いている足首の高さ（根から。遊脚を高くする基準）
     // undo 用の元の値（腰の位置と、脚の骨の回り）
     this.hipsPos = new THREE.Vector3();
@@ -47,10 +48,13 @@ export class LegRig {
     this.applied = false;
   }
 
-  // 着いている足（STANCE へ書く）。戻り値：'cycle'＝周期の動作の位相で決めた／'both'＝待ち・混ぜの途中で両足／null＝移動の動作でない
-  stance() {
+  // 着いている足（STANCE へ書く）。戻り値：'cycle'＝周期の動作の位相で決めた／'both'＝待ち・混ぜの途中で両足／'free'＝止まった直後で足を留めない（freeAfterStop 秒。足の高さと骨盤は合わせる）／null＝移動の動作でない
+  stance(dt) {
     const ch = this.ch;
-    if (!ch.locoName || ch.currentName !== ch.locoName) return null;
+    if (!ch.locoName || ch.currentName !== ch.locoName) { this.idleFor = 0; return null; }
+    // 止まった直後（待ちの歩容になって freeAfterStop 秒の間）は、着いた足を留めず動作の足へ寄せる（M2a と同じ「すぐ足を揃える」。盲検で、走りの最後の歩幅のまま留めて
+    // 0.8秒後に一歩で寄せる版は、足を開いたまま固まって見えた）。足の高さと骨盤は地面へ合わせたまま（'free'）。寄り終えたら留める。?stop=hold なら最初から留める
+    if (ch.gait === 'idle') { this.idleFor += dt; if (!holdsIdleFeet(this.idleFor, LOCO.holdStop)) { STANCE[0] = STANCE[1] = false; return 'free'; } } else this.idleFor = 0;
     this.bestA = null; this.bestW = 0; this.bestName = null;
     ch.actions.forEach(this.scan);   // 毎コマ呼ぶので、Map の for…of（入れ物の配列を作る）を使わない
     const best = this.bestA, bn = this.bestName;
@@ -65,11 +69,11 @@ export class LegRig {
     if (!this.ok) return;
     const ch = this.ch, feet = this.feet;
     if (!active || this.reset) {
-      if (this.reset || feet[0].mode !== FREE || feet[1].mode !== FREE || this.drop) { resetFoot(feet[0]); resetFoot(feet[1]); this.drop = 0; this.idleT = 0; }
+      if (this.reset || feet[0].mode !== FREE || feet[1].mode !== FREE || this.drop) { resetFoot(feet[0]); resetFoot(feet[1]); this.drop = 0; this.idleT = 0; this.idleFor = 0; }
       this.reset = false;
       if (!active) return;
     }
-    const kind = this.stance();
+    const kind = this.stance(dt);
     const moving = kind != null;
     if (!moving && feet[0].mode === FREE && feet[1].mode === FREE && this.drop < 1e-5) return;   // 技・回避などで足を放し終えた
     ch.model.updateMatrixWorld(true);

@@ -1,11 +1,12 @@
 // 回帰（M2b・design-locomotion-smooth §5・§12）：脚のIKと接地。実ゲームの主人公で、要件 R34.1・34.2・34.4 の目標を確かめる。
 //  1. 台本（smooth-journey と同じ）を新しいページで1回：定速の滑り（cm/m）が 小走りの区間 jog 1.84・走りの区間 run/run2 1.30 以下（どれも3以下）、
-//     出来事の窓（走り出し・停止・反転・旋回）の接地足のずれが 6cm 以下。
+//     出来事の窓（走り出し・反転・旋回）の接地足のずれが 6cm 以下。停止の窓は、既定では止まった後に足を放して待ちの姿へ寄せる（M2a と同じ見た目。盲検で、
+//     留めて一歩で寄せる版は足を開いたまま固まって見えた）ので M2a と同じ水準（STOP_FREE_CM 以下）。6cm 以内は ?stop=hold の版が受け持つ（2）。
 //  2. 掃引（同じページで M2a の経路 ?smooth=ik と比べる。各通りの前に動作の時計を0へ戻す＝regress-locomotion-phase と同じ決め方）：
-//     歩き出し・止まり（走り／通常移動）・切り替え（小走り→Shift）・反転（走り→S）で、窓0.5秒のずれの最大が 6cm 以下。
-//     止まり（走り）は 30・60・144コマ/秒の3通りで（コマ速度で極端に変わらない：最大どうしの差も 6cm 以下）。
+//     歩き出し・切り替え（小走り→Shift）・反転（走り→S）で、窓0.5秒のずれの最大が 6cm 以下。止まり（走り／通常移動）の既定は M2a より悪くならない（+0.5cm まで）。
+//     ?stop=hold（止まった後に着いた足を留めて一歩で寄せる）の止まりは 6cm 以下で、走りは 30・60・144コマ/秒の3通りで（コマ速度で極端に変わらない：最大どうしの差も 6cm 以下）。
 //  3. 地面：石段の下の林道・土手の斜面・川岸・棚田の段を歩き、着いている足の足首の高さ（足の下の地面から）が、平らな所での範囲から
-//     浮く・沈むのが 3cm 以下（?smooth=ik の値も並べる。IKが無いと坂で浮き・沈みが出る）。
+//     浮く・沈むのが 3cm 以下（?smooth=ik の値も並べる。IKが無いと坂で浮き・沈みが出る）。歩いて止まった後の立ち姿の両足首も同じ（止まった後も足を放すだけで、地面への高さは合わせ続ける）。
 // 接地の決め方は smooth-journey と同じ（gait-table の平らな区間・無ければ両足）。掃引の窓・接地の扱いは regress-locomotion-phase の SWEEP と同じ。
 // 使い方: PLAYWRIGHT_MODULE=… node tools/valley-play.mjs tools/scenarios/regress-locomotion-ik.mjs --strict --out <dir>（KZ_OUT=… でJSON）
 import fs from 'node:fs';
@@ -17,6 +18,7 @@ const fail = [];
 const check = (ok, msg) => { if (!ok) fail.push(msg); };
 const stats = r => ({ list: r, mean: Math.round(r.reduce((a, b) => a + b, 0) / r.length * 10) / 10, max: Math.max(...r) });
 const SLIP = { jog: 1.84, run: 1.3, run2: 1.3 }, WINDOW_CM = 6, GROUND_CM = 3;
+const STOP_FREE_CM = 30, STOP_SWEEP_CM = 40;   // 既定の止まり（M2a と同じ）の上限：台本の停止の窓（M2a で 20.4・18cm）、掃引の最大（M2a で走り 22〜24・通常移動 31.5cm）。これを超えたら、止まりが M2a より悪くなっている
 
 // 1通り：before＝窓の前の操作（[秒, キー, 掃引でずらすか]）、window＝窓を開く操作。戻り値は窓の接地足のずれの最大（cm）
 const SWEEP = `async (A, g, h, ch, reset, [q, before, windowKeys, offsets, FLAT, hz]) => {
@@ -57,7 +59,13 @@ const GROUND = `async (A, g, h, ch, reset, [q, walks, FLAT]) => {
       ['LeftFoot', 'RightFoot'].forEach((b, s) => { if (!contact[s]) return; ch.bone(b).getWorldPosition(V); const y = V.y - g.terrain.heightAt(V.x, V.z); lo = Math.min(lo, y); hi = Math.max(hi, y); n++; });
     }
     for (const c of ['KeyW', 'KeyS', 'ShiftLeft']) __valley.key(c, false);
-    out[wk.name] = { lo: Math.round(lo * 1000) / 10, hi: Math.round(hi * 1000) / 10, n, climb: Math.round((h.pos.y - y0) * 100) / 100, moved: Math.round(Math.hypot(h.pos.x - wk.x, h.pos.z - wk.z) * 100) / 100 };
+    const res = { lo: Math.round(lo * 1000) / 10, hi: Math.round(hi * 1000) / 10, n, climb: Math.round((h.pos.y - y0) * 100) / 100, moved: Math.round(Math.hypot(h.pos.x - wk.x, h.pos.z - wk.z) * 100) / 100 };
+    // 止まった後：0.5秒おいて、1秒の間の両足首の高さ（足の下の地面から）の最小・最大（待ちの歩容。足を放しても地面へ合わせ続けるか）
+    for (let i = 0; i < 30; i++) __valley.step(1, dt);
+    let ilo = Infinity, ihi = -Infinity;
+    for (let i = 0; i < 60; i++) { __valley.step(1, dt); ch.model.updateMatrixWorld(true); for (const b of ['LeftFoot', 'RightFoot']) { ch.bone(b).getWorldPosition(V); const y = V.y - g.terrain.heightAt(V.x, V.z); ilo = Math.min(ilo, y); ihi = Math.max(ihi, y); } }
+    res.idle = { lo: Math.round(ilo * 1000) / 10, hi: Math.round(ihi * 1000) / 10 };
+    out[wk.name] = res;
   }
   return out;
 }`;
@@ -66,8 +74,11 @@ const W = { KeyW: true }, RUN = { KeyW: true, ShiftLeft: true }, NONE = { KeyW: 
 const OFF12 = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11], OFF12x2 = OFF12.map(k => k * 2);
 export const CASES = [
   { name: 'start', q: '?loco=a', before: [[0.01, {}, true]], window: W, offsets: [0, 7, 19, 31] },
-  { name: 'stopRun', q: '?loco=a', before: [[1.5, RUN, true]], window: NONE, offsets: OFF12, hz: [60, 30, 144] },
-  { name: 'stopWalk', q: '?loco=a', before: [[1.5, W, true]], window: NONE, offsets: OFF12x2 },
+  // 止まり：既定（足を放して待ちの姿へ寄せる）は M2a より悪くならない。?stop=hold（留めて一歩で寄せる）は 6cm 以内（hold：M2a との比べは要らない）
+  { name: 'stopRun', q: '?loco=a', before: [[1.5, RUN, true]], window: NONE, offsets: OFF12, notWorse: true },
+  { name: 'stopWalk', q: '?loco=a', before: [[1.5, W, true]], window: NONE, offsets: OFF12x2, notWorse: true },
+  { name: 'stopRunHold', q: '?loco=a&stop=hold', before: [[1.5, RUN, true]], window: NONE, offsets: OFF12, hz: [60, 30, 144], hold: true },
+  { name: 'stopWalkHold', q: '?loco=a&stop=hold', before: [[1.5, W, true]], window: NONE, offsets: OFF12x2, hold: true },
   { name: 'switch', q: '?loco=a&walk=2.0', before: [[1.5, W, true]], window: { ShiftLeft: true }, offsets: OFF12x2 },
   { name: 'switch25', q: '?loco=a&walk=2.5', before: [[1.5, W, true]], window: { ShiftLeft: true }, offsets: OFF12x2 },
   { name: 'reverse', q: '?loco=a', before: [[1.5, RUN, true]], window: BACK, offsets: OFF12 },
@@ -94,7 +105,7 @@ export default async function (ctx) {
     log(`台本 ${tag.padEnd(5)} 滑り ${s?.cmPerM} cm/m（目標 ${lim}）`);
     check(s && s.cmPerM != null && s.cmPerM <= lim && s.cmPerM <= 3, `journey ${tag}: slip ${s?.cmPerM} cm/m > ${lim}`);
   }
-  for (const e of journey.windows.list) { log(`台本の窓 ${e.kind}@${e.t.toFixed(2)} ${e.maxCm}cm`); check(e.maxCm <= WINDOW_CM, `journey window ${e.kind}@${e.t.toFixed(2)}: ${e.maxCm}cm > ${WINDOW_CM}`); }
+  for (const e of journey.windows.list) { const lim = e.kind === 'stop' ? STOP_FREE_CM : WINDOW_CM; log(`台本の窓 ${e.kind}@${e.t.toFixed(2)} ${e.maxCm}cm（上限 ${lim}）`); check(e.maxCm <= lim, `journey window ${e.kind}@${e.t.toFixed(2)}: ${e.maxCm}cm > ${lim}`); }
   }
   const run = (fn, arg) => v(`(async () => { const A = await import('/valley/actors.js'); const g = __valley.game, h = g.hero, ch = h.character;
     const seeded = seed => () => { seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
@@ -109,13 +120,14 @@ export default async function (ctx) {
   if (parts.includes('sweep')) {
   for (const c of CASES) for (const hz of c.hz || [60]) {
     const sweep = async q => { const r = []; for (const k of c.offsets) r.push(...await run(SWEEP, [q, c.before, c.window, [k], FLAT, hz])); return stats(r); };
-    const before = await sweep(c.q + '&smooth=ik'), after = await sweep(c.q), key = hz === 60 ? c.name : `${c.name}@${hz}`;
+    const before = c.hold ? null : await sweep(c.q + '&smooth=ik'), after = await sweep(c.q), key = hz === 60 ? c.name : `${c.name}@${hz}`;
     out.sweep[key] = { before, after };
-    log(`${key.padEnd(12)} M2a（?smooth=ik）: 平均 ${before.mean} 最大 ${before.max}  ／ M2b: ${after.list.join(' ')}  平均 ${after.mean} 最大 ${after.max}`);
-    check(after.max <= WINDOW_CM, `${key}: max ${after.max}cm > ${WINDOW_CM}`);
+    log(`${key.padEnd(14)} ${before ? `M2a（?smooth=ik）: 平均 ${before.mean} 最大 ${before.max}  ／ ` : ''}M2b: ${after.list.join(' ')}  平均 ${after.mean} 最大 ${after.max}`);
+    if (c.notWorse) { check(after.max <= before.max + 0.5, `${key}: max ${after.max}cm is worse than M2a ${before.max}cm`); check(after.max <= STOP_SWEEP_CM, `${key}: max ${after.max}cm > ${STOP_SWEEP_CM}`); }
+    else check(after.max <= WINDOW_CM, `${key}: max ${after.max}cm > ${WINDOW_CM}`);
   }
-  const hzMax = [60, 30, 144].map(hz => out.sweep[hz === 60 ? 'stopRun' : `stopRun@${hz}`].after.max);
-  check(Math.max(...hzMax) - Math.min(...hzMax) <= WINDOW_CM, `stopRun across 30/60/144Hz: ${hzMax.join('/')}`);
+  const hzMax = [60, 30, 144].map(hz => out.sweep[hz === 60 ? 'stopRunHold' : `stopRunHold@${hz}`].after.max);
+  check(Math.max(...hzMax) - Math.min(...hzMax) <= WINDOW_CM, `stopRunHold across 30/60/144Hz: ${hzMax.join('/')}`);
   }
   // 3. 地面
   if (parts.includes('ground')) {
@@ -129,6 +141,9 @@ export default async function (ctx) {
     log(`地面 ${wk.name.padEnd(12)} 登り ${a.climb}m 進み ${a.moved}m  足首の高さ ${a.lo}〜${a.hi}cm（平ら ${ref.lo}〜${ref.hi}）浮き ${ea.float.toFixed(1)} 沈み ${ea.sink.toFixed(1)}cm ／ M2a: ${b.lo}〜${b.hi}cm 浮き ${eb.float.toFixed(1)} 沈み ${eb.sink.toFixed(1)}cm`);
     check(a.n > 20, `${wk.name}: too few planted samples (${a.n})`);
     check(ea.float <= GROUND_CM && ea.sink <= GROUND_CM, `${wk.name}: float ${ea.float.toFixed(1)} / sink ${ea.sink.toFixed(1)}cm > ${GROUND_CM}`);
+    const idle = r => ({ float: Math.max(0, r.idle.hi - ref.idle.hi), sink: Math.max(0, ref.idle.lo - r.idle.lo) }), ib = idle(b), ia = idle(a);
+    log(`地面 ${wk.name.padEnd(12)} 立ち止まり 足首 ${a.idle.lo}〜${a.idle.hi}cm（平ら ${ref.idle.lo}〜${ref.idle.hi}）浮き ${ia.float.toFixed(1)} 沈み ${ia.sink.toFixed(1)}cm ／ M2a: ${b.idle.lo}〜${b.idle.hi}cm 浮き ${ib.float.toFixed(1)} 沈み ${ib.sink.toFixed(1)}cm`);
+    check(ia.float <= GROUND_CM && ia.sink <= GROUND_CM, `${wk.name} (standing): float ${ia.float.toFixed(1)} / sink ${ia.sink.toFixed(1)}cm > ${GROUND_CM}`);
   }
   }
   if (process.env.KZ_OUT) fs.writeFileSync(process.env.KZ_OUT, JSON.stringify({ ...out, fail }, null, 1) + '\n');

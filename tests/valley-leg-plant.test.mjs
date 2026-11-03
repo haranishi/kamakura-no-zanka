@@ -1,7 +1,7 @@
 // M2b（走り・歩きの滑らかさ）：足の接地の保持の純粋層（dist/valley/leg-plant.js）と、?smooth=ik の切替（loco.js）。
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { PLANT, STRIDE, strideScale, FREE, LOCK, RELEASE, SETTLE, createFoot, stepFoot, releaseFoot, maybeSettle, abortSettle, dropToReach, inFlat, follow } from '../dist/valley/leg-plant.js';
+import { PLANT, STRIDE, strideScale, FREE, LOCK, RELEASE, SETTLE, createFoot, stepFoot, releaseFoot, maybeSettle, abortSettle, dropToReach, inFlat, follow, holdsIdleFeet } from '../dist/valley/leg-plant.js';
 import { solveTwoBoneInto } from '../dist/valley/hand-grip.js';
 import { parseLoco } from '../dist/valley/loco.js';
 
@@ -109,8 +109,22 @@ test('stride split: only stretches, keeps cadence x stride = k inside the limits
   assert.ok(strideScale(1.05) > 1 && strideScale(1.05) < 1.05);   // 通常移動3.0（Run の約1.05倍）は少しだけ
 });
 
-test('?smooth=stride turns only the stride stretch back; ?smooth=ik turns both back', () => {
-  assert.equal(parseLoco('').smoothStride, true);
-  assert.equal(parseLoco('?smooth=stride').smoothStride, false); assert.equal(parseLoco('?smooth=stride').smoothIk, true);
-  assert.equal(parseLoco('?smooth=ik').smoothStride, false);
+test('the stride stretch and the held stop are off by default and opt-in by URL (?stride=on, ?stop=hold); ?smooth=ik turns both back', () => {
+  // 既定：歩幅の伸縮も、止まった後に足を留める版も使わない（盲検採点で、どちらも良くならなかった）。IK は入っている
+  assert.equal(parseLoco('').smoothIk, true); assert.equal(parseLoco('').smoothStride, false); assert.equal(parseLoco('').holdStop, false);
+  assert.equal(parseLoco('?stride=on').smoothStride, true); assert.equal(parseLoco('?stop=hold').holdStop, true);
+  assert.equal(parseLoco('?stride=on&stop=hold').smoothStride && parseLoco('?stride=on&stop=hold').holdStop, true);
+  for (const q of ['?stride=off', '?stride=1', '?stop=release', '?stop=']) { assert.equal(parseLoco(q).smoothStride, false, q); assert.equal(parseLoco(q).holdStop, false, q); }
+  // ?smooth=stride は歩幅だけを戻す（IK は残る）。IK を戻す・旧経路へ戻すときは、入れた選択もまとめて戻る
+  assert.equal(parseLoco('?stride=on&smooth=stride').smoothStride, false); assert.equal(parseLoco('?stride=on&smooth=stride').smoothIk, true);
+  for (const q of ['?stride=on&stop=hold&smooth=ik', '?stride=on&stop=hold&smooth=off', '?stride=on&stop=hold&loco=old']) { const c = parseLoco(q); assert.equal(c.smoothIk, false, q); assert.equal(c.smoothStride, false, q); assert.equal(c.holdStop, false, q); }
+});
+
+test('the feet are held at idle only after the slide to the idle pose (freeAfterStop), or at once with ?stop=hold', () => {
+  assert.equal(holdsIdleFeet(0, false), false);
+  assert.equal(holdsIdleFeet(PLANT.freeAfterStop - 0.01, false), false);   // 止まった直後は動作の足へ寄る（M2a と同じ見た目）
+  assert.equal(holdsIdleFeet(PLANT.freeAfterStop, false), true);
+  assert.equal(holdsIdleFeet(5, false), true);                              // 寄り終えたら留める（向き変え・動き出しで滑らない）
+  assert.equal(holdsIdleFeet(0, true), true);                               // ?stop=hold：最初から留める
+  assert.ok(PLANT.freeAfterStop >= 0.2 && PLANT.freeAfterStop <= 0.6, `freeAfterStop ${PLANT.freeAfterStop}`);   // 止まりの混ぜ（約0.2秒）が終わる頃
 });

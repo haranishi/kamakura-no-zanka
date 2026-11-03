@@ -306,6 +306,7 @@ export class Character {
     this.splitPose = false; this.poseDt = null;
     if (dt == null) return;
     const legs = this.legs;
+    if (legs && !this.legIk && legs.ks !== 1) legs.ks = 1;   // IK を使わないコマ（範囲の外・軽量）では歩幅の伸縮も使わない。古い値を残すと歩調だけが下がる
     if (legs && this.legIk && this.legTerrain) legs.apply(dt, this.legTerrain, true);
     else if (legs && (legs.feet[0].mode || legs.feet[1].mode || legs.drop)) legs.apply(dt, null, false);
     this.legIk = false;
