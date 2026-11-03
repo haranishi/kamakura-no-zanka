@@ -52,6 +52,8 @@ b0 庭へ降りる（`temple_yard` に入る）→ b1 穂太の話 → b2 林道
 - `tools/scenarios/regress-lunge.mjs`：見た目だけの踏み込み（8.3a 第3周・lunge.js）を実ゲームで確かめる。停止のコマで刃が相手の胴に入る（弓以外の11技・相手まで1.2m／1.6m／間合いの端）、見た目の中心どうしが0.55m以上、技が終わって0.4秒で根のずれが0に戻る、壁と急な斜面で根が埋まらない。論理の位置が変わらないことは regress-attack-timing.mjs で main と比べる。
 - `tools/scenarios/measure-lunge.mjs`：踏み込みの実測。技ごとに相手を前へ1.2m・1.6m・間合いの端に置いて本物の結線で技を出し、判定の始めのコマの刃と相手の胴の軸の最短距離（0.22m以内なら「入った」）、根の前進・回す角・見た目の中心どうしの距離・論理の位置を記録する。
 - `tools/scenarios/regress-impact.mjs`：命中した敵の押し戻し（8.4a・knockback.js）と、とどめ・弾きの軽いスロー（8.5a・time-warp.js）を実ゲームで確かめる（押す距離・三連の間合い・壁と崖・スロー）。
+- `tools/scenarios/regress-combat-hints.mjs`：弾いた直後に「E で、とどめ」の案内が出ず「弾いた。いま反撃」だけが出ること、崩れた敵の前ではとどめの表示と案内が出ることを確かめる（8.3b）。
+- `tools/scenarios/measure-arm-spread.mjs`：被弾・弾かれ・倒れの動作で、腕全体が胴の下向きから開く角を、腕の開きの上限（8.3b・arm-spread.js）の前後で毎コマ測る（`KZ_OUT`）。
 - `tools/scenarios/capture-combat-impact.mjs`：8.4a・8.5a の前後比較。押し戻しと、とどめ・弾きのスローを、固定カメラ・同じ乱数・同じ入力でコマ割りに撮る（`KZ_TAG=before|after`）。
 - `tools/scenarios/regress-hand-grip.mjs`：刀を握る手（8.6a）を毎コマ測る（指・親指の皮と柄・鞘のすき間とめり込み、手首と指の跳び、腕の写しの長さ、動作の骨と切先が層を切った人物と一致）。31場面。`KZ_OUT=…` でJSONを残す。
 - `tools/scenarios/regress-hand-grip-game.mjs`：実ゲームの主人公で、敵が気づいて抜く・納刀のまま攻撃・戦闘後の自動の納刀・抜く途中に倒れる、の4場面を通し、見える手を毎コマ測る。
