@@ -146,8 +146,9 @@ test('real scatter, four site budgets, QA accounting and capacities [budget]',()
   // 8.1a second round: the far level became boards (2 triangles, ~650k fewer at each site); part of the saving went to the
   // near cedar (root flare) and the middle cedar (one tuft per near limb, 185k->385k at the start). Totals fell 33-46% below the first round.
   // Third round: 22+4 smaller adult broadleaf clusters (10x5, 10x4) in place of 16+1 (12x6): a few hundred triangles fewer at each site.
-  // S7-A round 3: two shrubs by the south-road hedges left the scatter, so the two village sites lost their triangles (601164->600848, 575464->573024).
-  const sites=[[WORLD.start.x,WORLD.start.z,1328534,891796],[-5,2.2,1087372,600848],[-6,20,1056502,573024],[-36,-48,1278092,806308]];
+  // 2026-11-03: the second round's 16 outer clusters again (11x6) with the four inner ones: still below the third round at every site.
+  // S7-A round 3 (same day): two shrubs by the south-road hedges left the scatter, so the two village sites lost 316 and 2,440 triangles on top of that (600912->600596, 575284->572844).
+  const sites=[[WORLD.start.x,WORLD.start.z,1328534,890068],[-5,2.2,1087372,600596],[-6,20,1056502,572844],[-36,-48,1278092,804940]];
   const at=new Map();for(const d of [trees,understory])d.x.forEach((x,i)=>at.set(`${Math.fround(x)},${Math.fround(d.z[i])}`,d.tint[i]));
   assert.deepEqual(sites.map(p=>p.slice(0,2)),[[-100.5,-89],[-5,2.2],[-6,20],[-36,-48]],'[budget-sites] four evaluation sites changed');
   assert.equal(f.sets.length,3*Object.values(TREES.variants).reduce((a,b)=>a+b,0)+6,'[sets] wrong species/variant level count');assert(f.group.children.length<=90,'[sets] draw set budget exceeded');

@@ -493,9 +493,9 @@ test('dense broad shells retain three spatial noise octaves [resolution/noise]',
     const g=treeGeometry(sp,l,sh),p=g.leaf.getAttribute('position'),budget=TREES.budget[names[sp]][l],total=g.tris.wood+g.tris.leaf;
     assert(total>=budget*.8 && total<=budget,'[budget-utilization] dense foliage allocation');
     for(const [index,part] of g.leaf.userData.parts.entries()) {
-      // Near adult clusters are 10x5 shells and the four inner ones 10x4 (third round: 22+4 clusters within the second round's
+      // Near adult clusters are the second round's 16 at 11x6 and the four inner ones 10x4 (2026-11-03: within the third round's
       // triangles); sapling clusters stay 12x6 (8.1a second round); shrubs keep 14x7.
-      const sides=sp<4?(l===0?10:l===2 && index===1?8:10):(l===0?(sp===4?12:14):8),bands=sp<4?(l===0?(index<BROAD_CLUSTERS?5:4):l===2 && index===1?4:5):(l===0?(sp===4?6:7):4);
+      const sides=sp<4?(l===0?(index<BROAD_CLUSTERS?11:10):l===2 && index===1?8:10):(l===0?(sp===4?12:14):8),bands=sp<4?(l===0?(index<BROAD_CLUSTERS?6:4):l===2 && index===1?4:5):(l===0?(sp===4?6:7):4);
       assert.equal(part.sides,sides,'[shell-resolution] azimuth subdivision');assert.equal(part.bands,bands,'[shell-resolution] vertical subdivision');
       for(let j=1;j<bands;j++)for(let k=0;k<sides;k++) {
         const theta=j/bands*Math.PI,a=k/sides*Math.PI*2,unit=[Math.sin(theta)*Math.cos(a),Math.cos(theta),Math.sin(theta)*Math.sin(a)];
