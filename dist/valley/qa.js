@@ -63,6 +63,7 @@ export function installQA(game, ctl) {
     guideView() { return game.guideView(); },
     setGuidePlan(plan) { game.setGuidePlan(plan); return game.guideView(); },
     setWaymarks(level) { game.setWaymarks(level); return game.guideView(); },
+    setBlood(level) { game.setBlood(level); return game.settings.blood; },
     pressGuide() { return game.pressGuide(); },
     async treeSpecimens(opts = {}) {
       const request = ++specimenRequest;
