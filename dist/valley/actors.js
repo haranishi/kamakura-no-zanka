@@ -11,6 +11,7 @@ import { createBrain, think } from './enemy-ai.js';
 import { createCompanion, thinkCompanion } from './companion-ai.js';
 import { createSwordLayer, poseAt } from './sword-layer.js';
 import { LUNGE_VIEW, LUNGE_IO, CONTACT_POSE, createLungeIO, solveLunge, lungeInReach, lungeShare, sayaHoldScale, gapScale } from './lunge.js';
+import { spreadCap } from './arm-spread.js';
 import { KNOCK_MOVE, createKnock, startKnock, endKnock, knockStep, knockGap } from './knockback.js';
 
 export const angleDiff = (a, b) => Math.atan2(Math.sin(b - a), Math.cos(b - a));
@@ -53,7 +54,12 @@ class Actor {
     const f = this.fighter;                  // 技の動作は、論理の技の経過で進める（8.3a 第2周。characters.js の followWarp）
     ch.warpClock = f?.state === 'attack' && f.move ? f.move.t : NaN;
     if (f) { this.updateLungeView(dt); this.sync(); }   // 模型の根を先に置く（弾きの打ち合い・抜刀の腕IKは世界の位置で解く）
+    ch.spreadCapDeg = this.spreadCapNow();   // 被弾・弾かれ・倒れの腕の開きの上限（8.3b・見た目だけ）
     ch.update(dt);
+  }
+  spreadCapNow() {
+    const f = this.fighter;
+    return f ? spreadCap(!f.alive, f.state, this.reactT > 0) : 0;
   }
 
   // 見た目だけの踏み込み（8.3a 第3周）：振りの間、模型の根だけを相手へ出し、向きを回して、判定の始めの刃を相手の胴へ通す。

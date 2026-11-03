@@ -11,6 +11,7 @@ import { SwordRig } from './sword-rig.js';
 import { HandRig, HAND_RIG_WHO, prepareHands } from './hand-rig.js';
 import { makeTachi, makeNaginata, makeYumi, makeArrow, makeQuiver } from './weapons.js';
 import { patchLift } from './grade.js';
+import { spreadWeight, spreadFix } from './arm-spread.js';
 
 let contactActorId = 0;
 const DIR = new URL('../assets/characters/', import.meta.url).href;
@@ -22,6 +23,7 @@ const FLINCH_Q = new THREE.Quaternion(), FLINCH_AXIS = new THREE.Vector3();
 // full〜none は「腕が下がっている」と見なす範囲（下向きからの角）。構え・振りの腕には効かない。
 const ARM = { target: 9, max: 32, full: 48, none: 76, rate: 14 };
 const P0 = new THREE.Vector3(), P1 = new THREE.Vector3(), MQ = new THREE.Quaternion(), PQ = new THREE.Quaternion(), PQI = new THREE.Quaternion(), RQ = new THREE.Quaternion(), AX = new THREE.Vector3();
+const FIX = new Float64Array(4), SPREAD_BONES = [['LeftArm', 'LeftHand'], ['RightArm', 'RightHand']];   // 骨の名前は先に作る（毎コマ文字列をつながない）   // 腕の開きの寄せ（arm-spread.js）の受け渡し。毎コマの新規確保をしない
 const smoothstep = (a, b, x) => { const t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 
 // 非ループ動作の水平な根の移動を取り除く（その場の動作にする）。取り除いた分は root に残す。
@@ -94,6 +96,7 @@ export class Character {
     this.rootTravel = { x: 0, z: 0 };
     this.flinch = { x: 0, v: 0, px: 0, pz: 1 };
     this.armRelax = true; this.relax = { Left: 0, Right: 0 };
+    this.spreadCapDeg = 0; this.spreadLastCap = 0; this.spreadW = 0;   // 腕の開きの上限（度・人物が毎コマ置く）と、その効き（8.3b）
     // 指の骨と見える腕の写し（8.6a）。this.bones（動作の骨）を作ったあとに足すので、写しは this.bones に入らない
     this.hands = HAND_RIG_WHO.has(who) ? new HandRig(this) : null;
   }
@@ -266,6 +269,7 @@ export class Character {
       }
     }
     if (this.armRelax) this.relaxArms(dt);
+    if (this.spreadCapDeg > 0 || this.spreadW > 0) this.spreadArms(dt);   // 被弾・弾かれ・倒れの腕の開き（8.3b）：動作の骨の後処理。握りの層の前
     if (this.sword) this.sword.apply();   // 抜刀・納刀：骨の後処理なので relaxArms のあと
     if (this.hands) this.hands.apply(dt);   // 握り（8.6a）：抜刀の層が決めた刀・鞘を読み、見える腕の写しだけを動かす
     if (this.bow) this.bow.update();
@@ -312,6 +316,31 @@ export class Character {
       arm.parent.getWorldQuaternion(PQ); PQI.copy(PQ).invert();
       RQ.setFromAxisAngle(AX, THREE.MathUtils.degToRad(side === 'Left' ? -r : r));
       arm.quaternion.premultiply(PQ).premultiply(RQ).premultiply(PQI);
+    }
+  }
+
+  // 腕の開きの上限（8.3b・arm-spread.js）：腕全体（肩→手首）が胴の下向き（首→腰）から spreadCapDeg 度より開いたら、
+  // 腕と下向きを含む面の中で、上腕の骨を胴の側へ回す。上限を外したら、効きを0へ戻しながら同じ上限で寄せ続ける（1コマで跳ばない）
+  spreadArms(dt) {
+    const on = this.spreadCapDeg > 0;
+    if (on) this.spreadLastCap = this.spreadCapDeg;
+    this.spreadW = spreadWeight(this.spreadW, on, dt);
+    if (!on && this.spreadW < 1e-3) { this.spreadW = 0; return; }
+    const neck = this.bones.get('neck') || this.bones.get('Spine02'), hips = this.bones.get(HIPS);
+    if (!neck || !hips) return;
+    this.model.updateMatrixWorld(true);
+    neck.getWorldPosition(P0); hips.getWorldPosition(P1);
+    const dx = P1.x - P0.x, dy = P1.y - P0.y, dz = P1.z - P0.z;
+    for (let i = 0; i < 2; i++) {
+      const arm = this.bones.get(SPREAD_BONES[i][0]), hand = this.bones.get(SPREAD_BONES[i][1]);
+      if (!arm || !hand) continue;
+      arm.getWorldPosition(P0); hand.getWorldPosition(P1);
+      spreadFix(P1.x - P0.x, P1.y - P0.y, P1.z - P0.z, dx, dy, dz, this.spreadLastCap, this.spreadW, FIX);
+      if (!(FIX[3] > 0)) continue;
+      arm.parent.getWorldQuaternion(PQ); PQI.copy(PQ).invert();
+      RQ.setFromAxisAngle(AX.set(FIX[0], FIX[1], FIX[2]), FIX[3]);
+      arm.quaternion.premultiply(PQ).premultiply(RQ).premultiply(PQI);
+      arm.updateMatrixWorld(true);
     }
   }
 
