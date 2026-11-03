@@ -1,7 +1,7 @@
 // なぜ失敗したか: 相補ディザで透けた段の背後に穴が開いた。重なり・単調性・再割り当ての余白・材質境界の食い違いを分ける。
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { lodWeights, lodMembership, uLodFor, fadeWeight } from '../dist/valley/tree-lod.js';
+import { lodWeights, lodMembership, uLodFor, fadeWeight, nearShrink, segmentDistance } from '../dist/valley/tree-lod.js';
 import { TREES } from '../dist/valley/config.js';
 for (const quality of ['standard', 'light']) {
   const policy = { lod: TREES.lod[quality], blend: TREES.lod.blend[quality] };
@@ -56,4 +56,19 @@ test('uniforms reproduce hole-free CPU weights [uniform-weight]',()=>{
       assert(Math.abs(weight-lodWeights(d,policy)[l])<1e-12,'[uniform-weight] shader/CPU mismatch');
     }
   }
+});
+
+// なぜ失敗したか（8.1a第3周）: 画素ごとに薄めた近くの葉が網点の膜に見えた。房・殻・枝を根元へ縮める係数（tree-materials.js の頂点と同じ式）。
+test('near shrink folds the side facing the camera first and stays on the pivot [near-shrink]', () => {
+  const range = [.35, 1.7], pivot = [0, 0, 0];
+  assert.equal(segmentDistance([1, 1, 0], pivot, [2, 0, 0]), 1, '[near-shrink] distance to the segment');
+  assert.equal(segmentDistance([-1, 0, 0], pivot, [2, 0, 0]), 1, '[near-shrink] behind the pivot is measured from the pivot');
+  assert.equal(segmentDistance([3, 0, 0], pivot, [2, 0, 0]), 1, '[near-shrink] beyond the tip is measured from the tip');
+  assert.equal(nearShrink([5, 0, 0], pivot, [2, 0, 0], range).keep, 1, '[near-shrink] a far tuft shrank');
+  assert.equal(nearShrink([1, .1, 0], pivot, [2, 0, 0], range).keep, 0, '[near-shrink] a tuft through the camera kept its size');
+  const toward = nearShrink([2, 0, 0], pivot, [1, 0, 0], range).keep, away = nearShrink([2, 0, 0], pivot, [-1, 0, 0], range).keep;
+  assert(toward < away && away === 1, '[near-shrink] the side facing the camera does not fold first');
+  assert.deepEqual(nearShrink([1, 1, 1], [1, 1, 1], [3, 1, 1], range).position, [1, 1, 1], '[near-shrink] a folded tuft left its pivot');
+  const half = nearShrink([0, 1, 0], pivot, [2, 0, 0], range);
+  assert(half.keep > 0 && half.keep < 1 && Math.abs(half.position[0] - 2 * half.keep) < 1e-12, '[near-shrink] partial fold off the line to the pivot');
 });

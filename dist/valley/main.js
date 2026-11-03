@@ -99,7 +99,7 @@ async function boot() {
   const [models, propModels] = await Promise.all([loadModels({ anisotropy: aniso }), loadPropModels({ anisotropy: aniso })]);
   const field = createGrassField(WORLD, terrain); live.grassField = field;
   built.setMeadowCover(coverMap(field));
-  const veg = buildVegetation({ scatter, quality, field, sunDir: ATMOS.sunDir }); scene.add(veg.group); live.scatter = scatter; live.scene = scene;
+  const veg = buildVegetation({ scatter, quality, field, sunDir: ATMOS.sunDir, renderer }); scene.add(veg.group); live.scatter = scatter; live.scene = scene;
   scene.add(buildBuildings({ world: WORLD, terrain, models }).group);
   scene.add(buildRocks({ data: scatter.rocks, model: models.boulder_lo || models.boulder }));
   const props = buildProps({ world: WORLD, terrain, models: { ...models, ...propModels } }); scene.add(props.group);
@@ -146,7 +146,7 @@ function setQuality(v) {
   live.built?.setQuality(v);
   if (live.scatter && game.veg) {
     const old = game.veg; live.scene.remove(old.group);
-    const veg = buildVegetation({ scatter: live.scatter, quality: v, field: live.grassField, sunDir: ATMOS.sunDir }); live.scene.add(veg.group); game.veg = veg;
+    const veg = buildVegetation({ scatter: live.scatter, quality: v, field: live.grassField, sunDir: ATMOS.sunDir, renderer }); live.scene.add(veg.group); game.veg = veg;
     old.grass.dispose();
     old.trees.dispose();
     veg.grass.warm(camera);
