@@ -1,6 +1,6 @@
 # S7-A の記録：見晴らし岩と里の入口に「物の置き方」で場面を語らせる
 
-2026-11-01。設計の決めごとは [s7-a-design.md](s7-a-design.md)、正本の設計は `docs/valley-life-plan`（PR #35）。
+2026-11-01。第3周（11/3）の記録は [s7-a-round3.md](s7-a-round3.md)。設計の決めごとは [s7-a-design.md](s7-a-design.md)、正本の設計は `docs/valley-life-plan`（PR #35）。
 
 ## 結論
 
