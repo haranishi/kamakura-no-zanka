@@ -9,7 +9,8 @@ import { buildColliders, nearestFree, moveActor } from '../dist/valley/collision
 import { propColliders, rockColliders, ROCK_MODEL } from '../dist/valley/world-colliders.js';
 import { createAIWorld } from '../dist/valley/ai-world.js';
 import { STORY } from '../dist/valley/story-data.js';
-import { LOCOMOTION, MOVE_CLIPS, ACTION_CLIPS, GAITS, pickGait, segmentFor, locomotionTimeScale, CLIP_SEGMENTS } from '../dist/valley/anim-data.js';
+import { LOCOMOTION, MOVE_CLIPS, ACTION_CLIPS, GAITS, pickGait, segmentFor, locomotionTimeScale, CLIP_SEGMENTS, phaseMatchedTime, STANCE_SPEED } from '../dist/valley/anim-data.js';
+import { FOOT_CONTACTS } from '../dist/valley/anim-contacts.js';
 import { MOVES } from '../dist/valley/combat.js';
 
 const terrain = createTerrain(WORLD);
@@ -248,6 +249,18 @@ test('gait selection switches with hysteresis and the playback speed stays in ra
   assert.equal(pickGait('run', GAITS.runDown + 0.01), 'run');
   assert.equal(pickGait('run', GAITS.runDown - 0.01), 'jog');
   assert.equal(locomotionTimeScale(0.01, 1.2), 0.55); assert.equal(locomotionTimeScale(100, 1.2), 2); assert.equal(locomotionTimeScale(2, 0.1), 1);
+});
+
+// 足運び（2026-11-03・design-locomotion.md）：動作を替えるとき、左足が着く周期の割合を引き継ぐ。先頭から始めると左右の足が跳んだ
+test('switching locomotion clips carries the stride phase over (left contact to left contact)', () => {
+  const T = FOOT_CONTACTS;
+  assert(Math.abs(phaseMatchedTime(T, 'CMU_Jog', T.CMU_Jog.contacts[0].t, 'CMU_Run') - T.CMU_Run.contacts[0].t) < 1e-9);   // 左足の着地 → 左足の着地
+  const half = phaseMatchedTime(T, 'CMU_Jog', T.CMU_Jog.contacts[0].t + T.CMU_Jog.duration / 2, 'CMU_Run');
+  assert(Math.abs(half - (T.CMU_Run.contacts[0].t + T.CMU_Run.duration / 2)) < 1e-9);
+  const v = phaseMatchedTime(T, 'Casual_Walk', 1.3986 + 0.7, 'Samurai_Walk');   // 1周に左足が3回の動作は、左足の間隔を1歩の周期にする
+  assert(v >= 0 && v < T.Samurai_Walk.duration);
+  assert.equal(phaseMatchedTime(T, 'Long_Breathe_and_Look_Around', 1, 'CMU_Run'), null);
+  for (const [name, s] of Object.entries(STANCE_SPEED)) assert(s > 0.3 && Object.hasOwn(T, name), name);
 });
 
 test('the bow shot segment lands the release on the combat active phase', () => {
