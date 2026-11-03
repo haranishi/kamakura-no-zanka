@@ -1,0 +1,208 @@
+{
+ "results": {
+  "combo": {
+   "frames": 110,
+   "drawnFrames": 52,
+   "maxVertices": 58,
+   "maxTriangles": 56,
+   "maxActive": 1,
+   "stopFrames": 15,
+   "cuts": 0,
+   "sounds": [
+    "swing",
+    "hit",
+    "swing",
+    "hit",
+    "swing_heavy",
+    "hit_heavy"
+   ]
+  },
+  "hitStops": [
+   [
+    "light1",
+    0.07
+   ],
+   [
+    "light2",
+    0.07
+   ],
+   [
+    "light3",
+    0.07
+   ]
+  ],
+  "heavy": {
+   "frames": 80,
+   "drawnFrames": 22,
+   "maxVertices": 58,
+   "maxTriangles": 56,
+   "maxActive": 1,
+   "stopFrames": 7,
+   "cuts": 0
+  },
+  "soldier_slash": {
+   "frames": 110,
+   "drawnFrames": 19,
+   "maxVertices": 42,
+   "maxTriangles": 40,
+   "maxActive": 1,
+   "stopFrames": 5,
+   "cuts": 0
+  },
+  "soldier_thrust": {
+   "frames": 110,
+   "drawnFrames": 18,
+   "maxVertices": 42,
+   "maxTriangles": 40,
+   "maxActive": 1,
+   "stopFrames": 5,
+   "cuts": 0
+  },
+  "officer_b": {
+   "frames": 110,
+   "drawnFrames": 19,
+   "maxVertices": 42,
+   "maxTriangles": 40,
+   "maxActive": 1,
+   "stopFrames": 5,
+   "cuts": 0
+  },
+  "death-mid-swing": {
+   "frames": 60,
+   "drawnFrames": 11,
+   "maxVertices": 34,
+   "maxTriangles": 32,
+   "maxActive": 1,
+   "stopFrames": 5,
+   "cuts": 0
+  },
+  "attack-from-sheathed": {
+   "frames": 50,
+   "drawnFrames": 13,
+   "maxVertices": 50,
+   "maxTriangles": 48,
+   "maxActive": 1,
+   "stopFrames": 0,
+   "cuts": 0,
+   "layerFrames": 7
+  },
+  "shake0-reduced": {
+   "frames": 60,
+   "drawnFrames": 17,
+   "maxVertices": 50,
+   "maxTriangles": 48,
+   "maxActive": 1,
+   "stopFrames": 3,
+   "cuts": 0
+  },
+  "calls": {
+   "vertices": 42,
+   "calls": [
+    652,
+    651
+   ]
+  },
+  "parry": {
+   "emitted": 23,
+   "swing": [
+    -21.86,
+    -0.81,
+    5.53
+   ],
+   "meanVelocity": [
+    -5.88,
+    2.81,
+    1.36
+   ],
+   "horizontalCos": 1,
+   "meanHorizontalSpeed": 6.03
+  },
+  "parryClash": {
+   "gap": 0.00000437012980100734
+  },
+  "hitSparks": [
+   {
+    "move": "light1",
+    "alongShare": 0.8,
+    "tipAboveGround": 1.14
+   },
+   {
+    "move": "light2",
+    "alongShare": 0.9,
+    "tipAboveGround": 0.95
+   },
+   {
+    "move": "light3",
+    "alongShare": 0.94,
+    "tipAboveGround": 1.44
+   },
+   {
+    "move": "light1",
+    "alongShare": 0.8,
+    "tipAboveGround": 1.14
+   },
+   {
+    "move": "light2",
+    "alongShare": 0.9,
+    "tipAboveGround": 0.95
+   },
+   {
+    "move": "light3",
+    "alongShare": 1,
+    "tipAboveGround": 1.44
+   },
+   {
+    "move": "heavy",
+    "alongShare": 0.83,
+    "tipAboveGround": 0.87
+   },
+   {
+    "move": "light1",
+    "alongShare": 0.8,
+    "tipAboveGround": 1.14
+   },
+   {
+    "move": "light1",
+    "alongShare": 0.8,
+    "tipAboveGround": 1.14
+   }
+  ],
+  "bladeDim": {
+   "glintFrames": 13,
+   "glintColors": [
+    "ffffff"
+   ],
+   "recoverFrames": 40,
+   "recoverColors": [
+    "9a9a9a"
+   ]
+  },
+  "kick": {
+   "hitAt": 11,
+   "state": "idle",
+   "awayM": 0.087
+  },
+  "many": {
+   "swingers": 5,
+   "worst": 4,
+   "maxOpen": 3,
+   "stolen": 0
+  },
+  "reset": {
+   "beforeReset": 42,
+   "afterReset": {
+    "vertices": 0,
+    "active": 0,
+    "visible": false
+   }
+  },
+  "buffers": {
+   "sameArrays": true,
+   "geometries": [
+    293,
+    251
+   ]
+  }
+ },
+ "fails": []
+}
