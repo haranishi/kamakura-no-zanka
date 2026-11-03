@@ -210,7 +210,7 @@ export class HeroActor extends Actor {
     // 抜刀・納刀の進み具合（8.2）。納刀から始まる
     this.swordLayer = createSwordLayer(); this.character.sword?.reset();
     this.trailCue = null;                // 闇討ちの刃の軌跡の時間割（8.3a）
-    this.steepT = 0; this.deadT = 0; this.lockTarget = null; this.lockT = 0; this.speed = 0; this.locoA = 0; this.locoV = 0; this.travel = 0; this.blockPosed = false; this.dead = false;
+    this.steepT = 0; this.deadT = 0; this.lockTarget = null; this.lockT = 0; this.speed = 0; this.locoA = 0; this.locoV = 0; this.locoSt = { v: 0, a: 0 }; this.travel = 0; this.blockPosed = false; this.dead = false;
     this.scripted = false;               // 演出中は動作を外から決める（冒頭の目覚めなど）
     this.recoverT = 0;
   }
@@ -495,7 +495,8 @@ export class HeroActor extends Actor {
       target = want * turnTargetScale(angleDiff(this.yaw, ctl.moveYaw));
       this.yaw = turnToward(this.yaw, ctl.moveYaw, turnRate(this.speed, LOCO, f.blocking), dt);
     } else if (this.lockTarget && this.lockTarget.fighter.alive && this.speed < 0.3) this.yaw = turnToward(this.yaw, yawOf(this.lockTarget.pos.x - this.pos.x, this.lockTarget.pos.z - this.pos.z), 8, dt);
-    const st = { v: this.speed, a: this.locoA }, dist = speedStep(st, target, dt);
+    const st = this.locoSt; st.v = this.speed; st.a = this.locoA;   // 毎コマ新しい物を作らない（使い回す）
+    const dist = speedStep(st, target, dt);
     this.speed = st.v; this.locoA = st.a; this.locoV = st.v;
     let travel = 0;
     if (dist > 1e-6) {
