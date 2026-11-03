@@ -7,6 +7,8 @@ import { LOCO, gaitsFor } from './loco.js';
 const GAIT_RANK = { idle: 0, walk: 1, jog: 2, run: 3 }, STOP_BLEND_BELOW = 1.0;
 import { GAITS, LOCOMOTION, MOVE_CLIPS, ACTION_CLIPS, pickGait, locomotionTimeScale, moveSegment, clipTimeAt, phaseMatchedTime, STANCE_SPEED } from './anim-data.js';
 import { createContactTracker, observeContacts } from './foot-contacts.js';
+import { GAIT_TABLE } from './gait-table.js';
+import { passStartTime } from './gait-phase.js';
 import { FOOT_CONTACTS } from './anim-contacts.js';
 import { BowRig } from './bow.js';
 import { SwordRig } from './sword-rig.js';
@@ -89,7 +91,7 @@ export class Character {
     this.mixer = new THREE.AnimationMixer(this.model);
     this.actions = new Map();
     this.current = null; this.currentName = null;
-    this.gait = 'idle'; this.style = style; this.locoName = null;
+    this.gait = 'idle'; this.style = style; this.locoName = null; this.locoOut = null; this.locoOutRef = 0;
     this.segment = null; this.onSegmentEnd = null; this.warp = null;
     this.time = 0; this.rate = 1;
     this.bones = new Map();
@@ -177,9 +179,12 @@ export class Character {
   // floor：再生の倍率の下限。主人公の新しい加減速では0（走り出し・止まりの間も、着いた足の速さ＝進む速さにする。定速の倍率は0.55を下回らない）
   // aim：加速の間に歩容を選ぶ速さ（目標の速さ）。走り出しで歩き→小走り→走りの混ぜが0.1秒に2回重なり、着いた足が10cm流れたので、
   // 動き出したら目標の歩容へ直接入る（倍率の下限0で、遅いうちはゆっくり回す）
+  // M2a（gait-phase.js）の2つ。主人公の新しい経路（floor＝0）だけ。?smooth=phase で M1 の経路へ戻る：
+  //   ① 歩容を替える混ぜの間も、出ていく動作を実際の速さで回す（前は替えた瞬間の倍率のまま回り、小走り→走りで着いた足が流れた。止まりでは0で止めていた）
+  //   ② 待ちから歩き出すとき、すれ違いの位相（両足が体の下で揃う所）から始める（前は動作の先頭＝片足を前へ伸ばした姿から）
   locomote(speed, style = this.style, hold = false, floor = undefined, aim = undefined) {
     this.style = style;
-    const table = LOCOMOTION[style] || LOCOMOTION.relaxed, G = gaitsFor(LOCO, GAITS);
+    const table = LOCOMOTION[style] || LOCOMOTION.relaxed, G = gaitsFor(LOCO, GAITS), phaseOn = floor === 0 && LOCO.smoothPhase;
     const pickAt = aim != null && speed >= G.walkUp ? Math.max(speed, aim) : speed;
     let next = pickGait(this.gait, pickAt, G);   // 歩容の境は速さの表と一緒に替える（loco.js）
     if (aim != null && this.gait === 'idle' && next !== 'idle') next = pickGait(next, pickAt, G);
@@ -191,13 +196,18 @@ export class Character {
     const frozen = this.gait === 'idle' && table.idleFreeze;
     const ref = STANCE_SPEED[name] ?? meta?.avgSpeed;   // 着いている足の速さに合わせる（anim-data.js の STANCE_SPEED）
     const ts = this.gait === 'idle' ? (frozen ? 0 : 1) : (style === 'injured' ? Math.max(1, Math.min(1.5, locomotionTimeScale(speed, ref))) : locomotionTimeScale(speed, ref, floor));   // 負傷でも急ぐときは足を速める
+    const out = this.locoOut;
+    if (out && (!phaseOn || out === this.current || !(out.getEffectiveWeight() > 0))) this.locoOut = null;
+    else if (out) out.timeScale = locomotionTimeScale(speed, this.locoOutRef, 0);   // ①
     if (this.locoName !== name) {
       const prev = this.locoName && this.current && this.currentName === this.locoName ? this.current : null;
       // 引き継ぐのは同じ構え（style）の中の歩き↔小走り↔走りだけ。構えの替わり目（待ち構え↔ふだん）は抜刀・納刀と重なり、
       // 引き継ぐと納刀の右腕のIKが届かない姿の位相に入った（regress-draw-sheathe の sheatheWalking で80mm。先頭からなら12mm）
-      const from = prev && this.locoStyle === style ? phaseMatchedTime(FOOT_CONTACTS, this.locoName, prev.time, name) : null;
-      // 止まる：出ていく足の動作をその姿で止めてから待ちへ混ぜる（体は止まったのに、着いている足だけ後ろへ流れて見えた）
-      if (prev && this.gait === 'idle') prev.timeScale = 0;
+      let from = prev && this.locoStyle === style ? phaseMatchedTime(FOOT_CONTACTS, this.locoName, prev.time, name) : null;
+      if (from == null && phaseOn && this.gait !== 'idle' && style !== 'crouch') from = passStartTime(GAIT_TABLE[name]?.[this.who]);   // ②
+      // 止まる：出ていく足の動作をその姿で止めてから待ちへ混ぜる（体は止まったのに、着いている足だけ後ろへ流れて見えた）。M2a では止めずに①で回す
+      if (prev && this.gait === 'idle' && !phaseOn) prev.timeScale = 0;
+      if (phaseOn && prev) { this.locoOut = prev; this.locoOutRef = STANCE_SPEED[this.locoName] ?? this.meta(this.locoName)?.avgSpeed; }
       this.play(name, from == null ? { fade: 0.2, timeScale: ts } : { fade: 0.2, timeScale: ts, from });
       this.locoName = name; this.locoStyle = style;
       if (frozen && this.current) this.current.time = 0.3;
