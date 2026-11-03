@@ -1,0 +1,233 @@
+{
+ "name": "S7-A 暮らしの小物（life-kit）",
+ "date": "2026-11-01",
+ "author": "Ikki Nishihara（手順はリポジトリの作業として作成）",
+ "license": "コードは MIT。形と絵はコードの実行結果で、素材の扱いは LICENSE-ASSETS.md と同じ CC BY 4.0",
+ "method": "形（three.js の Lathe・Tube・Box などの組み合わせ）と絵（canvas に種を固定した乱数で描く16区画の1枚絵・地面の跡の8区画の絵・燠の絵）を、dist/valley/life-kit.js の手順だけで読み込み時に作る。外部の画像・模型・フォントは使わない。",
+ "why_not_blender": "依頼は Drive v02 の小道具（橋・柵・薪）と同じく Blender の手順書きで作ることだったが、2026-11-01 の作業中、この機の Blender（外付けSSD上）が読み出しエラーで起動できなかった。同じ考え（形も絵も手順で作り、出所が手元で閉じる）を three.js の手順に置き換えた。",
+ "reused_assets": [
+  {
+   "file": "dist/assets/valley/models/boulder_lo.glb",
+   "use": "見1 立つ場所の平らな岩・入8 小石と苔の石（大きさと色を変えて置く）",
+   "provenance": "既存（buildings.js が読み込む散らす岩）"
+  },
+  {
+   "file": "dist/assets/valley/models/fence.glb",
+   "use": "入4 倒れた柵・傾いた柵（家1の柵の2区画を移した）",
+   "provenance": "既存（Drive v02 の rustic_fence_section）"
+  }
+ ],
+ "changed": [
+  {
+   "file": "dist/valley/props.js",
+   "what": "幟を流れ旗へ（横木から細長い布を垂らす。布の絵は手続き。紋は架空）",
+   "basis": "research-valley-life-period.md §1 幟（布の側を竿に通す幟は江戸時代の用法として出る）"
+  }
+ ],
+ "period_reference": "research-valley-life-period.md（docs/valley-life-plan・PR #35）。〇・△・未確認の判定と典拠はその表に従う",
+ "kinds": [
+  {
+   "kind": "bale / bale_torn",
+   "what": "俵（入1）",
+   "code": "bale()",
+   "period": "〇",
+   "note": "12世紀の『信貴山縁起絵巻』に米俵。中世は枡が揃っていないので大きさは揃えすぎない",
+   "source": "奈良国立博物館 特別展「国宝 信貴山縁起絵巻」の紹介（research-valley-life-period.md §1 俵）"
+  },
+  {
+   "kind": "rice",
+   "what": "こぼれた米（入1）",
+   "code": "rice()・地面の跡 'rice'",
+   "period": "〇",
+   "note": "俵からこぼれた米。形は手続き",
+   "source": "同上"
+  },
+  {
+   "kind": "mat",
+   "what": "筵（入2）",
+   "code": "mat()",
+   "period": "〇",
+   "note": "草戸千軒の市に莚を売る店",
+   "source": "広島県立歴史博物館「草戸千軒の町並み」（§1 筵）"
+  },
+  {
+   "kind": "pot",
+   "what": "鉄の鍋（入2）",
+   "code": "pot()",
+   "period": "〇（鉄鍋）",
+   "note": "1333年の東日本の煮炊きは鉄鍋。内耳鍋（内側に吊り耳のある土鍋）は使わない。外の耳と鉉は形の推測。第3周で径0.63mの大鍋にし、内を煤けた暗さに、口の縁を擦れた鉄の輪にした",
+   "source": "村木二郎「中世の調理器具と食器」・坂井1991（§1 鍋・§3）"
+  },
+  {
+   "kind": "ladle",
+   "what": "柄杓（入2）",
+   "code": "ladle()",
+   "period": "未確認",
+   "note": "柄杓そのものは未確認。裏取りの案どおり曲物に柄を付けた形にし、鍋の中に小さく置く（目立たない形）",
+   "source": "§1 曲物の注意書き"
+  },
+  {
+   "kind": "bucket",
+   "what": "曲物の桶（入4）",
+   "code": "bucket()",
+   "period": "△→代替",
+   "note": "結桶は広がる途中なので、薄板を曲げた曲物の桶にした。帯は樺綴じの見立て",
+   "source": "乗松2004（§1 桶・曲物）"
+  },
+  {
+   "kind": "basket",
+   "what": "籠（入4）",
+   "code": "basket()",
+   "period": "〇",
+   "note": "植物を編んだ籠。材は竹とは限らない",
+   "source": "科研 21240071（§1 籠）"
+  },
+  {
+   "kind": "veg",
+   "what": "菜（大根。入4）",
+   "code": "veg()",
+   "period": "推測",
+   "note": "畑から蹴散らされた菜。品種の時代は確かめていない（大根は古くからある物として扱う）",
+   "source": "未確認"
+  },
+  {
+   "kind": "brush",
+   "what": "柴の束（入5）",
+   "code": "brush()",
+   "period": "〇（柴）／背負子は未確認",
+   "note": "背負子の枠は出さず、縄でくくった柴の束だけを置く（裏取りの案）",
+   "source": "総合地球環境学研究所 環境史研究会資料（§1 柴）"
+  },
+  {
+   "kind": "sandal",
+   "what": "足半（入5）",
+   "code": "sandal()",
+   "period": "未確認",
+   "note": "草鞋の代わりに、かかとの無い短い藁草履（足半）を片方だけ小さく置く（裏取りの案。根拠は弱い）",
+   "source": "サライ.jp「足半」（§2 草鞋）"
+  },
+  {
+   "kind": "door",
+   "what": "戸板（入1）",
+   "code": "door()",
+   "period": "調べていない",
+   "note": "外した板戸を蔵の壁に立てかける",
+   "source": "§4（調べなかった物）"
+  },
+  {
+   "kind": "stake / post",
+   "what": "杭（見3・入3）",
+   "code": "stake()",
+   "period": "〇",
+   "note": "杭や矢板を並べ打った跡は古い水田遺構にある。祠の前の2本は注連縄を張る杭",
+   "source": "京都府埋蔵文化財調査研究センター（§1 杭）"
+  },
+  {
+   "kind": "rope_tied / rope_cut",
+   "what": "祠の注連縄（入3）",
+   "code": "ropeTied()・ropeCut()",
+   "period": "△→代替",
+   "note": "村境の道切りは1333年の信濃の例が無いので、入口の祠の前に注連縄を張る（切れて垂れる→張り直す）。房は藁。紙垂は付けない。第3周（2026-11-03）で杭の間2.1m・高さ1.35m・太さ1.7倍に大きくした（盲検で小さくて読まれなかった）",
+   "source": "注連縄（『古事記』の尻久米縄）・§1 縄"
+  },
+  {
+   "kind": "itabi",
+   "what": "板碑（見6）",
+   "code": "itabi()",
+   "period": "〇",
+   "note": "飯田市の1294年の板碑（緑泥片岩・高さ約1m・厚さ約3cm）に倣う細長い板石。刻みは架空の印で、実在の種子や文字は写さない",
+   "source": "文化遺産オンライン「千代（米川）の板碑」（§1 板碑）"
+  },
+  {
+   "kind": "hearth / embers",
+   "what": "炉の石の輪・灰・燠（入2）",
+   "code": "hearth()・embers()",
+   "period": "調べていない",
+   "note": "火は使わない（本人の決定）。燠は光る材質だけで、本物の明かりも炎の粒も足さない",
+   "source": "design-valley-life.md 冒頭の決定"
+  },
+  {
+   "kind": "susuki",
+   "what": "ススキ（見3 南の道）",
+   "code": "susuki()",
+   "period": "自然物",
+   "note": "畦は土のまま（石積みは裏取りが無い）。道の目印にススキの列を置く",
+   "source": "§1 田の作り"
+  },
+  {
+   "kind": "tuft",
+   "what": "道の縁の草むら（入8）",
+   "code": "tuft()",
+   "period": "自然物",
+   "note": "背の低い草むら",
+   "source": "—"
+  },
+  {
+   "kind": "crow",
+   "what": "烏の群れ（見5）",
+   "code": "crow()",
+   "period": "自然物",
+   "note": "翼を広げた板と、はばたきの頂点の動き",
+   "source": "—"
+  },
+  {
+   "kind": "bow / quiver",
+   "what": "弥十郎の弓と矢筒（入6）",
+   "code": "fromGroup(makeYumi())・fromGroup(makeQuiver())",
+   "period": "既存の形",
+   "note": "weapons.js の形をそのまま1つの形にまとめた。矢筒の形（箙）は S7 の範囲外として未確認のまま",
+   "source": "§2 矢筒"
+  },
+  {
+   "kind": "flag",
+   "what": "正面の道の口の流れ旗（見3・第3周 2026-11-03）",
+   "code": "flag()",
+   "period": "△→代替",
+   "note": "幟ではなく、横木から布を垂らす流れ旗（props.js の3本と同じ判断）。紋は付けない。襲撃中だけ出す",
+   "source": "research-valley-life-period.md §1 幟"
+  },
+  {
+   "kind": "hedge",
+   "what": "脇道（北・南）の縁の柴垣（見3・第3周 2026-11-03）",
+   "code": "hedge()",
+   "period": "〇（柴垣）",
+   "note": "雑木の枝を立て並べ、横木2本で押さえた低い垣。竹垣・生垣は時期を確かめていないので使わない",
+   "source": "JAANUS「shibagaki」（§1 柵（柴垣など））"
+  }
+ ],
+ "unverified_to_check_after_s7a": [
+  "柄杓",
+  "足半（草鞋の代わり）",
+  "背負子（出していない）",
+  "戸板",
+  "菜の品種",
+  "矢筒の形（箙）"
+ ],
+ "not_used": [
+  "千歯扱き",
+  "石の挽き臼",
+  "内耳鍋",
+  "備中鍬",
+  "木綿の布",
+  "紙垂",
+  "賽の河原を思わせる小石の石積み"
+ ],
+ "removed_after_blind_review": [
+  {
+   "what": "椀2つ（入2）",
+   "why": "盲検の第2周で、遠目に茶色の玉に見えた"
+  },
+  {
+   "what": "戸を外した蔵の戸口の暗い面（入1）",
+   "why": "盲検の第2周で、貼り忘れた板に見えた（最も目立つ破綻）。外した戸板だけを残す"
+  },
+  {
+   "what": "北の道の細い踏み跡（見3・地面の跡）",
+   "why": "盲検の第1周で、見晴らしから意味の読めない黒い一本線に見えた"
+  },
+  {
+   "what": "大きさ0.1未満の小石（入8）",
+   "why": "盲検の第1周で、遠目に穴や汚れに見えた。残りの小石も25mより遠くでは描かない"
+  }
+ ]
+}

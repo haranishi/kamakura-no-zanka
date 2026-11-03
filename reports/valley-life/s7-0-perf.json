@@ -1,0 +1,186 @@
+{
+ "conditions": {
+  "date": "2026-11-01",
+  "machine": "M4 Pro・Chrome 156（ヘッドレス・Metal）・電源接続",
+  "size": "1280x720 DPR1",
+  "seed": 1333,
+  "contract": "600コマ暖機→1800コマ。標準/軽量×移動/戦闘×2回（tools/scenarios/measure-perf.mjs）。前後を1試行ずつ交互に回した（同じ時間帯の負荷の揺れを両方に乗せる）。",
+  "load": "nice -n 19 で実行。本人のプレイ用のサーバー（8080番）が動いたまま測った。値は前後の比較用で、単独の合格判定の実績ではない。",
+  "before": "origin/main 614ed6d",
+  "after": "feat/valley-life-0"
+ },
+ "before": {
+  "pass": true,
+  "reasons": [],
+  "runs": [
+   {
+    "run": "standard-move-1",
+    "p50": 13.8,
+    "p95": 16.1,
+    "p99": 86.7,
+    "max": 687.6,
+    "maxCalls": 757,
+    "maxTris": 4456285
+   },
+   {
+    "run": "standard-move-2",
+    "p50": 12.4,
+    "p95": 16.1,
+    "p99": 17.3,
+    "max": 103.4,
+    "maxCalls": 753,
+    "maxTris": 4130657
+   },
+   {
+    "run": "standard-combat-1",
+    "p50": 13.5,
+    "p95": 15,
+    "p99": 15.7,
+    "max": 81.6,
+    "maxCalls": 682,
+    "maxTris": 4188713
+   },
+   {
+    "run": "standard-combat-2",
+    "p50": 13.7,
+    "p95": 15,
+    "p99": 15.6,
+    "max": 80.9,
+    "maxCalls": 693,
+    "maxTris": 4201990
+   },
+   {
+    "run": "light-move-1",
+    "p50": 10.8,
+    "p95": 12.4,
+    "p99": 80.5,
+    "max": 691.3,
+    "maxCalls": 735,
+    "maxTris": 3665305
+   },
+   {
+    "run": "light-move-2",
+    "p50": 9.8,
+    "p95": 12.4,
+    "p99": 14.3,
+    "max": 100.2,
+    "maxCalls": 735,
+    "maxTris": 3405670
+   },
+   {
+    "run": "light-combat-1",
+    "p50": 10.4,
+    "p95": 11.7,
+    "p99": 14.1,
+    "max": 83.1,
+    "maxCalls": 654,
+    "maxTris": 3372000
+   },
+   {
+    "run": "light-combat-2",
+    "p50": 10.7,
+    "p95": 12.2,
+    "p99": 14.1,
+    "max": 79.5,
+    "maxCalls": 660,
+    "maxTris": 3400725
+   }
+  ]
+ },
+ "after": {
+  "pass": true,
+  "reasons": [],
+  "runs": [
+   {
+    "run": "standard-move-1",
+    "p50": 13.2,
+    "p95": 15.2,
+    "p99": 88.9,
+    "max": 696.8,
+    "maxCalls": 458,
+    "maxTris": 4456285
+   },
+   {
+    "run": "standard-move-2",
+    "p50": 12.1,
+    "p95": 14.9,
+    "p99": 16.6,
+    "max": 103.1,
+    "maxCalls": 461,
+    "maxTris": 4130657
+   },
+   {
+    "run": "standard-combat-1",
+    "p50": 13.1,
+    "p95": 14.3,
+    "p99": 14.9,
+    "max": 83.1,
+    "maxCalls": 428,
+    "maxTris": 4188713
+   },
+   {
+    "run": "standard-combat-2",
+    "p50": 13.2,
+    "p95": 14.2,
+    "p99": 14.7,
+    "max": 79.7,
+    "maxCalls": 422,
+    "maxTris": 4201990
+   },
+   {
+    "run": "light-move-1",
+    "p50": 10,
+    "p95": 12.4,
+    "p99": 83.3,
+    "max": 680.4,
+    "maxCalls": 434,
+    "maxTris": 3665305
+   },
+   {
+    "run": "light-move-2",
+    "p50": 9.6,
+    "p95": 11.7,
+    "p99": 14.4,
+    "max": 105.5,
+    "maxCalls": 437,
+    "maxTris": 3405670
+   },
+   {
+    "run": "light-combat-1",
+    "p50": 9.9,
+    "p95": 10.8,
+    "p99": 12.3,
+    "max": 84.8,
+    "maxCalls": 397,
+    "maxTris": 3372000
+   },
+   {
+    "run": "light-combat-2",
+    "p50": 9.9,
+    "p95": 10.9,
+    "p99": 12.7,
+    "max": 77.3,
+    "maxCalls": 389,
+    "maxTris": 3400725
+   }
+  ]
+ },
+ "env": [
+  "before standard/move/1 2026-10-31T16:46:44.662Z load=2.53 2.93 3.26 other=0",
+  "after standard/move/1 2026-10-31T16:47:27.374Z load=2.73 2.94 3.25 other=0",
+  "before standard/move/2 2026-10-31T16:48:08.064Z load=2.22 2.76 3.16 other=0",
+  "after standard/move/2 2026-10-31T16:48:45.502Z load=2.04 2.66 3.11 other=0",
+  "before standard/combat/1 2026-10-31T16:49:22.039Z load=2.15 2.62 3.07 other=0",
+  "after standard/combat/1 2026-10-31T16:50:01.506Z load=2.19 2.59 3.04 other=0",
+  "before standard/combat/2 2026-10-31T16:50:40.030Z load=2.52 2.64 3.04 other=0",
+  "after standard/combat/2 2026-10-31T16:51:19.555Z load=1.71 2.42 2.94 other=0",
+  "before light/move/1 2026-10-31T16:51:58.056Z load=1.85 2.36 2.89 other=0",
+  "after light/move/1 2026-10-31T16:52:33.671Z load=2.00 2.34 2.86 other=0",
+  "before light/move/2 2026-10-31T16:53:07.371Z load=2.14 2.34 2.84 other=0",
+  "after light/move/2 2026-10-31T16:53:38.322Z load=2.50 2.41 2.84 other=0",
+  "before light/combat/1 2026-10-31T16:54:08.522Z load=2.45 2.40 2.83 other=0",
+  "after light/combat/1 2026-10-31T16:54:40.431Z load=3.51 2.66 2.91 other=0",
+  "before light/combat/2 2026-10-31T16:55:11.139Z load=3.08 2.64 2.89 other=0",
+  "after light/combat/2 2026-10-31T16:55:43.583Z load=3.56 2.80 2.93 other=0"
+ ]
+}

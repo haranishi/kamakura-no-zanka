@@ -122,7 +122,10 @@ test('caps, stream separation, budget and purity [budget purity]', () => {
   assert(TREES.conversion.probability > .9 && TREES.conversion.probability < 1, '[ratio] conversion must preserve a small individual remainder');
   const seeds=Object.values(TREES.seeds), old=[101,211,307,401,503,7*101,13*211,17*307,19*401,23*503,GRASS.seed,GRASS.midSeed,GRASS.clumpSeed];
   assert(seeds.every(Number.isInteger)&&new Set(seeds).size===seeds.length&&seeds.every(s=>!old.includes(s)),'[purity] overlapping random streams');
-  assert.deepEqual(TREES.budget,{cedar:[1500,260,40],zelkova:[2600,560,160],pine:[600,140,96],maple:[2600,560,160],sapling:[1400,200],shrub:[1200,180]},'[budget] triangle ceilings');
+  // 8.1a (R17.11): the near cedar ceiling rose from 1,500 to 2,200 for limbs and tufts; middle and far ceilings are unchanged.
+  // 8.1a second round: the far level is a baked board (2 triangles) when a renderer exists; its savings fund the near cedar
+  // (root flare, 2200->2300) and the middle cedar built from the near limbs (260->600). The far meshes keep 40 as the fallback.
+  assert.deepEqual(TREES.budget,{cedar:[2300,600,40],zelkova:[2600,560,160],pine:[600,140,96],maple:[2600,560,160],sapling:[1400,200],shrub:[1200,180]},'[budget] triangle ceilings');
   const src=fs.readFileSync(new URL('../dist/valley/tree-species.js',import.meta.url),'utf8');
   assert(!/Math\.random|Date\.|performance\.|document\.|window\.|from ['"]three/.test(src),'[purity] impure layer');
 });
@@ -139,12 +142,13 @@ test('only stage changes, with twenty-byte seasonal jitter [stage-jitter/placeme
   const hash=v=>createHash('sha256').update(JSON.stringify(v)).digest('hex');
   assert.equal(hash(Array.from(assigned.species)),'3317a697e1001c87048c40147123273116bc73077810a79920ea58d8c2554b8f','[species-placement] adult species changed');
   // Terrace, crown-to-tread and dress exclusions removed 30 saplings and 95 shrubs; survivors keep every value.
+  // S7-A round 3 (2026-11-03): the brushwood hedges by the south road removed 2 more shrubs (-14.93,30.38 and -16.37,33.29); nothing else moved.
   // 座標は 1e-6 に丸めて照合する。Node 22 と 24 は Math の関数の最後の桁が違い、生の値のハッシュは版で割れた
   // （CIのNode 22だけが落ちた）。個数・種・乱数の系列は丸めても同じで、割れるのは桁だけ。
   const rounded=v=>createHash('sha256').update(JSON.stringify(v,(_,x)=>typeof x==='number'?Math.round(x*1e6)/1e6:x)).digest('hex');
-  assert.equal(rounded(Object.fromEntries(Object.entries(under).filter(([k])=>k!=='stage'))),'f1f5dbf87af01ac14b103061faa29da45bd802c2c6171bd7f263163d8f474a42','[understory-placement] coordinates/count/species or random stream changed');
+  assert.equal(rounded(Object.fromEntries(Object.entries(under).filter(([k])=>k!=='stage'))),'c5e2f28bc65f31b731fa12c6d8d4cc968b4d1ab9aed6760282f31170c4512545','[understory-placement] coordinates/count/species or random stream changed');
   // Adult jitter now takes the second position draw (conversion keeps the first).
-  assert.equal(hash([Array.from(assigned.stage),under.stage]),'4403081aba853a5f604b131b0af42bcbea3f44848f5b756d8fc94217257ee05a','[stage-jitter] seasonal jitter must remain +/-20/255');
+  assert.equal(hash([Array.from(assigned.stage),under.stage]),'0bdd96a986b3c45cc4a2b06cc46c5729a77d4c5c3c14cd97e9374f968bf3e9d5','[stage-jitter] seasonal jitter must remain +/-20/255');
   const residual=trees.x.map((x,i)=>{
     const f=treeFieldsAt(WORLD,x,trees.z[i]),season=Math.max(0,Math.min(1,.5+1.6*(f.stage-.5)));
     return assigned.stage[i]-(assigned.species[i]===3?.45+.55*season:season)*255;

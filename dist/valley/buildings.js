@@ -3,6 +3,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { patchGrade, gradeModel, makeStrawTexture } from './grade.js';
+import { placementMatrix, batchParts } from './batch.js';
 
 const DIR = new URL('../assets/valley/models/', import.meta.url).href;
 const FILES = ['farmhouse', 'temple', 'bridge', 'fence', 'boulder', 'firewood'];
@@ -67,12 +68,25 @@ export function buildBuildings({ world, terrain, models }) {
     group.add(obj); placed.push(obj);
     return obj;
   };
-  const tints = [null, '#e8e0d0', '#d8d2c4'];
+  const tints = [null, '#e8e0d0', '#d8d2c4'], farms = [];
   for (const b of world.buildings) {
     if (b.kind === 'temple') place('temple', b, { scale: 1.45 });
-    else if (b.kind === 'farmhouse') place('farmhouse', b, { scale: 0.98 + (b.variant || 0) * 0.04, tint: tints[(b.variant || 0) % 3] });
+    else if (b.kind === 'farmhouse') farms.push(b);
     else if (b.kind === 'granary') { if (models.dozo) place('dozo', b, { scale: 6.4, lift: -0.15 }); else place('farmhouse', b, { scale: 0.82, tint: '#bfae92' }); }
     else if (b.kind === 'naya') { if (models.naya) place('naya', b, { scale: b.width || 6.4, lift: -0.15, tint: '#e8d2a8' }); /* 板壁の青みを、暖かい色の掛け合わせで打ち消す */ else place('farmhouse', b, { scale: 0.7, tint: '#bfae92' }); }
+  }
+  // 農家はまとめ描き（部品12×5軒を、部品ごとに1回）。色違いは1軒ずつの色にし、材質を複製して色を掛けていた頃と同じく補正の前に掛ける。
+  // placed には、名前と置き場所だけを持つ印（描かない）を入れる。
+  if (farms.length && models.farmhouse) {
+    const placements = [], colors = [], tinted = new Map();
+    for (const b of farms) {
+      const v = b.variant || 0, scale = 0.98 + v * 0.04, y = groundHeight(terrain, b.x, b.z, b);
+      placements.push(placementMatrix(b.x, y, b.z, b.rotY || 0, scale)); colors.push(new THREE.Color(tints[v % 3] || '#ffffff'));
+      const marker = new THREE.Object3D(); marker.name = b.id; marker.position.set(b.x, y, b.z); marker.rotation.y = b.rotY || 0; marker.scale.setScalar(scale);
+      group.add(marker); placed.push(marker);
+    }
+    const material = m => { if (!tinted.has(m)) tinted.set(m, patchGrade(m.clone(), { whiteMax: 0.46, tintFirst: true })); return tinted.get(m); };
+    group.add(batchParts(models.farmhouse, placements, { name: 'farmhouses', colors, material }));
   }
   for (const d of world.distant) {
     if (d.kind === 'bridge') {

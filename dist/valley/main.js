@@ -13,6 +13,7 @@ import { buildRidges } from './ridges.js';
 import { buildVegetation } from './vegetation.js';
 import { loadModels, buildBuildings, buildRocks } from './buildings.js';
 import { loadPropModels, buildProps } from './props.js';
+import { buildLifeView } from './life-view.js';
 import { buildWater } from './water.js';
 import { loadRoster } from './characters.js';
 import { HUD } from './hud.js';
@@ -99,10 +100,11 @@ async function boot() {
   const [models, propModels] = await Promise.all([loadModels({ anisotropy: aniso }), loadPropModels({ anisotropy: aniso })]);
   const field = createGrassField(WORLD, terrain); live.grassField = field;
   built.setMeadowCover(coverMap(field));
-  const veg = buildVegetation({ scatter, quality, field, sunDir: ATMOS.sunDir }); scene.add(veg.group); live.scatter = scatter; live.scene = scene;
+  const veg = buildVegetation({ scatter, quality, field, sunDir: ATMOS.sunDir, renderer }); scene.add(veg.group); live.scatter = scatter; live.scene = scene;
   scene.add(buildBuildings({ world: WORLD, terrain, models }).group);
   scene.add(buildRocks({ data: scatter.rocks, model: models.boulder_lo || models.boulder }));
   const props = buildProps({ world: WORLD, terrain, models: { ...models, ...propModels } }); scene.add(props.group);
+  props.life = buildLifeView({ world: WORLD, terrain, models: { ...models, ...propModels }, quality: () => quality }); scene.add(props.life.group);   // 暮らしの小物（S7-A）
   const water = buildWater({ terrain, world: WORLD, sunDir: ATMOS.sunDir }); scene.add(water.mesh);
   scene.add(buildRidges({ center: [WORLD.valley.cx, WORLD.valley.cz] }));          // 谷の外の山並み（霧で霞む稜線）
   await step(0.42, '人物を読み込んでいます');
@@ -147,7 +149,7 @@ function setQuality(v) {
   live.built?.setQuality(v);
   if (live.scatter && game.veg) {
     const old = game.veg; live.scene.remove(old.group);
-    const veg = buildVegetation({ scatter: live.scatter, quality: v, field: live.grassField, sunDir: ATMOS.sunDir }); live.scene.add(veg.group); game.veg = veg;
+    const veg = buildVegetation({ scatter: live.scatter, quality: v, field: live.grassField, sunDir: ATMOS.sunDir, renderer }); live.scene.add(veg.group); game.veg = veg;
     old.grass.dispose();
     old.trees.dispose();
     veg.grass.warm(camera);

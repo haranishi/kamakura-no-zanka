@@ -1,0 +1,357 @@
+{
+ "note": "S7-A の前（feat/valley-life-0 733bbdc）と後（この枝・第3周の手直しの版）。capture-calls.mjs で同じ画角・同じ乱数。calls＝1コマの描画の呼び出し、life＝暮らしの小物（life-view）の分（画面＋影）。",
+ "env": "M4 Pro・Chrome 156 ヘッドレス・1280×720・標準品質・seed 1333",
+ "maxCalls": [
+  460,
+  486
+ ],
+ "maxTris": [
+  4377193,
+  4411175
+ ],
+ "lifeStatic": {
+  "meshes": 33,
+  "draws": 33,
+  "shadowDraws": 5,
+  "placed": 168,
+  "tris": 67464
+ },
+ "shots": [
+  {
+   "shot": "01-start-thirdperson",
+   "calls": [
+    450,
+    478
+   ],
+   "tris": [
+    3898154,
+    3915648
+   ],
+   "life": 28
+  },
+  {
+   "shot": "02-hero-closeup",
+   "calls": [
+    342,
+    347
+   ],
+   "tris": [
+    3138370,
+    3140260
+   ],
+   "life": 5
+  },
+  {
+   "shot": "03-boy-dialogue",
+   "calls": [
+    443,
+    471
+   ],
+   "tris": [
+    3996928,
+    4014422
+   ],
+   "life": 28
+  },
+  {
+   "shot": "04-forest-road-scout",
+   "calls": [
+    445,
+    473
+   ],
+   "tris": [
+    4144686,
+    4162180
+   ],
+   "life": 28
+  },
+  {
+   "shot": "05-duel-telegraph-0",
+   "calls": [
+    446,
+    474
+   ],
+   "tris": [
+    4145024,
+    4162518
+   ],
+   "life": 28
+  },
+  {
+   "shot": "05-duel-telegraph-1",
+   "calls": [
+    448,
+    476
+   ],
+   "tris": [
+    4145372,
+    4162866
+   ],
+   "life": 28
+  },
+  {
+   "shot": "06-viewpoint-dialogue",
+   "calls": [
+    427,
+    456
+   ],
+   "tris": [
+    4223355,
+    4264069
+   ],
+   "life": 29
+  },
+  {
+   "shot": "07-viewpoint-choice",
+   "calls": [
+    426,
+    455
+   ],
+   "tris": [
+    4209150,
+    4253276
+   ],
+   "life": 29
+  },
+  {
+   "shot": "08-overlook-village",
+   "calls": [
+    432,
+    460
+   ],
+   "tris": [
+    4133895,
+    4169669
+   ],
+   "life": 28
+  },
+  {
+   "shot": "25-overlook-shoulder",
+   "calls": [
+    428,
+    458
+   ],
+   "tris": [
+    4132431,
+    4167261
+   ],
+   "life": 30
+  },
+  {
+   "shot": "26-entrance-camp",
+   "calls": [
+    374,
+    397
+   ],
+   "tris": [
+    3122016,
+    3153874
+   ],
+   "life": 26
+  },
+  {
+   "shot": "09-village-front",
+   "calls": [
+    421,
+    443
+   ],
+   "tris": [
+    3984824,
+    4042390
+   ],
+   "life": 21
+  },
+  {
+   "shot": "10-enemy-archer-0",
+   "calls": [
+    390,
+    416
+   ],
+   "tris": [
+    3059822,
+    3095976
+   ],
+   "life": 26
+  },
+  {
+   "shot": "10-enemy-archer-1",
+   "calls": [
+    397,
+    423
+   ],
+   "tris": [
+    3059896,
+    3096050
+   ],
+   "life": 26
+  },
+  {
+   "shot": "11-village-fight-wide",
+   "calls": [
+    368,
+    374
+   ],
+   "tris": [
+    3345741,
+    3368925
+   ],
+   "life": 6
+  },
+  {
+   "shot": "12-captive-prompt",
+   "calls": [
+    407,
+    435
+   ],
+   "tris": [
+    3090732,
+    3109704
+   ],
+   "life": 28
+  },
+  {
+   "shot": "13-ally-joined",
+   "calls": [
+    460,
+    486
+   ],
+   "tris": [
+    3519802,
+    3538042
+   ],
+   "life": 26
+  },
+  {
+   "shot": "14-ambush",
+   "calls": [
+    401,
+    407
+   ],
+   "tris": [
+    3509805,
+    3545773
+   ],
+   "life": 6
+  },
+  {
+   "shot": "15-ambush-ally-shot",
+   "calls": [
+    401,
+    407
+   ],
+   "tris": [
+    3509805,
+    3545773
+   ],
+   "life": 6
+  },
+  {
+   "shot": "16-result-scene-dialogue",
+   "calls": [
+    394,
+    399
+   ],
+   "tris": [
+    3627155,
+    3629045
+   ],
+   "life": 5
+  },
+  {
+   "shot": "17-result-screen",
+   "calls": [
+    390,
+    395
+   ],
+   "tris": [
+    3626459,
+    3628349
+   ],
+   "life": 5
+  },
+  {
+   "shot": "18-well-closeup",
+   "calls": [
+    361,
+    367
+   ],
+   "tris": [
+    4030188,
+    4047124
+   ],
+   "life": 6
+  },
+  {
+   "shot": "19-cart-banners",
+   "calls": [
+    430,
+    442
+   ],
+   "tris": [
+    4377193,
+    4411175
+   ],
+   "life": 15
+  },
+  {
+   "shot": "20-valley-river-distance",
+   "calls": [
+    313,
+    318
+   ],
+   "tris": [
+    3551420,
+    3553310
+   ],
+   "life": 5
+  },
+  {
+   "shot": "21-far-mountains",
+   "calls": [
+    345,
+    352
+   ],
+   "tris": [
+    3426978,
+    3438904
+   ],
+   "life": 6
+  },
+  {
+   "shot": "22-grass-closeup",
+   "calls": [
+    434,
+    455
+   ],
+   "tris": [
+    4041175,
+    4056015
+   ],
+   "life": 21
+  },
+  {
+   "shot": "23-cedar-interior",
+   "calls": [
+    333,
+    338
+   ],
+   "tris": [
+    3582958,
+    3584848
+   ],
+   "life": 5
+  },
+  {
+   "shot": "24-maple-broadleaf",
+   "calls": [
+    325,
+    329
+   ],
+   "tris": [
+    3819089,
+    3819089
+   ],
+   "life": 4
+  }
+ ]
+}

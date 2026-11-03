@@ -1,6 +1,6 @@
 // 固定画角の撮影セット（画面の採点・改善の前後比較に使う）。乱数・カメラ・時刻は固定。
 // 使い方: PLAYWRIGHT_MODULE=… node tools/valley-play.mjs tools/scenarios/capture-set.mjs --out .captures/set-r1
-// design-validation.mdの既存10＋新3。画像を見て選んだ（会話の枠が被る03・06と、14に近い15は外した）。
+// design-validation.mdの既存10＋新3。画像を見て選んだ（会話の枠が被る03・06と、14に近い15は外した）。25・26 は S7-A で足した（見晴らし岩・里の入口）。
 export const FIXED_13 = [1, 4, 8, 9, 11, 12, 14, 19, 20, 21, 22, 23, 24];
 const yawTo = (dx, dz) => Math.atan2(-dx, -dz);
 export default async function ({ st, step, call, v, shot, freeze, start, log, tap, click, key, release }) {
@@ -27,6 +27,12 @@ export default async function ({ st, step, call, v, shot, freeze, start, log, ta
   await shot('07-viewpoint-choice');
   await v("document.getElementById('choice-front').click()"); await step(5);
   await call('camera', [-46, 2.4, -30], [20, 8, 2], 56); await step(4); await v("document.body.classList.add('hide-hud')"); await shot('08-overlook-village'); await v("document.body.classList.remove('hide-hud')");
+  // S7-A で足した2枚（どちらも襲撃中の b3）。25＝見1（-46.4,-31.0）に立つ景継の後ろ姿越しに里を見る（design-validation-polish3 の E1 を兼ねる）。
+  // 26＝里の入口の野営の寄り（炊き場越しに、蔵の戸口から荷車へ続く俵の列と、荷車の脇の兵を見る）。主人公はカメラの4m後ろ（影が主人公に追従するため）。近づくと兵が気づいて姿勢が変わるので、敵の思考を止めて撮る。
+  await v("(document.body.classList.add('hide-hud'), document.getElementById('toast').classList.remove('on'), __valley.game.settings.waymarks = 'off', 0)");   // 道しるべと画面の文字を消して撮る（場所の物だけで読めるかを見るため）
+  await call('teleport', -46.4, -31.0, yawTo(46.4, 35)); await call('camera', [-48.0, 2.5, -33.2], [-12, 3, 2], 50); await step(6); await shot('25-overlook-shoulder');
+  await v('(__valley.game.aiPaused = true, 0)'); await call('teleport', -21.2, 15.5, yawTo(-4.8, -6.6)); await call('camera', [-23.6, 1.9, 12.2], [-28.4, 0.7, 5.6], 56); await step(6);
+  await shot('26-entrance-camp'); await v("(__valley.game.aiPaused = false, __valley.game.settings.waymarks = 'bold', document.body.classList.remove('hide-hud'), 0)");
   // 6 里：入口と戦闘
   await call('camera', null); await call('teleport', -33, -3, -1.6); await call('look', -1.5, 0.18); await step(40); await shot('09-village-front');
   let a = 0;
