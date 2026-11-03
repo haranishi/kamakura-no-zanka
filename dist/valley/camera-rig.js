@@ -4,6 +4,15 @@ import * as THREE from 'three';
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const damp = (cur, target, rate, dt) => cur + (target - cur) * (1 - Math.exp(-rate * dt));
+// 臨界減衰のばね（位置と速さを持つ）。1次の遅れ（damp）は、主人公が1コマで止まると、その瞬間にカメラが最大の減速を受けて「がくっ」と止まった
+// （走り5m/秒の停止で約70m/秒²）。ばねは止まった瞬間の減速が0から立ち上がり、最大でも ω×速さ÷e。dt によらず厳密に解く（コマの速さで変わらない）。
+// s は [位置, 速さ] の2要素。戻り値は新しい位置。
+const spring = (s, target, w, dt) => {
+  const e = s[0] - target, k = Math.exp(-w * dt), tmp = (s[1] + w * e) * dt;
+  s[1] = (s[1] - w * tmp) * k; s[0] = target + (e + tmp) * k;
+  return s[0];
+};
+const FOLLOW_W = 18, FOLLOW_WY = 12;   // 注視点の追従の強さ（1/秒）。走り5m/秒で遅れ約0.56m（前は1次の遅れで0.31m）。上下は段差・斜面をなめらかに
 const MIN_REACH = 1.35;            // 壁際でもカメラは主人公からこれ以上寄らない（寄ると頭の中が映った）
 const LIFT = 1.1;                  // 寄せきれないぶん、カメラを上へ逃がして見下ろす（視線も主人公の頭へ寄せ、画面の端に追いやらない）
 
@@ -15,6 +24,7 @@ export class CameraRig {
     this.shake = 0; this.shakeSeed = 0; this.sensitivity = 1; this.invert = false; this.shakeScale = 1;
     this.lockYaw = null; this.clipped = 1; this.lockBlend = 0; this.lift = 0;
     this._f = new THREE.Vector3(); this._d = new THREE.Vector3();
+    this.fx = [0, 0]; this.fy = [0, 0]; this.fz = [0, 0];   // 注視点のばねの状態（位置・速さ）
   }
 
   kick(amount) { this.shake = Math.min(1.2, this.shake + amount * this.shakeScale); }
@@ -39,9 +49,9 @@ export class CameraRig {
     const closeness = lockTarget ? clamp((4.2 - Math.hypot(lockTarget.x - target.x, lockTarget.z - target.z)) / 1.6, 0, 1) : 0;
     const lb = this.lockBlend, dist = this.distance * (1 + 0.18 * lb), shoulder = this.shoulder + (0.5 + 0.55 * closeness) * lb;
     const f = this._f.set(target.x, target.y + this.height, target.z);
-    if (!this.initialized) { this.focus.copy(f); this.initialized = true; this.pos.set(0, 0, 0); }
-    // 注視点は少し遅れてついてくる（走り出し・停止の揺れを和らげる）
-    this.focus.x = damp(this.focus.x, f.x, 16, dt); this.focus.z = damp(this.focus.z, f.z, 16, dt); this.focus.y = damp(this.focus.y, f.y, 9, dt);
+    if (!this.initialized) { this.focus.copy(f); this.initialized = true; this.pos.set(0, 0, 0); this.fx[0] = f.x; this.fy[0] = f.y; this.fz[0] = f.z; this.fx[1] = this.fy[1] = this.fz[1] = 0; }
+    // 注視点は少し遅れてついてくる（走り出し・停止の揺れを和らげる）。臨界減衰のばねで、止まり・動き出しの加速度を連続にする
+    this.focus.x = spring(this.fx, f.x, FOLLOW_W, dt); this.focus.z = spring(this.fz, f.z, FOLLOW_W, dt); this.focus.y = spring(this.fy, f.y, FOLLOW_WY, dt);
     const cp = Math.cos(this.pitch), sp = Math.sin(this.pitch);
     const forward = { x: -Math.sin(this.yaw), z: -Math.cos(this.yaw) }, right = { x: Math.cos(this.yaw), z: -Math.sin(this.yaw) };
     const desired = this._d.set(
