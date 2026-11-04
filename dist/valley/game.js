@@ -23,6 +23,7 @@ import { createOpening, stepOpening } from './opening.js';
 import { OpeningStage } from './opening-stage.js';
 import { FEEL } from './config.js';
 import { LOCO } from './loco.js';
+import { UPPER_ENV } from './upper-rig.js';
 import { warpScale, requestSlow } from './time-warp.js';
 import { mulberry32 } from './scatter.js';
 import { createWind, stepWind, toUniforms, requestGuide, particleCount } from './wind.js';
@@ -690,6 +691,7 @@ export class Game {
       }
     }
     const legIk = LOCO.smoothIk;
+    UPPER_ENV.reduce = this.reducedMotion();   // 走りの形（M3）：「動きを減らす」で二次運動の振り幅を下げる
     if (legIk) this.markLegIk();   // 脚のIK（M2b）：人物の更新を分け、押し分けの後に脚→刀→握りを解く（?smooth=ik で M2a の順へ戻る）
     this.hero.update(dt, ctl);
     if (this.gaze) { const t = this.gaze.target.pos, h = this.hero, d = angleDiff(h.yaw, yawOf(t.x - h.pos.x, t.z - h.pos.z)); h.yaw += Math.sign(d) * Math.min(Math.abs(d), 4 * dt); h.sync(); }   // 見つめる相手へ、ゆっくり向く

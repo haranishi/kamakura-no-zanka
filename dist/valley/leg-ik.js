@@ -101,6 +101,9 @@ export class LegRig {
         else if (Number.isFinite(b) && up > b) p.y += (up - b) * STRIDE.swingLift * (this.ks - 1);
       }
     }
+    // 走りの形（M3・upper-rig.js）の骨盤の上下：腰だけを lift 動かす。足の目標（動作の足首の高さ）は上で決めたので、足は浮かない・沈まない
+    const lift = ch.upper ? ch.upper.lift : 0;
+    if (lift) { this.hips.getWorldPosition(V); V.y += lift; this.hips.parent.worldToLocal(V); this.hips.position.copy(V); this.hips.updateMatrixWorld(true); }
     if (!(this.idleT > 0)) for (let i = 0; i < 2; i++) abortSettle(feet[i], this.anim[i].p.x, this.anim[i].p.z);
     else if (this.idleT > PLANT.settleDelay) maybeSettle(feet, this.anim[0].p.x, this.anim[0].p.z, this.anim[1].p.x, this.anim[1].p.z);
     let need = 0;
