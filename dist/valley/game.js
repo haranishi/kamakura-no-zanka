@@ -836,7 +836,7 @@ export class Game {
     const frozen = this.flow === 'choice' || this.flow === 'result';
     this.rig.update(dt, this.hero.pos, {
       lookDx: frozen ? 0 : look.dx, lookDy: frozen ? 0 : look.dy, lockTarget,
-      rayClip: (a, b) => rayClip(this.col, this.terrain, a, b, 0.3, { ignoreThin: 0.2 }), groundAt: (x, z) => this.terrain.heightAt(x, z), zoom: this.input.wheel,
+      rayClip: (a, b) => rayClip(this.col, this.terrain, a, b, 0.3, { ignoreThin: 0.2 }), groundAt: (x, z) => this.terrain.heightAt(x, z), zoom: this.input.wheel, reduced: this.reducedMotion(),
     });
     this.applyCine(dt);
   }

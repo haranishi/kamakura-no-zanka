@@ -2,7 +2,7 @@
 // きれいな歩きでは0に近く、わざと入れた欠陥（滑る足・跳ねる関節・向きの跳ね・歩容の往復・跳ぶカメラ・速さの段差）にだけ反応する。
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { smoothMetrics, footSlip, windowDrift, jointPops, facingJumps, gaitFlips, cameraMotion, speedJumps, percentile, rotvec, BONES } from '../tools/lib/smooth-metrics.mjs';
+import { smoothMetrics, footSlip, windowDrift, jointPops, facingJumps, gaitFlips, cameraMotion, cameraView, screenPoint, speedJumps, percentile, rotvec, BONES } from '../tools/lib/smooth-metrics.mjs';
 
 const DT = 1 / 60, ID = [0, 0, 0, 1];
 const qz = deg => { const a = deg * Math.PI / 360; return [0, 0, Math.sin(a), Math.cos(a)]; };
@@ -106,4 +106,42 @@ test('the low-contact slip and the camera exclusion read only what they are told
   assert(cameraMotion(c.frames, DT).posJerkP99 > 0 || cameraMotion(c.frames, DT).posJerkMax > 1e5);
   assert.equal(cameraMotion(c.frames, DT, ['turn']).posJerkMax > 1e5, true);
   assert.equal(cameraMotion(c.frames, DT, ['turn']).posJerkP99, 0);
+});
+
+// M4（2026-11-04）：カメラの見え方の物差し。カメラは −z を向く（向きは単位の四元数）。主人公は −z へ進み、カメラは後ろを追う
+function chase({ lag = () => 3, seconds = 2, v = 4, fov = () => 58, camY = () => 1.6, turn = null } = {}) {
+  const frames = [];
+  for (let i = 0; i < Math.round(seconds / DT); i++) {
+    const t = i * DT, z = -v * t;
+    frames.push({ t, tag: turn && t >= turn[0] && t < turn[1] ? 'turn' : t < 1 ? 'a' : 'b', pos: [0, 0, z], cam: [0, camY(t), z + lag(t), ...ID, fov(t)] });
+  }
+  return { dt: DT, aspect: 16 / 9, frames };
+}
+
+test('screenPoint projects like a pinhole camera: centre, edges, and the side the point is on', () => {
+  assert.deepEqual(screenPoint([0, 0, 0, ...ID, 90], [0, 0, -5], 1), [0, 0]);
+  const up = screenPoint([0, 0, 0, ...ID, 90], [0, 5, -5], 1), right = screenPoint([0, 0, 0, ...ID, 90], [5, 0, -5], 2);
+  assert(Math.abs(up[1] - 1) < 1e-9 && Math.abs(right[0] - 0.5) < 1e-9);
+  const yawed = screenPoint([0, 0, 0, 0, Math.sin(Math.PI / 4), 0, Math.cos(Math.PI / 4), 90], [-5, 0, 0], 1);   // 左へ90°回したカメラの正面
+  assert(Math.abs(yawed[0]) < 1e-9 && Math.abs(yawed[1]) < 1e-9);
+});
+
+test('cameraView: a steady chase holds the hero still on screen; a lagging camera, a bouncing camera and a pulsing FOV are each seen', () => {
+  const steady = cameraView(chase().frames, DT);
+  assert.equal(steady.yRange, 0); assert.equal(steady.screenSpeedMax, 0); assert.equal(steady.camYAccMax, 0); assert.equal(steady.fovRateMax, 0);
+  const lagging = cameraView(chase({ lag: t => 3 + 0.5 * Math.min(1, t) }).frames, DT);   // 1秒かけて0.5m遅れる＝主人公が画面の奥（上）へ流れる
+  assert(lagging.yRange > 0.01 && lagging.byTag.a.yRange > lagging.byTag.b.yRange);
+  const bounce = cameraView(chase({ camY: t => 1.6 + (t > 1 ? 0.3 : 0) }).frames, DT);     // カメラの高さが1コマで30cm跳ぶ
+  assert(bounce.camYAccMax > 1000 && bounce.screenSpeedMax > 1);
+  const pulse = cameraView(chase({ fov: t => 58 + 3 * Math.sin(20 * t) }).frames, DT);
+  assert(pulse.fovRateMax > 50);
+  const ex = cameraView(chase({ camY: t => 1.6 + (t > 1 ? 0.3 : 0), turn: [0.95, 1.1] }).frames, DT, 16 / 9, ['turn']);   // 跳びを外す区間に入れると要約から消える
+  assert.equal(ex.camYAccMax, 0); assert(ex.byTag.turn.camYAccMax > 1000);
+});
+
+test('the clean camera p99 also drops the frames whose difference window reaches into an excluded section', () => {
+  const r = chase({ seconds: 3 }); r.frames.forEach((f, i) => { if (i >= 100) f.cam[0] += 0.3; if (i >= 97 && i < 100) f.tag = 'turn'; });   // 跳びは turn の直後のコマ
+  const m = cameraMotion(r.frames, DT, ['turn']);
+  assert(m.posJerkP99 > 1e4 || m.posJerkMax > 1e5);   // 区間の名前だけで外すと、turn の直後の窓が残る
+  assert.equal(m.posJerkP99Clean, 0);
 });

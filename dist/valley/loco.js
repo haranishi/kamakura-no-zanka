@@ -3,6 +3,8 @@
 //   ?loco=old と ?smooth=off は、速さの表・加減速・歩容の境・波及の値をすべて旧い経路へ戻す（位置の列が旧 main と一致する）。
 //   ?smooth=speed は表と歩容の境だけ、?smooth=accel は加減速と旋回だけ、?smooth=phase は足の位相と歩調（M2a・gait-phase.js）だけ、?smooth=ik は脚のIKと接地（M2b・leg-ik.js）を旧い経路へ戻す（smooth-flags.js）。
 //   ?smooth=arms は走りの形（M3・upper-rig.js）を戻す。走りの形は脚のIKの更新の分け方に乗るので、?smooth=ik でも戻る。
+//   ?smooth=camera は追従カメラ（M4・camera-follow.js）だけを M3 のカメラへ戻す（見た目だけの変更なので、論理の位置の列は既定と同じ）。
+//   走りで画角を最大+3度広げる（?fov=on）は既定オフ：盲検で良し悪しが付かず、広げた分だけ描画が約2%重くなった（木の間で+0.19ms/コマ）。好みが分かれるので、本人の試遊で決める。?smooth=camera が優先。
 //   M2b の2つの選択は既定オフで、URL で入れて見比べる：?stride=on は歩幅の伸縮（IKが前提。盲検で良し悪しが付かず、真横の走りで腰が低く見えた）、?stop=hold は止まった後に着いた足を留めて一歩で寄せる（採点で足を開いたまま固まって見えた）。
 // 加減速は臨界減衰のばねで、速さとその変化の速さを状態に持つ。設計の「smootherstep の曲線」と同じく始まりと終わりが滑らかで、
 // 途中で目標が変わっても（鋭い向き変え・Shift の押し離し）速さが跳ばない。1コマで進む距離はばねの式を dt で厳密に積分するので、
@@ -43,7 +45,7 @@ export function parseLoco(search = '') {
   const sprint = custom ? Math.max(walk, num(q.sprint, 2, 8) ?? base.sprint) : base.sprint;
   const accel = !allOld && flags.accel;
   return Object.freeze({ name: custom && (walk !== base.walk || sprint !== base.sprint) ? `${name}*` : name, walk, sprint, ...SLOW,
-    smoothSpeed: custom, smoothAccel: accel, smoothPhase: !allOld && flags.phase, smoothIk: !allOld && flags.ik, smoothArms: !allOld && flags.ik && flags.arms, smoothStride: !allOld && flags.ik && flags.stride && q.stride === 'on', holdStop: !allOld && flags.ik && q.stop === 'hold', unknownLoco: asked && !LOCO_TABLES[asked] ? asked : null });
+    smoothSpeed: custom, smoothAccel: accel, smoothPhase: !allOld && flags.phase, smoothIk: !allOld && flags.ik, smoothArms: !allOld && flags.ik && flags.arms, smoothCamera: !allOld && flags.camera, fovSpeed: !allOld && flags.camera && q.fov === 'on', smoothStride: !allOld && flags.ik && flags.stride && q.stride === 'on', holdStop: !allOld && flags.ik && q.stop === 'hold', unknownLoco: asked && !LOCO_TABLES[asked] ? asked : null });
 }
 
 // 速さを上げたときの波及（調査 §6）。旧い表では旧い値そのもの（計算で丸めが混ざらないよう直書き）
