@@ -6,6 +6,7 @@
 //  4. 「動きを減らす」：腕の幅・体幹のねじれが、通常の設定より下がる。
 //  5. 二重加算がない：補正を戻す（undo）と、骨は同じコマの mixer の直後の姿勢と一致する（差 1e-9 以下。層は姿勢を変えていること＝差が 1e-3 超も確かめる）。
 //  6. 技を出すと（移動の動作でなくなると）0.15秒で効きが0.05以下へ戻る。
+//  7. 手の安全装置：台本のどの区間でも、手が首の高さまで上がらない・前へ突き出ない（初版が盲検で負けた原因）。同じ台本を ?smooth=arms でも流し、屈み歩きの区間の腕が層あり・なしで同じ（屈みに入る間の層の暴れの再発防止）。
 // 使い方: PLAYWRIGHT_MODULE=… node tools/valley-play.mjs tools/scenarios/regress-locomotion-upper.mjs --strict --out <dir>（KZ_OUT=… でJSON）
 import fs from 'node:fs';
 import assert from 'node:assert/strict';
@@ -16,14 +17,18 @@ import { upperMetrics, upperSummary, upperWindow } from '../lib/upper-metrics.mj
 const fail = [];
 const check = (ok, msg) => { if (!ok) fail.push(msg); };
 // 台本の目標（M2b の基準と人の走りの目安から。m3.md の表）
+// 腕の目標は盲検の結果で作り直した（初版の「前へも振る」目標 armMean −15〜0・armAmp 60〜 は、前へ出た手が顔の高さまで上がる形で、旧 M2b に54件中3対19で負けた）。
+// 今の形は「前へ出る腕は M2b のまま、後ろへ引く側だけ深く」：振り幅は M2b より大きく、平均は M2b（−25度）より少し後ろ、手の最高と前への出は M2b を超えない。
 export const TARGET = {
-  'run.armAmp': [60, 90], 'run.armMean': [-15, 0], 'run.handTravel': [28, 60], 'run.syncBest': [0.9, 1], 'run.counter': [-1, -0.5], 'run.headYawAmp': [0, 4], 'run.headPitchAmp': [0, 3.5], 'run.bobCm': [5, 7], 'run.leanDeg': [8, 13],
-  'walk.armAmp': [55, 90], 'walk.counter': [-1, -0.5], 'walk.headYawAmp': [0, 4], 'walk.bobCm': [6, 8.5],
+  'run.armAmp': [50, 90], 'run.armMean': [-40, -20], 'run.handTravel': [25, 60], 'run.handDyMax': [-30, -5], 'run.handReachMax': [10, 22], 'run.syncBest': [0.9, 1], 'run.counter': [-1, -0.5], 'run.headYawAmp': [0, 4], 'run.headPitchAmp': [0, 3.5], 'run.bobCm': [5, 7], 'run.leanDeg': [8, 13],
+  'walk.armAmp': [48, 90], 'walk.handDyMax': [-30, -5], 'walk.handReachMax': [10, 22], 'walk.counter': [-1, -0.5], 'walk.headYawAmp': [0, 4], 'walk.bobCm': [6, 8.5],
   'accel.run_start.leanMax': [11, 20], 'turn.inward': [2, 12],
 };
+// 手の安全装置（どの区間でも）：手は首の関節より HAND_DY_MAX cm 以下、肩から前へ HAND_REACH_MAX cm 以下（M2b の最高は −5.9・19.0。初版は +2.0・26.4）
+const HAND_DY_MAX = -5, HAND_REACH_MAX = 24;
 const SLIP = { jog: 1.84, run: 1.3, run2: 1.3 }, WINDOW_CM = 6, STOP_FREE_CM = 30;   // regress-locomotion-ik と同じ
 const HZ_TOL = { armAmp: 0.15, bobCm: 1.0, leanDeg: 1.5, headYawAmp: 1.5 };   // 割合（腕）か差（cm・度）
-export const BONES = ['Hips', 'LeftUpLeg', 'RightUpLeg', 'LeftLeg', 'RightLeg', 'LeftArm', 'RightArm', 'LeftForeArm', 'RightForeArm', 'LeftHand', 'RightHand', 'neck', 'Head'];
+export const BONES = ['Hips', 'LeftUpLeg', 'RightUpLeg', 'LeftLeg', 'RightLeg', 'LeftShoulder', 'RightShoulder', 'LeftArm', 'RightArm', 'LeftForeArm', 'RightForeArm', 'LeftHand', 'RightHand', 'neck', 'Head'];
 
 // 定速の走り（secs 秒・最後の keep 秒を記録）。戻り値は upper-metrics の frames
 export const STEADY = `async (A, g, h, ch, reset, [q, hz, secs, keep, BONES, reduce]) => {
@@ -82,9 +87,38 @@ export default async function (ctx) {
   out.journey = { summary: sum, metrics: um };
   for (const [k, [lo, hi]] of Object.entries(TARGET)) { log(`台本 ${k.padEnd(24)} ${sum[k]}（目標 ${lo}〜${hi}）`); check(sum[k] >= lo && sum[k] <= hi, `journey ${k}: ${sum[k]} not in ${lo}..${hi}`); }
   log('台本 そのほか', JSON.stringify(sum));
+  // 手の安全装置：歩き・走り・止まり・曲がり・反転のどの区間でも、手が首の高さまで上がらない・前へ突き出ない（盲検で初版が負けた原因）
+  out.hand = {};
+  for (const tag of ['start', 'jog', 'run_start', 'run', 'stop', 'reverse', 'run2', 'turn', 'run3', 'stop2']) {
+    const fr = run.frames.filter(f => f.tag === tag); if (fr.length < 3) continue;
+    const hp = upperWindow(fr, run.dt).handPose; out.hand[tag] = hp;
+    check(hp.dyMaxCm <= HAND_DY_MAX, `journey ${tag}: hand ${hp.dyMaxCm} cm vs neck > ${HAND_DY_MAX}`); check(hp.reachMaxCm <= HAND_REACH_MAX, `journey ${tag}: hand reach ${hp.reachMaxCm} cm > ${HAND_REACH_MAX}`);
+  }
+  log('台本 手の最高（首との差cm）・前への出（cm）:', Object.entries(out.hand).map(([t, h]) => `${t} ${h.dyMaxCm}・${h.reachMaxCm}`).join('  '));
   for (const [tag, lim] of Object.entries(SLIP)) { const s = foot.slip.byTag[tag]; check(s && s.cmPerM != null && s.cmPerM <= lim, `journey ${tag}: slip ${s?.cmPerM} cm/m > ${lim}`); }
   for (const e of foot.windows.list) { const lim = e.kind === 'stop' ? STOP_FREE_CM : WINDOW_CM; check(e.maxCm <= lim, `journey window ${e.kind}@${e.t.toFixed(2)}: ${e.maxCm}cm > ${lim}`); }
   log('台本 足（regress-locomotion-ik と同じ物差し）', JSON.stringify(Object.fromEntries(Object.entries(SLIP).map(([t]) => [t, foot.slip.byTag[t]?.cmPerM]))), foot.windows.list.map(e => `${e.kind}@${e.t.toFixed(2)} ${e.maxCm}`).join(' '));
+  // 屈み歩きの区間は層を使わない：同じ台本を ?smooth=arms（M2b）でも流し、腕の骨の向き・手の位置が（効きが落ちる数コマを除いて）同じことを確かめる。
+  // 手の上限が層の効きに連動しなかったとき、屈み歩きに入る約0.35秒、左腕が最大40度（手で27cm）ずれ、層が止まる瞬間に弾けた（生の記録を main と項目ごとに比べて発見。「歩きながら屈む」試験では再現しなかった）
+  const toggle = q => v(`(async () => { const A = await import('/valley/actors.js'); A.configureLoco(${JSON.stringify(q)}); })()`);
+  await toggle('?loco=a&smooth=arms'); const runOff = await recordJourney(v); await toggle(await v('location.search'));
+  const qdeg = (a, b) => 2 * Math.acos(Math.min(1, Math.abs(a[3] * b[3] + a[4] * b[4] + a[5] * b[5] + a[6] * b[6]))) * 180 / Math.PI;
+  check(runOff.frames.length === run.frames.length, `journey length differs: ${runOff.frames.length} vs ${run.frames.length}`);
+  out.offDiff = {};
+  // （立ちの区間 stand は比べない：2回目の台本の冒頭は1回目の終わりの姿勢を引きずり、層と無関係に23度ずれる）
+  for (const [name, tags, degMax, cmMax] of [['crouch', ['slow', 'stop3'], 3, 3]]) {
+    let n = 0, deg = 0, cm = 0, pos = 0;
+    for (let i = 0; i < run.frames.length; i++) {
+      const f = run.frames[i], g = runOff.frames[i]; if (!g || !tags.includes(f.tag)) continue; n++;
+      pos = Math.max(pos, Math.hypot(f.pos[0] - g.pos[0], f.pos[2] - g.pos[2]));
+      for (const b of ['LeftArm', 'RightArm', 'LeftForeArm', 'RightForeArm']) deg = Math.max(deg, qdeg(f.bones[b], g.bones[b]));
+      for (const s of ['Left', 'Right']) { const p = f.bones[s + 'Hand'], q = g.bones[s + 'Hand']; cm = Math.max(cm, Math.hypot(p[0] - q[0], p[1] - q[1], p[2] - q[2]) * 100); }
+    }
+    out.offDiff[name] = { frames: n, deg: Math.round(deg * 10) / 10, cm: Math.round(cm * 10) / 10, pos };
+    log(`台本 ${name}（${tags.join('・')}）の腕：層あり対 ?smooth=arms の差 最大 ${deg.toFixed(1)}度・手${cm.toFixed(1)}cm（${n}コマ。上限 ${degMax}度・${cmMax}cm）`);
+    check(n >= 30, `${name}: only ${n} frames compared`); check(pos < 1e-3, `${name}: the two journeys are not aligned (${pos} m)`);
+    check(deg <= degMax && cm <= cmMax, `${name}: arm differs ${deg} deg / ${cm} cm from ?smooth=arms (limit ${degMax} deg / ${cmMax} cm)`);
+  }
   const pg = (fn, arg) => v(`(async () => { const A = await import('/valley/actors.js'); const g = __valley.game, h = g.hero, ch = h.character;
     const reset = () => { for (const k of ['KeyW', 'KeyS', 'ShiftLeft', 'KeyC']) __valley.key(k, false); h.crouch = false; h.place(${START.x}, ${START.z}, ${START.yaw}); h.speed = 0; h.locoA = 0; h.locoV = 0; g.rig.yaw = ${START.yaw}; g.rig.snap();
       for (const a of ch.mixer._actions) a.stop(); ch.mixer.time = 0; ch.time = 0; ch.current = null; ch.currentName = null; ch.locoName = null; ch.locoOut = null; ch.gait = 'idle'; ch.resetContacts();
@@ -93,7 +127,7 @@ export default async function (ctx) {
     const original = location.search; const res = await (${fn})(A, g, h, ch, reset, ${JSON.stringify(arg ?? null)}); A.configureLoco(original); reset(); return res; })()`);
   // どの通りも同じ設定で1回空で流してから測る（台本の直後や設定を替えた直後の1回目は、前の状態を引きずった：屈みの姿勢が残る・頭の揺れが2.6度と1.1度に分かれる）
   const steady = async (q, hz = 60, reduce = false) => { await pg(STEADY, [q, hz, 3.0, 1.6, BONES, reduce]); return upperWindow(await pg(STEADY, [q, hz, 3.0, 1.6, BONES, reduce]), 1 / hz); };
-  const flat = w => ({ armAmp: (w.arm.ampL + w.arm.ampR) / 2, armMean: (w.arm.meanL + w.arm.meanR) / 2, handTravel: (w.arm.handTravelL + w.arm.handTravelR) / 2, sync: (w.sync.L.best + w.sync.R.best) / 2, counter: w.trunk.counter, twistAmp: w.trunk.twistAmp, headYawAmp: w.head.yawAmp, headAccP99: w.head.angAccP99, bobCm: w.pelvis.bobCm, leanDeg: w.lean.meanDeg });
+  const flat = w => ({ armAmp: (w.arm.ampL + w.arm.ampR) / 2, armMean: (w.arm.meanL + w.arm.meanR) / 2, handTravel: (w.arm.handTravelL + w.arm.handTravelR) / 2, sync: (w.sync.L.best + w.sync.R.best) / 2, counter: w.trunk.counter, twistAmp: w.trunk.twistAmp, headYawAmp: w.head.yawAmp, headAccP99: w.head.angAccP99, bobCm: w.pelvis.bobCm, leanDeg: w.lean.meanDeg, handDyMax: w.handPose.dyMaxCm, handReachMax: w.handPose.reachMaxCm });
   const r1 = x => Math.round(x * 100) / 100;
   // 2. ?smooth=arms と比べる
   const before = flat(await steady('?loco=a&smooth=arms')), after = flat(await steady('?loco=a'));
@@ -106,6 +140,7 @@ export default async function (ctx) {
   check(after.headAccP99 <= before.headAccP99 * 0.9, `head angular acceleration ${after.headAccP99} > 0.9 x ${before.headAccP99}`);
   check(after.counter <= -0.5 && before.counter > 0, `trunk counter-rotation: ${before.counter} -> ${after.counter}`);
   check(after.sync >= 0.9, `arm/thigh sync ${after.sync} < 0.9`);
+  check(after.handDyMax <= HAND_DY_MAX && after.handReachMax <= HAND_REACH_MAX, `steady run hand ${after.handDyMax} cm vs neck / reach ${after.handReachMax} cm`);
   // 3. コマ速度
   out.hz = { 60: after };
   for (const hz of [30, 144]) {

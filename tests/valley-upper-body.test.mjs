@@ -1,7 +1,7 @@
 // 走りの形（M3）の純粋な層 dist/valley/upper-body.js と、切替 ?smooth=arms（loco.js）。
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { UPPER, springStep, follow, armTarget, armOmega, forearmFix, twistFix, pelvisFix, leanTarget, bankTarget, bobScale, speedT } from '../dist/valley/upper-body.js';
+import { UPPER, springStep, follow, armTarget, armOmega, forearmFix, twistFix, pelvisFix, leanTarget, bankTarget, bobScale, speedT, handBack } from '../dist/valley/upper-body.js';
 import { parseLoco } from '../dist/valley/loco.js';
 
 test('?smooth=arms turns only the upper-body layer off; it rides on the leg IK pass so ?smooth=ik also turns it off', () => {
@@ -36,13 +36,19 @@ test('driving the arm spring with the opposite thigh: small lag, about 1.17x gai
   }
 });
 
-test('armTarget: grows with speed, follows the thigh, smaller for a constrained arm and with reduced motion', () => {
-  assert.equal(armTarget(0, 5, 0), 0);                       // 効き0なら何もしない
-  assert.ok(armTarget(0, 5, 1) > armTarget(0, 2, 1));        // 速いほど前へ（平均を前へ）
-  assert.ok(armTarget(30, 5, 1) - armTarget(-30, 5, 1) > armTarget(30, 2, 1) - armTarget(-30, 2, 1));
-  assert.ok(Math.abs(armTarget(30, 5, 1, UPPER.arm.constrained)) < Math.abs(armTarget(30, 5, 1)) * 0.5);
-  assert.ok(Math.abs(armTarget(30, 5, 1, 1, true)) < Math.abs(armTarget(30, 5, 1)) * 0.5);
-  assert.equal(armTarget(400, 5, 1), UPPER.arm.max);        // 上限
+test('armTarget (back-only default): pulls the arm further back only while the opposite thigh is behind; grows with speed; smaller for a constrained arm and with reduced motion', () => {
+  assert.equal(UPPER.arm.backOnly, true);
+  assert.equal(Math.abs(armTarget(-30, 5, 0)), 0);            // 効き0なら何もしない（−0 になることがある）
+  assert.equal(armTarget(30, 5, 1), 0);                       // 反対側の太ももが前＝腕が前へ出る側は触らない（収録のまま・盲検で好まれた）
+  assert.equal(armTarget(0, 5, 1), 0);
+  assert.ok(armTarget(-30, 5, 1) < -5);                       // 後ろへ引く
+  assert.ok(armTarget(-30, 5, 1) < armTarget(-30, 2, 1));     // 速いほど深く
+  assert.ok(Math.abs(armTarget(-30, 5, 1, UPPER.arm.constrained)) < Math.abs(armTarget(-30, 5, 1)) * 0.5);
+  assert.ok(Math.abs(armTarget(-30, 5, 1, 1, true)) < Math.abs(armTarget(-30, 5, 1)) * 0.5);
+  assert.equal(armTarget(-400, 5, 1), -UPPER.arm.max);        // 上限
+  // 切替：backOnly を外すと、太ももが前のとき腕も前へ補正する（盲検で負けた初版の形。試験用に残してある）
+  const keep = UPPER.arm.backOnly;
+  try { UPPER.arm.backOnly = false; assert.ok(armTarget(30, 5, 1) > 5); } finally { UPPER.arm.backOnly = keep; }
   assert.equal(speedT(1), 0); assert.equal(speedT(9), 1);
   // 前腕：平均より前で肘を畳み（＋）、後ろで伸ばす（−）。効き0なら0
   assert.equal(forearmFix(0, 5, 0), 0);
@@ -73,6 +79,30 @@ test('bobScale: the same arc played ts times faster shrinks toward bob/ts², not
   assert.ok(Math.abs(bobScale(0.085, 1.72) - UPPER.bob.floor / 0.085) < 1e-9);   // 0.085/1.72² は下限より小さい → 下限
   assert.ok(Math.abs(bobScale(0.085, 1.05) - 1 / 1.05 ** 2) < 1e-9);
   assert.ok(bobScale(0.085, 1.72, true) < bobScale(0.085, 1.72));
+});
+
+test('handBack: pulls a raised or far-reaching hand back inside the limits; leaves a low, near or backward hand alone; never pushes forward', () => {
+  // 肩から見た手：真下から前へ a 度、肩から手まで r＝0.4m。上限 uMax＝肩の−0.05m（高さ）・reach＝0.27m（前への出）
+  const r = 0.4, D = Math.PI / 180, at = deg => [r * Math.sin(deg * D), -r * Math.cos(deg * D)];
+  const after = (deg, uMax, reach) => { const [f, u] = at(deg), d = handBack(f, u, uMax, reach), a2 = deg * D - d; return { d, f2: r * Math.sin(a2), u2: -r * Math.cos(a2) }; };
+  // 低くて近い手（20度）は、限界の手前なので、ほとんど動かさない
+  let [f, u] = at(20); assert.ok(handBack(f, u, -0.05, 0.27) < 0.5 * D);
+  // 後ろへ振った腕・肩から近すぎる手は触らない
+  [f, u] = at(-40); assert.equal(handBack(f, u, -0.05, 0.27), 0);
+  assert.equal(handBack(0.01, -0.02, -0.05, 0.27), 0);
+  // 高く上がった手・遠く出た手は、戻した後に両方の上限の内（なめらかな最小の余裕1cm）。前へは押さない（d≥0）
+  for (const deg of [50, 70, 90, 120]) {
+    const { d, f2, u2 } = after(deg, -0.05, 0.27);
+    assert.ok(d > 0, String(deg)); assert.ok(f2 <= 0.27 + 0.01 && u2 <= -0.05 + 0.01, `${deg}: ${f2} ${u2}`);
+  }
+  // 高さだけの上限（前への出は無制限）：真横（90度）の手は、肩の−0.05mの高さまで下がる
+  const h = after(90, -0.05, 9); assert.ok(h.u2 <= -0.05 + 0.01 && h.u2 > -0.15, String(h.u2));
+  // 上限が厳しいほど戻す角は大きい
+  assert.ok(after(60, -0.2, 9).d > after(60, -0.05, 9).d);
+  // 上限が手の届く範囲より低い（不可能）でも、数値が壊れない
+  assert.ok(Number.isFinite(handBack(...at(30), -0.9, 0.01)));
+  // 既定の上限は、前へ出た手が首の関節より下・前への出が腕の長さの半分強
+  assert.ok(UPPER.hand.dy < 0 && UPPER.hand.reach > 0.15 && UPPER.hand.reach < 0.4);
 });
 
 test('follow is the same at any frame rate and does not move without time', () => {

@@ -3,11 +3,11 @@
 // 効くのは移動の動作が今の動作のとき（LegRig.stance と同じ見方）だけで、技・回避・受け・抜納刀・両手持ちの間は効きを0へ戻す（25/秒）。屈み歩きには使わない。
 // 前のコマの補正は undo で戻してから mixer を当てる（二重に掛けない）。毎コマの新規確保をしない（入れ物は作っておく）。
 import * as THREE from 'three';
-import { UPPER, follow, springStep, armTarget, armOmega, forearmFix, twistFix, pelvisFix, leanTarget, bankTarget, bobScale } from './upper-body.js';
+import { UPPER, follow, springStep, armTarget, armOmega, forearmFix, twistFix, pelvisFix, leanTarget, bankTarget, bobScale, handBack } from './upper-body.js';
 
 const NAMES = ['Spine02', 'Spine01', 'Spine', 'Head', 'LeftArm', 'RightArm', 'LeftForeArm', 'RightForeArm', 'Hips', 'LeftUpLeg', 'RightUpLeg'];
 const SPINE = [0, 1, 2], SPINE_SHARE = [0.3, 0.3, 0.4], D2R = Math.PI / 180;
-const V = new THREE.Vector3(), W = new THREE.Vector3(), FWD = new THREE.Vector3(), RIGHT = new THREE.Vector3(), UP = new THREE.Vector3(0, 1, 0);
+const V = new THREE.Vector3(), W = new THREE.Vector3(), N = new THREE.Vector3(), FWD = new THREE.Vector3(), RIGHT = new THREE.Vector3(), UP = new THREE.Vector3(0, 1, 0);
 const Q = new THREE.Quaternion(), PQ = new THREE.Quaternion(), RQ = new THREE.Quaternion(), HQ = new THREE.Quaternion(), MQ = new THREE.Quaternion(), MQI = new THREE.Quaternion();
 const wrap = a => Math.atan2(Math.sin(a), Math.cos(a));
 
@@ -18,7 +18,7 @@ export class UpperRig {
   constructor(ch) {
     this.ch = ch;
     this.b = NAMES.map(n => ch.bone(n));
-    this.hips = ch.bone('Hips'); this.handL = ch.bone('LeftHand'); this.handR = ch.bone('RightHand');
+    this.hips = ch.bone('Hips'); this.handL = ch.bone('LeftHand'); this.handR = ch.bone('RightHand'); this.neck = ch.bone('neck') || null;
     this.legs = [['LeftUpLeg', 'LeftLeg'], ['RightUpLeg', 'RightLeg']].map(([a, b]) => [ch.bone(a), ch.bone(b)]);
     this.ok = !!this.hips && this.b.every(Boolean) && this.legs.every(l => l[0] && l[1]);
     this.saved = this.b.map(() => new THREE.Quaternion());
@@ -101,6 +101,8 @@ export class UpperRig {
     const xL = Math.min(this.armL.x, Math.max(0, UPPER.arm.cap - this.sag(this.b[4], this.b[6]))), xR = Math.min(this.armR.x, Math.max(0, UPPER.arm.cap - this.sag(this.b[5], this.b[7])));
     this.rot(this.b[4], RIGHT, xL * D2R); this.rot(this.b[6], RIGHT, this.elbowKeep(this.b[4], this.b[6], this.handL, forearmFix(xL, this.v, wa, sL, reduce)) * D2R);
     this.rot(this.b[5], RIGHT, xR * D2R); this.rot(this.b[7], RIGHT, this.elbowKeep(this.b[5], this.b[7], this.handR, forearmFix(xR, this.v, wa, sR, reduce)) * D2R);
+    // 手の上限（盲検の指摘：前へ出た手が顔の高さまで上がる・腕が棒のように突き出る）。鞘・柄・弓を持つ腕は、刀・握りの層が決めるので触らない
+    if (this.neck) { if (!holdL) this.limitHand(this.b[4], this.handL, w); if (!holdR) this.limitHand(this.b[5], this.handR, w); }
     // 頭：進む向きから見た頭の向きを、ゆっくりならした向きへ寄せる（揺れを打ち消す）
     const head = this.b[3];
     head.parent.updateMatrixWorld(true);
@@ -120,6 +122,15 @@ export class UpperRig {
     if (Math.abs(ang) < 1e-7) return;
     bone.parent.getWorldQuaternion(PQ); RQ.setFromAxisAngle(axis, ang);
     bone.quaternion.premultiply(PQ).premultiply(RQ).premultiply(PQ.invert());
+  }
+  // 肩から見た手が、首の関節より UPPER.hand.dy 以下・前への出 UPPER.hand.reach 以下に収まるよう、腕を肩の軸まわりに後ろへ戻す（式は upper-body.js の handBack）。
+  // 戻す角は層の効き w（0〜1）に比例させる：屈み・技などで層が消えていく間も全力で引き戻すと、屈み歩きに入る0.35秒、左腕が最大40度ずれ、層が止まる瞬間に弾けた（生の記録の比較で発見）
+  limitHand(arm, hand, w) {
+    if (!(w > 1e-3)) return;
+    arm.getWorldPosition(V); hand.getWorldPosition(W); this.neck.getWorldPosition(N);
+    W.sub(V);
+    const H = UPPER.hand, d = handBack(W.x * FWD.x + W.z * FWD.z, W.y, N.y - V.y + H.dy, H.reach) * Math.min(1, w);
+    if (d > 1e-4) { this.rot(arm, RIGHT, -d); arm.updateMatrixWorld(true); }
   }
   // 前腕の補正 fix（度）を、腕が前にある間は肘の曲がりが minFlex 度を下回らないように減らす（伸ばしすぎて腕が棒になるのを防ぐ。伸ばす向きの補正だけを削る）
   elbowKeep(arm, fore, hand, fix) {

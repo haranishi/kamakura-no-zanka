@@ -8,7 +8,11 @@ export const UPPER = Object.freeze({
   // 腕：上腕を体の横の軸まわりに前へ。目標＝offset＋gain×反対側の太ももの角度（度）。gain・offset は速さで増やす（2→5m/秒）。
   // 減衰の弱いばね（ζ0.35）で追い、角振動数は歩調の2.2倍（駆動より速いので遅れは周期の約6%・振り幅は約1.17倍）。肘は elbow 度だけ伸ばし（手を胸の前から下ろす）、
   // 腕が平均より前へ振れた分の elbowSwing 倍だけ前腕も前へ（前で肘を畳み、後ろで伸ばす。一定に伸ばすだけでは、前へ振った腕が棒のように突き出た＝撮影で確認）
-  arm: { offset: [10, 17], gain: [0.16, 0.30], elbow: 12, elbowSwing: 0.45, omegaPerCycle: 2.2, omegaMin: 8, zeta: 0.35, max: 40, constrained: 0.35, fullSpeed: 1.5, zetaStop: 0.9, cap: 35, brake: 20, minFlex: 70 },
+  // 経緯（盲検＝画像だけの採点役3人×場面。old＝M2b）：初版（前へも振る。offset [10,17]・gain [0.16,0.30]・elbow 12・elbowSwing 0.45・cap 35）は、前へ出た手が首の高さまで上がる・
+  // 前腕が立つ・曲がりで腕が頭より高く跳ねると指摘され、54件中 new 3・old 19（総合−0.31）。手の高さに上限を付け肘を20度伸ばした修正版も0対20：肘を伸ばして手のひらを開いて前へ差し出す形が「棒のよう」。
+  // 採点役が好んだのは M2b の「肘を畳んで胸の前」で、「後ろへの振りが小さい」とも言った。そこで、前へ出る腕は収録のまま（backOnly）・後ろへ引く側だけ深くする（上腕 −48〜+2 → −62〜0度。手の前への出と肘の曲がりは M2b と同じ）。
+  // この版は旧と同等（27件すべて同点＝見分けがつかない）で、悪化はない。
+  arm: { offset: [0, 0], gain: [0.2, 0.3], elbow: 0, elbowSwing: 0.3, backOnly: true, omegaPerCycle: 2.2, omegaMin: 8, zeta: 0.35, max: 40, constrained: 0.35, fullSpeed: 1.5, zetaStop: 0.9, cap: 24, brake: 20, minFlex: 70 },
   // 体幹：胸（肩の線）の回りの揺れを、脚の位相から決めた目標へ寄せる（平均はそのまま）。目標＝−perThigh×（右の太もも−左の太もも）/2＝右脚が前のとき左肩が前（骨盤と逆）。
   // 骨盤の回りに合わせる案（−0.45×骨盤）は、動作の骨盤の回りが±4度と小さく偏るので、胸がほぼ止まって「上体が硬い」に戻った。背骨3本に分ける
   // 測ってみると、動作の胸の揺れはもともとこの目標に近く（±9度）、硬さの元は骨盤が胸と同じ向きに回ること（相関+0.57）だった。骨盤も脚の位相から
@@ -22,6 +26,10 @@ export const UPPER = Object.freeze({
   bank: { ratio: 0.2, max: 8, omega: 10, zeta: 0.8 },
   // 骨盤の上下：歩調 ts 倍で回すと、同じ8.5cmの弧は ts² 倍の重さで跳ぶ（放物線の高さは周期の2乗に比例）。弧を clip/ts² へ縮め、人の走りの目安の下限 floor で止める
   bob: { floor: 0.06, rate: 2 },
+  // 手の上限（盲検3人×18場面で、前へ出た手が顔・頭の高さまで上がる／前腕が水平に棒のように突き出る／曲がりで腕が頭より高く跳ねる、が M3 の側にだけ繰り返し指摘された＝2026-11-04）。
+  // 肩から見た手の高さは首の関節より dy（m）以下、前への出は reach（m）以下に、腕を肩の軸まわりに後ろへ戻す（原因が定速・曲がり・止まりのどれでも効く安全装置）。soft＝限界の手前からなめらかに効かせる幅（度）。
+  // 既定は M2b の前へ出た手の最高（首−5.9cm）より上＝通常の走り・歩きには効かず、はみ出したときだけ（初版のような手の跳ね上がり）抑える
+  hand: { dy: -0.05, reach: 0.27, soft: 5 },
   fade: { up: 6, down: 6, cut: 25 },   // 効きの立ち上がり・止まりの戻り（1/秒）・移動の動作でなくなったとき（技・回避・受け）
   reduce: 0.35,                         // 「動きを減らす」：二次運動の振り幅の倍率
   teleport: 1.0,                        // 1コマにこれ以上根が動いたら瞬間移動とみなし、状態を戻す（m）
@@ -54,7 +62,9 @@ export function springStep(st, target, omega, zeta, dt) {
 // 腕の目標（度・前が正）。thigh＝反対側の太ももの角度（度・前が正）、v＝速さ、w＝効き（0〜1）、side＝拘束の倍率（鞘・柄・弓を持つ腕は小さく）
 export function armTarget(thigh, v, w, side = 1, reduce = false) {
   const t = speedT(v), A = UPPER.arm, k = w * side * (reduce ? UPPER.reduce : 1);
-  return clamp(k * (lerp(A.offset[0], A.offset[1], t) + lerp(A.gain[0], A.gain[1], t) * thigh), -A.max, A.max);
+  // backOnly：反対側の太ももが後ろにあるときだけ（腕が後ろへ行くときだけ）補正する。前へ出る腕は収録のまま（肘を畳んだ拳が胸の前）に残す
+  const th = A.backOnly ? Math.min(0, thigh) : thigh;
+  return clamp(k * (lerp(A.offset[0], A.offset[1], t) + lerp(A.gain[0], A.gain[1], t) * th), -A.max, A.max);
 }
 // 前腕の補正（度・前が正）。armX＝そのコマの上腕の補正（ばねの値）
 export function forearmFix(armX, v, w, side = 1, reduce = false) {
@@ -87,6 +97,18 @@ export function leanTarget(v, a, w, reduce = false) {
 export function bankTarget(v, yawRate, w, reduce = false) {
   const B = UPPER.bank, a = v * yawRate;
   return clamp(w * (reduce ? UPPER.reduce : 1) * B.ratio * Math.atan(a / 9.81) * 180 / Math.PI, -B.max, B.max);
+}
+
+// 手の上限：肩から見た手の位置（前 f・上 u、m）が、高さ uMax（肩から見た上限、m）と前への出 reach（m）を超えないよう、腕を肩の軸まわりに後ろへ戻す角（rad・0以上）。
+// 手は肩から距離 r の円の上を動く。真下から前への角 α を、高さの限界 acos(−uMax/r) と前への出の限界 asin(reach/r) の小さい方へ、なめらかな最小（log-sum-exp）で寄せる。後ろへ振った腕（α≤0）は触らない
+export function handBack(f, u, uMax, reach, softDeg = UPPER.hand.soft) {
+  const r = Math.hypot(f, u);
+  if (!(r > 0.05)) return 0;
+  const alpha = Math.atan2(f, -u);
+  if (!(alpha > 0)) return 0;
+  const c = -uMax / r, aH = c <= -1 ? Math.PI : c >= 1 ? 0 : Math.acos(c), aF = reach >= r ? Math.PI : Math.asin(reach / r);
+  const lim = Math.min(aH, aF), k = Math.max(1e-3, softDeg * Math.PI / 180);
+  return Math.max(0, alpha + k * Math.log(Math.exp(-alpha / k) + Math.exp(-lim / k)));
 }
 
 // 骨盤の上下の倍率（1＝そのまま）。bob＝動作の腰の高さの幅（m）、ts＝歩調（再生の倍率）

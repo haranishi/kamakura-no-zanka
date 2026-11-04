@@ -22,7 +22,7 @@ function frame(t, o = {}) {
   return { t, tag: 'x', pos: [px, 0, pz], modelYaw: yaw, speed, bones: {
     Hips: b(H), LeftUpLeg: b(LU), RightUpLeg: b(RU), LeftLeg: b(limb(LU, lt, 0.42)), RightLeg: b(limb(RU, rt, 0.42)),
     neck: b(top), Head: b([top[0], top[1] + 0.15, top[2]], q), LeftArm: b(LA), RightArm: b(RA), LeftForeArm: b(LF), RightForeArm: b(RF),
-    LeftHand: b(limb(LF, la + 70, 0.25)), RightHand: b(limb(RF, ra + 70, 0.25)) } };
+    LeftShoulder: b(LA), RightShoulder: b(RA), LeftHand: b(limb(LF, la + 70, 0.25)), RightHand: b(limb(RF, ra + 70, 0.25)) } };
 }
 const frames = (n, o) => Array.from({ length: n }, (_, i) => frame(i * DT, o));
 const T = 0.5, w = 2 * Math.PI / T;   // 30コマの周期
@@ -68,6 +68,18 @@ test('pelvis bob, lean and head stability', () => {
   // 頭が左右に5度ずつ振れる（上の軸まわり）と、幅10度・角加速度が出る
   const wob = upperWindow(frames(120, { ...legs, head: t => { const a = 5 * R * Math.sin(w * t) / 2; return [0, Math.sin(a), 0, Math.cos(a)]; } }), DT);
   assert.ok(Math.abs(wob.head.yawAmp - 10) < 0.2 && wob.head.angAccP99 > 500, JSON.stringify(wob.head));
+});
+
+test('hand pose: a hand raised above the neck reads positive, a low hand negative; reach is measured forward from the shoulder — the defect the swing/sync metrics missed', () => {
+  // 上腕を水平に前へ（la＝90度）：肘は肩の前0.28m・高さは肩と同じ、手はさらに斜め上へ。首より上・前へ約36cm
+  const high = upperWindow(frames(60, { ...legs, armL: () => 90, armR: () => 90 }), DT).handPose;
+  assert.ok(high.dyMaxCm > 10, JSON.stringify(high)); assert.ok(Math.abs(high.reachMaxCm - 36.5) < 1.5, JSON.stringify(high));
+  // 腕を後ろへ垂らした硬い腕（−25度）：手は首よりずっと下・前へは出ない
+  const low = upperWindow(frames(60, { ...legs, armL: () => -25, armR: () => -25 }), DT).handPose;
+  assert.ok(low.dyMaxCm < -30 && low.reachMaxCm < 25, JSON.stringify(low));
+  // 振り（前後）では最高の高さは、前へ振った瞬間の値になる（平均ではない）
+  const swing = upperWindow(frames(60, { ...legs, armL: t => 10 + 40 * Math.sin(w * t), armR: t => 10 - 40 * Math.sin(w * t) }), DT).handPose;
+  assert.ok(swing.dyMaxCm > low.dyMaxCm + 20 && swing.dyMaxCm < high.dyMaxCm + 5, JSON.stringify(swing));
 });
 
 test('turn lean: leaning into the turn is positive, leaning out is negative', () => {

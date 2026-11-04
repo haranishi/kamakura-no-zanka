@@ -71,6 +71,11 @@ export function upperWindow(frames, dt) {
   const S = (a, b, k) => frames.map(f => segAngles(f, a, b)?.[k] ?? NaN);
   const La = S('LeftArm', 'LeftForeArm', 'sag'), Ra = S('RightArm', 'RightForeArm', 'sag'), Lt = S('LeftUpLeg', 'LeftLeg', 'sag'), Rt = S('RightUpLeg', 'RightLeg', 'sag');
   const hand = side => frames.map(f => { const H = f.bones?.Hips, W = f.bones?.[side + 'Hand']; if (!H || !W) return NaN; const [fx, fz] = fwdOf(f); return ((W[0] - H[0]) * fx + (W[2] - H[2]) * fz) * 100; });
+  // 手の最高の高さ（首の関節との差 cm。負＝首より下）と、肩から手の前への出（cm）。盲検で、前へ出た手が顔の高さまで上がる・腕が棒のように前へ突き出る、が M3 の初版だけ
+  // 繰り返し指摘された（腕の振り幅・同期の物差しでは良く見えた）ので足した＝「量と同期」だけでは見た目の悪さを拾えない
+  const handHigh = side => frames.map(f => { const N = f.bones?.neck, W = f.bones?.[side + 'Hand']; return N && W ? (W[1] - N[1]) * 100 : NaN; });
+  const handReach = side => frames.map(f => { const S = f.bones?.[side + 'Shoulder'], W = f.bones?.[side + 'Hand']; if (!S || !W) return NaN; const [fx, fz] = fwdOf(f); return ((W[0] - S[0]) * fx + (W[2] - S[2]) * fz) * 100; });
+  const maxOf = (...as) => { const v = as.flat().filter(Number.isFinite); return v.length ? Math.max(...v) : NaN; };
   const per = periodFrames(Rt.map(x => x || 0)) ?? periodFrames(Lt.map(x => x || 0)), maxLag = Math.max(1, Math.round((per ?? 30) / 2));
   const cL = crossCorr(La, Rt, maxLag), cR = crossCorr(Ra, Lt, maxLag);
   const pelvis = frames.map(f => lineYaw(f, 'LeftUpLeg', 'RightUpLeg') ?? NaN), chest = frames.map(f => lineYaw(f, 'LeftArm', 'RightArm') ?? NaN);
@@ -89,6 +94,7 @@ export function upperWindow(frames, dt) {
   return {
     frames: frames.length, periodFrames: per,
     arm: { ampL: round(amp(La), 1), ampR: round(amp(Ra), 1), meanL: round(mean(La), 1), meanR: round(mean(Ra), 1), handTravelL: round(amp(hand('Left')), 1), handTravelR: round(amp(hand('Right')), 1) },
+    handPose: { dyMaxCm: round(maxOf(handHigh('Left'), handHigh('Right')), 1), reachMaxCm: round(maxOf(handReach('Left'), handReach('Right')), 1) },
     thigh: { ampL: round(amp(Lt), 1), ampR: round(amp(Rt), 1) },
     sync: { L: { r0: round(cL.r0), best: round(cL.best), lag: cL.lag, lagFrac: per ? round(cL.lag / per) : null }, R: { r0: round(cR.r0), best: round(cR.best), lag: cR.lag, lagFrac: per ? round(cR.lag / per) : null } },
     trunk: { pelvisYawAmp: round(amp(pelvis), 1), chestYawAmp: round(amp(chest), 1), twistAmp: round(amp(chest.map((c, i) => c - pelvis[i])), 1), counter: round(pearson(pelvis, chest)) },
@@ -130,7 +136,8 @@ export function upperSummary(m) {
     const w = s[k]; if (!w) continue;
     Object.assign(o, { [`${k}.armAmp`]: round((w.arm.ampL + w.arm.ampR) / 2, 1), [`${k}.armMean`]: round((w.arm.meanL + w.arm.meanR) / 2, 1), [`${k}.handTravel`]: round((w.arm.handTravelL + w.arm.handTravelR) / 2, 1),
       [`${k}.syncBest`]: round((w.sync.L.best + w.sync.R.best) / 2), [`${k}.syncLag`]: round(((w.sync.L.lagFrac ?? 0) + (w.sync.R.lagFrac ?? 0)) / 2), [`${k}.twistAmp`]: w.trunk.twistAmp, [`${k}.counter`]: w.trunk.counter,
-      [`${k}.headYawAmp`]: w.head.yawAmp, [`${k}.headPitchAmp`]: w.head.pitchAmp, [`${k}.headAccP99`]: w.head.angAccP99, [`${k}.bobCm`]: w.pelvis.bobCm, [`${k}.leanDeg`]: w.lean.meanDeg });
+      [`${k}.headYawAmp`]: w.head.yawAmp, [`${k}.headPitchAmp`]: w.head.pitchAmp, [`${k}.headAccP99`]: w.head.angAccP99, [`${k}.bobCm`]: w.pelvis.bobCm, [`${k}.leanDeg`]: w.lean.meanDeg,
+      [`${k}.handDyMax`]: w.handPose.dyMaxCm, [`${k}.handReachMax`]: w.handPose.reachMaxCm });
   }
   for (const [k, v] of Object.entries(m.accel || {})) o[`accel.${k}.leanMax`] = v.leanMaxDeg;
   if (m.turn) { o['turn.inward'] = m.turn.inward; o['turn.expect'] = m.turn.expect; o['turn.corr'] = m.turn.corr; }
