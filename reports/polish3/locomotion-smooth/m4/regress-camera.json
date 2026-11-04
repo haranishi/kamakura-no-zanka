@@ -14,8 +14,8 @@
     "rotAccelP99": 0,
     "rotAccelMax": 21.51,
     "fovRange": [
-     58.01,
-     58.01
+     58,
+     58
     ],
     "view": {
      "aspect": 1.7777777777777777,
@@ -39,16 +39,16 @@
     "rotAccelP99": 0,
     "rotAccelMax": 21.51,
     "fovRange": [
-     58.01,
-     60.97
+     58,
+     58
     ],
     "view": {
      "aspect": 1.7777777777777777,
-     "yRange": 0.104,
+     "yRange": 0.112,
      "xRange": 0.029,
-     "screenSpeedMax": 0.611,
+     "screenSpeedMax": 0.642,
      "camYAccMax": 0.22,
-     "fovRateMax": 3.93
+     "fovRateMax": 0
     }
    }
   },
@@ -70,7 +70,7 @@
      "over": 0.048,
      "clear": 1,
      "floor": 1.898,
-     "yRange": 0.21
+     "yRange": 0.219
     }
    },
    "terrace_up_run": {
@@ -90,7 +90,7 @@
      "over": 0.048,
      "clear": 1,
      "floor": 2.546,
-     "yRange": 0.3
+     "yRange": 0.314
     }
    },
    "bank_slope": {
@@ -104,8 +104,8 @@
      "yRange": 0.668
     },
     "new": {
-     "yAcc": 13.57,
-     "jerkMax": 400.692,
+     "yAcc": 13.66,
+     "jerkMax": 400.685,
      "step": 0.09,
      "over": 0.028,
      "clear": 0.13,
@@ -130,7 +130,7 @@
      "over": 0.048,
      "clear": 0.52,
      "floor": 2.163,
-     "yRange": 0.613
+     "yRange": 0.598
     }
    },
    "wall_pass": {
@@ -150,15 +150,21 @@
      "over": 0.103,
      "clear": 1,
      "floor": 2.184,
-     "yRange": 0.228
+     "yRange": 0.256
     }
    }
   },
+  "forest": {
+   "gapMin": 0,
+   "over": 0.867,
+   "overOld": 2.244
+  },
   "settings": {
-   "default": 60.985,
-   "shake0": 58.006,
-   "shake05": 59.488,
-   "reduced": 58.011,
+   "default": 58.005,
+   "fov": 60.985,
+   "fovShake0": 58.006,
+   "fovShake05": 59.488,
+   "fovReduced": 58.011,
    "smoothCamera": 58.001
   },
   "hz": {
