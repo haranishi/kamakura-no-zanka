@@ -14,7 +14,7 @@ const dir = path.join(root, 'dist/valley');
 const read = f => fs.readFileSync(path.join(root, f), 'utf8');
 
 // 1 入口・主要なモジュールと素材がある
-const modules = ['opening-data', 'opening', 'opening-scenes', 'opening-fire', 'opening-stage', 'banter', 'narrative', 'relic-view', 'sword-path', 'arm-ik', 'sword-layer', 'hand-grip', 'hand-rig', 'leg-plant', 'leg-ik', 'upper-body', 'upper-rig', 'slash-trail', 'clash', 'actors', 'ai-world', 'anim-data', 'atmosphere', 'shadow-snap', 'audio-valley', 'audio-rules', 'combat-synth', 'voice-bank', 'foot-contacts', 'step-surface', 'step-synth', 'battle', 'bow', 'buildings', 'batch', 'life-rules', 'life-kit', 'life-view', 'camera-rig', 'characters', 'collision', 'combat', 'companion-ai', 'config',
+const modules = ['opening-data', 'opening', 'opening-scenes', 'opening-fire', 'opening-stage', 'banter', 'narrative', 'relic-view', 'sword-path', 'arm-ik', 'sword-layer', 'hand-grip', 'hand-rig', 'leg-plant', 'leg-ik', 'upper-body', 'upper-rig', 'slash-trail', 'clash', 'actors', 'ai-world', 'anim-data', 'atmosphere', 'shadow-snap', 'audio-valley', 'audio-rules', 'combat-synth', 'voice-bank', 'foot-contacts', 'step-surface', 'step-synth', 'battle', 'bow', 'buildings', 'batch', 'life-rules', 'life-kit', 'life-view', 'camera-rig', 'camera-follow', 'characters', 'collision', 'combat', 'companion-ai', 'config',
   'enemy-ai', 'fx', 'game', 'guide-nav', 'guide-view', 'guide-renderer', 'guide', 'grade', 'grass-view', 'grass-schedule', 'grass-field', 'hud', 'input', 'main', 'nav', 'perf-stats', 'wind', 'post', 'props', 'qa', 'quest', 'ridges', 'save', 'scatter', 'tree-species', 'tree-lod', 'tree-branches', 'tree-impostor', 'tree-geometry', 'tree-textures', 'tree-materials', 'tree-bake', 'tree-view', 'shots', 'story-data', 'terrain-height', 'terrain', 'vegetation', 'water', 'weapons', 'world-colliders', 'world-data'];
 for (const m of modules) assert(fs.statSync(path.join(dir, m + '.js')).size > 0, `missing dist/valley/${m}.js`);
 for (const f of ['index.html', 'valley.css']) assert(fs.statSync(path.join(dir, f)).size > 0, `missing dist/valley/${f}`);
@@ -91,8 +91,8 @@ assert(total <= 115 * 1024 * 1024, `model budget exceeded: ${(total / 1048576).t
 
 // 3b 8.3a・8.3b・8.4a・8.4b・8.5a の純粋な層（見た目の踏み込み・線状の火花・腕の開きの上限・押し戻し・血の表現・時間の進み）：あること、Three.js・DOM・乱数・時計に触れないこと
 // （表とは別に置いてある。lunge と spark-streaks は 2026-11-03 の統合の点検で、純粋と自称しながら検査に入っていなかったのを足した）
-// gait-table（生成物の足運びの表）と smooth-flags（滑らかさの切替）も同じ扱い（2026-11-04 M0）。loco（速さの表と加減速・M1）も。upper-body（走りの形の式・M3）も
-for (const m of ['knockback', 'time-warp', 'lunge', 'spark-streaks', 'arm-spread', 'blood', 'cinematics-data', 'cinematics', 'cinematics-frame', 'gait-table', 'smooth-flags', 'loco', 'gait-phase', 'upper-body']) {
+// gait-table（生成物の足運びの表）と smooth-flags（滑らかさの切替）も同じ扱い（2026-11-04 M0）。loco（速さの表と加減速・M1）も。upper-body（走りの形の式・M3）も。camera-follow（追従カメラの式・M4）も
+for (const m of ['knockback', 'time-warp', 'lunge', 'spark-streaks', 'arm-spread', 'blood', 'cinematics-data', 'cinematics', 'cinematics-frame', 'gait-table', 'smooth-flags', 'loco', 'gait-phase', 'upper-body', 'camera-follow']) {
   assert(sources[m + '.js'], `missing dist/valley/${m}.js`);
   const code = sources[m + '.js'].replace(/\/\/.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, '');
   for (const bad of [/from\s+'three/, /\bMath\.random\b/, /\bDate\.now\b/, /\bperformance\.now\b/, /\bdocument\./, /\bwindow\./, /\blocalStorage\b/]) assert(!bad.test(code), `${m}.js (pure layer) uses ${bad}`);
