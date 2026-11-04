@@ -165,19 +165,53 @@ export function gaitFlips(frames, opts = {}) {
 // (f) カメラ
 // exclude：要約の p99 から外す区間（操作者が視点を回した区間など。要件37.1は「入力以外で跳ばさない」）。区間ごとの値は全部出す
 export function cameraMotion(frames, dt, exclude = []) {
-  const P = frames.map(f => f.cam?.slice(0, 3)), Q = frames.map(f => f.cam?.slice(3, 7)), jerk = [], alpha = [], at = [];
+  const P = frames.map(f => f.cam?.slice(0, 3)), Q = frames.map(f => f.cam?.slice(3, 7)), jerk = [], alpha = [], at = [], touch = [], touchA = [];
+  // touch：差の窓（加加速度は4コマ・角加速度は3コマ）に外す区間のコマが1つでも入るか。M4（2026-11-04）で足した：区間の名前だけで外すと、
+  // 視点を回し終えた直後の3コマ（run3 の頭）の窓に回した分が残り、要約の p99 を決めていた（M3 の main で 239.8 のうち、台本の止まりは 287 でも p99 は旋回の尾）
+  const hit = (a, b) => { for (let j = Math.max(0, a); j <= b; j++) if (exclude.includes(frames[j].tag)) return true; return false; };
   for (let i = 3; i < frames.length; i++) {
     if (!P[i] || !P[i - 3]) continue;
-    jerk.push(Math.hypot(...[0, 1, 2].map(k => P[i][k] - 3 * P[i - 1][k] + 3 * P[i - 2][k] - P[i - 3][k])) / dt ** 3); at.push(frames[i].tag);
+    jerk.push(Math.hypot(...[0, 1, 2].map(k => P[i][k] - 3 * P[i - 1][k] + 3 * P[i - 2][k] - P[i - 3][k])) / dt ** 3); at.push(frames[i].tag); touch.push(hit(i - 3, i));
   }
   const w = []; for (let i = 1; i < frames.length; i++) w.push(Q[i] && Q[i - 1] ? rotvec(qmul(Q[i], qconj(Q[i - 1]))).map(x => x / dt) : null);
   const atA = [];
-  for (let i = 1; i < w.length; i++) if (w[i] && w[i - 1]) { alpha.push(Math.hypot(...[0, 1, 2].map(k => w[i][k] - w[i - 1][k])) / dt); atA.push(frames[i + 1].tag); }
+  for (let i = 1; i < w.length; i++) if (w[i] && w[i - 1]) { alpha.push(Math.hypot(...[0, 1, 2].map(k => w[i][k] - w[i - 1][k])) / dt); atA.push(frames[i + 1].tag); touchA.push(hit(i - 1, i + 1)); }
   const fov = frames.map(f => f.cam?.[7]).filter(Number.isFinite);
   const byTag = {};
   for (const tag of tagsOf(frames)) byTag[tag] = { posJerkP99: round(percentile(jerk.filter((_, i) => at[i] === tag), 99), 1), rotAccelP99: round(percentile(alpha.filter((_, i) => atA[i] === tag), 99), 2) };
   const keepJ = jerk.filter((_, i) => !exclude.includes(at[i])), keepA = alpha.filter((_, i) => !exclude.includes(atA[i]));
-  return { exclude, posJerkP99: round(percentile(keepJ, 99), 1), posJerkP99All: round(percentile(jerk, 99), 1), rotAccelP99All: round(percentile(alpha, 99), 2), posJerkMax: round(Math.max(0, ...jerk), 1), rotAccelP99: round(percentile(keepA, 99), 2), rotAccelMax: round(Math.max(0, ...alpha), 2), fovRange: fov.length ? [round(Math.min(...fov)), round(Math.max(...fov))] : null, byTag };
+  const cleanJ = jerk.filter((_, i) => !touch[i]), cleanA = alpha.filter((_, i) => !touchA[i]);
+  return { exclude, posJerkP99: round(percentile(keepJ, 99), 1), posJerkP99Clean: round(percentile(cleanJ, 99), 1), rotAccelP99Clean: round(percentile(cleanA, 99), 2), posJerkP99All: round(percentile(jerk, 99), 1), rotAccelP99All: round(percentile(alpha, 99), 2), posJerkMax: round(Math.max(0, ...jerk), 1), rotAccelP99: round(percentile(keepA, 99), 2), rotAccelMax: round(Math.max(0, ...alpha), 2), fovRange: fov.length ? [round(Math.min(...fov)), round(Math.max(...fov))] : null, byTag };
+}
+
+// (f2) カメラの見え方（M4・2026-11-04）：悪く見える現象そのものを測る。実装の値（ばねの強さ）ではなく、画面と動きから。
+//  画面上の主人公＝論理の位置の 1.0m 上を、そのコマのカメラ（位置・向き・画角）で画面へ写した点（−1〜1。y は上が正）。aspect は画面の横÷縦。
+//  区間ごとに、その点の範囲（流れ）・1コマの動きの最大（画面/秒）、カメラの高さの加速度の最大（m/秒²）、画角の変化の速さの最大（度/秒）。
+//  exclude の区間（操作者が視点を回した区間）は要約から外す
+export function screenPoint(cam, p, aspect) {
+  const [cx, cy, cz, qx, qy, qz, qw, fov] = cam, vx = p[0] - cx, vy = p[1] - cy, vz = p[2] - cz;
+  // 逆の回転（共役）で、世界の差をカメラの向きへ
+  const x = -qx, y = -qy, z = -qz, w = qw;
+  const ix = w * vx + y * vz - z * vy, iy = w * vy + z * vx - x * vz, iz = w * vz + x * vy - y * vx, iw = -x * vx - y * vy - z * vz;
+  const lx = ix * w + iw * -x + iy * -z - iz * -y, ly = iy * w + iw * -y + iz * -x - ix * -z, lz = iz * w + iw * -z + ix * -y - iy * -x;
+  const t = Math.tan(fov * Math.PI / 360), d = Math.max(1e-6, -lz);
+  return [lx / (d * t * aspect), ly / (d * t)];
+}
+export function cameraView(frames, dt, aspect = 16 / 9, exclude = []) {
+  const S = frames.map(f => f.cam ? screenPoint(f.cam, [f.pos[0], f.pos[1] + 1.0, f.pos[2]], aspect) : null);
+  const byTag = {}, all = { yRange: 0, xRange: 0, screenSpeedMax: 0, camYAccMax: 0, fovRateMax: 0 };
+  for (const tag of tagsOf(frames)) {
+    const idx = frames.map((f, i) => f.tag === tag && i >= 2 && S[i] && S[i - 1] && S[i - 2] ? i : -1).filter(i => i >= 0);
+    if (!idx.length) continue;
+    const xs = idx.map(i => S[i][0]), ys = idx.map(i => S[i][1]);
+    const r = { xRange: round(Math.max(...xs) - Math.min(...xs), 3), yRange: round(Math.max(...ys) - Math.min(...ys), 3), yMin: round(Math.min(...ys), 3),
+      screenSpeedMax: round(Math.max(...idx.map(i => Math.hypot(S[i][0] - S[i - 1][0], S[i][1] - S[i - 1][1]) / dt)), 3),
+      camYAccMax: round(Math.max(...idx.map(i => Math.abs(frames[i].cam[1] - 2 * frames[i - 1].cam[1] + frames[i - 2].cam[1]) / dt ** 2)), 2),
+      fovRateMax: round(Math.max(...idx.map(i => Math.abs(frames[i].cam[7] - frames[i - 1].cam[7]) / dt)), 2) };
+    byTag[tag] = r;
+    if (!exclude.includes(tag)) for (const k of Object.keys(all)) all[k] = Math.max(all[k], r[k]);
+  }
+  return { aspect, ...all, byTag };
 }
 
 // (g) 論理の速さの不連続：論理の速さ（speed）と、実際に位置が進んだ速さ（位置の差÷dt）の、1コマの変化がしきい値（m/秒）を超えた回数
@@ -194,13 +228,14 @@ export function speedJumps(frames, dt, opts = {}) {
 // まとめ：表に出す値と、細目
 export function smoothMetrics(run, opts = {}) {
   const { frames, dt } = run;
-  const slip = footSlip(frames), slipLegacy = frames.some(f => f.contactLegacy) ? footSlip(frames, 'contactLegacy') : null, slipLow = frames.some(f => f.low) ? footSlip(frames, 'low') : null, win = windowDrift(frames, opts), pops = jointPops(frames, opts), face = facingJumps(frames, opts), flips = gaitFlips(frames, opts), cam = cameraMotion(frames, dt, opts.camExclude || []), spd = speedJumps(frames, dt, opts);
+  const slip = footSlip(frames), slipLegacy = frames.some(f => f.contactLegacy) ? footSlip(frames, 'contactLegacy') : null, slipLow = frames.some(f => f.low) ? footSlip(frames, 'low') : null, win = windowDrift(frames, opts), pops = jointPops(frames, opts), face = facingJumps(frames, opts), flips = gaitFlips(frames, opts), cam = cameraMotion(frames, dt, opts.camExclude || []), spd = speedJumps(frames, dt, opts), view = cameraView(frames, dt, run.aspect ?? 16 / 9, opts.camExclude || []);
   const summary = {
     'slip.cmPerM': slip.total.cmPerM, 'slipLegacy.cmPerM': slipLegacy?.total.cmPerM ?? null, 'slipLow.cmPerM': slipLow?.total.cmPerM ?? null, 'window.maxCm': win.max,
     ...Object.fromEntries(Object.entries(win.byKind).map(([k, v]) => [`window.${k}.maxCm`, v])),
     'pops.legs.over45': pops.legs.over45, 'pops.legs.over90': pops.legs.over90, 'pops.arms.over45': pops.arms.over45, 'pops.arms.over90': pops.arms.over90,
     'facing.yaw.over30': face.yaw.over, 'facing.model.over30': face.modelYaw.over, 'gait.flips': flips.flips,
-    'cam.posJerkP99': cam.posJerkP99, 'cam.rotAccelP99': cam.rotAccelP99, 'speed.logicalJumps': spd.logical, 'speed.travelJumps': spd.travel,
+    'cam.posJerkP99': cam.posJerkP99, 'cam.rotAccelP99': cam.rotAccelP99, 'cam.posJerkP99Clean': cam.posJerkP99Clean, 'cam.rotAccelP99Clean': cam.rotAccelP99Clean, 'speed.logicalJumps': spd.logical, 'speed.travelJumps': spd.travel,
+    'view.yRange': view.yRange, 'view.screenSpeedMax': view.screenSpeedMax, 'view.camYAccMax': view.camYAccMax, 'view.fovRateMax': view.fovRateMax,
   };
-  return { summary, slip, slipLegacy, slipLow, stanceMax: stanceMaxByTag(frames), windows: win, pops, facing: face, gait: flips, camera: cam, speed: spd };
+  return { summary, slip, slipLegacy, slipLow, stanceMax: stanceMaxByTag(frames), windows: win, pops, facing: face, gait: flips, camera: cam, view, speed: spd };
 }

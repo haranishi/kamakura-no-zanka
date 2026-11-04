@@ -89,7 +89,7 @@ export function recordJourney(v, { script = SCRIPT, start = START, dt = DT, sett
     }
     for (const k of keys) __valley.key(k, false);
     if (h.crouch) { __valley.key('KeyC', true); __valley.step(1, dt); __valley.key('KeyC', false); }
-    return { dt, blocked, lowY: r5(lowY), frames };
+    return { dt, blocked, lowY: r5(lowY), aspect: g.camera.aspect, frames };
   })()`);
 }
 
