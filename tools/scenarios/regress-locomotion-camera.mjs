@@ -1,10 +1,10 @@
 // 回帰（M4・design-locomotion-camera.md）：追従カメラ。実ゲームで、同じページの ?smooth=camera（M3 のカメラ）と比べる。物差しは tools/lib/smooth-metrics.mjs。
 //  1. 台本（smooth-journey）：カメラ位置の加加速度p99（視点を回した窓を外す）が M3 より10%以上小さい。回転の角加速度は悪化させない。主人公の画面上の流れ（yRange）を
-//     増やさない（遅れを増やして滑らかに見せる逃げを止める）。走りで画角が +2.5〜3度、立ちで58度。論理の位置・速さ・歩容は M3 と全コマ同じ。
+//     増やさない（遅れを増やして滑らかに見せる逃げを止める）。画角は既定で58度のまま（?fov=on では走りで+3度・立ちで58度）。論理の位置・速さ・歩容は M3 と全コマ同じ。
 //  2. 場面（棚田の段の下り・登り、土手の斜面、壁から離れる、壁の角を走り抜ける）：カメラの1コマの動きが主人公の1コマの動き＋15cm を超えない（壁際で瞬間に寄せない。M3 は壁の角で1.18m。追いつく・寄せる動きは0.1m前後）、
 //     棚田でカメラの上下の加速度が M3 の6割以下、各場面の加加速度の最大が M3 を超えない、画面の主人公が遮られない（注視点からカメラの線の当たり）、地面から0.55m下へ潜らない。
 //  2b. 木の間（木が密な空き地を走る）：寄せの割合が下限（主人公から MIN_REACH）を割らない・1コマの寄せが旧版より大きくない。
-//  3. 設定：「画面の揺れ・衝撃」0・「動きを減らす」で画角が変わらない。揺れ0.5で半分まで。?smooth=camera は58度のまま。
+//  3. 設定：画角は既定で広げない（58度のまま）。?fov=on でだけ走りで+3度。そのとき「画面の揺れ・衝撃」0・「動きを減らす」で広げない・揺れ0.5で半分まで・?smooth=camera は58度のまま。
 //  4. 30・60・144コマ/秒で、走り→止まりのカメラ（画角・主人公との距離・止まった後の位置）が極端に変わらない。
 // 門番の確かめ（2026-11-04）：先回りを切る（cfg.predict=0）と2の壁の角で、上下を1段に戻す（cfg.wy1=1e6）と2の棚田で、寄せの下限を外す（cfg.hold=0）と2bの木の間で、画角が揺れの設定を読まないと3で、それぞれ失敗する（KZ_MUTATE=predict|vertical|hold|fov で再現）。
 // 使い方: PLAYWRIGHT_MODULE=… node tools/valley-play.mjs tools/scenarios/regress-locomotion-camera.mjs --strict --out <dir>（KZ_OUT=… でJSON。KZ_MUTATE=predict|vertical|hold|fov で門番の確かめ）
@@ -68,7 +68,7 @@ export default async function (ctx) {
   const { v, log } = ctx, out = {};
   const search = await v('location.search');
   const toggle = q => v(`(async () => { const A = await import('/valley/actors.js'); A.configureLoco(${JSON.stringify(q)}); })()`);
-  const OLD = '?loco=a&smooth=camera', NEW = search || '';
+  const OLD = '?loco=a&smooth=camera', NEW = search || '', NEWFOV = (search ? search + '&' : '?') + 'fov=on';   // 画角の広がりは既定オフ。?fov=on の版は NEWFOV
   // 遮られ方：注視点からカメラへの線の当たり（1＝遮られていない）。ゲームの rayClip と同じ半径
   await v(`(async () => { const C = await import('/valley/collision.js'); const g = __valley.game;
     __valley.rayClear = (a, b) => C.rayClip(g.col, g.terrain, { x: a[0], y: a[1], z: a[2] }, { x: b[0], y: b[1], z: b[2] }, 0.3, { ignoreThin: 0.2 }); })()`);
@@ -89,10 +89,15 @@ export default async function (ctx) {
   check(mn.camera.posJerkP99Clean <= JERK_RATIO * mo.camera.posJerkP99Clean, `journey: camera jerk p99 ${mn.camera.posJerkP99Clean} not 10% below ${mo.camera.posJerkP99Clean}`);
   check(mn.camera.rotAccelP99Clean <= mo.camera.rotAccelP99Clean * 1.1 + 0.05, `journey: rotation accel p99 ${mn.camera.rotAccelP99Clean} worse than ${mo.camera.rotAccelP99Clean}`);
   check(mn.view.yRange <= mo.view.yRange * 1.1 + DRIFT_SLACK, `journey: hero drifts more on screen ${mn.view.yRange} vs ${mo.view.yRange}`);
-  const runFov = runNew.frames.filter(f => f.tag === 'run').map(f => f.cam[7]), standFov = runNew.frames.filter(f => f.tag === 'stand').map(f => f.cam[7]);
-  check(Math.max(...runFov) >= 60.5 && Math.max(...runFov) <= 61.001, `journey: sprint FOV ${Math.max(...runFov)} not in 60.5..61`);
-  check(Math.max(...standFov) <= 58.2, `journey: standing FOV ${Math.max(...standFov)}`);
-  check(mn.view.fovRateMax <= 6, `journey: FOV changes ${mn.view.fovRateMax} deg/s`);
+  // 画角は既定ではオフ：台本のどこでも58度のまま。?fov=on の版でだけ、走りで+3度（見た目の投影だけなので位置は同じ）
+  check(Math.max(...runNew.frames.map(f => f.cam[7])) <= 58.02, `journey: the default widened the FOV ${JSON.stringify(mn.camera.fovRange)} (it is opt-in: ?fov=on)`);
+  await toggle(NEWFOV); const runWide = await recordJourney(v); await toggle(NEW);
+  const mw = smoothMetrics(runWide, OPTS);
+  const runFov = runWide.frames.filter(f => f.tag === 'run').map(f => f.cam[7]), standFov = runWide.frames.filter(f => f.tag === 'stand').map(f => f.cam[7]);
+  log(`台本（?fov=on） 画角 ${JSON.stringify(mw.camera.fovRange)}・画角の変化の速さ ${mw.view.fovRateMax}度/秒`);
+  check(Math.max(...runFov) >= 60.5 && Math.max(...runFov) <= 61.001, `journey ?fov=on: sprint FOV ${Math.max(...runFov)} not in 60.5..61`);
+  check(Math.max(...standFov) <= 58.2, `journey ?fov=on: standing FOV ${Math.max(...standFov)}`);
+  check(mw.view.fovRateMax <= 6, `journey ?fov=on: FOV changes ${mw.view.fovRateMax} deg/s`);
   check(mo.camera.fovRange[1] <= 58.02, `journey: ?smooth=camera changed the FOV ${mo.camera.fovRange}`);
   let logical = 0; for (let i = 0; i < runNew.frames.length; i++) { const a = runNew.frames[i], b = runOld.frames[i]; if (!b || JSON.stringify([a.pos, a.yaw, a.speed, a.gait]) !== JSON.stringify([b.pos, b.yaw, b.speed, b.gait])) logical++; }
   check(logical === 0 && runNew.frames.length === runOld.frames.length, `journey: ${logical} frames differ in position/yaw/speed/gait from ?smooth=camera`);
@@ -128,7 +133,7 @@ export default async function (ctx) {
   // 3. 設定：揺れ0・揺れ0.5・動きを減らす・?smooth=camera（上限の0.02度は、前の場面の画角が0.01度の差では投影を更新しない分の残り）
   const SPRINT = { name: 'sprint', x: 2, z: 4, yaw: 0, keys: RUN, secs: 2.5 };
   out.settings = {};
-  for (const [name, q, shake, reduced, lim] of [['default', NEW, 1, false, [60.5, 61.001]], ['shake0', NEW, 0, false, [58, 58.02]], ['shake05', NEW, 0.5, false, [59.2, 59.501]], ['reduced', NEW, 1, true, [58, 58.02]], ['smoothCamera', OLD, 1, false, [58, 58.02]]]) {
+  for (const [name, q, shake, reduced, lim] of [['default', NEW, 1, false, [58, 58.02]], ['fov', NEWFOV, 1, false, [60.5, 61.001]], ['fovShake0', NEWFOV, 0, false, [58, 58.02]], ['fovShake05', NEWFOV, 0.5, false, [59.2, 59.501]], ['fovReduced', NEWFOV, 1, true, [58, 58.02]], ['smoothCamera', OLD + '&fov=on', 1, false, [58, 58.02]]]) {
     await toggle(q);
     await v(`(() => { const g = __valley.game; g.rig.shakeScale = ${shake}; g.settings.shake = ${shake}; g.settings.reducedMotion = ${reduced}; })()`);
     const rs = await recordRoute(v, SPRINT), fov = Math.max(...rs.frames.map(f => f.cam[7]));
@@ -136,7 +141,7 @@ export default async function (ctx) {
     out.settings[name] = r3(fov); log(`設定 ${name.padEnd(13)} 走りの画角の最大 ${r3(fov)}（${lim[0]}〜${lim[1]}）`);
     check(fov >= lim[0] && fov <= lim[1], `settings ${name}: sprint FOV ${fov} not in ${lim}`);
   }
-  await toggle(NEW);
+  await toggle(NEWFOV);   // コマ速度の確認は画角を広げた版で（止まる瞬間の画角も30・60・144で揃うこと）
   // 4. 30・60・144コマ/秒
   out.hz = {};
   const STOP = { name: 'hz', x: 2, z: 4, yaw: 0, keys: RUN, secs: 2.0 };

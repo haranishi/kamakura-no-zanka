@@ -174,7 +174,7 @@ export class CameraRig {
     }
     this.camera.lookAt(lx, ly, lz);
     this.fovPunch = damp(this.fovPunch, 0, 8, dt);
-    this.speedFov = springAsym(this.fovS, speedFov(speed, this.shakeScale, reduced, lb, c), c.fovUp, c.fovDown, dt);
+    this.speedFov = springAsym(this.fovS, LOCO.fovSpeed ? speedFov(speed, this.shakeScale, reduced, lb, c) : 0, c.fovUp, c.fovDown, dt);   // 画角の広がりは ?fov=on のときだけ
     const fov = this.baseFov + this.fovPunch + this.speedFov;
     if (Math.abs(this.camera.fov - fov) > 0.01) { this.camera.fov = fov; this.camera.updateProjectionMatrix(); }
   }

@@ -12,6 +12,13 @@ test('?smooth=camera turns only the follow camera off; ?smooth=off and ?loco=old
   for (const q of ['?smooth=ik', '?smooth=arms', '?smooth=speed']) assert.equal(parseLoco(q).smoothCamera, true, q);
 });
 
+test('the speed-linked FOV is opt-in (?fov=on) and ?smooth=camera, ?smooth=off and ?loco=old win over it', () => {
+  assert.equal(parseLoco('').fovSpeed, false);
+  assert.equal(parseLoco('?fov=on').fovSpeed, true);
+  for (const q of ['?fov=off', '?fov=1', '?fov=on&smooth=camera', '?fov=on&smooth=off', '?fov=on&loco=old', '?smooth=speed,camera&fov=on']) assert.equal(parseLoco(q).fovSpeed, false, q);
+  assert.equal(parseLoco('?fov=on').smoothCamera, true);
+});
+
 test('spring is exact (same curve at 30, 60 and 144 fps), never overshoots, and holds still when no time passes', () => {
   const run = hz => { const s = [0, 0], out = []; for (let i = 0; i < hz; i++) { spring(s, 1, 15, 1 / hz); if ((i + 1) % (hz / 6) === 0) out.push(s[0]); } return out; };
   const a = run(30), b = run(60), c = run(144);
