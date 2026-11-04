@@ -1,7 +1,7 @@
 // 追従カメラの式（M4・dist/valley/camera-follow.js）と切替 ?smooth=camera（loco.js）。
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { CAM, spring, springAsym, trackVelocity, speedFov, clipTarget, softMax } from '../dist/valley/camera-follow.js';
+import { CAM, spring, springAsym, trackVelocity, speedFov, clipTarget, softMax, holdAbove } from '../dist/valley/camera-follow.js';
 import { parseLoco } from '../dist/valley/loco.js';
 
 test('?smooth=camera turns only the follow camera off; ?smooth=off and ?loco=old turn it off too', () => {
@@ -65,3 +65,16 @@ test('softMax keeps the floor (never below either value), matches max far from t
   for (let x = -0.3; x < 0.3; x += 0.01) assert(Math.abs(slope(x + 0.01) - slope(x)) < 0.05, `kink near ${x}`);   // 傾きが1コマで折れない
 });
 
+test('holdAbove stops a spring at its floor and drops only the downward speed there', () => {
+  const a = [0.27, -1.8]; assert.equal(holdAbove(a, 0.365), 0.365); assert.deepEqual(a, [0.365, 0]);
+  const b = [0.27, 1.2]; holdAbove(b, 0.365); assert.deepEqual(b, [0.365, 1.2]);   // 上へ向かう速さは残す
+  const c = [0.5, -2]; assert.equal(holdAbove(c, 0.365), 0.5); assert.deepEqual(c, [0.5, -2]);   // 下限より上は触らない
+  assert.equal(CAM.hold, 1);
+});
+
+test('after a pull-in snaps to the floor with downward speed left, the spring would dip below it; holdAbove keeps it at the floor', () => {
+  // 木の間で、今のコマの当たりへ1コマで寄せたあと（位置は下限・速さは−1.8/秒のまま）、戻し側のばね（ω7）で進める。M4 の初版では約0.09 下へ行き過ぎた
+  const run = hold => { const p = [0.365, -1.8]; let min = p[0]; for (let i = 0; i < 40; i++) { springAsym(p, 0.365, CAM.clipOut, CAM.clipIn, 1 / 60); if (hold) holdAbove(p, 0.365); min = Math.min(min, p[0]); } return min; };
+  assert(run(true) >= 0.365 - 1e-12);
+  assert(run(false) < 0.365 - 0.05);   // 外すと割る（試験が効いている証拠）
+});

@@ -14,6 +14,9 @@ export const CAM = Object.freeze({
   predict: 0.4, clipPre: 30, clipIn: 20, clipOut: 7, liftUp: 28, liftDown: 6.3,
   // 地面からの下限0.55mは、折れ目のない最大（log-sum-exp・幅0.12m）で効かせる。下限は常に守り（なめらかな最大は大きい方以上）、効き始めでカメラの上下の速さが折れない
   floorSoft: 0.12,
+  // 寄せの下限（壁際でも主人公から MIN_REACH 以上は寄らない）をばねの状態でも守る（1＝守る・0は検査で外して門番を確かめる）。今のコマの当たりへ1コマで寄せたあと、
+  // 下へ向かう速さが残ると、状態が下限より下へ行き過ぎた（木の間を走る32通りのうち6通りで最大25%・主人公から約1.0mまで）
+  hold: 1,
   // 画角：ならした速さが3.2→5.0m/秒で0→+3度。上げは ω4（95%に1.2秒）、戻りは ω3（1.6秒）。「画面の揺れ・衝撃」の倍率を掛け、「動きを減らす」で0
   fov: 3, fovFrom: 3.2, fovTo: 5.0, fovUp: 4, fovDown: 3,
 });
@@ -49,3 +52,6 @@ export function softMax(a, b, k) { const m = Math.max(a, b); return m + k * Math
 
 // 遮蔽の寄せの目標：今のコマの当たり hard と、先回りの当たり ahead（無ければ null）の小さい方。どちらも下限 floor を下回らない
 export function clipTarget(hard, ahead, floor) { return Math.max(floor, ahead == null ? hard : Math.min(hard, ahead)); }
+
+// ばねの状態 s を下限 floor で止める。下限より下へ出ていたら下限へ戻し、下へ向かう速さを捨てる（上へ向かう速さは残す）。戻り値は位置
+export function holdAbove(s, floor) { if (s[0] < floor) { s[0] = floor; if (s[1] < 0) s[1] = 0; } return s[0]; }

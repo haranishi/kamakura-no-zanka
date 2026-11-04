@@ -3,10 +3,11 @@
 //     増やさない（遅れを増やして滑らかに見せる逃げを止める）。走りで画角が +2.5〜3度、立ちで58度。論理の位置・速さ・歩容は M3 と全コマ同じ。
 //  2. 場面（棚田の段の下り・登り、土手の斜面、壁から離れる、壁の角を走り抜ける）：カメラの1コマの動きが主人公の1コマの動き＋15cm を超えない（壁際で瞬間に寄せない。M3 は壁の角で1.18m。追いつく・寄せる動きは0.1m前後）、
 //     棚田でカメラの上下の加速度が M3 の6割以下、各場面の加加速度の最大が M3 を超えない、画面の主人公が遮られない（注視点からカメラの線の当たり）、地面から0.55m下へ潜らない。
+//  2b. 木の間（木が密な空き地を走る）：寄せの割合が下限（主人公から MIN_REACH）を割らない・1コマの寄せが旧版より大きくない。
 //  3. 設定：「画面の揺れ・衝撃」0・「動きを減らす」で画角が変わらない。揺れ0.5で半分まで。?smooth=camera は58度のまま。
 //  4. 30・60・144コマ/秒で、走り→止まりのカメラ（画角・主人公との距離・止まった後の位置）が極端に変わらない。
-// 門番の確かめ（2026-11-04）：先回りを切る（cfg.predict=0）と2の壁の角で、上下を1段に戻す（cfg.wy1=1e6）と2の棚田で、画角が揺れの設定を読まないと3で、それぞれ失敗する（--mutate で再現）。
-// 使い方: PLAYWRIGHT_MODULE=… node tools/valley-play.mjs tools/scenarios/regress-locomotion-camera.mjs --strict --out <dir>（KZ_OUT=… でJSON。KZ_MUTATE=predict|vertical|fov で門番の確かめ）
+// 門番の確かめ（2026-11-04）：先回りを切る（cfg.predict=0）と2の壁の角で、上下を1段に戻す（cfg.wy1=1e6）と2の棚田で、寄せの下限を外す（cfg.hold=0）と2bの木の間で、画角が揺れの設定を読まないと3で、それぞれ失敗する（KZ_MUTATE=predict|vertical|hold|fov で再現）。
+// 使い方: PLAYWRIGHT_MODULE=… node tools/valley-play.mjs tools/scenarios/regress-locomotion-camera.mjs --strict --out <dir>（KZ_OUT=… でJSON。KZ_MUTATE=predict|vertical|hold|fov で門番の確かめ）
 import fs from 'node:fs';
 import { prepare, recordJourney, OPTS } from './smooth-journey.mjs';
 import { smoothMetrics, cameraView } from '../lib/smooth-metrics.mjs';
@@ -39,7 +40,7 @@ export function recordRoute(v, r, hz = 60, pre = 150) {
       const f = g.rig.focus, p = c.position;
       frames.push({ t: i * dt, tag: r.name, pos: [h.pos.x, h.pos.y ?? 0, h.pos.z], speed: h.speed,
         cam: [p.x, p.y, p.z, c.quaternion.x, c.quaternion.y, c.quaternion.z, c.quaternion.w, c.fov],
-        ground: g.terrain.heightAt(p.x, p.z), clear: __valley.rayClear ? __valley.rayClear([f.x, f.y, f.z], [p.x, p.y, p.z]) : null });
+        ground: g.terrain.heightAt(p.x, p.z), clear: __valley.rayClear ? __valley.rayClear([f.x, f.y, f.z], [p.x, p.y, p.z]) : null, clipped: g.rig.clipped, tMin: g.rig.tMin ?? null });
     }
     for (const k of ['KeyW', 'KeyS', 'ShiftLeft']) __valley.key(k, false);
     return { dt, aspect: c.aspect, frames };
@@ -75,7 +76,7 @@ export default async function (ctx) {
   if (mutate) {
     // fov：画角が「画面の揺れ・衝撃」の倍率を読まない不具合を作る（倍率を1に固定）
     if (mutate === 'fov') await v("Object.defineProperty(__valley.game.rig, 'shakeScale', { get: () => 1, set() {} })");
-    else await v(`(() => { const r = __valley.game.rig; r.cfg = { ...r.cfg, ...${{ predict: '{ predict: 0 }', vertical: '{ wy1: 1e6 }' }[mutate]} }; })()`);
+    else await v(`(() => { const r = __valley.game.rig; r.cfg = { ...r.cfg, ...${{ predict: '{ predict: 0 }', vertical: '{ wy1: 1e6 }', hold: '{ hold: 0 }' }[mutate]} }; })()`);
     log('門番の確かめ：数値の表を差し替えた', mutate);
   }
   // 0. 空で1回（1回目は前の状態を引きずる。M3 の落とし穴）
@@ -113,6 +114,17 @@ export default async function (ctx) {
     check(res.new.floor >= Math.min(0.55, res.old.floor) - 0.02, `${r.name}: the camera goes ${res.new.floor} m above the ground`);
     if (r.wall) check(so.over > 0.3, `${r.name}: the place no longer pulls the camera in (old over ${r3(so.over)} m) — the route does not test the wall`);
   }
+  // 2b. 木の間（寄せの下限）：木が間に入って今のコマの当たりへ1コマで寄せたあとも、寄せの割合が下限（主人公から MIN_REACH）を割らない。
+  //     M4 の初版は、そのとき下向きの速さが残って約25%（主人公から約1.0m）まで行き過ぎた（木が密な空き地・−88,84 から北へ走る。旧版は1コマで下限へ寄せて止まる）。
+  //     ここで1コマの寄せは安全のために許す（壁の中は映さない）。見るのは、旧版より大きく跳ばないことと、下限を割らないこと。
+  const FOREST = { name: 'forest_run', x: -88, z: 84, yaw: 0, keys: RUN, secs: 3.0 };
+  await toggle(OLD); const fo = await recordRoute(v, FOREST); await toggle(NEW); const fn = await recordRoute(v, FOREST);
+  const gapMin = Math.min(...fn.frames.map(f => f.clipped - f.tMin)), sf = stepStats(fn.frames), sfo = stepStats(fo.frames);
+  out.forest = { gapMin: r3(gapMin), over: r3(sf.over), overOld: r3(sfo.over) };
+  log(`木の間 寄せの割合−下限の最小 ${r3(gapMin)}（0以上・0.01以下）・1コマの動きの超過 ${r3(sfo.over)} → ${r3(sf.over)}m`);
+  check(gapMin >= -0.005, `forest_run: the camera goes ${r3(-gapMin)} (fraction of the boom) closer than the minimum reach`);
+  check(gapMin <= 0.01, `forest_run: the camera never reaches the minimum reach (gap ${r3(gapMin)}) — the route does not test the floor`);
+  check(sf.over <= sfo.over + 0.05, `forest_run: the camera jumps ${r3(sf.over)} m more than the hero in one frame (old ${r3(sfo.over)})`);
   // 3. 設定：揺れ0・揺れ0.5・動きを減らす・?smooth=camera（上限の0.02度は、前の場面の画角が0.01度の差では投影を更新しない分の残り）
   const SPRINT = { name: 'sprint', x: 2, z: 4, yaw: 0, keys: RUN, secs: 2.5 };
   out.settings = {};
