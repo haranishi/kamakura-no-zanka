@@ -1,0 +1,187 @@
+{
+ "out": {
+  "journey": {
+   "old": {
+    "exclude": [
+     "turn"
+    ],
+    "posJerkP99": 239.8,
+    "posJerkP99Clean": 209.5,
+    "rotAccelP99Clean": 0,
+    "posJerkP99All": 598.9,
+    "rotAccelP99All": 20.21,
+    "posJerkMax": 2309.3,
+    "rotAccelP99": 0,
+    "rotAccelMax": 21.51,
+    "fovRange": [
+     58.01,
+     58.01
+    ],
+    "view": {
+     "aspect": 1.7777777777777777,
+     "yRange": 0.11,
+     "xRange": 0.026,
+     "screenSpeedMax": 0.614,
+     "camYAccMax": 0.25,
+     "fovRateMax": 0
+    }
+   },
+   "new": {
+    "exclude": [
+     "turn"
+    ],
+    "posJerkP99": 231.1,
+    "posJerkP99Clean": 185.8,
+    "rotAccelP99Clean": 0,
+    "posJerkP99All": 593.1,
+    "rotAccelP99All": 20.21,
+    "posJerkMax": 2307.9,
+    "rotAccelP99": 0,
+    "rotAccelMax": 21.51,
+    "fovRange": [
+     58.01,
+     60.97
+    ],
+    "view": {
+     "aspect": 1.7777777777777777,
+     "yRange": 0.104,
+     "xRange": 0.029,
+     "screenSpeedMax": 0.611,
+     "camYAccMax": 0.22,
+     "fovRateMax": 3.93
+    }
+   }
+  },
+  "routes": {
+   "terrace_run": {
+    "old": {
+     "yAcc": 31.33,
+     "jerkMax": 645.467,
+     "step": 0.092,
+     "over": 0.044,
+     "clear": 1,
+     "floor": 1.736,
+     "yRange": 0.184
+    },
+    "new": {
+     "yAcc": 14.66,
+     "jerkMax": 251.906,
+     "step": 0.09,
+     "over": 0.048,
+     "clear": 1,
+     "floor": 1.898,
+     "yRange": 0.21
+    }
+   },
+   "terrace_up_run": {
+    "old": {
+     "yAcc": 31.2,
+     "jerkMax": 637.477,
+     "step": 0.092,
+     "over": 0.044,
+     "clear": 1,
+     "floor": 2.654,
+     "yRange": 0.276
+    },
+    "new": {
+     "yAcc": 14.63,
+     "jerkMax": 250.612,
+     "step": 0.089,
+     "over": 0.048,
+     "clear": 1,
+     "floor": 2.546,
+     "yRange": 0.3
+    }
+   },
+   "bank_slope": {
+    "old": {
+     "yAcc": 81.26,
+     "jerkMax": 5566.2,
+     "step": 0.094,
+     "over": 0.027,
+     "clear": 0.13,
+     "floor": 0.713,
+     "yRange": 0.668
+    },
+    "new": {
+     "yAcc": 13.57,
+     "jerkMax": 400.692,
+     "step": 0.09,
+     "over": 0.028,
+     "clear": 0.13,
+     "floor": 1.018,
+     "yRange": 0.766
+    }
+   },
+   "wall_away": {
+    "old": {
+     "yAcc": 12.01,
+     "jerkMax": 2920.669,
+     "step": 0.083,
+     "over": 0.044,
+     "clear": 0.52,
+     "floor": 2.199,
+     "yRange": 0.602
+    },
+    "new": {
+     "yAcc": 7.44,
+     "jerkMax": 250.555,
+     "step": 0.083,
+     "over": 0.048,
+     "clear": 0.52,
+     "floor": 2.163,
+     "yRange": 0.613
+    }
+   },
+   "wall_pass": {
+    "old": {
+     "yAcc": 1109.78,
+     "jerkMax": 510268.947,
+     "step": 1.261,
+     "over": 1.178,
+     "clear": 1,
+     "floor": 2.181,
+     "yRange": 0.223
+    },
+    "new": {
+     "yAcc": 22.4,
+     "jerkMax": 4074.434,
+     "step": 0.186,
+     "over": 0.103,
+     "clear": 1,
+     "floor": 2.184,
+     "yRange": 0.228
+    }
+   }
+  },
+  "settings": {
+   "default": 60.985,
+   "shake0": 58.006,
+   "shake05": 59.488,
+   "reduced": 58.011,
+   "smoothCamera": 58.001
+  },
+  "hz": {
+   "30": {
+    "fovAtStop": 60.944,
+    "lagAtStop": 4,
+    "restDist": 3.568
+   },
+   "60": {
+    "fovAtStop": 60.939,
+    "lagAtStop": 4.041,
+    "restDist": 3.568
+   },
+   "144": {
+    "fovAtStop": 60.938,
+    "lagAtStop": 4.065,
+    "restDist": 3.568
+   }
+  },
+  "hzOld": {
+   "30": 4.038,
+   "144": 4.103
+  }
+ },
+ "fail": []
+}
