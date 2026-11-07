@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-07T12:21:11.599442+00:00",
+  "generatedAt": "2026-11-07T12:21:11.872158+00:00",
   "scope": "Source, assets and verification artifacts; excludes this manifest, Git metadata, ignored files and private runtime data",
   "files": [
     {
@@ -490,8 +490,8 @@
     },
     {
       "path": ".kiro/specs/world-map/w2c-5c-validation.md",
-      "size": 11209,
-      "sha256": "0b955e1095e4680d043f1cbb58ed150b33385fafc5e6f2a7fae7655765173f07"
+      "size": 12792,
+      "sha256": "5313af3e9b80e58717567f1720527894a8cd6cf3b96e41e1006649eaa130826f"
     },
     {
       "path": ".kiro/specs/world-map/w2c-6a-validation.md",
@@ -1165,8 +1165,8 @@
     },
     {
       "path": "dist/valley/grass-view.js",
-      "size": 20531,
-      "sha256": "e89e0960ea9fc3479d5721cb7295f52dedb10d465c48e3e1dfa262d5668d5372"
+      "size": 20776,
+      "sha256": "3ae30fa2acfdefe32b890229c335626ded4e411561cbf8e8a8d634b0d644f22a"
     },
     {
       "path": "dist/valley/guide-nav.js",
@@ -1280,8 +1280,8 @@
     },
     {
       "path": "dist/valley/kamakura-grass-field.js",
-      "size": 7284,
-      "sha256": "55591b6ee50be33754d4a06e23e86edafbffca549937ed02a4b68308971b3f27"
+      "size": 7536,
+      "sha256": "17874982b3e6462f92a82bf84e7bf7dc540f23bc6bd89998b48aa7e9a16aa455"
     },
     {
       "path": "dist/valley/kamakura-grass-view.js",
@@ -4435,8 +4435,8 @@
     },
     {
       "path": "tests/kamakura-grass.test.mjs",
-      "size": 10416,
-      "sha256": "4e20bc1d6df5634cc86ad9b0656be5cbeb1fdbd272931c4235c74714f26b109b"
+      "size": 11473,
+      "sha256": "4b89a89f294324c8eec25d5c37374b2173ba55d6db3ed74ce7bead855463ba27"
     },
     {
       "path": "tests/kamakura-ground.test.mjs",

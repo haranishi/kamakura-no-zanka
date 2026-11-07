@@ -22,9 +22,12 @@ export function grassExclusions(terrain, { colliders, extraColliders, paths = {}
   return (x, z) => {
     const reason = path({ x, z }); if (reason) return reason;
     const margin = Math.SQRT1_2;
+    // The box test widens each local half-extent by margin + .4. Turned 45 degrees that is sqrt(2) times as far
+    // along the world axes, and the collision grid (8 m cells) registers a box without any margin: search that far.
+    const reach = (margin + .4) * Math.SQRT2;
     const found = new Set();
-    for (let j = Math.floor((z - margin - .4) / 8); j <= Math.floor((z + margin + .4) / 8); j++)
-      for (let i = Math.floor((x - margin - .4) / 8); i <= Math.floor((x + margin + .4) / 8); i++)
+    for (let j = Math.floor((z - reach) / 8); j <= Math.floor((z + reach) / 8); j++)
+      for (let i = Math.floor((x - reach) / 8); i <= Math.floor((x + reach) / 8); i++)
         for (const col of [colliders, extraColliders]) for (const o of col?.grid.get(`${i},${j}`) || []) found.add(o);
     for (const o of found) {
       if (o.type === 'circle') { if (Math.hypot(x - o.x, z - o.z) <= o.r + margin) return 'trunk'; }
