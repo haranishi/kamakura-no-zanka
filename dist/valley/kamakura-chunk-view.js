@@ -1,7 +1,7 @@
 import * as THREE from 'three';
-import { CHUNK_CELLS as SIZE, chooseLOD, chunkGeometry } from './kamakura-chunks.js';
+import { CHUNK_CELLS as SIZE, chooseLOD, choosePatchLOD, chunkGeometry } from './kamakura-chunks.js';
 export function buildKamakuraChunks(t, scene, spawn) {
-  const material = new THREE.MeshLambertMaterial({ color: 0x9b9b70 });
+  const material = new THREE.MeshLambertMaterial({ color: 0x858563 });
   const chunks = [], grid = new Map();
   for (let j = 0; j < t.h - 1; j += SIZE) for (let i = 0; i < t.w - 1; i += SIZE) {
     const ch = { i, j, i1: Math.min(t.w - 1, i + SIZE), j1: Math.min(t.h - 1, j + SIZE), step: 8, mesh: null };
@@ -20,13 +20,14 @@ export function buildKamakuraChunks(t, scene, spawn) {
     if (ch.mesh) { ch.mesh.geometry.dispose(); ch.mesh.geometry = g; }
     else { ch.mesh = new THREE.Mesh(g, material); scene.add(ch.mesh); }
   }
+  const wantLOD = (ch, d) => t.patches ? choosePatchLOD(d, ch.step) : ch.nearA ? chooseLOD(d, ch.step) : 8;
   // Plan all initial LODs before construction, so progressively arriving neighbors already match.
-  for (const ch of chunks) ch.step = ch.nearA ? chooseLOD(Math.hypot(ch.x - spawn.x, ch.z - spawn.z)) : 8;
+  for (const ch of chunks) ch.step = wantLOD(ch, Math.hypot(ch.x - spawn.x, ch.z - spawn.z));
   function update(pos) {
     const sorted = chunks.map(ch => ({ ch, d: Math.hypot(ch.x - pos.x, ch.z - pos.z) })).sort((a, b) => a.d - b.d);
     // A LOD change and its four loaded neighbors are rebuilt atomically (at most five meshes).
     for (const { ch, d } of sorted) {
-      const want = ch.nearA ? chooseLOD(d, ch.step) : 8;
+      const want = wantLOD(ch, d);
       if (ch.mesh && want !== ch.step) {
         ch.step = want; rebuild(ch);
         for (const n of Object.values(neighbors(ch))) if (n?.mesh) rebuild(n);
