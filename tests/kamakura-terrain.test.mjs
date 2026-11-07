@@ -62,7 +62,7 @@ test('LOD hysteresis avoids threshold flicker', () => {
   assert.equal(chooseLOD(4000, 1), 8); assert.equal(chooseLOD(10, 8), 1);
 });
 test('default entry loads only valley; opt-in and missing-data fallback run once', async () => {
-  for (const search of ['', '?maxslope=40', '?spawn=asaina_pass&at=.5', '?world=on', '?world=other']) {
+  for (const search of ['', '?houses=0', '?houses=1', '?maxslope=40', '?spawn=asaina_pass&at=.5', '?world=on', '?world=other']) {
     const calls = []; await startWorld(search, { valley: () => calls.push('valley'), kamakura: () => calls.push('private'), fallback: () => calls.push('notice') });
     assert.deepEqual(calls, ['valley']);
   }

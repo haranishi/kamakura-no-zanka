@@ -10,6 +10,7 @@ import { buildColliders, rayClip } from './collision.js';
 import { HeroActor, configureLoco, yawOf } from './actors.js';
 import { loadRoster } from './characters.js';
 import { kamakuraSpawn } from './kamakura-spawn.js';
+import { buildKamakuraHouses } from './kamakura-house-view.js';
 import { verticalScale } from './world-entry.js';
 export async function bootKamakura(data, search) {
   const t = createKamakuraTerrain(data, verticalScale(search), maxWalkSlope(search)), meta = data.meta;
@@ -17,7 +18,8 @@ export async function bootKamakura(data, search) {
   if (!t.walkable(spawn.x, spawn.z)) throw new Error('出発点を歩けません');
   // Load the existing hero only. Do not load the chapter's enemies or scenery.
   const roster = await loadRoster({ names: ['hero'] });
-  let renderer, chunks, hud;
+  let renderer, chunks, hud, houses;
+  let houseNotice = data.houseNotice || '';
   const style = document.createElement('link'); style.rel = 'stylesheet'; style.href = new URL('./kamakura.css', import.meta.url).href;
   try {
     document.head.append(style); document.body.classList.add('kamakura');
@@ -32,19 +34,24 @@ export async function bootKamakura(data, search) {
     seaG.rotateX(-Math.PI / 2);
     const sea = new THREE.Mesh(seaG, new THREE.MeshLambertMaterial({ color: 0x426f83 })); scene.add(sea);
     hud = createKamakuraHUD(meta, new URLSearchParams(search).get('debug') === '1');
-    hud.status('鎌倉の地形を準備しています');
-    const g = { scene, roster, terrain: t, col: buildColliders({ bounds: t.bounds }), enemies: [], ally: null };
+    hud.status('鎌倉の地形と家を準備しています');
+    if (data.houses && new URLSearchParams(search).get('houses') !== '0') {
+      try { houses = await buildKamakuraHouses(data.houses, t, scene); }
+      catch { houseNotice = '家を読み込めませんでした。家なしで散策を続けます'; }
+    }
+    const status = text => hud.status(text || houseNotice);
+    const g = { scene, roster, terrain: t, col: buildColliders({ bounds: t.bounds, extraBoxes: houses?.boxes || [] }), enemies: [], ally: null };
     g.hero = new HeroActor(g, spawn);
     // W2c-1 has no audio. Contacts and IK continue to run through the existing character.
     g.hero.onFootContact = () => {};
     let hintTimer;
     g.hud = { hint: (_id, text, ms) => {
-      clearTimeout(hintTimer); hud.status(text);
-      hintTimer = setTimeout(() => { if (!paused) hud.status(''); }, ms);
+      clearTimeout(hintTimer); status(text);
+      hintTimer = setTimeout(() => { if (!paused) status(''); }, ms);
     } };
     const rig = new CameraRig(camera); rig.yaw = spawn.yaw;
     // Prepare the immediate neighborhood in bounded frames before accepting movement.
-    while (!chunks.ready(spawn)) { chunks.update(spawn); await new Promise(requestAnimationFrame); }
+    while (!chunks.ready(spawn) || (houses && !houses.ready(spawn))) { chunks.update(spawn); houses?.update(spawn); await new Promise(requestAnimationFrame); }
     const view = document.getElementById('view'); view.append(renderer.domElement); view.setAttribute('aria-label', '鎌倉を歩く3Dシーン');
     const base = new Input(renderer.domElement), input = new TouchInput(base, renderer.domElement, hud.run);
     let paused = false;
@@ -53,7 +60,7 @@ export async function bootKamakura(data, search) {
       // Clear the locomotive momentum on pause; release alone retains the existing smooth stop.
       g.hero.speed = g.hero.locoV = g.hero.locoA = 0;
       if (on) base.releaseLock();
-      hud.pause.textContent = on ? '再開' : '休止'; hud.status(on ? '休止中。「再開」で散策に戻ります' : '');
+      hud.pause.textContent = on ? '再開' : '休止'; status(on ? '休止中。「再開」で散策に戻ります' : '');
     }
     hud.pause.onclick = () => setPaused(!paused);
     base.onLockChange = locked => { if (!locked) setPaused(true); };
@@ -78,10 +85,10 @@ export async function bootKamakura(data, search) {
           rayClip: (a, b) => rayClip(g.col, t, a, b, 0.3, { ignoreThin: 0.2 }) });
         hud.update(hero.pos, rig.yaw, t); input.endFrame();
       }
-      chunks.update(g.hero.pos); renderer.render(scene, camera);
+      chunks.update(g.hero.pos); houses?.update(g.hero.pos); renderer.render(scene, camera);
     });
   } catch (error) {
-    renderer?.setAnimationLoop(null); chunks?.dispose(); renderer?.domElement.remove(); renderer?.dispose(); hud?.root.remove();
+    renderer?.setAnimationLoop(null); chunks?.dispose(); houses?.dispose(); renderer?.domElement.remove(); renderer?.dispose(); hud?.root.remove();
     style.remove(); document.body.classList.remove('kamakura'); throw error;
   }
 }

@@ -1,7 +1,8 @@
+import { decodeHouses } from './kamakura-houses.js';
 // Private data only: no bundled fallback, derived elevations, or remote service.
 export function validateMeta(m) {
   const g = m?.grid, h = m?.height;
-  if (!['kz-world-web/0.1', 'kz-world-web/0.2', 'kz-world-web/0.3'].includes(m?.schema) || !g || !h ||
+  if (!['kz-world-web/0.1', 'kz-world-web/0.2', 'kz-world-web/0.3', 'kz-world-web/0.4'].includes(m?.schema) || !g || !h ||
       !Number.isInteger(g.width) || !Number.isInteger(g.height) || g.width < 2 || g.height < 2 ||
       !(g.cell_m > 0) || !Number.isFinite(g.cell_m) || g.width * g.height > 32e6 ||
       g.row0 !== 'north' || g.col0 !== 'west' || g.sample_position !== 'cell_center' ||
@@ -76,5 +77,16 @@ export async function loadKamakura(fetcher = fetch) {
     patchBuffers = { cells: await cells.arrayBuffer(), heights: await heights.arrayBuffer(), axes: await axes.json() };
     if (meta.patches.paths_file) patchBuffers.paths = await (await read(meta.patches.paths_file)).json();
   }
-  return decodeData(meta, await height.arrayBuffer(), await walk.arrayBuffer(), patchBuffers);
+  const data = decodeData(meta, await height.arrayBuffer(), await walk.arrayBuffer(), patchBuffers);
+  if (meta.houses) {
+    try {
+      if (meta.houses.file !== 'houses.json' || meta.houses.instances !== 'houses_f32.bin' || meta.houses.kit !== 'houses_kit.glb') throw new Error();
+      const [catalog, placements, kit] = await Promise.all([read(meta.houses.file), read(meta.houses.instances), read(meta.houses.kit)]);
+      data.houses = decodeHouses(await catalog.json(), await placements.arrayBuffer());
+      data.houses.kit = await kit.arrayBuffer();
+    } catch {
+      data.houses = null; data.houseNotice = '家を読み込めませんでした。家なしで散策を続けます';
+    }
+  }
+  return data;
 }
