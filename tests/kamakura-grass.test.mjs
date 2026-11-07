@@ -83,7 +83,8 @@ function view(code=2,search='',quality='standard') {
   const data=fixture();data.meta.surface={};data.surface=new Uint8Array(data.meta.grid.width*data.meta.grid.height).fill(code);
   return buildKamakuraGrass({data,terrain:createKamakuraTerrain(data),search,quality,wind,sunDir:new THREE.Vector3(1,1,0)});
 }
-function settle(v,c) {for(let i=0;i<1000;i++){v.update(c);if(!v.stats().pending&&v.stats().switches&&v.stats().queue===0)return;}assert.fail('grass did not settle');}
+// W2c-9r2: the 400m band window is time-sliced, so a slow machine needs many more updates; the loops end as soon as the window settles.
+function settle(v,c) {for(let i=0;i<20000;i++){v.update(c);if(!v.stats().pending&&v.stats().switches&&v.stats().queue===0)return;}assert.fail('grass did not settle');}
 test('shipped Three CPU view streams, retains interior chunks, adapts without rebuilding and disposes each resource once',()=>{
   for(const quality of ['standard','light']){
     const v=view(2,'',quality);settle(v,camera(0));const before=v.stats();assert(before.nearBlades>0&&before.midCards>0);
@@ -97,7 +98,7 @@ test('shipped Three CPU view streams, retains interior chunks, adapts without re
     v.setAdapt(0);assert.equal(v.stats().nearBlades,before.nearBlades);assert.equal(v.group.visible,true);
     const central=new Map();v.group.traverse(o=>{if(o.geometry?.instanceCount>0&&Math.abs(o.geometry.boundingSphere.center.x)<10&&Math.abs(o.geometry.boundingSphere.center.z)<10)central.set(o,o.geometry.getAttribute('iRoot').data.array.slice());});
     // Move the CPU window while holding the render camera, proving retained chunks remain exact.
-    for(let i=0;i<1000;i++){v.update(camera(0),{x:32,z:0});if(!v.stats().pending&&v.stats().switches>switches)break;}
+    for(let i=0;i<20000;i++){v.update(camera(0),{x:32,z:0});if(!v.stats().pending&&v.stats().switches>switches)break;}
     assert.equal(v.stats().switches,switches+1);for(const [o,a]of central)assert.deepEqual(o.geometry.getAttribute('iRoot').data.array,a);
     for(const x of [48,72,96,-72,0]){settle(v,camera(x));watch();}
     v.group.traverse(o=>{if(o.isMesh)assert(!o.castShadow&&o.receiveShadow);});
@@ -133,7 +134,7 @@ test('9b window commits update the existing mid-card tint from linear terrain co
     mesh.material.onBeforeCompile(shader);const tint=shader.uniforms.uGroundTint.value;
     assert(Math.abs(tint.r-.2*.68)<1e-10);assert(Math.abs(tint.g-.3*.68)<1e-10);assert(Math.abs(tint.b-.4*.68)<1e-10);
     level=.6;const switches=v.stats().switches;
-    for(let i=0;i<1000&&v.stats().switches===switches;i++)v.update(camera(0),{x:32,z:0});
+    for(let i=0;i<20000&&v.stats().switches===switches;i++)v.update(camera(0),{x:32,z:0});
     assert.equal(v.stats().switches,switches+1);assert.equal(calls,18);assert(Math.abs(tint.r-.6*.68)<1e-10);
   }finally{v.dispose();}
 });

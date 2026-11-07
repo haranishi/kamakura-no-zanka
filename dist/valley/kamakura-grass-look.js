@@ -131,6 +131,8 @@ export function createGrassEnvironment(terrain,{ colliders, extraColliders, path
     // A positive local crest suppresses ridge rows; bowls retain their colonies.
     const crest=Math.max(0,terrain.heightAt(x,z)-(terrain.heightAt(x-4,z)+terrain.heightAt(x+4,z)+terrain.heightAt(x,z-4)+terrain.heightAt(x,z+4))/4);
     e.margin=margin;e.colony=grassColony(x,z);
+    // W2c-9r2 grass: expose physical refuge/crest distances to the band placement rule.
+    e.tree=tree;e.house=house;e.river=riverDistance;e.crest=crest;
     const colonyWeight=e.colony>.53 ? 1.55 : e.colony>.40 ? .35 : .025;
     e.midDensity*=Math.max(margin?1.8:0,colonyWeight)*(1-.8*smooth((slope-30)/2))*(1-.65*smooth(crest/1.5));
     if(code===0)e.midDensity*=margin?1:.15;
