@@ -171,7 +171,8 @@ export function nearTile(field, tx, tz, { quality = 'standard', size = GRASS.nea
   }
   return out;
 }
-export function midTile(field, tx, tz, { quality = 'standard', size = GRASS.midSize, sink = GRASS.sink, maxSlope } = {}) {
+// W2c-9c3: optional card rate/cap leave valley streams and defaults unchanged.
+export function midTile(field, tx, tz, { quality = 'standard', size = GRASS.midSize, sink = GRASS.sink, maxSlope, cardRate = GRASS.midCardRate, maxCards = GRASS.midMaxCards } = {}) {
   const q = qualityOf(quality), entries = []; let count = 0;
   cells(field, tx, tz, size, (x, z, k) => {
     // W2c-9c2 optional conservative corner envelope; valley takes its original path.
@@ -181,9 +182,9 @@ export function midTile(field, tx, tz, { quality = 'standard', size = GRASS.midS
       if(Math.max(Math.hypot(b-a,c-a),Math.hypot(d-c,d-b))>Math.tan(maxSlope*Math.PI/180))return;
     }
     const rng = cellRand(field.seed + GRASS.midSeed, x, z);
-    const average = GRASS.midCardRate * q.density;
+    const average = cardRate * q.density;
     const patch = field.midPatch?.[k] ?? 1;
-    const n = Math.min(GRASS.midMaxCards, Math.floor(average * patch + rng()));
+    const n = Math.min(maxCards, Math.floor(average * patch + rng()));
     entries.push({ x, z, k, n }); count += n;
   });
   const out = { key: `mid:${tx},${tz}`, count, ...arrays(['x', 'y', 'z', 's', 'sx', 'sy', 'flip', 'yaw', 'hue', 'brightness', 'tilt', 'tiltYaw', 'species'], count, 'species') };

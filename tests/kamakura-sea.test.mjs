@@ -48,15 +48,15 @@ test('9e shipped sea and ground shaders, clock, quality, disabled mode and exact
       const g={uniforms:{},vertexShader:THREE.ShaderLib.lambert.vertexShader,fragmentShader:THREE.ShaderLib.lambert.fragmentShader};m.onBeforeCompile(g);assert(g.fragmentShader.includes('groundShoreWet'));assert.equal(g.uniforms.uShoreWave,v.uniforms.uShoreWave);
       v.setAdapt(2);assert.equal(v.uniforms.uShoreDetail.value,0);assert.equal(v.props.group.visible,false);v.setAdapt(3);assert.equal(v.uniforms.uShoreAnimate.value,0);v.setAdapt(0);assert.equal(v.uniforms.uShoreAnimate.value,1);
     }else{assert.equal(v.mesh.material.isMeshLambertMaterial,true);assert.equal(v.textures.length,0);assert.equal(v.props,null);}
-    const resources=[v.mesh.geometry,v.mesh.material,...v.textures,...(v.props?[v.props.mesh.geometry,v.props.mesh.material]:[])],counts=resources.map(()=>0);resources.forEach((r,i)=>r.addEventListener('dispose',()=>counts[i]++));d.dispose();m.dispose();v.dispose();v.dispose();assert(counts.every(n=>n===1));
+    const resources=[v.mesh.geometry,v.mesh.material,...v.textures,...(v.props?[...v.props.meshes.flatMap(m=>[m.geometry]),v.props.meshes[0].material]:[])],counts=resources.map(()=>0);resources.forEach((r,i)=>r.addEventListener('dispose',()=>counts[i]++));d.dispose();m.dispose();v.dispose();v.dispose();assert(counts.every(n=>n===1));
   }
 });
 test('9e props use stable cells, stay on beach, cap instances and switch quality without resources',()=>{
   for(const quality of ['standard','light']){
     const v=buildShoreProps(THREE,terrain,data,quality),w=buildShoreProps(THREE,terrain,data,quality),pos={x:10,z:-8};for(let i=0;i<20;i++){v.update(pos);w.update(pos);}
-    assert.deepEqual(v.mesh.instanceMatrix.array,w.mesh.instanceMatrix.array);assert(v.mesh.count<=(quality==='light'?120:300));
-    const m=new THREE.Matrix4(),p=new THREE.Vector3();for(let i=0;i<v.mesh.count;i++){v.mesh.getMatrixAt(i,m);p.setFromMatrixPosition(m);assert(shorePropAt(terrain,()=>0,p.x,p.z));assert(Math.hypot(p.x-pos.x,p.z-pos.z)<=30);}
-    v.update({x:100,z:100});for(let i=0;i<20;i++)v.update({x:100,z:100});assert.equal(v.mesh.count,0);v.setAdapt(2);assert.equal(v.group.visible,false);v.setAdapt(0);assert.equal(v.group.visible,true);v.dispose();w.dispose();
+    assert.deepEqual(v.meshes.map(m=>m.instanceMatrix.array),w.meshes.map(m=>m.instanceMatrix.array));assert(v.count<=(quality==='light'?40:60));
+    const m=new THREE.Matrix4(),p=new THREE.Vector3();for(const mesh of v.meshes)for(let i=0;i<mesh.count;i++){mesh.getMatrixAt(i,m);p.setFromMatrixPosition(m);assert(shorePropAt(terrain,()=>0,p.x,p.z));assert(Math.hypot(p.x-pos.x,p.z-pos.z)<=30);}
+    v.update({x:100,z:100});for(let i=0;i<20;i++)v.update({x:100,z:100});assert.equal(v.count,0);v.setAdapt(2);assert.equal(v.group.visible,false);v.setAdapt(0);assert.equal(v.group.visible,true);v.dispose();w.dispose();
   }
 });
 test('9e private distance preparation, texture bytes, bounded update and props (aggregate only)',{skip:!process.env.KZ_WORLD_DIR&&'KZ_WORLD_DIR未設定：私有データはリポジトリ外'},async t=>{
@@ -75,17 +75,17 @@ test('9e private distance preparation, texture bytes, bounded update and props (
   let frames=0,max=0,start=performance.now();while(v.uniforms.uShoreReady.value===0&&frames<10000){const a=performance.now();v.update(1/60,pos);max=Math.max(max,performance.now()-a);frames++;}
   assert.equal(v.uniforms.uShoreReady.value,1);const prep=performance.now()-start;
   start=performance.now();for(let i=0;i<10000;i++)v.update(1/60,pos,20);const steady=(performance.now()-start)/10000;
-  const counts=[];for(const [x,z]of [[-1057.2,-1801.4],[-1849.2,-1465.4]]){const p={x,z:-z};for(let i=0;i<20;i++)v.update(1/60,p,20);counts.push(v.props.mesh.count);}
+  const counts=[];for(const [x,z]of [[-1057.2,-1801.4],[-1849.2,-1465.4]]){const p={x,z:-z};for(let i=0;i<20;i++)v.update(1/60,p,20);counts.push(v.props.count);}
   // Find one actual eligible band without emitting private cells or coordinates.
   const {createSurfaceCodeAt}=await import('../dist/valley/kamakura-surface.js'),codeAt=createSurfaceCodeAt(data.meta,data.surface);
   let candidate=null;
   const g=data.meta.grid;
   for(let j=0;j<g.height&&!candidate;j+=2)for(let i=0;i<g.width;i+=2){if(data.surface[j*g.width+i]>1)continue;const x=terrain.x0+i*terrain.cell,z=terrain.z0+j*terrain.cell;if(shorePropAt(terrain,codeAt,x,z)){candidate={x,z};break;}}
-  let eligibleCount=0;if(candidate){for(let i=0;i<20;i++)v.update(1/60,candidate,20);eligibleCount=v.props.mesh.count;}
-  t.diagnostic(JSON.stringify({eligible_band_props:eligibleCount,distance_grids:measure,preparation_frames:frames,preparation_ms:+prep.toFixed(2),max_update_ms:+max.toFixed(3),steady_update_ms:+steady.toFixed(5),texture_bytes:v.textures.reduce((n,t)=>n+t.image.data.byteLength,0),props_counts:counts,props_triangles:counts.map(n=>n*8)}));v.dispose();
+  let eligibleCount=0;if(candidate){for(let i=0;i<20;i++)v.update(1/60,candidate,20);eligibleCount=v.props.count;}
+  t.diagnostic(JSON.stringify({eligible_band_props:eligibleCount,distance_grids:measure,preparation_frames:frames,preparation_ms:+prep.toFixed(2),max_update_ms:+max.toFixed(3),steady_update_ms:+steady.toFixed(5),texture_bytes:v.textures.reduce((n,t)=>n+t.image.data.byteLength,0),props_counts:counts,props_triangle_upper_bound:counts.map(n=>n*20)}));v.dispose();
 });
 test('9e props retain old window until ready, dispose both instance buffers and shared assets once',()=>{
   const v=buildShoreProps(THREE,terrain,data),pos={x:10,z:-8};for(let i=0;i<20;i++)v.update(pos);
-  const old=v.mesh;v.update({x:14,z:-8});assert.equal(v.mesh,old);for(let i=0;i<20;i++)v.update({x:14,z:-8});assert.notEqual(v.mesh,old);
-  const resources=[...v.group.children,v.mesh.geometry,v.mesh.material],counts=resources.map(()=>0);resources.forEach((r,i)=>r.addEventListener('dispose',()=>counts[i]++));v.dispose();v.dispose();assert(counts.every(n=>n===1));
+  const old=v.meshes;v.update({x:14,z:-8});assert.equal(v.meshes,old);for(let i=0;i<20;i++)v.update({x:14,z:-8});assert.notEqual(v.meshes,old);
+  const resources=[...v.group.children,...v.meshes.map(m=>m.geometry),v.meshes[0].material],counts=resources.map(()=>0);resources.forEach((r,i)=>r.addEventListener('dispose',()=>counts[i]++));v.dispose();v.dispose();assert(counts.every(n=>n===1));
 });

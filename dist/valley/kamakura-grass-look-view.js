@@ -1,11 +1,11 @@
 // W2c-9c: optional ribbon shading and four fading footsteps; valley never calls this.
-import { packGrassLook, grassRecovery, MID_GRASS } from './kamakura-grass-look.js';
+import { packGrassLook, grassRecovery, MID_GRASS, MID_BANDS } from './kamakura-grass-look.js';
 export function createGrassLook(ecology,quality,heroUniform) {
   const trail=new Float32Array(16), ages=new Float64Array(4).fill(10), radii=new Float32Array(4), strengths=new Float32Array(4);
   const uniforms={uHero:heroUniform,uHeroStrength:{value:0},uGrassTrail:{value:trail},uGrassTrailRadii:{value:radii},uGrassLookStep:{value:0}};
   let cursor=0, elapsed=0, cameraX=0, cameraZ=0;
   // W2c-9c2: plan each metre; 7m CPU lawn guard covers the unchanged 6m shader fade.
-  return { replanDistance:1, bulkMid:true, midPlacement:{sink:MID_GRASS.sink,maxSlope:MID_GRASS.maxSlope}, segments:6, normalBlend:.78, capacityFactor:3, uniforms,
+  return { replanDistance:1, bulkMid:true, midPlacement:{sink:MID_GRASS.sink,maxSlope:MID_GRASS.maxSlope,cardRate:.28,maxCards:1}, segments:6, normalBlend:.78, capacityFactor:3, uniforms,
     pack:(data,kind)=>packGrassLook(data,kind,ecology,quality),
     prepare(camera){cameraX=camera.position.x;cameraZ=camera.position.z;},
     accept(data,i,kind){
@@ -27,9 +27,24 @@ export function createGrassLook(ecology,quality,heroUniform) {
     patch(shader,kind) {
       Object.assign(shader.uniforms,uniforms);
       if(kind==='mid') {
-        // W2c-9c2: full tufts at 12–60m; sparse handoff at 60–120m.
+        // W2c-9c3: mixed-height colonies; sparser after 30m, ground handoff by 120m.
         shader.vertexShader=shader.vertexShader
-          .replace('float alive = step(fadeOut,iShape.w);',`float tail=mix(1.0,.12,smoothstep(60.0,95.0,dd))*(1.0-smoothstep(.85*uGrassRadii.y,uGrassRadii.y,dd));
+          .replace('transformed = vec3(p.x,t*iShape.x,p.y) * mix(.7,1.0,appear);',`
+            // W2c-9c3: distance changes species, never world-keyed root locations.
+            float grassTallRate=mix(${MID_BANDS[0].tall.toFixed(2)},${MID_BANDS[1].tall.toFixed(2)},smoothstep(28.0,32.0,dd))*(1.0-smoothstep(68.0,72.0,dd));
+            float grassLowRate=${MID_BANDS[0].low.toFixed(2)}*(1.0-smoothstep(28.0,32.0,dd));
+            float grassTall=(1.0-smoothstep(grassTallRate-.015,grassTallRate+.015,iTip.x))*step(.01,grassTallRate);
+            float grassLow=smoothstep(1.0-grassLowRate-.015,1.0-grassLowRate+.015,iTip.x)*step(.01,grassLowRate);
+            float grassHeight=mix(.25+.15*iTip.w,.45+.30*iTip.w,grassTall);
+            grassHeight=mix(grassHeight,.08+.12*iTip.w,grassLow);
+            if(iTip.x<0.0){float grassMarginFade=1.0-smoothstep(68.0,72.0,dd);grassTall=grassMarginFade;grassHeight=mix(.25+.15*iTip.w,.5+.3*iTip.w,grassMarginFade);}
+            float grassWidth=mix(1.0,.48,grassTall);
+            // packed width includes its 12–30m species; undo before selecting a band.
+            float grassOldWidth=iTip.x<.30?.48:1.0;
+            transformed=vec3(p.x*grassWidth/grassOldWidth,t*(grassHeight+${MID_GRASS.sink.toFixed(2)}),p.y*grassWidth/grassOldWidth)*mix(.7,1.0,appear);`)
+          .replace('vGrassColor = iColor',`vGrassColor = mix(iColor,vec3(.30,.34,.085),grassTall*.32*smoothstep(.35,1.0,t))`)
+          .replace('mix(.9,1.1,t)','mix(.48,1.42,t)')
+          .replace('float alive = step(fadeOut,iShape.w);',`float tail=mix(1.0,.12,smoothstep(30.0,95.0,dd))*(1.0-smoothstep(.85*uGrassRadii.y,uGrassRadii.y,dd));
             float alive=step(fract(iShape.w*17.31),tail)*(1.0-step(uGrassRadii.y,dd));`)
           .replace('transformed.xz += grassWind(rootWorld,t,iShape.x);',`transformed.xz += grassWind(rootWorld,t,iShape.x);
             // W2c-9c2: dissolve each edge-on plane, including tilted ridge silhouettes.
@@ -40,7 +55,12 @@ export function createGrassLook(ecology,quality,heroUniform) {
             float cardFace=abs(dot(normalize(mat3(modelMatrix)*cardNormal),normalize(cameraPosition-rootWorld)));
             transformed*=smoothstep(.04,.16,cardFace);`);
         shader.fragmentShader=shader.fragmentShader.replace('.60*smoothstep(9.0,25.0,vGrassDistance)',
-          `${MID_GRASS.blend.toFixed(2)}*smoothstep(9.0,25.0,vGrassDistance)`);
+          `${MID_GRASS.blend.toFixed(2)}*smoothstep(9.0,25.0,vGrassDistance)`)
+          .replace('diffuseColor.rgb *= vGrassColor;',`diffuseColor.rgb *= vGrassColor;
+            // Small blue-grey drift and an unlit floor preserve dusk separation.
+            diffuseColor.rgb=mix(diffuseColor.rgb,vec3(.12,.16,.19),.12*smoothstep(30.0,120.0,vGrassDistance));`)
+          .replace('vec3 sight =',`totalEmissiveRadiance+=max(vec3(.012,.016,.009),vGrassColor*.055)*mix(.45,1.3,vGrassUV.y);
+            vec3 sight =`);
       }
       if(kind==='near') {
         shader.vertexShader=shader.vertexShader.replace('uniform vec2 uGrassRadii;',`uniform vec2 uGrassRadii;

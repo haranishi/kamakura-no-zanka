@@ -10,10 +10,11 @@ export function buildKamakuraGrass({ data, terrain, colliders, extraColliders, s
   const enabled = grassEnabled(search) && !!data.meta.surface && data.surface instanceof Uint8Array && data.surface.length === data.meta.grid.width * data.meta.grid.height;
   const improved = grassLookEnabled(search);
   const paths = data.patches?.paths || {};
-  const ecology = improved ? createGrassEnvironment(terrain, {colliders, extraColliders, paths}) : null;
+  // W2c-9c3: metre surface transitions and narrow collider/bank margins replace bare rims.
+  const ecology = improved ? createGrassEnvironment(terrain, {colliders, extraColliders, paths, surfaceCodeAt:createSurfaceCodeAt(data.meta,data.surface)}) : null;
   const look = improved ? createGrassLook(ecology, quality, {value:new THREE.Vector4(0,0,0,0)}) : undefined;
   const cell = createGrassCell(terrain, { surfaceCodeAt: createSurfaceCodeAt(data.meta, data.surface),
-    environmentAt: ecology, exclude: grassExclusions(terrain, { colliders, extraColliders, paths, ...(improved ? {pathMargin:2.5} : {}) }) });
+    environmentAt: ecology, ...(improved ? {riverMargin:.25} : {}), exclude: grassExclusions(terrain, { colliders, extraColliders, paths, ...(improved ? {pathMargin:2.5,rootMargin:0} : {}) }) });
   // W2c-9c2: 352m look window leaves 176-32-120-6=18m streaming headroom.
   const windows = createGrassWindows(cell, improved ? {size:352} : {}), budget = grassFrameBudget(quality);
   let grass = null, disposed = false, step = 0, switches = 0, lastWorkMs = 0, maxWorkMs = 0, initial = true, background = null, backgroundWanted = false;

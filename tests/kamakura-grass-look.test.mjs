@@ -105,7 +105,7 @@ test('dense synthetic flowers stay below 2000; stage2 streamed and pooled geomet
   const nx=192,n=nx*nx,field={seed:1333,x0:-96,z0:-96,nx,nz:nx,placeable:new Uint8Array(n).fill(1),density:new Uint8Array(n).fill(159),height:new Uint8Array(n).fill(255),species:new Uint8Array(n),midPatch:new Float32Array(n).fill(1.6),heights:new Float32Array((nx+1)**2)};
   const look=createGrassLook(()=>({height:1,dry:.25,shade:0,flowers:1}),'standard',{value:new THREE.Vector4()});
   const v=buildGrass({field,wind,sunDir:new THREE.Vector3(1,1,0),reach:{near:10,mid:70},look});
-  v.warm(camera);const s=v.stats();assert(s.lawn>0&&s.flowers>0&&s.flowers<=2000);t.diagnostic(JSON.stringify({syntheticDense:s}));
+  v.warm(camera);const s=v.stats();assert(s.lawn>0&&s.flowers>0&&s.flowers<=2000);assert(s.midCards<=30000);t.diagnostic(JSON.stringify({syntheticDense:s}));
   const positions=new Set(v.group.children.map(m=>m.geometry.attributes.position.array));
   v.setLookQuality(2);v.setDensityScale(.6);assert.equal(v.stats().flowers,0);assert.equal(v.stats().lawn,0);
   for(const x of [36,-36,0]){const c={position:new THREE.Vector3(x,12,0)};v.warm(c);assert.equal(v.stats().flowers,0);for(const m of v.group.children)if(m.name==='grass-near')assert.deepEqual(m.geometry.drawRange,{start:0,count:18});}

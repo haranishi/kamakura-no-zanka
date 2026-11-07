@@ -13,6 +13,8 @@ const flat={heightAt:()=>10,slopeAt:()=>0,waterAt:()=>0,walkable:()=>true,riverD
 function field(slope=0){const nx=256,n=nx*nx,f={seed:1333,x0:-128,z0:-128,nx,nz:nx,placeable:new Uint8Array(n).fill(1),density:new Uint8Array(n).fill(128),height:new Uint8Array(n).fill(128),species:new Uint8Array(n),midPatch:new Float32Array(n).fill(1),heights:new Float32Array((nx+1)**2)};for(let j=0;j<=nx;j++)for(let i=0;i<=nx;i++)f.heights[j*(nx+1)+i]=10+(i-128)*slope;return f;}
 function balanced(source){
   const s=source.replace(/\/\*[\s\S]*?\*\/|\/\/[^\n]*/g,''),stack=[],branches=[];
+  // W2c-9c3: GLSL future/reserved identifiers caused actual GPU failures.
+  assert(!/\b(?:float|int|uint|bool|vec[234]|[biu]vec[234]|mat[234]|sampler2D)\s+(?:patch|sample|input|output|common|filter|active)\b/.test(s),'reserved GLSL declaration');
   for(const line of s.split('\n')){
     if(/^\s*#\s*(if|ifdef|ifndef)\b/.test(line))branches.push(line);
     if(/^\s*#\s*(else|elif)\b/.test(line))assert(branches.length,'orphan else/elif');
@@ -25,10 +27,10 @@ test('GLSL braces, parentheses, brackets and conditional directives balance afte
   for(const quality of ['standard','light'])for(const improved of [false,true]){
     const look=improved?createGrassLook((x,z)=>grassEcology(x,z),quality,{value:new THREE.Vector4()}):undefined;
     const v=buildGrass({field:field(),wind,sunDir:new THREE.Vector3(1,1,0),quality,look});v.warm({position:new THREE.Vector3(0,12,0)});
-    for(const m of new Set(v.group.children.map(o=>o.material))){const s={uniforms:{},vertexShader:THREE.ShaderLib.lambert.vertexShader,fragmentShader:THREE.ShaderLib.lambert.fragmentShader};m.onBeforeCompile(s);for(const code of [s.vertexShader,s.fragmentShader]){balanced(code);balanced(expanded(code));}if(improved&&m.alphaTest){assert(s.fragmentShader.includes('.4*smoothstep')||s.fragmentShader.includes('0.40*smoothstep'));assert(s.vertexShader.includes('smoothstep(.04,.16,cardFace)'));}}
+    for(const m of new Set(v.group.children.map(o=>o.material))){const s={uniforms:{},vertexShader:THREE.ShaderLib.lambert.vertexShader,fragmentShader:THREE.ShaderLib.lambert.fragmentShader};m.onBeforeCompile(s);for(const code of [s.vertexShader,s.fragmentShader]){balanced(code);balanced(expanded(code));}if(improved&&m.alphaTest){assert(s.fragmentShader.includes('.4*smoothstep')||s.fragmentShader.includes('0.40*smoothstep'));assert(s.vertexShader.includes('smoothstep(.04,.16,cardFace)'));assert(s.vertexShader.includes('float grassHeight='));assert(s.vertexShader.includes('float grassTallRate=mix(0.30,0.20'));assert(s.fragmentShader.includes('vGrassColor*.055'));assert(s.fragmentShader.includes('vec3(.12,.16,.19)'));}}
     v.dispose();
   }
-  for(const bad of ['void main(){foo(;}','#endif','#ifdef X\nvoid main(){}'])assert.throws(()=>balanced(bad));
+  for(const bad of ['void main(){foo(;}','#endif','#ifdef X\nvoid main(){}','void main(){float patch=0.0;}','void main(){vec3 sample=vec3(0.0);}'])assert.throws(()=>balanced(bad));
 });
 test('shaded target has bounded blend and a dusk floor; refuge density rises, roads recede',()=>{
   assert(MID_GRASS.blend>=.35&&MID_GRASS.blend<=.45);assert(MID_GRASS.groundScale>=.65&&MID_GRASS.groundScale<=.75);
@@ -59,4 +61,36 @@ test('pre-9b 25m vs current 120m: same synthetic sites retain more 12–60m tuft
   }
   t.diagnostic(JSON.stringify(rows));
   for(let i=0;i<rows.length;i+=2){assert(rows[i+1].count>=rows[i].count);assert(rows[i+1].deltaE>=rows[i].deltaE);assert(rows[i+1].tail>0);}
+});
+
+test('9c3 worst eligible patch at 120m stays below 30000 submitted clumps at four camera offsets',t=>{
+  const f=field();f.midPatch.fill(1.8);const counts=[];
+  const look=createGrassLook((x,z)=>grassEcology(x,z),'standard',{value:new THREE.Vector4()});
+  const v=buildGrass({field:f,wind,sunDir:new THREE.Vector3(1,1,0),look,reach:{near:10,mid:120}});
+  try{for(const [x,z] of [[0,0],[1,1],[3,3],[-3,-3]]){
+    v.warm({position:new THREE.Vector3(x,12,z)});const n=v.stats().midCards;
+    assert(n<=30000,n);counts.push(n);
+  }}finally{v.dispose();}
+  t.diagnostic(JSON.stringify({maxPatch120mSubmitted:counts}));
+});
+
+
+test('9c3 evaluates the generated GLSL species arithmetic, including zero tall rate beyond 70m',()=>{
+  const look=createGrassLook((x,z)=>grassEcology(x,z),'standard',{value:new THREE.Vector4()});
+  const v=buildGrass({field:field(),wind,sunDir:new THREE.Vector3(1,1,0),look});
+  try{
+    v.warm({position:new THREE.Vector3(0,12,0)});
+    const m=v.group.children.find(o=>o.name==='grass-mid').material;
+    const shader={uniforms:{},vertexShader:THREE.ShaderLib.lambert.vertexShader,fragmentShader:THREE.ShaderLib.lambert.fragmentShader};m.onBeforeCompile(shader);
+    const code=shader.vertexShader.split('float grassTallRate=')[1].split('transformed=vec3')[0];
+    assert(code);const arithmetic=('float grassTallRate='+code).replace(/\bfloat\b/g,'let');
+    const run=new Function('dd','iTip','smoothstep','step','mix',arithmetic+'return {height:grassHeight,tall:grassTall,width:grassWidth};');
+    const smoothstep=(a,b,x)=>{const t=Math.max(0,Math.min(1,(x-a)/(b-a)));return t*t*(3-2*t);},step=(a,x)=>+(x>=a),mix=(a,b,t)=>a+(b-a)*t;
+    for(const d of [20,50,90])for(const u of [.05,.15,.25,.5,.9]){
+      const r=run(d,{x:u,w:.5},smoothstep,step,mix),tall=d<30?u<.3:d<70?u<.2:false;
+      assert.equal(r.tall,+tall);assert.equal(r.height,tall?.60:d<30&&u>.8?.14:.325);
+    }
+    assert.equal(run(20,{x:-1,w:.5},smoothstep,step,mix).height,.65);
+    assert.equal(run(90,{x:-1,w:.5},smoothstep,step,mix).tall,0);
+  }finally{v.dispose();}
 });

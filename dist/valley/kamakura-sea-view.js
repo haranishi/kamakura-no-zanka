@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { createSignedShoreJob, registerShoreView, unregisterShoreView, SHORE_GLSL } from './kamakura-shore.js';
+import { createSignedShoreJob, registerShoreView, unregisterShoreView, SHORE_GLSL, SEA_PALETTE, SEA_CHROMA, BREAKERS, wetReachAt } from './kamakura-shore.js';
 import { ATMOS } from './atmosphere.js';
 import { atmosphereOptions, kamakuraAtmosphere } from './kamakura-atmosphere.js';
 import { waveEnvelope } from './kamakura-sea-audio.js';
@@ -24,9 +24,12 @@ export function buildKamakuraSea(terrain, data, {search='',quality='standard',su
     texture.minFilter=texture.magFilter=THREE.LinearFilter;texture.generateMipmaps=false;texture.unpackAlignment=1;texture.needsUpdate=true;textures.push(texture);return texture;
   }
   const fallback=enabled?textureFor({data:new Float32Array([3000]),w:1,h:1}):null;
-  const u={uSeaSky:{value:new THREE.Color(sky.mid)},uSeaSun:{value:new THREE.Color(sky.sunColor)},uSeaDay:{value:daylight},uShoreSea:{value:fallback},uShoreLand:{value:fallback},uShoreGrid:{value:new THREE.Vector4()},uShoreTime:{value:0},uShoreWave:{value:0},uShoreOldWave:{value:0},uShoreReady:{value:0},uShoreDetail:{value:quality==='light'?0:1},uShoreAnimate:{value:1},SUN_DIR_W:{value:sunDir.clone().normalize()}};
-  // W2c-9 parent: the bank wet ribbon drew large dark translucent triangles on river banks (4 m quads draped on 30 deg slopes; found by toggling &seav=0 / &water=0). Off by default until 9e3 redoes it; &bankwet=1 turns it on.
-  const bank=enabled&&waterEnabled(search)&&new URLSearchParams(search).get('bankwet')==='1'?buildBankWet(THREE,prepareRivers(data.rivers,terrain.vscale??1,quality),terrain,{search}):null;if(bank)group.add(bank.group);
+  const palette=SEA_PALETTE.map(([distance,color])=>{const c=new THREE.Color(color),l=.2126*c.r+.7152*c.g+.0722*c.b;return [distance,c.lerp(new THREE.Color(l,l,l),1-SEA_CHROMA)];});
+  const colorGLSL=palette.map(([d,c])=>`vec3(${c.r.toFixed(6)},${c.g.toFixed(6)},${c.b.toFixed(6)})`);
+  const u={uShoreWetReach:{value:0},uShoreWaves:{value:new THREE.Vector3()},uSeaSky:{value:new THREE.Color(sky.mid)},uSeaSun:{value:new THREE.Color(sky.sunColor)},uSeaDay:{value:daylight},uShoreSea:{value:fallback},uShoreLand:{value:fallback},uShoreGrid:{value:new THREE.Vector4()},uShoreTime:{value:0},uShoreWave:{value:0},uShoreOldWave:{value:0},uShoreReady:{value:0},uShoreDetail:{value:quality==='light'?0:1},uShoreAnimate:{value:1},SUN_DIR_W:{value:sunDir.clone().normalize()}};
+  // W2c-9e3: fine terrain-conforming bank geometry passed Node acceptance;
+  // nearby-only split preparation replaces the disabled 4m ribbon.
+  const bank=enabled&&waterEnabled(search)&&new URLSearchParams(search).get('bankwet')!=='0'?buildBankWet(THREE,prepareRivers(data.rivers,terrain.vscale??1,quality),terrain,{search,defer:true}):null;if(bank){group.add(bank.group);bank.setAdapt(quality==='light'?2:0);}
   const props=enabled?buildShoreProps(THREE,terrain,data,quality):null;if(props)group.add(props.group);
   if(enabled) {
     const field=jobs[0].field;
@@ -37,7 +40,7 @@ export function buildKamakuraSea(terrain, data, {search='',quality='standard',su
       shader.vertexShader=shader.vertexShader.replace('#include <common>','#include <common>\nvarying vec3 vSeaWorld;').replace('#include <begin_vertex>','#include <begin_vertex>\nvSeaWorld=(modelMatrix*vec4(position,1.0)).xyz;');
       shader.fragmentShader=shader.fragmentShader.replace('#include <common>',`#include <common>
         varying vec3 vSeaWorld;uniform sampler2D uShoreLand;uniform vec4 uShoreGrid;
-        uniform vec3 uSeaSky,uSeaSun; uniform float uSeaDay;
+        uniform vec3 uSeaSky,uSeaSun,uShoreWaves; uniform float uSeaDay;
         uniform float uShoreReady,uShoreTime,uShoreWave,uShoreOldWave,uShoreDetail,uShoreAnimate;uniform vec3 SUN_DIR_W;
         ${SHORE_GLSL}
       `).replace('#include <color_fragment>',`#include <color_fragment>
@@ -46,14 +49,20 @@ export function buildKamakuraSea(terrain, data, {search='',quality='standard',su
         float seaFoam=0.0;
         float seaRange=distance(vSeaWorld,cameraPosition);
         if(uShoreReady>.5){
-          diffuseColor.rgb=mix(vec3(.050,.275,.262),vec3(.005,.036,.080),smoothstep(0.0,240.0,landDistance));
+          // W2c-9e3: tropical cyan -> shared Sagami Bay green-grey depth table.
+          diffuseColor.rgb=mix(${colorGLSL[0]},${colorGLSL[1]},smoothstep(0.0,6.0,landDistance));
+          diffuseColor.rgb=mix(diffuseColor.rgb,${colorGLSL[2]},smoothstep(6.0,40.0,landDistance));
+          diffuseColor.rgb=mix(diffuseColor.rgb,${colorGLSL[3]},smoothstep(40.0,200.0,landDistance));
           diffuseColor.rgb*=uSeaDay;
           diffuseColor.rgb=mix(diffuseColor.rgb,uSeaSky*.16,(1.0-uSeaDay)*.4);
-          float broken=.85;
-          if(uShoreDetail>.5)broken=.55+.45*shoreNoise(vSeaWorld.xz*1.6+vec2(uShoreTime*.12));
-          float foam=shoreFoam(landDistance,uShoreAnimate>.5?uShoreWave:.45)*broken;
-          foam+=.22*shoreFoam(landDistance,uShoreAnimate>.5?uShoreOldWave:.45);
-          if(uShoreDetail>.5)foam+=.18*(1.0-smoothstep(0.0,15.0,landDistance))*smoothstep(.55,.8,shoreNoise(vSeaWorld.xz*.8+uShoreTime*.07));
+          // Different audio-envelope phases; low-frequency gaps break every front.
+          vec3 waves=uShoreAnimate>.5?uShoreWaves:vec3(.45);
+          float foam=breakerFoam(landDistance,waves.x,vSeaWorld.xz,0.0);
+          foam+=.7*breakerFoam(landDistance,waves.y,vSeaWorld.xz,14.0);
+          foam+=.5*breakerFoam(landDistance,waves.z,vSeaWorld.xz,29.0);
+          // Fine bright advancing edge, followed by thinner residual foam.
+          foam+=.32*breakerFoam(landDistance,uShoreOldWave,vSeaWorld.xz,0.0);
+          if(uShoreDetail>.5&&landDistance>=0.0&&landDistance<15.0)foam+=.08*(1.0-smoothstep(0.0,15.0,landDistance))*smoothstep(.6,.85,shoreNoise(vSeaWorld.xz*.8+uShoreTime*.07));
           foam*=1.0-smoothstep(1.0,8.0,fwidth(landDistance));
           seaFoam=clamp(foam,0.0,.85)*(uShoreAnimate>.5?1.0:.5);
         }else diffuseColor.rgb=vec3(.055,.16,.22);
@@ -89,13 +98,15 @@ export function buildKamakuraSea(terrain, data, {search='',quality='standard',su
         outgoingLight=mix(outgoingLight,vec3(.72,.78,.76)*mix(.55,1.0,uSeaDay),seaFoam);
         #include <opaque_fragment>`);
     };
-    material.customProgramCacheKey=()=> 'kamakura-sea-9e2-v2';
+    material.customProgramCacheKey=()=> 'kamakura-sea-9e3-v1';
   }
   return {group,mesh,uniforms:u,textures,jobs,props,bank,
     update(dt,pos,audioTime) {
       if(disposed||!enabled)return;
       elapsed+=dt;const time=Number.isFinite(audioTime)?audioTime:elapsed;
       u.uShoreTime.value=time;u.uShoreWave.value=waveEnvelope(time);u.uShoreOldWave.value=waveEnvelope(time-.9);
+      u.uShoreWetReach.value=wetReachAt(time,waveEnvelope);
+      u.uShoreWaves.value.set(waveEnvelope(time),waveEnvelope(time*BREAKERS[1].speed+BREAKERS[1].phase),waveEnvelope(time*BREAKERS[2].speed+BREAKERS[2].phase));
       // W2c-9 parent fix: the 0.25 ms/frame budget and 256-value packing never finished (1.42M cells: ~190 ms of job work + ~70 ms of
       // half-float packing = 0.25 ms x 1000s of frames; ready stayed 0 after 10 s, so no foam / wet sand ever showed). 3 ms/frame finishes in ~1.5 s.
       const start=performance.now();
@@ -115,9 +126,9 @@ export function buildKamakuraSea(terrain, data, {search='',quality='standard',su
         u.uShoreReady.value=1;terrain.shoreSigned=f;props?.setAdapt(step);
         jobIndex++;
       }
-      props.update(pos);
+      props.update(pos);bank?.update(pos);
     },
-    setAdapt(value){step=typeof value==='number'?value:value.step;u.uShoreDetail.value=quality==='light'||step>=2?0:1;u.uShoreAnimate.value=step>=3?0:1;if(enabled)material.envMapIntensity=step>=3?0:.5;props?.setAdapt(step);},
+    setAdapt(value){step=typeof value==='number'?value:value.step;u.uShoreDetail.value=quality==='light'||step>=2?0:1;u.uShoreAnimate.value=step>=3?0:1;if(enabled)material.envMapIntensity=step>=3?0:.5;props?.setAdapt(step);bank?.setAdapt(quality==='light'?Math.max(2,step):step);},
     dispose(){if(disposed)return;disposed=true;if(enabled){unregisterShoreView(data);if(terrain.shoreSigned===jobs[0].field)delete terrain.shoreSigned;}props?.dispose();bank?.dispose();group.removeFromParent();geometry.dispose();material.dispose();for(const texture of textures)texture.dispose();}
   };
 }
