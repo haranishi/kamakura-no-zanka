@@ -16,21 +16,21 @@ export function buildKamakuraGrass({ data, terrain, colliders, extraColliders, s
   const ecology = improved ? createGrassEnvironment(terrain, {colliders, extraColliders, paths, surfaceCodeAt:createSurfaceCodeAt(data.meta,data.surface)}) : null;
   const look = improved ? createGrassLook(ecology, quality, {value:new THREE.Vector4(0,0,0,0)},bands) : undefined;
   const cell = createGrassCell(terrain, { surfaceCodeAt: createSurfaceCodeAt(data.meta, data.surface),
-    environmentAt: ecology, ...(improved ? {riverMargin:.25} : {}), exclude: grassExclusions(terrain, { colliders, extraColliders, paths, ...(improved ? {pathMargin:2.5,rootMargin:0} : {}) }) });
-  // W2c-9c2: 352m look window leaves 176-32-120-6=18m streaming headroom.
-  const bandCell = bands ? createGrassBandCell(cell,terrain,{surfaceCodeAt:createSurfaceCodeAt(data.meta,data.surface),facilityBoxes}) : cell;
-  const windows = createGrassWindows(bandCell, improved ? {size:352} : {}), budget = grassFrameBudget(quality);
+    environmentAt: ecology, ...(improved ? {riverMargin:.25} : {}), exclude: grassExclusions(terrain, { colliders, extraColliders, paths, ...(improved ? {pathMargin:2.5,rootMargin:bands?Math.SQRT1_2:0} : {}) }) });
+  // W2c-9r2 grass: 400m band window leaves 200-32-158-6=4m headroom.
+  const bandCell = bands ? createGrassBandCell(cell,terrain,{surfaceCodeAt:createSurfaceCodeAt(data.meta,data.surface),facilityBoxes,environmentAt:ecology}) : cell;
+  const windows = createGrassWindows(bandCell, improved ? {size:bands?400:352} : {}), budget = grassFrameBudget(quality);
   let grass = null, disposed = false, step = 0, switches = 0, lastWorkMs = 0, maxWorkMs = 0, initial = true, background = null, backgroundWanted = false;
   function advance(camera,pos,warm=false) {
       if (disposed || !enabled || step === 3) return;
-      // W2c-9p: ~60m synchronous neighbourhood, then full unchanged 352m window.
-      if(windows.plan(pos,warm && initial ? (quality==='light'?96:120) : improved?352:256))ecology?.retain(windows.pending.field);
+      // W2c-9r2 grass: retain the small synchronous boot, then budget the full band window.
+      if(windows.plan(pos,warm && initial ? (quality==='light'?96:120) : bands?400:improved?352:256))ecology?.retain(windows.pending.field);
       const start = now(); if (windows.pending) windows.work(() => warm ? 0 : now() - start, budget);
       lastWorkMs = now() - start; maxWorkMs = Math.max(maxWorkMs, lastWorkMs);
       const next = windows.commit();
       if (next) {
         if (grass) grass.setField(next);
-        else { grass = buildGrass({ field: next, wind, sunDir, quality, reach: bands ? {near:25,mid:122,midInner:8} : improved ? {near:10,mid:120} : KAMAKURA_GRASS_REACH, look }); group.add(grass.group); grass.setDensityScale(step === 2 ? .6 : 1); grass.setLookQuality(step); }
+        else { grass = buildGrass({ field: next, wind, sunDir, quality, reach: bands ? {near:25,mid:158,midInner:8} : improved ? {near:10,mid:120} : KAMAKURA_GRASS_REACH, look }); group.add(grass.group); grass.setDensityScale(step === 2 ? .6 : 1); grass.setLookQuality(step); }
         // W2c-9b: sample the same linear ground colors used by the terrain.
         const tint = new THREE.Color(0,0,0); let n = 0;
         for (const dz of [-8,0,8]) for (const dx of [-8,0,8]) {
