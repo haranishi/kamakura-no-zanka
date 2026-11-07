@@ -34,7 +34,8 @@ function boards(limit, ring) {
 // Yield by elapsed time (sliceMs of work, then one frame) while indexing, so the browser can paint the loading status.
 // W2c-9 parent fix: yielding a whole frame (~16 ms) after every 128 source segments cost ~2.4 s of load for ~19k segments.
 // sliceMs = 0 yields after every step (tests).
-export async function prepareKamakuraFx(options, yieldFrame = () => new Promise(requestAnimationFrame), { sliceMs = 8, now = () => performance.now() } = {}) {
+export async function prepareKamakuraFx(options, yieldFrame = () => new Promise(requestAnimationFrame), { sliceMs = 8, now = () => performance.now(), defer = false } = {}) {
+  if(defer)return deferredFx(options,now);
   const flags = fxOptions(options.search, options.quality);
   if (!flags.enabled && !flags.fish) return buildKamakuraFx(options);
   const job = prepareFishRiverSteps(options.data?.rivers, options.terrain.vscale, options.terrain);
@@ -44,6 +45,31 @@ export async function prepareKamakuraFx(options, yieldFrame = () => new Promise(
     result = job.next();
   }
   return buildKamakuraFx({ ...options, preparedRivers: result.value });
+}
+// W2c-9p: walking starts with an empty effect group; the deterministic index is
+// advanced after the first draw. No timers or asynchronous resource owner survives disposal.
+function deferredFx(options,now) {
+  const group=new THREE.Group();group.name='kamakura-fx';
+  const flags=fxOptions(options.search,options.quality);
+  const job=flags.enabled||flags.fish?prepareFishRiverSteps(options.data?.rivers,options.terrain.vscale,options.terrain):null;
+  let view=null,dead=false,first=true,step=0;
+  const api={dust(...args){view?.api.dust(...args);}};
+  return {group,api,get state(){return view?.state;},get fish(){return view?.fish;},get ready(){return !!view;},
+    contact(c,hero){view?.contact(c,hero);},
+    update(dt,camera,hero){
+      if(dead)return;
+      if(first){first=false;return;}
+      if(!view){
+        const start=now();let result=job?job.next():{done:true,value:null};
+        while(!result.done && now()-start<2)result=job.next();
+        if(!result.done)return;
+        view=buildKamakuraFx({...options,preparedRivers:result.value});view.setAdapt(step);group.add(view.group);
+      }
+      view.update(dt,camera,hero);
+    },
+    setAdapt(next){step=next;view?.setAdapt(next);},
+    dispose(){if(dead)return;dead=true;job?.return();view?.dispose();view=null;group.removeFromParent();group.clear();}
+  };
 }
 export function buildKamakuraFx({ terrain, data, preparedRivers, search = '', quality = 'standard' }) {
   const options = fxOptions(search, quality), group = new THREE.Group(); group.name = 'kamakura-fx';

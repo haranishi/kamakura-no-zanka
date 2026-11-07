@@ -62,7 +62,8 @@ test('9e2 every modified shader balances braces, parentheses and #if; single R16
     for(const m of [v.mesh.material,v.props?.mesh.material,v.bank?.material].filter(Boolean)){const s=shaderFor(m);balanced(s.vertexShader);balanced(s.fragmentShader);}
     const m=new THREE.MeshLambertMaterial(),g=installGroundDetail(THREE,m,data);const s=shaderFor(m);balanced(s.vertexShader);balanced(s.fragmentShader);
     if(search!=='?seav=0'){
-      assert(terrain.shoreSigned);assert.equal(v.jobs.length,1);assert.equal(v.uniforms.uShoreSea.value,v.uniforms.uShoreLand.value);assert.equal(v.textures.length,1);assert.equal(v.mesh.material.roughness,.22);
+      assert(terrain.shoreSigned);assert.equal(v.jobs.length,1);assert.equal(v.uniforms.uShoreSea.value,v.uniforms.uShoreLand.value);// W2c-9 parent fix: the finished grid is a NEW texture (a 1x1 placeholder cannot be resized on the GPU: texStorage2D is immutable), shared by sea and sand.
+      const shared=v.uniforms.uShoreSea.value;assert.equal(shared.type,THREE.HalfFloatType);assert.equal(shared.image.width,terrain.shoreSigned.w);assert.equal(shared.image.height,terrain.shoreSigned.h);assert.equal(v.textures.filter(t=>t.image?.width===terrain.shoreSigned.w&&t.image?.height===terrain.shoreSigned.h).length,1,'exactly one full-size shore grid');assert.equal(v.mesh.material.roughness,.22);
       if(!search)noon=v.uniforms.uSeaDay.value;else assert(v.uniforms.uSeaDay.value<noon);
       for(const step of [2,3,0]){v.setAdapt(step);assert.equal(v.uniforms.uShoreDetail.value,step>=2?0:1);assert.equal(v.uniforms.uShoreAnimate.value,step>=3?0:1);}
     }else {assert.equal(v.textures.length,0);assert.equal(v.bank,null);}

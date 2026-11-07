@@ -44,37 +44,50 @@ export function facilityMaterialRole(name = '') {
   return 0;
 }
 // W2c-9g3: 8m packed stochastic atlas; no diagonal harmonics or brick rows.
-function noise(x,y,seed) {
-  const ix=Math.floor(x), iy=Math.floor(y), fx=x-ix, fy=y-iy;
-  const sx=fx*fx*(3-2*fx), sy=fy*fy*(3-2*fy);
-  const h=(a,b)=>houseHash(((a%64)+64)%64+seed,((b%64)+64)%64);
-  return (h(ix,iy)*(1-sx)+h(ix+1,iy)*sx)*(1-sy)+(h(ix,iy+1)*(1-sx)+h(ix+1,iy+1)*sx)*sy;
+// W2c-9p: evaluate the original hash once per lattice point. Float64 keeps
+// the old interpolation/byte output exact; instance hashes and GLSL are unchanged.
+function textureNoise(seed) {
+  const grid=new Float64Array(64*64);
+  for(let y=0;y<64;y++)for(let x=0;x<64;x++)grid[y*64+x]=houseHash(x+seed,y);
+  return (x,y)=>{
+    const ix=Math.floor(x),iy=Math.floor(y),fx=x-ix,fy=y-iy;
+    const sx=fx*fx*(3-2*fx),sy=fy*fy*(3-2*fy);
+    const a=(iy&63)*64,b=((iy+1)&63)*64,c=ix&63,d=(ix+1)&63;
+    return (grid[a+c]*(1-sx)+grid[a+d]*sx)*(1-sy)+(grid[b+c]*(1-sx)+grid[b+d]*sx)*sy;
+  };
 }
 export function* houseTextureRows(size = 512, seed = 9173) {
   const data=new Uint8Array(size*size*4), sums=[0,0,0,0];
+  const noise=textureNoise(seed), strawNoise=textureNoise(seed+2), crackNoise=textureNoise(seed+4);
+  const stones=new Float64Array(30*30*3);
+  for(let y=-1;y<29;y++)for(let x=-1;x<29;x++){
+    const k=((y+1)*30+x+1)*3;
+    stones[k]=houseHash(x+seed,y);stones[k+1]=houseHash(x,y+seed);stones[k+2]=houseHash(x+seed,y+7);
+  }
+  const columns=Array.from({length:size},(_,x)=>{
+    const u=x/(size-1)*8;let board=Math.floor(u/.24);
+    while(u<houseBoardBoundary(board))board--;
+    while(u>=houseBoardBoundary(board+1))board++;
+    return {u,board,seam:Math.min(u-houseBoardBoundary(board),houseBoardBoundary(board+1)-u),length:1.8+houseHash(board,seed+5)*1.5,offset:houseHash(board,seed+6),grain:houseHash(board,seed)};
+  });
   for(let y=0;y<size;y++) {
     const v=y/(size-1)*8;
     for(let x=0;x<size;x++) {
-      const u=x/(size-1)*8, n=noise(u*.7,v*.7,seed);
-      let board=Math.floor(u/.24);
-      while(u<houseBoardBoundary(board))board--;
-      while(u>=houseBoardBoundary(board+1))board++;
-      const seam=Math.min(u-houseBoardBoundary(board),houseBoardBoundary(board+1)-u);
-      const length=1.8+houseHash(board,seed+5)*1.5;
-      const joint=fract((v+houseHash(board,seed+6)*length)/length)*length;
-      const strawY=v + (noise(u*1.4,v*.4,seed+2)-.5)*.18;
+      const {u,board,seam,length,offset,grain}=columns[x], n=noise(u*.7,v*.7);
+      const joint=fract((v+offset*length)/length)*length;
+      const strawY=v + (strawNoise(u*1.4,v*.4)-.5)*.18;
       const row=Math.floor(strawY/.375), edge=strawY/.375-row;
       let first=10,second=10,stone=0;
       const gx=Math.floor(u/.30),gy=Math.floor(v/.30);
       for(let j=-1;j<=1;j++)for(let i=-1;i<=1;i++) {
-        const cx=gx+i,cy=gy+j,dx=u/.30-cx-houseHash(cx+seed,cy),dy=v/.30-cy-houseHash(cx,cy+seed);
+        const cx=gx+i,cy=gy+j,k=((cy+1)*30+cx+1)*3,dx=u/.30-cx-stones[k],dy=v/.30-cy-stones[k+1];
         const d=dx*dx+dy*dy;
-        if(d<first){second=first;first=d;stone=houseHash(cx+seed,cy+7);}else if(d<second)second=d;
+        if(d<first){second=first;first=d;stone=stones[k+2];}else if(d<second)second=d;
       }
       const values=[
-        .48+.17*(noise(u*8,strawY*.6,seed)-.5)+.14*(noise(u*3,row,seed)-.5)-.16*Math.max(0,1-edge/.12),
-        .5+.22*(houseHash(board,seed)-.5)+.10*(noise(u*35,v*.7,seed)-.5)-.28*Math.max(0,1-seam/.015)-.15*Math.max(0,1-joint/.012),
-        .5+.26*(n-.5)-.12*Math.max(0,1-Math.abs(noise(u*2,v*2,seed+4)-.5)/.012),
+        .48+.17*(noise(u*8,strawY*.6)-.5)+.14*(noise(u*3,row)-.5)-.16*Math.max(0,1-edge/.12),
+        .5+.22*(grain-.5)+.10*(noise(u*35,v*.7)-.5)-.28*Math.max(0,1-seam/.015)-.15*Math.max(0,1-joint/.012),
+        .5+.26*(n-.5)-.12*Math.max(0,1-Math.abs(crackNoise(u*2,v*2)-.5)/.012),
         .54+.18*(stone-.5)-.30*Math.max(0,1-(Math.sqrt(second)-Math.sqrt(first))/.065)
       ];
       for(let c=0;c<4;c++){const idx=(y*size+x)*4+c;data[idx]=Math.round(values[c]*255);sums[c]+=data[idx];}

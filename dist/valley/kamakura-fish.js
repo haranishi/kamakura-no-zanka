@@ -21,11 +21,12 @@ export function* prepareFishRiverSteps(data, vscale = 1, terrain = null) {
   const segments = [], cells = new Map(), stride = 1048576, key = (i, j) => i + j * stride;
   let work = 0;
   for (const r of data?.rivers || []) for (let k = 1; k < r.xy_m.length; k++) {
-    if (++work % 128 === 0) yield;
     const a = r.xy_m[k - 1], b = r.xy_m[k], length = Math.hypot(b[0] - a[0], b[1] - a[1]);
     if (length < .4) continue;
     const pieces = Math.ceil(length / 12);
     for (let j = 0; j < pieces; j++) {
+      // W2c-9p: bound even a long source segment; stop habitat probes on first rejection.
+      if (++work % 128 === 0) yield;
       const lo = j / pieces, hi = (j + 1) / pieces, mix = (ar, t) => ar[k - 1] + (ar[k] - ar[k - 1]) * t;
       const s = { ax: a[0] + (b[0] - a[0]) * lo, az: -a[1] - (b[1] - a[1]) * lo,
         dx: (b[0] - a[0]) / pieces, dz: -(b[1] - a[1]) / pieces, length: length / pieces,
@@ -34,12 +35,12 @@ export function* prepareFishRiverSteps(data, vscale = 1, terrain = null) {
       s.habitat = true;
       if (terrain) {
         // Reject sea/land and channels whose sampled bed leaves no swimming depth.
-        for (const t of [.15, .5, .85]) {
+        habitat: for (const t of [.15, .5, .85]) {
           const half = (s.wa + (s.wb - s.wa) * t) / 2, water = s.ya + (s.yb - s.ya) * t;
           for (const lane of [-.35, 0, .35]) {
             const x = s.ax + s.dx * t - s.dz / s.length * half * lane, z = s.az + s.dz * t + s.dx / s.length * half * lane;
             const wet = terrain.waterAt(x, z);
-            if (wet <= .05 || wet >= .46 || water - terrain.heightAt(x, z) < .32) s.habitat = false;
+            if (wet <= .05 || wet >= .46 || water - terrain.heightAt(x, z) < .32) { s.habitat = false; break habitat; }
           }
         }
       }

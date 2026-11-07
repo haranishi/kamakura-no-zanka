@@ -6,6 +6,7 @@ import { waveEnvelope } from './kamakura-sea-audio.js';
 import { buildBankWet } from './kamakura-bank-wet.js';
 import { prepareRivers, waterEnabled } from './kamakura-rivers.js';
 import { buildShoreProps } from './kamakura-shore-props.js';
+const SHORE_FRAME_BUDGET_MS=3;
 // W2c-9e2: coarse unsigned coast -> sub-cell signed surf and atmosphere-derived sea.
 export function buildKamakuraSea(terrain, data, {search='',quality='standard',sunDir=new THREE.Vector3(.5,.17,.85)}={}) {
   const enabled=new URLSearchParams(search).get('seav')!=='0', b=terrain.bounds;
@@ -24,7 +25,8 @@ export function buildKamakuraSea(terrain, data, {search='',quality='standard',su
   }
   const fallback=enabled?textureFor({data:new Float32Array([3000]),w:1,h:1}):null;
   const u={uSeaSky:{value:new THREE.Color(sky.mid)},uSeaSun:{value:new THREE.Color(sky.sunColor)},uSeaDay:{value:daylight},uShoreSea:{value:fallback},uShoreLand:{value:fallback},uShoreGrid:{value:new THREE.Vector4()},uShoreTime:{value:0},uShoreWave:{value:0},uShoreOldWave:{value:0},uShoreReady:{value:0},uShoreDetail:{value:quality==='light'?0:1},uShoreAnimate:{value:1},SUN_DIR_W:{value:sunDir.clone().normalize()}};
-  const bank=enabled&&waterEnabled(search)?buildBankWet(THREE,prepareRivers(data.rivers,terrain.vscale??1,quality),terrain,{search}):null;if(bank)group.add(bank.group);
+  // W2c-9 parent: the bank wet ribbon drew large dark translucent triangles on river banks (4 m quads draped on 30 deg slopes; found by toggling &seav=0 / &water=0). Off by default until 9e3 redoes it; &bankwet=1 turns it on.
+  const bank=enabled&&waterEnabled(search)&&new URLSearchParams(search).get('bankwet')==='1'?buildBankWet(THREE,prepareRivers(data.rivers,terrain.vscale??1,quality),terrain,{search}):null;if(bank)group.add(bank.group);
   const props=enabled?buildShoreProps(THREE,terrain,data,quality):null;if(props)group.add(props.group);
   if(enabled) {
     const field=jobs[0].field;
@@ -94,17 +96,22 @@ export function buildKamakuraSea(terrain, data, {search='',quality='standard',su
       if(disposed||!enabled)return;
       elapsed+=dt;const time=Number.isFinite(audioTime)?audioTime:elapsed;
       u.uShoreTime.value=time;u.uShoreWave.value=waveEnvelope(time);u.uShoreOldWave.value=waveEnvelope(time-.9);
-      // 0.25ms preparation target leaves room under the 0.5ms incremental goal.
+      // W2c-9 parent fix: the 0.25 ms/frame budget and 256-value packing never finished (1.42M cells: ~190 ms of job work + ~70 ms of
+      // half-float packing = 0.25 ms x 1000s of frames; ready stayed 0 after 10 s, so no foam / wet sand ever showed). 3 ms/frame finishes in ~1.5 s.
       const start=performance.now();
-      while(jobIndex<jobs.length&&performance.now()-start<.25) {
-        const job=jobs[jobIndex];if(!job.step(32))continue;
+      while(jobIndex<jobs.length&&performance.now()-start<SHORE_FRAME_BUDGET_MS) {
+        const job=jobs[jobIndex];if(!job.step(2048))continue;
         const f=job.field;
         if(!packed){packed=new Uint16Array(f.data.length);packCursor=0;}
-        const end=Math.min(packCursor+256,packed.length);
+        const end=Math.min(packCursor+8192,packed.length);
         for(;packCursor<end;packCursor++)packed[packCursor]=THREE.DataUtils.toHalfFloat(f.data[packCursor]);
         if(packCursor<packed.length)continue;
-        // Reuse the single placeholder texture; sea and sand share this R16F.
-        fallback.image={data:packed,width:f.w,height:f.h};fallback.needsUpdate=true;packed=null;
+        // W2c-9 parent fix: swapping the image of the 1x1 placeholder does not resize its GPU storage (WebGL2 texStorage2D is immutable),
+        // so the shader kept sampling the placeholder (landDistance = 3000 everywhere: deep colour, no foam, no wet sand). Make a NEW texture;
+        // sea and sand share this R16F.
+        const done=new THREE.DataTexture(packed,f.w,f.h,THREE.RedFormat,THREE.HalfFloatType);
+        done.minFilter=done.magFilter=THREE.LinearFilter;done.generateMipmaps=false;done.unpackAlignment=1;done.needsUpdate=true;textures.push(done);
+        u.uShoreSea.value=done;u.uShoreLand.value=done;packed=null;
         u.uShoreReady.value=1;terrain.shoreSigned=f;props?.setAdapt(step);
         jobIndex++;
       }
