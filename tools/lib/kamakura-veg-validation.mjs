@@ -8,7 +8,7 @@ import { createKamakuraTerrain } from '../../dist/valley/kamakura-terrain.js';
 import { houseBox, houseMatrix } from '../../dist/valley/kamakura-houses.js';
 import { buildColliders } from '../../dist/valley/collision.js';
 import { kamakuraSpawn } from '../../dist/valley/kamakura-spawn.js';
-export async function verifyVeg(data, dir, privateHouses) {
+export async function verifyVeg(data, dir, privateHouses, facilityBoxes = []) {
   if (!data.meta.veg) return { skip: 'meta.veg が無いため木の検査を省略' };
   const meta = data.meta.veg;
   assert.equal(meta.file, 'veg_f32.bin'); assert.equal(meta.info, 'veg.json');
@@ -17,7 +17,7 @@ export async function verifyVeg(data, dir, privateHouses) {
   assert.equal(items.length, 112890, 'v0.6 placement count contract');
   const terrain = createKamakuraTerrain(data), spawn = kamakuraSpawn(terrain, '');
   const boxes = privateHouses ? privateHouses.houses.instances.map(i => houseBox(privateHouses.houses.kinds.get(i.kind), houseMatrix(i, terrain, privateHouses.bodies.get(i.kind)), privateHouses.bodies.get(i.kind))) : [];
-  const prepared = prepareVeg(items, terrain, { boxes, paths: data.patches?.paths || {}, spawn });
+  const prepared = prepareVeg(items, terrain, { boxes: [...boxes, ...facilityBoxes], paths: data.patches?.paths || {}, spawn });
   const heights = [20, 12, 13, 8, 3, 1.2];
   const circles = vegCircles(prepared, sp => heights[sp]), start = performance.now();
   buildColliders({ bounds: terrain.bounds, extraBoxes: boxes, extraCircles: circles });

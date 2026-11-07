@@ -10,13 +10,13 @@ import { buildColliders, addColliderCircles } from '../../dist/valley/collision.
 import { kamakuraSpawn } from '../../dist/valley/kamakura-spawn.js';
 import { load, THREE } from '../../tests/helpers/tree-modules.mjs';
 import { wind, stubRenderer } from '../../tests/helpers/tree-field.mjs';
-export async function verifyStands(data, dir, privateHouses) {
+export async function verifyStands(data, dir, privateHouses, facilityBoxes = []) {
   if (!data.meta.veg) return { skip: 'meta.veg が無いため林分検査を省略' };
   const info=JSON.parse(await fs.readFile(path.join(dir,'veg.json'),'utf8')),b=await fs.readFile(path.join(dir,'veg_f32.bin'));
   const items=decodeVeg(info,b.buffer.slice(b.byteOffset,b.byteOffset+b.byteLength),data.meta.veg.count);
   const terrain=createKamakuraTerrain(data),spawn=kamakuraSpawn(terrain,'');
   const boxes=privateHouses?privateHouses.houses.instances.map(i=>houseBox(privateHouses.houses.kinds.get(i.kind),houseMatrix(i,terrain,privateHouses.bodies.get(i.kind)),privateHouses.bodies.get(i.kind))):[];
-  const options={boxes,paths:data.patches?.paths||{},spawn};
+  const options={boxes:[...boxes,...facilityBoxes],paths:data.patches?.paths||{},spawn};
   const tiers=[1,2].map(t=>items.filter(i=>i.tier===t).length);assert(tiers.every(n=>n>0));
   const {buildKamakuraStands}=await load('kamakura-stand-view.js');
   const {vegHeight}=await load('kamakura-veg-view.js');
