@@ -33,3 +33,13 @@ export function postMemory(width, height) {
   // RGBA16F resolve + 4x color + 4x depth + resolved depth (depth estimated 4B).
   return { width, height, levels, bytes: width * height * 60 + lowPixels * 8 };
 }
+
+// W2c-9r1 light: unbounded threshold excess -> monotonic shoulder (linear HDR).
+export function bloomLift(brightness, threshold = POST_DEFAULTS.threshold, cap = .9) {
+  const excess = Math.max(0, brightness - threshold);
+  return cap > 0 ? cap * (excess / (cap + excess)) : 0;
+}
+export function bloomCap(search = '') {
+  const q = new URLSearchParams(search);
+  return q.get('evening2') === '0' ? 0 : q.get('time') === 'evening' ? .65 : .9;
+}

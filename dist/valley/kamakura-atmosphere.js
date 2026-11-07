@@ -41,9 +41,44 @@ export function validateAtmosphere(a) {
   if (!a.mist || !Number.isFinite(a.mist.base) || !(a.mist.density >= 0 && a.mist.density <= .0001) || !(a.mist.falloff > 0 && a.mist.falloff <= 1)) throw new RangeError('atmosphere mist');
   return a;
 }
-export function kamakuraAtmosphere(time, evening) {
+// W2c-9r1 light: dark green evening -> orange sun / blue-violet shade.
+export const EVENING_LIGHT = Object.freeze({
+  // Retain the shared golden sun hue: sea shaders also read this pure preset.
+  sunIntensity: 4.1,
+  hemiSky: '#acb4da', hemiGround: '#77748c', hemiIntensity: 1.15,
+  fillColor: '#aeb8df', fillIntensity: .45,
+  hazeCool: '#a1a9c2', hazeWarm: '#f0b77f', fogColor: '#a1a9c2',
+});
+export function eveningEnabled(search = '') { return new URLSearchParams(search).get('evening2') !== '0'; }
+// Linear interpolation of sRGB settings at initialization only; caller owns the result.
+export function eveningLight(base, strength = 1) {
+  const t = Math.max(0, Math.min(1, strength)), out = { ...base };
+  for (const key of Object.keys(EVENING_LIGHT)) {
+    const next = EVENING_LIGHT[key];
+    if (typeof next === 'number') out[key] = base[key] + (next - base[key]) * t;
+    else {
+      let color = '#';
+      for (let i = 1; i < 7; i += 2) {
+        const old = parseInt(base[key].slice(i, i + 2), 16);
+        color += Math.round(old + (parseInt(next.slice(i, i + 2), 16) - old) * t).toString(16).padStart(2, '0');
+      }
+      out[key] = color;
+    }
+  }
+  return out;
+}
+// Direction points from the surface toward the camera; sunDir points toward the sun.
+// Pure, allocation-free public contract for the next grass pass (no transmission yet).
+export function sunBacklight(dir, sunDir, strength = 1) {
+  const length = Math.hypot(dir[0], dir[1], dir[2]) * Math.hypot(sunDir[0], sunDir[1], sunDir[2]);
+  if (!(length > 0)) return 0;
+  const facing = Math.max(0, -(dir[0]*sunDir[0]+dir[1]*sunDir[1]+dir[2]*sunDir[2])/length);
+  return facing ** 4 * Math.max(0, Math.min(1, strength));
+}
+export function kamakuraAtmosphere(time, evening, enhanced = true, strength = 1) {
   const preset = Object.hasOwn(KAMAKURA_TIMES, time) ? KAMAKURA_TIMES[time] : KAMAKURA_TIMES.noon;
   const a = { ...evening, ...preset, sunDir: [...(preset.sunDir || evening.sunDir)], mist: { ...preset.mist } };
+  if (time === 'evening' && enhanced) Object.assign(a, eveningLight(a, strength));
   validateAtmosphere(a);
   const length = Math.hypot(...a.sunDir); a.sunDir = a.sunDir.map(v => v / length);
   return a;
