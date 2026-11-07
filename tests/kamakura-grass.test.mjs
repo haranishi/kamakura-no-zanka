@@ -15,17 +15,17 @@ const bounds = {minX:-1000,maxX:1000,minZ:-1000,maxZ:1000};
 test('world metre cells repeat; overlapping windows reuse exact raw values and corner heights',()=>{
   let evaluations=0; const evaluate=cell(),w=createGrassWindows((x,z)=>{evaluations++;return evaluate(x,z);});
   assert.deepEqual(evaluate(-12,7),evaluate(-12,7));
-  w.plan({x:0,z:0});const a=finish(w);assert.equal(evaluations,9216);
-  assert(!w.plan({x:23.99,z:0}));assert(w.plan({x:24,z:0}));const b=finish(w);
-  assert.deepEqual(b.stats,{evaluated:2304,reused:6912});assert.equal(evaluations,11520);
-  for(let z=-48;z<48;z++)for(let x=-24;x<48;x++) {
+  w.plan({x:0,z:0});const a=finish(w);assert.equal(evaluations,65536);
+  assert(!w.plan({x:31.99,z:0}));assert(w.plan({x:32,z:0}));const b=finish(w);
+  assert.deepEqual(b.stats,{evaluated:8192,reused:57344});assert.equal(evaluations,73728);
+  for(let z=-128;z<128;z++)for(let x=-96;x<128;x++) {
     const ai=at(a,x,z),bi=at(b,x,z);
     for(const key of ['rawDensity','rawMidPatch','species','height'])assert.equal(a[key][ai],b[key][bi]);
     if(grassEdge(a,x,z)===1&&grassEdge(b,x,z)===1)for(const key of ['placeable','density','midPatch'])assert.equal(a[key][ai],b[key][bi]);
   }
-  const cold=createGrassWindows(evaluate);cold.plan({x:24,z:0});const c=finish(cold);
+  const cold=createGrassWindows(evaluate);cold.plan({x:32,z:0});const c=finish(cold);
   for(const key of ['density','midPatch','species','height','heights','placeable'])assert.deepEqual(b[key],c[key]);
-  w.plan({x:1000,z:-1000});assert.equal(finish(w).stats.evaluated,9216);
+  w.plan({x:1000,z:-1000});assert.equal(finish(w).stats.evaluated,65536);
 });
 test('classes determine density/species; rice, wet sand, rock, gravel and unknown never get blades',()=>{
   const grass=cell()(7,9);assert([SHORT,TALL].includes(grass.species));assert(grass.density>0);
@@ -57,10 +57,10 @@ test('boxes (house/facility), rotated margins, paths and live trunk grid exclusi
 test('time budget splits all work, old field stays committed until ready; edges fade both LODs',()=>{
   const w=createGrassWindows(cell());w.plan({x:0,z:0});assert.equal(w.commit(),null);
   let tick=0;assert.equal(w.work(()=>++tick,2),2);assert.equal(w.field,null);const f=finish(w);
-  w.plan({x:24,z:0});tick=0;w.work(()=>++tick,1.5);assert.equal(w.field,f);assert.equal(w.commit(),null);
+  w.plan({x:32,z:0});tick=0;w.work(()=>++tick,1.5);assert.equal(w.field,f);assert.equal(w.commit(),null);
   const pending=w.pending;assert(!w.plan({x:100,z:0}));assert.equal(w.pending,pending);finish(w);
-  assert.equal(grassEdge(f,-48,0),0);assert(grassEdge(f,-45,0)>0&&grassEdge(f,-45,0)<1);assert.equal(grassEdge(f,-42,0),1);
-  assert.equal(f.density[at(f,-48,0)],0);assert.equal(f.midPatch[at(f,-48,0)],0);
+  assert.equal(grassEdge(f,-128,0),0);assert(grassEdge(f,-125,0)>0&&grassEdge(f,-125,0)<1);assert.equal(grassEdge(f,-122,0),1);
+  assert.equal(f.density[at(f,-128,0)],0);assert.equal(f.midPatch[at(f,-128,0)],0);
   assert.equal(grassFrameBudget('standard'),2);assert.equal(grassFrameBudget('light'),1.5);
   w.plan({x:500,z:0});w.cancel();assert.equal(w.commit(),null);
   assert.throws(()=>w.plan({x:NaN,z:0}),RangeError);
@@ -83,12 +83,12 @@ function view(code=2,search='',quality='standard') {
   const data=fixture();data.meta.surface={};data.surface=new Uint8Array(data.meta.grid.width*data.meta.grid.height).fill(code);
   return buildKamakuraGrass({data,terrain:createKamakuraTerrain(data),search,quality,wind,sunDir:new THREE.Vector3(1,1,0)});
 }
-function settle(v,c) {for(let i=0;i<250;i++){v.update(c);if(!v.stats().pending&&v.stats().switches&&v.stats().queue===0)return;}assert.fail('grass did not settle');}
+function settle(v,c) {for(let i=0;i<1000;i++){v.update(c);if(!v.stats().pending&&v.stats().switches&&v.stats().queue===0)return;}assert.fail('grass did not settle');}
 test('shipped Three CPU view streams, retains interior chunks, adapts without rebuilding and disposes each resource once',()=>{
   for(const quality of ['standard','light']){
     const v=view(2,'',quality);settle(v,camera(0));const before=v.stats();assert(before.nearBlades>0&&before.midCards>0);
     const allocated=new Map();const watch=()=>v.group.traverse(o=>{for(const r of [o.geometry,...[].concat(o.material||[]),o.material?.map].filter(Boolean))if(!allocated.has(r)){allocated.set(r,0);r.addEventListener('dispose',()=>allocated.set(r,allocated.get(r)+1));}});
-    watch();const builds=before.builds;v.setAdapt(2);const reduced=v.stats();assert.equal(reduced.builds,builds);assert(reduced.nearBlades/before.nearBlades>.55&&reduced.nearBlades/before.nearBlades<.65);
+    watch();const builds=before.builds;v.setAdapt(2);const reduced=v.stats();assert.equal(reduced.builds,builds);assert(reduced.tallBlades/before.tallBlades>.55&&reduced.tallBlades/before.tallBlades<.65);assert.equal(reduced.lawn,0);assert.equal(reduced.flowers,0);
     // Step 2 must thin by an independent hash: the card pattern and the far fade both read iShape.w.
     {const cards=new Set();let nearMaxW=0;v.group.traverse(o=>{if(!o.isMesh||!(o.geometry.instanceCount>0))return;const a=o.geometry.getAttribute('iShape').data.array;
       for(let i=0;i<o.geometry.instanceCount;i++){const w=a[i*15+7];if(o.material.alphaTest>0)cards.add(Math.floor(w*3.999));else nearMaxW=Math.max(nearMaxW,w);}});
@@ -97,7 +97,7 @@ test('shipped Three CPU view streams, retains interior chunks, adapts without re
     v.setAdapt(0);assert.equal(v.stats().nearBlades,before.nearBlades);assert.equal(v.group.visible,true);
     const central=new Map();v.group.traverse(o=>{if(o.geometry?.instanceCount>0&&Math.abs(o.geometry.boundingSphere.center.x)<10&&Math.abs(o.geometry.boundingSphere.center.z)<10)central.set(o,o.geometry.getAttribute('iRoot').data.array.slice());});
     // Move the CPU window while holding the render camera, proving retained chunks remain exact.
-    for(let i=0;i<200;i++){v.update(camera(0),{x:24,z:0});if(!v.stats().pending&&v.stats().switches>switches)break;}
+    for(let i=0;i<1000;i++){v.update(camera(0),{x:32,z:0});if(!v.stats().pending&&v.stats().switches>switches)break;}
     assert.equal(v.stats().switches,switches+1);for(const [o,a]of central)assert.deepEqual(o.geometry.getAttribute('iRoot').data.array,a);
     for(const x of [48,72,96,-72,0]){settle(v,camera(x));watch();}
     v.group.traverse(o=>{if(o.isMesh)assert(!o.castShadow&&o.receiveShadow);});
@@ -118,7 +118,22 @@ test('composition uses shared wind/sun, flight position, pause, adaptive step an
 test('private v0.9 window uses provided surface/height and reuses overlap (no private values emitted)',{skip:!process.env.KZ_WORLD_DIR&&'KZ_WORLD_DIR未設定：私有v0.9地表データが必要'},async t=>{
   const {verifyPrivateGrass}=await import('../tools/lib/kamakura-grass-validation.mjs');
   const result=await verifyPrivateGrass(process.env.KZ_WORLD_DIR);if(result.skipped)return t.skip(result.skipped);
-  assert.equal(result.newCells,2304);assert.equal(result.reusedCells,6912);
+  assert.equal(result.newCells,8192);assert.equal(result.reusedCells,57344);
   assert(result.samples.grass.nearBlades>0);assert(result.samples.forest.nearBlades>0);
   t.diagnostic(JSON.stringify(result));
+});
+test('9b window commits update the existing mid-card tint from linear terrain color',()=>{
+  const data=fixture();data.meta.surface={};data.surface=new Uint8Array(data.meta.grid.width*data.meta.grid.height).fill(2);
+  const terrain=createKamakuraTerrain(data);let level=.2,calls=0;
+  terrain.groundColorAt=()=>{calls++;return [level,.3,.4];};
+  const v=buildKamakuraGrass({data,terrain,wind,sunDir:new THREE.Vector3(1,1,0)});
+  try{
+    settle(v,camera(0));assert.equal(calls,9);
+    const mesh=v.group.children[0].children.find(o=>o.material.alphaTest>0),shader={uniforms:{},vertexShader:THREE.ShaderLib.lambert.vertexShader,fragmentShader:THREE.ShaderLib.lambert.fragmentShader};
+    mesh.material.onBeforeCompile(shader);const tint=shader.uniforms.uGroundTint.value;
+    assert(Math.abs(tint.r-.2*.68)<1e-10);assert(Math.abs(tint.g-.3*.68)<1e-10);assert(Math.abs(tint.b-.4*.68)<1e-10);
+    level=.6;const switches=v.stats().switches;
+    for(let i=0;i<1000&&v.stats().switches===switches;i++)v.update(camera(0),{x:32,z:0});
+    assert.equal(v.stats().switches,switches+1);assert.equal(calls,18);assert(Math.abs(tint.r-.6*.68)<1e-10);
+  }finally{v.dispose();}
 });

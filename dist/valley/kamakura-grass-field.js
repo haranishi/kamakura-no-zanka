@@ -3,7 +3,9 @@ import { GRASS } from './config.js';
 import { SHORT, TALL, FERN, SUSUKI } from './grass-field.js';
 import { fbm } from './terrain-height.js';
 import { vegExclusions } from './kamakura-veg.js';
-export const GRASS_WINDOW = 96, GRASS_MOVE = 24, GRASS_EDGE = 6;
+export const GRASS_WINDOW = 256, GRASS_MOVE = 32, GRASS_EDGE = 6;
+// W2c-9b: 128 - 32 - 70 - 6 = 20m of streaming headroom.
+export const KAMAKURA_GRASS_REACH = Object.freeze({ near: 10, mid: 70 });
 export const grassEnabled = search => new URLSearchParams(search).get('grass') !== '0';
 export const grassFrameBudget = quality => quality === 'light' ? 1.5 : 2;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -17,8 +19,8 @@ export function grassEdge(field, x, z) {
 // Reuse the collision grid (including dynamically registered stand trunks). No all-tree scan.
 // No start-point exclusion: grass does not block anything, and a bare disc around the
 // hero's start looked like a crop circle (seen in real Chrome, 2026-11-07).
-export function grassExclusions(terrain, { colliders, extraColliders, paths = {} } = {}) {
-  const path = vegExclusions({ waterAt: () => 0, heightAt: () => 1 }, { paths, pathMargin: 2.5 + Math.SQRT1_2 });
+export function grassExclusions(terrain, { colliders, extraColliders, paths = {}, pathMargin = 2.5 + Math.SQRT1_2 } = {}) {
+  const path = vegExclusions({ waterAt: () => 0, heightAt: () => 1 }, { paths, pathMargin });
   return (x, z) => {
     const reason = path({ x, z }); if (reason) return reason;
     const margin = Math.SQRT1_2;
@@ -40,7 +42,7 @@ export function grassExclusions(terrain, { colliders, extraColliders, paths = {}
   };
 }
 // Surface codes are the original eight classes, before the footstep mapping merges them.
-export function createGrassCell(terrain, { surfaceCodeAt, exclude = () => null, seed = 1333 } = {}) {
+export function createGrassCell(terrain, { surfaceCodeAt, exclude = () => null, seed = 1333, environmentAt } = {}) {
   return (ix, iz) => {
     const x = ix + .5, z = iz + .5;
     const heights = [terrain.heightAt(ix, iz), terrain.heightAt(ix + 1, iz), terrain.heightAt(ix, iz + 1), terrain.heightAt(ix + 1, iz + 1)];
@@ -52,23 +54,24 @@ export function createGrassCell(terrain, { surfaceCodeAt, exclude = () => null, 
     const river = terrain.riverDistanceAt(x, z, 25);   // only the 1.7 m exclusion and the 25 m bank band matter here
     if (river <= 1 + Math.SQRT1_2) return empty;
     const patch = clamp(.5 + GRASS.patch.largeWeight * noise(seed,x,z,GRASS.patch.largeScale,521) + GRASS.patch.smallWeight * noise(seed,x,z,GRASS.patch.smallScale,523),0,1);
-    const density = (1 + (GRASS.maxDensity - 1) * patch) * scale;
+    const ecology = environmentAt?.(x,z);
+    const density = (1 + (GRASS.maxDensity - 1) * patch) * scale * (ecology?.density ?? 1);
     const s = noise(seed,x,z,GRASS.speciesScale,557);
     let species = code === 3 ? FERN : code === 0 ? SUSUKI : code === 4 ? SHORT : s > GRASS.tallThreshold ? TALL : SHORT;
     if (river < 25) species = s < GRASS.fernThreshold ? FERN : SUSUKI;
     // Fixed theoretical envelope replaces window-wide quantiles/normalisation: moving
     // the window must never change a shared cell's value. Same two-scale mid patch.
     const mid = clamp(1 + .4 * (noise(seed,x,z,1/3,593) + noise(seed,x,z,1/14,599)),.2,1.8);
-    return { placeable: 1, density: Math.ceil(density * 255 / 2), height: Math.round(clamp(.5 + noise(seed,x,z,GRASS.heightScale,541)*.5,0,1)*255), species, midPatch: mid * scale, heights };
+    return { placeable: +(density > 0), density: Math.ceil(density * 255 / 2), height: Math.round(clamp((.5 + noise(seed,x,z,GRASS.heightScale,541)*.5)*(ecology?.height ?? 1),0,1)*255), species, midPatch: mid * scale * (ecology?.midDensity ?? ecology?.density ?? 1), heights };
   };
 }
-function emptyField(pos, seed) {
-  const nx = GRASS_WINDOW, nz = nx, n = nx * nz;
+function emptyField(pos, seed, size) {
+  const nx = size, nz = nx, n = nx * nz;
   return { seed, edge: GRASS_EDGE, x0: Math.floor(pos.x) - nx/2, z0: Math.floor(pos.z) - nz/2, nx, nz,
     placeable: new Uint8Array(n), density: new Uint8Array(n), height: new Uint8Array(n), species: new Uint8Array(n), midPatch: new Float32Array(n),
     rawDensity: new Uint8Array(n), rawMidPatch: new Float32Array(n), heights: new Float32Array((nx+1)*(nz+1)), stats: { evaluated: 0, reused: 0 } };
 }
-export function createGrassWindows(cell, { seed = 1333 } = {}) {
+export function createGrassWindows(cell, { seed = 1333, size = GRASS_WINDOW } = {}) {
   let field = null, pending = null, generation = 0;
   function plan(pos) {
     if (!Number.isFinite(pos.x + pos.z)) throw new RangeError('grass window: finite position required');
@@ -77,7 +80,7 @@ export function createGrassWindows(cell, { seed = 1333 } = {}) {
     if (pending) return false;
     const target = field;
     if (target && Math.hypot(pos.x - (target.x0 + target.nx/2),pos.z - (target.z0 + target.nz/2)) < GRASS_MOVE) return false;
-    pending = { field: emptyField(pos, seed), cursor: 0, generation: ++generation };
+    pending = { field: emptyField(pos, seed, size), cursor: 0, generation: ++generation };
     return true;
   }
   // At least one cell per call; the caller supplies elapsed milliseconds (no clock here).
@@ -88,10 +91,16 @@ export function createGrassWindows(cell, { seed = 1333 } = {}) {
       const k = pending.cursor++, x = next.x0 + k % next.nx, z = next.z0 + Math.floor(k / next.nx), old = field ? index(field,x,z) : -1;
       let v;
       if (old >= 0) {
-        v = Object.fromEntries(attributes.map(a => [a,field[a][old]]));
-        v.placeable = +(field.rawDensity[old] > 0); v.density = field.rawDensity[old]; v.midPatch = field.rawMidPatch[old];
-        const h = (z-field.z0)*(field.nx+1)+x-field.x0;
-        v.heights = [field.heights[h],field.heights[h+1],field.heights[h+field.nx+1],field.heights[h+field.nx+2]]; next.stats.reused++;
+        // Copy without temporary objects/arrays for every reused cell.
+        for (const a of attributes) next[a][k] = field[a][old];
+        next.rawDensity[k] = field.rawDensity[old]; next.rawMidPatch[k] = field.rawMidPatch[old];
+        const edge = grassEdge(next,x,z);
+        next.density[k] = Math.round(next.rawDensity[k]*edge); next.midPatch[k] = next.rawMidPatch[k]*edge;
+        next.placeable[k] = +(next.rawDensity[k] > 0 && edge > 0);
+        const h = (z-field.z0)*(field.nx+1)+x-field.x0, nh = Math.floor(k/next.nx)*(next.nx+1)+k%next.nx;
+        next.heights[nh]=field.heights[h]; next.heights[nh+1]=field.heights[h+1];
+        next.heights[nh+next.nx+1]=field.heights[h+field.nx+1]; next.heights[nh+next.nx+2]=field.heights[h+field.nx+2];
+        next.stats.reused++; done++; continue;
       } else { v = cell(x,z); next.stats.evaluated++; }
       for (const a of attributes) next[a][k] = v[a];
       next.rawDensity[k] = v.density; next.rawMidPatch[k] = v.midPatch;
