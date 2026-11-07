@@ -1,3 +1,4 @@
+import { readPrivateGround } from './kamakura-ground-validation.mjs';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import assert from 'node:assert/strict';
@@ -14,7 +15,7 @@ export async function readPrivateData(dir) {
     patches = { cells: buffer(cells), heights: buffer(heights), axes: JSON.parse(axes.toString()) };
     if (meta.patches.paths_file) patches.paths = JSON.parse(await fs.readFile(path.join(dir, meta.patches.paths_file), 'utf8'));
   }
-  return { data: decodeData(meta, buffer(height), buffer(walk), patches), checks: JSON.parse(samples.toString()) };
+  return { data: decodeData(meta, buffer(height), buffer(walk), patches, await readPrivateGround(meta, dir)), checks: JSON.parse(samples.toString()) };
 }
 export function verifySamples(data, checks) {
   const t = createKamakuraTerrain(data);
@@ -28,7 +29,7 @@ function boundary(g, axis, value) {
   const map = new Map();
   for (let i = 0; i < g.positions.length; i += 3) if (Math.abs(g.positions[i + axis] - value) < 1e-7) {
     const key = g.positions[i + (axis === 0 ? 2 : 0)];
-    map.set(key, [g.positions[i + 1], ...g.normals.slice(i, i + 3)]);
+    map.set(key, [g.positions[i + 1], ...g.normals.slice(i, i + 3), ...(g.colors?.slice(i, i + 3) || [])]);
   }
   return map;
 }
@@ -41,7 +42,7 @@ export function verifySeams(t, i = 0, j = 0, size = 64) {
     assert.equal(l.size, size * (t.patches ? 4 : 1) + 1, 'Complete shared edge'); assert.equal(r.size, l.size);
     for (const [key, values] of l) {
       assert(r.has(key), 'Shared sample alignment');
-      values.forEach((v, k) => assert(Math.abs(v - r.get(key)[k]) < 1e-8, 'Seam height/normal mismatch (values withheld)'));
+      values.forEach((v, k) => assert(Math.abs(v - r.get(key)[k]) < 1e-8, 'Seam height/normal/colour mismatch (values withheld)'));
     }
   }
   return LODS.length ** 2 * 2;

@@ -11,10 +11,11 @@ export function chooseLOD(distance, previous = 8) {
 export function choosePatchLOD(distance, previous = 8) {
   return distance < (previous === 1 ? 1320 : 1200) ? 1 : chooseLOD(distance, previous);
 }
-export function chunkGeometry(t, i0, j0, i1, j1, step = 1, edges = {}) {
+export function chunkGeometry(t, i0, j0, i1, j1, step = 1, edges = {}, ground = true) {
   const xs = [], zs = [], positions = [], normals = [], indices = [];
   for (let i = i0; i < i1; i += step) xs.push(i); xs.push(i1);
   for (let j = j0; j < j1; j += step) zs.push(j); zs.push(j1);
+  const colors = ground && t.groundColorAt?.(t.x0, t.z0) ? [] : null;
   const sample = (i, j) => {
     const x = t.x0 + i * t.cell, z = t.z0 + j * t.cell;
     return { h: t.heightAt(x, z), n: t.normalAt(x, z) };
@@ -35,6 +36,7 @@ export function chunkGeometry(t, i0, j0, i1, j1, step = 1, edges = {}) {
     }
     positions.push(t.x0 + i * t.cell, s.h, t.z0 + j * t.cell);
     normals.push(s.n.x, s.n.y, s.n.z);
+    if (colors) colors.push(...t.groundColorAt(t.x0 + i * t.cell, t.z0 + j * t.cell));
     return positions.length / 3 - 1;
   }
   for (const j of zs) for (const i of xs) add(i, j);
@@ -74,5 +76,5 @@ export function chunkGeometry(t, i0, j0, i1, j1, step = 1, edges = {}) {
     const center = add((xs[i] + xs[i + 1]) / 2, (zs[j] + zs[j + 1]) / 2);
     for (let k = 0; k < ring.length; k++) indices.push(center, ring[k], ring[(k + 1) % ring.length]);
   }
-  return { positions, normals, indices };
+  return { positions, normals, indices, colors: colors ? new Float32Array(colors) : null };
 }
