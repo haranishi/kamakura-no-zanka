@@ -41,18 +41,18 @@ function segmentDistance(p, a, b) {
   const dx = b.x - a.x, dz = b.z - a.z, t = Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.z - a.z) * dz) / (dx * dx + dz * dz || 1)));
   return Math.hypot(p.x - a.x - t * dx, p.z - a.z - t * dz);
 }
-export function vegExclusions(terrain, { boxes = [], paths = {}, spawn } = {}) {
+export function vegExclusions(terrain, { boxes = [], paths = {}, spawn, pathMargin = 2.5, spawnMargin = 3 } = {}) {
   const obstacles = new Map(), routes = new Map();
   for (const b of boxes) { const r = Math.hypot(b.w, b.d) / 2 + 1; insert(obstacles, b, b.x - r, b.x + r, b.z - r, b.z + r); }
   for (const p of Object.values(paths)) for (let i = 1; i < p.xyz_m.length; i++) {
     const a = { x: p.xyz_m[i - 1][0], z: -p.xyz_m[i - 1][1] }, b = { x: p.xyz_m[i][0], z: -p.xyz_m[i][1] };
-    insert(routes, { a, b }, Math.min(a.x, b.x) - 2.5, Math.max(a.x, b.x) + 2.5, Math.min(a.z, b.z) - 2.5, Math.max(a.z, b.z) + 2.5);
+    insert(routes, { a, b }, Math.min(a.x, b.x) - pathMargin, Math.max(a.x, b.x) + pathMargin, Math.min(a.z, b.z) - pathMargin, Math.max(a.z, b.z) + pathMargin);
   }
   return item => {
     const k = key(Math.floor(item.x / 256), Math.floor(item.z / 256));
     return (obstacles.get(k) || []).some(b => nearHouse(b, item)) ? 'house'
-      : (routes.get(k) || []).some(({ a, b }) => segmentDistance(item, a, b) <= 2.5) ? 'path'
-      : spawn && Math.hypot(item.x - spawn.x, item.z - spawn.z) <= 3 ? 'spawn'
+      : (routes.get(k) || []).some(({ a, b }) => segmentDistance(item, a, b) <= pathMargin) ? 'path'
+      : spawn && Math.hypot(item.x - spawn.x, item.z - spawn.z) <= spawnMargin ? 'spawn'
       : terrain.waterAt(item.x, item.z) > 0 || terrain.heightAt(item.x, item.z) <= 0 ? 'water' : null;
   };
 }
