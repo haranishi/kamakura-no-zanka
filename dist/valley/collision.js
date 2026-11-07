@@ -43,6 +43,38 @@ export function buildColliders({ buildings = [], props = [], trees, bounds, extr
   }
   return { circles, boxes, grid, bounds: { ...bounds } };
 }
+// Dynamic world-only circles. Return an idempotent release handle; static colliders are untouched.
+export function addColliderCircles(col, input) {
+  const circles = input.map(p => {
+    finite(p.x, p.z); size(p.r);
+    return { ...p, height: size(p.height ?? 7), type: 'circle' };
+  });
+  const cells = new Map();
+  for (const o of circles) {
+    col.circles.push(o);
+    for (let ix = Math.floor((o.x - o.r) / CELL); ix <= Math.floor((o.x + o.r) / CELL); ix++) {
+      for (let iz = Math.floor((o.z - o.r) / CELL); iz <= Math.floor((o.z + o.r) / CELL); iz++) {
+        const key = `${ix},${iz}`;
+        if (!col.grid.has(key)) col.grid.set(key, []);
+        col.grid.get(key).push(o);
+        if (!cells.has(key)) cells.set(key, new Set()); cells.get(key).add(o);
+      }
+    }
+  }
+  let released = false;
+  return () => {
+    if (released) return; released = true;
+    const owned = new Set(circles);
+    let write = 0;
+    for (const o of col.circles) if (!owned.has(o)) col.circles[write++] = o;
+    col.circles.length = write;
+    for (const [key, subset] of cells) {
+      const next = col.grid.get(key).filter(o => !subset.has(o));
+      if (next.length) col.grid.set(key, next); else col.grid.delete(key);
+    }
+    cells.clear();
+  };
+}
 function nearby(col, x0, z0, x1 = x0, z1 = z0, r = 0) {
   const found = new Set();
   for (let ix = Math.floor((Math.min(x0, x1) - r) / CELL); ix <= Math.floor((Math.max(x0, x1) + r) / CELL); ix++) {
