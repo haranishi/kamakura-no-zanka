@@ -15,7 +15,7 @@ export function houseAmplitude(distance) {
 // W2c-9g3: sRGB art targets converted once; warm stone, ochre earth and aged plaster.
 const linear = hex => hex.match(/../g).map(v => { const c=parseInt(v,16)/255; return c<=.04045?c/12.92:((c+.055)/1.055)**2.4; });
 export const HOUSE_PALETTE = Object.freeze(Object.fromEntries(Object.entries({
-  roof:'a38752', oldRoof:'6b5f4b', wood:'6f6254', oldWood:'4c4035',
+  thatch:'796d58', oldThatch:'5f5a50', lime:'c4bca8', oldLime:'afa792', roof:'a38752', oldRoof:'6b5f4b', wood:'6f6254', oldWood:'4c4035',
   earth:'a8906a', oldEarth:'8d7655', plaster:'b3ab94', stone:'6d675e', oldStone:'58524a', tile:'3b3a3a', post:'382b20'
 }).map(([k,v])=>[k,linear(v)])));
 export function housePreserveColor(base, role) {
@@ -117,9 +117,17 @@ export function houseIndexSeed(id) {
 export function facilityPartRole(part, name = '') {
   if (part === 'buddha') return 6;
   if (part === 'torii') return 7;
+  if (part === 'fence') return 8; // R2 light lime/stone, never a timber grid.
   const named = facilityMaterialRole(name);
   if (named) return named;
   if (['causeway','stairs','jetty','sando','platform'].includes(part)) return 3;
   if (['gate','romon','nagayamon'].includes(part)) return 5;
   return 2; // Halls, corridors, fences and unknown architectural walls: earth/plaster.
+}
+
+// W2c-9r2 facility: preserve source paint and dark openings before any role palette.
+// Red dominance distinguishes vermilion from ochre/brown; neutral darks are interiors.
+export function facilityPreservesPigment(rgb, role) {
+  const [r,g,b]=rgb;
+  return role===7 || (r>g*2.5 && r>b*3) || Math.max(r,g,b)<.085;
 }

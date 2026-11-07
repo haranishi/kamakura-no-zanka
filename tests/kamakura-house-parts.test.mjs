@@ -10,12 +10,12 @@ import { loadFacilityView } from './helpers/kamakura-facility-view.mjs';
 import { buildGlb } from '../tools/lib/glb.mjs';
 
 // Synthetic base ring and roof; no private geography or per-type fixtures.
-function kit(names) {
+function kit(names, color=[.8,.8,.8,1]) {
   const positions=new Float32Array([-1,0,-1,1,0,-1,1,0,1,-1,0,1,0,4,0,1,3,1]);
   const bin=Buffer.from(positions.buffer),json={asset:{version:'2.0'},scene:0,scenes:[{nodes:names.map((_,i)=>i)}],
     nodes:names.map(name=>({name,mesh:0})),buffers:[{byteLength:bin.length}],bufferViews:[{buffer:0,byteLength:bin.length}],
     accessors:[{bufferView:0,componentType:5126,count:6,type:'VEC3',min:[-1,0,-1],max:[1,4,1]}],
-    meshes:[{primitives:[{attributes:{POSITION:0},material:0}]}],materials:[{pbrMetallicRoughness:{baseColorFactor:[.8,.8,.8,1]}}]};
+    meshes:[{primitives:[{attributes:{POSITION:0},material:0}]}],materials:[{pbrMetallicRoughness:{baseColorFactor:color}}]};
   const glb=buildGlb({json,bin});return glb.buffer.slice(glb.byteOffset,glb.byteOffset+glb.byteLength);
 }
 function houses() {
@@ -87,7 +87,7 @@ test('R1 all facility classifications receive explicit roles, bounds, and revers
       assert.deepEqual(m.geometry.attributes.position.array,old.geometry.attributes.position.array);
       assert.deepEqual(m.matrix.elements,old.matrix.elements);
     }
-    assert.equal(facilityPartRole('buddha'),6);assert.equal(facilityPartRole('torii'),7);
+    assert.equal(facilityPartRole('fence','wood'),8);assert.equal(facilityPartRole('buddha'),6);assert.equal(facilityPartRole('torii'),7);
     assert.equal(facilityPartRole('hall','pillar'),5);assert.equal(facilityPartRole('hall','roof'),4);
     assert.equal(facilityPartRole('unknown'),2);
   }finally{fields.forEach(f=>f.dispose());}
@@ -110,12 +110,12 @@ test('R1 atlas preparation yields; smaller final-size samplers adapt and all res
 });
 test('R1 all emitted shaders balance, avoid reserved declarations, preserve PBR/fog hooks and seed color independence',async()=>{
   const {createHouseMaterial}=await loadHouseMaterials(),base=new THREE.MeshStandardMaterial();
-  for(const quality of ['standard','light'])for(const parts of [true,false])for(const facilityRole of [null,1,2,3,4,5,6,7]){
+  for(const quality of ['standard','light'])for(const parts of [true,false])for(const facilityRole of [null,1,2,3,4,5,6,7,8]){
     const material=createHouseMaterial(base,{quality,parts,facilityRole});
     const shader={uniforms:{},vertexShader:THREE.ShaderLib.standard.vertexShader,fragmentShader:THREE.ShaderLib.standard.fragmentShader};
     material.onBeforeCompile(shader);balanced(shader.vertexShader);balanced(shader.fragmentShader);
     if(parts){assert(!shader.vertexShader.includes('vColor.xyz *= instanceColor.xyz'));assert(shader.vertexShader.includes('vHouseRandom = instanceColor'));
-      assert(shader.fragmentShader.includes('patina=clamp'));assert(shader.fragmentShader.includes('verticalFrame'));}
+      assert(shader.fragmentShader.includes('patina=clamp'));assert(!shader.fragmentShader.includes('verticalFrame'));assert(!shader.fragmentShader.includes('float lattice='));}
     assert(shader.fragmentShader.includes('#include <fog_fragment>'));assert(shader.fragmentShader.includes('#include <lights_fragment_begin>'));material.dispose();
   }
   base.dispose();
@@ -126,11 +126,59 @@ test('R1 private facilities have zero missing role assignments, including all he
   const {buildKamakuraFacilities}=await loadFacilityView(),kit=bin.buffer.slice(bin.byteOffset,bin.byteOffset+bin.byteLength);
   const field=await buildKamakuraFacilities({nodes:catalog.nodes,kit},{heightAt:()=>0},new THREE.Scene(),'standard',{showHeldBack:true});
   try{
-    let missing=0;
+    let missing=0,redFound=false;
     for(const r of field.records)for(const mesh of r.meshes)for(const material of [].concat(mesh.material)){
       if(!material.userData.houseUniforms || material.userData.houseUniforms.houseRole.value<=0)missing++;
+      if(material.color.r>material.color.g*2.5 && material.color.r>material.color.b*3){
+        redFound=true;assert.equal(material.userData.houseUniforms.houseKeepPigment.value,1);
+      }
     }
-    assert.equal(missing,0);assert.equal(field.records.length,catalog.nodes.length);
+    assert(redFound);assert.equal(missing,0);assert.equal(field.records.length,catalog.nodes.length);
     t.diagnostic(JSON.stringify({allPrivatePartsCovered:true,missingRoles:missing}));
   }finally{field.dispose();field.dispose();}
+});
+
+// R2 fixtures are synthetic colors, never exported private material values.
+test('R2 real facility assignment preserves vermilion and dark interiors across roles and quality',async t=>{
+  const {buildKamakuraFacilities}=await loadFacilityView();
+  let verified=0;
+  for(const color of [[.55,.045,.02,1],[.04,.043,.045,1]])for(const quality of ['standard','light']){
+    const nodes=['hall','romon','torii','jetty'].map((part,i)=>({part,node:`paint-${i}`,soft:part==='jetty',triangles:2,anchor_xz:[0,0],rel_anchor:0}));
+    const field=await buildKamakuraFacilities({nodes,kit:kit(nodes.map(n=>n.node),color)},{heightAt:()=>0},new THREE.Scene(),quality);
+    try{for(const r of field.records){
+      const material=r.meshes[0].material,u=material.userData.houseUniforms;
+      assert.equal(u.houseKeepPigment.value,1);
+      assert.equal(material.color.r,color[0]);assert.equal(material.color.g,color[1]);assert.equal(material.color.b,color[2]);
+      const shader={uniforms:{},vertexShader:THREE.ShaderLib.standard.vertexShader,fragmentShader:THREE.ShaderLib.standard.fragmentShader};material.onBeforeCompile(shader);
+      const scalar=shader.fragmentShader.match(/if\(houseKeepPigment>0\.0\)aged=diffuseColor\.rgb\*clamp\(([^;]+)\);/);
+      assert(scalar,'paint path must multiply source pigment, never replace it with a house palette');
+      const expression=scalar[1].split(',');assert.equal(expression.length,3);
+      const tone=new Function('broad','stain','detail',`return Math.min(${expression[2]},Math.max(${expression[1]},${expression[0]}));`);
+      for(const broad of [-.2,0,.2])for(const stain of [0,.2,.5])for(const detail of [-.3,0,.3]){
+        const gain=tone(broad,stain,detail),out=color.slice(0,3).map(v=>v*gain);
+        assert(gain>=.78&&gain<=1);assert(Math.abs(out[0]/out[1]-color[0]/color[1])<1e-12);
+      }
+      for(const step of [2,3,0]){material.userData.setHouseAdapt(step);assert.equal(u.houseKeepPigment.value,1);}
+      verified++;
+    }}finally{field.dispose();field.dispose();}
+  }
+  t.diagnostic(JSON.stringify({syntheticPigmentMaterials:verified,scalarGainRange:[.78,1]}));
+});
+test('R2 dry thatch, stable mip storage and filtered detail keep legacy A/B available',async()=>{
+  const {createHouseMaterial,createHouseTextures}=await loadHouseMaterials();
+  const texture=await createHouseTextures({parts:true}),base=new THREE.MeshStandardMaterial({roughness:.2,metalness:.7});
+  try{
+    for(const quality of ['standard','light'])for(const parts of [true,false]){
+      const m=createHouseMaterial(base,{texture,parts,quality});
+      assert.equal(m.roughness,parts?1:.2);assert.equal(m.metalness,parts?0:.7);
+      assert.equal(texture.internalFormat,'RGBA8');assert.equal(texture.userData.houseSmall.internalFormat,'RGBA8');
+      const shader={uniforms:{},vertexShader:THREE.ShaderLib.standard.vertexShader,fragmentShader:THREE.ShaderLib.standard.fragmentShader};m.onBeforeCompile(shader);
+      assert(shader.fragmentShader.includes('roofSurface=texel.r;'));
+      assert(shader.fragmentShader.includes('dFdx(hp)'));assert(shader.fragmentShader.includes('houseFine*pixelFade'));
+      assert(shader.fragmentShader.includes('house_thatch,house_oldThatch'));
+      assert(shader.fragmentShader.includes('smoothstep(houseRoofBand.x-.55,houseRoofBand.x+.55'));
+      m.userData.setHouseAdapt(2);assert(m.userData.houseUniforms.houseDetail.value<1);
+      m.userData.setHouseAdapt(3);assert.equal(m.userData.houseUniforms.houseStrength.value,0);m.dispose();
+    }
+  }finally{texture.dispose();base.dispose();}
 });

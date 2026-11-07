@@ -1,6 +1,6 @@
 // W2c-9g: flat kit colors -> shared procedural house surfaces (geometry/lighting unchanged).
 import * as THREE from 'three';
-import { HOUSE_SURFACE as S, HOUSE_PALETTE, houseTextureRows } from './kamakura-house-texture.js';
+import { HOUSE_SURFACE as S, HOUSE_PALETTE, houseTextureRows, facilityPreservesPigment } from './kamakura-house-texture.js';
 // W2c-9p: houses/facilities reuse immutable CPU pixels; each owner retains its own
 // DataTexture and disposal. Generation still yields after at most one 8ms slice.
 const atlasPixels = new Map();
@@ -15,6 +15,7 @@ async function generateAtlas(size) {
 async function atlas(size) {
   if(!atlasPixels.has(size))atlasPixels.set(size,generateAtlas(size).catch(error=>{atlasPixels.delete(size);throw error;}));
   const texture = new THREE.DataTexture(await atlasPixels.get(size), size, size, THREE.RGBAFormat);
+  texture.internalFormat = 'RGBA8'; // W2c-9r2 facility: explicit mip-capable storage.
   texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
   texture.generateMipmaps = true; texture.minFilter = THREE.LinearMipmapLinearFilter;
   texture.magFilter = THREE.LinearFilter; texture.anisotropy = 4; texture.needsUpdate = true;
@@ -57,7 +58,7 @@ varying vec3 vHouseObj; varying vec3 vHouseN; varying vec3 vHouseRandom; varying
 uniform sampler2D houseAtlas;
 uniform float houseStrength, houseBump, houseDirt;
 uniform vec2 houseRoofBand;
-uniform float houseRole, houseDetail;
+uniform float houseRole, houseDetail, houseKeepPigment;
 uniform vec3 houseFrame;
 ${paletteGLSL}
 float houseHash(vec2 p) { return fract(sin(dot(p,vec2(12.9898,78.233)))*43758.5453); }
@@ -76,7 +77,12 @@ if (houseFade > 0.0) {
  float stone = step(vHouseObj.y,${S.base.toFixed(1)});
  float roof = (1.0-stone)*step(${S.roof.toFixed(2)},hn.y);
  float board = 1.0-step(${S.wood.toFixed(2)},vHouseRandom.z);
+ #ifdef HOUSE_PARTS
+ // W2c-9r2 facility: abrupt yellow/wood join -> weathered transition at the eave.
+ roof=(1.0-stone)*max(smoothstep(.28,.58,hn.y),smoothstep(houseRoofBand.x-.55,houseRoofBand.x+.55,vHouseObj.y));
+ #else
  roof=max(roof,(1.0-stone)*step(houseRoofBand.x-.12,vHouseObj.y));
+ #endif
  float tile = 0.0, post = 0.0;
  #ifdef HOUSE_FACILITY
  stone = float(houseRole == 3.0);
@@ -86,18 +92,10 @@ if (houseFade > 0.0) {
  #ifdef HOUSE_PARTS
  // Frame band uses each node's actual height, never the default 3m eave.
  float floorY=houseFrame.x;
- float wallHeight=max(.5,houseRoofBand.x-floorY);
- float wallUp=clamp((vHouseObj.y-floorY)/wallHeight,0.0,1.0);
- float wallFace=1.0-smoothstep(.2,.65,abs(hn.y));
- float verticalFrame=1.0-smoothstep(.07,.15,abs(sin(vHouseObj.x*1.05+vHouseObj.z*1.05)));
- float beamFrame=1.0-smoothstep(.05,.13,abs(wallUp-.82)*wallHeight);
- float lattice=(1.0-smoothstep(.025,.06,abs(sin((vHouseObj.x+vHouseObj.z)*7.0))))*
-   smoothstep(.25,.35,wallUp)*(1.0-smoothstep(.68,.75,wallUp));
- float framing=max(max(verticalFrame,beamFrame),lattice)*wallFace*float(houseRole==2.0);
- post=max(post,framing);
+ // W2c-9r2 facility: painted-on grid/dashes -> uninterrupted plaster.
  stone=max(stone,float(houseRole==2.0)*step(vHouseObj.y,floorY+.4));
  roof=(1.0-stone)*(1.0-post)*roof;
- if(houseRole==6.0 || houseRole==7.0){stone=0.0;roof=0.0;tile=0.0;post=0.0;}
+ if(houseRole==6.0 || houseRole==7.0 || houseRole==8.0){stone=0.0;roof=0.0;tile=0.0;post=0.0;}
  #endif
  #endif
  // W2c-9g3: metre dimensions, long smooth warp; avoid rotated board/straw grids.
@@ -115,15 +113,21 @@ if (houseFade > 0.0) {
    texel.b = texel.b*.6+low.b*.4;
   #endif
  }
- // W2c-9r1 house: some roofs use the board channel, others the coarse straw channel.
+ // W2c-9r2 facility: all thatch uses coarse straw rather than board seams.
  float roofSurface=texel.r;
  #ifdef HOUSE_PARTS
- roofSurface=mix(texel.r,texel.g,step(.72,vHouseRandom.y));
+ roofSurface=texel.r; // R2 thatch never borrows the fine board seams.
  #endif
  float surface = mix(mix(texel.b,texel.g,board),roofSurface,roof);
  surface = mix(surface,texel.a,stone);
  // Integrate fine lines over pixel footprint as well as the existing distance band.
  float pixelFade = 1.0-smoothstep(.015,.12,max(length(dFdx(hp)),length(dFdy(hp))));
+ #if defined(HOUSE_PARTS) && defined(HOUSE_FACILITY)
+ // Plaster is smooth; irregular stone channel has weak relief, no black joints.
+ surface=mix(surface,.5,float(houseRole==2.0)*(1.0-roof)*(1.0-stone));
+ if(houseRole==3.0)surface=mix(.5,texel.a,.28);
+ if(houseRole==8.0)surface=mix(.5,texel.a,.20);
+ #endif
  float detail = (surface-.5)*${S.detail.toFixed(2)}*houseFine*pixelFade;
  float overlap = (1.0-smoothstep(.03,.13,abs(sin(hp.y*22.0))))*tile*houseFine*pixelFade;
  float eave = (1.0-smoothstep(0.0,.38,abs(vHouseObj.y-houseRoofBand.x)))*roof;
@@ -141,6 +145,10 @@ if (houseFade > 0.0) {
  #ifdef HOUSE_PARTS
  stain += houseDirt*(.18+.22*vHouseRandom.z)*(1.0-smoothstep(0.0,.45,vHouseObj.y-houseFrame.x))*(1.0-roof);
  stain *= .7+.6*vHouseRandom.z;
+ #ifdef HOUSE_FACILITY
+ // Only soil contact and eaves collect visible wall dirt; no full-height rain dashes.
+ stain=houseDirt*(.08*mud+.10*underEave+.12*eave);
+ #endif
  #endif
  float moss = houseDirt*roof*vHouseNorth*max(0.0,broad)*.35;
  vec3 target = mix(mix(house_earth,house_oldEarth,vHouseRandom.x),mix(house_wood,house_oldWood,vHouseRandom.y),board);
@@ -150,6 +158,14 @@ if (houseFade > 0.0) {
  target = mix(target,mix(house_roof,house_oldRoof,vHouseRandom.x),roof);
  target = mix(target,mix(house_stone,house_oldStone,vHouseRandom.y),stone); target = mix(target,house_tile,tile);
  target = mix(target,house_post,post);
+ #ifdef HOUSE_PARTS
+ #ifndef HOUSE_FACILITY
+ target=mix(target,mix(house_thatch,house_oldThatch,vHouseRandom.x),roof);
+ #else
+ if(houseRole==2.0)target=mix(target,mix(house_lime,house_oldLime,vHouseRandom.x*.3),(1.0-roof)*(1.0-stone));
+ if(houseRole==8.0)target=mix(house_lime,house_oldLime,vHouseRandom.x*.3);
+ #endif
+ #endif
  vec3 hc = mix(diffuseColor.rgb,target,.65);
  #ifdef HOUSE_PARTS
  hc=mix(diffuseColor.rgb,target,.92);
@@ -168,15 +184,19 @@ if (houseFade > 0.0) {
  // Earth/wood are not painted accents. Unknown architectural parts get a role above.
  painted=false;
  #ifdef HOUSE_FACILITY
- painted=houseRole==7.0;
+ painted=houseKeepPigment>0.0;
  if(houseRole==6.0){
    float patina=clamp(.5+broad*1.8+.15*hn.y+.13*sin(vHouseObj.y*.7)+detail,0.0,1.0);
-   aged=mix(vec3(.065,.047,.027),vec3(.11,.24,.17),patina);
+   aged=mix(vec3(.065,.047,.027),vec3(.075,.12,.068),patina);
    aged*=1.0-stain*.6;
  }
  #endif
  #endif
  if(painted) aged=diffuseColor.rgb*clamp(1.0+broad*.35-stain+detail*.25,.65,1.0);
+ #if defined(HOUSE_PARTS) && defined(HOUSE_FACILITY)
+ // W2c-9r2 facility: source vermilion / dark interior -> scalar aging only.
+ if(houseKeepPigment>0.0)aged=diffuseColor.rgb*clamp(1.0+broad*.18-stain+detail*.10,.78,1.0);
+ #endif
  vec3 mixed=mix(diffuseColor.rgb,aged,houseFade);
  diffuseColor.rgb=painted?mixed:min(vec3(.45),mixed);
  houseHeight = detail;
@@ -184,7 +204,10 @@ if (houseFade > 0.0) {
 // Clone once per source material/kind, share across every chunk, part and LOD.
 export function createHouseMaterial(base, { texture, quality = 'standard', eave = 3, top = 4, facilityRole = null, parts = false, floor = 0 } = {}) {
   const material = base.clone(), previous = base.onBeforeCompile.bind(base);
-  const uniforms = { houseAtlas: { value: texture }, houseStrength: { value: quality === 'light' ? .7 : 1 },
+  // W2c-9r2 facility: plastic roof response -> dry diffuse thatch.
+  if(parts && facilityRole===null){material.roughness=1;material.metalness=0;}
+  const keepPigment=facilityRole!==null && facilityPreservesPigment([base.color.r,base.color.g,base.color.b],facilityRole);
+  const uniforms = { houseKeepPigment: {value:keepPigment?1:0}, houseAtlas: { value: texture }, houseStrength: { value: quality === 'light' ? .7 : 1 },
     houseDetail: { value: 1 }, houseFrame: { value: new THREE.Vector3(floor,0,0) }, houseBump: { value: 1 }, houseDirt: { value: quality === 'light' ? 0 : 1 }, houseRole: { value: facilityRole ?? -1 }, houseRoofBand: { value: new THREE.Vector2(eave,top) } };
   material.userData.houseUniforms = uniforms;
   if(parts)material.defines={...material.defines,HOUSE_PARTS:1};
@@ -207,11 +230,11 @@ export function createHouseMaterial(base, { texture, quality = 'standard', eave 
         normal = normalize(max(abs(hd),.0000001)*normal-hg*.11);
       }`);
   };
-  material.customProgramCacheKey = () => `house-r1-${parts}-${facilityRole}-${quality}-${base.customProgramCacheKey()}`;
+  material.customProgramCacheKey = () => `house-r2-${parts}-${facilityRole}-${quality}-${base.customProgramCacheKey()}`;
   material.userData.setHouseAdapt = step => {
     uniforms.houseStrength.value = step >= 3 ? 0 : quality === 'light' ? .7 : 1;
     uniforms.houseBump.value = step >= 2 ? 0 : 1;
-    uniforms.houseDetail.value = step >= 3 ? 0 : 1;
+    uniforms.houseDetail.value = step >= 3 ? 0 : step >= 2 ? .55 : 1;
     uniforms.houseAtlas.value = parts && step >= 2 ? texture?.userData.houseSmall ?? texture : texture;
   };
   return material;
