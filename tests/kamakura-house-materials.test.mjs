@@ -144,7 +144,7 @@ test('private A/B: complete catalog shares per-type PBR, unchanged instances/col
     const placedTypes=new Set(houses.instances.map(i=>i.kind)).size;
     assert.equal(activeMaterials.size,placedTypes);
     for(const f of fields){f.dispose();f.dispose();}
-    assert([...materialCalls.values()].every(n=>n===1));assert([...textureCalls.values()].every(n=>n===1));assert.equal(textureCalls.size,1);
+    assert([...materialCalls.values()].every(n=>n===1));assert([...textureCalls.values()].every(n=>n===1));assert.equal(textureCalls.size,2);
     assert.equal(materialCalls.size,sourceCount*2+placedTypes);
     t.diagnostic(JSON.stringify({activeTexturedMaterials:activeMaterials.size,loadedSourceMaterialsPerBuild:sourceCount,textureDisposals:textureCalls.size,allMaterialDisposalsOnce:true}));
   } finally {for(const f of fields)f.dispose();THREE.Material.prototype.dispose=md;THREE.Texture.prototype.dispose=td;}
@@ -158,7 +158,7 @@ test('partial setup failure disposes all sources, clones and atlas once', async 
   try {
     await assert.rejects(buildKamakuraHouses(houses,{heightAt:()=>0},scene));
     assert.equal(materialCalls.size,2);assert([...materialCalls.values()].every(n=>n===1));
-    assert.equal(textureCalls.size,1);assert([...textureCalls.values()].every(n=>n===1));assert.equal(scene.children.length,0);
+    assert.equal(textureCalls.size,2);assert([...textureCalls.values()].every(n=>n===1));assert.equal(scene.children.length,0);
   } finally {THREE.Material.prototype.dispose=md;THREE.Texture.prototype.dispose=td;}
 });
 test('9g3: warm linear palette, painted colors preserved, bounded reflectance and revised distance band', async t=>{

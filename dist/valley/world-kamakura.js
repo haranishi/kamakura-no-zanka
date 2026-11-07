@@ -89,7 +89,7 @@ export async function bootKamakura(data, search) {
     }
     if (data.facilities) {
       try {
-        const field = await buildKamakuraFacilities(data.facilities, t, facilitiesEnabled(search) ? scene : new THREE.Scene(), quality, { showHeldBack: causewayShown(search) });
+        const field = await buildKamakuraFacilities(data.facilities, t, facilitiesEnabled(search) ? scene : new THREE.Scene(), quality, { showHeldBack: causewayShown(search), search });
         if (facilitiesEnabled(search)) facilities = field; else hiddenFacilities = field;
       } catch { facilityNotice = '施設を準備できませんでした。施設なしで散策を続けます'; }
     }

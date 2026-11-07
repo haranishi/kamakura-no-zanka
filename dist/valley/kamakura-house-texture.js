@@ -108,3 +108,18 @@ export function houseTextureData(size = 512, seed = 9173) {
   do { result = rows.next(); } while (!result.done);
   return result.value;
 }
+
+// W2c-9r1 house: placement-index seeds replace position-only variation in the view.
+export function houseIndexSeed(id) {
+  return [houseHash(id,17),houseHash(id,43),houseHash(id,91)];
+}
+// Catalog part is authoritative when exporter material/mesh names are anonymous.
+export function facilityPartRole(part, name = '') {
+  if (part === 'buddha') return 6;
+  if (part === 'torii') return 7;
+  const named = facilityMaterialRole(name);
+  if (named) return named;
+  if (['causeway','stairs','jetty','sando','platform'].includes(part)) return 3;
+  if (['gate','romon','nagayamon'].includes(part)) return 5;
+  return 2; // Halls, corridors, fences and unknown architectural walls: earth/plaster.
+}

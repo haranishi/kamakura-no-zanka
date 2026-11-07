@@ -3,21 +3,30 @@ import * as THREE from 'three';
 import { HOUSE_SURFACE as S, HOUSE_PALETTE, houseTextureRows } from './kamakura-house-texture.js';
 // W2c-9p: houses/facilities reuse immutable CPU pixels; each owner retains its own
 // DataTexture and disposal. Generation still yields after at most one 8ms slice.
-let atlasPixels;
-async function generateAtlas() {
-  const rows=houseTextureRows();let result,start=performance.now();
+const atlasPixels = new Map();
+async function generateAtlas(size) {
+  const rows=houseTextureRows(size);let result,start=performance.now();
   do {
     result=rows.next();
     if(!result.done && performance.now()-start>=8){await new Promise(resolve=>setTimeout(resolve,0));start=performance.now();}
   } while(!result.done);
   return result.value;
 }
-export async function createHouseTextures() {
-  if(!atlasPixels)atlasPixels=generateAtlas().catch(error=>{atlasPixels=null;throw error;});
-  const texture = new THREE.DataTexture(await atlasPixels, 512, 512, THREE.RGBAFormat);
+async function atlas(size) {
+  if(!atlasPixels.has(size))atlasPixels.set(size,generateAtlas(size).catch(error=>{atlasPixels.delete(size);throw error;}));
+  const texture = new THREE.DataTexture(await atlasPixels.get(size), size, size, THREE.RGBAFormat);
   texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
   texture.generateMipmaps = true; texture.minFilter = THREE.LinearMipmapLinearFilter;
   texture.magFilter = THREE.LinearFilter; texture.anisotropy = 4; texture.needsUpdate = true;
+  return texture;
+}
+// W2c-9r1 house: allocate final sizes before upload; adaptation only swaps the sampler.
+export async function createHouseTextures({quality='standard',parts=false} = {}) {
+  const texture=await atlas(parts && quality==='light'?128:512);
+  if(parts && quality!=='light') {
+    const small=await atlas(128);texture.userData.houseSmall=small;
+    texture.addEventListener('dispose',()=>small.dispose());
+  }
   return texture;
 }
 const paletteGLSL = Object.entries(HOUSE_PALETTE).map(([name,c]) => `const vec3 house_${name} = vec3(${c.map(v=>v.toFixed(4)).join(",")});`).join("\n");
@@ -39,13 +48,17 @@ vec3 houseWorldN = mat3(modelMatrix) * objectNormal;
  houseWorldN = mat3(modelMatrix) * mat3(instanceMatrix) * objectNormal;
 #endif
 vHouseNorth = max(0.0, -normalize(houseWorldN).z);
-vHouseRandom = vec3(houseHash(houseOrigin), houseHash(houseOrigin+vec2(19.0,7.0)), houseHash(houseOrigin+vec2(-11.0,31.0)));`;
+vHouseRandom = vec3(houseHash(houseOrigin), houseHash(houseOrigin+vec2(19.0,7.0)), houseHash(houseOrigin+vec2(-11.0,31.0)));
+#if defined(HOUSE_PARTS) && defined(USE_INSTANCING_COLOR)
+ vHouseRandom = instanceColor;
+#endif`;
 const fragmentPars = `
 varying vec3 vHouseObj; varying vec3 vHouseN; varying vec3 vHouseRandom; varying float vHouseNorth;
 uniform sampler2D houseAtlas;
 uniform float houseStrength, houseBump, houseDirt;
 uniform vec2 houseRoofBand;
-uniform float houseRole;
+uniform float houseRole, houseDetail;
+uniform vec3 houseFrame;
 ${paletteGLSL}
 float houseHash(vec2 p) { return fract(sin(dot(p,vec2(12.9898,78.233)))*43758.5453); }
 
@@ -55,7 +68,7 @@ vec4 houseTri(vec3 p, vec3 w, float flip) {
 const fragmentBody = `
 // W2c-9g2: role colors and metre-scale patches persist; only fine detail fades.
 float houseFade = houseStrength;
-float houseFine = houseStrength * (1.0-smoothstep(${S.near.toFixed(1)},${S.far.toFixed(1)},length(vViewPosition)));
+float houseFine = houseDetail * houseStrength * (1.0-smoothstep(${S.near.toFixed(1)},${S.far.toFixed(1)},length(vViewPosition)));
 float houseHeight = 0.0;
 if (houseFade > 0.0) {
  vec3 hn = normalize(vHouseN), hw = pow(abs(hn),vec3(4.0)); hw /= max(dot(hw,vec3(1.0)),.0001);
@@ -70,6 +83,22 @@ if (houseFade > 0.0) {
  roof = (1.0-stone)*max(float(houseRole == 4.0),step(${S.roof.toFixed(2)},hn.y));
  tile = roof; board = float(houseRole == 1.0); post = float(houseRole == 5.0);
  roof *= 1.0-post;
+ #ifdef HOUSE_PARTS
+ // Frame band uses each node's actual height, never the default 3m eave.
+ float floorY=houseFrame.x;
+ float wallHeight=max(.5,houseRoofBand.x-floorY);
+ float wallUp=clamp((vHouseObj.y-floorY)/wallHeight,0.0,1.0);
+ float wallFace=1.0-smoothstep(.2,.65,abs(hn.y));
+ float verticalFrame=1.0-smoothstep(.07,.15,abs(sin(vHouseObj.x*1.05+vHouseObj.z*1.05)));
+ float beamFrame=1.0-smoothstep(.05,.13,abs(wallUp-.82)*wallHeight);
+ float lattice=(1.0-smoothstep(.025,.06,abs(sin((vHouseObj.x+vHouseObj.z)*7.0))))*
+   smoothstep(.25,.35,wallUp)*(1.0-smoothstep(.68,.75,wallUp));
+ float framing=max(max(verticalFrame,beamFrame),lattice)*wallFace*float(houseRole==2.0);
+ post=max(post,framing);
+ stone=max(stone,float(houseRole==2.0)*step(vHouseObj.y,floorY+.4));
+ roof=(1.0-stone)*(1.0-post)*roof;
+ if(houseRole==6.0 || houseRole==7.0){stone=0.0;roof=0.0;tile=0.0;post=0.0;}
+ #endif
  #endif
  // W2c-9g3: metre dimensions, long smooth warp; avoid rotated board/straw grids.
  vec3 roofP = hp;
@@ -86,7 +115,12 @@ if (houseFade > 0.0) {
    texel.b = texel.b*.6+low.b*.4;
   #endif
  }
- float surface = mix(mix(texel.b,texel.g,board),texel.r,roof);
+ // W2c-9r1 house: some roofs use the board channel, others the coarse straw channel.
+ float roofSurface=texel.r;
+ #ifdef HOUSE_PARTS
+ roofSurface=mix(texel.r,texel.g,step(.72,vHouseRandom.y));
+ #endif
+ float surface = mix(mix(texel.b,texel.g,board),roofSurface,roof);
  surface = mix(surface,texel.a,stone);
  // Integrate fine lines over pixel footprint as well as the existing distance band.
  float pixelFade = 1.0-smoothstep(.015,.12,max(length(dFdx(hp)),length(dFdy(hp))));
@@ -98,7 +132,16 @@ if (houseFade > 0.0) {
  float mud = (1.0-smoothstep(0.0,1.0,vHouseObj.y))*(1.0-roof);
  float underEave=(1.0-roof)*(1.0-smoothstep(0.0,.65,abs(vHouseObj.y-houseRoofBand.x)));
  float rain=pow(.5+.5*sin(hp.x*7.3+sin(hp.z*2.7)),8.0)*(1.0-roof)*smoothstep(0.0,1.0,vHouseObj.y);
+ #ifdef HOUSE_PARTS
+ float relativeY=vHouseObj.y-houseFrame.x;
+ mud=(1.0-smoothstep(0.0,1.8,relativeY))*(1.0-roof)*(1.0-abs(hn.y)*.6);
+ underEave=(1.0-roof)*(1.0-smoothstep(0.0,.9,abs(vHouseObj.y-houseRoofBand.x)))*(1.0-abs(hn.y)*.6);
+ #endif
  float stain = houseDirt*(.17*mud+.23*eave+.15*underEave+.09*rain);
+ #ifdef HOUSE_PARTS
+ stain += houseDirt*(.18+.22*vHouseRandom.z)*(1.0-smoothstep(0.0,.45,vHouseObj.y-houseFrame.x))*(1.0-roof);
+ stain *= .7+.6*vHouseRandom.z;
+ #endif
  float moss = houseDirt*roof*vHouseNorth*max(0.0,broad)*.35;
  vec3 target = mix(mix(house_earth,house_oldEarth,vHouseRandom.x),mix(house_wood,house_oldWood,vHouseRandom.y),board);
  #ifdef HOUSE_FACILITY
@@ -108,6 +151,9 @@ if (houseFade > 0.0) {
  target = mix(target,mix(house_stone,house_oldStone,vHouseRandom.y),stone); target = mix(target,house_tile,tile);
  target = mix(target,house_post,post);
  vec3 hc = mix(diffuseColor.rgb,target,.65);
+ #ifdef HOUSE_PARTS
+ hc=mix(diffuseColor.rgb,target,.92);
+ #endif
  float brightness = 1.0+(vHouseRandom.x*2.0-1.0)*${S.brightness.toFixed(2)};
  vec3 tone = vec3(brightness*(1.0+broad-stain+.10*ridge)) + moss*vec3(-.4,.12,-.3);
  float angle=(vHouseRandom.y*2.0-1.0)*${S.hue.toFixed(6)};
@@ -118,22 +164,36 @@ if (houseFade > 0.0) {
  painted=painted || houseRole==0.0;
  #endif
  vec3 aged=min(vec3(.45),max(vec3(0.0),hc*(tone+detail-.15*overlap)));
+ #ifdef HOUSE_PARTS
+ // Earth/wood are not painted accents. Unknown architectural parts get a role above.
+ painted=false;
+ #ifdef HOUSE_FACILITY
+ painted=houseRole==7.0;
+ if(houseRole==6.0){
+   float patina=clamp(.5+broad*1.8+.15*hn.y+.13*sin(vHouseObj.y*.7)+detail,0.0,1.0);
+   aged=mix(vec3(.065,.047,.027),vec3(.11,.24,.17),patina);
+   aged*=1.0-stain*.6;
+ }
+ #endif
+ #endif
  if(painted) aged=diffuseColor.rgb*clamp(1.0+broad*.35-stain+detail*.25,.65,1.0);
  vec3 mixed=mix(diffuseColor.rgb,aged,houseFade);
  diffuseColor.rgb=painted?mixed:min(vec3(.45),mixed);
  houseHeight = detail;
 }`;
 // Clone once per source material/kind, share across every chunk, part and LOD.
-export function createHouseMaterial(base, { texture, quality = 'standard', eave = 3, top = 4, facilityRole = null } = {}) {
+export function createHouseMaterial(base, { texture, quality = 'standard', eave = 3, top = 4, facilityRole = null, parts = false, floor = 0 } = {}) {
   const material = base.clone(), previous = base.onBeforeCompile.bind(base);
   const uniforms = { houseAtlas: { value: texture }, houseStrength: { value: quality === 'light' ? .7 : 1 },
-    houseBump: { value: 1 }, houseDirt: { value: quality === 'light' ? 0 : 1 }, houseRole: { value: facilityRole ?? -1 }, houseRoofBand: { value: new THREE.Vector2(eave,top) } };
+    houseDetail: { value: 1 }, houseFrame: { value: new THREE.Vector3(floor,0,0) }, houseBump: { value: 1 }, houseDirt: { value: quality === 'light' ? 0 : 1 }, houseRole: { value: facilityRole ?? -1 }, houseRoofBand: { value: new THREE.Vector2(eave,top) } };
   material.userData.houseUniforms = uniforms;
+  if(parts)material.defines={...material.defines,HOUSE_PARTS:1};
   if (facilityRole !== null) material.defines = { ...material.defines, HOUSE_FACILITY: 1 };
   if (quality === 'light') material.defines = { ...material.defines, HOUSE_LIGHT: 1 };
   material.onBeforeCompile = (shader, renderer) => {
     previous(shader, renderer); Object.assign(shader.uniforms, uniforms);
     shader.vertexShader = shader.vertexShader.replace('#include <common>', '#include <common>\n'+vertexPars)
+      .replace('#include <color_vertex>', parts ? THREE.ShaderChunk.color_vertex.replace('vColor.xyz *= instanceColor.xyz;', '// Instance RGB carries the placement seed, not a color multiplier.') : '#include <color_vertex>')
       .replace('#include <begin_vertex>', '#include <begin_vertex>\n'+vertexBody);
     shader.fragmentShader = shader.fragmentShader.replace('#include <common>', '#include <common>\n'+fragmentPars)
       .replace('#include <color_fragment>', '#include <color_fragment>\n'+fragmentBody)
@@ -147,10 +207,12 @@ export function createHouseMaterial(base, { texture, quality = 'standard', eave 
         normal = normalize(max(abs(hd),.0000001)*normal-hg*.11);
       }`);
   };
-  material.customProgramCacheKey = () => `house-9g3-${facilityRole}-${quality}-${base.customProgramCacheKey()}`;
+  material.customProgramCacheKey = () => `house-r1-${parts}-${facilityRole}-${quality}-${base.customProgramCacheKey()}`;
   material.userData.setHouseAdapt = step => {
     uniforms.houseStrength.value = step >= 3 ? 0 : quality === 'light' ? .7 : 1;
     uniforms.houseBump.value = step >= 2 ? 0 : 1;
+    uniforms.houseDetail.value = step >= 3 ? 0 : 1;
+    uniforms.houseAtlas.value = parts && step >= 2 ? texture?.userData.houseSmall ?? texture : texture;
   };
   return material;
 }
