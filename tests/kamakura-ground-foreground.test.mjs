@@ -46,8 +46,8 @@ test('r3 actual shader stacks continuous tone -> legacy detail -> shared soil gr
     if(owner.tone){
       const f=s.fragmentShader.slice(s.fragmentShader.indexOf('vec3 groundTone('),s.fragmentShader.indexOf('void main()'));
       assert(f.indexOf('vec3 result=mix(natural,yard')<f.indexOf('result*=groundGrassDetail'));
-      assert(f.indexOf('result*=groundGrassDetail')<f.indexOf('result*=1.0+uToneSoil'));
-      assert(f.includes('groundScatter(p,.08)'));assert(f.includes('grain*.8+pebble*.22*use'));
+      assert(f.indexOf('result*=groundGrassDetail')<f.indexOf('result*=toneFineMultiplier'));
+      assert(f.includes('groundScatter(p,.08)'));assert(f.includes('grain*.8+pebble*.22*use')&&f.includes('toneFineMultiplier=1.0+uToneSoil'));
       assert(!f.includes('texture2D(uGroundSurface'));
       assert(s.fragmentShader.indexOf('vec3 groundGrassDetail(')<s.fragmentShader.indexOf('vec3 groundTone('));
     }else assert(s.fragmentShader.includes('grain=groundSoilGrain(q,cell)'));
