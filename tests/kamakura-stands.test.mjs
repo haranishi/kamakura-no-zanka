@@ -168,3 +168,17 @@ test('private v0.6 stands aggregates and bounded traversal', {skip:!process.env.
   const report=await verifyStands(data,process.env.KZ_WORLD_DIR,await readPrivateHouses(process.env.KZ_WORLD_DIR,data));
   console.log(JSON.stringify({stands:report}));assert(report.expandable>0);
 });
+
+test('standard crowns cast and receive; light crowns only receive while near children retain 5a shadows', () => {
+  for (const quality of ['standard', 'light']) {
+    const p=prepareStands([stand(),stand({id:2,tier:2,x:1500})],terrain,{},standPolicy(quality));
+    const view=buildKamakuraStands(p,{wind,sunDir:new THREE.Vector3(1,1,1),quality});
+    assert(view.distant.length);
+    for(const {mesh} of view.distant) { assert.equal(mesh.castShadow,quality==='standard'); assert(mesh.receiveShadow); }
+    for(const [key,set] of view.children.sets) {
+      const level=Number(key.split('/').pop());
+      for(const mesh of [set.leaf,set.wood]) if(mesh) assert.equal(mesh.castShadow,level===0);
+    }
+    view.dispose();
+  }
+});
