@@ -18,9 +18,10 @@ export function bindFxContact(hero, fx) {
   const base = hero.onFootContact.bind(hero);
   hero.onFootContact = c => { base(c); fx.contact(c, hero); };
 }
-export function createFxState({ terrain, rivers = prepareFishRivers(null), particles = 192, rings = 24, seed = 1333 } = {}) {
+export function createFxState({ terrain, rivers = prepareFishRivers(null), particles = 192, rings = 24, seed = 1333, shore2 = true } = {}) {
   const drops = Array.from({ length: particles }, () => ({ life: 0, age: 0, x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, water: 0, size: 0, dust: false, mist: false, duration: .7, r: 0, g: 0, b: 0 }));
   const ripples = Array.from({ length: rings }, () => ({ life: 0, age: 0, x: 0, y: 0, z: 0, radius: 0, strength: 0, wake: false, yaw: 0 }));
+  let nextIdle=0;
   let capP = particles, capR = rings, pi = 0, ri = 0, time = 0, lastContact = -1, lastX = Infinity, lastZ = Infinity;
   function random() { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t ^= t + Math.imul(t ^ t >>> 7, 61 | t); return ((t ^ t >>> 14) >>> 0) / 4294967296; }
   function ripple(x, y, z, strength = 1, wake = false, yaw = 0) {
@@ -62,8 +63,14 @@ export function createFxState({ terrain, rivers = prepareFishRivers(null), parti
       if (time - lastContact < .85 && Math.hypot(pos.x - lastX, pos.z - lastZ) > .12) ripple(pos.x, water.y + .018, pos.z, run ? .9 : .5, true, yaw);
       lastContact = time; lastX = pos.x; lastZ = pos.z;
     },
-    update(dt) {
+    update(dt, hero) {
       dt = Math.max(0, dt); time += dt;
+      // W2c-9r1 shore: contact-only effects -> gentle standing rings around submerged legs.
+      if(shore2&&hero&&dt>0&&capR&&time>=nextIdle){
+        nextIdle=time+.65;
+        const pos=hero.pos,wet=terrain.waterAt(pos.x,pos.z);
+        if(wet>.05&&wet<.46){const water=rivers.sampleAt(pos.x,pos.z);if(water.valid)ripple(pos.x,water.y+.025,pos.z,.28,false,hero.yaw||0);}
+      }
       for (let i = 0; i < capR; i++) { const r = ripples[i]; if (r.life <= 0) continue; r.age += dt; r.life = Math.max(0, 1.3 - r.age); r.radius = (r.strength < .2 ? .03 : .15) + r.age / 1.3 * (r.strength < .2 ? .12 : r.strength > .8 ? 1.65 : 1.25); }
       for (let i = 0; i < capP; i++) {
         const p = drops[i]; if (p.life <= 0) continue; const gravity = p.dust ? -.12 : p.mist ? 0 : 7;

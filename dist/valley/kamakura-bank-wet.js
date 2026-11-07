@@ -1,3 +1,5 @@
+import { chunkGeometry, CHUNK_CELLS } from './kamakura-chunks.js';
+import { shore2Enabled } from './kamakura-shore.js';
 // W2c-9e3: 4m floating quads -> fine normal-offset strips with terrain error refinement.
 export const BANK_WIDTH=1.5;
 export function bankRibbon(ribbon,terrain,width=BANK_WIDTH){
@@ -50,10 +52,78 @@ export function bankRibbon(ribbon,terrain,width=BANK_WIDTH){
   }
   return {positions:new Float32Array(positions),uvs:new Float32Array(uvs),indices,rejected,folds};
 }
+// W2c-9r1 shore: bilinear drape intersected the rendered triangles on saddle cells.
+// Clip the wet footprint onto the actual near-LOD terrain faces instead. A bounded
+// cache of local cells limits preparation memory; no terrain data is copied into assets.
+const surfaceCaches=new WeakMap();
+export function* bankSurfaceRibbonSteps(ribbon,terrain,width=BANK_WIDTH){
+  if(!terrain.cell||!terrain.normalAt)return bankRibbon(ribbon,terrain,width);
+  let cache=surfaceCaches.get(terrain);if(!cache){cache=new Map();surfaceCaches.set(terrain,cache);}
+  const positions=[],uvs=[],indices=[],p=ribbon.positions,c=terrain.cell;
+  const cross=(a,b,x,z)=>(b[0]-a[0])*(z-a[2])-(b[2]-a[2])*(x-a[0]);
+  function clip(poly,a,b,sign){
+    const out=[];
+    for(let i=0;i<poly.length;i++){
+      const v=poly[i],w=poly[(i+1)%poly.length],dv=cross(a,b,v[0],v[2])*sign,dw=cross(a,b,w[0],w[2])*sign;
+      if(dv>=-1e-8)out.push(v);
+      if((dv<0&&dw>0)||(dv>0&&dw<0)){const f=dv/(dv-dw);out.push(v.map((n,k)=>n+(w[k]-n)*f));}
+    }return out;
+  }
+  for(let k=0;k<ribbon.indices.length;k+=6)for(const side of [0,1]){
+    const a=ribbon.indices[k]+side,b=ribbon.indices[k+2]+side;
+    const v=[p[a*3],0,p[a*3+2]],w=[p[b*3],0,p[b*3+2]],dx=w[0]-v[0],dz=w[2]-v[2],len=Math.hypot(dx,dz);
+    if(len<1e-5)continue;
+    // A segment-local perpendicular cannot reverse or cross on a hairpin.
+    const direction=side===0?-1:1,nx=-dz/len*direction,nz=dx/len*direction;
+    const q=[v,w,[w[0]+nx*width,0,w[2]+nz*width],[v[0]+nx*width,0,v[2]+nz*width]];
+    const sign=cross(q[0],q[1],q[2][0],q[2][2])>0?1:-1;
+    const minX=Math.min(...q.map(a=>a[0])),maxX=Math.max(...q.map(a=>a[0])),minZ=Math.min(...q.map(a=>a[2])),maxZ=Math.max(...q.map(a=>a[2]));
+    const i0=Math.max(0,Math.floor((minX-terrain.x0)/c)),j0=Math.max(0,Math.floor((minZ-terrain.z0)/c));
+    for(let j=j0;j<terrain.h-1&&terrain.z0+j*c<=maxZ;j++)for(let i=i0;i<terrain.w-1&&terrain.x0+i*c<=maxX;i++){
+      const key=j*terrain.w+i;let g=cache.get(key);
+      if(!g){
+        // At most a 3x3 tile. Preserve the parent chunk's perimeter/fan flags
+        // so this central cell is exactly the one drawn by chunkGeometry.
+        const ci=Math.floor(i/CHUNK_CELLS)*CHUNK_CELLS,cj=Math.floor(j/CHUNK_CELLS)*CHUNK_CELLS;
+        const left=i===ci?i:i-1,top=j===cj?j:j-1;
+        const right=i+1===Math.min(terrain.w-1,ci+CHUNK_CELLS)?i+1:i+2;
+        const bottom=j+1===Math.min(terrain.h-1,cj+CHUNK_CELLS)?j+1:j+2;
+        g=chunkGeometry(terrain,left,top,right,bottom,1,{},false);g.faces=[];
+        for(let t=0;t<g.indices.length;t+=3){
+          const a=g.indices[t]*3,b=g.indices[t+1]*3,d=g.indices[t+2]*3;
+          const x=(g.positions[a]+g.positions[b]+g.positions[d])/3,z=(g.positions[a+2]+g.positions[b+2]+g.positions[d+2])/3;
+          if(Math.floor((x-terrain.x0)/c)===i&&Math.floor((z-terrain.z0)/c)===j)g.faces.push(t);
+        }
+        cache.set(key,g);if(cache.size>256)cache.delete(cache.keys().next().value);
+      }
+      for(const t of g.faces){
+        let poly=g.indices.slice(t,t+3).map(n=>g.positions.slice(n*3,n*3+3));
+        if(Math.max(...poly.map(a=>a[0]))<minX||Math.min(...poly.map(a=>a[0]))>maxX||Math.max(...poly.map(a=>a[2]))<minZ||Math.min(...poly.map(a=>a[2]))>maxZ)continue;
+        for(let e=0;e<4&&poly.length;e++)poly=clip(poly,q[e],q[(e+1)%4],sign);
+        for(let n=1;n+1<poly.length;n++){
+          const face=[poly[0],poly[n],poly[n+1]];
+          // Recheck Float32 winding, including clipping slivers.
+          const f=face.map(a=>a.map(Math.fround)),area=-cross(f[0],f[1],f[2][0],f[2][2]);
+          if(area<=1e-8)continue;
+          const base=positions.length/3;
+          for(const a of f){positions.push(a[0],a[1]+.015,a[2]);uvs.push(Math.max(0,Math.min(1,((a[0]-v[0])*nx+(a[2]-v[2])*nz)/width)),0);}
+          indices.push(base,base+1,base+2);
+        }
+      }
+      yield; // W2c-9r1 shore: one touched terrain cell per preparation tick.
+    }
+  }
+  return {positions:new Float32Array(positions),uvs:new Float32Array(uvs),indices,rejected:0,folds:0};
+}
+export function bankSurfaceRibbon(ribbon,terrain,width=BANK_WIDTH){
+  const job=bankSurfaceRibbonSteps(ribbon,terrain,width);let result=job.next();
+  while(!result.done)result=job.next();return result.value;
+}
 export function buildBankWet(THREE,prepared,terrain,{search='',defer=false}={}){
   const group=new THREE.Group();group.name='kamakura-bank-wet';let disposed=false;
+  const shore2=shore2Enabled(search),ribbonFor=shore2?bankSurfaceRibbon:bankRibbon;
   if(!terrain||new URLSearchParams(search).get('seav')==='0'||new URLSearchParams(search).get('bankwet')==='0')return {group,update(){},setAdapt(){},dispose(){}};
-  const material=new THREE.MeshBasicMaterial({color:0x514b40,transparent:true,opacity:.58,depthWrite:false,side:THREE.DoubleSide});material.fog=true;
+  const material=new THREE.MeshBasicMaterial({color:0x514b40,transparent:true,opacity:.58,depthWrite:false,side:THREE.DoubleSide});material.fog=true;material.forceSinglePass=shore2;
   const uniforms={uBankRange:{value:defer?96:prepared.policy.maxDistance}};
   material.onBeforeCompile=s=>{
     Object.assign(s.uniforms,uniforms);
@@ -80,10 +150,10 @@ export function buildBankWet(THREE,prepared,terrain,{search='',defer=false}={}){
         maxX:Math.max(p[a*3],p[b*3],p[(a+1)*3],p[(b+1)*3])+BANK_WIDTH,
         minZ:Math.min(p[a*3+2],p[b*3+2],p[(a+1)*3+2],p[(b+1)*3+2])-BANK_WIDTH,
         maxZ:Math.max(p[a*3+2],p[b*3+2],p[(a+1)*3+2],p[(b+1)*3+2])+BANK_WIDTH,
-        mesh:null,near:false,done:false});
+        mesh:null,near:false,done:false,job:null});
     }return segments;
   }).flat():[];
-  if(!defer)for(const r of prepared.ribbons)addMesh(bankRibbon(r,terrain));
+  if(!defer)for(const r of prepared.ribbons)addMesh(ribbonFor(r,terrain));
   let lastX=Infinity,lastZ=Infinity,cursor=0,pending=false,adapt=0,batch=null;
   return {group,material,uniforms,
     update(pos){
@@ -91,15 +161,24 @@ export function buildBankWet(THREE,prepared,terrain,{search='',defer=false}={}){
       const radius=adapt>=2?48:96;uniforms.uBankRange.value=radius;
       if(Math.hypot(pos.x-lastX,pos.z-lastZ)>16){
         lastX=pos.x;lastZ=pos.z;cursor=0;pending=true;
-        for(const s of sources){
-          s.near=Math.hypot(Math.max(s.minX-pos.x,0,pos.x-s.maxX),Math.max(s.minZ-pos.z,0,pos.z-s.maxZ))<=radius;
-          if(!s.near&&s.mesh){group.remove(s.mesh);s.mesh.geometry.dispose();s.mesh=null;s.done=false;}
-        }
       }
       if(!pending)return;
       for(let n=0;n<128&&cursor<sources.length;n++){
         const s=sources[cursor++];
-        if(s.near&&!s.done){s.mesh=addMesh(bankRibbon(s.ribbon,terrain),false);s.done=true;break;}
+        s.near=Math.hypot(Math.max(s.minX-lastX,0,lastX-s.maxX),Math.max(s.minZ-lastZ,0,lastZ-s.maxZ))<=radius;
+        if(!s.near){
+          s.job?.return();s.job=null;
+          if(s.mesh){s.mesh.geometry.dispose();s.mesh=null;}s.done=false;continue;
+        }
+        if(!s.done){
+          if(shore2){
+            if(!s.job)s.job=bankSurfaceRibbonSteps(s.ribbon,terrain);
+            const result=s.job.next();
+            if(!result.done){cursor--;break;}
+            s.job=null;s.mesh=addMesh(result.value,false);
+          }else s.mesh=addMesh(ribbonFor(s.ribbon,terrain),false);
+          s.done=true;break;
+        }
       }
       pending=cursor<sources.length;
       if(!pending){
@@ -115,5 +194,5 @@ export function buildBankWet(THREE,prepared,terrain,{search='',defer=false}={}){
       }
     },
     setAdapt(value){adapt=value;group.visible=adapt<3;lastX=Infinity;},
-    dispose(){if(disposed)return;disposed=true;for(const s of sources)if(s.mesh)s.mesh.geometry.dispose();for(const m of group.children)m.geometry.dispose();group.clear();group.removeFromParent();material.dispose();}};
+    dispose(){if(disposed)return;disposed=true;surfaceCaches.delete(terrain);for(const s of sources){s.job?.return();s.job=null;if(s.mesh)s.mesh.geometry.dispose();}for(const m of group.children)m.geometry.dispose();group.clear();group.removeFromParent();material.dispose();}};
 }

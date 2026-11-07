@@ -1,5 +1,6 @@
 // W2c-9d3: uniform rings / blue boards -> uneven double fronts / soft white round drops. Three bounded draws.
 import * as THREE from 'three';
+import { shore2Enabled } from './kamakura-shore.js';
 import { fxOptions, createFxState, rippleBand, rippleAlpha, rippleAspect, rippleSecondary } from './kamakura-fx.js';
 import { prepareFishRivers, prepareFishRiverSteps, createFishState } from './kamakura-fish.js';
 import { buildFishView } from './kamakura-fish-view.js';
@@ -75,7 +76,7 @@ export function buildKamakuraFx({ terrain, data, preparedRivers, search = '', qu
   const options = fxOptions(search, quality), group = new THREE.Group(); group.name = 'kamakura-fx';
   // A/B flags avoid creating the corresponding states, geometries and materials.
   const rivers = options.enabled || options.fish ? preparedRivers || prepareFishRivers(data?.rivers, terrain.vscale, terrain) : null;
-  const state = options.enabled ? createFxState({ terrain, rivers, particles: options.particles, rings: options.rings }) : null;
+  const state = options.enabled ? createFxState({ shore2:shore2Enabled(search), terrain, rivers, particles: options.particles, rings: options.rings }) : null;
   const fish = options.fish ? createFishState(rivers, { limit: options.fishLimit, ripple: state?.ripple }) : null;
   const rings = state ? boards(options.rings, true) : null, drops = state ? boards(options.particles, false) : null;
   const fishView = fish ? buildFishView(fish) : null;
@@ -84,7 +85,7 @@ export function buildKamakuraFx({ terrain, data, preparedRivers, search = '', qu
   let disposed = false;
   function update(dt, camera, hero) {
     if (disposed) return;
-    state?.update(dt); fish?.update(dt, camera.position, hero.pos); fishView?.update();
+    state?.update(dt,hero); fish?.update(dt, camera.position, hero.pos); fishView?.update();
     if (!state) return;
     let n = 0;
     for (let i = 0; i < state.ripples.length; i++) {
