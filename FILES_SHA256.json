@@ -1,32 +1,37 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-10-21T17:38:54.502607+00:00",
-  "scope": "v18 source, assets and verification artifacts; excludes this manifest and Git metadata",
+  "generatedAt": "2026-11-07T12:20:36.096609+00:00",
+  "scope": "Source, assets and verification artifacts; excludes this manifest, Git metadata, ignored files and private runtime data",
   "files": [
     {
-      "path": ".agent-harness/contracts/valley-water-carry.md",
-      "size": 1168,
-      "sha256": "8c45658d115be9f8d7c394b1df2db2d9b7c1052322cea298478d1cfccb048c76"
+      "path": ".github/ISSUE_TEMPLATE/bug_report.yml",
+      "size": 947,
+      "sha256": "5e571bfe1dfa7c2f8d23ff75f6bf6b037fe5a217ad1dbcc2b4811d2f358390ef"
     },
     {
-      "path": ".agent-harness/runs/2026-10-22-valley-life-v18.md",
-      "size": 3121,
-      "sha256": "c2e3787ecf55d7c99b26ace49c862fb5595d2c630a5d31f24d79db08910d1e8d"
+      "path": ".github/ISSUE_TEMPLATE/config.yml",
+      "size": 251,
+      "sha256": "3972c1596a6e49de36c23fc750a488d122b1c1bab29b19bfa8af4e52ba89ec8e"
     },
     {
-      "path": ".agent-harness/runs/2026-10-22-valley-water-carry.md",
-      "size": 1190,
-      "sha256": "f8311f7e1ea7b100be21dcda6e718928a28ca94f2b2623232afada01dd2c6b30"
+      "path": ".github/ISSUE_TEMPLATE/proposal.yml",
+      "size": 758,
+      "sha256": "6f06438726dce088f133cebcb7d5ec9559871ac12fc9924eee54bd1c372994de"
+    },
+    {
+      "path": ".github/PULL_REQUEST_TEMPLATE.md",
+      "size": 411,
+      "sha256": "2c7ad2e7fa3210b0640bcfb2d51f6e228827f1b2236d04afb2deb31e961da515"
     },
     {
       "path": ".github/workflows/verify.yml",
-      "size": 554,
-      "sha256": "dda01ee08e3f087db2e9f8f585d145abfa95485d9f191fa6fa6ff42e6a60ee60"
+      "size": 686,
+      "sha256": "0687b6717ed3e563166e883500f2e20a36ba3a2469d55ca678438512777de10e"
     },
     {
       "path": ".gitignore",
-      "size": 81,
-      "sha256": "f0501587ae055afb12f733a14d4ac1e63ea479fb3c054310c27e23ca9ccd1d97"
+      "size": 134,
+      "sha256": "bdd2db6294368363bb1a7dc3e2860111d9654bcfdf79f4527a9378a4dac5a182"
     },
     {
       "path": ".kiro/settings/templates/specs/design.md",
@@ -109,6 +114,276 @@
       "sha256": "ab20caddc4a2361ebccbb09978cf0798a88e10bf259ee20113975f2966051025"
     },
     {
+      "path": ".kiro/specs/hidden-valley-slice/brief.md",
+      "size": 2769,
+      "sha256": "5bea0a1f8bfb349da40eccf1b9bca2efeb6ab134e6ecce2520cf2a7fbf8df780"
+    },
+    {
+      "path": ".kiro/specs/hidden-valley-slice/design-app.md",
+      "size": 10646,
+      "sha256": "ade67de907d8fb17a5d64a81743224c979c55783ad57885fb08677d4fc81ff60"
+    },
+    {
+      "path": ".kiro/specs/hidden-valley-slice/design-audio-combat.md",
+      "size": 5239,
+      "sha256": "2e4d43a1a986730cd485992d4126f438458fef2e00bb59ec17aab0b2a951ce88"
+    },
+    {
+      "path": ".kiro/specs/hidden-valley-slice/design-audio.md",
+      "size": 13615,
+      "sha256": "92ce5bf42463a03c27e73e4c5d7ade10c00ea345e1af54e55550895766678de1"
+    },
+    {
+      "path": ".kiro/specs/hidden-valley-slice/design-blood.md",
+      "size": 4273,
+      "sha256": "0f4bafd118dd0d25d09d6ab10decc3e6f5bf40562eafc569f7db9fe2a9772888"
+    },
+    {
+      "path": ".kiro/specs/hidden-valley-slice/design-character-compression.md",
+      "size": 2564,
+      "sha256": "dca6c3e428865c227c0750463ba37fdf94bf81d57d894f5deb1d53076357884e"
+    },
+    {
+      "path": ".kiro/specs/hidden-valley-slice/design-characters.md",
+      "size": 5318,
+      "sha256": "65c221f5562b003cb99f64f8565ca0e221bfb13115215a9072b889ae8fd7f384"
+    },
+    {
+      "path": ".kiro/specs/hidden-valley-slice/design-cinematics-c1.md",
+      "size": 5433,
+      "sha256": "6eefafcad9609570c30a1f6ce6167b0cfc7097d0fd5e0daee3fe71694140c616"
+    },
+    {
+      "path": ".kiro/specs/hidden-valley-slice/design-cinematics.md",
+      "size": 13877,
+      "sha256": "2d514e54a11f4a46841fd7e2b16451f478084522a8879ec173936b851895f645"
+    },
+    {
+      "path": ".kiro/specs/hidden-valley-slice/design-combat-impact.md",
+      "size": 8933,
+      "sha256": "3c517d9dab18a98e2a03bdbc7e955cb612979a5734b3ffa2b12647034155f4a6"
+    },
+    {
+      "path": ".kiro/specs/hidden-valley-slice/design-combat-pose.md",
+      "size": 6259,
+      "sha256": "5fbe1ed2d347c26ce88eeecc0552cf3f09ad16cffcd98c3646b57edb9f66244a"
+    },
+    {
+      "path": ".kiro/specs/hidden-valley-slice/design-combat-presentation.md",
+      "size": 11926,
+      "sha256": "cff61577f845cbfffec321f8e7703e010c88ac7d1547c507d18a94b075e269de"
+    },
+    {
+      "path": ".kiro/specs/hidden-valley-slice/design-combat-trail.md",
+      "size": 8749,
+      "sha256": "1cb23a7719f683e2d7f5c85c43dba8d8eefc6a15b10d729dbdfe2579088beb94"
+    },
+    {
+      "path": ".kiro/specs/hidden-valley-slice/design-contracts.md",
+      "size": 25247,
+      "sha256": "1a3780025b1abba7223b7b49ac99f76dd3f206be9e8cd6176a5a25ac3a10171a"
+    },
+    {
+      "path": ".kiro/specs/hidden-valley-slice/design-draw-sheathe.md",
+      "size": 8191,
+      "sha256": "7bfea544b3f107abc39c6f275444c5b1ebe7ecc139df1cf02a5497dc8878e78d"
+    },
+    {
+      "path": ".kiro/specs/hidden-valley-slice/design-gameplay.md",
+      "size": 8643,
+      "sha256": "410cb1f86ab3de0b5d6c8a59f63d99f58c11e60a3b54c59cc53b6d24c520a533"
+    },
+    {
+      "path": ".kiro/specs/hidden-valley-slice/design-graphics.md",
+      "size": 10358,
+      "sha256": "366673a94afc41c86985d7de5c3b03ab00f4aa6f22b8f31a662baa50b3aceb76"
+    },
+    {
+      "path": ".kiro/specs/hidden-valley-slice/design-hand-grip.md",
+      "size": 12682,
+      "sha256": "0378c66326ed8cebe9cde47f8c6a0a89a9677d580a21ce6692946f2d9c69a4f7"
+    },
+    {
+      "path": ".kiro/specs/hidden-valley-slice/design-locomotion-camera.md",
+      "size": 8256,
+      "sha256": "559189ff5e6ac2a2822bcbea3dbf946afead656baac466a61831c6b6d04f0cc6"
+    },
+    {
+      "path": ".kiro/specs/hidden-valley-slice/design-locomotion-smooth.md",
+      "size": 20517,
+      "sha256": "39466b178ed312c1c679f086f1d4f027f0325f9f21bc4f4a04ca80d3e33582bd"
+    },
+    {
+      "path": ".kiro/specs/hidden-valley-slice/design-locomotion-upper.md",
+      "size": 6873,
+      "sha256": "faadbf5644b8f9b6c4dd8b04fcea62a775e663a5482fb9c7ebf3b47ef5973a5b"
+    },
+    {
+      "path": ".kiro/specs/hidden-valley-slice/design-locomotion.md",
+      "size": 7266,
+      "sha256": "8ba451291afbafd574dd3583a06837996eb325768d090717ff4cf8d1ac4ac9f9"
+    },
+    {
+      "path": ".kiro/specs/hidden-valley-slice/design-narrative.md",
+      "size": 10120,
+      "sha256": "35a892b61c94a98b7df5705e22b5ed534e2f7fc57db4cc3af18e12c89a32c57a"
+    },
+    {
+      "path": ".kiro/specs/hidden-valley-slice/design-opening-impl.md",
+      "size": 18275,
+      "sha256": "1592b902146fe9b2438feb543c4af506256c845104d71da9e5164bbcface610a"
+    },
+    {
+      "path": ".kiro/specs/hidden-valley-slice/design-opening.md",
+      "size": 9228,
+      "sha256": "7cd66b6d21e5b478d5fcd00519c042f83bb375d8d4538c942e076290279d7365"
+    },
+    {
+      "path": ".kiro/specs/hidden-valley-slice/design-story-impl.md",
+      "size": 11970,
+      "sha256": "bf0bb47ecb7dd2a1c2ac592aedc658b8496723ae2ffeca25d804d01b7f6afac6"
+    },
+    {
+      "path": ".kiro/specs/hidden-valley-slice/design-trees-detail.md",
+      "size": 13762,
+      "sha256": "fc024ff2700751250ca2563e4b84e891a54b1a47736d190b5cbdadab8842aab3"
+    },
+    {
+      "path": ".kiro/specs/hidden-valley-slice/design-trees.md",
+      "size": 12722,
+      "sha256": "10665a86964ebad92c264b95e716543434d5a6e98ad52d9321383346c7084f0e"
+    },
+    {
+      "path": ".kiro/specs/hidden-valley-slice/design-validation-polish3.md",
+      "size": 10197,
+      "sha256": "0edc4c43722951603e6a83ed9e1e9d9bebb2235946aeee7ef9ac7ed09e8c0155"
+    },
+    {
+      "path": ".kiro/specs/hidden-valley-slice/design-validation.md",
+      "size": 10473,
+      "sha256": "3c763a4c03c69b0624bc0c41a285dfbf07e922ff4fdf67970a428ca42801c727"
+    },
+    {
+      "path": ".kiro/specs/hidden-valley-slice/design-valley-life-places.md",
+      "size": 13834,
+      "sha256": "a381402c3fa08a7380ffd81c6e157cdd464ee2dd12b3834658a69030618af6b8"
+    },
+    {
+      "path": ".kiro/specs/hidden-valley-slice/design-valley-life.md",
+      "size": 10426,
+      "sha256": "58c8a6171e3d17bca079e481a2751656603d45ba85a3de6fed90bda4bd436f5a"
+    },
+    {
+      "path": ".kiro/specs/hidden-valley-slice/design-vegetation.md",
+      "size": 16343,
+      "sha256": "e6d4cb7d320f836615ceeff2adde832b5740e8f4b3161b6612bb97c80e9e9e8f"
+    },
+    {
+      "path": ".kiro/specs/hidden-valley-slice/design-wayfinding.md",
+      "size": 11229,
+      "sha256": "f32f853b57ed3289a35b04dc737311ca6e9f80a4acdc78bf61f00c783b67b02c"
+    },
+    {
+      "path": ".kiro/specs/hidden-valley-slice/design-world.md",
+      "size": 6948,
+      "sha256": "2f7b6e00401012f7bac1f53dd7a57c1b23987ffbc1e45abd65230b08cb3566c2"
+    },
+    {
+      "path": ".kiro/specs/hidden-valley-slice/design.md",
+      "size": 5593,
+      "sha256": "41585b3650f3e686975e59e861f5ddbba5e5a5c5e40c87e8942bfcca595466dc"
+    },
+    {
+      "path": ".kiro/specs/hidden-valley-slice/requirements-cinematics.md",
+      "size": 11047,
+      "sha256": "3d5a9a68712a5f65ca2f8f6c7f9c773a0bf8cc6b1e4857652851d31257170c83"
+    },
+    {
+      "path": ".kiro/specs/hidden-valley-slice/requirements-locomotion.md",
+      "size": 7625,
+      "sha256": "f4cdf63d3f3009b0ceee496c4aed13f8c767f28d1e69c91cb059a86d8ee43b72"
+    },
+    {
+      "path": ".kiro/specs/hidden-valley-slice/requirements-polish.md",
+      "size": 9659,
+      "sha256": "3439da110ef6a99f91f042c0cff9c1aaea5288f2bc23f6e530b81697d39dc8b3"
+    },
+    {
+      "path": ".kiro/specs/hidden-valley-slice/requirements-polish3.md",
+      "size": 12287,
+      "sha256": "6df61f7e87937b8b658618f1fe3cc9ddee30ff7c77548c9e4516b671b8733929"
+    },
+    {
+      "path": ".kiro/specs/hidden-valley-slice/requirements-story.md",
+      "size": 8392,
+      "sha256": "fa73057b857739d7bbb123dc9edf273cf782f6031e2cb5194a46009c13118062"
+    },
+    {
+      "path": ".kiro/specs/hidden-valley-slice/requirements.md",
+      "size": 8429,
+      "sha256": "a8e49be79e56ae8c7410a522a157467115c8139862417e87458d7563c0171408"
+    },
+    {
+      "path": ".kiro/specs/hidden-valley-slice/research-measurements.md",
+      "size": 3940,
+      "sha256": "50a0a7ab180585ff43176336854a02c8d913422bc4038f895a82b272a987890a"
+    },
+    {
+      "path": ".kiro/specs/hidden-valley-slice/research-polish3-audit-1030.md",
+      "size": 6426,
+      "sha256": "fad50c7dc947090fdf690447fac3843d12a8e3ba72d265d3b2b2120439837925"
+    },
+    {
+      "path": ".kiro/specs/hidden-valley-slice/research-polish3.md",
+      "size": 10860,
+      "sha256": "3270b5cdb30fe82415bcbd2821c877e40c1c1e4ed195301f57f3200459d5aa17"
+    },
+    {
+      "path": ".kiro/specs/hidden-valley-slice/research-valley-life-period.md",
+      "size": 24077,
+      "sha256": "ff5b959354bb4b6d7cc9136848febfaee447f31dad1dc05aa625b20c455ebef4"
+    },
+    {
+      "path": ".kiro/specs/hidden-valley-slice/research-valley-life.md",
+      "size": 5939,
+      "sha256": "bae2249f215df902f5e0eec48e10210865b5f73082d5f22f1c7f046d88beafdd"
+    },
+    {
+      "path": ".kiro/specs/hidden-valley-slice/research.md",
+      "size": 7514,
+      "sha256": "b3a1c3e3a6499aff97bb7578a9ffde70cdb80c4676b6641a5240184faeb486a3"
+    },
+    {
+      "path": ".kiro/specs/hidden-valley-slice/spec.json",
+      "size": 17877,
+      "sha256": "b2cdefa18ade43cb29e9c2fb85b0f034378180710807addf00e878997f374ec6"
+    },
+    {
+      "path": ".kiro/specs/hidden-valley-slice/tasks-cinematics.md",
+      "size": 11794,
+      "sha256": "0a55d764a6b17e90254a23c860c1d5b44d21ff289b464077b94f2f8913bdf93c"
+    },
+    {
+      "path": ".kiro/specs/hidden-valley-slice/tasks-locomotion.md",
+      "size": 15301,
+      "sha256": "c7da982f508d6601d34ccdb342a2e194147f448b50c2968fb9005e8fc46537b2"
+    },
+    {
+      "path": ".kiro/specs/hidden-valley-slice/tasks-polish3.md",
+      "size": 35159,
+      "sha256": "606257853684abbc2967b870464b8c6d6e3bc8de2137b4520135fa35ae616268"
+    },
+    {
+      "path": ".kiro/specs/hidden-valley-slice/tasks-story.md",
+      "size": 9534,
+      "sha256": "688e863bac84710ac9c04fcfc2fcefa38c67cbb109aea3fcf8ad5200cae7b320"
+    },
+    {
+      "path": ".kiro/specs/hidden-valley-slice/tasks.md",
+      "size": 22461,
+      "sha256": "314a5ee889d0ae06c618ae853769c3ce15939f44899fa152dc3ab8c4af49efb0"
+    },
+    {
       "path": ".kiro/specs/valley-water-carry/brief.md",
       "size": 1438,
       "sha256": "628edffd5ad7da4ab42ba791eaa49871244b7acaf45dbdd15da0cd4afaee74d5"
@@ -149,49 +424,129 @@
       "sha256": "501b89330ce81fb05ad88e222386f657603efdc7336361430b262d5e5e6c2eb2"
     },
     {
+      "path": ".kiro/specs/world-map/design.md",
+      "size": 4762,
+      "sha256": "ce434bece6f0efba40476d99c4c9294c4934ee35438190b98d2961f92432bf9b"
+    },
+    {
+      "path": ".kiro/specs/world-map/requirements.md",
+      "size": 6655,
+      "sha256": "ab099e911572f7b112ed7059f5e9e3663a9df467b642bf43be39096bc00d48a8"
+    },
+    {
+      "path": ".kiro/specs/world-map/tasks.md",
+      "size": 3200,
+      "sha256": "7cef04ec499ae27f6e8c87a2363b87c2f7af1a141cb28800430dd95af46a4fa8"
+    },
+    {
+      "path": ".kiro/specs/world-map/w2c-1-validation.md",
+      "size": 5337,
+      "sha256": "94dcea2eb7b7b45e0a9b3fee3c0689bf2e5f878d130b4f7201dbc698eb43d518"
+    },
+    {
       "path": ".kiro/steering/product.md",
-      "size": 688,
-      "sha256": "0fe1f04994a4d3072bd8fcc39fb4e27c353d5a96df622f51bc676889d0348d83"
+      "size": 1120,
+      "sha256": "e9d06ad1c66d1a9504ffd27dbe8566562464fe0b5b7b11625d467722f4c30f76"
     },
     {
       "path": ".kiro/steering/structure.md",
-      "size": 634,
-      "sha256": "c488d028bc966a2c5b7a00b6e278fbc7e3d7b7cfef46a05ae60f5108579ad532"
+      "size": 796,
+      "sha256": "e70fa3a0f5bd2cffb177cca3a68bb1bb7dd956af46c8f2037359703677f79dba"
     },
     {
       "path": ".kiro/steering/tech.md",
-      "size": 737,
-      "sha256": "36d4f1334df209920be7f771024ad0501474ee8d3af022501296be569b180882"
+      "size": 1183,
+      "sha256": "b00a3f586bae4bc582163a94764cd8df4b3dae1713ff9b7ff69eb48466c2dfaf"
     },
     {
       "path": "AGENTS.md",
-      "size": 2538,
-      "sha256": "8228b8fe0e57ad83ae1e225ac3e93bed69068b348d1981b0b8648a679ea3fac2"
+      "size": 2859,
+      "sha256": "076ff7e9a1a2054024c78c52ef8208902318c50c761eac6db18f7f757e6a9615"
     },
     {
       "path": "CLAUDE.md",
-      "size": 374,
-      "sha256": "563b547a1a3c2d362f4f1f3a7d551f83b2ddb2fefcdba2f88ceca3216f829cae"
+      "size": 346,
+      "sha256": "e15b8af7810b2769a4aba29fc49f7c5f383a94f599ff4e15e81336483dc1b2f6"
     },
     {
-      "path": "PROMPT_FOR_CLAUDE_CODE_OR_CODEX.md",
-      "size": 3412,
-      "sha256": "9c85a2a2fc861ddbb65aa4d63aa39b6cc90bae7ea409d5fcd6f7e4abbc8599e4"
+      "path": "CONTRIBUTING.md",
+      "size": 3283,
+      "sha256": "e82aef66147d4bcc9f035fadda5df0be1f009475bfe64554dd81e43be9291135"
+    },
+    {
+      "path": "LICENSE",
+      "size": 1071,
+      "sha256": "600d8f0a126ab8f7873f2d9a3423837a2f221351cbda4a08054a752942101340"
+    },
+    {
+      "path": "LICENSE-ASSETS.md",
+      "size": 2287,
+      "sha256": "afeb9b7c8fecec659b623957322437439bc6622f8f8448f2371c9e916b0e23d4"
+    },
+    {
+      "path": "NOTICE.md",
+      "size": 4737,
+      "sha256": "165a19da6ccad238899bf6c6da1353ea08de7687dcec6debb5a5e6182c0e8806"
     },
     {
       "path": "README.md",
-      "size": 1235,
-      "sha256": "f664fae8c55c5fd1ba27f2354ebe1df7ffbdeceef0830a39dee43964400bb269"
+      "size": 3898,
+      "sha256": "552a6c80d728d3bb20af789a52fc5044c28c53f509218364af6dfaf2f829761b"
     },
     {
       "path": "README_START_HERE.md",
-      "size": 4101,
-      "sha256": "640a49089856c685437d0ca62e7250cf60f1d77589821d8f545070b1efe63d5b"
+      "size": 6247,
+      "sha256": "d5628a30bfaf820488184ae4b635ceb6376b3b4cd25f2637f59ffd20ce8aa54f"
+    },
+    {
+      "path": "SECURITY.md",
+      "size": 544,
+      "sha256": "bfd780ac074b950055fe840eb8b1bf558861c39d6f78a9253faaece7c2632eec"
     },
     {
       "path": "dist/app.js",
       "size": 17805,
       "sha256": "49c89e50980ed8c624cb0a120884257576da1c80e56b76bd78f9a21cc7aedcbb"
+    },
+    {
+      "path": "dist/assets/characters/archer.glb",
+      "size": 4748768,
+      "sha256": "e1e9dc570a2784ed5f1479de77fddb153bb981d8d76bb88ad77a739462cfab7d"
+    },
+    {
+      "path": "dist/assets/characters/child.glb",
+      "size": 4978756,
+      "sha256": "1ce4a22cd6578b162ec1b35553b31b2ac8612661d7d48ba79c1671a2a3d61c2d"
+    },
+    {
+      "path": "dist/assets/characters/clips.json",
+      "size": 18161,
+      "sha256": "5c5c5cb0253962c86087c4710c0f38a6d4a717766e43a44fd4970404579f3df5"
+    },
+    {
+      "path": "dist/assets/characters/hero.glb",
+      "size": 4921564,
+      "sha256": "b8a87fbaa3c9c482de521e5f140411098f573a452a58ec05651d3197ad0e5c6d"
+    },
+    {
+      "path": "dist/assets/characters/officer.glb",
+      "size": 6792964,
+      "sha256": "175d57d27d77cc0b19a6cade3e9c0a24f4067123befbb4dd76552281308758d5"
+    },
+    {
+      "path": "dist/assets/characters/soldier.glb",
+      "size": 5598372,
+      "sha256": "4301492e586611f6862c9ab3ff6acba4416750f5997413959a70b305d37402a2"
+    },
+    {
+      "path": "dist/assets/characters/villager_f.glb",
+      "size": 5191800,
+      "sha256": "e79665a466aea08a4a90a46864f7aad95bdb0bcb189b4070bcc2e8edae36941c"
+    },
+    {
+      "path": "dist/assets/characters/villager_m.glb",
+      "size": 5086548,
+      "sha256": "c0c578030cadeaaff132727c129dd60a5e6a4bb72d5849649ea3db09a9e0aef2"
     },
     {
       "path": "dist/assets/collision.json",
@@ -284,6 +639,201 @@
       "sha256": "8a560352bc6bd29d0b9692c70cb5ab7878926a4824b83a2f4ffd3d90093df0cc"
     },
     {
+      "path": "dist/assets/valley/models/barricade.glb",
+      "size": 1332768,
+      "sha256": "8ec247a1e00731d4a71966ab84c3ae740bb455c6b533bfbf1171973c954fc015"
+    },
+    {
+      "path": "dist/assets/valley/models/boulder.glb",
+      "size": 376480,
+      "sha256": "7a99eb8cdff55d2104def750aa6b797af10da70608a021eb352812067c153cd9"
+    },
+    {
+      "path": "dist/assets/valley/models/boulder_lo.glb",
+      "size": 326048,
+      "sha256": "9d02b0c3038bb085bfbae954a1b36bf1d545869575823dbaa8916e31e8766c1b"
+    },
+    {
+      "path": "dist/assets/valley/models/bridge.glb",
+      "size": 671588,
+      "sha256": "102eccf64451a0ea8407e9f834257ee01de47c8be6ec1d0927b33e9d62c78b11"
+    },
+    {
+      "path": "dist/assets/valley/models/cart.glb",
+      "size": 1338216,
+      "sha256": "e6c5d36aff158c2e3a10f9766fe7e060c54f1a013a2e2a8fe600e13744ec2736"
+    },
+    {
+      "path": "dist/assets/valley/models/dozo.glb",
+      "size": 1027640,
+      "sha256": "43d931450815ed1c85de2f955b59cc8567c65a50f631dd4815d87a58d201acf9"
+    },
+    {
+      "path": "dist/assets/valley/models/farmhouse.glb",
+      "size": 3539308,
+      "sha256": "b5d9bef48755ebdfa11c9b7b8df7500e2062fd0d00b009b14fcc2f8671240295"
+    },
+    {
+      "path": "dist/assets/valley/models/fence.glb",
+      "size": 412864,
+      "sha256": "f4b0c7f3e9468c745c6bd501fb155298d8119ab55ff9ece2defcda1c069436e1"
+    },
+    {
+      "path": "dist/assets/valley/models/firepit.glb",
+      "size": 972544,
+      "sha256": "201245deb82d17b86756ae1e4d97faec0d70e378d8d268782599d266118a91f0"
+    },
+    {
+      "path": "dist/assets/valley/models/firewood.glb",
+      "size": 207156,
+      "sha256": "dec4ab19d4c27efa08af050fbaeb87b5f3e86a28772c8d93fb27a02ad03a3420"
+    },
+    {
+      "path": "dist/assets/valley/models/fort.glb",
+      "size": 1589156,
+      "sha256": "84df2a12a6ced71022f5874151d7bee000b65ffb58ee956401e2c6a18c02e124"
+    },
+    {
+      "path": "dist/assets/valley/models/gatehouse.glb",
+      "size": 1277372,
+      "sha256": "506daa73538166da73c666ba58d11675d27b6791211d36e45a9072f369046796"
+    },
+    {
+      "path": "dist/assets/valley/models/hasa.glb",
+      "size": 1259088,
+      "sha256": "729c8485f6fd906d3d77b03fcd8b832d557dc12590dcabe968202d85d9c2a669"
+    },
+    {
+      "path": "dist/assets/valley/models/hokora.glb",
+      "size": 938548,
+      "sha256": "e6568a663962c9d92bc452a5cb64fefce0f088e932e9111a110f4a74c3b41f16"
+    },
+    {
+      "path": "dist/assets/valley/models/jizo.glb",
+      "size": 798500,
+      "sha256": "6a29f5a6f4df0c0467ffa055ba5191f3babffa785975be78bded28abe061db7e"
+    },
+    {
+      "path": "dist/assets/valley/models/kakashi.glb",
+      "size": 461616,
+      "sha256": "93b1c98b1430c0ce53bc50a6d1315bd51a044b14bfbe5dd4d9e967dbead4aeca"
+    },
+    {
+      "path": "dist/assets/valley/models/lantern.glb",
+      "size": 979412,
+      "sha256": "4f53abef14254b728335de31207e2bfd2cb7b8e3a62bcb13fd6d052984dca705"
+    },
+    {
+      "path": "dist/assets/valley/models/naya.glb",
+      "size": 1238004,
+      "sha256": "228f1e109491c9f63a43e8c82aa1998ad9ebd12e6fd475dcec39c59c33f43d0e"
+    },
+    {
+      "path": "dist/assets/valley/models/temple.glb",
+      "size": 5452120,
+      "sha256": "9108ba5c37c4be8c51d177c41348b32e27d7a71db2ebb84e4ae9e669632cb2f1"
+    },
+    {
+      "path": "dist/assets/valley/models/wara.glb",
+      "size": 1191000,
+      "sha256": "40684c9d42492f0bba82eafb4d2c4fc3d5381734a11e6234af5208bd3135d0a5"
+    },
+    {
+      "path": "dist/assets/valley/models/well.glb",
+      "size": 1170796,
+      "sha256": "9db09b99ca48b54aa36bcea19ab64c43cb877cd3f15c5a98b2cd60c2a6636939"
+    },
+    {
+      "path": "dist/assets/valley/terrain/dirt_c.jpg",
+      "size": 903417,
+      "sha256": "6c2e7f1c5eab8239fec561f255c607d0e3a86046925ba3a8b9340805efc1ab62"
+    },
+    {
+      "path": "dist/assets/valley/terrain/dirt_n.jpg",
+      "size": 1167485,
+      "sha256": "9481dc2cee97b240ca10dc1cd60fec834a85e455aaa7d2a584396ea10210c2c0"
+    },
+    {
+      "path": "dist/assets/valley/terrain/dirt_r.jpg",
+      "size": 389725,
+      "sha256": "093166ffda063b8fcf04ec645e1e12c24811f614468ba378437a3535c3c53f57"
+    },
+    {
+      "path": "dist/assets/valley/terrain/grass_c.jpg",
+      "size": 876584,
+      "sha256": "a79cc5ed65af0f80261b39a383b64a8c5272c5144d724deb43dbc29f0e4cd19b"
+    },
+    {
+      "path": "dist/assets/valley/terrain/grass_n.jpg",
+      "size": 1310516,
+      "sha256": "7000e2ccd479bb7b66dcdf4faef7b47554324566886314ca620cbf03e274e826"
+    },
+    {
+      "path": "dist/assets/valley/terrain/grass_r.jpg",
+      "size": 328190,
+      "sha256": "111341f948b7e073edf7ac6add8777e1bf10df8959400df3863243e89bbc8c08"
+    },
+    {
+      "path": "dist/assets/valley/terrain/gravel_c.jpg",
+      "size": 1028735,
+      "sha256": "adbcaae1f1445d5b49797c71ea2c3f43ccaf7b109f933a427f0d0993d1dbbc51"
+    },
+    {
+      "path": "dist/assets/valley/terrain/gravel_n.jpg",
+      "size": 1365737,
+      "sha256": "983f99bd61cdcdeb3d2ebe0cbba851fd58f249d38f9e76a25084a558ee56e8e6"
+    },
+    {
+      "path": "dist/assets/valley/terrain/gravel_r.jpg",
+      "size": 642685,
+      "sha256": "c5cd1953e559339c588f01d21509eff8894cd49f03da193b1dbb3161483a8113"
+    },
+    {
+      "path": "dist/assets/valley/terrain/litter_c.jpg",
+      "size": 821191,
+      "sha256": "69c3ae8a40c70eecbb312c2ca1044b5dea4f48d37f2a6f84ca7ed56b95f04a7b"
+    },
+    {
+      "path": "dist/assets/valley/terrain/litter_n.jpg",
+      "size": 1587102,
+      "sha256": "2f2a18622ff1fde203ad7b17f12da5e46608b77b27307f6a91cc5a016cc72e41"
+    },
+    {
+      "path": "dist/assets/valley/terrain/litter_r.jpg",
+      "size": 418230,
+      "sha256": "faa2fc4305cb839a2240ffa84de513dc16671879915a13c88fb319d5e168e926"
+    },
+    {
+      "path": "dist/assets/valley/terrain/mud_c.jpg",
+      "size": 527741,
+      "sha256": "058b6f12493305ec6b47cb5ea77f013c9e7e58216b34af3700a3d3d7d821732d"
+    },
+    {
+      "path": "dist/assets/valley/terrain/mud_n.jpg",
+      "size": 1397011,
+      "sha256": "9ca6f68d25599c98ba5e594df221f5653d93faceda1ba26a0babb1143e8c615f"
+    },
+    {
+      "path": "dist/assets/valley/terrain/mud_r.jpg",
+      "size": 422119,
+      "sha256": "c6d5891f090554c8f51172b2c4056f490ab1ed1a69127f1f876f9d58c46f0f23"
+    },
+    {
+      "path": "dist/assets/valley/terrain/rock_c.jpg",
+      "size": 785923,
+      "sha256": "708373b2af7fd07ac8de1500556006aaf904c41a99985a849cacc78874f38eac"
+    },
+    {
+      "path": "dist/assets/valley/terrain/rock_n.jpg",
+      "size": 1177932,
+      "sha256": "6df5263ba6c30e9343ee324d87078b926024d710b0b349025083600369df8d25"
+    },
+    {
+      "path": "dist/assets/valley/terrain/rock_r.jpg",
+      "size": 381745,
+      "sha256": "07e842a9c9f128fb2afc2655cb09db914b5ec7c7657dcff4dcfce9c487ee0aae"
+    },
+    {
       "path": "dist/audio.js",
       "size": 7056,
       "sha256": "a6431b6f113a95b8a2f8006fa2258299ac845b683564e9013241485c547c77f8"
@@ -349,6 +899,621 @@
       "sha256": "84d428ac207c8539efc2f5b4d550197a7c8a91387524f3c08e48f6d89f896ae8"
     },
     {
+      "path": "dist/valley/actors.js",
+      "size": 59206,
+      "sha256": "ddc3b32d216c05348cd5d4e001aba6efa6d372f4e00f489bc55eb42d2e9b5c24"
+    },
+    {
+      "path": "dist/valley/ai-world.js",
+      "size": 2845,
+      "sha256": "14f96efaa7db3cb15274a9b23164c78cc66e3e641d08778b8a9d16c1a4d6cb05"
+    },
+    {
+      "path": "dist/valley/anim-contacts.js",
+      "size": 1303,
+      "sha256": "ef9bda9d1ed5399ad28e081b055365e9d8ab6179fba4a51081ed48fcfb45aeb9"
+    },
+    {
+      "path": "dist/valley/anim-data.js",
+      "size": 15328,
+      "sha256": "d8213373e8c603320115611036d684f6d44aeca0dfec7ac935755b8e29d8323f"
+    },
+    {
+      "path": "dist/valley/arm-ik.js",
+      "size": 2924,
+      "sha256": "915272594ef2f2256f68fb0fadf9bc6af55b5005343905048f57343723f89a05"
+    },
+    {
+      "path": "dist/valley/arm-spread.js",
+      "size": 4151,
+      "sha256": "a987986448ff306a2dca7b3a82c135e573c17c32eccf046bee0591663d0a3ccf"
+    },
+    {
+      "path": "dist/valley/atmosphere.js",
+      "size": 12111,
+      "sha256": "cd815b9e13aafcb468d8a16a3662e57f6aea78c5be807906c2419931048b9f7a"
+    },
+    {
+      "path": "dist/valley/audio-rules.js",
+      "size": 5624,
+      "sha256": "15789f214b20cd22ec5f722c15b9a90128319387834b77042f1b9b7964b54995"
+    },
+    {
+      "path": "dist/valley/audio-valley.js",
+      "size": 16150,
+      "sha256": "6a3ab8e67e1ad52fdd53f4cc2dc0355ad271fe767316b173c8fcc8d540d65489"
+    },
+    {
+      "path": "dist/valley/banter.js",
+      "size": 5587,
+      "sha256": "0198f08ab7345fb8f465405fa266071a280cee3a2b5b7e677712a027e5009881"
+    },
+    {
+      "path": "dist/valley/batch.js",
+      "size": 4100,
+      "sha256": "c4ad615bce5af15eea54031c67658ffd2861b39887a93f774f3d7381f5f27f79"
+    },
+    {
+      "path": "dist/valley/battle.js",
+      "size": 24796,
+      "sha256": "6a68304efb09a77e3b9a5573a54e0cf2ec9d983380cdf71a20189fd3a2aafd9b"
+    },
+    {
+      "path": "dist/valley/blood.js",
+      "size": 6724,
+      "sha256": "b97d772e30aed8f4b4d2efc8bb81187ba94f831a613c985cb7e2c86196c8d2c9"
+    },
+    {
+      "path": "dist/valley/bow.js",
+      "size": 5339,
+      "sha256": "e7d3cec11540687eb3f76e78a5ab63d7a0d925cb6140d3d993e8f8fb816464d5"
+    },
+    {
+      "path": "dist/valley/buildings.js",
+      "size": 8618,
+      "sha256": "070363b1e1cbd69d68c2600f817d83936355fa1c1108dcf8f3e99567a406ac43"
+    },
+    {
+      "path": "dist/valley/camera-follow.js",
+      "size": 5194,
+      "sha256": "6b92fbc84d86cb534796705183e5a0c818fef05e4fbf7a6dd9fcaf17726ce475"
+    },
+    {
+      "path": "dist/valley/camera-rig.js",
+      "size": 15624,
+      "sha256": "6b8d043a33e53c1702d9059c531ce7f0f6756af45eaa04c5d3268180b2f3a165"
+    },
+    {
+      "path": "dist/valley/characters.js",
+      "size": 29340,
+      "sha256": "d37c2d6d5e166fe4a7f5ec72e35ab2bf8336f9c22baabd4c03ad64e5e7691646"
+    },
+    {
+      "path": "dist/valley/cinematics-cast.js",
+      "size": 11756,
+      "sha256": "7910232bcc46878e6b32b9b234028015e8e82ed675d466ef1197790af6917089"
+    },
+    {
+      "path": "dist/valley/cinematics-data.js",
+      "size": 8380,
+      "sha256": "842dec931e39e7a0060ca249b2dc7595a15875d06f97147857f57e2afba94e26"
+    },
+    {
+      "path": "dist/valley/cinematics-frame.js",
+      "size": 3429,
+      "sha256": "69005476d826f3a737016aa7fd9030f3f05fd55468ad1e702410f6a1a0f35aaa"
+    },
+    {
+      "path": "dist/valley/cinematics-view.js",
+      "size": 9537,
+      "sha256": "6aedfedc67d5ac0015cbf266969ccfe02d8816a2b557bb76fa3824bf60634ddd"
+    },
+    {
+      "path": "dist/valley/cinematics.js",
+      "size": 5607,
+      "sha256": "4c4f4ad179858f338e365ec257bdb55af0257e3755fc279704453c9080950d31"
+    },
+    {
+      "path": "dist/valley/clash.js",
+      "size": 5143,
+      "sha256": "ae467756908a627b872053c55c41d9f59146d9651ac36441cbfbfd8234c3241d"
+    },
+    {
+      "path": "dist/valley/collision.js",
+      "size": 11915,
+      "sha256": "9a58a97b1e12f7907f361145aa1dd4bc41685e36015754217343c008908aff85"
+    },
+    {
+      "path": "dist/valley/combat-synth.js",
+      "size": 7043,
+      "sha256": "2eb6a083324905fa3241102932c15cfc10f16c925d9ea6a6c7fa6514821cab2a"
+    },
+    {
+      "path": "dist/valley/combat.js",
+      "size": 15245,
+      "sha256": "b21dcaf03cbf23a76cffa5226fa159c4ded29bdc88494028438b0bd0f3e843f0"
+    },
+    {
+      "path": "dist/valley/companion-ai.js",
+      "size": 4317,
+      "sha256": "b65b2c561d0e2e1a445d7fda64f1ed8dcfbe20d531fa28489c36596585405b49"
+    },
+    {
+      "path": "dist/valley/config.js",
+      "size": 8759,
+      "sha256": "06c045f2459139886ebe2d5ad460763e72e82dfbb31b122461dd218110674fe8"
+    },
+    {
+      "path": "dist/valley/enemy-ai.js",
+      "size": 11842,
+      "sha256": "c6b54a1769537f334fe272413f0d2989794f0af9db8e46e454ffc547be47e380"
+    },
+    {
+      "path": "dist/valley/entry.js",
+      "size": 872,
+      "sha256": "c68acbc97314b439df006d89323d83d43360ce83f6fdfbce00a5ea1bb140cbaa"
+    },
+    {
+      "path": "dist/valley/foot-contacts.js",
+      "size": 4514,
+      "sha256": "f547940ea4401d820ac70bee585781df04e3f4688625b0e2ae02b78bd37b13f5"
+    },
+    {
+      "path": "dist/valley/fx.js",
+      "size": 25573,
+      "sha256": "7069c74de716f9c539f4c82343367f7491bfbf0c1f6c04598243cd1828256900"
+    },
+    {
+      "path": "dist/valley/gait-phase.js",
+      "size": 860,
+      "sha256": "278903586c82d323c88e2203b9ef6c9c90629ac2275ba6e681feced1f5e9bf0b"
+    },
+    {
+      "path": "dist/valley/gait-table.js",
+      "size": 8298,
+      "sha256": "6cb51de49e95270e63f2ca8d09aa8847c0cc369cd0ebcb272a667eb12478ddff"
+    },
+    {
+      "path": "dist/valley/game.js",
+      "size": 80434,
+      "sha256": "b7827325a20afe3080835ce3d3e41a8f72ae46f28ea9122d83e0070fa06dae8f"
+    },
+    {
+      "path": "dist/valley/grade.js",
+      "size": 6630,
+      "sha256": "991cdea118937d8c419e21261db7ec1fac312eea6b6cef753496cdb3f2a1d8f4"
+    },
+    {
+      "path": "dist/valley/grass-field.js",
+      "size": 15500,
+      "sha256": "5656ea4cbe514b060f40e15056815da7fc19b1b2c75222082fd27054e71a4c53"
+    },
+    {
+      "path": "dist/valley/grass-schedule.js",
+      "size": 3518,
+      "sha256": "ec23539c931faeb569069409137909bc7ede888c7bae0952c7411f2c5507696d"
+    },
+    {
+      "path": "dist/valley/grass-view.js",
+      "size": 19098,
+      "sha256": "eb36061b34f64078f17a909de2c0b605598c89f389c7c1370749f63b0f8a1426"
+    },
+    {
+      "path": "dist/valley/guide-nav.js",
+      "size": 566,
+      "sha256": "13ab401bcdb487331eafe790d61c1116483b3dc3056fa7bee952021a8b21e5ab"
+    },
+    {
+      "path": "dist/valley/guide-renderer.js",
+      "size": 6247,
+      "sha256": "0575be870952587950142e4b7c242afc3ebea5c7c85674d2b0c4f97259250f39"
+    },
+    {
+      "path": "dist/valley/guide-view.js",
+      "size": 3767,
+      "sha256": "5290ed4874f73c6ff79e168ce064f825e37b3a0bc7a0e58e4a7787f39228d744"
+    },
+    {
+      "path": "dist/valley/guide.js",
+      "size": 21732,
+      "sha256": "7d0c1dbad95fd4fc3923a2c068b2d1cdc4a6850ee77870efa8ba9cbdea2b1932"
+    },
+    {
+      "path": "dist/valley/hand-grip.js",
+      "size": 32164,
+      "sha256": "db80c25fa4c267885a467eef979bc7d6306148e9b32de53cd82af866cacae029"
+    },
+    {
+      "path": "dist/valley/hand-rig.js",
+      "size": 29626,
+      "sha256": "061059d09615a1fb2dd2ea53e0f5c9ee8f791c8640380828044212b7a35dd13a"
+    },
+    {
+      "path": "dist/valley/hud-kamakura.js",
+      "size": 1585,
+      "sha256": "fc02db13014663aeaae20a0af49e9f6070efa3edf70a4d639fbdad830974f015"
+    },
+    {
+      "path": "dist/valley/hud.js",
+      "size": 11488,
+      "sha256": "51f7eef2ac2c0b530dc4a93a33c4a170889bbd63fc04e078faf875f40cf5d073"
+    },
+    {
+      "path": "dist/valley/index.html",
+      "size": 8072,
+      "sha256": "82573a996579656c8f39a90f019ffd66dff442bcca53a99aee9afa1b5f2839bf"
+    },
+    {
+      "path": "dist/valley/input.js",
+      "size": 3887,
+      "sha256": "0bc1fc4c2e31fb23f64db185e80ba148276f7759d6ac43e69e35f6b631b0b20a"
+    },
+    {
+      "path": "dist/valley/kamakura-chunk-view.js",
+      "size": 2922,
+      "sha256": "416305d6c65f351accfe24c3141d0064d6c013495678fdee5f2430c97c59f1ac"
+    },
+    {
+      "path": "dist/valley/kamakura-chunks.js",
+      "size": 2965,
+      "sha256": "944b2558fbb8f287320658bfeef89cfb184da5949ce95affc0921e65329ba073"
+    },
+    {
+      "path": "dist/valley/kamakura-data.js",
+      "size": 2374,
+      "sha256": "1cc416bd82511a49887d241e10d28b8c9da9009835399b421fb61ae0f7ec9626"
+    },
+    {
+      "path": "dist/valley/kamakura-terrain.js",
+      "size": 3185,
+      "sha256": "60c4e703d66642d83fe92ff876deb590a643d295b96406febf4c0d615e6943a0"
+    },
+    {
+      "path": "dist/valley/kamakura.css",
+      "size": 1445,
+      "sha256": "81aeac1b225a14e695b3329f8b57e4989023db9d6fa4ce0bd9134dd6eae000f4"
+    },
+    {
+      "path": "dist/valley/knockback.js",
+      "size": 3517,
+      "sha256": "6584b63ce834b471725c58293eba4150ee0ac8efbf533800b53efa750b29839f"
+    },
+    {
+      "path": "dist/valley/lab.html",
+      "size": 1627,
+      "sha256": "b6f79bce21d619d23fc9bd006bc45e0a3c271b087418b1989757cda0d27d4186"
+    },
+    {
+      "path": "dist/valley/lab.js",
+      "size": 7001,
+      "sha256": "736ea0e0a6b281ec08d844bdd0f0b5ca8994ac799a7fd82ec9f2c97cf637745a"
+    },
+    {
+      "path": "dist/valley/leg-ik.js",
+      "size": 13176,
+      "sha256": "a261a1a0737cadd106b433c48386a2ae7bf39d63dea45e471190702f8e8d1488"
+    },
+    {
+      "path": "dist/valley/leg-plant.js",
+      "size": 8614,
+      "sha256": "582da877a06bc5e9a18e35e3c7bf1eacd32680d184b7babe3a5a615f9eebe6cc"
+    },
+    {
+      "path": "dist/valley/life-kit.js",
+      "size": 41276,
+      "sha256": "e1d002837dfcb72c1a9f003426ae7be8ab125a06986e8750db98e0f652c6ad48"
+    },
+    {
+      "path": "dist/valley/life-rules.js",
+      "size": 11743,
+      "sha256": "1e80533f18f57a43faa4a7e9c0807fe0ce159f397cfc18aee1747cad27252235"
+    },
+    {
+      "path": "dist/valley/life-view.js",
+      "size": 9057,
+      "sha256": "de9d7a1f5c9e75a29c5330509dd74ee922e264fd56ae684ccf0eddf1c73c9914"
+    },
+    {
+      "path": "dist/valley/loco.js",
+      "size": 8425,
+      "sha256": "539bab5e8887cc471971c5372afbccf9c739b3a718da88a8e43e541508812fda"
+    },
+    {
+      "path": "dist/valley/lunge.js",
+      "size": 11943,
+      "sha256": "e530f638f15e7a038107cc77eb259d6410a379314dd238cd194055704d59c394"
+    },
+    {
+      "path": "dist/valley/main.js",
+      "size": 16769,
+      "sha256": "348e1834464a1931ffc7b028fba9acf138fb9f1399a3eaee931aaf3b6e4355ff"
+    },
+    {
+      "path": "dist/valley/narrative.js",
+      "size": 2559,
+      "sha256": "6943f85a8e8249d74d9b0de33687052f548978f87d8f5bf1fcc7f800c1ba7c05"
+    },
+    {
+      "path": "dist/valley/nav.js",
+      "size": 7385,
+      "sha256": "f13d8994cba78cdfec312fd8506938447d70313eb5aba3ed3a1f4ea68d32f7a0"
+    },
+    {
+      "path": "dist/valley/opening-data.js",
+      "size": 3107,
+      "sha256": "b6c0e88cd8c41d4d86ca2282718d03d43925f6a8fb5bf05aff9a09dfc9588e96"
+    },
+    {
+      "path": "dist/valley/opening-fire.js",
+      "size": 18276,
+      "sha256": "7d8ffbe2b5bbf09a4934d2ac145d3f792f7f30dd968d3202eb4c1ac5a26ef317"
+    },
+    {
+      "path": "dist/valley/opening-scenes.js",
+      "size": 37412,
+      "sha256": "6c984c6b963e7a8bddda774f9c1879453932638ea5c7b2d31b367889586fd9b6"
+    },
+    {
+      "path": "dist/valley/opening-set.js",
+      "size": 19483,
+      "sha256": "e43cd9438455e3dcf484047711e046f3973a2f26b3cae2d8970a487327e6cecd"
+    },
+    {
+      "path": "dist/valley/opening-stage.js",
+      "size": 26124,
+      "sha256": "e7aa40ca04905869f584ddbcb48629ce6a5c600fc58f3fa8cb83c4831d343a55"
+    },
+    {
+      "path": "dist/valley/opening.js",
+      "size": 6764,
+      "sha256": "dc6ef39a09a420e5d6f72d763485ea8ee568420af1d26fd408b65ab4e6c2fa70"
+    },
+    {
+      "path": "dist/valley/perf-stats.js",
+      "size": 2391,
+      "sha256": "f95b6fb6e0fd8d88b9ed37c33abb05d714646c4818b5c17de8282f4a0b9d7051"
+    },
+    {
+      "path": "dist/valley/post.js",
+      "size": 10062,
+      "sha256": "ce288607c10a6112a9a597dd39cb8b38b7a16f9bf0e3c051716a9fc4727e507b"
+    },
+    {
+      "path": "dist/valley/props.js",
+      "size": 10461,
+      "sha256": "b3264a4958731698e36f0cca1452c1428c50d3ed438cece7debfde8893808a0e"
+    },
+    {
+      "path": "dist/valley/qa.js",
+      "size": 10601,
+      "sha256": "402abed6ce8a2de443c7f5f5d1f2f8fbf18afac6c26aba39b424e17426af910e"
+    },
+    {
+      "path": "dist/valley/quest.js",
+      "size": 11275,
+      "sha256": "709cc5aa748e3ac88f761d86b9e67b0c225fd4f941a6a59709a04fd2d96246f8"
+    },
+    {
+      "path": "dist/valley/relic-view.js",
+      "size": 5259,
+      "sha256": "4e16ef1cc0cf49eac7cd0290c4b5f5a9135456c863ad0ecee56a79290c0df101"
+    },
+    {
+      "path": "dist/valley/ridges.js",
+      "size": 2175,
+      "sha256": "d3194abe838334404766e2295e3c849b506ba5f286a7120adbe7c78e3c81509c"
+    },
+    {
+      "path": "dist/valley/save.js",
+      "size": 8574,
+      "sha256": "7b9ab0d8c80d83305fb18b5ff1f770cd8804f437667fdd8d219833326bd79c0d"
+    },
+    {
+      "path": "dist/valley/scatter.js",
+      "size": 13861,
+      "sha256": "3df5748fae1289f4ac00d3038f566f9db83b0ef59b0ded61345732c3cdb1ab09"
+    },
+    {
+      "path": "dist/valley/shadow-snap.js",
+      "size": 1911,
+      "sha256": "b830de130293f5e84112f94511a2f2c7080e89ec1e618da60a71b3ec138a9c73"
+    },
+    {
+      "path": "dist/valley/shots.js",
+      "size": 1970,
+      "sha256": "2112b65931432e49a623abc29b6fb4529f4ab6ea6f6f9c31a4e3092fb21b86c9"
+    },
+    {
+      "path": "dist/valley/slash-trail.js",
+      "size": 23357,
+      "sha256": "43ac21d0f87d7beda1009c668caacad2591e1fa287e33463b161972284aa1506"
+    },
+    {
+      "path": "dist/valley/smooth-flags.js",
+      "size": 1927,
+      "sha256": "632be6608eb6eccaba8fd2374d10bf7eb04b78c0559a36e79ced101bf96f3198"
+    },
+    {
+      "path": "dist/valley/spark-streaks.js",
+      "size": 5935,
+      "sha256": "3a5f85454acf51cb4891a1372cc02c26b1989dd4f9b04df488b03274897f429c"
+    },
+    {
+      "path": "dist/valley/step-surface.js",
+      "size": 2621,
+      "sha256": "47c5b7b830e84e4afc23abc574b3456454425a4972a8f01ec59d29b1a3273dbc"
+    },
+    {
+      "path": "dist/valley/step-synth.js",
+      "size": 2442,
+      "sha256": "2077caac6d4554038f9a33a2131800fd806a186f3b0671444bea80b1973d3e3e"
+    },
+    {
+      "path": "dist/valley/story-data.js",
+      "size": 19909,
+      "sha256": "6be31e9bc05bc0278c5c7106630f5bfcccb887cb6e54d88e787c0eb2b10a7f85"
+    },
+    {
+      "path": "dist/valley/sword-layer.js",
+      "size": 4805,
+      "sha256": "e66abfa86e8d02bf619d3d9f1475025055e1be0e26446830ae8d77e3efd65f03"
+    },
+    {
+      "path": "dist/valley/sword-path.js",
+      "size": 8834,
+      "sha256": "31bab20dca95651fcff49c97f6bde4b44901623060e2a1fe6279959fc73ea3be"
+    },
+    {
+      "path": "dist/valley/sword-rig.js",
+      "size": 13967,
+      "sha256": "ea771a968ed9c4acc3f7e91b06dca5c43058d24855bed8ecd108c904ad45ad9c"
+    },
+    {
+      "path": "dist/valley/terrain-height.js",
+      "size": 13030,
+      "sha256": "c7c17780d8801727bcfc8b9ede2ed7f615ac00c161f633353176b4762fbaa52c"
+    },
+    {
+      "path": "dist/valley/terrain.js",
+      "size": 18388,
+      "sha256": "b69a16662bf8ffdede4291644642d748f5ee4db9378022456aa10790f8e61eac"
+    },
+    {
+      "path": "dist/valley/time-warp.js",
+      "size": 2273,
+      "sha256": "501382cc49a20f7f7706aecc9c6715ba9a1be547447b0b915fcbe6fa05ceb558"
+    },
+    {
+      "path": "dist/valley/touch-input.js",
+      "size": 3403,
+      "sha256": "d4a970bfbb711644b15389e0168f57cf2dc3faef551ce488809d635b73233c66"
+    },
+    {
+      "path": "dist/valley/tree-bake.js",
+      "size": 21624,
+      "sha256": "26daf3ec1d8ff7634da120a7426b4840c565e4fe31c3203d27c9b004c3e797af"
+    },
+    {
+      "path": "dist/valley/tree-branches.js",
+      "size": 20714,
+      "sha256": "74695729f6382249b59ab63767d2326e6bd36424d70d8099005e34e6fdfebbb0"
+    },
+    {
+      "path": "dist/valley/tree-geometry.js",
+      "size": 24182,
+      "sha256": "81890ba2224ed4bfc640d7d82ec1273e9dd8fdf0f24ddad7931897201c2019f3"
+    },
+    {
+      "path": "dist/valley/tree-impostor.js",
+      "size": 4532,
+      "sha256": "43b8a925268c7385660e0583498a1685f45ee04b5819bf3d052457f949ff3992"
+    },
+    {
+      "path": "dist/valley/tree-lod.js",
+      "size": 2263,
+      "sha256": "bd09f9f7eb2334a28a74c786a61b8a0d67ee3669d7961750bb0bf017a9ca2c93"
+    },
+    {
+      "path": "dist/valley/tree-materials.js",
+      "size": 20326,
+      "sha256": "9d216e7e1f308e94dfe29dbf96452a1773fa93d41e01a8cc277029ae40cea5d7"
+    },
+    {
+      "path": "dist/valley/tree-species.js",
+      "size": 8179,
+      "sha256": "98417e187fb00a3235646205744f17215b2384fd98c979b7fafc8f031ffff0d0"
+    },
+    {
+      "path": "dist/valley/tree-textures.js",
+      "size": 12500,
+      "sha256": "195ec37c918cf23797f8800a6716f53ef4ae1f97e41c45113a8a2dc8915b145f"
+    },
+    {
+      "path": "dist/valley/tree-view.js",
+      "size": 14397,
+      "sha256": "917edbefc3b002e32fc3c637801ab021ed1ee5dfbb194849419825f61626afd8"
+    },
+    {
+      "path": "dist/valley/upper-body.js",
+      "size": 11596,
+      "sha256": "3f3fe50b07ed3b7eda1957bb9a6729bf48b23c8af2dff86b982ce6ffae186a29"
+    },
+    {
+      "path": "dist/valley/upper-rig.js",
+      "size": 12896,
+      "sha256": "dcf94b756d824162e0c518e1fa69017914cce157d22502b0f92317037d251bad"
+    },
+    {
+      "path": "dist/valley/valley.css",
+      "size": 16248,
+      "sha256": "7f666ae5d94298f9f35a4600eb3fcb21b22d52e28e32dd63f63a97b25866b6fe"
+    },
+    {
+      "path": "dist/valley/vegetation.js",
+      "size": 8062,
+      "sha256": "a9cf296e54279ab0c72e1abb4ace4921e080a73ac2af4fb6893b6197b1e49c73"
+    },
+    {
+      "path": "dist/valley/viewer.html",
+      "size": 757,
+      "sha256": "09ed2c20ccb183f0d94d474809f064057e6bc11c27987ae78f5ce4e168b1ce00"
+    },
+    {
+      "path": "dist/valley/viewer.js",
+      "size": 3439,
+      "sha256": "ef0f7ef83fa2830782c9da7eb367a7bd576c426295e4b968ec141685fdc44b69"
+    },
+    {
+      "path": "dist/valley/voice-bank.js",
+      "size": 5681,
+      "sha256": "f49c6b231862bf09bf7480be8277faa3dd076612f205c62ee2e3c5d50a49c3b3"
+    },
+    {
+      "path": "dist/valley/water.js",
+      "size": 5672,
+      "sha256": "b833d7f464c1ac04f5fbb7d1cc6419f5a3c7f35b54a9519b55cf029d38291c55"
+    },
+    {
+      "path": "dist/valley/weapons.js",
+      "size": 11068,
+      "sha256": "65e44b6ae2a38ee998cb5bd0c18597e92e60bb1d6e12819feb1ca2ab3c4102f6"
+    },
+    {
+      "path": "dist/valley/wind.js",
+      "size": 3145,
+      "sha256": "84dcaceff1e037cd9a6cba30969bb4329c52578e5c9d527edab9bd56c68422ef"
+    },
+    {
+      "path": "dist/valley/world-colliders.js",
+      "size": 3386,
+      "sha256": "125009cf38285823ba3e0cbf0263f6bd28592b6b07c1e122bc89f6f259d1bd0c"
+    },
+    {
+      "path": "dist/valley/world-data.js",
+      "size": 26933,
+      "sha256": "b62714064a95f0797f26ecb7d45bd9cd4b8d991910a9d6cb1dd7f30bbb9d84d3"
+    },
+    {
+      "path": "dist/valley/world-entry.js",
+      "size": 547,
+      "sha256": "1fb9ea7a3a86dc09028fb19a9957f05d36b1906f87ca5259bd8ffefdf918c174"
+    },
+    {
+      "path": "dist/valley/world-kamakura.js",
+      "size": 5601,
+      "sha256": "6288d07e5f6be85d08e9714c53a90f900c5c610d177fabf7af81f8b3358f3fc9"
+    },
+    {
+      "path": "dist/valley/world.html",
+      "size": 753,
+      "sha256": "c4517ca430f5336a6280cd708c36802e2dc4997543046c39404287406482cd8f"
+    },
+    {
+      "path": "dist/valley/world.js",
+      "size": 6104,
+      "sha256": "6eb4fb7f03a3f56a7c142a8ba82001046e0c699d917e39fce5b27d6f08e0a5ca"
+    },
+    {
       "path": "dist/vendor/THREE-LICENSE.txt",
       "size": 1081,
       "sha256": "bfe119ea4fd413f5f7ca3fcd63adb0c4a073ed39daa2fe7d3e6b769e21272601"
@@ -374,6 +1539,11 @@
       "sha256": "fda7e946b8e0b5ab39b779206589e7a1079a22eb24efb89d7223e03fdfb1f751"
     },
     {
+      "path": "dist/vendor/utils/SkeletonUtils.js",
+      "size": 11062,
+      "sha256": "0761b1e003917b215d25dd81439d854b36034b5a57ce84c2cfe3b02428d7b253"
+    },
+    {
       "path": "docs/01_DEVELOPMENT_BRIEF_JA.md",
       "size": 7882,
       "sha256": "80d22cdacbffa6d5defc447ec7808641976fe590eb25c5375f4e98ca9ee770e7"
@@ -395,13 +1565,33 @@
     },
     {
       "path": "docs/05_ASSETS_AND_LICENSES_JA.md",
-      "size": 4814,
-      "sha256": "d1e4e1a9f99d433a8d85347d59d54e376f3eef97a3a46da26233febd30397bfb"
+      "size": 4702,
+      "sha256": "c99468859b336335eba42bbf53f02cbe65756846ff5e116d8a1f4899d59b2404"
     },
     {
       "path": "docs/06_TERRAIN_ASSETS_JA.md",
       "size": 2670,
       "sha256": "5b7e46cbcd343d55ae7141d0b35ed654f7b3593098aa2658da52c365da8fdfc7"
+    },
+    {
+      "path": "docs/10_STORY_AND_DESIGN_JA.md",
+      "size": 4213,
+      "sha256": "c8e5e3cf88abf7adc0125fb92fc4bc7332496e4c20dd8d23432220f20f5c28ef"
+    },
+    {
+      "path": "docs/images/valley-bonfire.jpg",
+      "size": 152527,
+      "sha256": "9fd524e28c7e8a3b425e5733252a95346c61265388e20bc515de5b5eb7757840"
+    },
+    {
+      "path": "docs/images/valley-fight.jpg",
+      "size": 163754,
+      "sha256": "f42756d9de0986291d25b8a16b003770949b009a3992d61969c0fb42e6bddc7a"
+    },
+    {
+      "path": "docs/images/valley-overlook.jpg",
+      "size": 132153,
+      "sha256": "fda5005afaa0f91be1beb05a7527eeb9ac3a2b2c06a165d9079dc8f7fe571809"
     },
     {
       "path": "licenses/THREE-LICENSE.txt",
@@ -410,8 +1600,8 @@
     },
     {
       "path": "package.json",
-      "size": 424,
-      "sha256": "550449c37392fd11a5ba94e7ce7f412515ccdd2da6c231353e1ec4d114d3c357"
+      "size": 802,
+      "sha256": "ab4fd9ea2bf6f3e5706dff12bd490232b6d5cbd81416893e6facfd258e26f5aa"
     },
     {
       "path": "provenance/house_v08_asset-manifest.json",
@@ -459,6 +1649,21 @@
       "sha256": "3e7c30237055976de8c3a14d1d057474cc4a7883543271f5545a68f48012f875"
     },
     {
+      "path": "provenance/kamakura-code.json",
+      "size": 565,
+      "sha256": "20cec56d2920abe69306ff1711f8df5dd72257f80faaf0b11a95b4c8abb2bee4"
+    },
+    {
+      "path": "provenance/life-kit-s7a.json",
+      "size": 9544,
+      "sha256": "1b7a704edc27ac2c8bcc01c75a5702f8dffdd73d32f9682e07243f604d483f07"
+    },
+    {
+      "path": "provenance/meshy-v19.json",
+      "size": 17884,
+      "sha256": "7088de7271c38d2efc787fb913fda48721f7092e3e09c5c4d8aca4cb06ab5432"
+    },
+    {
       "path": "provenance/rice_color_fix.json",
       "size": 1934,
       "sha256": "0f545f005dbd33d0443c6efd576a070a2bb75a56912c1b3521b409c6c12075b2"
@@ -470,8 +1675,8 @@
     },
     {
       "path": "provenance/v14_source_manifest.json",
-      "size": 1265,
-      "sha256": "6ea8db558c855895c8902b98da6b8f70cba753695b38ab1d20e7824e825d7875"
+      "size": 1217,
+      "sha256": "24375710e85776b58aca644a04f5e11a794e25728a720492cb265909d8d3a895"
     },
     {
       "path": "provenance/v16-files-sha256.json",
@@ -479,9 +1684,14 @@
       "sha256": "752194bc65933c0a7d195ba36f63c307ea1b072682098e791f9b85b9f432021f"
     },
     {
+      "path": "provenance/valley-textures.json",
+      "size": 4574,
+      "sha256": "43eca50cb76cae0a457522a794b54ab4be3b6853d50ed9f1351837edf6a0a584"
+    },
+    {
       "path": "provenance/well_v01_provenance.json",
-      "size": 912,
-      "sha256": "93aaf62bc3327fe6b29ed189e3a7e4f0285c2c74b15b7c6f657e89bf15fc4f84"
+      "size": 911,
+      "sha256": "aaa54f313d506352f6e60aede561a2c17eb99e1bf225962dfd4194a5d1b29d8c"
     },
     {
       "path": "reports/HANDOFF_VALIDATION_JA.md",
@@ -499,6 +1709,16 @@
       "sha256": "d723464a41efb7d1e416442fbfdbfabdd8f0a5717a1934cfde609e19a08d0c43"
     },
     {
+      "path": "reports/VERIFICATION_V19_JA.md",
+      "size": 7778,
+      "sha256": "bc8b1b683f95130c0a3a1ef5c9b93d4439421d2bce1565fadb508226c44c2c59"
+    },
+    {
+      "path": "reports/audio/foot-contacts-measured.json",
+      "size": 12812,
+      "sha256": "6424d62d1d294ff13329fad2412e9dc484e505777a7f74e6dc9da7e64ea50732"
+    },
+    {
       "path": "reports/baseline/QA_JA.md",
       "size": 2742,
       "sha256": "833b867961172f6153b67ff80ec9916a6576310ac8e8a463a5c57a947ce47eac"
@@ -507,6 +1727,31 @@
       "path": "reports/baseline/UI_REFERENCES_JA.md",
       "size": 2303,
       "sha256": "98ec50376bd252769de91b2b77152ff5562294f0113a0101e117ebfb4927bcdb"
+    },
+    {
+      "path": "reports/baseline/polish2-guide-starts-before.json",
+      "size": 14580,
+      "sha256": "1b0369aba2f95923b3368e4aa3d68322ce7e390271c17f1288583379d6a8c8a5"
+    },
+    {
+      "path": "reports/baseline/polish2-load-bytes-before.json",
+      "size": 11532,
+      "sha256": "eda3c3c98d03f101e7570fc7d50538e3fa2dab1724673279d9f828789921ec68"
+    },
+    {
+      "path": "reports/baseline/polish2-load-inventory-before.json",
+      "size": 708,
+      "sha256": "93e86e78303c4d233c29ab07e41edb149b6f16aeeb91ee77a4e49a8fb336798e"
+    },
+    {
+      "path": "reports/baseline/polish2-perf-before.json",
+      "size": 86459,
+      "sha256": "211a3f22bfcf5c40fc983c36f01567e7f1d20c93d25f2ce1501a136fcc7e4122"
+    },
+    {
+      "path": "reports/baseline/polish2-trees-before.json",
+      "size": 331,
+      "sha256": "50c3805f250669732f902cfcf12403f289ed207c8482fb75ec7e7fd6d913652b"
     },
     {
       "path": "reports/browser-check.json",
@@ -519,9 +1764,104 @@
       "sha256": "8005abffe0e3990b3fbb24e8bb27eed4768f07d2849b85682ee6f62811cc8824"
     },
     {
+      "path": "reports/character-compression/README.md",
+      "size": 5345,
+      "sha256": "1ddefadda7b27df5a884c982c18d631b598792c31386202868639111fb6a7b29"
+    },
+    {
+      "path": "reports/character-compression/compression.json",
+      "size": 15150,
+      "sha256": "3f5d2e474f62d2e847add996e1d4cf013288a56838e5b8c50b73dcf0d4d64a36"
+    },
+    {
+      "path": "reports/character-compression/load-inventory-after.json",
+      "size": 707,
+      "sha256": "a030fb46ff2557dc385872c5ce597c09898f9b88937fb61f65aff900741d3890"
+    },
+    {
+      "path": "reports/character-compression/verification.json",
+      "size": 77231,
+      "sha256": "3acac063c9d266d14b83c69c6f11578c4fd35cccfcd3cd19c3f72adf7b76dcf0"
+    },
+    {
       "path": "reports/ci-blocker-v18.json",
       "size": 1940,
       "sha256": "db773b2c6f9bcd8f3d368450a2c5153099eaba46bf33794aa7983714984124a3"
+    },
+    {
+      "path": "reports/ci-blocker-v19.json",
+      "size": 2405,
+      "sha256": "a5cb94d542fe11f092de884f7308e5fa7972e6f7e7f936b19ab385889564c763"
+    },
+    {
+      "path": "reports/cinematics/c0a-core.md",
+      "size": 6614,
+      "sha256": "89f0aeaf1a9cc8d09db137b802eabc1b16d2d28f6dfd7f7bebbc5d1a2bbf63f0"
+    },
+    {
+      "path": "reports/cinematics/c0a-frame.md",
+      "size": 8201,
+      "sha256": "875f4549725f230401efa555fbb876003a115deec76467ddadafdb2d0ceb7aa7"
+    },
+    {
+      "path": "reports/cinematics/c0a-frame/cine-1-shot-a.jpg",
+      "size": 252929,
+      "sha256": "aa26780ff684a8a8d2f6dab8a6e8603dc9b36b9db2a271dd3d1c1d003a024bbb"
+    },
+    {
+      "path": "reports/cinematics/c0a-frame/cine-2-shot-b.jpg",
+      "size": 216190,
+      "sha256": "475b56450819586e104fd9370522d2f9905a1109edd3d3a8d6f0dd9d51e4507c"
+    },
+    {
+      "path": "reports/cinematics/c0a-frame/cine-4-reduced.jpg",
+      "size": 252914,
+      "sha256": "b296c4f5fd3d1f76048f17a71682d5afca49fdaf4086d240231265574f9786c6"
+    },
+    {
+      "path": "reports/cinematics/c1-chapter-end.md",
+      "size": 4659,
+      "sha256": "5e71ed8f97b4698e3a464a996f085f3297001a457e174df0dd453390d02bf954"
+    },
+    {
+      "path": "reports/cinematics/c1-chapter-end/end-n0-2-middle.jpg",
+      "size": 284269,
+      "sha256": "f4fee4e997a0c78d7052225f6db49e5901b65f18f333f099e38e272be2c18b16"
+    },
+    {
+      "path": "reports/cinematics/c1-chapter-end/end-n3-2-middle.jpg",
+      "size": 284030,
+      "sha256": "838866a3fb98011036a6f4756a19380b2932494fff38a235c1c12996175e36fe"
+    },
+    {
+      "path": "reports/cinematics/c1-chapter-end/end-n5-3-end.jpg",
+      "size": 278678,
+      "sha256": "cfbc226f17e6c01f54f1b04ba07e563d36d2f3a50d06c8029b21864c0fe65032"
+    },
+    {
+      "path": "reports/cinematics/c1-chapter-end/end-n5-a-release.jpg",
+      "size": 311763,
+      "sha256": "ac85b28bc1158cc6dc595d497992bd04cddf111ab18e00cbb761241a7b15276e"
+    },
+    {
+      "path": "reports/cinematics/c1-chapter-end/end-n5-b-touch.jpg",
+      "size": 312436,
+      "sha256": "bb60a8ef317e0454cf48ae7b2ecf64df54da78099b502f31221604b01d0ff33e"
+    },
+    {
+      "path": "reports/cinematics/c1-chapter-end/end-n5-c-boy.jpg",
+      "size": 282514,
+      "sha256": "62f7eb1dfa19160feeb2b3347bdfad585850d56f06ae064dd468de859262abf6"
+    },
+    {
+      "path": "reports/cinematics/c1-chapter-end/end-n5-still-0.jpg",
+      "size": 297059,
+      "sha256": "8417aabf5694e241069461cb4fff6ce59ae1d4884c948cf9ef09b542f1ebbbb6"
+    },
+    {
+      "path": "reports/cinematics/c1-chapter-end/regress-cinematic-end.json",
+      "size": 4464,
+      "sha256": "392637ece976f9e4ab2014cd3bb401c35e9c5852364b4ab8cff8d7780f6eb643"
     },
     {
       "path": "reports/collision_tests.json",
@@ -554,6 +1894,26 @@
       "sha256": "bbcd728702864fefb6602b597f20c61606368dd3084ea965f4d0ff465271f88e"
     },
     {
+      "path": "reports/guide/README.md",
+      "size": 18938,
+      "sha256": "0c5f65977216c973483944d9fda27de9c9945ba57ad29cb73d77d20a6e1b25ac"
+    },
+    {
+      "path": "reports/guide/polish2-guide-baselines.json",
+      "size": 39215,
+      "sha256": "582a41ce82d14cb3abd4244f3f57382a1d5fcbf16d43ed105d08604e3c4f1181"
+    },
+    {
+      "path": "reports/guide/polish2-guide-mutations.json",
+      "size": 2192,
+      "sha256": "590549f01bfc01e9878c76cb8509c999c6286e432cf9087708772b637b390ee2"
+    },
+    {
+      "path": "reports/guide/view-verification.md",
+      "size": 4326,
+      "sha256": "33a33a037e18ea435c3f5c66d377c4b89838e31d2c1bb006e8853d01b789f158"
+    },
+    {
       "path": "reports/performance-v18.json",
       "size": 5873,
       "sha256": "4aa7a3be68505c9d758b0efe8e427ed3e61eda7e67e80a5a48774d9bb76bfe4b"
@@ -562,6 +1922,1886 @@
       "path": "reports/performance.json",
       "size": 1083,
       "sha256": "f225449796189958d80daeefc84a15d1c478c4b4bc95fbc77fe63336c30f4f7d"
+    },
+    {
+      "path": "reports/polish3/README.md",
+      "size": 1941,
+      "sha256": "0c91b25d6cfb70ce1259924d714236d59812d19ea99afd22db7403ca9b95d636"
+    },
+    {
+      "path": "reports/polish3/anim-death.png",
+      "size": 158023,
+      "sha256": "65e5247e39b985d3852cbe7fd7e1e0a36452968ecf49b81e47d8394a72fbf3a5"
+    },
+    {
+      "path": "reports/polish3/anim-draw.png",
+      "size": 188213,
+      "sha256": "7ad0683a98f83d15756092d204b6c9214926f82d16d210c5f8e446bfb67c92f5"
+    },
+    {
+      "path": "reports/polish3/anim-light1.png",
+      "size": 196102,
+      "sha256": "96a0a113602f82f5570ff8dc2a8a6275cbc4cab910e8a69c1d6db4c42859bc04"
+    },
+    {
+      "path": "reports/polish3/anim-sheathe.png",
+      "size": 197875,
+      "sha256": "9f0ad08db5477ae605435770b3f429eca8fd741eb3522b14d899bf0aefd598a5"
+    },
+    {
+      "path": "reports/polish3/baseline-draw-sheathe/before-draw-front.jpg",
+      "size": 173941,
+      "sha256": "b14f819de6d92d9f4a46c34007eeffad97984cf588bf114d60841c120eda37c9"
+    },
+    {
+      "path": "reports/polish3/baseline-draw-sheathe/before-draw-side.jpg",
+      "size": 162398,
+      "sha256": "19c438506ba96e85c0848123ea363b90bee900344fa30321b30ddfd96c74eb15"
+    },
+    {
+      "path": "reports/polish3/baseline-draw-sheathe/before-sheathe-front.jpg",
+      "size": 178244,
+      "sha256": "f96d69cfbd12a22257e0c36b49a26e651589be0d5c83c8327f4211eb2ceac7a7"
+    },
+    {
+      "path": "reports/polish3/baseline-draw-sheathe/before-sheathe-side.jpg",
+      "size": 159908,
+      "sha256": "b0807cc07f414f036d205bb693d43ea917bba34235f336294e504efd29411897"
+    },
+    {
+      "path": "reports/polish3/baseline/clip-provenance-before.json",
+      "size": 11389,
+      "sha256": "ba56cf7e37f70a64688be61eabfa4a0695a4766bbf416031922d8257bbebd9d3"
+    },
+    {
+      "path": "reports/polish3/baseline/draw-sheathe-before.json",
+      "size": 21672,
+      "sha256": "4e94aaa0334295885e4f6a6974a9bb7793d4a3ca1d552d5ba1b85adb3d4af50a"
+    },
+    {
+      "path": "reports/polish3/baseline/move-segments-before.json",
+      "size": 6896,
+      "sha256": "c663bed6a4be79af8de4a52e61181596082d1f3d34399045d30ac3702c42b23e"
+    },
+    {
+      "path": "reports/polish3/blood/README.md",
+      "size": 1824,
+      "sha256": "b8df2d1e6cb442f22078932cc499496b62136f70705b8f821c9a2674a70b80e4"
+    },
+    {
+      "path": "reports/polish3/blood/blood-A.jpg",
+      "size": 195562,
+      "sha256": "951a6ba09b55bd80e1591b4907a2873441ece33aa3894b905d55aafe98de843f"
+    },
+    {
+      "path": "reports/polish3/blood/blood-B.jpg",
+      "size": 199088,
+      "sha256": "d4c487d6a38ebb576ec4dbce4185d07084f59409d6788676fb9ab3af3a87bff5"
+    },
+    {
+      "path": "reports/polish3/blood/blood-C.jpg",
+      "size": 86817,
+      "sha256": "8759f3476c85a4af8b8f0d2a61ccde48f293fc6ea068bfa92e65855acf4f4adc"
+    },
+    {
+      "path": "reports/polish3/blood/capture-numbers.json",
+      "size": 615,
+      "sha256": "b59ac3bb715d2e6fb395a307c652c4d9028cf7966de9b4fb8121109385ccb725"
+    },
+    {
+      "path": "reports/polish3/blood/perf.json",
+      "size": 1345,
+      "sha256": "48c31f9cf3b84a6a416a9e127b0ec126405aed233c7fe6b2782db6e8b3ec9c72"
+    },
+    {
+      "path": "reports/polish3/blood/regress-blood.json",
+      "size": 439,
+      "sha256": "a14787865c03387ca82d4eae9d63dd431f299f96d167fee2a4b786830c1ab490"
+    },
+    {
+      "path": "reports/polish3/combat-impact/README.md",
+      "size": 7679,
+      "sha256": "ce144e9f1a78cfefa1ae0d5e36664a1a4384a9f06c16a887b6c653c4c6420f76"
+    },
+    {
+      "path": "reports/polish3/combat-impact/after-A.jpg",
+      "size": 350511,
+      "sha256": "ef76552985e0262702fdd6d2eeeec789691b4254fbf73f262291436de54146cf"
+    },
+    {
+      "path": "reports/polish3/combat-impact/after-D.jpg",
+      "size": 358646,
+      "sha256": "2f21c21462cac0d17d1ec2257c5fe72cd1d2308e34a547b5fcd31cfdb7b2fe57"
+    },
+    {
+      "path": "reports/polish3/combat-impact/after-F.jpg",
+      "size": 353609,
+      "sha256": "dc04470533acfca10cfdfe1f28bfecdf3c98f2bf99b65d362eac54dc9803028f"
+    },
+    {
+      "path": "reports/polish3/combat-impact/attack-timing-drift.json",
+      "size": 3581,
+      "sha256": "c3546c2d301465f9efdddbeef3dabee41cc06bd90a8101673dee8d3f9ff7fd90"
+    },
+    {
+      "path": "reports/polish3/combat-impact/before-A.jpg",
+      "size": 350319,
+      "sha256": "1510287800c3b887e7d5948fe51c6cf810b915a240a4b69bab530d3fe92b256a"
+    },
+    {
+      "path": "reports/polish3/combat-impact/before-D.jpg",
+      "size": 356480,
+      "sha256": "feebf6c583f28323b95170f47d228fa7dd1a37c7fcc7167a52ad67b18307f220"
+    },
+    {
+      "path": "reports/polish3/combat-impact/before-F.jpg",
+      "size": 354649,
+      "sha256": "cc842db860d73f3c4a3c87b703d64711c54ead19f9553ee7019137e7dd42624d"
+    },
+    {
+      "path": "reports/polish3/combat-impact/capture-after.json",
+      "size": 2247,
+      "sha256": "ae3eaf961bfdf605252fb094999d46f773e060c8a2d6d0d2f5e54f6a0aa4769a"
+    },
+    {
+      "path": "reports/polish3/combat-impact/capture-before.json",
+      "size": 1861,
+      "sha256": "0a016723012902ecb6211847d992bd9ef17aab695e19b6bbb2ccf7c0b5d9f83b"
+    },
+    {
+      "path": "reports/polish3/combat-impact/regress-impact.json",
+      "size": 10022,
+      "sha256": "4a8a908bd468a4777994e8ee8fe2ee811248e9bcdaf4ffddce64d4df7e02fef7"
+    },
+    {
+      "path": "reports/polish3/combat-pose/README.md",
+      "size": 3690,
+      "sha256": "ec05887d627a3a89c135d757b7aa555ca5575fd9c7d900435fe517b83c4fe9e6"
+    },
+    {
+      "path": "reports/polish3/combat-pose/after-A.jpg",
+      "size": 162295,
+      "sha256": "f8e6f19943bb47f83fc9f7c108a48cbf144972c41a6e3247722065a9d817844c"
+    },
+    {
+      "path": "reports/polish3/combat-pose/after-D.jpg",
+      "size": 168381,
+      "sha256": "33e09a82c8de76bdfa931ea10581af045a42e5d371e8da1df945a35f1db2e98a"
+    },
+    {
+      "path": "reports/polish3/combat-pose/after-F.jpg",
+      "size": 165137,
+      "sha256": "2bbeb163324967b33a8fce35cac82d5ac6451740811a95c2143968cc4df29fa8"
+    },
+    {
+      "path": "reports/polish3/combat-pose/arm-spread.json",
+      "size": 12328,
+      "sha256": "39bae56ef27b4e9d49a3e6343396ce925709f4ec9fcd623d94fbc7eb552ccffb"
+    },
+    {
+      "path": "reports/polish3/combat-pose/before-A.jpg",
+      "size": 162475,
+      "sha256": "566515c8435cd384fa87101e2e63a06ff421131cd10c29bee483e6ca48236141"
+    },
+    {
+      "path": "reports/polish3/combat-pose/before-D.jpg",
+      "size": 168119,
+      "sha256": "bec4ec7e7d18f2e21e090ed12618bd1ab9f03c241808b8437a08efc0de5e44c0"
+    },
+    {
+      "path": "reports/polish3/combat-pose/before-F.jpg",
+      "size": 165429,
+      "sha256": "f7238396dbec8154eb9f1a17040f2eb3b25727a7d87b7d74b7e58fa2f0a00151"
+    },
+    {
+      "path": "reports/polish3/combat-sounds/README.md",
+      "size": 760,
+      "sha256": "36bcac4c248aeb31da6fbeceef9c37c3824b00e7f70080a0b8499fe53271a814"
+    },
+    {
+      "path": "reports/polish3/combat-sounds/regress-combat-sounds.txt",
+      "size": 1209,
+      "sha256": "b55375413c8c2ecb6658959b0568219f0ed58acfba91eda0b0fe643f2e67a4ef"
+    },
+    {
+      "path": "reports/polish3/combat-sounds/sounds-after.json",
+      "size": 2198,
+      "sha256": "0388f839161a24069339fab22542f78143e36f3d25ad90bf6ae542ed6b965340"
+    },
+    {
+      "path": "reports/polish3/combat-sounds/sounds-before.json",
+      "size": 1505,
+      "sha256": "569b9c483ff765f67fcc9e8b564517f3a995dbf2e5bf25b85aeb15beef257545"
+    },
+    {
+      "path": "reports/polish3/combat-sounds/spectrogram-after.jpg",
+      "size": 93189,
+      "sha256": "5bca462ceea63791628fd1ab8932151e55005f4ac6c4c48c9f65d5c3725b5129"
+    },
+    {
+      "path": "reports/polish3/combat-sounds/spectrogram-before.jpg",
+      "size": 64946,
+      "sha256": "55f64dff2626789454c75598360bfb754015832fbd5eb334b34b1e6adc9702da"
+    },
+    {
+      "path": "reports/polish3/combat-trail/README.md",
+      "size": 6143,
+      "sha256": "5a6f85d84aab3933c7c2e7db19a4311da988db71cbc977629c17806933df0a92"
+    },
+    {
+      "path": "reports/polish3/combat-trail/after-A.jpg",
+      "size": 573397,
+      "sha256": "36b71765b964889828afb8e2d1f7376b160f3e11c698373e8eb261c746bc3078"
+    },
+    {
+      "path": "reports/polish3/combat-trail/after-B.jpg",
+      "size": 348621,
+      "sha256": "a7e8541f0be69d546d66c990c93d13bef03d8a5ea87754c909e9600008fbf7ab"
+    },
+    {
+      "path": "reports/polish3/combat-trail/after-C.jpg",
+      "size": 355799,
+      "sha256": "8c7e030760d2f166b3a9c869a0a7e08cbf27472090f9b52ce6a1d64ded55f2d9"
+    },
+    {
+      "path": "reports/polish3/combat-trail/after-D.jpg",
+      "size": 352496,
+      "sha256": "e5fffb7d8e56d9c6cde8a30a2f8e871e022419b2656b8e0b14da64e85d6b8c1d"
+    },
+    {
+      "path": "reports/polish3/combat-trail/after-E.jpg",
+      "size": 356234,
+      "sha256": "1b6d287542305289eda70ddc08296c4bfde070ad34da6f2a909d55529b4f5631"
+    },
+    {
+      "path": "reports/polish3/combat-trail/after2-A.jpg",
+      "size": 574341,
+      "sha256": "18bc6ec086f6a97d9df7f7549fc7d220e1cf41194ec1214910b564c2f587b63b"
+    },
+    {
+      "path": "reports/polish3/combat-trail/after2-B.jpg",
+      "size": 346475,
+      "sha256": "fcb95a2a1f5db2436f1a2aec41ae618d59da59ab205a40f6b744b46b07fe9737"
+    },
+    {
+      "path": "reports/polish3/combat-trail/after2-C.jpg",
+      "size": 356377,
+      "sha256": "2c56ba2139826cfd7d0ec733eb93ecf4dc134f5d778f59c34496e4e77b453892"
+    },
+    {
+      "path": "reports/polish3/combat-trail/after2-D.jpg",
+      "size": 348865,
+      "sha256": "b965f021d1ba4e650721ba23376ccbbe517205d2ab004e9437f5a1f0d7e2887c"
+    },
+    {
+      "path": "reports/polish3/combat-trail/after2-E.jpg",
+      "size": 353058,
+      "sha256": "ca0e9f9afc62b37f0e76edac0a7da1d37616086d7201d2d5d1c8c878eb0db0d2"
+    },
+    {
+      "path": "reports/polish3/combat-trail/after3-A.jpg",
+      "size": 577025,
+      "sha256": "eac298a0c3e0c95cca4c50fd4853e07f1dcd36134b466f073e033a817298eead"
+    },
+    {
+      "path": "reports/polish3/combat-trail/after3-B.jpg",
+      "size": 349299,
+      "sha256": "abeb4f22c621bce21ac2ae3dec2ca8ac641063dc198befa706e827ac8da29e7f"
+    },
+    {
+      "path": "reports/polish3/combat-trail/after3-C.jpg",
+      "size": 358440,
+      "sha256": "8a520739d8b386a4ce80d2314c2a41a631592392f88502cfdfd0b76ae675ed6f"
+    },
+    {
+      "path": "reports/polish3/combat-trail/after3-D.jpg",
+      "size": 355488,
+      "sha256": "eb52e8c71b264ff639bbabd123abfb453022c7a65d7c1f25c27930f042bf4014"
+    },
+    {
+      "path": "reports/polish3/combat-trail/after3-E.jpg",
+      "size": 364382,
+      "sha256": "96dc6394ac0dc47c937a38e4418a030c1fd602f1885d4a8140d7fa88338fd012"
+    },
+    {
+      "path": "reports/polish3/combat-trail/before-A.jpg",
+      "size": 574138,
+      "sha256": "81385584e549e844d76e8e1547e5bbdc3baa7a73b15c971e05a83899c2edb1ce"
+    },
+    {
+      "path": "reports/polish3/combat-trail/before-B.jpg",
+      "size": 349062,
+      "sha256": "a72cbe938809dc6ec16948fa58105821cc313e353c701d4748c14b66db0c0d13"
+    },
+    {
+      "path": "reports/polish3/combat-trail/before-C.jpg",
+      "size": 353846,
+      "sha256": "95185ee3d4075e53247c8c6a572a1f0475d88b5b778a3dfcef44a5da521bfea4"
+    },
+    {
+      "path": "reports/polish3/combat-trail/before-D.jpg",
+      "size": 354427,
+      "sha256": "3da1a0d0c57d249edf68fcb18734cd8900ab76caf5c8a704cd9ff222a714615c"
+    },
+    {
+      "path": "reports/polish3/combat-trail/before-E.jpg",
+      "size": 357095,
+      "sha256": "1c5815854963a6ecaf9b62286ede74e8bcd4428af3d2bb895334eb76dbd5ff4e"
+    },
+    {
+      "path": "reports/polish3/combat-trail/blade-motion-after.json",
+      "size": 7482,
+      "sha256": "ef8cedd8e655eea5c1c40740d47982119ea30279005ff185c63d4a99eb75f361"
+    },
+    {
+      "path": "reports/polish3/combat-trail/blade-motion-before.json",
+      "size": 6918,
+      "sha256": "75f912db2f20ef318d2b7af84811dd8356f3e5fc9f2ea8257daa642ded2044a5"
+    },
+    {
+      "path": "reports/polish3/combat-trail/contact-after2.json",
+      "size": 3846,
+      "sha256": "52dc98244c1c68828dd40188bf1d38008aeefa6c6a21a880374246f5a12d8aab"
+    },
+    {
+      "path": "reports/polish3/combat-trail/contact-after3.json",
+      "size": 7052,
+      "sha256": "1744f80c19d8d7ab3a1d828c70acec86f63c0cd2403689c8669e129cb5ec548f"
+    },
+    {
+      "path": "reports/polish3/combat-trail/contact-before.json",
+      "size": 4086,
+      "sha256": "6e5e9a5ea178628197e0e2e93f2815e72b3b4ffa786e0b3a188794b34dd8e1ea"
+    },
+    {
+      "path": "reports/polish3/combat-trail/move-segments-after.json",
+      "size": 9231,
+      "sha256": "f3d3269226712a0a0d77a34597e5760ed470e804c2c5069257cf8a22ee1049e0"
+    },
+    {
+      "path": "reports/polish3/combat-trail/move-segments-after2.json",
+      "size": 10695,
+      "sha256": "16429a61e117cf1bbda98c55b7bb5492ff1aac98e7c8647b62d55257ca371bb6"
+    },
+    {
+      "path": "reports/polish3/combat-trail/move-segments-after3.json",
+      "size": 10711,
+      "sha256": "83e603869c2d7b3d3908a23dedf1e864efece8fc3b3a520646a421e7d280d907"
+    },
+    {
+      "path": "reports/polish3/combat-trail/regress-lunge-after3.json",
+      "size": 5448,
+      "sha256": "676ccc6c8a003362bb2a1ebbc96d513deaa44090e6ff860e9afb46844a899ff1"
+    },
+    {
+      "path": "reports/polish3/combat-trail/regress-slash-trail-after2.json",
+      "size": 3172,
+      "sha256": "42ac77ef931f0bb776c3478d99176d6b80f59e92ffba7ebd8e8f7b78a3d01b56"
+    },
+    {
+      "path": "reports/polish3/combat-trail/regress-slash-trail-after3.json",
+      "size": 3742,
+      "sha256": "7576f1ba3e61f726a4dabc32e97169c452475c36d16edafa3ef2340adf97ef15"
+    },
+    {
+      "path": "reports/polish3/combat-trail/regress-slash-trail.json",
+      "size": 2132,
+      "sha256": "f786ae5bdae12fbbc0bc4d4d508c0f7210e47e7247d515606d19bb91ab9a4546"
+    },
+    {
+      "path": "reports/polish3/draw-sheathe/README.md",
+      "size": 4355,
+      "sha256": "73e9283780a3dfbd25c516f92e78dc11d7fe3278547fc17982e01b83663ee33e"
+    },
+    {
+      "path": "reports/polish3/draw-sheathe/game-after-A.jpg",
+      "size": 501653,
+      "sha256": "00bbcc8aeb65b88729718b54af79774372615eaa48e34c7620745b360899ca93"
+    },
+    {
+      "path": "reports/polish3/draw-sheathe/game-after-B.jpg",
+      "size": 423394,
+      "sha256": "33711d3fe4e1f172fbbc927b20ee3612a5d455835e75f4fb05bcc3a1700b4d31"
+    },
+    {
+      "path": "reports/polish3/draw-sheathe/game-after-C.jpg",
+      "size": 431581,
+      "sha256": "20973763978fa6e0fd05541f02875806b9d7204d17e7dbcd753e2c466b151cb9"
+    },
+    {
+      "path": "reports/polish3/draw-sheathe/game-before-A.jpg",
+      "size": 496927,
+      "sha256": "aa764ef4422438324133a81087a3a6e45f670485200d25186cd502fb115e850b"
+    },
+    {
+      "path": "reports/polish3/draw-sheathe/game-before-B.jpg",
+      "size": 423453,
+      "sha256": "50aca97c13ad3f14e34721f5057e7ce30c556f67282d7a038e2916a273e00109"
+    },
+    {
+      "path": "reports/polish3/draw-sheathe/game-before-C.jpg",
+      "size": 430445,
+      "sha256": "a4b3bfb2f946fbae772e0cd9bfda693c6d81810542e831372e068fb8becf97fa"
+    },
+    {
+      "path": "reports/polish3/draw-sheathe/lab-after-draw-back.jpg",
+      "size": 227014,
+      "sha256": "98b4e7716446ede27adcdb8aa868eb4608b78f071d3db23236acf7d7b8a5f1e6"
+    },
+    {
+      "path": "reports/polish3/draw-sheathe/lab-after-draw-side.jpg",
+      "size": 236375,
+      "sha256": "356ae17d64f078edb3ede0dfaeca3184f91a6d73ade18fab5d50a047a706ffab"
+    },
+    {
+      "path": "reports/polish3/draw-sheathe/lab-after-sheathe-back.jpg",
+      "size": 233075,
+      "sha256": "b1f0bb9de17d6ecff7a087a61fbe81a255e25482630c2c1df65332f01832b8ab"
+    },
+    {
+      "path": "reports/polish3/draw-sheathe/lab-after-sheathe-side.jpg",
+      "size": 224447,
+      "sha256": "db333527d2923a847843cac1cd95e88066c0d3a4504dec8e0e930ef53f4ee2e3"
+    },
+    {
+      "path": "reports/polish3/draw-sheathe/regress-after.json",
+      "size": 12195,
+      "sha256": "17c9934ad5be151a9d3973f8cc6631758e4f62e160f3b486341003fd1f98b176"
+    },
+    {
+      "path": "reports/polish3/fight-sword-stick.png",
+      "size": 380306,
+      "sha256": "17de530efb584bb71ec96db54d8ebb608800d58e0dbf3b5753ac9a0212de7d79"
+    },
+    {
+      "path": "reports/polish3/guide-hitch/summary.json",
+      "size": 2583,
+      "sha256": "3c43c37a3f4f4fbaa4bb966149556996d73f1d10dbf58d019577142c95fecd22"
+    },
+    {
+      "path": "reports/polish3/hand-grip/README.md",
+      "size": 3230,
+      "sha256": "385f27748c19097258ec28bb48fcb1d30350c8da21f4cacb3a7c6a04a6108581"
+    },
+    {
+      "path": "reports/polish3/hand-grip/lab-hero-draw-v2.jpg",
+      "size": 416743,
+      "sha256": "3c67330e959d399a5888e219c3023f4c9507b5a42a43c4a0bb3b76925dc340f9"
+    },
+    {
+      "path": "reports/polish3/hand-grip/lab-hero-draw.jpg",
+      "size": 792079,
+      "sha256": "ac726af2a7ab7c5d9881ef97aa6cb70c28938ef2e171f8184b7f51958fbf9829"
+    },
+    {
+      "path": "reports/polish3/hand-grip/lab-hero-guard-v2.jpg",
+      "size": 522730,
+      "sha256": "a6fdd2cf497d13687ea96b234e87975443d024915159a199874362cf3e0902be"
+    },
+    {
+      "path": "reports/polish3/hand-grip/lab-hero-guard.jpg",
+      "size": 852115,
+      "sha256": "43076061999e83765904e20b6208122c455457012181d21bce9e0f308c555338"
+    },
+    {
+      "path": "reports/polish3/hand-grip/lab-hero-twohand-v2.jpg",
+      "size": 486876,
+      "sha256": "dfef889f13e95c1af18d699081eacfa86e8bdfbddee9bf80ae801b3eb0f442f6"
+    },
+    {
+      "path": "reports/polish3/hand-grip/lab-hero-walk-v2.jpg",
+      "size": 153086,
+      "sha256": "ff649a8bd547eaae4cd55167ba0f6bd2a9ea18a390452754611e7abde32b57c5"
+    },
+    {
+      "path": "reports/polish3/hand-grip/lab-hero-walk.jpg",
+      "size": 248972,
+      "sha256": "8ff9b4c733bd24c73094d87759dca5781d4ac2e346cc4f890788bfeac75a1d6a"
+    },
+    {
+      "path": "reports/polish3/hand-grip/lab-officer-guard-v2.jpg",
+      "size": 396996,
+      "sha256": "d5f8aca4a96753b851432ebd0972a602a8ff098a21b41c6eada5059dc6d496b0"
+    },
+    {
+      "path": "reports/polish3/hand-grip/lab-officer-guard.jpg",
+      "size": 621691,
+      "sha256": "3bc235407d2916fb70902a6cd186e37362d0701d2d20abf6a33a7a2494c792dc"
+    },
+    {
+      "path": "reports/polish3/hand-grip/lab-soldier-guard-v2.jpg",
+      "size": 341111,
+      "sha256": "bdba37ba0a0bea1d6e0f1369967fc1786b077acaf1e3c11c22f45b5301814637"
+    },
+    {
+      "path": "reports/polish3/hand-grip/lab-soldier-guard.jpg",
+      "size": 545952,
+      "sha256": "62835eaf828dc4133d5997420bd9a8a92d53a26eb7216698741b90576dbbf925"
+    },
+    {
+      "path": "reports/polish3/hand-grip/regress-hand-grip.json",
+      "size": 53874,
+      "sha256": "ee0717e54e73c8355ed0cf91cd96bb3c31b835c05f92f901cef8fa4e5a568de4"
+    },
+    {
+      "path": "reports/polish3/integration-2026-11-03/README.md",
+      "size": 3798,
+      "sha256": "1fa4fbc71be0d8c0ed1fd49e050f110a0c3d1a6f87d03888f40cbfffaf41d238"
+    },
+    {
+      "path": "reports/polish3/integration-2026-11-03/perf-judgement.json",
+      "size": 1407,
+      "sha256": "925a8d9f2d8fd63db3349d05c01a5af6a643f44bcaa76314968678d8551cef1b"
+    },
+    {
+      "path": "reports/polish3/locomotion-smooth/baseline.json",
+      "size": 11274,
+      "sha256": "ac507e3e2b34f3e891162558d5a6491255b7b46f41d9495b8e07402c5946abc6"
+    },
+    {
+      "path": "reports/polish3/locomotion-smooth/baseline.md",
+      "size": 4716,
+      "sha256": "a9e7f17f863ef79dca709656938620a21edcbac73c2034ab0850860126537dbf"
+    },
+    {
+      "path": "reports/polish3/locomotion-smooth/m1.json",
+      "size": 18828,
+      "sha256": "ac79314498a4e9b327fc3627dbda355257f552cb911d135bb7193a30e6ae6135"
+    },
+    {
+      "path": "reports/polish3/locomotion-smooth/m1.md",
+      "size": 4495,
+      "sha256": "7d71dae30c4c3f86f6937267081e32af93c1d33bf409f619d5dc6d8a047c89d7"
+    },
+    {
+      "path": "reports/polish3/locomotion-smooth/m1/candidates-abc-run_steady-side.jpg",
+      "size": 622361,
+      "sha256": "024e136937a0f50d67312e6fabff5474fb01eb6846c3cf475d4630101b8e47d0"
+    },
+    {
+      "path": "reports/polish3/locomotion-smooth/m1/run_start-side-after.jpg",
+      "size": 261292,
+      "sha256": "9b786e6f8b4595f0ba8e128e8f8019df772687d0f4647abd0070de8162af0163"
+    },
+    {
+      "path": "reports/polish3/locomotion-smooth/m1/run_start-side-before.jpg",
+      "size": 262781,
+      "sha256": "01422e8c13f442945e3f92105e65e97614b4f2c31af0b1d31457fd83574c3868"
+    },
+    {
+      "path": "reports/polish3/locomotion-smooth/m1/run_stop-side-after.jpg",
+      "size": 203911,
+      "sha256": "4218225f87fdb0cc37b3c8a89a4bf543d8d61d31f641a6815bee1115c3f831e9"
+    },
+    {
+      "path": "reports/polish3/locomotion-smooth/m1/run_stop-side-before.jpg",
+      "size": 212032,
+      "sha256": "e3ddb65beb703bbad05a58be2bdde79864bcef46def4691c408eb40ff2d2b2d2"
+    },
+    {
+      "path": "reports/polish3/locomotion-smooth/m2a.json",
+      "size": 1835,
+      "sha256": "006fc5e8fc29fa29d17eb40444e12bbadc2edaf508857a330cc251a4b5c4eeb2"
+    },
+    {
+      "path": "reports/polish3/locomotion-smooth/m2a.md",
+      "size": 4508,
+      "sha256": "7670fc361645ef8787a0c074654fc1dd2764070c70159ed2bf8134eb6505e9f9"
+    },
+    {
+      "path": "reports/polish3/locomotion-smooth/m2a/after-run_start-side.jpg",
+      "size": 261019,
+      "sha256": "52485179805d00c974d56f102a101e0dc99915d8b6edba5529217c123264823e"
+    },
+    {
+      "path": "reports/polish3/locomotion-smooth/m2a/after-run_stop-follow.jpg",
+      "size": 178641,
+      "sha256": "496072aca706afdb18c4e60646ba52569126239a4e92cfb0c27615ad3f6c9441"
+    },
+    {
+      "path": "reports/polish3/locomotion-smooth/m2a/after-run_stop-side.jpg",
+      "size": 203252,
+      "sha256": "8053dcd3b4e7cdb3a18a36ec77f67d7fd31e3bf32e97b591d4e8ca134229eaac"
+    },
+    {
+      "path": "reports/polish3/locomotion-smooth/m2a/after-walk_stop-side.jpg",
+      "size": 256014,
+      "sha256": "07fc12eea30d8a57314184f32134e5813c4dfe0cb7229641b0b44325d4b0035e"
+    },
+    {
+      "path": "reports/polish3/locomotion-smooth/m2a/before-run_start-side.jpg",
+      "size": 261259,
+      "sha256": "0f69a2ede75ded41e488a762fec98205e64bc9249fc764c576c56c7372f121c1"
+    },
+    {
+      "path": "reports/polish3/locomotion-smooth/m2a/before-run_stop-follow.jpg",
+      "size": 179118,
+      "sha256": "202fbdbf6b401b3685390dd0684a41aaae4201aae2a8d4e1031ea57b278f1930"
+    },
+    {
+      "path": "reports/polish3/locomotion-smooth/m2a/before-run_stop-side.jpg",
+      "size": 203853,
+      "sha256": "6e92b282cff845960c6145556f602307a41e3ce57348a82bf4e26bc0a4f0094d"
+    },
+    {
+      "path": "reports/polish3/locomotion-smooth/m2a/before-walk_stop-side.jpg",
+      "size": 254582,
+      "sha256": "cabb38184677368a5d8fd0d4b9634f312cf550174a327af128d2604cce52534f"
+    },
+    {
+      "path": "reports/polish3/locomotion-smooth/m2b.md",
+      "size": 8343,
+      "sha256": "c1dd9612428f41b127e9ce2d501e15655b83927aa698d1c877baf5fcda69a123"
+    },
+    {
+      "path": "reports/polish3/locomotion-smooth/m2b/m2a-run_steady-side.jpg",
+      "size": 200325,
+      "sha256": "ca350261da633324dda99c03e0417e6be2f4dc836874d0a7841b1fefaa697bc8"
+    },
+    {
+      "path": "reports/polish3/locomotion-smooth/m2b/m2a-run_stop-side.jpg",
+      "size": 199507,
+      "sha256": "eb2ba001cdd3a521dd644f2d235fff84fa377b5ee0da8ede7092c8953efae592"
+    },
+    {
+      "path": "reports/polish3/locomotion-smooth/m2b/m2a-terrace_run.jpg",
+      "size": 269039,
+      "sha256": "48de48fb6ff85bad8d221dcdd551c0133f8108a41fa9a9be2ce5bf01a8837b49"
+    },
+    {
+      "path": "reports/polish3/locomotion-smooth/m2b/m2a-terrace_up.jpg",
+      "size": 275962,
+      "sha256": "d1e6a65dcf3751de86045ec68c4ea8919fbea9af52e5a990ab38318fd0ab1149"
+    },
+    {
+      "path": "reports/polish3/locomotion-smooth/m2b/m2a-terrace_walk.jpg",
+      "size": 255491,
+      "sha256": "6fdc21f9afe8aad3ce5784968abf6f0f1a414cd303348a18fc089ad97eead836"
+    },
+    {
+      "path": "reports/polish3/locomotion-smooth/m2b/m2b-run_steady-side.jpg",
+      "size": 200298,
+      "sha256": "f59ce84ce898d082d154e295bf2d9ecfee2b7fd32c0cc1c9849d3b91e45a167a"
+    },
+    {
+      "path": "reports/polish3/locomotion-smooth/m2b/m2b-run_stop-side.jpg",
+      "size": 199483,
+      "sha256": "434dc60b3b0b37c21acc2391d989ef3a5e514324a720158a9f53b890817fc80c"
+    },
+    {
+      "path": "reports/polish3/locomotion-smooth/m2b/m2b-terrace_run.jpg",
+      "size": 269306,
+      "sha256": "a6ef80ee9011ee78ad4c7a8b585fcadaecd37af7d5289d6cbd19408e77f90aef"
+    },
+    {
+      "path": "reports/polish3/locomotion-smooth/m2b/m2b-terrace_up.jpg",
+      "size": 277269,
+      "sha256": "612a5cfae2eb849d2549605c0f023a533d46803437258b5b63728202476d05e8"
+    },
+    {
+      "path": "reports/polish3/locomotion-smooth/m2b/m2b-terrace_walk.jpg",
+      "size": 255769,
+      "sha256": "a254470f450d11f85e7b7b4f49d6cec654e850f65b91db57e9ff2c3d718b1beb"
+    },
+    {
+      "path": "reports/polish3/locomotion-smooth/m3.md",
+      "size": 8129,
+      "sha256": "8c25004c41e2f903e6ab4ce46e400aa73ec812a1bb1f3e00ec4ef79aba13ec37"
+    },
+    {
+      "path": "reports/polish3/locomotion-smooth/m3/m2b-run_steady-follow8.jpg",
+      "size": 173362,
+      "sha256": "6c8a8c056305b4de98159ea64b2c1c26520fda9077c3318e53ae0aaf6e900a1c"
+    },
+    {
+      "path": "reports/polish3/locomotion-smooth/m3/m2b-run_steady-side.jpg",
+      "size": 200298,
+      "sha256": "f59ce84ce898d082d154e295bf2d9ecfee2b7fd32c0cc1c9849d3b91e45a167a"
+    },
+    {
+      "path": "reports/polish3/locomotion-smooth/m3/m2b-run_stop-side.jpg",
+      "size": 203300,
+      "sha256": "9ca54486ac6ae34b9f810cb1cb5c15e724a1fedb71bff71ca34125859256cdde"
+    },
+    {
+      "path": "reports/polish3/locomotion-smooth/m3/m2b-walk_steady-follow8.jpg",
+      "size": 188483,
+      "sha256": "8baf728ea47c687bb72dc6636237a778e9ba2302cf3b82b2943047cb487e697b"
+    },
+    {
+      "path": "reports/polish3/locomotion-smooth/m3/m3-run_steady-follow8.jpg",
+      "size": 173420,
+      "sha256": "70e1d38f78f063d3389e9af5d4e637dd44512796a998d9c3e06cdc8f67fffe53"
+    },
+    {
+      "path": "reports/polish3/locomotion-smooth/m3/m3-run_steady-side.jpg",
+      "size": 200249,
+      "sha256": "bc015d50d3a3704c63c8b22c0db0eab2a403db123e18244c155dd63e163b8e6b"
+    },
+    {
+      "path": "reports/polish3/locomotion-smooth/m3/m3-run_stop-side.jpg",
+      "size": 203157,
+      "sha256": "eb02ad9cb98f0a0d516db6e1dc822f93bf419ccedf8e97ccf885eae7e01d75ff"
+    },
+    {
+      "path": "reports/polish3/locomotion-smooth/m3/m3-walk_steady-follow8.jpg",
+      "size": 188402,
+      "sha256": "a6f7a063034cfe5386e690a0001151b75c3e4aa14c157177a82f84c33043253b"
+    },
+    {
+      "path": "reports/polish3/locomotion-smooth/m4.md",
+      "size": 7876,
+      "sha256": "277bb0fb57b759f0a0da4ffaa105282643aa5bfdb0d4f64d1cfa2a3757afd0ea"
+    },
+    {
+      "path": "reports/polish3/locomotion-smooth/m4/after-fov-run_stop.jpg",
+      "size": 361653,
+      "sha256": "82c757df445a8e0cddef0b8fd15201b54d5ccffe4c31d576954ee9d4a29f394f"
+    },
+    {
+      "path": "reports/polish3/locomotion-smooth/m4/after-run_stop.jpg",
+      "size": 359380,
+      "sha256": "f7ea9c0bf7c87365b6e3c8df3061d13e9cd3f9e73794626449ba64f6ee521527"
+    },
+    {
+      "path": "reports/polish3/locomotion-smooth/m4/after-terrace_run.jpg",
+      "size": 447921,
+      "sha256": "70025240bfb55b44e903a665a0fe52f3f39d7e34ef56b2fc5543081f2b1ca04d"
+    },
+    {
+      "path": "reports/polish3/locomotion-smooth/m4/after-wall_pass.jpg",
+      "size": 376007,
+      "sha256": "ab829d83ac7776415fd8c2f79001206e09d462a498621a5883f725d43d8282bb"
+    },
+    {
+      "path": "reports/polish3/locomotion-smooth/m4/before-run_stop.jpg",
+      "size": 358795,
+      "sha256": "eab8a0a3f42c3de0a6aeb91ebfcf4daeddfde5dcec39d05647a1ba7b2ec572d9"
+    },
+    {
+      "path": "reports/polish3/locomotion-smooth/m4/before-terrace_run.jpg",
+      "size": 447691,
+      "sha256": "97b5b7b2f1f65274683c6afe7f74fc6baffbd54460faa8af9393f4043661c6d4"
+    },
+    {
+      "path": "reports/polish3/locomotion-smooth/m4/before-wall_pass.jpg",
+      "size": 373337,
+      "sha256": "ba9ea9b3389a2498cfc37e7700560a75bc70f901a9af73e6dc4f9dae826ffc43"
+    },
+    {
+      "path": "reports/polish3/locomotion-smooth/m4/regress-camera.json",
+      "size": 3368,
+      "sha256": "178cb19d74145d4730a5e93e7a59ae6c024cde22300927a9f449ad8cc33f8ac0"
+    },
+    {
+      "path": "reports/polish3/locomotion/locomotion-measure.json",
+      "size": 13432,
+      "sha256": "a42a32f46a4451c1d5c8a801f63cd3c4a2fcc5bb7cae02c2a3b3ae5cf4cd582b"
+    },
+    {
+      "path": "reports/polish3/locomotion/run_start-after.jpg",
+      "size": 182184,
+      "sha256": "56e9af6146b6538f06ba1e61fa104302ae9766b9a060ae4b1b190965976372a7"
+    },
+    {
+      "path": "reports/polish3/locomotion/run_start-before.jpg",
+      "size": 182513,
+      "sha256": "a589f168d0e1f36c2e3ee118d16e865d580ebe9440d70f07a7659efbf5b9b912"
+    },
+    {
+      "path": "reports/polish3/locomotion/run_stop-after.jpg",
+      "size": 182382,
+      "sha256": "297603002d8a213164cc75c546ab749c5834a4d106d7f2652ab9e22ca3abf447"
+    },
+    {
+      "path": "reports/polish3/locomotion/run_stop-before.jpg",
+      "size": 183372,
+      "sha256": "14f646055175300efa540e789b7e0c0845361e0f7ffc21d78134fb73454577b1"
+    },
+    {
+      "path": "reports/polish3/locomotion/walk_to_run-after.jpg",
+      "size": 184567,
+      "sha256": "ef4b2a1da70cc832cd216d0b39df0108ad733896cce5317c2bd980e185e4c95e"
+    },
+    {
+      "path": "reports/polish3/locomotion/walk_to_run-before.jpg",
+      "size": 184248,
+      "sha256": "9ee144bd1b70bfed048d2c10d754a60dad09532c2868f88310c8365b743fd08d"
+    },
+    {
+      "path": "reports/polish3/opening-merge/O1a.jpg",
+      "size": 118654,
+      "sha256": "c0edc76eb1f6ed20cbf0e31589e5a86f2e82cb5c576181b3665150ddb366fd1d"
+    },
+    {
+      "path": "reports/polish3/opening-merge/O2a.jpg",
+      "size": 125136,
+      "sha256": "5ef4ea8c7185aa42d0988bd02236520859841cbed7de1b34178bb7cbb325ba21"
+    },
+    {
+      "path": "reports/polish3/opening-merge/O3a.jpg",
+      "size": 159957,
+      "sha256": "b5d8eaee0206e2ca5a48698d50dc5900645732cf2cb0a57c083cbb4ac0506dfa"
+    },
+    {
+      "path": "reports/polish3/opening-merge/O4b.jpg",
+      "size": 127739,
+      "sha256": "dae45e2c68a55fd6d817e512e51733ed63d2d250425ff36464af30904c95a047"
+    },
+    {
+      "path": "reports/polish3/opening-merge/README.md",
+      "size": 3680,
+      "sha256": "f3674125bb760f83218f5008386494bc5de009c24f4c1b7533d1a8eb1f203add"
+    },
+    {
+      "path": "reports/polish3/opening-merge/title.jpg",
+      "size": 30556,
+      "sha256": "08ce9fb9b798278361b766a163300938e0cad9994a8a5d4bd4921041e5185acc"
+    },
+    {
+      "path": "reports/polish3/opening-merge/wake2.jpg",
+      "size": 38710,
+      "sha256": "24038b0cc431f18bc44039e0ed1e6ceef2b3d6fcbc353d73ea7f0bcdc8a52176"
+    },
+    {
+      "path": "reports/polish3/opening/README.md",
+      "size": 10071,
+      "sha256": "b0f80abc3f47b0e3fb95b64508f59c812fabe80d42797f0a775c9a2cf3376f79"
+    },
+    {
+      "path": "reports/polish3/opening/perf-stage2.json",
+      "size": 704,
+      "sha256": "b42a0be094a3b76692009b2c5d3e87b78e987d0715b23d52ed909c49499f1ff4"
+    },
+    {
+      "path": "reports/polish3/opening/perf-stage3.json",
+      "size": 710,
+      "sha256": "d21ccbb9d35b3b2e3cd618ada7d8c458990028bbda8956ab7b5f48965875e09b"
+    },
+    {
+      "path": "reports/polish3/opening/perf-stage4.json",
+      "size": 711,
+      "sha256": "38881377b3c8c73285314e5929434e395ff8544058507625a523cfd5c9079e4c"
+    },
+    {
+      "path": "reports/polish3/opening/regress-stage1.json",
+      "size": 2696,
+      "sha256": "56822be85ad00873b98dd729e79b5d49330b0410bb40c26c62537532f81cf049"
+    },
+    {
+      "path": "reports/polish3/opening/regress-stage2.json",
+      "size": 3842,
+      "sha256": "835f66934cce137d1b3603032d2b11e6e57197482975a65d8eeabe264d935151"
+    },
+    {
+      "path": "reports/polish3/opening/regress-stage3.json",
+      "size": 3847,
+      "sha256": "5d92259fe50fcc4568375ee0163b7127c9eecf79282a2e2f042994fcfbd8733d"
+    },
+    {
+      "path": "reports/polish3/opening/regress-stage4.json",
+      "size": 4533,
+      "sha256": "29606617c500303802fc790823e4b1d484d830b822162f0108049cb8593ae87b"
+    },
+    {
+      "path": "reports/polish3/opening/stage1-A-history-line.jpg",
+      "size": 39814,
+      "sha256": "1f9a91c8daa4c854e2e2f4919f5685a804d1804957fa88c0cbbc16ebf7a4d51e"
+    },
+    {
+      "path": "reports/polish3/opening/stage1-C-fiction-line.jpg",
+      "size": 40626,
+      "sha256": "c104295208a86707099ccf188c5dc729d5b38fe183c7858cae7cf34b50e408fd"
+    },
+    {
+      "path": "reports/polish3/opening/stage1-title.jpg",
+      "size": 27766,
+      "sha256": "f902d11e1ea7ef9b6b901619b2b028cc6531923822ce14ff9f229727709d17a0"
+    },
+    {
+      "path": "reports/polish3/opening/stage1-wake.jpg",
+      "size": 26166,
+      "sha256": "41a31a86b29a6388cde247e0aed4182cd7eeadb2fed0db9e9ab2529405aac8b3"
+    },
+    {
+      "path": "reports/polish3/opening/stage2-O1a.jpg",
+      "size": 95198,
+      "sha256": "bf3efbc3ee4a360fc4e0f08568aeae0e9e1d757b99a82bbd307607f4634fe6ff"
+    },
+    {
+      "path": "reports/polish3/opening/stage2-O1b.jpg",
+      "size": 96991,
+      "sha256": "118eef93c4e10d9f482ebf430df9e2e424cb19e8549820b9c7f0685c0c98b9ef"
+    },
+    {
+      "path": "reports/polish3/opening/stage2-O2a.jpg",
+      "size": 92501,
+      "sha256": "791be35cf0419280a31321631f91d6ff60702680fbb1971a9d0df9e2318865bb"
+    },
+    {
+      "path": "reports/polish3/opening/stage2-O2b.jpg",
+      "size": 88370,
+      "sha256": "defaa6768d0f8e5e071c42deb3a0aa5feb5a0115ed14baabac88c8e2f7335789"
+    },
+    {
+      "path": "reports/polish3/opening/stage2-O3a.jpg",
+      "size": 74385,
+      "sha256": "a5de175afa05aedbf3720d6862cc1193f64283f591fc2b0498cb5ff81d35fcd5"
+    },
+    {
+      "path": "reports/polish3/opening/stage2-O3b.jpg",
+      "size": 67923,
+      "sha256": "66ba105821c21f7be16ed1b59e3af247e68e9bda1de20945fc5776829f3c0da6"
+    },
+    {
+      "path": "reports/polish3/opening/stage2-O4a.jpg",
+      "size": 56838,
+      "sha256": "9c497cf4420d64434856f3c57e28e6bc7210bf83dd028f12074adb0f906e5faf"
+    },
+    {
+      "path": "reports/polish3/opening/stage2-O4b.jpg",
+      "size": 52593,
+      "sha256": "61ad4d422888e36cb8e0354c2c3bf1a85d27849474c86e876d4447ad1b169a5b"
+    },
+    {
+      "path": "reports/polish3/opening/stage2-reduced-O1a.jpg",
+      "size": 96230,
+      "sha256": "e09afe967f9e623dc9012f9a86a1e0a81b383157e2e3cb1b85fd26cc37b6cbdc"
+    },
+    {
+      "path": "reports/polish3/opening/stage2-reduced-O4b.jpg",
+      "size": 53202,
+      "sha256": "42086e2aed0f0e619d7aa2f0698a74443b792fe77031c6b73401a03477fb647a"
+    },
+    {
+      "path": "reports/polish3/opening/stage3-O1a.jpg",
+      "size": 88075,
+      "sha256": "fd38d7070a71e8c2c9311b85c748f854715adb5bc3b88a7930ec3e1cf8e5b33c"
+    },
+    {
+      "path": "reports/polish3/opening/stage3-O1b.jpg",
+      "size": 91578,
+      "sha256": "cada1fc1b6d26bb81f52294f69604cd278f1c773362fa42ed95f4094fb1fa276"
+    },
+    {
+      "path": "reports/polish3/opening/stage3-O2a.jpg",
+      "size": 94217,
+      "sha256": "a37295be80b203db89887663a62ac0ba0662ae2da5ae8429f1041facd2707636"
+    },
+    {
+      "path": "reports/polish3/opening/stage3-O2b.jpg",
+      "size": 89820,
+      "sha256": "487c17f3f90fd8c48f2a872b2f427570b2ec51c040f3d8df30296aeb46c683be"
+    },
+    {
+      "path": "reports/polish3/opening/stage3-O3a.jpg",
+      "size": 120229,
+      "sha256": "21d65d74ddacde3ff2e132f74197002e81cc3d08655ac98b3901063d30a6a9b1"
+    },
+    {
+      "path": "reports/polish3/opening/stage3-O3b.jpg",
+      "size": 117317,
+      "sha256": "0fc3d32dbbc74bcefbecf36fa62a5ffe348b508b22eb27f996eae3fb47b26c57"
+    },
+    {
+      "path": "reports/polish3/opening/stage3-O4a.jpg",
+      "size": 98482,
+      "sha256": "79a710c6340271eb69324e8f537bd21ae9fbcf45a8505d9cfa4df72f2954645c"
+    },
+    {
+      "path": "reports/polish3/opening/stage3-O4b.jpg",
+      "size": 95974,
+      "sha256": "b2ac0e7501dc412f2039cfc4a2047edd7d422f2f4bc314365d4333caa7e52752"
+    },
+    {
+      "path": "reports/polish3/opening/stage3-reduced-O1a.jpg",
+      "size": 89602,
+      "sha256": "49a5657fa8274588e8a8b8b45803769eafc820e176bed810b6e5b079c6068347"
+    },
+    {
+      "path": "reports/polish3/opening/stage3-reduced-O4b.jpg",
+      "size": 95768,
+      "sha256": "0cf4e4fb954965eaecb160cf44281ce14e229c559ff09d81033a5bddb2c74ff9"
+    },
+    {
+      "path": "reports/polish3/opening/stage4-O1a.jpg",
+      "size": 99409,
+      "sha256": "4501e8775fed75bc7db685578a76fbf9e069efb221631e4ba737bc41389a9f9f"
+    },
+    {
+      "path": "reports/polish3/opening/stage4-O1b.jpg",
+      "size": 103171,
+      "sha256": "40a7101ac19d7ea48ab0648660aeb33cb4460ca6cb4cc03ec441878367329b59"
+    },
+    {
+      "path": "reports/polish3/opening/stage4-O2a.jpg",
+      "size": 105924,
+      "sha256": "59cdc063a9c88f90e9271f7b8ea2c98c4a93be2bd18631c174437d93abdc53e3"
+    },
+    {
+      "path": "reports/polish3/opening/stage4-O2b.jpg",
+      "size": 101166,
+      "sha256": "2dd8c7cd24fc5ebf5581219d8ebad4a26f08bb875f1212732fa30876ec747db8"
+    },
+    {
+      "path": "reports/polish3/opening/stage4-O3a.jpg",
+      "size": 136428,
+      "sha256": "a20904d0eb4550f581262dca6018049e1aa162375f395b3338864f3adc34f6bb"
+    },
+    {
+      "path": "reports/polish3/opening/stage4-O3b.jpg",
+      "size": 134343,
+      "sha256": "7c80d5c0d7fd573e81916545bc75200fdfd001ebe2e2d5c641a25ecb6133b48a"
+    },
+    {
+      "path": "reports/polish3/opening/stage4-O4a.jpg",
+      "size": 111026,
+      "sha256": "e14134c20e0dacca591ad99ef525eb4e2e213a685c6fb8bcc51a7ee9f24f62eb"
+    },
+    {
+      "path": "reports/polish3/opening/stage4-O4b.jpg",
+      "size": 107955,
+      "sha256": "3e2f6d60ef324e4fb91f3a742a8f63e6049b4ec8b25ac50d4d965d24c430003d"
+    },
+    {
+      "path": "reports/polish3/shadow-a/README.md",
+      "size": 1210,
+      "sha256": "f2851f807b6690a9c931c0ea4d7d813fd68fc0bab1e697e9a418e5f42ab34af7"
+    },
+    {
+      "path": "reports/polish3/shadow-a/after-broadleaf-gustdiff.jpg",
+      "size": 194598,
+      "sha256": "b649eacfa199cc94c724982c3417e7e6636ac6134dd2b67c4bd56e1cc64a6374"
+    },
+    {
+      "path": "reports/polish3/shadow-a/after-broadleaf-winddiff.jpg",
+      "size": 197547,
+      "sha256": "7f7e4fc15895aa82a096608d059880c566ddcdfffe5818ca31c8a8dd267e6b34"
+    },
+    {
+      "path": "reports/polish3/shadow-a/after-follow-diff.jpg",
+      "size": 66392,
+      "sha256": "fd31987d6ae666d7f7f28e670dc1d76127d002b411884b1ff799e5e209c6eea2"
+    },
+    {
+      "path": "reports/polish3/shadow-a/after-light-follow-diff.jpg",
+      "size": 63316,
+      "sha256": "caeb65ba4566379c146718f390cb3678814e8da841d394a7de424cdc982ac68c"
+    },
+    {
+      "path": "reports/polish3/shadow-a/before-broadleaf-gustdiff.jpg",
+      "size": 182438,
+      "sha256": "5a99740e26e3680a4cb57c95e2d4b76160366c4bb88dfb7beb13109374ee3af3"
+    },
+    {
+      "path": "reports/polish3/shadow-a/before-broadleaf-winddiff.jpg",
+      "size": 185480,
+      "sha256": "8cf01176060bd101fc262dda7a7d253d59a3976dfbf70d6e10f148d6a80eb65b"
+    },
+    {
+      "path": "reports/polish3/shadow-a/before-follow-diff.jpg",
+      "size": 66332,
+      "sha256": "15b79f3c85a77023993724730b45cf97d9ef10720b21be28f9a1fe8c1cdaa927"
+    },
+    {
+      "path": "reports/polish3/shadow-a/before-light-follow-diff.jpg",
+      "size": 63932,
+      "sha256": "cde07dbc7ce4239da3a3739f4527a0b82f4db4706d6d64a6bb5522f7c67b9115"
+    },
+    {
+      "path": "reports/polish3/shadow-a/summary.json",
+      "size": 1938,
+      "sha256": "70d76e4fa1321a94f35ad22f4fd772d14b2f0888861a480c5de9f6deb2f5f920"
+    },
+    {
+      "path": "reports/polish3/story/story-01-sode-prompt.jpg",
+      "size": 362224,
+      "sha256": "d7bbea8dca049594ebc7363a286f3df732c0d416b69df6ac0bf441b9498907fa"
+    },
+    {
+      "path": "reports/polish3/story/story-02-sode-look.jpg",
+      "size": 340938,
+      "sha256": "3a158227738039316ff54bc5ecd0a05c1ee037c7fae55f868410d3883db8fe7f"
+    },
+    {
+      "path": "reports/polish3/story/story-03-boy-gaze.jpg",
+      "size": 331807,
+      "sha256": "af608d515cef47d21f784c9778442417a043121a6477a4009c8e265a57247f2d"
+    },
+    {
+      "path": "reports/polish3/story/story-04-far-look.jpg",
+      "size": 213051,
+      "sha256": "ae7b21e91f370df034149faa5c34db6363d802a652fe25e158300bf7d93893ae"
+    },
+    {
+      "path": "reports/polish3/story/story-05-officer-c3.jpg",
+      "size": 219322,
+      "sha256": "e03f19675793f949f74463801955fc60915f997b7976fbc148ed94e214f3e08a"
+    },
+    {
+      "path": "reports/polish3/story/story-06-kyusaku-first.jpg",
+      "size": 273746,
+      "sha256": "67a8c20268fbb21887ff19261cd84d95a4873c63c6257900b0e2375f6e4d8109"
+    },
+    {
+      "path": "reports/polish3/story/story-07-banter.jpg",
+      "size": 346433,
+      "sha256": "6b8a852994e789f8626803e21d6d42b377947d605256de2c64d61b93178087ce"
+    },
+    {
+      "path": "reports/polish3/story/story-08-ending-truth.jpg",
+      "size": 341802,
+      "sha256": "9f75da36149ea563b62958a10f7ae76a02f94944113474a27e89b316d83dd4e6"
+    },
+    {
+      "path": "reports/polish3/story/story-09-sode-burn.jpg",
+      "size": 358733,
+      "sha256": "054eda2f0a6b1f45982529aa36ce69299da885cbe45a9a16eb6d469b3bac4ab9"
+    },
+    {
+      "path": "reports/polish3/story/story-09a-sode-falls.jpg",
+      "size": 363077,
+      "sha256": "974d974f922ee4687ad75e9eebbc1ba6718eda8ac24e93afc50e10dc56e402b3"
+    },
+    {
+      "path": "reports/polish3/story/story-10-ending-gaze.jpg",
+      "size": 332675,
+      "sha256": "3e2bd7e35ca646e30eb0d295a9330a64c9d3e4bdd3fc1335f6580fff452ddea1"
+    },
+    {
+      "path": "reports/polish3/story/story-11-narration.jpg",
+      "size": 358773,
+      "sha256": "b3569ecf9398cbd823b3cb69067c4073317a2e38a33e20439944b288f8622846"
+    },
+    {
+      "path": "reports/polish3/story/story-12-raided-smoke.jpg",
+      "size": 335398,
+      "sha256": "e61a60f578bc6a8f59881e66079e5639e9e1b5d503a3d4c01ec45082ea51a0b3"
+    },
+    {
+      "path": "reports/polish3/trees-1/README.md",
+      "size": 7223,
+      "sha256": "ac48ccdaafd0a63d0b87c4671902a24249053d07a6010989494530fc16bebcbd"
+    },
+    {
+      "path": "reports/polish3/trees-1/after/detail-f1-overlook.jpg",
+      "size": 121641,
+      "sha256": "9c7faa2b08d759748b002cbd7021035becb84fcac1a321264b560a8df6056e43"
+    },
+    {
+      "path": "reports/polish3/trees-1/after/detail-light-f1-overlook.jpg",
+      "size": 116831,
+      "sha256": "dd434ae8100252d0fe8978a5f6207fc24ade9a63d95a9c3265491e02a1c14a3c"
+    },
+    {
+      "path": "reports/polish3/trees-1/after/detail-light-m1-forest-edge.jpg",
+      "size": 146164,
+      "sha256": "c6c5feab10556f6c6325f7224ea2a40246ffecb95c178d14ea6529677d7611f9"
+    },
+    {
+      "path": "reports/polish3/trees-1/after/detail-light-n1-cedar-road.jpg",
+      "size": 106941,
+      "sha256": "c89f13b42c1bd8f33327603e513e93e16951dab34323c2eabe5da8afdb2121a8"
+    },
+    {
+      "path": "reports/polish3/trees-1/after/detail-light-s1-cedars-30m.jpg",
+      "size": 163043,
+      "sha256": "642ea39444faeffedccea27c6ee119fd2da3dd4f28a6075d63c45d34d05d83bb"
+    },
+    {
+      "path": "reports/polish3/trees-1/after/detail-m1-forest-edge.jpg",
+      "size": 145365,
+      "sha256": "26f79a616ec9b0fc0debdb9330ac6116c2159b72fac68b7b9d51bcfb217d0ac2"
+    },
+    {
+      "path": "reports/polish3/trees-1/after/detail-n1-cedar-road.jpg",
+      "size": 108626,
+      "sha256": "7299e148585c6e989a533be68f600156c7eb4adb637480d88bba1aeb4dcd74ef"
+    },
+    {
+      "path": "reports/polish3/trees-1/after/detail-n2-cedar-crown-from-below.jpg",
+      "size": 80391,
+      "sha256": "cc307c4c32ba6ccb3e3963455bccd5be3614adcba28563cad1b29b1a80755830"
+    },
+    {
+      "path": "reports/polish3/trees-1/after/detail-n3-bark-close.jpg",
+      "size": 103355,
+      "sha256": "58cd974c83bbdd62a59252330513aa4a181d5d71fa8b4f19af42d635cd84bac3"
+    },
+    {
+      "path": "reports/polish3/trees-1/after/detail-n4-broadleaf.jpg",
+      "size": 128792,
+      "sha256": "499f052a97b3d2e67dc2f0261a8eafed05f8b7e099b1dea1d69bfb7c4b4abaad"
+    },
+    {
+      "path": "reports/polish3/trees-1/after/detail-n5-start-garden.jpg",
+      "size": 147869,
+      "sha256": "97ed176099a4ebc4f0348ab476e368321d6bfd2699f50caf491c08d385a6afec"
+    },
+    {
+      "path": "reports/polish3/trees-1/after/detail-s1-cedars-30m.jpg",
+      "size": 141444,
+      "sha256": "5f0902f794e434f13820bff71fa38cb17e5383653e08916dc309993c42c4fdf6"
+    },
+    {
+      "path": "reports/polish3/trees-1/after/detail-s2-cedar-12m-backlit.jpg",
+      "size": 122860,
+      "sha256": "1b852d48d100addd61f8574218f196e296e46d81497856eaa31d0bf20db9630b"
+    },
+    {
+      "path": "reports/polish3/trees-1/after/detail-s2-cedar-12m.jpg",
+      "size": 124734,
+      "sha256": "dbcfa9240f95445018faff91c6930c92fc6aee6191fd26c0ba1534a928928016"
+    },
+    {
+      "path": "reports/polish3/trees-1/after/detail-s3-broadleaf-14m.jpg",
+      "size": 164876,
+      "sha256": "128940b8518856edaf9c479bc2fbf268135551dee7c73eddc2fa7fa63590852a"
+    },
+    {
+      "path": "reports/polish3/trees-1/after/set-01-start-thirdperson.jpg",
+      "size": 178463,
+      "sha256": "ad1ded519eb6e78d3ab22be95f174f34054bc8cc9b61552c8a25a3b037be397e"
+    },
+    {
+      "path": "reports/polish3/trees-1/after/set-04-forest-road-scout.jpg",
+      "size": 150814,
+      "sha256": "481ee90b1a83c4e2d84ed957b64b2e9a44603914b2063740d495d96fa3e2fa8f"
+    },
+    {
+      "path": "reports/polish3/trees-1/after/set-08-overlook-village.jpg",
+      "size": 121926,
+      "sha256": "004b7fe932c16ba20fd28dab71217f099fab8d45989ad6960254e10f381efc92"
+    },
+    {
+      "path": "reports/polish3/trees-1/after/set-09-village-front.jpg",
+      "size": 161010,
+      "sha256": "58384138cfaecf5f5f964e6544cb0c6a90667a65888f9b7d46be8f076f6cb464"
+    },
+    {
+      "path": "reports/polish3/trees-1/after/set-11-village-fight-wide.jpg",
+      "size": 159196,
+      "sha256": "c47415ca97fb075ff5ee68c80c6cd4f526a6c4f932b3340a2868421a9efb917c"
+    },
+    {
+      "path": "reports/polish3/trees-1/after/set-12-captive-prompt.jpg",
+      "size": 176452,
+      "sha256": "f4ef83b2acefd71c8c8efa96166620a1e19b41009b89fcaa925aca5e9145dde4"
+    },
+    {
+      "path": "reports/polish3/trees-1/after/set-14-ambush.jpg",
+      "size": 149897,
+      "sha256": "5c99c09d668a8c07b6973f855c519863aebd4fcb966271fb606dea73dbf9c686"
+    },
+    {
+      "path": "reports/polish3/trees-1/after/set-19-cart-banners.jpg",
+      "size": 162026,
+      "sha256": "7e2a8a6426432507a51581d2637f1be14d2638a332a342a9e40a57ec4b1f9d6d"
+    },
+    {
+      "path": "reports/polish3/trees-1/after/set-20-valley-river-distance.jpg",
+      "size": 133118,
+      "sha256": "573d15c74b75b64a13003aa5e686522ea39e90b3b5efd8051e099a0aeadea3a7"
+    },
+    {
+      "path": "reports/polish3/trees-1/after/set-21-far-mountains.jpg",
+      "size": 86767,
+      "sha256": "87d022c5f4801bfcb8275e03477633139ac27a34458fd0381698cf6dfe9e10c5"
+    },
+    {
+      "path": "reports/polish3/trees-1/after/set-22-grass-closeup.jpg",
+      "size": 185910,
+      "sha256": "897a7605d194ce23200614b3e4eb815ee707c1a3e084760e0fe5869dc42cff66"
+    },
+    {
+      "path": "reports/polish3/trees-1/after/set-23-cedar-interior.jpg",
+      "size": 110793,
+      "sha256": "23b7b6f6ddec80df30e408c94e56fa20acb5b5055a5c1aca566627f3fd3e5a93"
+    },
+    {
+      "path": "reports/polish3/trees-1/after/set-24-maple-broadleaf.jpg",
+      "size": 131888,
+      "sha256": "5737396bc3542403be05f0ae6706da7606fe6efcd75c72f139601bf111e7181d"
+    },
+    {
+      "path": "reports/polish3/trees-1/after2/f1-overlook.jpg",
+      "size": 221574,
+      "sha256": "81f99171963814886d1de22bf8c208fa74a8b691bbdd15876de3db2a970492ac"
+    },
+    {
+      "path": "reports/polish3/trees-1/after2/f2-valley-river.jpg",
+      "size": 235316,
+      "sha256": "7f654413ab5bb5356956dcd3d6147d86d43cca52c086f9412e9116895c7957b1"
+    },
+    {
+      "path": "reports/polish3/trees-1/after2/f3-forest-backlit.jpg",
+      "size": 251151,
+      "sha256": "67c7868ff53f764a3fb4caab919a3417c79b17d96e4482cdc398eaa41951f1ff"
+    },
+    {
+      "path": "reports/polish3/trees-1/after2/light-f1-overlook.jpg",
+      "size": 212241,
+      "sha256": "c635be000a2f38db3c529fcd0e8d29059ffcda04b2abafa529eaaa642c25752a"
+    },
+    {
+      "path": "reports/polish3/trees-1/after2/light-m1-forest-edge.jpg",
+      "size": 248026,
+      "sha256": "18551ed602caa88a638994c8b0c42624d61573a04a59c4dd16cf2e20c326542c"
+    },
+    {
+      "path": "reports/polish3/trees-1/after2/light-n1-cedar-road.jpg",
+      "size": 192639,
+      "sha256": "884772e182114ea785bcf447b97f760b5a8b52646f110259fb019625e48ae5bc"
+    },
+    {
+      "path": "reports/polish3/trees-1/after2/light-n4-broadleaf.jpg",
+      "size": 212496,
+      "sha256": "6e0f7d3da307fe95c1f879445526da68dec25f4524676c18530c24ecdb63d9f9"
+    },
+    {
+      "path": "reports/polish3/trees-1/after2/light-s1-cedars-30m.jpg",
+      "size": 294158,
+      "sha256": "a2468d6bf4093b319c3f9e37ba84872052e5fefadb25aca3bbf8922226f2a267"
+    },
+    {
+      "path": "reports/polish3/trees-1/after2/m1-forest-edge.jpg",
+      "size": 247162,
+      "sha256": "e5e8bde71390d5bcacf95e61629f64f8e10ec1090becfb692938beaa0cb788d8"
+    },
+    {
+      "path": "reports/polish3/trees-1/after2/n1-cedar-road.jpg",
+      "size": 192043,
+      "sha256": "d6c2f83dc8778989f3d2f97890cb4c82fd28a8a073c8f5b2858f7d53a58c3186"
+    },
+    {
+      "path": "reports/polish3/trees-1/after2/n2-cedar-crown-from-below.jpg",
+      "size": 149371,
+      "sha256": "2016a509d4fdba67c7bea40c9304f78fbb4f94ae3636363627b9d178eb682d72"
+    },
+    {
+      "path": "reports/polish3/trees-1/after2/n3-bark-close.jpg",
+      "size": 185391,
+      "sha256": "93756c7a2ebee006b0fc586941e29f96857f1e8d5e10773dd3c11bab346eebcb"
+    },
+    {
+      "path": "reports/polish3/trees-1/after2/n4-broadleaf.jpg",
+      "size": 212809,
+      "sha256": "5e1cb0b216b5be6229f438dce8116c961ebee13650ed8092ddc322436d683151"
+    },
+    {
+      "path": "reports/polish3/trees-1/after2/n5-start-garden.jpg",
+      "size": 262646,
+      "sha256": "7b6ac3d5ab21b815b2fe5dd5c458a38a5b2de50120384b1092553891f07e3215"
+    },
+    {
+      "path": "reports/polish3/trees-1/after2/n6-maple-close.jpg",
+      "size": 327101,
+      "sha256": "d92f49b2d7061431ff35e64dac7477b40414963d5d9ad8a81cfcc37c2c7cbd69"
+    },
+    {
+      "path": "reports/polish3/trees-1/after2/n7-scout-road.jpg",
+      "size": 259234,
+      "sha256": "8be932f179421c3d436669d16a4a3e45c4d7279da4707fb42a0aa6ed83771c5e"
+    },
+    {
+      "path": "reports/polish3/trees-1/after2/s1-cedars-30m.jpg",
+      "size": 258731,
+      "sha256": "7521fe02e21e28daf58cc93f2139040a515651f3a76557f3471917e35d698d5b"
+    },
+    {
+      "path": "reports/polish3/trees-1/after2/s2-cedar-12m.jpg",
+      "size": 221767,
+      "sha256": "953880d8a10301245f2c6c706f68bf37cb0190eb6eeb108c04460bf5c1796494"
+    },
+    {
+      "path": "reports/polish3/trees-1/after2/s3-broadleaf-14m.jpg",
+      "size": 292756,
+      "sha256": "432160243bb0485562c886793a08d689fa57350705d48465c708ed6c4d697f83"
+    },
+    {
+      "path": "reports/polish3/trees-1/after2/s4-cedar-backlit-20m.jpg",
+      "size": 288662,
+      "sha256": "06ef6a0e18ba9790e54c15e35eec9fb7e9cbaf0880d111e2de5f934b72fad167"
+    },
+    {
+      "path": "reports/polish3/trees-1/after2/s5-broadleaf-backlit-16m.jpg",
+      "size": 323165,
+      "sha256": "b2cd17f9ad1cf46d5c9b764679d1cece62521a94fb7847e0d7d620b477250795"
+    },
+    {
+      "path": "reports/polish3/trees-1/after3/Q01-f1-overlook.jpg",
+      "size": 223348,
+      "sha256": "379213e655ed3af5913a0f5ec85bd495a3651896a5eab9b23eeef0dcab61390c"
+    },
+    {
+      "path": "reports/polish3/trees-1/after3/Q02-f2-valley-river.jpg",
+      "size": 235012,
+      "sha256": "751a340acfbee4f487d28d14568cf68a2c6bb151c93cc91316591b91b10aa695"
+    },
+    {
+      "path": "reports/polish3/trees-1/after3/Q03-f3-forest-backlit.jpg",
+      "size": 259283,
+      "sha256": "68df8df668e89ca5a89d9db872867e79ff00bdf8d9c7fb12613138b4726cbbbb"
+    },
+    {
+      "path": "reports/polish3/trees-1/after3/Q04-m1-forest-edge.jpg",
+      "size": 249247,
+      "sha256": "26a3e93788c08527d32b56ecb74f534f1d2a530e2bb20b6a8f15e2d50a8ec8f1"
+    },
+    {
+      "path": "reports/polish3/trees-1/after3/Q05-n1-cedar-road.jpg",
+      "size": 200737,
+      "sha256": "9bc4c617ec9b2383a2193e624ea8f64d29cfd963c6e84ed1c3cefca56ed4286d"
+    },
+    {
+      "path": "reports/polish3/trees-1/after3/Q06-n2-cedar-crown-from-below.jpg",
+      "size": 156452,
+      "sha256": "e7e82f0392eef6f2e0cd6b9da9f6aaf3df96c84607bb15d9f80b25312a6edb4c"
+    },
+    {
+      "path": "reports/polish3/trees-1/after3/Q07-n3-bark-close.jpg",
+      "size": 211125,
+      "sha256": "94226beabbd388ba0162f170b1c60cc29898cbae48b856e46125b5ee93d5097e"
+    },
+    {
+      "path": "reports/polish3/trees-1/after3/Q08-n4-broadleaf.jpg",
+      "size": 233530,
+      "sha256": "abfe7b3e767ed8b5168418bf7ef66f3a22daa2fd63fb451f3f2163416473c38d"
+    },
+    {
+      "path": "reports/polish3/trees-1/after3/Q09-n5-start-garden.jpg",
+      "size": 261978,
+      "sha256": "9f69c409a59e879776f2c8caa001ea8c98c822f499197426c1dd33c09121c351"
+    },
+    {
+      "path": "reports/polish3/trees-1/after3/Q10-n6-maple-close.jpg",
+      "size": 312418,
+      "sha256": "9444e1a5d45df2bcac792088d6deff716bee321b0107911c6e79c59583c5b50b"
+    },
+    {
+      "path": "reports/polish3/trees-1/after3/Q11-n7-scout-road.jpg",
+      "size": 260110,
+      "sha256": "f4e53ccd99d6cfbeb3ed6ae6df9796307a5d34daf0952d2bee4969b8715fd1a4"
+    },
+    {
+      "path": "reports/polish3/trees-1/after3/Q12-s1-cedars-30m.jpg",
+      "size": 260213,
+      "sha256": "6bf70969129114b7488bc755718d92e187de9ddee6349f8be1cf859b629e12f3"
+    },
+    {
+      "path": "reports/polish3/trees-1/after3/Q13-s2-cedar-12m.jpg",
+      "size": 221882,
+      "sha256": "5cb76b60ab34b322e143cd9a72b3a0daf6a33a29b9442f6d5c6b1023cf77089c"
+    },
+    {
+      "path": "reports/polish3/trees-1/after3/Q14-s3-broadleaf-14m.jpg",
+      "size": 296573,
+      "sha256": "7d1ff9c60618327079ef67a0c1b63b71d7d03bab44b55ec63add387f53cad18a"
+    },
+    {
+      "path": "reports/polish3/trees-1/after3/Q15-s4-cedar-backlit-20m.jpg",
+      "size": 292897,
+      "sha256": "431d8939a59a50e4c5263cfc7757b052b4cc015acac2531bf94f6686c32de2f0"
+    },
+    {
+      "path": "reports/polish3/trees-1/after3/Q16-s5-broadleaf-backlit-16m.jpg",
+      "size": 324938,
+      "sha256": "2710f1ef8c0f5b094b909a42c295224bd790497ba67674296e1475161e36687d"
+    },
+    {
+      "path": "reports/polish3/trees-1/after3/light-f1-overlook.jpg",
+      "size": 214184,
+      "sha256": "7b17206d54dbc06f72e410f303917801be037eee6c95681d24131b3cc4d47a0f"
+    },
+    {
+      "path": "reports/polish3/trees-1/after3/light-m1-forest-edge.jpg",
+      "size": 250659,
+      "sha256": "cd5ef9226f900599712dafbd984f1d230720f97a83b0e93109f897277e57e8d1"
+    },
+    {
+      "path": "reports/polish3/trees-1/after3/light-n1-cedar-road.jpg",
+      "size": 203016,
+      "sha256": "e9ca3b28afc36419ecd8957d1be0ea212f93c8bc48facc5d44657d8986039107"
+    },
+    {
+      "path": "reports/polish3/trees-1/after3/light-n4-broadleaf.jpg",
+      "size": 235268,
+      "sha256": "616e057c124579a972f1b8e1840d1793191d983614e0442cf56416f0c2fe91a1"
+    },
+    {
+      "path": "reports/polish3/trees-1/after3/light-s1-cedars-30m.jpg",
+      "size": 297522,
+      "sha256": "7444aa65a632c1684e32c90f6eab9b82d4e87479d198e53cafd5f0656719c1a2"
+    },
+    {
+      "path": "reports/polish3/trees-1/after4/Q01-f1-overlook.jpg",
+      "size": 193016,
+      "sha256": "96f7aec2bf7d26b04356f0d654144f69b0e07e77d7293b776647f26175e0ca50"
+    },
+    {
+      "path": "reports/polish3/trees-1/after4/Q02-f2-valley-river.jpg",
+      "size": 217876,
+      "sha256": "c637db9803c80ffe50dcd51ad0c057715949c6c79464d73e7e40d1295dbaeef9"
+    },
+    {
+      "path": "reports/polish3/trees-1/after4/Q03-f3-forest-backlit.jpg",
+      "size": 228273,
+      "sha256": "485b48bd94fecf846c5547646ab8285e2516253300ed08662c633ad558c94b27"
+    },
+    {
+      "path": "reports/polish3/trees-1/after4/Q04-m1-forest-edge.jpg",
+      "size": 231367,
+      "sha256": "55445b5df2149110040d6e604550aee841a5ef6612f4688502a4bc1d56b7d3e8"
+    },
+    {
+      "path": "reports/polish3/trees-1/after4/Q05-n1-cedar-road.jpg",
+      "size": 168534,
+      "sha256": "872746974580f21523982d426453ced2216c4819ea5d9f3e092cd256e60b6707"
+    },
+    {
+      "path": "reports/polish3/trees-1/after4/Q06-n2-cedar-crown-from-below.jpg",
+      "size": 131089,
+      "sha256": "6ebe7e7baf0228fb896cc8776bc57ecc4e3d63ca659670fdb4871435f6f538f8"
+    },
+    {
+      "path": "reports/polish3/trees-1/after4/Q07-n3-bark-close.jpg",
+      "size": 188254,
+      "sha256": "2622b23d6643f7b8d477c15de8ce02125b64f8e2a8df96a4b2dbc1eff7f64b5f"
+    },
+    {
+      "path": "reports/polish3/trees-1/after4/Q08-n4-broadleaf.jpg",
+      "size": 252242,
+      "sha256": "22a9bf5bcd42011ceb70f25a4590b5d024ec6e919369592ce95dcd0cc3c36b2d"
+    },
+    {
+      "path": "reports/polish3/trees-1/after4/Q09-n5-start-garden.jpg",
+      "size": 253388,
+      "sha256": "9ec84bbe4c643af8ba2f1a2edad7046a9e61a8c13f84de729248cf40f657d432"
+    },
+    {
+      "path": "reports/polish3/trees-1/after4/Q10-n6-maple-close.jpg",
+      "size": 397089,
+      "sha256": "563b07e44b350987b9c7caf2a6a4e981daa884a6215ac94079965fa29155ba47"
+    },
+    {
+      "path": "reports/polish3/trees-1/after4/Q11-n7-scout-road.jpg",
+      "size": 235058,
+      "sha256": "af909597be7fa3a4b8111da5d4016b3e69e19d04b9cc7b98389612fb405bf562"
+    },
+    {
+      "path": "reports/polish3/trees-1/after4/Q12-s1-cedars-30m.jpg",
+      "size": 253175,
+      "sha256": "f7e40c0ddd11cc8ecf0ff4c2faf05a2c9e3f36fdf9a41e69b270753dc7a12350"
+    },
+    {
+      "path": "reports/polish3/trees-1/after4/Q13-s2-cedar-12m.jpg",
+      "size": 222601,
+      "sha256": "f86a9399890b16c1ed243eb86ce98b27227b9b32edf58fadc6dd2a69c88c35e3"
+    },
+    {
+      "path": "reports/polish3/trees-1/after4/Q14-s3-broadleaf-14m.jpg",
+      "size": 323379,
+      "sha256": "e0aa4c3c89d0133b755c7a65803bfd8152895e46b37fe1b9cc7c1ce8063a7e31"
+    },
+    {
+      "path": "reports/polish3/trees-1/after4/Q15-s4-cedar-backlit-20m.jpg",
+      "size": 306441,
+      "sha256": "6833efcf6f15672dbf431b330e779c9117c686eaafbd122a439d6ad313f3a5e9"
+    },
+    {
+      "path": "reports/polish3/trees-1/after4/Q16-s5-broadleaf-backlit-16m.jpg",
+      "size": 358879,
+      "sha256": "3511bf895cce9c878019cabc4ff43348d4cd230d0cd9f1e8f91a91c9bb5612f7"
+    },
+    {
+      "path": "reports/polish3/trees-1/before/detail-f1-overlook.jpg",
+      "size": 120573,
+      "sha256": "b3e6ec3fb08721805ef7c5493136af2a40c793a77a0a91c674787cb728e4ab7d"
+    },
+    {
+      "path": "reports/polish3/trees-1/before/detail-light-f1-overlook.jpg",
+      "size": 116018,
+      "sha256": "38a6ff04635d6b9aaf0067702640e85b177a02db8ac14bf0fcd336453a86c322"
+    },
+    {
+      "path": "reports/polish3/trees-1/before/detail-light-m1-forest-edge.jpg",
+      "size": 162717,
+      "sha256": "bcc229bde078241aca06b97a49959a7e90097df769a97636eb514c281512a4bd"
+    },
+    {
+      "path": "reports/polish3/trees-1/before/detail-light-n1-cedar-road.jpg",
+      "size": 144583,
+      "sha256": "3ea51bcb663b23b073f2028b98ab1849c0a537c696886cc337c839eadc3ca82e"
+    },
+    {
+      "path": "reports/polish3/trees-1/before/detail-light-s1-cedars-30m.jpg",
+      "size": 160077,
+      "sha256": "1d1f7c135032801c758194086a8f7ad1c3b6a592be39376b88dba98fb7a1c8f7"
+    },
+    {
+      "path": "reports/polish3/trees-1/before/detail-m1-forest-edge.jpg",
+      "size": 153333,
+      "sha256": "49f7a64dc5af7e2407f23e619f635ab9d24ebe79cb7cac2bfe5e0a9391a3522f"
+    },
+    {
+      "path": "reports/polish3/trees-1/before/detail-n1-cedar-road.jpg",
+      "size": 121322,
+      "sha256": "c29bdc8359170d8709d019f655557ca58b2c7e9865b8253b797b364c8173597c"
+    },
+    {
+      "path": "reports/polish3/trees-1/before/detail-n2-cedar-crown-from-below.jpg",
+      "size": 27905,
+      "sha256": "80dded16b63402cdf39333808463de7882c73fde3124511d534f6d47e06328e1"
+    },
+    {
+      "path": "reports/polish3/trees-1/before/detail-n3-bark-close.jpg",
+      "size": 17489,
+      "sha256": "49b4b815228e7d9ba250809dc381ebec820b7e2c72ac3b375af5111e63ad9864"
+    },
+    {
+      "path": "reports/polish3/trees-1/before/detail-n4-broadleaf.jpg",
+      "size": 128784,
+      "sha256": "cb4d3c2bd9ad9d3c4084c4991b6a88018d4b9127dfa9b7858569aa8c3d89cd04"
+    },
+    {
+      "path": "reports/polish3/trees-1/before/detail-n5-start-garden.jpg",
+      "size": 151067,
+      "sha256": "3b282d7b15697bfbf2e9531fdaa2108fbea5493b60b2452c8628dc684e6f9593"
+    },
+    {
+      "path": "reports/polish3/trees-1/before/detail-s1-cedars-30m.jpg",
+      "size": 137700,
+      "sha256": "72af79bf306924f22e8478de7c170416deefa5c8cb5de708de093a4d0bd7778e"
+    },
+    {
+      "path": "reports/polish3/trees-1/before/detail-s2-cedar-12m-backlit.jpg",
+      "size": 114626,
+      "sha256": "835e1701c168212e065d60b2779753bd1ea4ec939d081264d0b990290c585d4d"
+    },
+    {
+      "path": "reports/polish3/trees-1/before/detail-s2-cedar-12m.jpg",
+      "size": 120670,
+      "sha256": "b0152c0311a5e84ffdadaf068d4a7a219aa0cd4b6d0b7196da276aef94e28b10"
+    },
+    {
+      "path": "reports/polish3/trees-1/before/detail-s3-broadleaf-14m.jpg",
+      "size": 159698,
+      "sha256": "c9a76f43a150355b706f5d7f792d24348a839cab52e8209dbec568e422c51c41"
+    },
+    {
+      "path": "reports/polish3/trees-1/before/set-01-start-thirdperson.jpg",
+      "size": 179275,
+      "sha256": "900f2e8c9e365d166ac1eb5cc09c2c5a6f54cdcc7c9d2e4f2cedc5d1dce01a26"
+    },
+    {
+      "path": "reports/polish3/trees-1/before/set-04-forest-road-scout.jpg",
+      "size": 150724,
+      "sha256": "755eafdf5899786150736370196673bda22fd45398793290b22c51e9a3ff2883"
+    },
+    {
+      "path": "reports/polish3/trees-1/before/set-08-overlook-village.jpg",
+      "size": 121131,
+      "sha256": "1a3eacdb4afc4c97446c0c402a2cb23563e96d58387a2c6da49b45c686fca6d7"
+    },
+    {
+      "path": "reports/polish3/trees-1/before/set-09-village-front.jpg",
+      "size": 159861,
+      "sha256": "3f58028c97ee0ece6e0c9b199175ede5a8b9c7cb2ad44e423efa2fbdcee4b357"
+    },
+    {
+      "path": "reports/polish3/trees-1/before/set-11-village-fight-wide.jpg",
+      "size": 158469,
+      "sha256": "3bf30b4dddb47278d6695f12703ac01b9a590a02a9dbe56b029cc4f60b3a9ade"
+    },
+    {
+      "path": "reports/polish3/trees-1/before/set-12-captive-prompt.jpg",
+      "size": 179141,
+      "sha256": "3b707ded63b86d0861db0b1d5ecfc4f9a32200739f08ccfe7ae1c555cda2e5ad"
+    },
+    {
+      "path": "reports/polish3/trees-1/before/set-14-ambush.jpg",
+      "size": 150617,
+      "sha256": "c6adea1b694ade5a9f10a5de969e852bb4874317449316d857ea88a3d223a378"
+    },
+    {
+      "path": "reports/polish3/trees-1/before/set-19-cart-banners.jpg",
+      "size": 160658,
+      "sha256": "5fba3c370d96745cd69cdcbf2558ca47d495fdf487a9dd1aa0a5df9de7cafbcc"
+    },
+    {
+      "path": "reports/polish3/trees-1/before/set-20-valley-river-distance.jpg",
+      "size": 129181,
+      "sha256": "cf5a05f7777c9634df050e282ec59d59d6371866309d8f0fc0d0c362109edd1b"
+    },
+    {
+      "path": "reports/polish3/trees-1/before/set-21-far-mountains.jpg",
+      "size": 87210,
+      "sha256": "351072fa630ff746f1a8204e1aecceb9d40d936a05fcb591db8865193136a084"
+    },
+    {
+      "path": "reports/polish3/trees-1/before/set-22-grass-closeup.jpg",
+      "size": 186746,
+      "sha256": "197dc701064dff28efcbc2bea98c8261d4de8ca37268f30944f89c95ecbcc983"
+    },
+    {
+      "path": "reports/polish3/trees-1/before/set-23-cedar-interior.jpg",
+      "size": 122781,
+      "sha256": "23c041b085ffa8e54df4f8bd9d2b615a6a922e98b53cf1194ef70553733342a0"
+    },
+    {
+      "path": "reports/polish3/trees-1/before/set-24-maple-broadleaf.jpg",
+      "size": 131474,
+      "sha256": "7a19531408aaf2c6c585e695ffaee914d365c854b5ba1eb448478b7a4e787324"
+    },
+    {
+      "path": "reports/polish3/trees-1/before2/f1-overlook.jpg",
+      "size": 195113,
+      "sha256": "d67124810ec63d6cd9eb6dc16166c2807167b3297e37630cf699eb52b6f19f27"
+    },
+    {
+      "path": "reports/polish3/trees-1/before2/f2-valley-river.jpg",
+      "size": 206949,
+      "sha256": "351646c4607f393eb6516d8e0dfea782261764b4b19d4164d16c9460b06bcee6"
+    },
+    {
+      "path": "reports/polish3/trees-1/before2/f3-forest-backlit.jpg",
+      "size": 218981,
+      "sha256": "7c87dcf907266851f54f2290e8956574cc4012ceb069f60382f013fa803d02f9"
+    },
+    {
+      "path": "reports/polish3/trees-1/before2/light-f1-overlook.jpg",
+      "size": 187832,
+      "sha256": "4f01c2092cc8aede322017e70166c1801f071906f8751eeaac17aa5e858fda33"
+    },
+    {
+      "path": "reports/polish3/trees-1/before2/light-m1-forest-edge.jpg",
+      "size": 230731,
+      "sha256": "32ee8b4ebc34e3b4f8b7e9841525b122a10c6ca6618ffdad55719e2e94c05f58"
+    },
+    {
+      "path": "reports/polish3/trees-1/before2/light-n1-cedar-road.jpg",
+      "size": 176419,
+      "sha256": "ce069cc87b0f28e3b8ce2fcdb15e97ce4426969436793c9de478d7508d3b8452"
+    },
+    {
+      "path": "reports/polish3/trees-1/before2/light-n4-broadleaf.jpg",
+      "size": 207513,
+      "sha256": "40f2d666dad4924c6101ebcf0e136fbd72d495574c3fe6a214c580e494c0d34e"
+    },
+    {
+      "path": "reports/polish3/trees-1/before2/light-s1-cedars-30m.jpg",
+      "size": 249560,
+      "sha256": "ef285bdbdc0c267bca2fd0e6cbba9a093b8bad405cbc66ef0972c9ea9334c0e7"
+    },
+    {
+      "path": "reports/polish3/trees-1/before2/m1-forest-edge.jpg",
+      "size": 229740,
+      "sha256": "dff5399ef5f0bc8ce3a2e9cc5188c8649746fa0ab45326d56f17c10a4fb8fa81"
+    },
+    {
+      "path": "reports/polish3/trees-1/before2/n1-cedar-road.jpg",
+      "size": 177613,
+      "sha256": "9a82adac484d2591a16e9511501b52b8dd3e6ae5f6c637d643bc7d517b1ceffb"
+    },
+    {
+      "path": "reports/polish3/trees-1/before2/n2-cedar-crown-from-below.jpg",
+      "size": 136046,
+      "sha256": "e306ba2d9e3a36308b40f71d535b97e0d4a71bf912b2b88da5d6195f66519276"
+    },
+    {
+      "path": "reports/polish3/trees-1/before2/n3-bark-close.jpg",
+      "size": 176435,
+      "sha256": "9ba5e67d80ca4c79bb2b4e234e3f8dbf9cb38d54d6b8084352a05d74fdc6b45e"
+    },
+    {
+      "path": "reports/polish3/trees-1/before2/n4-broadleaf.jpg",
+      "size": 207160,
+      "sha256": "2d23b4a9203e3ba01576df25d9ec55f19d9aa1f5dbec19ca7c1a24e4820c4718"
+    },
+    {
+      "path": "reports/polish3/trees-1/before2/n5-start-garden.jpg",
+      "size": 232618,
+      "sha256": "b7c34918270aca1e668cc976fa7502289d08545fbc5f35100616a00dda442748"
+    },
+    {
+      "path": "reports/polish3/trees-1/before2/n6-maple-close.jpg",
+      "size": 251238,
+      "sha256": "0d0c2adfc8ed38cd30d33f2934f77cee342903c9262264cae529e9115020caf1"
+    },
+    {
+      "path": "reports/polish3/trees-1/before2/n7-scout-road.jpg",
+      "size": 234048,
+      "sha256": "ef3027a4a3855c286b1dd4b12c70427a80b665006152151c8a7073fafbe2895b"
+    },
+    {
+      "path": "reports/polish3/trees-1/before2/s1-cedars-30m.jpg",
+      "size": 222703,
+      "sha256": "a0abbfeb2cd453a01dd9c23086a409800b18be2d9df886e7d3246f201ee6c102"
+    },
+    {
+      "path": "reports/polish3/trees-1/before2/s2-cedar-12m.jpg",
+      "size": 196694,
+      "sha256": "1dfa0f6cb81dcfcb727a05055fa4e2cc54a281dc073457c761ea48abf4f04447"
+    },
+    {
+      "path": "reports/polish3/trees-1/before2/s3-broadleaf-14m.jpg",
+      "size": 254122,
+      "sha256": "405804e7bf032572a317ae51ad17190cd454a0a103d4aa9b81d6f8eb59805d08"
+    },
+    {
+      "path": "reports/polish3/trees-1/before2/s4-cedar-backlit-20m.jpg",
+      "size": 263333,
+      "sha256": "3cd384b60e3855f928d14c11139cc948c6c79ebece1f937e652972be8a83bd0d"
+    },
+    {
+      "path": "reports/polish3/trees-1/before2/s5-broadleaf-backlit-16m.jpg",
+      "size": 290191,
+      "sha256": "2d0e5ff49e2a817ee787a997079a475b206474dd00ddb69af27193c52e9c0735"
+    },
+    {
+      "path": "reports/polish3/trees-1/lod-far-before-after.jpg",
+      "size": 354426,
+      "sha256": "244a4d06e77e3fd00fdc1955bb972d4c93ac40d8437fc75e6b48299064e794d9"
+    },
+    {
+      "path": "reports/polish3/trees-1/lod-far-light-after.jpg",
+      "size": 181879,
+      "sha256": "f3273e395395335484134c77d0f0a03b3bee23823f5b77347daea2cfe019441b"
+    },
+    {
+      "path": "reports/polish3/trees-1/lod-walk-before-after.jpg",
+      "size": 534135,
+      "sha256": "4b3bed71705a02d5231286003e3fa2b8409f4239dc3c464aa83ab52bd3c88f08"
+    },
+    {
+      "path": "reports/polish3/trees-1/lod-walk2-before-after.jpg",
+      "size": 602887,
+      "sha256": "fa5f1c45bee39cd2ccaea8d96912359b26733565328a9898d41f2a7c2e5ccdeb"
+    },
+    {
+      "path": "reports/polish3/trees-1/perf.json",
+      "size": 10614,
+      "sha256": "e9fce769abaeaa0a392a979050077057cc4e5eab1caeb512bc3912756f183697"
+    },
+    {
+      "path": "reports/polish3/trees-1/perf2.json",
+      "size": 4196,
+      "sha256": "7e1a903ab29f0e9e8f9b0f42bbfd3f33ef63abf5f1614a621dfcbc9f1a8c0bd0"
+    },
+    {
+      "path": "reports/polish3/trees-1/perf3.json",
+      "size": 7704,
+      "sha256": "8d29e4f895bd1ea5a4a49b4308ce956a46f11f4acf4c46a10d79e24b773db565"
+    },
+    {
+      "path": "reports/polish3/trees-1/round3.md",
+      "size": 5652,
+      "sha256": "26c61cd82c960130a53b2c566883cda4dc1e9f07f54ffe3b96222da10ed5dbfc"
+    },
+    {
+      "path": "reports/polish3/trees-1/round4.md",
+      "size": 3472,
+      "sha256": "f438f43592ad7d45e872778f72379d452f238521dd936771c714c9605b98fa4e"
     },
     {
       "path": "reports/reviews-v18.json",
@@ -814,6 +4054,81 @@
       "sha256": "cffc2a78e8ecfc2d04d0b178d9a0caf9390209d0394628c7e309fc9082fbf856"
     },
     {
+      "path": "reports/valley-life/README.md",
+      "size": 4895,
+      "sha256": "9ba9a486af6bab0102b312d77b8c2db3dc9480c0e0e1c19f0e4ed7442821820a"
+    },
+    {
+      "path": "reports/valley-life/s7-0-calls.json",
+      "size": 10935,
+      "sha256": "5d04de677af458c3d0395b72380fc9b7abcbbaef9c71d62e13573b4bd042a5af"
+    },
+    {
+      "path": "reports/valley-life/s7-0-diff-09-roof.png",
+      "size": 34223,
+      "sha256": "ea10539e7120ef087b6ca3d7286d2dabeb11709c7640727bd3a83840c3332138"
+    },
+    {
+      "path": "reports/valley-life/s7-0-perf.json",
+      "size": 4516,
+      "sha256": "b12432eb57c267472a516b11646e0c60cf57c89ffcad82c0afa00464d78e72f2"
+    },
+    {
+      "path": "reports/valley-life/s7-0-pixels.json",
+      "size": 6737,
+      "sha256": "e6fdec2a8234601d86ac97750fb4d0deca7274e68da08930977f111bd49d320e"
+    },
+    {
+      "path": "reports/valley-life/s7-a-blind.json",
+      "size": 7853,
+      "sha256": "6391bd381bb78e261b1dffb70216b81556de710ba4032b9bd51939cc9e7483e4"
+    },
+    {
+      "path": "reports/valley-life/s7-a-calls.json",
+      "size": 4363,
+      "sha256": "4ae7e297313c07084da45b0fe0d9f33e768de388d64adca74fd2618d7862da8c"
+    },
+    {
+      "path": "reports/valley-life/s7-a-design.md",
+      "size": 7471,
+      "sha256": "910eb414a76bf644c982fd0e8d5c6320b57a938d0f20191050b834796bc23b83"
+    },
+    {
+      "path": "reports/valley-life/s7-a-perf.json",
+      "size": 2662,
+      "sha256": "02d57a1e86c7ce7f32a561d109f7bd62de1e3bfbd178a4434377137b0d761586"
+    },
+    {
+      "path": "reports/valley-life/s7-a-r3/08-overlook.jpg",
+      "size": 86171,
+      "sha256": "449fa10822e5745e09fcbd9187566e0bed9bb81856a001efc3c2eab388d65a0d"
+    },
+    {
+      "path": "reports/valley-life/s7-a-r3/09-shrine.jpg",
+      "size": 37520,
+      "sha256": "1d0ac79eafa82fb2b55915fe31d8cb1b4d7b9c80b7d39e33dce0416fd7fe7559"
+    },
+    {
+      "path": "reports/valley-life/s7-a-r3/26-camp.jpg",
+      "size": 64832,
+      "sha256": "668c6802a1f4e1557319246fb744d78501356e8ccc336ecceac639cd1ae497ee"
+    },
+    {
+      "path": "reports/valley-life/s7-a-r3/roads.jpg",
+      "size": 182903,
+      "sha256": "94e05b5fb9afc52f1b80c9780d9ba329a162087fe8cac59d31c57c1677f0305b"
+    },
+    {
+      "path": "reports/valley-life/s7-a-round3.md",
+      "size": 4156,
+      "sha256": "d85fbf841407f2f9e960eb1743909df746d4989e888fb90cc0661d8230b8ca39"
+    },
+    {
+      "path": "reports/valley-life/s7-a.md",
+      "size": 8051,
+      "sha256": "3a739ce85ed1aff31e7f4db2ad0d7b5647ae60c732688f0a2b2baff5a9f86e77"
+    },
+    {
       "path": "reports/visual-review-v18.json",
       "size": 1700,
       "sha256": "086f89b3334d8533e35f4b3d365768671589f21346b6949d807198c32a609cc5"
@@ -834,9 +4149,24 @@
       "sha256": "9089a2088c4080756f3eb85c75bdaab519ecaea05d8a53e8a9e0a04b06fb4b09"
     },
     {
+      "path": "tests/character-validation.test.mjs",
+      "size": 5992,
+      "sha256": "390fff31f07175e41931dea818b2b3c76fcd1f82374a37aebd891ce2a79acd6c"
+    },
+    {
       "path": "tests/collision.test.mjs",
       "size": 2441,
       "sha256": "e0aa11ce6d5d2f2dfb6a42dd6c716621573204e527373767145a01b1cb556c6e"
+    },
+    {
+      "path": "tests/fixtures/character-glb.mjs",
+      "size": 2904,
+      "sha256": "32c2b7b144b04ed7b393151e82bb72e0c7e378a537d7766afc0f7d4d32e0509f"
+    },
+    {
+      "path": "tests/fixtures/grass-grounding-cells.json",
+      "size": 4785,
+      "sha256": "adb7171aa97569bd7d8cb3f4067727d4d7b3f5f91b6c37d62207db822cee1558"
     },
     {
       "path": "tests/gameplay.test.mjs",
@@ -844,9 +4174,59 @@
       "sha256": "345d405373e4c501efc592817548fbdca1ad889ec478da285417e89b139924a2"
     },
     {
+      "path": "tests/glb-tools.test.mjs",
+      "size": 4270,
+      "sha256": "66eaa74a9ff220dbccbaa536474a39b2cba7209f71e5c34779cd7f44be68abb2"
+    },
+    {
+      "path": "tests/helpers/kamakura-fixture.mjs",
+      "size": 916,
+      "sha256": "8a3b3048e67642f90e6d381f53bf10e2350175f980523bdbece6a01400ce756c"
+    },
+    {
+      "path": "tests/helpers/tree-canvas.mjs",
+      "size": 5153,
+      "sha256": "9c714dcacd008e41d517b35ae337e55c73f5e005a854b55bc0078118b333d743"
+    },
+    {
+      "path": "tests/helpers/tree-field.mjs",
+      "size": 2228,
+      "sha256": "1b58df5f3818877db06014a59660dfc60fb5b19927fc91054160518dd4b38177"
+    },
+    {
+      "path": "tests/helpers/tree-modules.mjs",
+      "size": 1021,
+      "sha256": "befa46970c1ca9ed7080dbba98ad13814390f11fbb5c5ce7f06d398a02edde06"
+    },
+    {
+      "path": "tests/helpers/tree-texture-metrics.mjs",
+      "size": 882,
+      "sha256": "e57ca01dd9004bdca224a7e1acc44cf734361721f43ff1e76f8ce66713fde299"
+    },
+    {
+      "path": "tests/helpers/valley-view-modules.mjs",
+      "size": 1774,
+      "sha256": "218989f56e2850ec1b0f37c0f50d8101c04a1fbdb7e30e239f075719c6282046"
+    },
+    {
       "path": "tests/interactions.test.mjs",
       "size": 4238,
       "sha256": "a7e06877171c2f43e1f0be01544e93fb13caaed794d04dbf68e69be38734acf8"
+    },
+    {
+      "path": "tests/kamakura-server.test.mjs",
+      "size": 3371,
+      "sha256": "30fd1b8126286a329239a82588a519810437fb3f6560cdd5af4f539592e5ee22"
+    },
+    {
+      "path": "tests/kamakura-terrain.test.mjs",
+      "size": 7117,
+      "sha256": "b2145d1914fbb9e0fcbeda626882b7d00bb83c7642db6e9022fe325a7905b7d4"
+    },
+    {
+      "path": "tests/kamakura-touch.test.mjs",
+      "size": 3211,
+      "sha256": "ba310923a9ff652ad6149c8125a3c983d874fc4f38c6e7935b589f74706df619"
     },
     {
       "path": "tests/places.test.mjs",
@@ -854,9 +4234,19 @@
       "sha256": "92384ec5d09117630b57f8d0991db9e07ae861b39534f80cd1eecbb7615484a4"
     },
     {
+      "path": "tests/polish3-move-segments.test.mjs",
+      "size": 10246,
+      "sha256": "990b670d5bc9a41c9ec1b1a4f62078f6877e5fdd009a58f855b6a565d92d2519"
+    },
+    {
       "path": "tests/save.test.mjs",
       "size": 4382,
       "sha256": "7f8b1db6223659db85df3d27f931cf4f2c9b54b831ba9629a7148cbc2c254bd1"
+    },
+    {
+      "path": "tests/smooth-metrics.test.mjs",
+      "size": 10363,
+      "sha256": "d52011d0d144ebecdd9c9a3cb8a7634669e1e03b3bf37ffd40c9c2b7bda1c9ee"
     },
     {
       "path": "tests/ui.test.mjs",
@@ -864,9 +4254,414 @@
       "sha256": "c4e778c8059d12c36e32b9a35f1b2ba748340ab4560e7b8d8873e8438d2bd36b"
     },
     {
+      "path": "tests/upper-metrics.test.mjs",
+      "size": 8126,
+      "sha256": "ff5f183d639fde43e40162ccab55dd1724e14d8c79f2878d056ae3aec66fd10f"
+    },
+    {
+      "path": "tests/valley-anim-contacts.test.mjs",
+      "size": 6545,
+      "sha256": "9ff699c4141b5fc845337ed9e14e0ad4963a85aee1b7185faf96cf93f0350c1d"
+    },
+    {
+      "path": "tests/valley-arm-ik.test.mjs",
+      "size": 5877,
+      "sha256": "c160f305bd75a41def2286e86c3813c31964b6f28c95cf472a19cd1d9ff50ac6"
+    },
+    {
+      "path": "tests/valley-arm-spread.test.mjs",
+      "size": 6807,
+      "sha256": "8833fb6d2530948a709851903b4af7e26200fe7f68dbbc2f85a58be2482684e5"
+    },
+    {
+      "path": "tests/valley-audio-rules.test.mjs",
+      "size": 6895,
+      "sha256": "f09133169e02aa22b93e176beec5f43dd7d1f631222c9a7dc0717a989e468432"
+    },
+    {
+      "path": "tests/valley-baseline.test.mjs",
+      "size": 1464,
+      "sha256": "48e8b69e4d99629e9726dfb72d5a2416aa4b285143917d4704aa245f5177c3de"
+    },
+    {
+      "path": "tests/valley-batch.test.mjs",
+      "size": 17349,
+      "sha256": "6c445da207f2b7d5dbead1798f77c7b730023b4fae6c9e7117b72e5d48f8f322"
+    },
+    {
+      "path": "tests/valley-blood.test.mjs",
+      "size": 4738,
+      "sha256": "26d27528863483c5f04b32e0a5ebeed57e54eb4d4a1104c978e12345fd6e4be7"
+    },
+    {
+      "path": "tests/valley-camera-follow.test.mjs",
+      "size": 6233,
+      "sha256": "4a0292ec22adb2ea942d8a2414486a36dace87611fa0a78550f4f0199e8cad05"
+    },
+    {
+      "path": "tests/valley-cinematics-frame.test.mjs",
+      "size": 7750,
+      "sha256": "215fdaae1883c8665c3852a80729a68d63643a2d667cfd86cbd3cd3e6991815f"
+    },
+    {
+      "path": "tests/valley-cinematics.test.mjs",
+      "size": 16925,
+      "sha256": "0fef421e3f3dad140299ea0fe34f0337abd869cd4cda57d914df8d6232fc1b6e"
+    },
+    {
+      "path": "tests/valley-clash.test.mjs",
+      "size": 4330,
+      "sha256": "b95c50ff00e2cbf19dd67f324f26faeb01fce693702d5374b57421b8e46cf26f"
+    },
+    {
+      "path": "tests/valley-collision.test.mjs",
+      "size": 11718,
+      "sha256": "88dd37e75e33239d9036c1b8d7b7638f63710d2a478f4d36425852cd272ef3c2"
+    },
+    {
+      "path": "tests/valley-combat-synth.test.mjs",
+      "size": 6816,
+      "sha256": "af186500b921a0a45fb96d3a7aaeffc3989793c02382c26dd1955b87816cc4c6"
+    },
+    {
+      "path": "tests/valley-combat.test.mjs",
+      "size": 25033,
+      "sha256": "43db3d08bb333931876a055badfd4dab06eda79dcf96ce488fa38421ce038f8f"
+    },
+    {
+      "path": "tests/valley-companion.test.mjs",
+      "size": 4628,
+      "sha256": "fdd32c8aaa6fc925298a899c469a678534775e1183bcedb6989f58b7d7921c37"
+    },
+    {
+      "path": "tests/valley-compressed-characters.test.mjs",
+      "size": 1813,
+      "sha256": "d1b4e889dbec7af7b0aee716f859305652b62d340cc4e4800de631f182aee36f"
+    },
+    {
+      "path": "tests/valley-enemy-ai.test.mjs",
+      "size": 15292,
+      "sha256": "7ef9510863eb8fc8a3b2bda8deff448dfa7dbe723a890216827e508c88f63a59"
+    },
+    {
+      "path": "tests/valley-foot-contacts.test.mjs",
+      "size": 14439,
+      "sha256": "15e6ba9a4b066395a80c350600fbdd10b1786439128119c80ce8a0738856a9e2"
+    },
+    {
+      "path": "tests/valley-gait-flags.test.mjs",
+      "size": 3042,
+      "sha256": "a5f12579d04cda42a46676562e4d2b5b5f48e4f27d009acdda545f7c3449ddac"
+    },
+    {
+      "path": "tests/valley-gait-phase.test.mjs",
+      "size": 1055,
+      "sha256": "7a733b09727489d2458acc559ce4c61851cb38a6c29358166cb22a403bc0ab86"
+    },
+    {
+      "path": "tests/valley-grass-field.test.mjs",
+      "size": 26772,
+      "sha256": "37309bf71e7f633f1b189f86c859879f68cabd9c000fa720bb25c303da91a07b"
+    },
+    {
+      "path": "tests/valley-grass-schedule.test.mjs",
+      "size": 4199,
+      "sha256": "bcd5bbc066438aa9ece871e76e4d44375a4130c4275d73769f8142d3cbf6f365"
+    },
+    {
+      "path": "tests/valley-grass-view.test.mjs",
+      "size": 17636,
+      "sha256": "eabb7412fb9b53bf3c51010acf32f50cb883088bdac69044458a8c04530e54c8"
+    },
+    {
+      "path": "tests/valley-guide-baseline.test.mjs",
+      "size": 1671,
+      "sha256": "9ee54152ade13d2013b0cc96570fab995baf484487715c2ff8208becfde24257"
+    },
+    {
+      "path": "tests/valley-guide-view.test.mjs",
+      "size": 7599,
+      "sha256": "834ed8b0400c52c637ec71f759736989b4dfbffa828b689de4b93debb52ebbdf"
+    },
+    {
+      "path": "tests/valley-guide-world.test.mjs",
+      "size": 11328,
+      "sha256": "d75c33db98212113cc0a82e10d390fd6d5472f5d5764ab3e0e705463bae10e07"
+    },
+    {
+      "path": "tests/valley-guide.test.mjs",
+      "size": 9612,
+      "sha256": "d0da204fded8c06fc58f8220f84484372184d10bac5cdb73b1bc9db9421c11b7"
+    },
+    {
+      "path": "tests/valley-hand-grip.test.mjs",
+      "size": 18951,
+      "sha256": "0576a439f92e25fc4e5f276e1223f3347168ed27dc8f41cfc4714e28c9c6fd0b"
+    },
+    {
+      "path": "tests/valley-impact.test.mjs",
+      "size": 7607,
+      "sha256": "1307c0cbc50e891f25a8c85a790f789362ae005d49db2a6044399df9a50c1487"
+    },
+    {
+      "path": "tests/valley-leg-plant.test.mjs",
+      "size": 9181,
+      "sha256": "9f8927e68d2fa4434973f3bc0c044369d0c9bc8597515b07b039bbb4ad16f6b1"
+    },
+    {
+      "path": "tests/valley-life-places.test.mjs",
+      "size": 8062,
+      "sha256": "461ab64cd5dcd65bd308bd82cfb5990f891ef10a06113cddccebd923659433da"
+    },
+    {
+      "path": "tests/valley-life-rules.test.mjs",
+      "size": 16755,
+      "sha256": "546aa8eccf2a9ede67e8a3b23a8656653412a491c8de221442745bcdccce181a"
+    },
+    {
+      "path": "tests/valley-life-view.test.mjs",
+      "size": 13996,
+      "sha256": "2c9332be376cfce773f86b088ed6c63771e0f584288d6e276612ac29ef1b96ba"
+    },
+    {
+      "path": "tests/valley-life-wiring.test.mjs",
+      "size": 5205,
+      "sha256": "581261c1cfbde057fdc2893021bfafdcbc7bb78ae4156b1a6a912a7572058e98"
+    },
+    {
       "path": "tests/valley-life.test.mjs",
       "size": 3447,
       "sha256": "78bd53e4e7bf7e9ce1553420b5028856eb56acf5196242d39beab4afcf26b7eb"
+    },
+    {
+      "path": "tests/valley-loco.test.mjs",
+      "size": 5687,
+      "sha256": "139a60a43558abe0cf3201dbacac93936915b0b8383404c17be1fa9e7f57b56a"
+    },
+    {
+      "path": "tests/valley-lunge.test.mjs",
+      "size": 20824,
+      "sha256": "ff4ca911a020809cc86648a689a76485e3b06e6d9c710df62ed453ee6f1a55d2"
+    },
+    {
+      "path": "tests/valley-meadow-cover.test.mjs",
+      "size": 3596,
+      "sha256": "dfc9759aeb238494b6a9cb7150d576778a61e102f7a6ea4bcfb73dcd180e81b5"
+    },
+    {
+      "path": "tests/valley-meadow-terrain.test.mjs",
+      "size": 7052,
+      "sha256": "66896b2a3f149c04d3d7ec5c43d2cf2f42f4796957a4c2dd14c75ecaa102472f"
+    },
+    {
+      "path": "tests/valley-move-sync.test.mjs",
+      "size": 9048,
+      "sha256": "043d9db376918b22e066efd2403da470316624aefcaa875bee1feaace973bb67"
+    },
+    {
+      "path": "tests/valley-nav.test.mjs",
+      "size": 4124,
+      "sha256": "e42f3a4dd685c5923eb990eb2c6949fd85a7041a9d2efb5d1c48b8b58a4ae638"
+    },
+    {
+      "path": "tests/valley-opening-scenes.test.mjs",
+      "size": 21715,
+      "sha256": "85a96aa4779b5d1452c703479cf173ff55e36f004d3f1361e1fb95244ab66e68"
+    },
+    {
+      "path": "tests/valley-opening.test.mjs",
+      "size": 16033,
+      "sha256": "8ed8286ea91b24466eb5439edc171be3e9fcf7976d67677db404ae139ea28575"
+    },
+    {
+      "path": "tests/valley-perf-stats.test.mjs",
+      "size": 4326,
+      "sha256": "fdaf6339ac2b0608b85ebb341b4f69305c192f3d48ad2c40ae20bf30f788f4a4"
+    },
+    {
+      "path": "tests/valley-quest.test.mjs",
+      "size": 14769,
+      "sha256": "c8673d633a3dafaefffc5c7859e3f9c4f9e5d711c8c4181a0e451b66a4b80c83"
+    },
+    {
+      "path": "tests/valley-save.test.mjs",
+      "size": 5422,
+      "sha256": "9a77d6db2fff1482216766eb275f18c1f57cfd22c2aadc4f48752effaa84a886"
+    },
+    {
+      "path": "tests/valley-shadow-snap.test.mjs",
+      "size": 4779,
+      "sha256": "d9bf01391b7c5d90a0fc3307c68937cc6dd251cbc29023f9bae1d88d4ef28ef8"
+    },
+    {
+      "path": "tests/valley-slash-trail.test.mjs",
+      "size": 22304,
+      "sha256": "87a27ebf5b060f8fb71ac0687e45bc122eefec67acf162fc72e869ee13a87790"
+    },
+    {
+      "path": "tests/valley-step-surface.test.mjs",
+      "size": 4755,
+      "sha256": "2e429ed27a963dc0c1da6e38b95adcdea552fd63d040698309ee202a61308414"
+    },
+    {
+      "path": "tests/valley-step-synth.test.mjs",
+      "size": 3187,
+      "sha256": "a18f878f2b72e5425a034ab8301f8d661a1babe384880d666be7a8db57b6da79"
+    },
+    {
+      "path": "tests/valley-step-wiring.test.mjs",
+      "size": 13087,
+      "sha256": "c96369c4c8902aa5fa6336ba19364b47daf71ef0c182c26700810e238145d0cd"
+    },
+    {
+      "path": "tests/valley-story.test.mjs",
+      "size": 20434,
+      "sha256": "4407437bc0605dfa72fb57be7922dc417b6d9f34e1cc8bb978a559cdf37fe247"
+    },
+    {
+      "path": "tests/valley-sword-layer.test.mjs",
+      "size": 11213,
+      "sha256": "86da707ff7c2b55ba4448a6aff115078b3d75e558333682a2f9efb7508cbf85b"
+    },
+    {
+      "path": "tests/valley-sword-path.test.mjs",
+      "size": 14133,
+      "sha256": "8cfc773c91c9968f63e2b73f7bcda8d91f1a19841e3771b98fdcae6996ad684f"
+    },
+    {
+      "path": "tests/valley-tree-branches.test.mjs",
+      "size": 20710,
+      "sha256": "359c0bad6727a4ac0d51bafe02db471d4d0aa6adb854ab633813ff2849da7cba"
+    },
+    {
+      "path": "tests/valley-tree-field.test.mjs",
+      "size": 30424,
+      "sha256": "a7d6f1a30b5583db3874b2d0f35dd6d8c1d496f7c935732de77a07c63206607d"
+    },
+    {
+      "path": "tests/valley-tree-geometry.test.mjs",
+      "size": 44612,
+      "sha256": "f74e35192bc53d1f1da75308eeaeda3fa4f42b0af0c268adfeb54d365f68b3a5"
+    },
+    {
+      "path": "tests/valley-tree-impostor.test.mjs",
+      "size": 7379,
+      "sha256": "e848d5a736a3cd4190cff2bdb6f3f7559e5d51e11fc61bd9858ddb77a38227e4"
+    },
+    {
+      "path": "tests/valley-tree-lod.test.mjs",
+      "size": 4981,
+      "sha256": "e1920364b0498dde2cab21a5feae61767fcea492ec6cf20c7a2a3e2a1ec2ec1d"
+    },
+    {
+      "path": "tests/valley-tree-species.test.mjs",
+      "size": 21885,
+      "sha256": "df56a081f1de39748818a1d37efe4791d43e6f81afc42b48309dd61da243a71b"
+    },
+    {
+      "path": "tests/valley-tree-view.test.mjs",
+      "size": 60990,
+      "sha256": "2c05aac2fc3361b9e9dd35a257a77d11fde6fa5831ee0f582d530cb772c4ae45"
+    },
+    {
+      "path": "tests/valley-upper-body.test.mjs",
+      "size": 8503,
+      "sha256": "79c5eae0c5bb9d260ff53d2e00f0f0aa91a120ba8df44b1f4ed03f0dbc768e98"
+    },
+    {
+      "path": "tests/valley-voice-bank.test.mjs",
+      "size": 7360,
+      "sha256": "67bd221051f71a762acd08138f0ef96c5d6c3f95b83239e8ed7aca4198ed206f"
+    },
+    {
+      "path": "tests/valley-wind.test.mjs",
+      "size": 5342,
+      "sha256": "7779c3dd270a86e6ead11588912bcc8849b4e2dbeb15499253dc79b97794c885"
+    },
+    {
+      "path": "tests/valley-world.test.mjs",
+      "size": 23900,
+      "sha256": "604c8584bd22720c57d21cbc1b2e0773ec5acf2ef1f309a77db9b6171b1543a4"
+    },
+    {
+      "path": "tools/README-polish2-measure.md",
+      "size": 3857,
+      "sha256": "6b72c9d3472475b83c4e47c532a028f957dd708a8168ad6051b84a52836f06d7"
+    },
+    {
+      "path": "tools/README-polish3-measure.md",
+      "size": 6483,
+      "sha256": "6348926e08da49b3624fa52f9358bb4b698ccfa3652de9bbbd9bd7f415db9610"
+    },
+    {
+      "path": "tools/README-valley-qa.md",
+      "size": 26674,
+      "sha256": "f68cd7d1f5a87f5103fd5f5e67df209414e3abd288f073769753641bbc45405f"
+    },
+    {
+      "path": "tools/blender/build_valley_character.py",
+      "size": 20986,
+      "sha256": "43954f8d813c173eddb4d0d7b141357fda3d99875244c88c7eead46d72990b1e"
+    },
+    {
+      "path": "tools/blender/decimate_asset.py",
+      "size": 1871,
+      "sha256": "c46668461c9d41afd5b9ba0f61430b0a91821f7ae048c8b0498191133c9467e0"
+    },
+    {
+      "path": "tools/blender/inspect_fbx.py",
+      "size": 1861,
+      "sha256": "7b64aeb5c239386839eac2f29da623157c1db0c93078b6239cefe6b4f5afe4aa"
+    },
+    {
+      "path": "tools/blender/make_valley_manifest.py",
+      "size": 2503,
+      "sha256": "66f1611ebd45c9e67a4671c7eca73718c475728efedad0a333fa726922e8de0b"
+    },
+    {
+      "path": "tools/blender/mz_clips.py",
+      "size": 9929,
+      "sha256": "d7e7879d035e05c78cc35e2a2b1ae790d88f3622e8e29d28b8983bd00f50556b"
+    },
+    {
+      "path": "tools/blender/mz_common.py",
+      "size": 6657,
+      "sha256": "bf9684382b638a37691811455d6cf4d8d294d20c37ca28780a18429398093d47"
+    },
+    {
+      "path": "tools/blender/mz_quat.py",
+      "size": 4003,
+      "sha256": "f517dca4acf91d68c21b9c34b208fe2d26e46c579505de4988bc7f5b4d9d5f5c"
+    },
+    {
+      "path": "tools/blender/mz_retarget.py",
+      "size": 25801,
+      "sha256": "f4c7af3c3c33624d8837528d5a0d94d4af1a33a9aded6df63dc87062c8af6e44"
+    },
+    {
+      "path": "tools/blender/mz_skel.py",
+      "size": 3419,
+      "sha256": "db9110176f96fbbecd372b9ea6f10d6cd33cbc0119b5ed218c9c3f8dbffd8f4c"
+    },
+    {
+      "path": "tools/blender/optimize_asset.py",
+      "size": 1350,
+      "sha256": "de959b2006b118350c38ed441e0979fb313882e65709581fb44eec6189f24124"
+    },
+    {
+      "path": "tools/blender/prep_valley_textures.py",
+      "size": 3471,
+      "sha256": "feee986990cbd85676f362821145747f0ce2d2d7f24e0ed541d717fac4ab4ec8"
+    },
+    {
+      "path": "tools/blender/preview_glb.py",
+      "size": 2854,
+      "sha256": "07642b2ef971560734e505e4b54869a26f86727cc046ddd9c9a94e3d38a84263"
+    },
+    {
+      "path": "tools/blender/valley_clips.json",
+      "size": 2995,
+      "sha256": "8e2b902826833bc9dbde57b2ca8e99f9674ab21c417f738d7261fb98c30bfbe5"
     },
     {
       "path": "tools/browser-check.mjs",
@@ -874,9 +4669,34 @@
       "sha256": "690adc203cb5e266a2097b9cea926f0d0bf3dd4e9cdfde0d559a3e7630678a58"
     },
     {
+      "path": "tools/build-foot-contacts.mjs",
+      "size": 6268,
+      "sha256": "188494dbf2a2e13975830aa59b0f1a6bf049295b1a940ff53a9c502730403b28"
+    },
+    {
+      "path": "tools/check-kamakura.mjs",
+      "size": 1113,
+      "sha256": "a45777f358577c6a1ab81becc87fa5b4f0b0a736b4f178c1690ea8bc20527059"
+    },
+    {
       "path": "tools/check-package.mjs",
-      "size": 4004,
-      "sha256": "bd8cb341c58917ff03d30c172822f2ffc15e5fdc4e5aad0afaf9b30e747143b4"
+      "size": 4212,
+      "sha256": "17a0d0bfc3573ece75de6d9f7a3c61e223dbd391195c154492e93e2773bf7a84"
+    },
+    {
+      "path": "tools/check-valley.mjs",
+      "size": 12329,
+      "sha256": "dbee1bcece600a2d0b9fd23e8926296e0548832e40e9165a071d59dff87913d3"
+    },
+    {
+      "path": "tools/compare-shots.mjs",
+      "size": 5789,
+      "sha256": "f7e56c86424e18629bf08c2390e304de8beb7c41529a8b6dfd1ac121bd0d4bb6"
+    },
+    {
+      "path": "tools/compress-characters.mjs",
+      "size": 2280,
+      "sha256": "cca1a226c1de6e4f10d0e2713d4d82f1fe24332c0ec0885531cc8c62d19ba7a8"
     },
     {
       "path": "tools/export_scene_reference.py",
@@ -884,19 +4704,619 @@
       "sha256": "04bb5de7fb1498987d841347c7ad54f263b4319d40f0dff25814eb732f7a6909"
     },
     {
+      "path": "tools/gait-sample.mjs",
+      "size": 10146,
+      "sha256": "8286cd4a6dba04b1c6f99acc0efe44f33e04732ce89f36752e501a6f1902ac88"
+    },
+    {
+      "path": "tools/lab-play.mjs",
+      "size": 3793,
+      "sha256": "04ffd65f2565d9a99f56dce915afee0f38c7e9a01c7e2b4954c958e22a71b66b"
+    },
+    {
+      "path": "tools/lib/character-clips.mjs",
+      "size": 947,
+      "sha256": "57b5949ff058a4139e51d4337f4644c4da8a549d20788da01262c7eab8ac9205"
+    },
+    {
+      "path": "tools/lib/character-compression.mjs",
+      "size": 6647,
+      "sha256": "5330559a0acf20f12c0b2f23ff287d992b99f40c7438c0c2ed15242c7c267ee3"
+    },
+    {
+      "path": "tools/lib/character-validation.mjs",
+      "size": 13322,
+      "sha256": "a3251dcf5b63c1b3d0e2d7ddfdfebc37455da7a42d975f812ead0ddb9457c0c7"
+    },
+    {
+      "path": "tools/lib/draw-sheathe-metrics.mjs",
+      "size": 7824,
+      "sha256": "0cad4af100f3fa249a0673ae9c53c47d05efdcb6167226d586c64f9fd2097001"
+    },
+    {
+      "path": "tools/lib/glb.mjs",
+      "size": 13661,
+      "sha256": "10f992faf05b8a90f1d5533c8985cb7634a453a2ef5d86e86782791c78966f3f"
+    },
+    {
+      "path": "tools/lib/hand-grip-metrics.mjs",
+      "size": 13522,
+      "sha256": "2461cf4489124c8f4595478a2353f8fdb233b77c1c9b306ca349f642cc4d0fdb"
+    },
+    {
+      "path": "tools/lib/kamakura-validation.mjs",
+      "size": 2461,
+      "sha256": "d97ed863322bc5b196646e837cf3afc0119e8887156d9e23690486c894963d2e"
+    },
+    {
+      "path": "tools/lib/measurement-world.mjs",
+      "size": 890,
+      "sha256": "8a27e62765b0a18a6fe3f0a8832a27c622523767e7def1ffc14388bb8c98fc2d"
+    },
+    {
+      "path": "tools/lib/png.mjs",
+      "size": 3496,
+      "sha256": "1b3f0f06fe2ab647281556f581ec386e84e0d65f2d5660b4f966545f559c26ce"
+    },
+    {
+      "path": "tools/lib/pointerlock-guard.mjs",
+      "size": 3123,
+      "sha256": "76c0a4074f2d1d685e8e7612eed9d71e970d85f9c757361d15d19ee5a4db6f37"
+    },
+    {
+      "path": "tools/lib/smooth-metrics.mjs",
+      "size": 18213,
+      "sha256": "28fe639b5ab80f4f14589369ac653397c3c0cd7f24161db2bb09dacb93137f33"
+    },
+    {
+      "path": "tools/lib/story-check.mjs",
+      "size": 7518,
+      "sha256": "894bc5710a4a0b438e31301ffb0426425e77cf511620e8867e151cfe55e3ac3d"
+    },
+    {
+      "path": "tools/lib/upper-metrics.mjs",
+      "size": 13524,
+      "sha256": "c04ef35970fc0f8a34c88f3cdf9e3eb44b0fb56b136b6e47d777e6634960d842"
+    },
+    {
+      "path": "tools/measure-clip-provenance.mjs",
+      "size": 2414,
+      "sha256": "9ccc8b3a85995ae56f47909a66a5d7dbaa8fc56192376307fbb09f8f8591e9fc"
+    },
+    {
       "path": "tools/measure-frame-time.mjs",
       "size": 5127,
       "sha256": "34bf8c49da03f7071d8b2bc3e202879c8f5dc6ec03f3db0a18c18535c9705c08"
     },
     {
+      "path": "tools/measure-guide-baselines.mjs",
+      "size": 1609,
+      "sha256": "920acf7896d492373872397ee4e1a1bf9c7e5d8fdbffe8c17e952375ec592c0b"
+    },
+    {
+      "path": "tools/measure-guide-starts.mjs",
+      "size": 5128,
+      "sha256": "2d781c09e5856e71bda6b02e088094c38dc0fba249adee34c62fc110ee9dae3d"
+    },
+    {
+      "path": "tools/measure-load-budget.mjs",
+      "size": 1757,
+      "sha256": "97c6f9709cff397a7c21ddbcd9a9c1e3ec9c13a8fb6cfcbd229beeaad5538c5d"
+    },
+    {
+      "path": "tools/measure-load-bytes.mjs",
+      "size": 4579,
+      "sha256": "c3ae76e722d7a9a85a2caf3a899cef447740b2d86f0ea42dfa18cc8e3f8bf4fc"
+    },
+    {
+      "path": "tools/measure-move-segments.mjs",
+      "size": 11498,
+      "sha256": "4b37469065cbcb571b116396b11389061dcb996c276b7f1e6ce3c1178831a138"
+    },
+    {
+      "path": "tools/measure-perf.mjs",
+      "size": 2206,
+      "sha256": "fffb3aca4ebe6b492a4db745dba9cd50cb7d59f4cf935f5d60720fab6bbd39fc"
+    },
+    {
+      "path": "tools/measure-trees.mjs",
+      "size": 5638,
+      "sha256": "d8b39578ef220446d1cf6c1e0659e22fed3803d0352f82bca0255ff6add1f698"
+    },
+    {
+      "path": "tools/scenarios/capture-blood.mjs",
+      "size": 7086,
+      "sha256": "e06b524434b38218bcc36acd05290cfc032a3e1a98a184b25a1a06ad6e3618e8"
+    },
+    {
+      "path": "tools/scenarios/capture-calls.mjs",
+      "size": 9864,
+      "sha256": "f03bc91ff492884ba2e19576e69b18b7d196876e80b4fb61f007eb505a0ec06b"
+    },
+    {
+      "path": "tools/scenarios/capture-camera.mjs",
+      "size": 6308,
+      "sha256": "21f34d923fba9166e58f944231e267a9b119660482556ea0928cf631dbe640dd"
+    },
+    {
+      "path": "tools/scenarios/capture-combat-impact.mjs",
+      "size": 9776,
+      "sha256": "ab3e928978d8600b0f1772aa4d3f5c76628d1cce29e212d0389cce5596953380"
+    },
+    {
+      "path": "tools/scenarios/capture-combat-sounds.mjs",
+      "size": 8617,
+      "sha256": "94b0d6863f1598d9eae4ccffbe8a1e47483b9bd0f36d4c3cc018a32ae2ce49ee"
+    },
+    {
+      "path": "tools/scenarios/capture-combat-trail.mjs",
+      "size": 9009,
+      "sha256": "0987755605d4ae8b5eca560ae5f1a2a4c05f3e4b5da1da8aa72bc09c6619d627"
+    },
+    {
+      "path": "tools/scenarios/capture-draw-sheathe.mjs",
+      "size": 5478,
+      "sha256": "13ce4957235efa865a23881ed2863da95807b614b599ec879ef20c3fe1f547dc"
+    },
+    {
+      "path": "tools/scenarios/capture-hand-grip.mjs",
+      "size": 9474,
+      "sha256": "dbb18a854aa511a3369a5a62b8c3cc446aac92449ab7e2ad2ed5094254b1847c"
+    },
+    {
+      "path": "tools/scenarios/capture-ledge.mjs",
+      "size": 6150,
+      "sha256": "fe4d35eb9daaf37f296e3f1e6c463a6cf32161c1e77e0cc462dbc5ce890f8443"
+    },
+    {
+      "path": "tools/scenarios/capture-locomotion.mjs",
+      "size": 3588,
+      "sha256": "896ad54158c13b8bf027d5ef3840f301480bc886cc1ca4feba721f88128d7458"
+    },
+    {
+      "path": "tools/scenarios/capture-opening.mjs",
+      "size": 1612,
+      "sha256": "6cf81dbc4f39cfdfcb7134175a277e932a89c9ce31fca08c8e31dd3f0a58276f"
+    },
+    {
+      "path": "tools/scenarios/capture-set.mjs",
+      "size": 8553,
+      "sha256": "186fd9c0bccbd6648199cb4bc68371abd710a239ac51bcd0260ed2a8de4882ae"
+    },
+    {
+      "path": "tools/scenarios/capture-shadows.mjs",
+      "size": 6211,
+      "sha256": "1c4e96be8b57cf442d170a426d3e0b7de69da2b5706d6c802dd8e250888cd4a4"
+    },
+    {
+      "path": "tools/scenarios/capture-smooth.mjs",
+      "size": 7509,
+      "sha256": "062f8f11bf787d484f56ffcb65e6de67f66a1dcfe3613f336435e4f93ed444f0"
+    },
+    {
+      "path": "tools/scenarios/capture-tree-lod-far.mjs",
+      "size": 2567,
+      "sha256": "26e76c9e80af4d3f2a502e8116d3388a9fea0cf2ee35eb8eca110e3a95a18ae0"
+    },
+    {
+      "path": "tools/scenarios/capture-tree-lod.mjs",
+      "size": 2465,
+      "sha256": "387de9f6aa4375e27e3126d8a59e1922bc12d68bcaebabc4d915d8aad8de9409"
+    },
+    {
+      "path": "tools/scenarios/capture-tree-specimens.mjs",
+      "size": 4096,
+      "sha256": "828002abdecbf307b54fc17a7296f9ff4b9bebf06f0c7bbbc8cd3405a3cc3409"
+    },
+    {
+      "path": "tools/scenarios/capture-trees-detail.mjs",
+      "size": 6895,
+      "sha256": "8efdc37f6346ab311d8087c60651a9040034398578a02647031c7826b879df7d"
+    },
+    {
+      "path": "tools/scenarios/capture-walk.mjs",
+      "size": 3352,
+      "sha256": "021a6b1e8ef467a9a0ce28eb04c8a097cd5e47a6d05e65354b84aa6f37c4fbc7"
+    },
+    {
+      "path": "tools/scenarios/load-journey.mjs",
+      "size": 2716,
+      "sha256": "f80d8388adadb1b9986a6bc70623f6959545cf9431bd6cc6fa9ad1e6f767591f"
+    },
+    {
+      "path": "tools/scenarios/measure-arm-spread.mjs",
+      "size": 4984,
+      "sha256": "f91a8af37c0d16511993ef6c99fb4b67d7f7de6fc333b0e739ae63fd4346efee"
+    },
+    {
+      "path": "tools/scenarios/measure-combat-trail.mjs",
+      "size": 21162,
+      "sha256": "b80f1d9f1b03993eba0b736d155bb8d82aed4382bf1b9b752da31f07051547c5"
+    },
+    {
+      "path": "tools/scenarios/measure-draw-sheathe.mjs",
+      "size": 5776,
+      "sha256": "2ab0acca82ef7a20fa8209c5cc5b5fb5681eda173ec767511812f2ce80536f40"
+    },
+    {
+      "path": "tools/scenarios/measure-foot-contacts.mjs",
+      "size": 7188,
+      "sha256": "59a7cf450b963d70dd18cb2224a9576ce9a4117cd6abe19a8c5e56c9da885758"
+    },
+    {
+      "path": "tools/scenarios/measure-locomotion.mjs",
+      "size": 10486,
+      "sha256": "b39c2924aaa19c21a2ee75e5844192b2ebb060fb5e58275bdb3677337cdde047"
+    },
+    {
+      "path": "tools/scenarios/measure-lunge.mjs",
+      "size": 7635,
+      "sha256": "f3818693bb2286de48eecbcd885ab8ef35711dd00575d1f3fab3f7868e457fb5"
+    },
+    {
+      "path": "tools/scenarios/measure-opening-perf.mjs",
+      "size": 2718,
+      "sha256": "3c5733221213cd7ae3d5f1ff171d82ccf5786cc02c70cb6596dcb8ff6dbf15c4"
+    },
+    {
+      "path": "tools/scenarios/measure-perf.mjs",
+      "size": 13337,
+      "sha256": "3d28708cf22cd072d6b5d8419f6dc18aed31e895faef6d7d6c6c2469a2d96fb6"
+    },
+    {
+      "path": "tools/scenarios/measure-stance-speed.mjs",
+      "size": 2582,
+      "sha256": "51b980a0ef541139cce5b3829ba0067d2d4ef13e84ce1f112f2ad37ca436ce56"
+    },
+    {
+      "path": "tools/scenarios/record-sword-tips.mjs",
+      "size": 3557,
+      "sha256": "f2f34bd5215b709415f0b0acf39324c06f0f8b47fad26fb2d1e9109d47218f33"
+    },
+    {
+      "path": "tools/scenarios/regress-arrow-death.mjs",
+      "size": 2324,
+      "sha256": "3d426d58b56853ba7759ef2f14125f2c61dfce717b541f9f5dbb5785911ddedb"
+    },
+    {
+      "path": "tools/scenarios/regress-attack-timing.mjs",
+      "size": 7146,
+      "sha256": "812f7dcc22c081a55dd81dee381036c81c7c23648e028e113620e40eefdc6000"
+    },
+    {
+      "path": "tools/scenarios/regress-audio-levels.mjs",
+      "size": 3427,
+      "sha256": "025e49c7af6d06ee3f871c6dfb96224eaf88f4771c6440cd6db3ed0c76b497cd"
+    },
+    {
+      "path": "tools/scenarios/regress-bank-descent.mjs",
+      "size": 1968,
+      "sha256": "980961676b5b3d95c29ddb300d1779468e73a4dfb81d2ef314493b151f1bec10"
+    },
+    {
+      "path": "tools/scenarios/regress-blood.mjs",
+      "size": 16519,
+      "sha256": "973de96b6db224181b4fb362af681a2b87846762a95c9c02681fafd13aa3b951"
+    },
+    {
+      "path": "tools/scenarios/regress-cinematic-end.mjs",
+      "size": 18691,
+      "sha256": "037b55c116c6947c37777cfce25f6841eb4613441ad9d89df43367a513834d31"
+    },
+    {
+      "path": "tools/scenarios/regress-cinematic-frame.mjs",
+      "size": 24514,
+      "sha256": "c1a8af5f78cbe83bc846059897747ce7c8a981904ea380769398522c7136d7ec"
+    },
+    {
+      "path": "tools/scenarios/regress-cleared-dialogue.mjs",
+      "size": 3780,
+      "sha256": "b5193ac526c0fa39ca6ae65233d189f37742c47b2606d83b4f52c65c12cdc886"
+    },
+    {
+      "path": "tools/scenarios/regress-combat-hints.mjs",
+      "size": 4671,
+      "sha256": "37d822f674f2e58023187afb0fb8353991ecff7ff81d587082826cfcb5d58d80"
+    },
+    {
+      "path": "tools/scenarios/regress-combat-sounds.mjs",
+      "size": 8760,
+      "sha256": "94156603bcfa6c6123a4a0a8976cbe515dab801879b54ca9551f51d0394b9316"
+    },
+    {
+      "path": "tools/scenarios/regress-continue.mjs",
+      "size": 3841,
+      "sha256": "3da671575a7e38b7878e559f0c84065376ea67d9a43f263280530af0e0f82f97"
+    },
+    {
+      "path": "tools/scenarios/regress-draw-sheathe-game.mjs",
+      "size": 13867,
+      "sha256": "e42c215c5d67dedd855e1a5a77cedbdb244f3504d90c9b5c14893ed2690309ab"
+    },
+    {
+      "path": "tools/scenarios/regress-draw-sheathe.mjs",
+      "size": 8453,
+      "sha256": "06cd770da53358177ea4353e481a332deb374096989c4fd0db26ff4c7f22b509"
+    },
+    {
+      "path": "tools/scenarios/regress-follow-guide.mjs",
+      "size": 4041,
+      "sha256": "42c77933a48685ac45256e8d88aca8c77cf01ff9fa44bbae4adfa363988ba60d"
+    },
+    {
+      "path": "tools/scenarios/regress-guide-hitch.mjs",
+      "size": 4524,
+      "sha256": "3bb1671f4e15e8c4f4458778a1c9d6dac712047e1ee5fa30b576cc25ea64ad60"
+    },
+    {
+      "path": "tools/scenarios/regress-guide-switch.mjs",
+      "size": 2639,
+      "sha256": "ff3ce21793ea28479228e5c003bac85b14862d9cea8241f07b652956b08a4100"
+    },
+    {
+      "path": "tools/scenarios/regress-hand-grip-game.mjs",
+      "size": 7293,
+      "sha256": "bac4f2a30a12eb74d2f13a407843247fb2ca5b2b20261ce3710e3adca41fba13"
+    },
+    {
+      "path": "tools/scenarios/regress-hand-grip.mjs",
+      "size": 9652,
+      "sha256": "fa7215c19465dc7538db40104eccad0d0f7429340e6710ca56aa15c1921daac6"
+    },
+    {
+      "path": "tools/scenarios/regress-impact.mjs",
+      "size": 21594,
+      "sha256": "a2952ead76ac5e4643fe64f16c8c300a92928884f91eea4f70c4d10b1d384fc8"
+    },
+    {
+      "path": "tools/scenarios/regress-locomotion-camera.mjs",
+      "size": 17266,
+      "sha256": "da60cef78a859ffc6e0fafb5960bb42b57a04fca5dd95129059f82438dfb9616"
+    },
+    {
+      "path": "tools/scenarios/regress-locomotion-ik.mjs",
+      "size": 15046,
+      "sha256": "ce07f37776abafe8552b3281e0ff6dec37eadf778eefeb5927ab827261910619"
+    },
+    {
+      "path": "tools/scenarios/regress-locomotion-phase.mjs",
+      "size": 8587,
+      "sha256": "dfc720e05765049be2350398f46d2474674f92dc5f0043693f9f9fe2ef48ff26"
+    },
+    {
+      "path": "tools/scenarios/regress-locomotion-speed.mjs",
+      "size": 9545,
+      "sha256": "d2a202e746b7805df7e1615af1fbb4d3a6ec8a36cd84b7363b9b418f89f655ab"
+    },
+    {
+      "path": "tools/scenarios/regress-locomotion-upper.mjs",
+      "size": 17823,
+      "sha256": "2417cb2ee7d005fadd455819ddba0ae6966a2914175ff1417e000821f4e3f39a"
+    },
+    {
+      "path": "tools/scenarios/regress-locomotion.mjs",
+      "size": 2563,
+      "sha256": "095c10a5f2a3de7888af6f709cbb99887ef3b33a757826f4454b1bf1694445ed"
+    },
+    {
+      "path": "tools/scenarios/regress-lunge.mjs",
+      "size": 12457,
+      "sha256": "3f8e5c804e5ffb68343d82130e1c055a303ae0260ebccce67fe8ac673ad75b12"
+    },
+    {
+      "path": "tools/scenarios/regress-opening.mjs",
+      "size": 24404,
+      "sha256": "ec13904c4766aecf59aa041a0f7e68b84b95171e4454f941da060c474dc4230a"
+    },
+    {
+      "path": "tools/scenarios/regress-retry-leak.mjs",
+      "size": 2849,
+      "sha256": "7b72a05111ad1e5392200a881905f748272dfddf6ecd4c6aae8249432772d3f7"
+    },
+    {
+      "path": "tools/scenarios/regress-rock-colliders.mjs",
+      "size": 2536,
+      "sha256": "dd76b04691f0d265de9ab83d3e6866764b3c6e01620f1455e650ce21c84510b6"
+    },
+    {
+      "path": "tools/scenarios/regress-slash-trail.mjs",
+      "size": 26534,
+      "sha256": "fbed022aa7e2b3105f8b1751c8dbf7835eadf2d70876d9065d6994b9debd397f"
+    },
+    {
+      "path": "tools/scenarios/regress-step-levels.mjs",
+      "size": 12121,
+      "sha256": "8cb227b9bdb62e441f12899b11a18432626c4910a9bf722cdae204b9c67122c5"
+    },
+    {
+      "path": "tools/scenarios/regress-story.mjs",
+      "size": 17011,
+      "sha256": "005c10bf3c06fc90c69e1381cf27c1daa62f15c706caf53f6633d880a09ce0e5"
+    },
+    {
+      "path": "tools/scenarios/regress-tree-near-breakage.mjs",
+      "size": 7011,
+      "sha256": "407b40e90dd269a911be76693cc6857bfb16778e2b0440f055a6e4ddfbcf50f1"
+    },
+    {
+      "path": "tools/scenarios/regress-tree-quality-switch.mjs",
+      "size": 2618,
+      "sha256": "36a4e2ba44bfc72c883a1bc9a33aecf4000dc5d74311aacf39b5d79d32489103"
+    },
+    {
+      "path": "tools/scenarios/regress-tree-reduced-motion.mjs",
+      "size": 4551,
+      "sha256": "833a72374bde719e62c7172f1a50d54cd9fede476be9978f442151827d811bd9"
+    },
+    {
+      "path": "tools/scenarios/regress-tree-shadow-wind.mjs",
+      "size": 3646,
+      "sha256": "ef64a83cc8e9c18b319af9d6c529daea52df7673dc3b5bd453c753d96b3117b0"
+    },
+    {
+      "path": "tools/scenarios/smooth-journey.mjs",
+      "size": 10517,
+      "sha256": "ca87e999fe1ba1e1ece076a4513c240619987008162d38390349f074f874de30"
+    },
+    {
       "path": "tools/serve.mjs",
-      "size": 2254,
-      "sha256": "2c0304daea1af2a842f5f0f9e0f39659eec22741690bceb6462cec0a95b635ae"
+      "size": 3844,
+      "sha256": "1a59a445e404d347becd20cd7a15921f70afb3f2f36e06fddbd4990a5176c447"
     },
     {
       "path": "tools/smoke.mjs",
-      "size": 2161,
-      "sha256": "8675a9d11c3054bf98f6c25dbf9d714be4e2b31ff439ad5a371dd1be3e4de900"
+      "size": 3615,
+      "sha256": "adb3b4498e7ac520f67309219bdf3d58b93eb5bc9dde537718e7921d4e7e4e30"
+    },
+    {
+      "path": "tools/valley-map.mjs",
+      "size": 5600,
+      "sha256": "ada42c39dd08fe159f306d42f9655ca9f4ee4ec5e68a85fcfd4fecc71d178f38"
+    },
+    {
+      "path": "tools/valley-play.mjs",
+      "size": 4668,
+      "sha256": "52f4d92300a4add5a858fa5fc98ce3129124d63802cf5ec7f319a84126bd7db7"
+    },
+    {
+      "path": "tools/valley-shot.mjs",
+      "size": 2724,
+      "sha256": "50920ef310550c967dfd89db1d01f5e4205e20511c19c6c2e69a048f0a5bdf48"
+    },
+    {
+      "path": "tools/verify-arm-spread-mutations.mjs",
+      "size": 5086,
+      "sha256": "e6db2477e884c8f7e6ff2f97a32e5874e67bfaf9f950c1868471dc629645d8a8"
+    },
+    {
+      "path": "tools/verify-audio-mutations.mjs",
+      "size": 2692,
+      "sha256": "1cd26f28acaf48ba29bbe18d79fdbb1771912191c4d14e8a5d3f106fc24828a3"
+    },
+    {
+      "path": "tools/verify-batch-mutations.mjs",
+      "size": 3387,
+      "sha256": "d5e85835d1f2c93d1927aa09ddebbdccdb54ad78d64a0d3e936250741bd5ff03"
+    },
+    {
+      "path": "tools/verify-compressed-characters.mjs",
+      "size": 1728,
+      "sha256": "fb31244e27dfaa568e78269797a576e06d310e78c14a8fe2a35db83b6704b3f9"
+    },
+    {
+      "path": "tools/verify-foot-contact-mutations.mjs",
+      "size": 2825,
+      "sha256": "15116d32d47af816811a25e34cfebe098f1ac143e32917ba311b11cc01090d2d"
+    },
+    {
+      "path": "tools/verify-grass-mutations.mjs",
+      "size": 5996,
+      "sha256": "6bc011bd5349d677c419f87f178de22d530a3b18de9ee33b27ecf31242e174c2"
+    },
+    {
+      "path": "tools/verify-grass-schedule-mutations.mjs",
+      "size": 2871,
+      "sha256": "0e054e853247925ed0424d455037d64e298214fb0492287c78f53233f4883f02"
+    },
+    {
+      "path": "tools/verify-grass-view-mutations.mjs",
+      "size": 5388,
+      "sha256": "36fb1ddcbb5a2cea002e0b7ff49d6e8786cf3ece66afef9d6341f7e3e58d5ebb"
+    },
+    {
+      "path": "tools/verify-guide-mutations.mjs",
+      "size": 4594,
+      "sha256": "12a0890cd2e12a4c6c54f8309ca83acb577ba9de8e0836619bc8bbd5e912b284"
+    },
+    {
+      "path": "tools/verify-hand-grip-mutations.mjs",
+      "size": 6566,
+      "sha256": "31e04e82e5525c3cab701b630a4c2a0040f5cc713f8f7f6be059235adc8c0898"
+    },
+    {
+      "path": "tools/verify-impact-mutations.mjs",
+      "size": 5387,
+      "sha256": "76cfb1bcd6c46582110d3c3cd6174b6d5261bdecaca70e29c19a6fa7eb5ff325"
+    },
+    {
+      "path": "tools/verify-life-rules-mutations.mjs",
+      "size": 7065,
+      "sha256": "2918fe6a1ae843f61c95acbf56d8cdc44f5beb0594ba714d00af562002327275"
+    },
+    {
+      "path": "tools/verify-life-view-mutations.mjs",
+      "size": 6594,
+      "sha256": "6922a06163adbccaf011f0a4905812ded90cfdc14d7b399ecd8a7ec6cf00e3c7"
+    },
+    {
+      "path": "tools/verify-lunge-mutations.mjs",
+      "size": 6843,
+      "sha256": "d20ad3ab23770f82063bd5e7e662e44db95cd8b34d52e8dc1fc5575a7c127047"
+    },
+    {
+      "path": "tools/verify-meadow-mutations.mjs",
+      "size": 4250,
+      "sha256": "a076b567988cb5f3e4296cc370d4e1f9672b8d20d83d237c42910588ea46a17c"
+    },
+    {
+      "path": "tools/verify-opening-mutations.mjs",
+      "size": 7205,
+      "sha256": "7c6c06319b7b087cee72428a50cf1a6dba679f4bacab3c760611d6f340f15468"
+    },
+    {
+      "path": "tools/verify-opening-scenes-mutations.mjs",
+      "size": 9748,
+      "sha256": "939e02e0fa3b3563362787f436c8eb60170a804c7a2f903ee7151df2c0f87aac"
+    },
+    {
+      "path": "tools/verify-slash-trail-mutations.mjs",
+      "size": 11149,
+      "sha256": "ff4702a8dbb4c53fc81539f6cfc4a397cabad41cf0a0c5971a4df831928c908d"
+    },
+    {
+      "path": "tools/verify-step-surface-mutations.mjs",
+      "size": 2589,
+      "sha256": "fba13220fad2d3604ee31afcde8a8257ac308b0328a822b66bed76223c6d1471"
+    },
+    {
+      "path": "tools/verify-story-mutations.mjs",
+      "size": 5352,
+      "sha256": "1266fdf535937189ef7f709ad794fedd46ff2129f1ef53380e2bef6404b687b6"
+    },
+    {
+      "path": "tools/verify-sword-layer-mutations.mjs",
+      "size": 7405,
+      "sha256": "c2995b37678432b543ec44dcdf1de55ad5a7e50aeb11ab6d0c0050661d847c63"
+    },
+    {
+      "path": "tools/verify-tree-branches-mutations.mjs",
+      "size": 5690,
+      "sha256": "65796f9bab66b59e6018a38968a303696b1c204cec631b0d1c02109d0eb6475a"
+    },
+    {
+      "path": "tools/verify-tree-field-mutations.mjs",
+      "size": 7900,
+      "sha256": "bed68ae49f3598928420eafcc9b679c792ae321299f879e45bf0f91ece0bd8da"
+    },
+    {
+      "path": "tools/verify-tree-geometry-mutations.mjs",
+      "size": 9315,
+      "sha256": "174f16ba5c6d53eaa9ee4f157ddaa046f1552efa10886a6904c0f77a5d65ff27"
+    },
+    {
+      "path": "tools/verify-tree-impostor-mutations.mjs",
+      "size": 4046,
+      "sha256": "ab6768afba0d5ce2b07149c98e219f0e24bbd7b6d2a409a8bb2aee970e9ab9f7"
+    },
+    {
+      "path": "tools/verify-tree-species-mutations.mjs",
+      "size": 5267,
+      "sha256": "5064d99143c04c135e71fcdd878c2be9149de1e275a2c37262490fea3923b03e"
+    },
+    {
+      "path": "tools/verify-tree-view-mutations.mjs",
+      "size": 13477,
+      "sha256": "a05bdd9b5ecffe8cfe11cf571b6abaa4e786e1ac6cb853ef5b4493c239039051"
     }
   ]
 }

@@ -77,6 +77,9 @@ function penetration(o, x, z, radius) {
 }
 function reason(col, terrain, x, z, r, y, opts, from = null) {
   if (!inBounds(col.bounds, x, z, r) || !inBounds(terrain.bounds, x, z, r)) return 'bounds';
+  // Optional world-specific boundary; legacy terrain has no hook. Existing limits still apply below.
+  const worldBlock = terrain.movementBlockedAt?.(x, z, r);
+  if (worldBlock) return worldBlock;
   const water = terrain.waterAt(x, z), slope = terrain.slopeAt(x, z), h = terrain.heightAt(x, z);
   finite(water, slope, h);
   if (water > 0.45) return 'water';

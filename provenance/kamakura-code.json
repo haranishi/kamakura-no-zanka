@@ -1,0 +1,9 @@
+{
+  "kind": "code-reuse",
+  "date": "2026-11-06",
+  "target": "dist/valley/kamakura-chunks.js",
+  "source": "world-proto/web_q/src/terrain.js",
+  "authorization": "The user identified web_q as their own code and explicitly authorized reuse for W2c-1.",
+  "adaptation": "Dependency-free geometry arrays, shared coarse-edge normal interpolation, separate Three.js view and bounded atomic neighbor rebuilds.",
+  "private_data": "No elevation grid, samples, spawn values, place coordinates or derived asset is included. Runtime data remains outside this repository."
+}
