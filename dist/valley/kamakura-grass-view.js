@@ -1,22 +1,25 @@
 // Reuse valley geometry/materials. Only the bounded CPU window is Kamakura-specific.
 import * as THREE from 'three';
+import { grassBandEnabled, createGrassBandCell } from './kamakura-grass-band.js';
 import { grassLookEnabled, createGrassEnvironment, grassGroundTint } from './kamakura-grass-look.js';
 import { createGrassLook } from './kamakura-grass-look-view.js';
 import { buildGrass } from './grass-view.js';
 import { createSurfaceCodeAt } from './kamakura-surface.js';
 import { KAMAKURA_GRASS_REACH, createGrassCell, createGrassWindows, grassExclusions, grassEnabled, grassFrameBudget } from './kamakura-grass-field.js';
-export function buildKamakuraGrass({ data, terrain, colliders, extraColliders, search = '', wind, sunDir, quality = 'standard', now = () => performance.now(), schedule = fn => setTimeout(fn,0), cancel = clearTimeout }) {
+export function buildKamakuraGrass({ data, terrain, colliders, extraColliders, search = '', wind, sunDir, quality = 'standard', facilityBoxes = [], now = () => performance.now(), schedule = fn => setTimeout(fn,0), cancel = clearTimeout }) {
   const group = new THREE.Group(); group.name = 'kamakura-grass';
   const enabled = grassEnabled(search) && !!data.meta.surface && data.surface instanceof Uint8Array && data.surface.length === data.meta.grid.width * data.meta.grid.height;
-  const improved = grassLookEnabled(search);
+  // W2c-9r1 grass: gband=0 restores the complete 9c3 path.
+  const improved = grassLookEnabled(search), bands = improved && grassBandEnabled(search);
   const paths = data.patches?.paths || {};
   // W2c-9c3: metre surface transitions and narrow collider/bank margins replace bare rims.
   const ecology = improved ? createGrassEnvironment(terrain, {colliders, extraColliders, paths, surfaceCodeAt:createSurfaceCodeAt(data.meta,data.surface)}) : null;
-  const look = improved ? createGrassLook(ecology, quality, {value:new THREE.Vector4(0,0,0,0)}) : undefined;
+  const look = improved ? createGrassLook(ecology, quality, {value:new THREE.Vector4(0,0,0,0)},bands) : undefined;
   const cell = createGrassCell(terrain, { surfaceCodeAt: createSurfaceCodeAt(data.meta, data.surface),
     environmentAt: ecology, ...(improved ? {riverMargin:.25} : {}), exclude: grassExclusions(terrain, { colliders, extraColliders, paths, ...(improved ? {pathMargin:2.5,rootMargin:0} : {}) }) });
   // W2c-9c2: 352m look window leaves 176-32-120-6=18m streaming headroom.
-  const windows = createGrassWindows(cell, improved ? {size:352} : {}), budget = grassFrameBudget(quality);
+  const bandCell = bands ? createGrassBandCell(cell,terrain,{surfaceCodeAt:createSurfaceCodeAt(data.meta,data.surface),facilityBoxes}) : cell;
+  const windows = createGrassWindows(bandCell, improved ? {size:352} : {}), budget = grassFrameBudget(quality);
   let grass = null, disposed = false, step = 0, switches = 0, lastWorkMs = 0, maxWorkMs = 0, initial = true, background = null, backgroundWanted = false;
   function advance(camera,pos,warm=false) {
       if (disposed || !enabled || step === 3) return;
@@ -27,7 +30,7 @@ export function buildKamakuraGrass({ data, terrain, colliders, extraColliders, s
       const next = windows.commit();
       if (next) {
         if (grass) grass.setField(next);
-        else { grass = buildGrass({ field: next, wind, sunDir, quality, reach: improved ? {near:10,mid:120} : KAMAKURA_GRASS_REACH, look }); group.add(grass.group); grass.setDensityScale(step === 2 ? .6 : 1); grass.setLookQuality(step); }
+        else { grass = buildGrass({ field: next, wind, sunDir, quality, reach: bands ? {near:25,mid:122,midInner:8} : improved ? {near:10,mid:120} : KAMAKURA_GRASS_REACH, look }); group.add(grass.group); grass.setDensityScale(step === 2 ? .6 : 1); grass.setLookQuality(step); }
         // W2c-9b: sample the same linear ground colors used by the terrain.
         const tint = new THREE.Color(0,0,0); let n = 0;
         for (const dz of [-8,0,8]) for (const dx of [-8,0,8]) {
@@ -62,7 +65,7 @@ export function buildKamakuraGrass({ data, terrain, colliders, extraColliders, s
     update(camera,pos=camera.position,paused=false) { if(!paused) advance(camera,pos); },
     updateHero(pos,speed,flying,dt) { if(!disposed && enabled) look?.updateHero(pos,speed,flying,dt); },
     setAdapt(next) { step = typeof next === 'number' ? next : next.step; group.visible = step !== 3; grass?.setDensityScale(step === 2 ? .6 : 1); grass?.setLookQuality(step); },
-    stats() { return { enabled, improved, switches, pending: !!windows.pending, window: windows.field?.stats || null, lastWorkMs, maxWorkMs, ...(grass?.stats() || { nearBlades: 0, midCards: 0, triangles: 0 }) }; },
+    stats() { return { enabled, improved, bands, switches, pending: !!windows.pending, window: windows.field?.stats || null, lastWorkMs, maxWorkMs, ...(grass?.stats() || { nearBlades: 0, midCards: 0, triangles: 0 }) }; },
     dispose() { if (disposed) return; disposed = true; cancel(background); ecology?.dispose(); windows.dispose(); grass?.dispose(); grass = null; group.clear(); }
   };
 }
