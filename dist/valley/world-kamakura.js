@@ -13,6 +13,8 @@ import { kamakuraSpawn } from './kamakura-spawn.js';
 import { buildKamakuraHouses } from './kamakura-house-view.js';
 import { prepareVeg, treesEnabled } from './kamakura-veg.js';
 import { buildKamakuraVeg } from './kamakura-veg-view.js';
+import { prepareStands, standsEnabled, standPolicy } from './kamakura-stands.js';
+import { buildKamakuraStands } from './kamakura-stand-view.js';
 import { windUniforms } from './vegetation.js';
 import { createWind, stepWind, toUniforms } from './wind.js';
 import { verticalScale } from './world-entry.js';
@@ -22,7 +24,7 @@ export async function bootKamakura(data, search) {
   if (!t.walkable(spawn.x, spawn.z)) throw new Error('出発点を歩けません');
   // Load the existing hero only. Do not load the chapter's enemies or scenery.
   const roster = await loadRoster({ names: ['hero'] });
-  let renderer, chunks, hud, houses, trees;
+  let renderer, chunks, hud, houses, trees, stands, standPrepared, treeOptions;
   const wind = windUniforms(); let windState = createWind();
   let vegNotice = data.vegNotice || '';
   let houseNotice = data.houseNotice || '';
@@ -32,7 +34,7 @@ export async function bootKamakura(data, search) {
     renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
     const scene = new THREE.Scene(); scene.background = new THREE.Color(0xacc3cb);
-    const camera = new THREE.PerspectiveCamera(58, 1, 0.15, 7000);
+    const camera = new THREE.PerspectiveCamera(58, 1, 0.15, standsEnabled(search) ? 10000 : 7000);
     scene.add(new THREE.HemisphereLight(0xe4f0ff, 0x615a3d, 2));
     const sun = new THREE.DirectionalLight(0xfff3dd, 2.5); sun.position.set(-100, 160, 50); scene.add(sun);
     chunks = buildKamakuraChunks(t, scene, spawn, groundEnabled(search));
@@ -54,11 +56,19 @@ export async function bootKamakura(data, search) {
           const quality = matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 0 || new URLSearchParams(search).get('q') === 'light' ? 'light' : 'standard';
           trees = buildKamakuraVeg(prepared, { wind, sunDir: sun.position.clone().normalize(), quality, renderer });
           scene.add(trees.group);
+          if (standsEnabled(search)) {
+            standPrepared = prepareStands(data.veg, t, { boxes: houses?.boxes || hiddenHouses?.boxes || [], paths: data.patches?.paths || {}, spawn }, standPolicy(quality));
+            treeOptions = { wind, sunDir: sun.position.clone().normalize(), quality, renderer };
+          }
         } finally { hiddenHouses?.dispose(); }
       } catch { vegNotice = '木を準備できませんでした。木なしで散策を続けます'; }
     }
     const status = text => hud.status(text || [houseNotice, treesEnabled(search) && vegNotice, groundEnabled(search) && data.groundNotice].filter(Boolean).join('。'));
     const g = { scene, roster, terrain: t, col: buildColliders({ bounds: t.bounds, extraBoxes: houses?.boxes || [], extraCircles: trees?.circles || [] }), enemies: [], ally: null };
+    if (standPrepared) {
+      try { stands = buildKamakuraStands(standPrepared, { ...treeOptions, colliders: g.col }); scene.add(stands.group); }
+      catch { vegNotice = '林分を準備できませんでした。一本ずつの木で散策を続けます'; }
+    }
     g.hero = new HeroActor(g, spawn);
     // W2c-1 has no audio. Contacts and IK continue to run through the existing character.
     g.hero.onFootContact = () => {};
@@ -70,6 +80,10 @@ export async function bootKamakura(data, search) {
     const rig = new CameraRig(camera); rig.yaw = spawn.yaw;
     // Prepare the immediate neighborhood in bounded frames before accepting movement.
     while (!chunks.ready(spawn) || (houses && !houses.ready(spawn))) { chunks.update(spawn); houses?.update(spawn); await new Promise(requestAnimationFrame); }
+    if (stands) {
+      const startCamera = { position: { ...spawn, y: t.heightAt(spawn.x, spawn.z) } };
+      while (stands.update(startCamera).pending) await new Promise(requestAnimationFrame);
+    }
     const view = document.getElementById('view'); view.append(renderer.domElement); view.setAttribute('aria-label', '鎌倉を歩く3Dシーン');
     const base = new Input(renderer.domElement), input = new TouchInput(base, renderer.domElement, hud.run);
     let paused = false;
@@ -107,10 +121,10 @@ export async function bootKamakura(data, search) {
       const uniforms = toUniforms(windState);
       wind.uTime.value = uniforms.uTime; wind.uWind.value = uniforms.uWind;
       wind.uWindDir.value.set(...uniforms.uWindDir); wind.uGuideMix.value = uniforms.uGuideMix;
-      chunks.update(g.hero.pos); houses?.update(g.hero.pos); trees?.update(camera); renderer.render(scene, camera);
+      chunks.update(g.hero.pos); houses?.update(g.hero.pos); trees?.update(camera); stands?.update(camera); renderer.render(scene, camera);
     });
   } catch (error) {
-    renderer?.setAnimationLoop(null); chunks?.dispose(); houses?.dispose(); trees?.dispose(); renderer?.domElement.remove(); renderer?.dispose(); hud?.root.remove();
+    renderer?.setAnimationLoop(null); chunks?.dispose(); houses?.dispose(); trees?.dispose(); stands?.dispose(); renderer?.domElement.remove(); renderer?.dispose(); hud?.root.remove();
     style.remove(); document.body.classList.remove('kamakura'); throw error;
   }
 }

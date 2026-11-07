@@ -8,7 +8,7 @@ import { treeImpostors } from './tree-bake.js';
 import { uLodFor } from './tree-lod.js';
 import { selectVeg, vegPolicy, vegCircles } from './kamakura-veg.js';
 export const vegHeight = (species, shape = 0) => treeGeometry(species, 0, shape).height;
-export function buildKamakuraVeg(prepared, { wind, sunDir, quality = 'standard', renderer = null }) {
+export function buildKamakuraVeg(prepared, { wind, sunDir, quality = 'standard', renderer = null, families = [] }) {
   const policy = vegPolicy(quality), group = new THREE.Group(), sets = new Map();
   const materials = treeMaterials({ wind, sunDir, quality });
   let impostors = null, disposed = false, last = null, stats = null;
@@ -26,6 +26,7 @@ export function buildKamakuraVeg(prepared, { wind, sunDir, quality = 'standard',
     }
     const counts = new Map();
     for (const i of prepared.active) { const k = `${i.species}/${i.shape}`; counts.set(k, (counts.get(k) || 0) + 1); }
+    for (const family of families) counts.set(family, Math.max(...policy.capacities));
     for (const [key, count] of counts) {
       const [species, shape] = key.split('/').map(Number);
       for (let level = 0; level < (species === 5 ? 2 : 3); level++) {
@@ -89,5 +90,5 @@ export function buildKamakuraVeg(prepared, { wind, sunDir, quality = 'standard',
     stats = { counts: selection.levels.map(v => v.length), triangles, dropped: selection.dropped, cells: selection.cells, scanned: selection.scanned };
     return stats;
   }
-  return { group, circles, update, dispose, sets, policy, get stats() { return stats; } };
+  return { group, circles, update, dispose, sets, policy, replacePrepared(next) { prepared = next; last = null; }, get stats() { return stats; } };
 }

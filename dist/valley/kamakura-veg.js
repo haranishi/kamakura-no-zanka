@@ -41,21 +41,27 @@ function segmentDistance(p, a, b) {
   const dx = b.x - a.x, dz = b.z - a.z, t = Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.z - a.z) * dz) / (dx * dx + dz * dz || 1)));
   return Math.hypot(p.x - a.x - t * dx, p.z - a.z - t * dz);
 }
-export function prepareVeg(items, terrain, { boxes = [], paths = {}, spawn } = {}) {
+export function vegExclusions(terrain, { boxes = [], paths = {}, spawn } = {}) {
   const obstacles = new Map(), routes = new Map();
   for (const b of boxes) { const r = Math.hypot(b.w, b.d) / 2 + 1; insert(obstacles, b, b.x - r, b.x + r, b.z - r, b.z + r); }
   for (const p of Object.values(paths)) for (let i = 1; i < p.xyz_m.length; i++) {
     const a = { x: p.xyz_m[i - 1][0], z: -p.xyz_m[i - 1][1] }, b = { x: p.xyz_m[i][0], z: -p.xyz_m[i][1] };
     insert(routes, { a, b }, Math.min(a.x, b.x) - 2.5, Math.max(a.x, b.x) + 2.5, Math.min(a.z, b.z) - 2.5, Math.max(a.z, b.z) + 2.5);
   }
-  const records = [], active = [], excluded = { house: 0, path: 0, spawn: 0, water: 0 }, grid = new Map(); let insideA = 0;
-  for (const raw of items) {
-    const item = mapVeg(raw); if (!item) continue;
+  return item => {
     const k = key(Math.floor(item.x / 256), Math.floor(item.z / 256));
-    const reason = (obstacles.get(k) || []).some(b => nearHouse(b, item)) ? 'house'
+    return (obstacles.get(k) || []).some(b => nearHouse(b, item)) ? 'house'
       : (routes.get(k) || []).some(({ a, b }) => segmentDistance(item, a, b) <= 2.5) ? 'path'
       : spawn && Math.hypot(item.x - spawn.x, item.z - spawn.z) <= 3 ? 'spawn'
       : terrain.waterAt(item.x, item.z) > 0 || terrain.heightAt(item.x, item.z) <= 0 ? 'water' : null;
+  };
+}
+export function prepareVeg(items, terrain, options = {}) {
+  const exclude = options.exclude || vegExclusions(terrain, options);
+  const records = [], active = [], excluded = { house: 0, path: 0, spawn: 0, water: 0 }, grid = new Map(); let insideA = 0;
+  for (const raw of items) {
+    const item = mapVeg(raw); if (!item) continue;
+    const reason = exclude(item);
     item.excluded = reason; records.push(item);
     if (reason) { excluded[reason]++; continue; }
     item.y = terrain.heightAt(item.x, item.z); item.insideA = terrain.insideA(item.x, item.z);
