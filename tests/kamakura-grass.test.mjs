@@ -137,3 +137,39 @@ test('9b window commits update the existing mid-card tint from linear terrain co
     assert.equal(v.stats().switches,switches+1);assert.equal(calls,18);assert(Math.abs(tint.r-.6*.68)<1e-10);
   }finally{v.dispose();}
 });
+
+test('9p expanding the boot window preserves every final cell and edge byte',()=>{
+  const evaluate=cell(),partial=createGrassWindows(evaluate,{size:352}),cold=createGrassWindows(evaluate,{size:352});
+  const pos={x:-7,z:11};partial.plan(pos,120);const first=finish(partial);
+  partial.plan(pos);const expanded=finish(partial);cold.plan(pos);const expected=finish(cold);
+  assert.equal(expanded.stats.reused,120*120);
+  for(const key of ['density','midPatch','species','height','heights','placeable'])assert.deepEqual(expanded[key],expected[key]);
+  assert.equal(first.nx,120);
+});
+test('9p close grass is usable while outer cells are pending; fake-clock jobs switch once and cancel on disposal',()=>{
+  let time=0,id=0;const jobs=new Map();
+  const data=fixture();data.meta.surface={};data.surface=new Uint8Array(data.meta.grid.width*data.meta.grid.height).fill(2);
+  const options={data,terrain:createKamakuraTerrain(data),wind,sunDir:new THREE.Vector3(1,1,0),now:()=>time+=.05,
+    schedule:fn=>{jobs.set(++id,fn);return id;},cancel:id=>jobs.delete(id)};
+  const v=buildKamakuraGrass(options),c=camera(0);v.warm(c);
+  const first=v.stats();assert(first.nearBlades>0);assert.equal(first.switches,1);assert.equal(jobs.size,0);
+  v.update(c);assert(v.stats().pending);assert(v.stats().nearBlades>0);assert.equal(jobs.size,1);
+  // Walking/hero updates do not wait for completion.
+  v.updateHero({x:1,y:10,z:0},3,false,1/60);v.update(c,{x:1,z:0});
+  for(let i=0;jobs.size&&i<10000;i++){const [id,fn]=jobs.entries().next().value;jobs.delete(id);fn();}
+  assert.equal(jobs.size,0);v.update(c);assert.equal(v.stats().switches,2);assert(!v.stats().pending);
+  const n=v.stats().nearBlades;for(let i=0;i<5;i++)v.update(c);assert.equal(v.stats().switches,2);assert.equal(v.stats().nearBlades,n);
+  v.dispose();v.dispose();assert.equal(jobs.size,0);
+  const cancelled=buildKamakuraGrass(options);cancelled.warm(c);cancelled.update(c);assert.equal(jobs.size,1);
+  cancelled.dispose();assert.equal(jobs.size,0);cancelled.update(c);assert.equal(cancelled.group.children.length,0);
+});
+test('9p ecology reuses a supplied river band and computes normals only on demand',async()=>{
+  const {createGrassEnvironment}=await import('../dist/valley/kamakura-grass-look.js');
+  let rivers=0,heights=0;
+  const terrain={...flat(),heightAt:(x,z)=>{heights++;return 10+x*.01+z*.02;},riverDistanceAt:()=>{rivers++;return 7;}};
+  const e=createGrassEnvironment(terrain),evaluate=createGrassCell(terrain,{surfaceCodeAt:()=>2,environmentAt:e});
+  evaluate(-3,8);assert.equal(rivers,1);const base=e(-2.5,8.5);assert.equal(rivers,1);assert.equal(base.normalY,undefined);
+  const h=heights;const normal=e(-2.5,8.5,true);assert.equal(heights,h+4);assert.equal(rivers,1);e(-2.5,8.5,true);assert.equal(heights,h+4);
+  const cold=createGrassEnvironment(terrain);assert.deepEqual(normal,cold(-2.5,8.5,true));
+  e.retain({x0:100,z0:100,nx:10,nz:10});e(-2.5,8.5);assert.equal(rivers,3);e.dispose();cold.dispose();
+});

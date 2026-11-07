@@ -1,14 +1,20 @@
 // W2c-9g: flat kit colors -> shared procedural house surfaces (geometry/lighting unchanged).
 import * as THREE from 'three';
 import { HOUSE_SURFACE as S, HOUSE_PALETTE, houseTextureRows } from './kamakura-house-texture.js';
-export async function createHouseTextures() {
-  // W2c-9 parent fix: a setTimeout(0) per row (512 rows, 4 ms clamp) cost ~0.9 s of load; yield only after 8 ms of work.
-  const rows = houseTextureRows(); let result, start = performance.now();
+// W2c-9p: houses/facilities reuse immutable CPU pixels; each owner retains its own
+// DataTexture and disposal. Generation still yields after at most one 8ms slice.
+let atlasPixels;
+async function generateAtlas() {
+  const rows=houseTextureRows();let result,start=performance.now();
   do {
-    result = rows.next();
-    if (!result.done && performance.now() - start >= 8) { await new Promise(resolve => setTimeout(resolve, 0)); start = performance.now(); }
-  } while (!result.done);
-  const texture = new THREE.DataTexture(result.value, 512, 512, THREE.RGBAFormat);
+    result=rows.next();
+    if(!result.done && performance.now()-start>=8){await new Promise(resolve=>setTimeout(resolve,0));start=performance.now();}
+  } while(!result.done);
+  return result.value;
+}
+export async function createHouseTextures() {
+  if(!atlasPixels)atlasPixels=generateAtlas().catch(error=>{atlasPixels=null;throw error;});
+  const texture = new THREE.DataTexture(await atlasPixels, 512, 512, THREE.RGBAFormat);
   texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
   texture.generateMipmaps = true; texture.minFilter = THREE.LinearMipmapLinearFilter;
   texture.magFilter = THREE.LinearFilter; texture.anisotropy = 4; texture.needsUpdate = true;

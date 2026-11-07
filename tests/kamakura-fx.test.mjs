@@ -269,3 +269,18 @@ test('9d3 square white droplets, soft mist lifetime, landing micro-rings and dou
  const shader={...THREE.ShaderLib.basic};view.group.children[0].material.onBeforeCompile(shader);assert(shader.fragmentShader.includes('max(inner,outer)'));assert(shader.fragmentShader.includes('uneven'));
  view.dispose();
 });
+
+test('9p deferred effects allow movement before indexing, publish deterministic fish, and release once',async()=>{
+  const {prepareKamakuraFx,buildKamakuraFx}=await import(await load('kamakura-fx-view.js')),THREE=await import(threeURL);
+  const options={terrain,data:{rivers:data(river(Array.from({length:300},(_,i)=>[i*5-700,0])))}};
+  let time=0;const fx=await prepareKamakuraFx(options,undefined,{defer:true,now:()=>time+=3}),h=hero(),camera=new THREE.PerspectiveCamera();
+  assert.equal(fx.ready,false);assert.equal(fx.group.children.length,0);fx.api.dust(h.pos);fx.contact({},h);
+  fx.update(.1,camera,h);assert.equal(fx.ready,false); // first draw does no index work
+  fx.update(.1,camera,h);assert.equal(fx.ready,false);h.pos.x=1;fx.update(.1,camera,h);assert.equal(h.pos.x,1);
+  for(let i=0;i<20&&!fx.ready;i++)fx.update(0,camera,h);assert(fx.ready);
+  const reference=buildKamakuraFx(options);reference.update(0,camera,h);fx.update(0,camera,h);
+  assert.deepEqual(fx.fish.fish,reference.fish.fish);assert.equal(fx.fish.count,reference.fish.count);
+  const resources=new Map();fx.group.traverse(o=>{for(const r of [o.isMesh&&o,o.geometry,o.material].filter(Boolean)){resources.set(r,0);r.addEventListener('dispose',()=>resources.set(r,resources.get(r)+1));}});
+  fx.dispose();fx.dispose();assert([...resources.values()].every(n=>n===1));assert.equal(fx.group.children.length,0);reference.dispose();
+  const cancelled=await prepareKamakuraFx(options,undefined,{defer:true,now:()=>time+=3});cancelled.dispose();cancelled.update(.1,camera,h);assert.equal(cancelled.group.children.length,0);
+});

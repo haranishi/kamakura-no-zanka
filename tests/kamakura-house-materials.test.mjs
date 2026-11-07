@@ -219,3 +219,15 @@ test('9g3: fine atlas has no strong short-period recurrence (0.18–3m)', t=>{
     }assert(max<.55,`channel ${c}: ${max}`);maxima.push(max);
   }t.diagnostic(JSON.stringify({maxShortPeriodCorrelation:maxima,tileMetres:8}));
 });
+
+test('9p atlas cache preserves the original 9g3 pixels exactly across sizes/seeds', async()=>{
+  const {createHash}=await import('node:crypto');
+  for(const [size,seed,expected] of [
+    [32,9173,'2118f2eebafe55122b7b4b9595641079dcdfd2093094bbdb0121d4662467648c'],
+    [512,9173,'5388d3ee511914163511058d47fb14ffc6be53a0db7540c340d3ef051b004c9a'],
+    [64,13,'55ecc18d355d2500f7690477383d78d50130e260e53d1eb8368ac68941eb6a75']
+  ])assert.equal(createHash('sha256').update(houseTextureData(size,seed)).digest('hex'),expected);
+  const {createHouseTextures}=await loadHouseMaterials(),a=await createHouseTextures(),b=await createHouseTextures();
+  assert.notEqual(a,b);assert.equal(a.image.data,b.image.data);
+  a.dispose();b.dispose();
+});

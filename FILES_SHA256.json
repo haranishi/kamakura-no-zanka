@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-07T12:21:20.674630+00:00",
+  "generatedAt": "2026-11-07T12:21:21.250114+00:00",
   "scope": "Source, assets and verification artifacts; excludes this manifest, Git metadata, ignored files and private runtime data",
   "files": [
     {
@@ -435,8 +435,8 @@
     },
     {
       "path": ".kiro/specs/world-map/tasks.md",
-      "size": 11621,
-      "sha256": "02b9a9abb8e16f92337d16f2f58be98cc82557c708c18b44da71cba7f0253aca"
+      "size": 11867,
+      "sha256": "4d330b9bc154dff3b6d9f6f6ff837fdcaecb45f5d831841ee43cd3a0d26740bf"
     },
     {
       "path": ".kiro/specs/world-map/w2c-1-validation.md",
@@ -552,6 +552,11 @@
       "path": ".kiro/specs/world-map/w2c-9g-validation.md",
       "size": 13135,
       "sha256": "3b5e5a820129c7cb6e9ba2d27d3ec4c4056eaf135ace86fcbd408a28193c2ca7"
+    },
+    {
+      "path": ".kiro/specs/world-map/w2c-9p-validation.md",
+      "size": 5710,
+      "sha256": "b64dab70b430fe148a2a2cd4c648d254297ba701b993d1ecf63b223ab0425abd"
     },
     {
       "path": ".kiro/steering/product.md",
@@ -1320,8 +1325,8 @@
     },
     {
       "path": "dist/valley/kamakura-fish.js",
-      "size": 9991,
-      "sha256": "740f0f19894760f19fc1cf37117226bd8dc952224635e9edcf84a6cb7429e301"
+      "size": 10112,
+      "sha256": "26048c5d3598d49e9346a2563be77000edab3c76e3705ba2e652334166e27d12"
     },
     {
       "path": "dist/valley/kamakura-fly-view.js",
@@ -1335,8 +1340,8 @@
     },
     {
       "path": "dist/valley/kamakura-fx-view.js",
-      "size": 7678,
-      "sha256": "d00adb1d48879e0acf5e58542ef889a722ae1febe99487b2b961acc76090821d"
+      "size": 9066,
+      "sha256": "6808eb42f9e40f9aa07d03fb2e0bda50e183afae641604e210e6161f72cdac42"
     },
     {
       "path": "dist/valley/kamakura-fx.js",
@@ -1345,8 +1350,8 @@
     },
     {
       "path": "dist/valley/kamakura-grass-field.js",
-      "size": 8295,
-      "sha256": "f7eedaf962e2b72cd954bc3bc1b7eae4900a849c9594e155c341d8cf89223381"
+      "size": 8631,
+      "sha256": "692f7c450401d51c2ec395a711e7d24525624b9d98cd07a4803427afd087e40f"
     },
     {
       "path": "dist/valley/kamakura-grass-look-view.js",
@@ -1355,13 +1360,13 @@
     },
     {
       "path": "dist/valley/kamakura-grass-look.js",
-      "size": 6372,
-      "sha256": "2ce7f6981d5ce5c41cbe7e0b0998b453ec89d0803e355033272edcad2e63e39d"
+      "size": 7565,
+      "sha256": "55caef3df4b026829fb999b6abc612729696e6e01d4b0c5eaa3aa0ab5939355a"
     },
     {
       "path": "dist/valley/kamakura-grass-view.js",
-      "size": 4106,
-      "sha256": "cc3552bfb4014a5aad20128600c614fca38247e102384241142e53a9441268a1"
+      "size": 4979,
+      "sha256": "47faa3d9dbe736dfb113da14dca771802b4d36d7c18eee177d594fbf46134070"
     },
     {
       "path": "dist/valley/kamakura-ground-detail.js",
@@ -1380,13 +1385,13 @@
     },
     {
       "path": "dist/valley/kamakura-house-materials.js",
-      "size": 8567,
-      "sha256": "712b83be99f7a56d14a641e53685c704ba0208a56016ec0223a6f053dfc2ff90"
+      "size": 8761,
+      "sha256": "588bc93802a6ae2d96d00abdbadf1940608cbe57b2f4bad70932e4ed20595cf1"
     },
     {
       "path": "dist/valley/kamakura-house-texture.js",
-      "size": 5563,
-      "sha256": "1753e3a61e25479363d49f454bdb3273de74fe2ce50f807afa542e8133ac5267"
+      "size": 6272,
+      "sha256": "b3425139583c3009dea20b434958bbe603f7875f2b36495d50eac1b08cd7e0d5"
     },
     {
       "path": "dist/valley/kamakura-house-view.js",
@@ -1410,8 +1415,8 @@
     },
     {
       "path": "dist/valley/kamakura-sea-view.js",
-      "size": 8786,
-      "sha256": "a1824a951adea666f3d64c0e40c8f3a1d1051ba1491a338d3247848a0e7d5f41"
+      "size": 9780,
+      "sha256": "0f23c288b4a1c58227870490bbe712bbd980d537900d6dbc37c1b2811da87b0f"
     },
     {
       "path": "dist/valley/kamakura-shore-props.js",
@@ -1795,8 +1800,8 @@
     },
     {
       "path": "dist/valley/world-kamakura.js",
-      "size": 14890,
-      "sha256": "a2715ea95d566175b17cc1ef538746a79e9e7a5fb66662aac7a748e35e2821ca"
+      "size": 14939,
+      "sha256": "7c142c689eae1245a141eb87695f82b12fe76fee0e14220494131bfec45c0757"
     },
     {
       "path": "dist/valley/world.html",
@@ -4479,6 +4484,11 @@
       "sha256": "670aa1ae78b72a7cc717e929c0ca05c196cf55ef81d608c17f9c50ddba30b0e4"
     },
     {
+      "path": "tests/helpers/kamakura-boot-measure.mjs",
+      "size": 4911,
+      "sha256": "d108c19f9f9bd18c6a58e9dcadad93e6fc255159d267caf28d48a213073c6911"
+    },
+    {
       "path": "tests/helpers/kamakura-facility-view.mjs",
       "size": 1410,
       "sha256": "d8b715f75607c63fcaa410cedff150a820656d172d6ebe527ec93e05ff0e5754"
@@ -4560,8 +4570,8 @@
     },
     {
       "path": "tests/kamakura-fx.test.mjs",
-      "size": 22900,
-      "sha256": "828a1a9b97aa9bbabadb25c20ff8cddf20e6237502ff64af419077c0cac52de8"
+      "size": 24501,
+      "sha256": "1692267e91b8fc66fcf60a68fbefcdd2b17f77893298ebca1bcc497e159bb80b"
     },
     {
       "path": "tests/kamakura-grass-look.test.mjs",
@@ -4575,8 +4585,8 @@
     },
     {
       "path": "tests/kamakura-grass.test.mjs",
-      "size": 12715,
-      "sha256": "184e843d7c1acd668f8412dd685933d295ea6f928f43b7a6f1f6261873ded35d"
+      "size": 15697,
+      "sha256": "b6ccacb06c76d277fcd46eb63af202396c43ce97c92761f5a770943aa823ce37"
     },
     {
       "path": "tests/kamakura-ground-detail.test.mjs",
@@ -4595,8 +4605,8 @@
     },
     {
       "path": "tests/kamakura-house-materials.test.mjs",
-      "size": 18185,
-      "sha256": "59de94938e654e78653fecee56b541efd2d8467f510f83598017d587048d1177"
+      "size": 18925,
+      "sha256": "48184db0a216eb92632164d9c210acb92ebb49a45f5cc2bed282c2729ae874c3"
     },
     {
       "path": "tests/kamakura-houses.test.mjs",
@@ -4630,8 +4640,8 @@
     },
     {
       "path": "tests/kamakura-shore-9e2.test.mjs",
-      "size": 7663,
-      "sha256": "0b713002771ebaa17c8efaae5ab7dcb11700239bab7f08045df977ddc2eef5a2"
+      "size": 8149,
+      "sha256": "f71bdc2d1bdcc2cc91cf878b1cccabb14de0dd731f4902de9aa701993ef8bb15"
     },
     {
       "path": "tests/kamakura-shore.test.mjs",
