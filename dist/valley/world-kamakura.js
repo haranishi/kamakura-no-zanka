@@ -1,3 +1,4 @@
+import { buildKamakuraGrass } from './kamakura-grass-view.js';
 import { createKamakuraAudio } from './kamakura-audio-view.js';
 import { buildKamakuraFacilities } from './kamakura-facility-view.js';
 import { facilitiesEnabled, causewayShown } from './kamakura-facilities.js';
@@ -32,12 +33,12 @@ export async function bootKamakura(data, search) {
   if (!t.walkable(spawn.x, spawn.z)) throw new Error('出発点を歩けません');
   // Load the existing hero only. Do not load the chapter's enemies or scenery.
   let roster;
-  let renderer, chunks, hud, houses, trees, stands, standPrepared, treeOptions, atmosphere, sea, water, hero, input, hintTimer, flight, facilities, hiddenFacilities, audioView;
+  let renderer, chunks, hud, houses, trees, stands, standPrepared, treeOptions, atmosphere, sea, water, hero, input, hintTimer, flight, facilities, hiddenFacilities, audioView, grass;
   const events = new AbortController(); let disposed = false;
   function dispose() {
     if (disposed) return; disposed = true; events.abort(); clearTimeout(hintTimer);
     input?.setEnabled(false); input?.base.releaseLock();
-    renderer?.setAnimationLoop(null); audioView?.dispose(); flight?.dispose(); hero?.remove(); chunks?.dispose(); houses?.dispose(); trees?.dispose(); stands?.dispose();
+    renderer?.setAnimationLoop(null); audioView?.dispose(); grass?.dispose(); flight?.dispose(); hero?.remove(); chunks?.dispose(); houses?.dispose(); trees?.dispose(); stands?.dispose();
     facilities?.dispose(); hiddenFacilities?.dispose(); water?.dispose(); sea?.geometry.dispose(); sea?.material.dispose(); atmosphere?.dispose();
     const resources = new Set();
     for (const tpl of roster?.templates.values() || []) tpl.scene.traverse(o => {
@@ -87,19 +88,23 @@ export async function bootKamakura(data, search) {
       } catch { facilityNotice = '施設を準備できませんでした。施設なしで散策を続けます'; }
     }
     const facilityExclusions = facilities?.exclusionBoxes || hiddenFacilities?.exclusionBoxes || [];
+    let houseExclusions = houses?.boxes || [];
+    if (!houses && data.houses) {
+      try {
+        const hidden = await buildKamakuraHouses(data.houses, t, new THREE.Scene());
+        houseExclusions = hidden.boxes; hidden.dispose();
+      } catch { houseNotice = '家の除外範囲を準備できませんでした'; }
+    }
     if (data.veg && treesEnabled(search)) {
       try {
         // House exclusions also apply when the houses are hidden for comparison.
-        const hiddenHouses = !houses && data.houses ? await buildKamakuraHouses(data.houses, t, new THREE.Scene()) : null;
-        try {
-          const prepared = prepareVeg(data.veg, t, { boxes: [...(houses?.boxes || hiddenHouses?.boxes || []), ...facilityExclusions], paths: data.patches?.paths || {}, spawn });
-          trees = buildKamakuraVeg(prepared, { wind, sunDir: atmosphere.sunDir, quality, renderer });
-          scene.add(trees.group);
-          if (standsEnabled(search)) {
-            standPrepared = prepareStands(data.veg, t, { boxes: [...(houses?.boxes || hiddenHouses?.boxes || []), ...facilityExclusions], paths: data.patches?.paths || {}, spawn }, standPolicy(quality));
-            treeOptions = { wind, sunDir: atmosphere.sunDir, quality, renderer };
-          }
-        } finally { hiddenHouses?.dispose(); }
+        const prepared = prepareVeg(data.veg, t, { boxes: [...houseExclusions, ...facilityExclusions], paths: data.patches?.paths || {}, spawn });
+        trees = buildKamakuraVeg(prepared, { wind, sunDir: atmosphere.sunDir, quality, renderer });
+        scene.add(trees.group);
+        if (standsEnabled(search)) {
+          standPrepared = prepareStands(data.veg, t, { boxes: [...houseExclusions, ...facilityExclusions], paths: data.patches?.paths || {}, spawn }, standPolicy(quality));
+          treeOptions = { wind, sunDir: atmosphere.sunDir, quality, renderer };
+        }
       } catch { vegNotice = '木を準備できませんでした。木なしで散策を続けます'; }
     }
     hiddenFacilities?.dispose(); hiddenFacilities = null;
@@ -109,6 +114,10 @@ export async function bootKamakura(data, search) {
       try { stands = buildKamakuraStands(standPrepared, { ...treeOptions, colliders: g.col }); scene.add(stands.group); }
       catch { vegNotice = '林分を準備できませんでした。一本ずつの木で散策を続けます'; }
     }
+    // Share the live trunk index with collision; index hidden comparison boxes separately.
+    const grassExtra = buildColliders({ bounds: t.bounds, extraBoxes: [...(!houses ? houseExclusions : []), ...(!facilities ? facilityExclusions : [])] });
+    grass = buildKamakuraGrass({ data, terrain: t, colliders: g.col, extraColliders: grassExtra, search, wind, sunDir: atmosphere.sunDir, quality });
+    scene.add(grass.group);
     audioView = createKamakuraAudio({ search, terrain: t, button: hud.sound,
       flying: () => !!flight?.active,
       onUnavailable: text => { audioNotice = text; status(''); } });
@@ -145,7 +154,7 @@ export async function bootKamakura(data, search) {
     addEventListener('blur', () => setPaused(true), { signal: events.signal });
     document.addEventListener('visibilitychange', () => { if (document.hidden) setPaused(true); }, { signal: events.signal });
     const resize = () => { renderer.setPixelRatio(adaptPixelRatio(devicePixelRatio, quality, adapt.step)); renderer.setSize(innerWidth, innerHeight); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); flight.resize(); };
-    const applyAdapt = () => { const policy = adaptPolicy(adapt.step); atmosphere.setAdapt(policy); trees?.setAdapt(policy); stands?.setAdapt(policy); facilities?.setAdapt(policy); };
+    const applyAdapt = () => { const policy = adaptPolicy(adapt.step); atmosphere.setAdapt(policy); trees?.setAdapt(policy); stands?.setAdapt(policy); facilities?.setAdapt(policy); grass?.setAdapt(adapt.step); };
     applyAdapt();
     addEventListener('resize', resize, { signal: events.signal }); resize(); setPaused(false);
     configureLoco(search);
@@ -176,7 +185,7 @@ export async function bootKamakura(data, search) {
       const uniforms = toUniforms(windState);
       wind.uTime.value = uniforms.uTime; wind.uWind.value = uniforms.uWind;
       wind.uWindDir.value.set(...uniforms.uWindDir); wind.uGuideMix.value = uniforms.uGuideMix;
-      flight.updateViews(uniforms.uTime, paused ? 0 : dt); facilities?.update(flight.pos); renderer.render(scene, camera);
+      flight.updateViews(uniforms.uTime, paused ? 0 : dt); facilities?.update(flight.pos); grass.update(camera, flight.pos, paused); renderer.render(scene, camera);
       hud.update(flight.pos, flight.yaw, t, { ...renderer.info.render, averageMs: adapt.averageMs, step: adapt.step }, flight.state, audioView.debugText());
     });
     return { dispose };
