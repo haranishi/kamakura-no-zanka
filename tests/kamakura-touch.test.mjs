@@ -34,3 +34,22 @@ test('touch adapter keeps keyboard axis/look, independent fingers, sprint edges 
     element.emit('pointerdown', finger(1, 100)); element.emit('pointermove', finger(1, 100, 40)); element.emit('pointercancel', finger(1, 100)); assert(!input.axis().active);
   } finally { globalThis.document = oldDocument; globalThis.addEventListener = oldAdd; }
 });
+
+test('optional abort signal releases keyboard, mouse and touch listeners on teardown', async () => {
+  const { Input } = await import('../dist/valley/input.js');
+  const oldDocument=globalThis.document, oldAdd=globalThis.addEventListener;
+  const page=new EventTarget(), window=new EventTarget(), element=new EventTarget(), run=new EventTarget();
+  element.style={};run.style={};element.getBoundingClientRect=()=>({left:0,width:800});
+  globalThis.document=page;globalThis.addEventListener=window.addEventListener.bind(window);
+  const emit=(target,type,values={})=>target.dispatchEvent(Object.assign(new Event(type,{cancelable:true}),values));
+  try {
+    const events=new AbortController(),base=new Input(element,{signal:events.signal}),input=new TouchInput(base,element,run,{signal:events.signal});
+    input.setEnabled(true);emit(window,'keydown',{code:'KeyW',repeat:false});assert(base.down('KeyW'));
+    emit(run,'pointerdown',{pointerType:'touch',pointerId:1});assert(input.down('ShiftLeft'));
+    events.abort(); input.clear();
+    emit(window,'keydown',{code:'KeyW',repeat:false});emit(run,'pointerdown',{pointerType:'touch',pointerId:2});
+    assert(!base.down('KeyW'));assert(!input.down('ShiftLeft'));assert.equal(input.pointers.size,0);
+    // TouchInput must not retain its captured base through blur or page listeners.
+    let calls=0;base.clear=()=>calls++;emit(window,'blur');emit(page,'visibilitychange');assert.equal(calls,0);
+  } finally {globalThis.document=oldDocument;globalThis.addEventListener=oldAdd;}
+});

@@ -5,30 +5,31 @@ const GAME_KEYS = new Set([...MOVE_KEYS, 'ShiftLeft', 'ShiftRight', 'Space', 'Ke
 const uiTarget = t => !!t?.closest?.('button,input,select,textarea,dialog,[contenteditable="true"]');
 
 export class Input {
-  constructor(element) {
+  constructor(element, { signal } = {}) {
+    const listen = (target, type, listener, options) => target.addEventListener(type, listener, signal ? { ...options, signal } : options);
     this.el = element; this.enabled = false; this.locked = false;
     this.held = new Set(); this.pressed = new Set(); this.mouse = new Set(); this.mousePressed = new Set();
     this.lookX = 0; this.lookY = 0; this.wheel = 0; this.mouseDownAt = new Map();
     this.onLockChange = null;
-    addEventListener('keydown', e => {
+    listen(globalThis, 'keydown', e => {
       if (!this.enabled || uiTarget(e.target) || !GAME_KEYS.has(e.code)) return;
       e.preventDefault();
       if (!e.repeat) this.pressed.add(e.code);
       this.held.add(e.code);
     });
-    addEventListener('keyup', e => { this.held.delete(e.code); });
-    addEventListener('blur', () => this.clear());
-    document.addEventListener('visibilitychange', () => this.clear());
-    element.addEventListener('mousedown', e => {
+    listen(globalThis, 'keyup', e => { this.held.delete(e.code); });
+    listen(globalThis, 'blur', () => this.clear());
+    listen(document, 'visibilitychange', () => this.clear());
+    listen(element, 'mousedown', e => {
       if (!this.enabled) return;
       if (!this.locked) { this.requestLock(); return; }
       e.preventDefault(); this.mouse.add(e.button); this.mousePressed.add(e.button); this.mouseDownAt.set(e.button, performance.now());
     });
-    addEventListener('mouseup', e => { this.mouse.delete(e.button); });
-    element.addEventListener('contextmenu', e => e.preventDefault());
-    element.addEventListener('wheel', e => { if (this.enabled) this.wheel += e.deltaY; }, { passive: true });
-    document.addEventListener('mousemove', e => { if (this.enabled && this.locked) { this.lookX += e.movementX; this.lookY += e.movementY; } });
-    document.addEventListener('pointerlockchange', () => {
+    listen(globalThis, 'mouseup', e => { this.mouse.delete(e.button); });
+    listen(element, 'contextmenu', e => e.preventDefault());
+    listen(element, 'wheel', e => { if (this.enabled) this.wheel += e.deltaY; }, { passive: true });
+    listen(document, 'mousemove', e => { if (this.enabled && this.locked) { this.lookX += e.movementX; this.lookY += e.movementY; } });
+    listen(document, 'pointerlockchange', () => {
       this.locked = document.pointerLockElement === element;
       if (!this.locked) this.clear();
       this.onLockChange?.(this.locked);

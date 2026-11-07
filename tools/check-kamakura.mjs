@@ -1,3 +1,4 @@
+import { verifyAtmosphere } from './lib/kamakura-atmosphere-validation.mjs';
 import { verifyStands } from './lib/kamakura-stand-validation.mjs';
 import { verifyVeg } from './lib/kamakura-veg-validation.mjs';
 import { verifyGround } from './lib/kamakura-ground-validation.mjs';
@@ -6,6 +7,7 @@ import { verifyPatches } from './lib/kamakura-patch-validation.mjs';
 // Runtime measurements go to stdout only; do not redirect into the repository.
 import { readPrivateData, verifySamples, verifySeams } from './lib/kamakura-validation.mjs';
 import { createKamakuraTerrain } from '../dist/valley/kamakura-terrain.js';
+console.log(JSON.stringify({ atmosphere: await verifyAtmosphere() }, null, 2));
 if (!process.env.KZ_WORLD_DIR) {
   console.log('SKIP: KZ_WORLD_DIR が未設定のため、鎌倉の実データ検算を省略します。');
 } else {

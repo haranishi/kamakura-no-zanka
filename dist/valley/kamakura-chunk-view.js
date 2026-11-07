@@ -20,7 +20,7 @@ export function buildKamakuraChunks(t, scene, spawn, ground = true) {
     g.setAttribute('position', new THREE.Float32BufferAttribute(data.positions, 3));
     g.setAttribute('normal', new THREE.Float32BufferAttribute(data.normals, 3)); g.setIndex(data.indices); g.computeBoundingSphere();
     if (ch.mesh) { ch.mesh.geometry.dispose(); ch.mesh.geometry = g; }
-    else { ch.mesh = new THREE.Mesh(g, material); scene.add(ch.mesh); }
+    else { ch.mesh = new THREE.Mesh(g, material); ch.mesh.receiveShadow = true; scene.add(ch.mesh); }
   }
   const wantLOD = (ch, d) => t.patches ? choosePatchLOD(d, ch.step) : ch.nearA ? chooseLOD(d, ch.step) : 8;
   // Plan all initial LODs before construction, so progressively arriving neighbors already match.
