@@ -69,21 +69,45 @@ export function createGrassEnvironment(terrain,{ colliders, extraColliders, path
         const k=key(x,z);if(!routes.has(k))routes.set(k,[]);routes.get(k).push(segment);
       }
   }
-  return (x,z,withNormal=false)=>{
+  // W2c-9p: metre ecology is shared by window preparation and near/mid packing.
+  // The view prunes to its bounded window; normal work stays lazy and near-only.
+  const cache=new Map(), buckets=new Map(), layers=[colliders,extraColliders];
+  const environment=(x,z,withNormal=false,river)=>{
+    const id=key(x,z);let e=cache.get(id);
+    if(!e) {
     let path=Infinity,house=Infinity,shade=0;
     for(const a of routes.get(key(Math.floor(x/64),Math.floor(z/64)))||[]) {
       const t=clamp(((x-a.x)*a.dx+(z-a.z)*a.dz)/(a.dx*a.dx+a.dz*a.dz||1));
       path=Math.min(path,Math.hypot(x-a.x-t*a.dx,z-a.z-t*a.dz));
     }
-    for(let j=Math.floor((z-12)/8);j<=Math.floor((z+12)/8);j++)for(let i=Math.floor((x-12)/8);i<=Math.floor((x+12)/8);i++)
-      for(const col of [colliders,extraColliders])for(const o of col?.grid.get(key(i,j))||[]) {
-        if(o.type==='circle')shade=Math.max(shade,1-smooth((Math.hypot(x-o.x,z-o.z)-o.r)/Math.min(10,Math.max(3,o.height*.4))));
-        else {const dx=x-o.x,dz=z-o.z,d=Math.hypot(Math.max(0,Math.abs(dx*o.c-dz*o.s)-o.hx),Math.max(0,Math.abs(dx*o.s+dz*o.c)-o.hz));house=Math.min(house,d);shade=Math.max(shade,.65*(1-smooth(d/8)));}
-      }
-    const e=grassEcology(x,z,{river:terrain.riverDistanceAt(x,z,15),path,house,shade,sand:1-smooth((terrain.seaDistanceAt?.(x,z)??Infinity)/40),elevation:terrain.heightAt(x,z),slopeBreak:terrain.slopeAt ? smooth(terrain.slopeAt(x,z)/24) : 0});
-    if(withNormal){const nx=terrain.heightAt(x-.5,z)-terrain.heightAt(x+.5,z),nz=terrain.heightAt(x,z-.5)-terrain.heightAt(x,z+.5),length=Math.hypot(nx,1,nz);e.normalX=nx/length;e.normalY=1/length;e.normalZ=nz/length;}
+    // A collider occupies several buckets; shade/house minima need each only once.
+    const bx=Math.floor((x-12)/8),bz=Math.floor((z-12)/8),bucketKey=key(bx,bz);
+    let candidates=buckets.get(bucketKey);
+    if(!candidates){
+      const unique=new Set();
+      for(let j=bz;j<=Math.floor((z+12)/8);j++)for(let i=bx;i<=Math.floor((x+12)/8);i++)
+        for(const col of layers)for(const o of col?.grid.get(key(i,j))||[])unique.add(o);
+      candidates=[...unique];buckets.set(bucketKey,candidates);
+    }
+    for(const o of candidates) {
+      if(o.type==='circle')shade=Math.max(shade,1-smooth((Math.hypot(x-o.x,z-o.z)-o.r)/Math.min(10,Math.max(3,o.height*.4))));
+      else {const dx=x-o.x,dz=z-o.z,d=Math.hypot(Math.max(0,Math.abs(dx*o.c-dz*o.s)-o.hx),Math.max(0,Math.abs(dx*o.s+dz*o.c)-o.hz));house=Math.min(house,d);shade=Math.max(shade,.65*(1-smooth(d/8)));}
+    }
+    e=grassEcology(x,z,{river:river??terrain.riverDistanceAt(x,z,15),path,house,shade,sand:1-smooth((terrain.seaDistanceAt?.(x,z)??Infinity)/40),elevation:terrain.heightAt(x,z),slopeBreak:terrain.slopeAt ? smooth(terrain.slopeAt(x,z)/24) : 0});
+    cache.set(id,e);
+    }
+    if(withNormal && e.normalY===undefined){const nx=terrain.heightAt(x-.5,z)-terrain.heightAt(x+.5,z),nz=terrain.heightAt(x,z-.5)-terrain.heightAt(x,z+.5),length=Math.hypot(nx,1,nz);e.normalX=nx/length;e.normalY=1/length;e.normalZ=nz/length;}
     return e;
   };
+  let retained=null;
+  environment.retain=(f)=>{
+    // No cache-wide scan on a streaming frame. Expansion keeps warm entries;
+    // movement starts a bounded generation, while resident geometry keeps its bytes.
+    if(!retained || f.x0>retained.x0 || f.z0>retained.z0 || f.x0+f.nx<retained.x0+retained.nx || f.z0+f.nz<retained.z0+retained.nz)cache.clear();
+    buckets.clear();retained={x0:f.x0,z0:f.z0,nx:f.nx,nz:f.nz};
+  };
+  environment.dispose=()=>{cache.clear();buckets.clear();};
+  return environment;
 }
 
 // W2c-9c2: shaded clumps retain separation from the mean ground, including dusk.

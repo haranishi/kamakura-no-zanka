@@ -48,13 +48,16 @@ export function createGrassCell(terrain, { surfaceCodeAt, exclude = () => null, 
     const heights = [terrain.heightAt(ix, iz), terrain.heightAt(ix + 1, iz), terrain.heightAt(ix, iz + 1), terrain.heightAt(ix + 1, iz + 1)];
     const empty = { placeable: 0, density: 0, height: 0, species: SHORT, midPatch: 0, heights };
     const code = surfaceCodeAt?.(x, z), scale = ({ 0: .15, 2: 1, 3: .3, 4: .2 })[code];
-    if (!scale || !terrain.walkable(x, z) || terrain.waterAt(x, z) > .05 || terrain.slopeAt(x, z) > 32 || exclude(x, z)) return empty;
+    if (!scale || !terrain.walkable(x, z) || (terrain.isSea ? terrain.isSea(x,z) : terrain.waterAt(x,z) > .05) || terrain.slopeAt(x, z) > 32 || exclude(x, z)) return empty;
     const [a,b,c,d] = heights;
     if (Math.max(Math.hypot(b-a,c-a),Math.hypot(d-c,d-b)) > Math.tan(32 * Math.PI / 180)) return empty;
+    // W2c-9p: isSea plus the bank exclusion subsumes waterAt's reach=0
+    // river query. Older/custom providers retain their original waterAt fallback.
     const river = terrain.riverDistanceAt(x, z, 25);   // only the 1.7 m exclusion and the 25 m bank band matter here
     if (river <= 1 + Math.SQRT1_2) return empty;
     const patch = clamp(.5 + GRASS.patch.largeWeight * noise(seed,x,z,GRASS.patch.largeScale,521) + GRASS.patch.smallWeight * noise(seed,x,z,GRASS.patch.smallScale,523),0,1);
-    const ecology = environmentAt?.(x,z);
+    // W2c-9p: the existing 25m query also supplies ecology's 15m band.
+    const ecology = environmentAt?.(x,z,false,river);
     const density = (1 + (GRASS.maxDensity - 1) * patch) * scale * (ecology?.density ?? 1);
     const s = noise(seed,x,z,GRASS.speciesScale,557);
     let species = code === 3 ? FERN : code === 0 ? SUSUKI : code === 4 ? SHORT : s > GRASS.tallThreshold ? TALL : SHORT;
@@ -73,14 +76,14 @@ function emptyField(pos, seed, size) {
 }
 export function createGrassWindows(cell, { seed = 1333, size = GRASS_WINDOW } = {}) {
   let field = null, pending = null, generation = 0;
-  function plan(pos) {
+  function plan(pos, sizeOverride = size) {
     if (!Number.isFinite(pos.x + pos.z)) throw new RangeError('grass window: finite position required');
     // Finish the chosen window before chasing movement again; otherwise a slow
     // device or fast flight could cancel every batch before any field commits.
     if (pending) return false;
     const target = field;
-    if (target && Math.hypot(pos.x - (target.x0 + target.nx/2),pos.z - (target.z0 + target.nz/2)) < GRASS_MOVE) return false;
-    pending = { field: emptyField(pos, seed, size), cursor: 0, generation: ++generation };
+    if (target && target.nx === sizeOverride && Math.hypot(pos.x - (target.x0 + target.nx/2),pos.z - (target.z0 + target.nz/2)) < GRASS_MOVE) return false;
+    pending = { field: emptyField(pos, seed, sizeOverride), cursor: 0, generation: ++generation };
     return true;
   }
   // At least one cell per call; the caller supplies elapsed milliseconds (no clock here).

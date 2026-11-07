@@ -126,7 +126,7 @@ export async function bootKamakura(data, search) {
     audioView.attach(g);
     g.hero = hero = new HeroActor(g, spawn);
     // W2c-9d: preserve the base footstep before adding local river and dust effects.
-    fx = await prepareKamakuraFx({ terrain: t, data, search, quality }); scene.add(fx.group);
+    fx = await prepareKamakuraFx({ terrain: t, data, search, quality }, undefined, { defer: true }); scene.add(fx.group);
     g.fx = fx.api; bindFxContact(hero, fx);
     g.hud = { hint: (_id, text, ms) => {
       clearTimeout(hintTimer); status(text);
@@ -163,7 +163,7 @@ export async function bootKamakura(data, search) {
     applyAdapt();
     addEventListener('resize', resize, { signal: events.signal }); resize(); setPaused(false);
     configureLoco(search);
-    // W2c-9c: first grass window is complete before the first render.
+    // W2c-9p: warm only the close grass; outer cells and fish index follow the first draw.
     if (!flight.active) rig.update(0, hero.pos, { groundAt: t.heightAt, rayClip: (a, b) => rayClip(g.col, t, a, b, 0.3, { ignoreThin: 0.2 }) });
     grass.warm(camera, flight.pos);
     let last = performance.now();
