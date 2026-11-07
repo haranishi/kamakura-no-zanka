@@ -161,7 +161,8 @@ test('switches disable both stand paths; empty data is harmless and wiring leave
   const v=buildKamakuraStands(outside,{wind,sunDir:new THREE.Vector3(1,1,1)});assert.equal(v.distant[0].mesh.geometry.attributes.aStandExpand.array[0],0);assert.equal(v.distant[1].mesh.geometry.attributes.aStandExpand.array[0],1);v.dispose();
   const p=prepareStands(null,terrain);assert.equal(p.distant.size,0);assert.deepEqual(planStandChunks(p,new Map(),{x:0,z:0}),{create:[],remove:[]});
   const world=fs.readFileSync(new URL('../dist/valley/world-kamakura.js',import.meta.url),'utf8');
-  assert(world.includes('if (standsEnabled(search))'));assert(world.includes('stands?.update(camera)'));assert(world.includes('colliders: g.col'));
+  assert(world.includes('if (standsEnabled(search))'));assert(world.includes('flight.updateViews(uniforms.uTime'));
+  const flight=fs.readFileSync(new URL('../dist/valley/kamakura-fly-view.js',import.meta.url),'utf8');assert(flight.includes('stands?.update(camera)'));assert(world.includes('colliders: g.col'));
 });
 test('private v0.6 stands aggregates and bounded traversal', {skip:!process.env.KZ_WORLD_DIR && 'KZ_WORLD_DIR未設定：私有の林分データが必要'},async t=>{
   const {data}=await readPrivateData(process.env.KZ_WORLD_DIR);if(!data.meta.veg){t.skip('植生のない旧形式');return;}

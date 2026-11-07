@@ -53,3 +53,27 @@ test('optional abort signal releases keyboard, mouse and touch listeners on tear
     let calls=0;base.clear=()=>calls++;emit(window,'blur');emit(page,'visibilitychange');assert.equal(calls,0);
   } finally {globalThis.document=oldDocument;globalThis.addEventListener=oldAdd;}
 });
+
+test('flight touch/keyboard axes, arrow look and hold buttons clear on cancel, pause and abort',async()=>{
+  const { Input }=await import('../dist/valley/input.js');
+  const oldDocument=globalThis.document,oldAdd=globalThis.addEventListener;
+  const page=new EventTarget(),window=new EventTarget();globalThis.document=page;globalThis.addEventListener=window.addEventListener.bind(window);
+  const element=new EventTarget(),run=new EventTarget(),up=new EventTarget(),down=new EventTarget();
+  for(const t of [element,run,up,down])t.style={};element.getBoundingClientRect=()=>({left:0,width:800});
+  const emit=(target,type,values={})=>target.dispatchEvent(Object.assign(new Event(type,{cancelable:true}),values));
+  try {
+    const events=new AbortController(),base=new Input(element,{signal:events.signal}),input=new TouchInput(base,element,run,{signal:events.signal,upButton:up,downButton:down});input.setEnabled(true);
+    emit(window,'keydown',{code:'ArrowUp'});assert.equal(input.flightAxis().forward,0);assert(input.flightLook(1).dy<0);emit(window,'keyup',{code:'ArrowUp'});
+    for(const [key,axis,value]of [['KeyW','forward',1],['KeyA','right',-1],['KeyE','up',1],['KeyQ','up',-1],['Space','up',1],['KeyC','up',-1]]){
+      emit(window,'keydown',{code:key});assert.equal(input.flightAxis()[axis],value);emit(window,'keyup',{code:key});
+    }
+    emit(up,'pointerdown',{pointerType:'touch',pointerId:1});assert.equal(input.flightAxis().up,1);
+    emit(down,'pointerdown',{pointerType:'touch',pointerId:2});assert.equal(input.flightAxis().up,0);
+    emit(up,'lostpointercapture',{pointerId:1});assert.equal(input.flightAxis().up,-1);
+    emit(down,'pointercancel',{pointerId:2});assert.equal(input.flightAxis().up,0);
+    emit(run,'pointerdown',{pointerType:'touch',pointerId:3});assert(input.flightAxis().boost);
+    emit(up,'pointerdown',{pointerType:'touch',pointerId:4});input.setEnabled(false);assert.equal(input.flightAxis().up,0);assert(!input.flightAxis().boost);
+    input.setEnabled(true);emit(up,'pointerdown',{pointerType:'touch',pointerId:5});emit(window,'blur');assert.equal(input.flightAxis().up,0);
+    events.abort();input.clear();emit(up,'pointerdown',{pointerType:'touch',pointerId:6});assert.equal(input.flightAxis().up,0);
+  }finally{globalThis.document=oldDocument;globalThis.addEventListener=oldAdd;}
+});
