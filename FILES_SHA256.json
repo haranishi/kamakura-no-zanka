@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-07T12:20:39.033020+00:00",
+  "generatedAt": "2026-11-07T12:20:39.329787+00:00",
   "scope": "Source, assets and verification artifacts; excludes this manifest, Git metadata, ignored files and private runtime data",
   "files": [
     {
@@ -435,8 +435,8 @@
     },
     {
       "path": ".kiro/specs/world-map/tasks.md",
-      "size": 5324,
-      "sha256": "0c2b07e351ace0d521dc33193d700b8e89c6915bb5533ff5b20f0a7378e5520c"
+      "size": 5482,
+      "sha256": "e58f017601d1856abfb0fa8e0cbf3a7c465decf9c48f501348b1b72ee808d47f"
     },
     {
       "path": ".kiro/specs/world-map/w2c-1-validation.md",
@@ -464,9 +464,14 @@
       "sha256": "960edf5885b4ac7417a2d24727a63eb8f38d4a57e29adc157ebea11fb4344328"
     },
     {
+      "path": ".kiro/specs/world-map/w2c-5b-fix-validation.md",
+      "size": 3516,
+      "sha256": "483cf3bc9d24904ac5f847c7d1afc8c2d10c71c4bbedb236e3045b8d4239ee91"
+    },
+    {
       "path": ".kiro/specs/world-map/w2c-5b-validation.md",
-      "size": 5641,
-      "sha256": "19e6ee677e4bdb404308fc94da06b93d746430a8f086de1e63692be5f7036645"
+      "size": 7889,
+      "sha256": "2d69ed4495265e1b480b463e959af7d0e5d9aad9a4530be699615d06be91157f"
     },
     {
       "path": ".kiro/specs/world-map/w2c-6a-validation.md",
@@ -1210,13 +1215,13 @@
     },
     {
       "path": "dist/valley/kamakura-stand-view.js",
-      "size": 5603,
-      "sha256": "2194ff9ef205a7b3d4b1d9f1a98372481b49479a561bf752f6ce247e3b7e44f9"
+      "size": 6823,
+      "sha256": "f1c8aeb64690ba432807879ba1f8f6bfcb7fb0a92c0c2a50a68aa6f6d4ff0daf"
     },
     {
       "path": "dist/valley/kamakura-stands.js",
-      "size": 4717,
-      "sha256": "e795242fe13aadf6635a935739df90a3a0235837eeb5a2dcbfaa014f6603951a"
+      "size": 5831,
+      "sha256": "48edb0fb993685bd6ae911f4e33f44c3309d94001e40ff76dcf209173529616b"
     },
     {
       "path": "dist/valley/kamakura-terrain.js",
@@ -4305,8 +4310,8 @@
     },
     {
       "path": "tests/kamakura-stands.test.mjs",
-      "size": 9187,
-      "sha256": "7af8b031cfe64b214f91f13ba1c0e540bf628cbac81323431a91eba0706993e1"
+      "size": 13351,
+      "sha256": "d4fb410f48dc03d41f68b8dd1e32d780132e2494586a3e300ce8f15226c56ce4"
     },
     {
       "path": "tests/kamakura-terrain.test.mjs",

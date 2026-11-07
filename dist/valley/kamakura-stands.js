@@ -1,5 +1,5 @@
 // Pure stand planning. Private placements are never persisted.
-import { mapVeg, prepareVeg, nearbyVeg, vegExclusions } from './kamakura-veg.js';
+import { prepareVeg, nearbyVeg, vegExclusions } from './kamakura-veg.js';
 export const standsEnabled = search => new URLSearchParams(search).get('stands') !== '0' && new URLSearchParams(search).get('trees') !== '0';
 export function standPolicy(quality = 'standard') {
   const light = quality === 'light';
@@ -17,6 +17,24 @@ export const standChildCount = (r, light = false) => {
 function randomFor(id) {
   let state = (id ^ 0x9e3779b9) >>> 0;
   return () => { state = (Math.imul(state, 1664525) + 1013904223) >>> 0; return state / 4294967296; };
+}
+// スクリーンショットから測った見た目の色（2026-11-06）。BRIEF-W2C5B-FIX の樹冠中間色。
+// Private sourceSpecies: 照葉樹・松・杉・落葉。葉テクスチャ用のpaletteとは別。
+export const STAND_COLOR = Object.freeze([
+  Object.freeze([34, 48, 24]), Object.freeze([14, 33, 13]),
+  Object.freeze([42, 69, 35]), Object.freeze([50, 61, 26])
+]);
+export function standColor(item) {
+  const linear = v => v <= .04045 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4;
+  // Discard initial correlated LCG draws so adjacent placement ids have visible variation.
+  const rng = randomFor(item.id); rng(); rng();
+  const gain = (1 + .12 * item.tint) * (1 + (rng() * 2 - 1) * .06);
+  // Lighting gain ~1.1: divide in sRGB before converting; tint/jitter match tree linear gain.
+  return STAND_COLOR[item.sourceSpecies].map(v => linear(v / 1.1 / 255) * gain);
+}
+export function standGround(item, terrain) {
+  const { x, z } = item, r = item.crown * .7;
+  return Math.min(...[[x,z],[x-r,z],[x+r,z],[x,z-r],[x,z+r]].map(([a,b]) => terrain.heightAt(a,b)));
 }
 export function standChildren(stand, light = false) {
   const rng = randomFor(stand.id), points = [], r = stand.crown;
@@ -38,8 +56,8 @@ export function prepareStands(items, terrain, options = {}, policy = standPolicy
   const distant = new Map(), grid = new Map(); let expandable = 0;
   for (const raw of items || []) {
     if (![1, 2].includes(raw.tier) || raw.sourceSpecies > 3 || (policy.light && raw.tier === 1 && raw.rank >= .5)) continue;
-    const mapped = mapVeg({ ...raw, tier: 0 });
-    const item = { ...mapped, tier: raw.tier, y: terrain.heightAt(raw.x, raw.z), expandable: raw.tier === 1 && terrain.insideA(raw.x, raw.z) };
+    const mapped = { ...raw, species: [1, 2, 0, 1][raw.sourceSpecies], color: standColor(raw) };
+    const item = { ...mapped, tier: raw.tier, y: standGround(raw, terrain), expandable: raw.tier === 1 && terrain.insideA(raw.x, raw.z) };
     const dk = `${item.tier}/${item.sourceSpecies}/${Math.floor(item.x / 1000)},${Math.floor(item.z / 1000)}`;
     if (!distant.has(dk)) distant.set(dk, []); distant.get(dk).push(item);
     if (item.expandable) {
