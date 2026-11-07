@@ -1,12 +1,15 @@
 // W2c-9f: direct render -> HDR scene + five fullscreen passes, Kamakura only.
 import * as THREE from 'three';
-import { POST_DEFAULTS, postOptions, postRoute, bloomSizes, projectSun } from './kamakura-post.js';
+import { POST_DEFAULTS, postOptions, postRoute, bloomSizes, projectSun, bloomCap } from './kamakura-post.js';
 const VERT = 'varying vec2 vUv; void main(){ vUv=position.xy*.5+.5; gl_Position=vec4(position.xy,0.,1.); }';
 export const POST_SHADERS = {
-  down: `varying vec2 vUv; uniform sampler2D tex; uniform vec2 delta; uniform float threshold;
+  down: `varying vec2 vUv; uniform sampler2D tex; uniform vec2 delta; uniform float threshold, liftCap;
     vec3 tap(float offset){ vec3 c=max(texture2D(tex,vUv+delta*offset).rgb,vec3(0.));
       float l=dot(c,vec3(.2126,.7152,.0722));
-      return min(c,vec3(32.))*max(0.,l-threshold)/max(l,.00001); }
+      // W2c-9r1 light: shoulder on the first extraction only; retain legacy A/B.
+      float excess=max(0.,l-threshold);
+      if(liftCap>0.) return c/max(max(c.r,c.g),max(c.b,.00001))*(liftCap*excess/(liftCap+excess));
+      return min(c,vec3(32.))*excess/max(l,.00001); }
     void main(){ gl_FragColor=vec4(tap(0.)*.375+(tap(1.)+tap(-1.))*.25+(tap(2.)+tap(-2.))*.0625,1.); }`,
   combine: `varying vec2 vUv; uniform sampler2D tex0,tex1,tex2; uniform vec3 dy;
     vec3 vertical(sampler2D imageTex,float stepY){
@@ -41,7 +44,7 @@ export const POST_SHADERS = {
 const TONES = { none: THREE.NoToneMapping, aces: THREE.ACESFilmicToneMapping, neutral: THREE.NeutralToneMapping, agx: THREE.AgXToneMapping };
 export function createKamakuraPost({ renderer, quality = 'standard', search = '', params = {}, sunDir }) {
   const options = postOptions(search), savedTone = renderer.toneMapping, savedExposure = renderer.toneMappingExposure;
-  const exposure = params.postExposure ?? 1;
+  const exposure = params.postExposure ?? 1, bloomCapValue = bloomCap(search);
   let active = false, latched = false, disposed = false, targets = null, width = 0, height = 0;
   let scene, camera, mesh, geometry, down, combine, final;
   const size = new THREE.Vector2(), direction = new THREE.Vector3(), projected = { x: .5, y: .5, strength: 0 };
@@ -51,7 +54,7 @@ export function createKamakuraPost({ renderer, quality = 'standard', search = ''
   function prepare() {
     if (scene) return;
     geometry = new THREE.BufferGeometry(); geometry.setAttribute('position',new THREE.Float32BufferAttribute([-1,-1,0,3,-1,0,-1,3,0],3));
-    down = material(POST_SHADERS.down,{ tex:{value:null},delta:{value:new THREE.Vector2()},threshold:{value:0} });
+    down = material(POST_SHADERS.down,{ tex:{value:null},delta:{value:new THREE.Vector2()},threshold:{value:0},liftCap:{value:0} });
     combine = material(POST_SHADERS.combine,{ tex0:{value:null},tex1:{value:null},tex2:{value:null},dy:{value:new THREE.Vector3()} });
     final = material(POST_SHADERS.final,{
       sceneTex:{value:null},bloomTex:{value:null},toneMappingExposure:{value:exposure},toneMode:{value:['none','aces','neutral','agx'].indexOf(options.tone)},
@@ -98,6 +101,7 @@ export function createKamakuraPost({ renderer, quality = 'standard', search = ''
           for(let i=0;i<3;i++){
             const input=targets[i]; down.uniforms.tex.value=input.texture;
             down.uniforms.delta.value.set(1/input.width,0); down.uniforms.threshold.value=i===0?POST_DEFAULTS.threshold:0;
+            down.uniforms.liftCap.value=i===0?bloomCapValue:0;
             draw(down,targets[i+1]);
           }
           draw(combine,targets[4]);

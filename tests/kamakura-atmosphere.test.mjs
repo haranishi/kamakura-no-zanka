@@ -33,7 +33,7 @@ test('time/atmos defaults, all presets, invalid values and comparison switch', (
 test('validated normalized directions, elevation, colors, thin haze and independent evening copy', () => {
   const original = JSON.stringify(base());
   for (const [time,elevation] of [['noon',58],['morning',25],['evening',9.78]]) {
-    const a = kamakuraAtmosphere(time,base()); validateAtmosphere(a);
+    const a = kamakuraAtmosphere(time,base(),false); validateAtmosphere(a);
     assert(Math.abs(Math.hypot(...a.sunDir)-1)<1e-12);
     assert(Math.abs(Math.asin(a.sunDir[1])*180/Math.PI-elevation)<.1);
     assert(a.sunDir[2]>0); if(time==='noon') assert(a.sunDir[0]<.1); if(time==='morning') assert(a.sunDir[0]>a.sunDir[2]);
