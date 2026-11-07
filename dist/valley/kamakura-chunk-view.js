@@ -1,7 +1,8 @@
 import * as THREE from 'three';
 import { CHUNK_CELLS as SIZE, chooseLOD, choosePatchLOD, chunkGeometry } from './kamakura-chunks.js';
-export function buildKamakuraChunks(t, scene, spawn) {
-  const material = new THREE.MeshLambertMaterial({ color: 0x858563 });
+export function buildKamakuraChunks(t, scene, spawn, ground = true) {
+  const colored = ground && !!t.groundColorAt?.(t.x0, t.z0);
+  const material = new THREE.MeshLambertMaterial({ color: colored ? 0xffffff : 0x858563, vertexColors: colored });
   const chunks = [], grid = new Map();
   for (let j = 0; j < t.h - 1; j += SIZE) for (let i = 0; i < t.w - 1; i += SIZE) {
     const ch = { i, j, i1: Math.min(t.w - 1, i + SIZE), j1: Math.min(t.h - 1, j + SIZE), step: 8, mesh: null };
@@ -14,7 +15,8 @@ export function buildKamakuraChunks(t, scene, spawn) {
   const neighbors = ch => ({ north: grid.get(`${ch.i},${ch.j - SIZE}`), south: grid.get(`${ch.i},${ch.j + SIZE}`), west: grid.get(`${ch.i - SIZE},${ch.j}`), east: grid.get(`${ch.i + SIZE},${ch.j}`) });
   function rebuild(ch) {
     const edges = Object.fromEntries(Object.entries(neighbors(ch)).map(([side, n]) => [side, n?.step ?? ch.step]));
-    const data = chunkGeometry(t, ch.i, ch.j, ch.i1, ch.j1, ch.step, edges), g = new THREE.BufferGeometry();
+    const data = chunkGeometry(t, ch.i, ch.j, ch.i1, ch.j1, ch.step, edges, ground), g = new THREE.BufferGeometry();
+    if (data.colors) g.setAttribute('color', new THREE.Float32BufferAttribute(data.colors, 3));
     g.setAttribute('position', new THREE.Float32BufferAttribute(data.positions, 3));
     g.setAttribute('normal', new THREE.Float32BufferAttribute(data.normals, 3)); g.setIndex(data.indices); g.computeBoundingSphere();
     if (ch.mesh) { ch.mesh.geometry.dispose(); ch.mesh.geometry = g; }

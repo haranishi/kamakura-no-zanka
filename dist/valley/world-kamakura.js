@@ -1,6 +1,6 @@
 // Separate walk-only composition. No chapter state, quests, or save access.
 import * as THREE from 'three';
-import { createKamakuraTerrain, maxWalkSlope } from './kamakura-terrain.js';
+import { createKamakuraTerrain, maxWalkSlope, groundEnabled } from './kamakura-terrain.js';
 import { buildKamakuraChunks } from './kamakura-chunk-view.js';
 import { createKamakuraHUD } from './hud-kamakura.js';
 import { Input } from './input.js';
@@ -29,7 +29,7 @@ export async function bootKamakura(data, search) {
     const camera = new THREE.PerspectiveCamera(58, 1, 0.15, 7000);
     scene.add(new THREE.HemisphereLight(0xe4f0ff, 0x615a3d, 2));
     const sun = new THREE.DirectionalLight(0xfff3dd, 2.5); sun.position.set(-100, 160, 50); scene.add(sun);
-    chunks = buildKamakuraChunks(t, scene, spawn);
+    chunks = buildKamakuraChunks(t, scene, spawn, groundEnabled(search));
     const seaG = new THREE.PlaneGeometry((t.bounds.maxX - t.bounds.minX) * 1.2, (t.bounds.maxZ - t.bounds.minZ) * 1.2);
     seaG.rotateX(-Math.PI / 2);
     const sea = new THREE.Mesh(seaG, new THREE.MeshLambertMaterial({ color: 0x426f83 })); scene.add(sea);
@@ -39,7 +39,7 @@ export async function bootKamakura(data, search) {
       try { houses = await buildKamakuraHouses(data.houses, t, scene); }
       catch { houseNotice = '家を読み込めませんでした。家なしで散策を続けます'; }
     }
-    const status = text => hud.status(text || houseNotice);
+    const status = text => hud.status(text || [houseNotice, groundEnabled(search) && data.groundNotice].filter(Boolean).join('。'));
     const g = { scene, roster, terrain: t, col: buildColliders({ bounds: t.bounds, extraBoxes: houses?.boxes || [] }), enemies: [], ally: null };
     g.hero = new HeroActor(g, spawn);
     // W2c-1 has no audio. Contacts and IK continue to run through the existing character.

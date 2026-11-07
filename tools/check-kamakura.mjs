@@ -1,3 +1,4 @@
+import { verifyGround } from './lib/kamakura-ground-validation.mjs';
 import { readPrivateHouses, verifyHouses } from './lib/kamakura-house-validation.mjs';
 import { verifyPatches } from './lib/kamakura-patch-validation.mjs';
 // Runtime measurements go to stdout only; do not redirect into the repository.
@@ -9,6 +10,7 @@ if (!process.env.KZ_WORLD_DIR) {
   try {
     const { data, checks } = await readPrivateData(process.env.KZ_WORLD_DIR);
     verifySamples(data, checks);
+    console.log(JSON.stringify({ ground: await verifyGround(data, process.env.KZ_WORLD_DIR) }, null, 2));
     const t = createKamakuraTerrain(data);
     verifySeams(t, Math.floor((t.w / 2) / 64) * 64, Math.floor((t.h / 2) / 64) * 64);
     if (!t.walkable(data.meta.spawn.x, -data.meta.spawn.y)) throw new Error('spawn');

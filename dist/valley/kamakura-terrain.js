@@ -5,6 +5,12 @@ export function maxWalkSlope(search) {
   const raw = new URLSearchParams(search).get('maxslope'), n = Number(raw);
   return raw?.trim() && Number.isFinite(n) && n > 0 && n < 90 ? n : KAMAKURA_MAX_WALK_SLOPE_DEG;
 }
+export const groundEnabled = search => new URLSearchParams(search).get('ground') !== '0';
+// Decode before interpolation: vertex attributes are in the linear working space.
+const groundLinear = Float64Array.from({ length: 256 }, (_, n) => {
+  const c = n / 255;
+  return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+});
 const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
 const mix = (a, b, t) => a + (b - a) * t;
 export function insidePolygon(x, y, polygon) {
@@ -15,7 +21,7 @@ export function insidePolygon(x, y, polygon) {
   }
   return inside;
 }
-export function createKamakuraTerrain({ meta, heights, walk, patches = null }, vscale = 1, maxSlope = KAMAKURA_MAX_WALK_SLOPE_DEG) {
+export function createKamakuraTerrain({ meta, heights, walk, patches = null, ground = null }, vscale = 1, maxSlope = KAMAKURA_MAX_WALK_SLOPE_DEG) {
   if (!Number.isFinite(vscale) || vscale <= 0) throw new RangeError('Invalid vertical scale');
   if (!Number.isFinite(maxSlope) || maxSlope <= 0 || maxSlope >= 90) throw new RangeError('Invalid slope limit');
   const { width: w, height: h, cell_m: cell } = meta.grid;
@@ -24,6 +30,13 @@ export function createKamakuraTerrain({ meta, heights, walk, patches = null }, v
   const bounds = { minX: x0, maxX: -x0, minZ: z0, maxZ: -z0 };
   const at = (i, j) => (meta.height.min_m + heights[clamp(j, 0, h - 1) * w + clamp(i, 0, w - 1)] / 65535 * (meta.height.max_m - meta.height.min_m)) * vscale;
   const gridAt = (x, z) => ({ i: clamp((x - x0) / cell, 0, w - 1), j: clamp((z - z0) / cell, 0, h - 1) });
+  function groundColorAt(x, z) {
+    if (!meta.ground || !ground) return null;
+    const { i, j } = gridAt(x, z), a = Math.floor(i), b = Math.floor(j), u = i - a, v = j - b;
+    const get = (c, r, k) => groundLinear[ground[(Math.min(r, h - 1) * w + Math.min(c, w - 1)) * 3 + k]];
+    return [0, 1, 2].map(k => mix(mix(get(a, b, k), get(a + 1, b, k), u),
+      mix(get(a, b + 1, k), get(a + 1, b + 1, k), u), v));
+  }
   function baseHeightAt(x, z) {
     const { i, j } = gridAt(x, z), a = Math.floor(i), b = Math.floor(j), u = i - a, v = j - b;
     return mix(mix(at(a, b), at(a + 1, b), u), mix(at(a, b + 1), at(a + 1, b + 1), u), v);
@@ -88,7 +101,7 @@ export function createKamakuraTerrain({ meta, heights, walk, patches = null }, v
     for (const [dx, dz] of [[0, 0], [r, 0], [-r, 0], [0, r], [0, -r]]) { const why = blockedAt(x + dx, z + dz); if (why) return why; }
     return null;
   }
-  return { meta, patches, patchIndex, baseHeightAt, vscale, w, h, cell, x0, z0, at, heightAt, slopeAt, maxSlope, insidePatch, normalAt, waterAt, insideA, maskAt,
+  return { meta, groundColorAt, patches, patchIndex, baseHeightAt, vscale, w, h, cell, x0, z0, at, heightAt, slopeAt, maxSlope, insidePatch, normalAt, waterAt, insideA, maskAt,
     waterLevelAt: () => 0, roadInfo: () => null, surfaceAt: () => ({ grass: 0, dirt: 1, rock: 0, gravel: 0, mud: 0, litter: 0 }),
     walkable: (x, z) => !blockedAt(x, z), movementBlockedAt, bounds };
 }
