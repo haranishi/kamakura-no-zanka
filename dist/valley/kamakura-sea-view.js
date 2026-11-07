@@ -54,6 +54,7 @@ export function buildKamakuraSea(terrain, data, {search='',quality='standard',su
           diffuseColor.rgb=mix(${colorGLSL[0]},${colorGLSL[1]},smoothstep(0.0,6.0,landDistance));
           diffuseColor.rgb=mix(diffuseColor.rgb,${colorGLSL[2]},smoothstep(6.0,40.0,landDistance));
           diffuseColor.rgb=mix(diffuseColor.rgb,${colorGLSL[3]},smoothstep(40.0,200.0,landDistance));
+          // W2c-9r2 shore: wider broken surf / steeper wave fronts, pixel-integrated at distance.
           // W2c-9r1 shore: sand-visible shallows -> muted deep water, same d as surf/wetness.
           if(uShore2>.5)diffuseColor.rgb=mix(vec3(.22,.21,.15),diffuseColor.rgb,shoreDepth(landDistance));
           diffuseColor.rgb*=uSeaDay;
@@ -73,8 +74,8 @@ export function buildKamakuraSea(terrain, data, {search='',quality='standard',su
             if(uShoreBands>1.5)foam+=.7*shoreSurf(landDistance,waves.y,vSeaWorld.xz,4.6);
             if(uShoreBands>2.5)foam+=.5*shoreSurf(landDistance,waves.z,vSeaWorld.xz,11.4);
           }
-          foam*=1.0-smoothstep(1.0,8.0,fwidth(landDistance));
-          seaFoam=clamp(foam,0.0,.85)*(uShoreAnimate>.5?1.0:.5);
+          if(uShore2<.5)foam*=1.0-smoothstep(1.0,8.0,fwidth(landDistance));
+          seaFoam=clamp(foam*(uShore2>.5?1.25:1.0),0.0,.9)*(uShoreAnimate>.5?1.0:.5);
         }else diffuseColor.rgb=vec3(.055,.16,.22);
       `).replace('#include <normal_fragment_maps>',`#include <normal_fragment_maps>
         if(uShoreAnimate>.5){
@@ -91,7 +92,7 @@ export function buildKamakuraSea(terrain, data, {search='',quality='standard',su
           float filterWidth=max(length(fwidth(vSeaWorld.xz)),.001);
           float ripple=uShoreDetail*(1.0-smoothstep(.12,.7,filterWidth))*(1.0-smoothstep(80.0,500.0,seaRange));
           vec2 slopes=direction*swell;
-          if(uShore2>.5)slopes+=direction*seaFoam*.07;
+          if(uShore2>.5)slopes+=direction*seaFoam*.16;
           if(uShoreDetail>.5){
             vec2 warp=vec2(shoreNoise(p*.12),shoreNoise(p*.12+7.3))*2.0;
             slopes+=ripple*.07*vec2(shoreNoise(p*1.8+warp+uShoreTime*.2)-.5,shoreNoise(p*1.8+warp-uShoreTime*.17+8.0)-.5);
@@ -109,7 +110,7 @@ export function buildKamakuraSea(terrain, data, {search='',quality='standard',su
         outgoingLight=mix(outgoingLight,vec3(.72,.78,.76)*mix(.55,1.0,uSeaDay),seaFoam);
         #include <opaque_fragment>`);
     };
-    material.customProgramCacheKey=()=> 'kamakura-sea-9r1-v1';
+    material.customProgramCacheKey=()=> 'kamakura-sea-9r2-v1';
   }
   return {group,mesh,uniforms:u,textures,jobs,props,bank,
     update(dt,pos,audioTime) {

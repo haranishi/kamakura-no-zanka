@@ -122,17 +122,38 @@ float shoreDepth(float d){return smoothstep(0.0,32.0,max(0.0,d));}
 vec2 sandWindDirection(vec2 p){return vec2(${SAND_WIND.x.toFixed(1)}+sin(p.y*${SAND_WIND.xScale})*${SAND_WIND.warp},${SAND_WIND.z}+sin(p.x*${SAND_WIND.zScale})*${SAND_WIND.warp});}
 float shoreHash2(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
 float shoreNoise(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);return mix(mix(shoreHash2(i),shoreHash2(i+vec2(1.0,0.0)),f.x),mix(shoreHash2(i+vec2(0.0,1.0)),shoreHash2(i+vec2(1.0)),f.x),f.y);}
+// W2c-9r2 shore fix: distant films retain contrast and a six-pixel FWHM (48m cap).
+float shoreBandWidth(float base,float footprint){return max(base,min(48.0,max(0.0,footprint)*6.0));}
 float shoreSurf(float d,float wave,vec2 p,float band){
-  float centre=1.0+band+4.0*(1.0-wave)+1.3*(shoreNoise(p/19.0+band)-.5);
-  float width=.65+1.7*shoreNoise(p/9.0+band);
-  float body=1.0-smoothstep(0.0,width,abs(d-centre));
-  return body*smoothstep(.28,.62,shoreNoise(p/11.0+band));
+  float footprint=max(fwidth(d),.001);
+  if(d < -4.0 || d > 72.0)return 0.0; // skip offshore noise after evaluating the derivative
+  float centre=1.0+band+4.0*(1.0-wave)+2.2*(shoreNoise(p/19.0+band)-.5);
+  float width=shoreBandWidth(1.0+2.1*shoreNoise(p/9.0+band),footprint);
+  // W2c-9r2 shore: integrate narrow fronts to pixel width instead of a horizontal fade.
+  float softWidth=sqrt(width*width+footprint*footprint);
+  float body=(1.0-smoothstep(0.0,softWidth,abs(d-centre)));
+  float jitter=.8+.4*shoreNoise(p/17.0+band);
+  float gaps=mix(smoothstep(.30,.64,shoreNoise(p/11.0+band)),.38,smoothstep(2.0*jitter,8.0*jitter,footprint));
+  return body*gaps;
 }
 
 
 float shoreWet(float d,float wave){return clamp((${SEA_VIS.minReach.toFixed(1)}+${(SEA_VIS.reach-SEA_VIS.minReach).toFixed(1)}*wave-d)/2.0,0.0,1.0);}
 float shoreFoam(float d,float wave){return max(0.0,1.0-abs(d-(1.0+5.0*(1.0-wave)))/${SEA_VIS.foamWidth.toFixed(1)});}
-float shoreWetReach(float d,float reach){return uShore2>.5?shoreSmooth(d,reach):clamp((reach-d)/${WET_MEMORY.edge.toFixed(1)},0.0,1.0);}
+// W2c-9r2 shore: diffuse 9m wash -> readable 0.6–1.5m saturated sand at the waterline.
+float shoreWetReach(float d,float reach){return uShore2>.5?shoreSmooth(d,shoreBandWidth(clamp(reach*.18,.6,1.5),max(fwidth(d),.001)*2.0)):clamp((reach-d)/${WET_MEMORY.edge.toFixed(1)},0.0,1.0);}
+// Short, scattered river foam; the long-wave gaps are independent of the moving lace.
+float riverFoamCentre(vec2 p){return .35+.38*shoreNoise(p/5.7);}
+float riverFoamWidth(vec2 p){return .18+.36*shoreNoise(p/2.9+8.0);}
+float riverBankFoam(float d,vec2 p,float time,float footprint){
+  if(d<0.0||d>1.4)return 0.0;
+  float width=riverFoamWidth(p),centre=riverFoamCentre(p);
+  float gaps=smoothstep(.43,.65,shoreNoise(p/3.7));
+  float lace=mix(.35,1.0,smoothstep(.32,.72,shoreNoise(p*2.1+vec2(time*.16,-time*.23))));
+  float jitter=.8+.4*shoreNoise(p/7.0);
+  float resolved=1.0-smoothstep(.15*jitter,1.4*jitter,footprint);
+  return (1.0-smoothstep(0.0,width,abs(d-centre)))*gaps*lace*resolved;
+}
 float breakerFoam(float d,float wave,vec2 p,float offset){
   if(d<0.0||d>45.0)return 0.0;
   float n=shoreNoise(p/16.0+offset),wide=.5+2.5*shoreNoise(p/8.0+vec2(7.0+offset,offset));
@@ -187,12 +208,36 @@ export const shore2Enabled=search=>new URLSearchParams(search).get('shore2')!=='
 const smooth01=v=>{const u=Math.max(0,Math.min(1,v));return u*u*(3-2*u);};
 export const shoreMoisture=(d,reach)=>1-smooth01(Math.max(0,d)/reach);
 export const shoreDepthMix=d=>smooth01(Math.max(0,d)/32);
-export function surfCentre(wave,x,z,band=0){return 1+band+4*(1-wave)+1.3*(shoreNoise(x/19+band,z/19+band)-.5);}
-export function surfWidth(x,z,band=0){return .65+1.7*shoreNoise(x/9+band,z/9+band);}
-export function surfFoam(d,wave,x,z,band=0){return (1-smooth01(Math.abs(d-surfCentre(wave,x,z,band))/surfWidth(x,z,band)))*smooth01((shoreNoise(x/11+band,z/11+band)-.28)/.34);}
+export function surfCentre(wave,x,z,band=0){return 1+band+4*(1-wave)+2.2*(shoreNoise(x/19+band,z/19+band)-.5);}
+export function surfWidth(x,z,band=0){return 1.0+2.1*shoreNoise(x/9+band,z/9+band);}
+export function surfFoam(d,wave,x,z,band=0){return (1-smooth01(Math.abs(d-surfCentre(wave,x,z,band))/surfWidth(x,z,band)))*smooth01((shoreNoise(x/11+band,z/11+band)-.30)/.34);}
 export function riverPropAt(terrain,x,z){
-  const d=terrain.riverDistanceAt(x,z,3);
-  if(d<.1||d>2.5||terrain.isSea?.(x,z))return false;
+  const d=terrain.riverDistanceAt(x,z,4);
+  if(d<.05||d>3.5||terrain.isSea?.(x,z))return false;
   const slope=terrain.slopeAt?.(x,z)??Math.atan(Math.hypot((terrain.heightAt(x+.5,z)-terrain.heightAt(x-.5,z)),(terrain.heightAt(x,z+.5)-terrain.heightAt(x,z-.5))))*180/Math.PI;
-  return slope<30&&shoreHash(x,z,108)<.32;
+  return slope<30&&shoreHash(x,z,108)<.6;
+}
+
+// W2c-9r2 shore: identical distance response for either bank; no side or world-axis term.
+export const bankWetAlpha=d=>.68*(1-smooth01(Math.max(0,d)/1.5));
+export const shoreBandWidth=(base,footprint)=>Math.max(base,Math.min(48,Math.max(0,footprint)*6));
+export const shoreWetBand=(d,reach,footprint=0)=>shoreMoisture(d,shoreBandWidth(Math.max(.6,Math.min(1.5,reach*.18)),footprint*2));
+export const riverFoamCentre=(x,z)=>.35+.38*shoreNoise(x/5.7,z/5.7);
+export const riverFoamWidth=(x,z)=>.18+.36*shoreNoise(x/2.9+8,z/2.9+8);
+export function riverBankFoam(d,x,z,time=0,footprint=0){
+  const centre=riverFoamCentre(x,z),width=riverFoamWidth(x,z),jitter=.8+.4*shoreNoise(x/7,z/7);
+  const gaps=smooth01((shoreNoise(x/3.7,z/3.7)-.43)/.22);
+  const lace=.35+.65*smooth01((shoreNoise(x*2.1+time*.16,z*2.1-time*.23)-.32)/.4);
+  return (1-smooth01(Math.abs(d-centre)/width))*gaps*lace*(1-smooth01((footprint-.15*jitter)/(1.25*jitter)));
+}
+
+// Waterline search is shared by the foam surface and the landward wet strip.
+export function bankCrossingDistance(terrain,x,z,level,nx,nz,half){
+  if(terrain.heightAt(x,z)>=level)return half;
+  const limit=half+6;let lo=0,hi=.25;
+  while(hi<limit&&terrain.heightAt(x+nx*hi,z+nz*hi)<level){lo=hi;hi+=.25;}
+  hi=Math.min(hi,limit);
+  if(terrain.heightAt(x+nx*hi,z+nz*hi)<level)return half;
+  for(let n=0;n<10;n++){const mid=(lo+hi)/2;if(terrain.heightAt(x+nx*mid,z+nz*mid)<level)lo=mid;else hi=mid;}
+  return hi;
 }
