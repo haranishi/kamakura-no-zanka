@@ -47,6 +47,10 @@ test('boxes (house/facility), rotated margins, paths and live trunk grid exclusi
   const ex=grassExclusions(flat(),{colliders:col,paths:{road:{xyz_m:[[60,0,0],[60,-10,0]]}},spawn:{x:80,z:0}});
   for(const [x,z,reason] of [[0,0,'box'],[20,0,'box'],[22.4,0,'box'],[40,0,'trunk'],[62.5,5,'path'],[80,3,null],[80,0,null]])assert.equal(ex(x,z),reason);
   assert.equal(ex(25,0),null);assert.equal(ex(63.3,5),null);assert.equal(ex(80,3.8),null);
+  // A box turned 45 degrees reaches sqrt(2) times its margin along the world axes; the 8 m collision grid registers it without margin.
+  // This corner cell lies in the next grid cell (found in review): it must still be excluded.
+  const turned=buildColliders({bounds,extraBoxes:[{x:5.11,z:.5,w:4,d:4,rotY:Math.PI/4}]}),exTurned=grassExclusions(flat(),{colliders:turned});
+  assert.equal(exTurned(9.5,.5),'box');assert.equal(exTurned(9.7,.5),null);assert.equal(exTurned(5.11,.5),'box');
   const release=addColliderCircles(col,[{x:90,z:0,r:1}]);assert.equal(ex(90,0),'trunk');release();assert.equal(ex(90,0),null);
   assert.equal(cell(2,flat(),{exclude:ex})(20,0).placeable,0);
 });
@@ -85,6 +89,10 @@ test('shipped Three CPU view streams, retains interior chunks, adapts without re
     const v=view(2,'',quality);settle(v,camera(0));const before=v.stats();assert(before.nearBlades>0&&before.midCards>0);
     const allocated=new Map();const watch=()=>v.group.traverse(o=>{for(const r of [o.geometry,...[].concat(o.material||[]),o.material?.map].filter(Boolean))if(!allocated.has(r)){allocated.set(r,0);r.addEventListener('dispose',()=>allocated.set(r,allocated.get(r)+1));}});
     watch();const builds=before.builds;v.setAdapt(2);const reduced=v.stats();assert.equal(reduced.builds,builds);assert(reduced.nearBlades/before.nearBlades>.55&&reduced.nearBlades/before.nearBlades<.65);
+    // Step 2 must thin by an independent hash: the card pattern and the far fade both read iShape.w.
+    {const cards=new Set();let nearMaxW=0;v.group.traverse(o=>{if(!o.isMesh||!(o.geometry.instanceCount>0))return;const a=o.geometry.getAttribute('iShape').data.array;
+      for(let i=0;i<o.geometry.instanceCount;i++){const w=a[i*15+7];if(o.material.alphaTest>0)cards.add(Math.floor(w*3.999));else nearMaxW=Math.max(nearMaxW,w);}});
+      assert.deepEqual([...cards].sort(),[0,1,2,3]);assert(nearMaxW>.95,`near blades must keep the whole w range, max ${nearMaxW}`);}
     v.setAdapt(3);assert.equal(v.group.visible,false);const switches=v.stats().switches;v.update(camera(500));assert.equal(v.stats().switches,switches);
     v.setAdapt(0);assert.equal(v.stats().nearBlades,before.nearBlades);assert.equal(v.group.visible,true);
     const central=new Map();v.group.traverse(o=>{if(o.geometry?.instanceCount>0&&Math.abs(o.geometry.boundingSphere.center.x)<10&&Math.abs(o.geometry.boundingSphere.center.z)<10)central.set(o,o.geometry.getAttribute('iRoot').data.array.slice());});

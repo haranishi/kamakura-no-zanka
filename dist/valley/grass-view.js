@@ -220,7 +220,9 @@ export function buildGrass({ field, wind, quality = 'standard', sunDir }) {
     let offset = 0;
     for (const t of c.tiles) if (active[kind].has(t.key)) {
       if (densityScale === 1) { c.buffer.array.set(t.data, offset); offset += t.data.length; }
-      else for (let i = 0; i < t.data.length; i += STRIDE) if (t.data[i + 7] < densityScale) {
+      // Thin by a hash of the root position, not by iShape.w: the shader also uses w for the distance fade and the
+      // card pattern, so thinning on w would drop the far blades first and wipe out the last card pattern.
+      else for (let i = 0; i < t.data.length; i += STRIDE) if (hash(t.data[i], t.data[i + 2], 61) < densityScale) {
         c.buffer.array.set(t.data.subarray(i, i + STRIDE), offset); offset += STRIDE;
       }
     }
