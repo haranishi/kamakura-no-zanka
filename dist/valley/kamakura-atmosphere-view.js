@@ -1,7 +1,7 @@
 // Own the existing atmosphere without changing the valley implementation.
 import * as THREE from 'three';
 import { ATMOS, installFog, createAtmosphere } from './atmosphere.js';
-import { atmosphereOptions, atmospherePolicy, kamakuraAtmosphere } from './kamakura-atmosphere.js';
+import { atmosphereOptions, atmospherePolicy, kamakuraAtmosphere, eveningEnabled } from './kamakura-atmosphere.js';
 const FOG_CHUNKS = ['fog_pars_vertex', 'fog_vertex', 'fog_pars_fragment', 'fog_fragment'];
 
 // The bundled PMREM generator exposes no owner through createAtmosphere. Capture
@@ -28,6 +28,19 @@ function captureRenderer(renderer, resources) {
     const value = Reflect.get(target, key); return typeof value === 'function' ? value.bind(target) : value;
   } });
 }
+// W2c-9r1 light: inherited valley fog bands -> continuous distance/height haze.
+// No fog planes are created; preserve the shared valley chunks and the legacy A/B.
+export function installKamakuraFog(a, enhanced = true, evening = false) {
+  installFog(a);
+  if (!enhanced) return;
+  const shader = THREE.ShaderChunk.fog_fragment;
+  const start = shader.indexOf('    // 谷の壁にかかる霧の帯');
+  const end = shader.indexOf('  #else', start);
+  if (start < 0 || end < 0) throw new Error('Kamakura fog band boundary missing');
+  THREE.ShaderChunk.fog_fragment = shader.slice(0, start) + shader.slice(end);
+  if (evening) THREE.ShaderChunk.fog_pars_fragment = THREE.ShaderChunk.fog_pars_fragment
+    .replace('smoothstep(0.93, 0.998, s) * 0.55', 'smoothstep(0.65, 0.995, s) * 0.55');
+}
 export function createKamakuraAtmosphere({ scene, renderer, search = '', quality = 'standard' }) {
   const options = atmosphereOptions(search), resources = new Set(), before = new Set(scene.children);
   const previous = { background: scene.background, fog: scene.fog, environment: scene.environment, environmentIntensity: scene.environmentIntensity,
@@ -52,9 +65,9 @@ export function createKamakuraAtmosphere({ scene, renderer, search = '', quality
   }
   try {
     if (options.enabled) {
-      const a = kamakuraAtmosphere(options.time, { ...ATMOS, sunDir: ATMOS.sunDir.toArray() });
+      const a = kamakuraAtmosphere(options.time, { ...ATMOS, sunDir: ATMOS.sunDir.toArray() }, eveningEnabled(search), quality === 'light' ? .55 : 1);
       a.sunDir = new THREE.Vector3(...a.sunDir);
-      installed = true; installFog(a); // Before terrain, sea, houses and vegetation materials.
+      installed = true; installKamakuraFog(a, eveningEnabled(search), options.time === 'evening'); // Before terrain, sea, houses and vegetation materials.
       scene.background = null;
       renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
       atmosphere = createAtmosphere({ scene, renderer: captureRenderer(renderer, resources), quality, a });

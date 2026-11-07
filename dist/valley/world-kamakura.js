@@ -63,6 +63,7 @@ export async function bootKamakura(data, search) {
   try {
     document.head.append(style); document.body.classList.add('kamakura');
     renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.info.autoReset = false; // W2c-9r1 light: count scene + every post pass.
     
     const scene = new THREE.Scene();
     const options = adaptOptions(search, matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 0);
@@ -201,6 +202,7 @@ export async function bootKamakura(data, search) {
       wind.uTime.value = uniforms.uTime; wind.uWind.value = uniforms.uWind;
       wind.uWindDir.value.set(...uniforms.uWindDir); wind.uGuideMix.value = uniforms.uGuideMix;
       grass.updateHero(hero.pos, hero.speed, flight.active, paused ? 0 : dt);
+      renderer.info.reset(); // W2c-9r1 light: one reset before all frame draws.
       flight.updateViews(uniforms.uTime, paused ? 0 : dt); facilities?.update(flight.pos); grass.update(camera, flight.pos, paused); fx.update(paused ? 0 : dt, camera, hero); post.render(scene, camera);
       hud.update(flight.pos, flight.yaw, t, { ...renderer.info.render, averageMs: adapt.averageMs, step: adapt.step }, flight.state, audioView.debugText());
     });
