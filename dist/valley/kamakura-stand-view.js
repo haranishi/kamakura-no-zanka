@@ -24,7 +24,7 @@ export function standGeometry() {
   // Keep the original sphere normals for smooth Lambert lighting.
   return geometry;
 }
-export function buildKamakuraStands(prepared, { wind, sunDir, quality = 'standard', renderer = null, colliders }) {
+export function buildKamakuraStands(prepared, { wind, sunDir, quality = 'standard', renderer = null, colliders, search = '' }) {
   const group = new THREE.Group(), distant = [], resident = new Map(), releases = new Map();
   const eye = { value: new THREE.Vector3() }, resources = new Set();
   let children, disposed = false, last = null, stats = null;
@@ -78,7 +78,7 @@ export function buildKamakuraStands(prepared, { wind, sunDir, quality = 'standar
       const sphere = mesh.boundingSphere;
       distant.push({ mesh, sphere, range: policy.ranges[tier] });
     }
-    children = buildKamakuraVeg({ active: [], grid: new Map() }, { wind, sunDir, quality, renderer: prepared.grid.size ? renderer : null, families: prepared.grid.size ? families : [] });
+    children = buildKamakuraVeg({ active: [], grid: new Map() }, { wind, sunDir, quality, search, renderer: prepared.grid.size ? renderer : null, families: prepared.grid.size ? families : [] });
     group.add(children.group);
   } catch (error) { dispose(); throw error; }
   function update(camera) {
