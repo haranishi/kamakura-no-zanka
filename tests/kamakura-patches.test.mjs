@@ -4,7 +4,7 @@ import { fixture } from './helpers/kamakura-fixture.mjs';
 import { decodeData, loadKamakura } from '../dist/valley/kamakura-data.js';
 import { createKamakuraTerrain } from '../dist/valley/kamakura-terrain.js';
 import { chunkGeometry, choosePatchLOD } from '../dist/valley/kamakura-chunks.js';
-import { axisPoint, kamakuraSpawn } from '../dist/valley/kamakura-spawn.js';
+import { axisPoint, kamakuraSpawn, pointDeparture } from '../dist/valley/kamakura-spawn.js';
 import { readPrivateData, verifySeams } from '../tools/lib/kamakura-validation.mjs';
 import { verifyPatches, verifyReachability } from '../tools/lib/kamakura-patch-validation.mjs';
 function patched() {
@@ -82,6 +82,21 @@ test('departure uses arc length, axis direction, clamps at, and relocates to wal
   assert.equal(kamakuraSpawn(t, '').x, t.meta.spawn.x);
   const blocked = { ...t, walkable: (x, z) => x > -3 && t.walkable(x, z) };
   const p = kamakuraSpawn(blocked, '?spawn=test'); assert(blocked.walkable(p.x, p.z));
+});
+test('test departure ?pos=east,north&yaw= starts at that point, faces the heading and relocates to walkable ground', () => {
+  const t = createKamakuraTerrain(patched().data);
+  const p = kamakuraSpawn(t, '?pos=-2,3&yaw=90');
+  assert.equal(p.x, -2); assert.equal(p.z, -3); assert.equal(p.yaw, -Math.PI / 2);
+  // Without yaw the normal spawn heading is kept; the path departure still wins when ?spawn= names a route.
+  assert.equal(kamakuraSpawn(t, '?pos=-2,3').yaw, -t.meta.spawn.yaw_deg_clockwise_from_north * Math.PI / 180);
+  assert.equal(kamakuraSpawn(t, '?spawn=test&at=.5&pos=5,5').x, -2);
+  // Invalid values fall back to the normal spawn instead of throwing.
+  for (const bad of ['?pos=', '?pos=1', '?pos=a,b', '?pos=1,2,3', '?pos=,5', '?pos=Infinity,0']) assert.equal(kamakuraSpawn(t, bad).x, t.meta.spawn.x, bad);
+  assert.equal(kamakuraSpawn(t, '?pos=1,2&yaw=').yaw, -t.meta.spawn.yaw_deg_clockwise_from_north * Math.PI / 180);
+  // A point on a wall of non-walkable ground moves to the nearest walkable point within 40 m, otherwise nothing.
+  const blocked = { ...t, walkable: (x, z) => x > 5 && t.walkable(x, z) };
+  const q = pointDeparture(blocked, new URLSearchParams('pos=0,0')); assert(q && q.x > 5 && blocked.walkable(q.x, q.z));
+  assert.equal(pointDeparture({ ...t, walkable: () => false }, new URLSearchParams('pos=0,0')), null);
 });
 test('private patch acceptance records every violation without exceptions for particular passes', { skip: !process.env.KZ_WORLD_DIR && 'KZ_WORLD_DIR未設定：私有パッチデータが必要' }, async ctx => {
   const { data } = await readPrivateData(process.env.KZ_WORLD_DIR);

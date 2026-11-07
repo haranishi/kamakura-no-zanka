@@ -14,10 +14,30 @@ export function axisPoint(axis, distance) {
   return { x: a[0] + dx * u, z: -a[1] + dz * u, dx: dx / length, dz: dz / length,
     floor: axis.floor_m[lo] + (axis.floor_m[hi] - axis.floor_m[lo]) * u, distance: d - s[0] };
 }
+// Test departure at a chosen point: ?pos=<east>,<north> (metres, as the debug HUD prints them) and ?yaw=<degrees clockwise from north>.
+// The nearest walkable point within 40 m is used, so a point inside a house or on a cliff still starts the walk.
+export function pointDeparture(t, params) {
+  const parts = String(params.get('pos') ?? '').split(',');
+  if (parts.length !== 2 || parts.some(v => v.trim() === '')) return null;
+  const east = Number(parts[0]), north = Number(parts[1]);
+  if (!Number.isFinite(east) || !Number.isFinite(north)) return null;
+  const turn = params.has('yaw') && params.get('yaw').trim() !== '' ? Number(params.get('yaw')) : NaN;
+  const yaw = Number.isFinite(turn) ? -turn * Math.PI / 180 : -t.meta.spawn.yaw_deg_clockwise_from_north * Math.PI / 180;
+  if (t.walkable(east, -north)) return { x: east, z: -north, yaw };
+  const step = t.cell / 4, found = [];
+  for (let z = -40; z <= 40; z += step) for (let x = -40; x <= 40; x += step) found.push({ x: east + x, z: -north + z, d: Math.hypot(x, z) });
+  found.sort((a, b) => a.d - b.d);
+  const best = found.find(q => q.d <= 40 && t.walkable(q.x, q.z));
+  return best ? { x: best.x, z: best.z, yaw } : null;
+}
 export function kamakuraSpawn(t, search) {
   const params = new URLSearchParams(search), id = params.get('spawn');
   const axis = patchRoute(t.patches, id);
-  if (!axis) return { x: t.meta.spawn.x, z: -t.meta.spawn.y, yaw: -t.meta.spawn.yaw_deg_clockwise_from_north * Math.PI / 180 };
+  if (!axis) {
+    const point = pointDeparture(t, params);
+    if (point) return point;
+    return { x: t.meta.spawn.x, z: -t.meta.spawn.y, yaw: -t.meta.spawn.yaw_deg_clockwise_from_north * Math.PI / 180 };
+  }
   const raw = Number(params.get('at')), at = Number.isFinite(raw) ? Math.max(0, Math.min(1, raw)) : 0;
   const p = axisPoint(axis, (axis.s_m.at(-1) - axis.s_m[0]) * at), yaw = Math.atan2(-p.dx, -p.dz);
   if (t.walkable(p.x, p.z)) return { x: p.x, z: p.z, yaw };
