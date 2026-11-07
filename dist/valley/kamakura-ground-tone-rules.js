@@ -2,12 +2,12 @@ import { grassAmount, smooth, soilNoise, scatterStone, scatterFade } from './kam
 
 // W2c-9r1 ground: independent vertex/class bands -> one continuous world-space source.
 export const toneStrength = (quality='standard', step=0) => step>=3?0:quality==='light'||step>=2?.45:1;
-// W2c-9r2 ground: weak one-scale tint -> zero-centred 5/20/80m grass and wind streaks.
+// W2c-9r3 ground: R2 grass luma ±8.6% -> ±12.3%, retaining zero-centred scales and wind streaks.
 export function grassTintAt(x, y, dist) {
   if(dist<=20||dist>=1500)return 0;
-  const n=(soilNoise(x/5,y/5)-.5)*.10+(soilNoise(x/20,y/20)-.5)*.6+(soilNoise(x/80,y/80)-.5)*1.3;
+  const n=(soilNoise(x/5,y/5)-.5)*.10+(soilNoise(x/20,y/20)-.5)*.85+(soilNoise(x/80,y/80)-.5)*1.9;
   const streak=Math.sin(x*.25+y*.7+soilNoise(x/20,y/20)*4)*.025;
-  return Math.max(-.28,Math.min(.28,n+streak))*smooth(20,60,dist)*(1-smooth(400,1500,dist));
+  return Math.max(-.40,Math.min(.40,n+streak))*smooth(20,60,dist)*(1-smooth(400,1500,dist));
 }
 export const toneDistance = (x,z,d) => Math.max(0,d+(soilNoise(x/29,z/29)-.5)*18);
 export const toneFine = (x,z,d,px) => (1-smooth(12,65,toneDistance(x,z,d)))*(1-smooth(.025,.12,px));
@@ -54,7 +54,8 @@ export function groundUseBoxes(data) {
       if(Math.abs(dx)>Math.abs(dz)){if(dx>0)b.x1+=reach;else b.x0-=reach;}
       else if(dz>0)b.z1+=reach;else b.z0-=reach;
     }
-    boxes.push(b);
+    // W2c-9r3 ground: tag the site perimeter, not individual building floors.
+    b.yard=true;boxes.push(b);
   }
   return boxes;
 }
