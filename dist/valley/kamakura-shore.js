@@ -114,13 +114,25 @@ export function breakerFoam(d,wave,x,z,offset=0){
 }
 // Shared JS/GLSL constants and algebra: wave is evaluated once on the audio clock.
 export const SHORE_GLSL=`
+// W2c-9r1 shore: shared distance controls wet sand, depth and irregular surf.
+uniform float uShore2;
+float shoreSmooth(float d,float reach){return 1.0-smoothstep(0.0,reach,max(0.0,d));}
+float shoreDepth(float d){return smoothstep(0.0,32.0,max(0.0,d));}
+
 vec2 sandWindDirection(vec2 p){return vec2(${SAND_WIND.x.toFixed(1)}+sin(p.y*${SAND_WIND.xScale})*${SAND_WIND.warp},${SAND_WIND.z}+sin(p.x*${SAND_WIND.zScale})*${SAND_WIND.warp});}
 float shoreHash2(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
 float shoreNoise(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);return mix(mix(shoreHash2(i),shoreHash2(i+vec2(1.0,0.0)),f.x),mix(shoreHash2(i+vec2(0.0,1.0)),shoreHash2(i+vec2(1.0)),f.x),f.y);}
+float shoreSurf(float d,float wave,vec2 p,float band){
+  float centre=1.0+band+4.0*(1.0-wave)+1.3*(shoreNoise(p/19.0+band)-.5);
+  float width=.65+1.7*shoreNoise(p/9.0+band);
+  float body=1.0-smoothstep(0.0,width,abs(d-centre));
+  return body*smoothstep(.28,.62,shoreNoise(p/11.0+band));
+}
+
 
 float shoreWet(float d,float wave){return clamp((${SEA_VIS.minReach.toFixed(1)}+${(SEA_VIS.reach-SEA_VIS.minReach).toFixed(1)}*wave-d)/2.0,0.0,1.0);}
 float shoreFoam(float d,float wave){return max(0.0,1.0-abs(d-(1.0+5.0*(1.0-wave)))/${SEA_VIS.foamWidth.toFixed(1)});}
-float shoreWetReach(float d,float reach){return clamp((reach-d)/${WET_MEMORY.edge.toFixed(1)},0.0,1.0);}
+float shoreWetReach(float d,float reach){return uShore2>.5?shoreSmooth(d,reach):clamp((reach-d)/${WET_MEMORY.edge.toFixed(1)},0.0,1.0);}
 float breakerFoam(float d,float wave,vec2 p,float offset){
   if(d<0.0||d>45.0)return 0.0;
   float n=shoreNoise(p/16.0+offset),wide=.5+2.5*shoreNoise(p/8.0+vec2(7.0+offset,offset));
@@ -167,4 +179,20 @@ export function createSignedShoreJob(terrain, {cell=8,limit=240}={}) {
     return phase===5;
   }
   return {field,step,get done(){return phase===5;}};
+}
+
+// W2c-9r1 shore: allocation-free CPU counterparts for distance acceptance.
+export const SHORE_BANDS=Object.freeze([0,4.6,11.4]);
+export const shore2Enabled=search=>new URLSearchParams(search).get('shore2')!=='0';
+const smooth01=v=>{const u=Math.max(0,Math.min(1,v));return u*u*(3-2*u);};
+export const shoreMoisture=(d,reach)=>1-smooth01(Math.max(0,d)/reach);
+export const shoreDepthMix=d=>smooth01(Math.max(0,d)/32);
+export function surfCentre(wave,x,z,band=0){return 1+band+4*(1-wave)+1.3*(shoreNoise(x/19+band,z/19+band)-.5);}
+export function surfWidth(x,z,band=0){return .65+1.7*shoreNoise(x/9+band,z/9+band);}
+export function surfFoam(d,wave,x,z,band=0){return (1-smooth01(Math.abs(d-surfCentre(wave,x,z,band))/surfWidth(x,z,band)))*smooth01((shoreNoise(x/11+band,z/11+band)-.28)/.34);}
+export function riverPropAt(terrain,x,z){
+  const d=terrain.riverDistanceAt(x,z,3);
+  if(d<.1||d>2.5||terrain.isSea?.(x,z))return false;
+  const slope=terrain.slopeAt?.(x,z)??Math.atan(Math.hypot((terrain.heightAt(x+.5,z)-terrain.heightAt(x-.5,z)),(terrain.heightAt(x,z+.5)-terrain.heightAt(x,z-.5))))*180/Math.PI;
+  return slope<30&&shoreHash(x,z,108)<.32;
 }
