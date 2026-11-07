@@ -1,7 +1,7 @@
 // View only: self-contained GLB, one static mesh per node/material, CPU placement once.
 import * as THREE from 'three';
 import { createHouseTextures, createHouseMaterial } from './kamakura-house-materials.js';
-import { facilityMaterialRole, facilityPartRole } from './kamakura-house-texture.js';
+import { facilityMaterialRole, facilityPartRole, facilityTimberWeights } from './kamakura-house-texture.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { facilityPlacement, facilityFootprint, facilitySolid, facilityExcludesTrees, facilityCastsShadow, facilityVisible, FACILITY_HELD_BACK } from './kamakura-facilities.js';
 export async function buildKamakuraFacilities(facilities, terrain, scene, quality='standard', { showHeldBack = false, search = globalThis.location?.search ?? '' } = {}) {
@@ -15,13 +15,14 @@ export async function buildKamakuraFacilities(facilities, terrain, scene, qualit
   const surfaceCache=new Map();
   // W2c-9r1 house: anonymous facility colors -> catalog roles and node-height frames.
   const partsEnabled=new URLSearchParams(search).get('hparts')!=='0';
+  const relief=new URLSearchParams(search).get('hrelief')!=='0';
   // W2c-9g2: facility surfaces use the house atlas; ftex=0 retains the original PBR.
   function surface(base, hint, node, floor, top) {
     if(!texture)return base;
     if(Array.isArray(base))return base.map(m=>surface(m,hint,node,floor,top));
     // W2c-9g3: mesh hints identify walls/roofs when the shared material is anonymous.
     const role=partsEnabled?facilityPartRole(node.part,base.name+' '+hint):facilityMaterialRole(base.name) || facilityMaterialRole(hint), key=`${base.uuid}:${role}:${partsEnabled?node.node:''}`;
-    if(!surfaceCache.has(key)){const m=createHouseMaterial(base,{texture,quality,facilityRole:role,parts:partsEnabled,floor,top,eave:partsEnabled?top-(top-floor)*.28:3});surfaceCache.set(key,m);materials.add(m);}
+    if(!surfaceCache.has(key)){const m=createHouseMaterial(base,{texture,quality,facilityRole:role,parts:partsEnabled,relief,floor,top,eave:partsEnabled?top-(top-floor)*.28:3});surfaceCache.set(key,m);materials.add(m);}
     return surfaceCache.get(key);
   }
   const group=new THREE.Group();group.name='kamakura-facilities';
@@ -59,6 +60,8 @@ export async function buildKamakuraFacilities(facilities, terrain, scene, qualit
       for(let i=1;i<positions.length;i+=3){floor=Math.min(floor,positions[i]);top=Math.max(top,positions[i]);}
       if(n.soft)floor=0; // Soil contact is at the datum, not the buried skirt bottom.
       for(const {g,material,hint} of parts) {
+        // R3 classification uses original rigid component shapes, before terrain placement.
+        if(texture && partsEnabled)g.setAttribute('houseTimber',new THREE.Float32BufferAttribute(facilityTimberWeights(g.attributes.position.array,g.index?.array,floor,top),1));
         const count=g.getAttribute('position').array.length;
         g.setAttribute('position',new THREE.Float32BufferAttribute(placed.positions.slice(offset,offset+count),3));offset+=count;
         if(placed.rebuildNormals)g.computeVertexNormals();g.computeBoundingBox();g.computeBoundingSphere();
