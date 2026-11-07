@@ -9,6 +9,8 @@ export function installGroundDetail(THREE, material, data, {quality='standard',s
   const surface=new THREE.DataTexture(data.surface,grid.width,grid.height,THREE.RedFormat,THREE.UnsignedByteType);
   surface.minFilter=surface.magFilter=THREE.NearestFilter;surface.generateMipmaps=false;surface.unpackAlignment=1;surface.needsUpdate=true;
   const pattern=groundPattern(),texture=new THREE.DataTexture(pattern.data,pattern.size,pattern.size,THREE.RGBAFormat);
+  // W2c-9r2 ground: name the mip-capable sized format explicitly.
+  texture.internalFormat='RGBA8';
   texture.wrapS=texture.wrapT=THREE.RepeatWrapping;texture.generateMipmaps=true;texture.minFilter=THREE.LinearMipmapLinearFilter;texture.magFilter=THREE.LinearFilter;texture.anisotropy=4;texture.needsUpdate=true;
   const uniforms={uGroundSurface:{value:surface},uGroundPattern:{value:texture},uGroundGrid:{value:new THREE.Vector3(grid.width,grid.height,grid.cell_m)},uGroundStrength:{value:quality==='light'?.7:1},uGroundSecond:{value:quality==='light'?0:1}};
   const shore=shoreViewFor(data);

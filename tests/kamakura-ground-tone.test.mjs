@@ -74,7 +74,7 @@ test('r1 assembled Lambert uniforms are declared before use for every detail/soi
           balanced(expanded(s[stage]));uniformDeclarations(s[stage],`${label} ${stage}`);
         }
         const fragment=expanded(s.fragmentShader);
-        for(const name of ['toneHash','toneNoise','grassTintAt','groundTone','groundSoilGrain','groundGrassDetail']){
+        for(const name of ['toneHash','toneNoise','grassTintAt','groundTone','groundSoilGrain','groundScatterHash','groundScatterNoise','groundScatter','groundScatterFade','groundGrassDetail']){
           const definitions=[...fragment.matchAll(new RegExp(`\\b(?:float|vec[234])\\s+${name}\\s*\\(`,'g'))];
           assert(definitions.length<=1,`${label}: duplicate ${name}`);
           if(definitions.length)assert.equal(fragment.match(new RegExp(`\\b${name}\\s*\\(`)).index,definitions[0].index+definitions[0][0].indexOf(name),`${label}: ${name} used before declaration`);

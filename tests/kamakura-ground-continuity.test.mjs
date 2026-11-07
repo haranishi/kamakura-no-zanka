@@ -77,7 +77,7 @@ test('r2 facility interior is brighter than exterior and gravel integrates smoot
     assert(inside>.99);assert.equal(outside,0);
     const encode=v=>255*(v<=.0031308?v*12.92:1.055*v**(1/2.4)-.055);
     const delta=encode(toneChannel(.25,1,0,0,0,inside))-encode(toneChannel(.25,1,0,0,0,outside));
-    assert(delta>15,'packed earth must remain visibly lighter at the same base hue');
+    assert(delta>3 && delta<10,'R2 packed earth stays slightly lighter without the yellow lift');
     let jump=0;
     for(const dist of [0,12,18,35,55,60,65,110,700,2500]){
       const a=toneChannel(.25,1,0,0,0,1,1,.4*toneFine(0,0,dist-.001,.01));

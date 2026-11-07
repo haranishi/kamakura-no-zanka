@@ -34,6 +34,7 @@ test('the base is an unconverted RGB8 texture that can build mipmaps; the shader
   assert.equal(base.internalFormat, 'RGB8', 'left unnamed, RGBFormat asks glTexStorage2D for the unsized RGB and the texture stays black');
   assert(shader.fragmentShader.includes('vec3 toneLinear(vec3 c)'));
   assert(shader.fragmentShader.includes('toneLinear(texture2D(uToneBase,uv).rgb)'));
+  for(const texture of [...owner.textures,...owner.tone.textures].filter(t=>t.generateMipmaps))assert(['RGB8','RGBA8'].includes(texture.internalFormat));
   done();
 });
 

@@ -53,3 +53,38 @@ export function groundPattern(seed=19391,size=256) {
   }
   return {data,size,mean:mean/(size*size)};
 }
+
+// W2c-9r2 ground: centred equal disks -> inset, rotated ellipses with independent sizes/tones.
+// The support stays inside its cell, so no neighbour search or clipped cell-edge seams are needed.
+export function scatterStone(x,z,cell) {
+  const i=Math.floor(x/cell),j=Math.floor(z/cell),a=soilHash(i+17,j-29),b=soilHash(i-43,j+11);
+  const cx=.2+.6*a,cz=.2+.6*b;
+  const r=Math.min(.16+.14*soilHash(i+71,j+53),cx,cz,1-cx,1-cz),aspect=.5+.45*soilHash(i-7,j-83),angle=a*6.28318530718;
+  const u=x/cell-i-cx,v=z/cell-j-cz;
+  const radius=Math.hypot((u*Math.cos(angle)+v*Math.sin(angle))/r,(-u*Math.sin(angle)+v*Math.cos(angle))/(r*aspect));
+  return (1-smooth(.55,1,radius))*(soilHash(i+101,j-59)-.5);
+}
+export function scatterFade(x,z,d,px,cell) {
+  const jitter=.8+.4*soilNoise(x/7+cell*31,z/7-cell*19);
+  return (1-smooth(12*cell/.08,65*cell/.08,d/jitter))*(1-smooth(cell*.18,cell*.75,px/jitter));
+}
+export const SCATTER_GLSL=`
+float groundScatterHash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453123);}
+float groundScatterNoise(vec2 p){
+  vec2 i=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);
+  return mix(mix(groundScatterHash(i),groundScatterHash(i+vec2(1,0)),f.x),mix(groundScatterHash(i+vec2(0,1)),groundScatterHash(i+vec2(1,1)),f.x),f.y);
+}
+float groundScatter(vec2 p,float cell){
+  vec2 g=p/cell,i=floor(g);
+  float a=groundScatterHash(i+vec2(17,-29)),b=groundScatterHash(i+vec2(-43,11));
+  vec2 centre=vec2(.2)+.6*vec2(a,b);
+  float r=min(.16+.14*groundScatterHash(i+vec2(71,53)),min(min(centre.x,centre.y),min(1.0-centre.x,1.0-centre.y))),aspect=.5+.45*groundScatterHash(i+vec2(-7,-83)),angle=a*6.28318530718;
+  vec2 v=fract(g)-centre;
+  float radius=length(vec2((v.x*cos(angle)+v.y*sin(angle))/r,(-v.x*sin(angle)+v.y*cos(angle))/(r*aspect)));
+  return (1.0-smoothstep(.55,1.0,radius))*(groundScatterHash(i+vec2(101,-59))-.5);
+}
+float groundScatterFade(vec2 p,float d,float px,float cell){
+  float jitter=.8+.4*groundScatterNoise(p/7.0+cell*vec2(31,-19));
+  return (1.0-smoothstep(12.0*cell/.08,65.0*cell/.08,d/jitter))*(1.0-smoothstep(cell*.18,cell*.75,px/jitter));
+}
+`;

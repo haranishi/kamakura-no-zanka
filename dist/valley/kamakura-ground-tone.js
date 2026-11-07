@@ -1,5 +1,5 @@
 import { toneStrength, groundUseBoxes, toneTexel, toneWeightGrid } from './kamakura-ground-tone-rules.js';
-import { SOIL_GRAIN_GLSL } from './kamakura-ground-pattern.js';
+import { SOIL_GRAIN_GLSL, SCATTER_GLSL } from './kamakura-ground-pattern.js';
 
 export function installGroundTone(THREE,material,data,owner,{quality='standard',search=''}={}) {
   if(new URLSearchParams(search).get('gtone')==='0'||!data?.ground||!owner.uniforms)return;
@@ -13,6 +13,7 @@ export function installGroundTone(THREE,material,data,owner,{quality='standard',
   const baseTexture=new THREE.DataTexture(data.ground,w,h,THREE.RGBFormat);
   baseTexture.internalFormat='RGB8';
   const weightTexture=new THREE.DataTexture(weights,grid.width,grid.height,THREE.RGBAFormat);
+  weightTexture.internalFormat='RGBA8';
   const textures=[baseTexture,weightTexture];
   for(const t of textures){t.minFilter=THREE.LinearMipmapLinearFilter;t.magFilter=THREE.LinearFilter;t.generateMipmaps=true;t.unpackAlignment=1;}
   // The base is sampled from the first frame; only the weights wait for the bake.
@@ -41,7 +42,7 @@ export function installGroundTone(THREE,material,data,owner,{quality='standard',
     }
   }
   prepare();
-  const prior=material.onBeforeCompile,priorKey=material.customProgramCacheKey,cacheKey=priorKey.call(material)+'|tone-r4';
+  const prior=material.onBeforeCompile,priorKey=material.customProgramCacheKey,cacheKey=priorKey.call(material)+'|tone-r2-scatter';
   material.onBeforeCompile=shader=>{
     prior(shader);Object.assign(shader.uniforms,uniforms);
     // W2c-9r1 ground round 3: declare after detail's helpers, then multiply
@@ -67,12 +68,18 @@ uniform vec2 uToneWeightSpan;
 uniform sampler2D uToneBase,uToneWeights;
 uniform float uToneReady,uToneBlend,uToneStrength,uToneSoil,uToneBaked;
 ${SOIL_GRAIN_GLSL}
+${SCATTER_GLSL}
 // The base texture holds the source sRGB bytes (mipmaps need a plain RGB8 format); decode after filtering.
 vec3 toneLinear(vec3 c){return mix(c/12.92,pow((c+.055)/1.055,vec3(2.4)),step(.04045,c));}
 float toneHash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453123);}
 float toneNoise(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);return mix(mix(toneHash(i),toneHash(i+vec2(1,0)),f.x),mix(toneHash(i+vec2(0,1)),toneHash(i+vec2(1,1)),f.x),f.y);}
-// Same temporary (x, y, dist) interface as the pure grassTintAt above; y is map south.
-float grassTintAt(float x,float y,float dist){return smoothstep(35.0,110.0,dist)*(.035+.025*toneNoise(vec2(x,y)/32.0));}
+// W2c-9r2 ground: root-coloured, zero-centred variation; y is map south.
+float grassTintAt(float x,float y,float dist){
+  if(dist<=20.0 || dist>=1500.0)return 0.0;
+  vec2 p=vec2(x,y);
+  float n=(toneNoise(p/5.0)-.5)*.10+(toneNoise(p/20.0)-.5)*.6+(toneNoise(p/80.0)-.5)*1.3;
+  float streak=sin(x*.25+y*.7+toneNoise(p/20.0)*4.0)*.025;
+  return clamp(n+streak,-.28,.28)*smoothstep(20.0,60.0,dist)*(1.0-smoothstep(400.0,1500.0,dist));}
 vec3 groundTone(vec3 fallback,vec3 world,float normalY,float dist){
   vec2 p=world.xz,uv=p/(uToneGrid.z*uToneGrid.xy)+.5;
   vec3 base=uToneBaked>.5?toneLinear(texture2D(uToneBase,uv).rgb):fallback;
@@ -83,7 +90,6 @@ vec3 groundTone(vec3 fallback,vec3 world,float normalY,float dist){
   if(uToneBlend>0.0)weights=mix(weights,texture2D(uToneWeights,(p+warp)/uToneWeightSpan+.5),uToneBlend);
   float px=max(length(fwidth(p)),.0001);
   float noisyDist=max(0.0,dist+(toneNoise(p/29.0)-.5)*18.0);
-  float fine=(1.0-smoothstep(12.0,65.0,noisyDist))*(1.0-smoothstep(.025,.12,px));
   float macro=toneNoise(p/43.0),dry=smoothstep(0.0,180.0,world.y),steep=1.0-smoothstep(.55,.95,normalY);
   // Screen derivatives approximate cavity; existing Lambert still supplies physical cast shadows.
   vec3 facing=normalize(cross(dFdx(world),dFdy(world)));if(facing.y<0.0)facing=-facing;
@@ -93,22 +99,24 @@ vec3 groundTone(vec3 fallback,vec3 world,float normalY,float dist){
   relief*=mix(.1,1.0,smoothstep(12.0,65.0,noisyDist));
   // The 43 m noise is about four pixels wide from the air: it read as a mosaic. Walking ranges keep all of it.
   relief*=1.0-smoothstep(1500.0,5000.0,dist);
-  vec2 q=p+vec2(sin(p.y*.11),sin(p.x*.09))*.22;
-  float grain=groundSoilGrain(q,.06)*(1.0-smoothstep(12.0,65.0,noisyDist))*(1.0-smoothstep(.021,.06,px));
-  vec2 pebbleCell=q/.14;
-  float pebbleSeed=toneHash(floor(pebbleCell));
-  float stone=1.0-smoothstep(.18,.38,length(fract(pebbleCell)-.5));
-  float pebble=(step(.68,pebbleSeed)*stone-${.32*Math.PI*(.3*.18**2+.4*.18*.38+.3*.38**2)})*fine;
+  // W2c-9r2 ground: regular 6/14cm dots -> three independently filtered irregular sizes.
+  float grain=0.0,pebble=0.0;
+  if(uToneSoil>0.0 && dist<312.0 && px<.288){
+  grain=groundScatter(p,.08)*groundScatterFade(p,dist,px,.08)*1.2
+    +groundScatter(p+vec2(13.7,-9.3),.16)*groundScatterFade(p,dist,px,.16)*.95
+    +groundScatter(p+vec2(-5.1,17.9),.32)*groundScatterFade(p,dist,px,.32)*.8;
+  pebble=groundScatter(p+vec2(37.1,-21.3),.24)*groundScatterFade(p,dist,px,.24);
+  }
   float use=weights.b*smoothstep(.55,.9,normalY)*weights.a;
   float grass=weights.r*(1.0-use)*(1.0-steep);
-  float distantGrass=grass*grassTintAt(p.x,p.y,noisyDist);
-  vec3 natural=base*(vec3(1.0)+weights.a*uToneStrength*(vec3(relief)+vec3(.015,-.005,-.02)*steep+vec3(-.25,.3,-.15)*distantGrass));
+  float distantGrass=grass*grassTintAt(p.x,p.y,dist);
+  vec3 natural=base*(vec3(1.0)+weights.a*uToneStrength*(vec3(relief)+vec3(.015,-.005,-.02)*steep+vec3(.26,.34,.12)*distantGrass));
   // Packed earth and gravel use the same base hue. Apply near detail AFTER
   // both tone branches so neither relief nor the yard mix can overwrite it.
-  vec3 yard=base*vec3(1.30,1.25,1.13)+vec3(.035,.032,.022);
+  vec3 yard=base*1.08+vec3(.008);
   vec3 result=mix(natural,yard,use*uToneStrength);
   result*=groundGrassDetail(p,dist,weights.r*smoothstep(.45,.85,normalY));
-  result*=1.0+uToneSoil*weights.a*uToneStrength*(grain*.8+pebble*.85*use+(macro-.5)*.05*weights.g);
+  result*=1.0+uToneSoil*weights.a*uToneStrength*(clamp(grain*.8+pebble*.22*use,-.35,.35)+(macro-.5)*.05*weights.g);
   return clamp(result,0.0,1.0);
 }
 `;
