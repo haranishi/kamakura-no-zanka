@@ -1,0 +1,14 @@
+body.kamakura > :not(#view):not(.kamakura-ui):not(script):not(link) { display: none !important; }
+body.kamakura #view { position: fixed; inset: 0; }
+body.kamakura canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+.kamakura-ui { position: fixed; inset: 0; pointer-events: none; color: #fffbea; font: 15px/1.6 sans-serif; z-index: 20; text-shadow: 0 1px 3px #181e1b; padding: max(16px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left)); }
+.kz-top { display: flex; align-items: center; gap: 24px; }
+.kz-north { display: inline-block; width: 48px; text-align: center; }
+.kz-place { flex: 1; }
+.kamakura-ui button { pointer-events: auto; min-width: 64px; min-height: 48px; color: #fffbea; border: 1px solid #ebe5ce; background: #25302ee6; border-radius: 8px; font: inherit; padding: 10px 16px; }
+.kz-info { font-size: 13px; max-width: 660px; }
+.kz-state { position: absolute; top: 40%; left: 10%; right: 10%; text-align: center; }
+.kz-state:not(:empty) { background: #25302ee6; padding: 20px; }
+.kz-debug { position: absolute; bottom: 16px; left: 20px; max-width: 65%; font-size: 12px; }
+.kz-run { position: absolute; right: max(24px, env(safe-area-inset-right)); bottom: max(32px, env(safe-area-inset-bottom)); user-select: none; -webkit-user-select: none; }
+@media (max-width: 600px) { .kz-info { font-size: 11px; max-width: 90%; } }

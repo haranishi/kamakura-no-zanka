@@ -1,0 +1,86 @@
+// Separate walk-only composition. No chapter state, quests, or save access.
+import * as THREE from 'three';
+import { createKamakuraTerrain } from './kamakura-terrain.js';
+import { buildKamakuraChunks } from './kamakura-chunk-view.js';
+import { createKamakuraHUD } from './hud-kamakura.js';
+import { Input } from './input.js';
+import { TouchInput } from './touch-input.js';
+import { CameraRig } from './camera-rig.js';
+import { buildColliders, rayClip } from './collision.js';
+import { HeroActor, configureLoco, yawOf } from './actors.js';
+import { loadRoster } from './characters.js';
+import { verticalScale } from './world-entry.js';
+export async function bootKamakura(data, search) {
+  const t = createKamakuraTerrain(data, verticalScale(search)), meta = data.meta;
+  const spawn = { x: meta.spawn.x, z: -meta.spawn.y, yaw: -meta.spawn.yaw_deg_clockwise_from_north * Math.PI / 180 };
+  if (!t.walkable(spawn.x, spawn.z)) throw new Error('出発点を歩けません');
+  // Load the existing hero only. Do not load the chapter's enemies or scenery.
+  const roster = await loadRoster({ names: ['hero'] });
+  let renderer, chunks, hud;
+  const style = document.createElement('link'); style.rel = 'stylesheet'; style.href = new URL('./kamakura.css', import.meta.url).href;
+  try {
+    document.head.append(style); document.body.classList.add('kamakura');
+    renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
+    const scene = new THREE.Scene(); scene.background = new THREE.Color(0xacc3cb);
+    const camera = new THREE.PerspectiveCamera(58, 1, 0.15, 7000);
+    scene.add(new THREE.HemisphereLight(0xe4f0ff, 0x615a3d, 2));
+    const sun = new THREE.DirectionalLight(0xfff3dd, 2.5); sun.position.set(-100, 160, 50); scene.add(sun);
+    chunks = buildKamakuraChunks(t, scene, spawn);
+    const seaG = new THREE.PlaneGeometry((t.bounds.maxX - t.bounds.minX) * 1.2, (t.bounds.maxZ - t.bounds.minZ) * 1.2);
+    seaG.rotateX(-Math.PI / 2);
+    const sea = new THREE.Mesh(seaG, new THREE.MeshLambertMaterial({ color: 0x426f83 })); scene.add(sea);
+    hud = createKamakuraHUD(meta, new URLSearchParams(search).get('debug') === '1');
+    hud.status('鎌倉の地形を準備しています');
+    const g = { scene, roster, terrain: t, col: buildColliders({ bounds: t.bounds }), enemies: [], ally: null };
+    g.hero = new HeroActor(g, spawn);
+    // W2c-1 has no audio. Contacts and IK continue to run through the existing character.
+    g.hero.onFootContact = () => {};
+    let hintTimer;
+    g.hud = { hint: (_id, text, ms) => {
+      clearTimeout(hintTimer); hud.status(text);
+      hintTimer = setTimeout(() => { if (!paused) hud.status(''); }, ms);
+    } };
+    const rig = new CameraRig(camera); rig.yaw = spawn.yaw;
+    // Prepare the immediate neighborhood in bounded frames before accepting movement.
+    while (!chunks.ready(spawn)) { chunks.update(spawn); await new Promise(requestAnimationFrame); }
+    const view = document.getElementById('view'); view.append(renderer.domElement); view.setAttribute('aria-label', '鎌倉を歩く3Dシーン');
+    const base = new Input(renderer.domElement), input = new TouchInput(base, renderer.domElement, hud.run);
+    let paused = false;
+    function setPaused(on) {
+      paused = on; input.setEnabled(!on);
+      // Clear the locomotive momentum on pause; release alone retains the existing smooth stop.
+      g.hero.speed = g.hero.locoV = g.hero.locoA = 0;
+      if (on) base.releaseLock();
+      hud.pause.textContent = on ? '再開' : '休止'; hud.status(on ? '休止中。「再開」で散策に戻ります' : '');
+    }
+    hud.pause.onclick = () => setPaused(!paused);
+    base.onLockChange = locked => { if (!locked) setPaused(true); };
+    addEventListener('keydown', e => { if ((e.code === 'KeyP' || e.code === 'Escape') && !e.repeat) setPaused(!paused); });
+    addEventListener('blur', () => setPaused(true));
+    document.addEventListener('visibilitychange', () => { if (document.hidden) setPaused(true); });
+    const resize = () => { renderer.setSize(innerWidth, innerHeight); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); };
+    addEventListener('resize', resize); resize(); setPaused(false);
+    configureLoco(search);
+    let last = performance.now();
+    renderer.setAnimationLoop(now => {
+      const dt = Math.max(0, Math.min((now - last) / 1000, 0.05)); last = now;
+      if (!paused) {
+        const look = input.look(dt), ax = input.axis(), yaw = rig.yaw;
+        const vx = -Math.sin(yaw) * ax.forward + Math.cos(yaw) * ax.right, vz = -Math.cos(yaw) * ax.forward - Math.sin(yaw) * ax.right;
+        const hero = g.hero, ch = hero.character;
+        ch.splitPose = true; ch.legIk = true; ch.legTerrain = t;
+        hero.updateLocomotion(dt, { input, axis: ax, moveYaw: yawOf(vx, vz) }, false);
+        hero.slideTurn += (hero.slideWant - hero.slideTurn) * (1 - Math.exp(-12 * dt)); hero.slideWant = 0;
+        hero.tickCharacter(dt); hero.sync(); ch.finishPose();
+        rig.update(dt, hero.pos, { lookDx: look.dx, lookDy: look.dy, zoom: input.wheel, groundAt: t.heightAt,
+          rayClip: (a, b) => rayClip(g.col, t, a, b, 0.3, { ignoreThin: 0.2 }) });
+        hud.update(hero.pos, rig.yaw, t); input.endFrame();
+      }
+      chunks.update(g.hero.pos); renderer.render(scene, camera);
+    });
+  } catch (error) {
+    renderer?.setAnimationLoop(null); chunks?.dispose(); renderer?.domElement.remove(); renderer?.dispose(); hud?.root.remove();
+    style.remove(); document.body.classList.remove('kamakura'); throw error;
+  }
+}
