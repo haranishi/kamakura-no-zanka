@@ -6,6 +6,8 @@ export function installGroundSoil(THREE, material, groundDetail, {quality='stand
   const shared=groundDetail?.uniforms;
   if(new URLSearchParams(search).get('gsoil')==='0'||new URLSearchParams(search).get('gdetail')==='0'||!shared?.uGroundSurface||!shared.uGroundGrid||!shared.uGroundPattern)
     return {textures:[],setAdapt(){},dispose(){},ready:Promise.resolve()};
+  // W2c-9r1 ground round 2: tone owns the filtered class path; avoid an unused full-resolution edge copy.
+  if(groundDetail.tone)return {textures:[],setAdapt(){},dispose(){},ready:groundDetail.tone.ready};
   const image=shared.uGroundSurface.value.image,w=image.width,h=image.height;
   const edgeData=new Uint8Array(w*h),edge=new THREE.DataTexture(edgeData,w,h,THREE.RedFormat,THREE.UnsignedByteType);
   edge.minFilter=edge.magFilter=THREE.LinearFilter;edge.generateMipmaps=false;edge.unpackAlignment=1;
