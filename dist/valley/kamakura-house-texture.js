@@ -166,8 +166,11 @@ export function facilityInterior(rgb, role) {
 export const HOUSE_RELIEF = Object.freeze({ straw: .105, bundle: .31, fine: .17, coarse: .085, interiorMin: .010, interiorMax: .055 });
 export function houseRoofRelief(across, along, footprint=0) {
   const u=across+.012*Math.sin(along*1.7+Math.sin(across*.71));
-  return HOUSE_RELIEF.fine*Math.sin(u*2*Math.PI/HOUSE_RELIEF.straw+.5*Math.sin(across*2.3))*Math.exp(-.5*(footprint*2*Math.PI/HOUSE_RELIEF.straw)**2)
-    +HOUSE_RELIEF.coarse*Math.sin(u*2*Math.PI/HOUSE_RELIEF.bundle+Math.sin(along*.63))*Math.exp(-.5*(footprint*2*Math.PI/HOUSE_RELIEF.bundle)**2);
+  // W2c-9r3 fix: wandering phase and strength, mirrored from the shader (no periodic corrugation).
+  const sw=3.4*Math.sin(u*7.3+Math.sin(along*.9))+2.2*Math.sin(u*3.1+along*.8);
+  const sa=.85+.35*Math.sin(across*.83+along*.37)*Math.sin(across*.29-along*.51);
+  return HOUSE_RELIEF.fine*sa*Math.sin(u*2*Math.PI/HOUSE_RELIEF.straw+sw+.5*Math.sin(across*2.3))*Math.exp(-.5*(footprint*2*Math.PI/HOUSE_RELIEF.straw)**2)
+    +HOUSE_RELIEF.coarse*Math.sin(u*2*Math.PI/HOUSE_RELIEF.bundle+Math.sin(along*.63)+1.4*Math.sin(u*2.1))*Math.exp(-.5*(footprint*2*Math.PI/HOUSE_RELIEF.bundle)**2);
 }
 export function houseInteriorTone(y, across) {
   const beam=Math.exp(-(((y-.78)/.045)**2)), plank=houseHash(Math.floor(across/.32),17);

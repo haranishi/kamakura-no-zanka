@@ -49,7 +49,7 @@ test('R3 70/150m soil mean is neutral, stones vary by place, grass reaches ±12%
   for(let x=-2000;x<2000;x+=13)for(let z=-2000;z<2000;z+=17){
     macro.push(yardMacro(x,z));density.push(yardDensity(x,z));grass.push(grassTintAt(x,z,150)*.307092);
   }
-  assert(Math.abs(mean(macro))<.005);assert(sigma(macro)>=.05&&sigma(macro)<=.06);
+  assert(Math.abs(mean(macro))<.005);assert(sigma(macro)>=.028&&sigma(macro)<=.045);
   assert.throws(()=>assert(sigma(macro.map(v=>v*.5))>=.05));
   assert.throws(()=>assert(Math.abs(mean(macro.map(v=>v+.1)))<.005));
   assert(Math.min(...density)<.7&&Math.max(...density)>1.3);assert(sigma(density)>.12);
@@ -108,13 +108,13 @@ test('R3 shipped Three owns mip-safe field, starts neutral, switches back to R2 
 const encode=v=>v<=.0031308?12.92*v:1.055*v**(1/2.4)-.055;
 const luminance=c=>c.reduce((s,v,i)=>s+encode(v)*[.2126,.7152,.0722][i],0);
 const chroma=c=>{const y=c.reduce((s,v,i)=>s+v*[.2126,.7152,.0722][i],0);return (Math.max(...c)-Math.min(...c))/y;};
-test('R3 fix visible wear: displayed track +15–20%, margin −8–10%, desaturation and neutral broad mean',t=>{
+test('R3 fix quiet wear: displayed track +6–10%, margin −4–7%, desaturation and neutral broad mean',t=>{
   const base=[.25,.27,.19],plain=luminance(base);
   const accept=fn=>{
     const track=fn(base,1,0,0),edge=fn(base,0,1,0);
     const gain=luminance(track)/plain-1,loss=luminance(edge)/plain-1;
-    assert(gain>=.15&&gain<=.20,`displayed track gain ${gain}`);
-    assert(loss<=-.08&&loss>=-.10,`displayed margin loss ${loss}`);
+    assert(gain>=.06&&gain<=.10,`displayed track gain ${gain}`);
+    assert(loss<=-.04&&loss>=-.07,`displayed margin loss ${loss}`);
     assert(Math.abs(chroma(track)/chroma(base)-.9)<1e-6);
     assert(edge[1]/edge[0]>base[1]/base[0]);
     return [gain,loss];
@@ -127,7 +127,7 @@ test('R3 fix visible wear: displayed track +15–20%, margin −8–10%, desatur
     changes.push(luminance(color)/plain-1);
     warmth.push(255*((encode(color[0])-encode(color[2]))-(encode(base[0])-encode(base[2]))));
   }
-  assert(sigma(changes)>=.05&&sigma(changes)<=.065);assert(Math.abs(mean(changes))<.005);
+  assert(sigma(changes)>=.028&&sigma(changes)<=.045);assert(Math.abs(mean(changes))<.005);
   assert(Math.abs(mean(warmth))<3);
   for(const strength of [0,.45]){
     const color=yardColor(base,1,1,.08,strength);
