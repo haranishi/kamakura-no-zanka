@@ -182,3 +182,17 @@ test('standard crowns cast and receive; light crowns only receive while near chi
     view.dispose();
   }
 });
+
+test('runtime distance policy culls static crowns immediately and reversibly without allocation (Node, no GPU)', () => {
+  const p=prepareStands([stand({x:20,z:20,tier:2}),stand({id:2,x:2500,z:2500,tier:2})],{...terrain,insideA:()=>false});
+  const view=buildKamakuraStands(p,{wind,sunDir:new THREE.Vector3(1,1,1)}), scene=new THREE.Scene(); scene.add(view.group); scene.updateMatrixWorld(true);
+  const identities=view.distant.map(d=>[d.mesh,d.mesh.geometry,d.mesh.material]);
+  for(const {mesh} of view.distant) { assert.equal(mesh.matrixAutoUpdate,false); assert.deepEqual(mesh.matrixWorld.elements,new THREE.Matrix4().elements); }
+  view.update(camera()); const full=view.distant.filter(d=>d.mesh.visible).length; assert.equal(full,2);
+  for(let i=0;i<4;i++) {
+    view.setAdapt({standRange:.4,impostorRange:.7});view.update(camera()); assert.equal(view.distant.filter(d=>d.mesh.visible).length,1);
+    view.setAdapt({standRange:1,impostorRange:1});view.update(camera()); assert.equal(view.distant.filter(d=>d.mesh.visible).length,full);
+    assert.deepEqual(view.distant.map(d=>[d.mesh,d.mesh.geometry,d.mesh.material]),identities);
+  }
+  view.dispose();
+});

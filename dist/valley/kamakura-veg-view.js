@@ -11,6 +11,7 @@ export const vegHeight = (species, shape = 0) => treeGeometry(species, 0, shape)
 export function buildKamakuraVeg(prepared, { wind, sunDir, quality = 'standard', renderer = null, families = [] }) {
   const policy = vegPolicy(quality), group = new THREE.Group(), sets = new Map();
   const materials = treeMaterials({ wind, sunDir, quality });
+  let farScale = 1;
   let impostors = null, disposed = false, last = null, stats = null;
   const circles = vegCircles(prepared, vegHeight);
   function dispose() {
@@ -71,6 +72,7 @@ export function buildKamakuraVeg(prepared, { wind, sunDir, quality = 'standard',
     for (const set of sets.values()) for (const mesh of [set.leaf, set.wood]) if (mesh) mesh.count = 0;
     selection.levels.forEach((items, level) => {
       for (const item of items) {
+        if (level === 2 && Math.hypot(item.x - pos.x, item.z - pos.z) > policy.range * farScale) continue;
         const set = sets.get(`${item.species}/${item.shape}/${level}`), k = set.leaf.count, size = item.height / vegHeight(item.species, item.shape);
         q.setFromEuler(e.set(item.lean, item.yaw, 0, 'YXZ')); p.set(item.x, item.y, item.z); scale.setScalar(size); matrix.compose(p, q, scale);
         for (const mesh of [set.leaf, set.wood]) if (mesh) {
@@ -90,5 +92,5 @@ export function buildKamakuraVeg(prepared, { wind, sunDir, quality = 'standard',
     stats = { counts: selection.levels.map(v => v.length), triangles, dropped: selection.dropped, cells: selection.cells, scanned: selection.scanned };
     return stats;
   }
-  return { group, circles, update, dispose, sets, policy, replacePrepared(next) { prepared = next; last = null; }, get stats() { return stats; } };
+  return { group, circles, update, dispose, sets, policy, setAdapt(next) { farScale = next.impostorRange; last = null; }, replacePrepared(next) { prepared = next; last = null; }, get stats() { return stats; } };
 }

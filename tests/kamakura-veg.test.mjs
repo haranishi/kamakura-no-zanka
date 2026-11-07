@@ -104,3 +104,19 @@ test('private v0.6 vegetation count contract, filtering, inside A, colliders and
   const report=await verifyVeg(data,process.env.KZ_WORLD_DIR,await readPrivateHouses(process.env.KZ_WORLD_DIR,data));
   console.log(JSON.stringify({vegetation:report})); assert(report.used>0);assert(report.circles>0);
 });
+
+test('runtime far-tree cutoff is immediate, reversible and reuses the same sets/materials (Node, no GPU)', () => {
+  for(const quality of ['standard','light']) {
+    const far=vegPolicy(quality).range*.85;
+    const p=prepareVeg(decode([row({0:far,1:0}),row({0:10,1:0})]),terrain);
+    const view=buildKamakuraVeg(p,{wind,sunDir:new THREE.Vector3(1,1,1),quality,renderer:stubRenderer()});
+    const camera={position:{x:0,y:20,z:0}}, identities=[...view.sets.values()].map(s=>[s.leaf,s.wood,s.leaf.geometry,s.leaf.material]);
+    view.update(camera); const full=[...view.sets.entries()].filter(([k])=>k.endsWith('/2')).reduce((n,[,s])=>n+s.leaf.count,0); assert(full>0);
+    for(let i=0;i<4;i++) {
+      view.setAdapt({impostorRange:.7});view.update(camera);assert.equal([...view.sets.entries()].filter(([k])=>k.endsWith('/2')).reduce((n,[,s])=>n+s.leaf.count,0),0);
+      view.setAdapt({impostorRange:1});view.update(camera);assert.equal([...view.sets.entries()].filter(([k])=>k.endsWith('/2')).reduce((n,[,s])=>n+s.leaf.count,0),full);
+      assert.deepEqual([...view.sets.values()].map(s=>[s.leaf,s.wood,s.leaf.geometry,s.leaf.material]),identities);
+    }
+    view.dispose();
+  }
+});
