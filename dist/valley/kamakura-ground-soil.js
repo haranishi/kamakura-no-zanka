@@ -1,4 +1,4 @@
-import { SOIL, soilEdge } from './kamakura-ground-pattern.js';
+import { SOIL, soilEdge, SOIL_GRAIN_GLSL } from './kamakura-ground-pattern.js';
 
 // W2c-9b2: single-colour soil/walls -> world-anchored, pixel-filtered material detail.
 // Reuse 9b's surface/grid; pre-average grass on CPU instead of nine GPU lookups per pixel.
@@ -52,6 +52,7 @@ export const SOIL_GLSL=`
 uniform sampler2D uSoilEdge;
 uniform vec2 uSoilEdgeMean;
 uniform float uSoilReady,uSoilDetail,uSoilLayers;
+${SOIL_GRAIN_GLSL}
 float soilHash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453123);}
 float soilNoise(vec2 p){
   vec2 i=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);
@@ -94,8 +95,7 @@ vec3 soilMaterial(vec3 world,float normalY,float d){
     if(code==4.0||code==255.0||code==6.0||code==3.0){
       float cell=code==3.0?.09:code==6.0?.05:.06;
       vec2 g=q/cell,i=floor(g),f=fract(g)-.5;
-      float hash=soilHash(i),stone=1.0-smoothstep(.16,.38,length(f));
-      float grain=(hash-.5)*stone;
+      float hash=soilHash(i),grain=groundSoilGrain(q,cell);
       fine+=grain*(code==6.0?.8:.45)*soilFine(d,px,cell);
       if(code==3.0){
         tint+=vec3(.16,.04,-.18)*grain*soilFine(d,px,cell);

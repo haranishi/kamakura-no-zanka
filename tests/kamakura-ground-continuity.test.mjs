@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { THREE } from './helpers/tree-modules.mjs';
 import { fixture } from './helpers/kamakura-fixture.mjs';
 import { installGroundDetail } from '../dist/valley/kamakura-ground-detail.js';
-import { toneRelief, toneChannel, grassTintAt, toneFine } from '../dist/valley/kamakura-ground-tone-rules.js';
+import { toneRelief, toneNearRelief, toneChannel, grassTintAt, toneFine } from '../dist/valley/kamakura-ground-tone-rules.js';
 import { grassAmount, smooth, soilNoise } from '../dist/valley/kamakura-ground-pattern.js';
 
 const flat=(alternating=true)=>{
@@ -52,7 +52,8 @@ test('r2 alternating grass/soil flat reproduces old transition jumps and bounds 
         weightMin=Math.min(weightMin,grass);weightMax=Math.max(weightMax,grass);
         // Pixel footprint .2m has integrated out pebbles; this tests the actual
         // new colour equation at the same grass/soil boundary and distance band.
-        const render=toneChannel(.25,1,toneRelief(0,1,0,0,macro),0,grass*grassTintAt(x,z,dist),0);
+        const detail=1+grass*(smooth(18,55,dist)*.42*.5-(1-smooth(8,18,dist))*(.23+.5*.10));
+        const render=toneChannel(.25,1,toneNearRelief(toneRelief(0,1,0,0,macro),x,z,dist),0,grass*grassTintAt(x,z,dist),0,1,0,1,0,macro,detail);
         if(renderLast!==undefined)renderMax=Math.max(renderMax,Math.abs(render-renderLast));
         renderLast=render;
         if(oldLast!==undefined){oldMax=Math.max(oldMax,Math.abs(a-oldLast));newMax=Math.max(newMax,Math.abs(b-newLast));}

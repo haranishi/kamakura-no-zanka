@@ -1,4 +1,5 @@
 import { toneStrength, groundUseBoxes, toneTexel, toneWeightGrid } from './kamakura-ground-tone-rules.js';
+import { SOIL_GRAIN_GLSL } from './kamakura-ground-pattern.js';
 
 export function installGroundTone(THREE,material,data,owner,{quality='standard',search=''}={}) {
   if(new URLSearchParams(search).get('gtone')==='0'||!data?.ground||!owner.uniforms)return;
@@ -26,10 +27,12 @@ export function installGroundTone(THREE,material,data,owner,{quality='standard',
     else {textures.forEach(t=>{t.needsUpdate=true;});uniforms.uToneReady.value=1;resolveReady();}
   }
   prepare();
-  const prior=material.onBeforeCompile,priorKey=material.customProgramCacheKey,cacheKey=priorKey.call(material)+'|tone-r2';
+  const prior=material.onBeforeCompile,priorKey=material.customProgramCacheKey,cacheKey=priorKey.call(material)+'|tone-r3';
   material.onBeforeCompile=shader=>{
     prior(shader);Object.assign(shader.uniforms,uniforms);
-    shader.fragmentShader=shader.fragmentShader.replace('#include <common>',`#include <common>\n${TONE_GLSL}`)
+    // W2c-9r1 ground round 3: declare after detail's helpers, then multiply
+    // their output onto the continuous base. Never re-enable nearest class IDs.
+    shader.fragmentShader=shader.fragmentShader.replace('void main() {',`${TONE_GLSL}\nvoid main() {`)
       .replace('if(uGroundStrength>0.0){','if(uGroundStrength>0.0 && uToneStrength<=0.0){')
       .replace('#include <color_fragment>',`#include <color_fragment>
         if(uToneReady*uToneStrength>0.0)diffuseColor.rgb=groundTone(diffuseColor.rgb,vGroundWorld,vGroundSlope,distance(vGroundWorld,cameraPosition));`);
@@ -47,6 +50,7 @@ uniform vec3 uToneGrid;
 uniform vec2 uToneWeightSpan;
 uniform sampler2D uToneBase,uToneWeights;
 uniform float uToneReady,uToneStrength,uToneSoil,uToneBaked;
+${SOIL_GRAIN_GLSL}
 float toneHash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453123);}
 float toneNoise(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);return mix(mix(toneHash(i),toneHash(i+vec2(1,0)),f.x),mix(toneHash(i+vec2(0,1)),toneHash(i+vec2(1,1)),f.x),f.y);}
 // Same temporary (x, y, dist) interface as the pure grassTintAt above; y is map south.
@@ -66,18 +70,23 @@ vec3 groundTone(vec3 fallback,vec3 world,float normalY,float dist){
   float cavity=clamp((dFdx(facing.x)+dFdy(facing.z))*.5,-1.0,1.0);
   float shade=clamp(-facing.z,0.0,1.0);
   float relief=clamp(1.15*(macro*2.0-1.0)+.12*dry-.18*steep-.14*max(0.0,cavity)-.10*shade,-.85,.85);
-  vec2 pebbleCell=p/.09,pebbleOffset=fract(pebbleCell)-.5;
+  relief*=mix(.1,1.0,smoothstep(12.0,65.0,noisyDist));
+  vec2 q=p+vec2(sin(p.y*.11),sin(p.x*.09))*.22;
+  float grain=groundSoilGrain(q,.06)*(1.0-smoothstep(12.0,65.0,noisyDist))*(1.0-smoothstep(.021,.06,px));
+  vec2 pebbleCell=q/.14;
   float pebbleSeed=toneHash(floor(pebbleCell));
-  float pebble=1.0-smoothstep(mix(.15,.32,pebbleSeed),.44,length(pebbleOffset));
-  float grain=(pebbleSeed-.5)*pebble*fine;
+  float stone=1.0-smoothstep(.18,.38,length(fract(pebbleCell)-.5));
+  float pebble=(step(.68,pebbleSeed)*stone-${.32*Math.PI*(.3*.18**2+.4*.18*.38+.3*.38**2)})*fine;
   float use=weights.b*smoothstep(.55,.9,normalY)*weights.a;
   float grass=weights.r*(1.0-use)*(1.0-steep);
   float distantGrass=grass*grassTintAt(p.x,p.y,noisyDist);
   vec3 natural=base*(vec3(1.0)+weights.a*uToneStrength*(vec3(relief)+vec3(.015,-.005,-.02)*steep+vec3(-.25,.3,-.15)*distantGrass));
-  natural*=1.0+uToneSoil*weights.a*uToneStrength*(grain*.18+(macro-.5)*.05*weights.g);
-  // Packed earth and gravel use the same base hue; pebbles integrate to zero at subpixel scale.
+  // Packed earth and gravel use the same base hue. Apply near detail AFTER
+  // both tone branches so neither relief nor the yard mix can overwrite it.
   vec3 yard=base*vec3(1.30,1.25,1.13)+vec3(.035,.032,.022);
-  yard*=1.0+uToneSoil*grain*.65;
-  return clamp(mix(natural,yard,use*uToneStrength),0.0,1.0);
+  vec3 result=mix(natural,yard,use*uToneStrength);
+  result*=groundGrassDetail(p,dist,weights.r*smoothstep(.45,.85,normalY));
+  result*=1.0+uToneSoil*weights.a*uToneStrength*(grain*.8+pebble*.85*use+(macro-.5)*.05*weights.g);
+  return clamp(result,0.0,1.0);
 }
 `;

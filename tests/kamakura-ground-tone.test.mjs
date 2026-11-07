@@ -12,6 +12,7 @@ import { chunkGeometry } from '../dist/valley/kamakura-chunks.js';
 import { createKamakuraTerrain } from '../dist/valley/kamakura-terrain.js';
 import { fixture } from './helpers/kamakura-fixture.mjs';
 import { readPrivateData,verifySeams } from '../tools/lib/kamakura-validation.mjs';
+import { groundDetailChannel } from './helpers/kamakura-ground-color.mjs';
 const synthetic=()=>{const d=fixture({width:9,height:9,cell:2});d.meta.ground={};d.meta.surface={};d.ground=new Uint8Array(81*3).fill(140);d.surface=new Uint8Array(81).fill(2);return d;};
 function balanced(source){
   const clean=source.replace(/\/\*[\s\S]*?\*\//g,'').replace(/\/\/[^\n]*/g,'');
@@ -72,6 +73,13 @@ test('r1 assembled Lambert uniforms are declared before use for every detail/soi
         for(const stage of ['vertexShader','fragmentShader']){
           balanced(expanded(s[stage]));uniformDeclarations(s[stage],`${label} ${stage}`);
         }
+        const fragment=expanded(s.fragmentShader);
+        for(const name of ['toneHash','toneNoise','grassTintAt','groundTone','groundSoilGrain','groundGrassDetail']){
+          const definitions=[...fragment.matchAll(new RegExp(`\\b(?:float|vec[234])\\s+${name}\\s*\\(`,'g'))];
+          assert(definitions.length<=1,`${label}: duplicate ${name}`);
+          if(definitions.length)assert.equal(fragment.match(new RegExp(`\\b${name}\\s*\\(`)).index,definitions[0].index+definitions[0][0].indexOf(name),`${label}: ${name} used before declaration`);
+        }
+        assert(!/\b(?:float|vec[234]|int|sampler2D)\s+(?:patch|sample|input|output|filter|common|active|partition|resource)\b/.test(fragment));
         if(detail.tone){
           assert.deepEqual(s.uniforms.uToneGrid.value.toArray(),[9,9,2]);
           assert.equal(s.uniforms.uToneStrength.value,quality==='light'?.45:1);
@@ -147,7 +155,7 @@ test('r1 private corrected natural-class mean stays within existing 25/255 toler
     let beforeLuma=0,afterLuma=0;
     const macro=soilNoise(x/43,z/43),dry=smooth(0,180,terrain.heightAt(x,z));
     const oldRelief=land*Math.max(-.12,Math.min(.12,.045*(macro*2-1)+.025*dry-.045*steep-.025*Math.max(0,-normal.z)));
-    for(let k=0;k<3;k++){const base=terrain.groundColorAt(x,z)[k],value=toneChannel(base,k,r,land*steep,land*grassAmount(code)*(1-steep)*grassTintAt(x,z,500),0,1,0,1,code===5?1:0,soilNoise(x/43,z/43));assert(Number.isFinite(value)&&value>=0&&value<=1);sum[code*3+k]+=encode(value);old[code*3+k]+=encode(base);
+    for(let k=0;k<3;k++){const base=terrain.groundColorAt(x,z)[k],detail=groundDetailChannel(x,z,500,grassAmount(code)*smooth(.45,.85,ny),k),value=toneChannel(base,k,r,land*steep,land*grassAmount(code)*(1-steep)*grassTintAt(x,z,500),0,1,0,1,code===5?1:0,soilNoise(x/43,z/43),detail);assert(Number.isFinite(value)&&value>=0&&value<=1);sum[code*3+k]+=encode(value);old[code*3+k]+=encode(base);
       const oldTint=[.015,-.005,-.02][k]*land*steep+[-.25,.3,-.15][k]*land*grassAmount(code)*(1-steep)*grassTintAt(x,z,500);
       const previous=Math.round(base*255)/255*(1+oldRelief+oldTint)*(1+(macro-.5)*.05*(code===5?1:0));
       beforeLuma+=encode(previous)*[.2126,.7152,.0722][k];afterLuma+=encode(value)*[.2126,.7152,.0722][k];
