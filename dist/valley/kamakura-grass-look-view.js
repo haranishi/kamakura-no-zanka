@@ -1,16 +1,17 @@
 // W2c-9c: optional ribbon shading and four fading footsteps; valley never calls this.
-import { packGrassLook, grassRecovery } from './kamakura-grass-look.js';
+import { packGrassLook, grassRecovery, MID_GRASS } from './kamakura-grass-look.js';
 export function createGrassLook(ecology,quality,heroUniform) {
   const trail=new Float32Array(16), ages=new Float64Array(4).fill(10), radii=new Float32Array(4), strengths=new Float32Array(4);
   const uniforms={uHero:heroUniform,uHeroStrength:{value:0},uGrassTrail:{value:trail},uGrassTrailRadii:{value:radii},uGrassLookStep:{value:0}};
   let cursor=0, elapsed=0, cameraX=0, cameraZ=0;
-  return { segments:6, normalBlend:.78, capacityFactor:3, uniforms,
+  // W2c-9c2: plan each metre; 7m CPU lawn guard covers the unchanged 6m shader fade.
+  return { replanDistance:1, bulkMid:true, midPlacement:{sink:MID_GRASS.sink,maxSlope:MID_GRASS.maxSlope}, segments:6, normalBlend:.78, capacityFactor:3, uniforms,
     pack:(data,kind)=>packGrassLook(data,kind,ecology,quality),
     prepare(camera){cameraX=camera.position.x;cameraZ=camera.position.z;},
     accept(data,i,kind){
       if(kind!=='near')return true;
       const marker=data[i+11];
-      if(marker===-1)return uniforms.uGrassLookStep.value<2&&Math.hypot(data[i]-cameraX,data[i+2]-cameraZ)<6.5;
+      if(marker===-1)return uniforms.uGrassLookStep.value<2&&Math.hypot(data[i]-cameraX,data[i+2]-cameraZ)<7;
       if(marker===-2)return uniforms.uGrassLookStep.value<2;
       return true;
     },
@@ -25,6 +26,22 @@ export function createGrassLook(ecology,quality,heroUniform) {
     setAdapt(step){uniforms.uGrassLookStep.value=step;},
     patch(shader,kind) {
       Object.assign(shader.uniforms,uniforms);
+      if(kind==='mid') {
+        // W2c-9c2: full tufts at 12–60m; sparse handoff at 60–120m.
+        shader.vertexShader=shader.vertexShader
+          .replace('float alive = step(fadeOut,iShape.w);',`float tail=mix(1.0,.12,smoothstep(60.0,95.0,dd))*(1.0-smoothstep(.85*uGrassRadii.y,uGrassRadii.y,dd));
+            float alive=step(fract(iShape.w*17.31),tail)*(1.0-step(uGrassRadii.y,dd));`)
+          .replace('transformed.xz += grassWind(rootWorld,t,iShape.x);',`transformed.xz += grassWind(rootWorld,t,iShape.x);
+            // W2c-9c2: dissolve each edge-on plane, including tilted ridge silhouettes.
+            vec2 faceXZ=mat2(along.x,along.y,-along.y,along.x)*normal.xz;
+            vec3 cardNormal=vec3(faceXZ.x,normal.y,faceXZ.y);
+            cardNormal=cardNormal*cos(iTip.y)+cross(axis,cardNormal)*sin(iTip.y)
+              +axis*dot(axis,cardNormal)*(1.0-cos(iTip.y));
+            float cardFace=abs(dot(normalize(mat3(modelMatrix)*cardNormal),normalize(cameraPosition-rootWorld)));
+            transformed*=smoothstep(.04,.16,cardFace);`);
+        shader.fragmentShader=shader.fragmentShader.replace('.60*smoothstep(9.0,25.0,vGrassDistance)',
+          `${MID_GRASS.blend.toFixed(2)}*smoothstep(9.0,25.0,vGrassDistance)`);
+      }
       if(kind==='near') {
         shader.vertexShader=shader.vertexShader.replace('uniform vec2 uGrassRadii;',`uniform vec2 uGrassRadii;
           uniform vec4 uHero; uniform float uHeroStrength; uniform vec4 uGrassTrail[4]; uniform float uGrassTrailRadii[4]; uniform float uGrassLookStep;

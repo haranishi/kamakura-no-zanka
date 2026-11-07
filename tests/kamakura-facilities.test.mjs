@@ -192,7 +192,7 @@ test('9g2 facility ftex A/B preserves all geometry, placement, boxes and counts;
   const snapshot=f=>f.records.map(r=>r.meshes.map(m=>({p:[...m.geometry.attributes.position.array],n:m.geometry.attributes.normal && [...m.geometry.attributes.normal.array],matrix:[...m.matrix.elements],indices:m.geometry.index && [...m.geometry.index.array]})));
   assert.deepEqual(snapshot(fields[0]),snapshot(fields[1]));assert.deepEqual(fields[0].boxes,fields[1].boxes);assert.deepEqual(fields[0].exclusionBoxes,fields[1].exclusionBoxes);
   const resources=new Set();for(const r of fields[0].records)for(const m of r.meshes){
-    const u=m.material.userData.houseUniforms;assert(u);assert.equal(u.houseRole.value,2);assert(m.geometry.hasAttribute('houseLocalY'));
+    const u=m.material.userData.houseUniforms;assert(u);assert.equal(u.houseRole.value,0);assert(m.geometry.hasAttribute('houseLocalY'));
     resources.add(m.geometry);resources.add(m.material);resources.add(u.houseAtlas.value);
     fields[0].setAdapt({scale:.7,shadows:true});assert.equal(u.houseBump.value,0);assert.equal(u.houseStrength.value,1);
     fields[0].setAdapt({scale:.58,shadows:false});assert.equal(u.houseStrength.value,0);
@@ -202,4 +202,19 @@ test('9g2 facility ftex A/B preserves all geometry, placement, boxes and counts;
   const calls=new Map();for(const r of resources)r.addEventListener('dispose',()=>calls.set(r,(calls.get(r)||0)+1));
   for(const f of fields){f.dispose();f.dispose();f.update({x:0,z:0});}
   assert([...resources].every(r=>calls.get(r)===1));assert(scenes.every(s=>s.children.length===0));
+});
+
+test('9g3 facility roles use mesh hints with anonymous materials; unknown torii keeps source color',async()=>{
+  const {buildKamakuraFacilities}=await loadFacilityView();
+  const nodes=[{...node('hall'),node:'synthetic_wall'},{...node('torii'),node:'synthetic_torii'}];
+  const f={...decodeFacilities(catalog(nodes)),kit:kit(nodes)},scene=new THREE.Scene();
+  const view=await buildKamakuraFacilities(f,{heightAt:()=>0},scene);
+  try {
+    const wall=view.records.find(r=>r.node.part==='hall').meshes[0].material;
+    const torii=view.records.find(r=>r.node.part==='torii').meshes[0].material;
+    assert.equal(wall.userData.houseUniforms.houseRole.value,2);
+    assert.equal(torii.userData.houseUniforms.houseRole.value,0);
+    assert.notEqual(wall,torii); // One source, distinct known/unknown roles.
+    assert(wall.color.equals(torii.color));
+  } finally {view.dispose();}
 });

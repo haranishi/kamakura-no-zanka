@@ -226,7 +226,7 @@ export function buildGrass({ field, wind, quality = 'standard', sunDir, reach, l
   function submit(c, kind) {
     let offset = 0;
     for (const t of c.tiles) if (active[kind].has(t.key)) {
-      if (densityScale === 1 && !look) { c.buffer.array.set(t.data, offset); offset += t.data.length; }
+      if (densityScale === 1 && (!look || (kind === 'mid' && look.bulkMid))) { c.buffer.array.set(t.data, offset); offset += t.data.length; }
       // Thin by a hash of the root position, not by iShape.w: the shader also uses w for the distance fade and the
       // card pattern, so thinning on w would drop the far blades first and wipe out the last card pattern.
       else for (let i = 0; i < t.data.length; i += STRIDE) if ((!look || look.accept(t.data,i,kind)) && (densityScale === 1 || hash(t.data[i], t.data[i + 2], 61) < densityScale)) {
@@ -245,7 +245,7 @@ export function buildGrass({ field, wind, quality = 'standard', sunDir, reach, l
   }
   function build(c, kind) {
     const s = slot(kind), make = kind === 'near' ? nearTile : midTile;
-    Object.assign(s, c); s.tiles = chunkTiles(kind, c.cx, c.cz).map(t => ({ key: `${kind}:${t.tx},${t.tz}`, data: packed(make(field, t.tx, t.tz, { quality }), kind) }));
+    Object.assign(s, c); s.tiles = chunkTiles(kind, c.cx, c.cz).map(t => ({ key: `${kind}:${t.tx},${t.tz}`, data: packed(make(field, t.tx, t.tz, { quality, ...(kind === 'mid' ? look?.midPlacement : {}) }), kind) }));
     // All roots and every possible displaced tip, including elevated flower/plume roots.
     const size = (kind === 'near' ? GRASS.nearSize : GRASS.midSize) * CHUNK_TILES[kind];
     let minY = Infinity, maxY = -Infinity;
@@ -272,7 +272,7 @@ export function buildGrass({ field, wind, quality = 'standard', sunDir, reach, l
   function stream(camera, warm = false) {
     if (dead) return;
     const distance = last ? Math.hypot(camera.position.x - last.x, camera.position.z - last.z) : Infinity;
-    const moved = distance >= .25;
+    const moved = distance >= (look?.replanDistance ?? .25);
     if (look && !warm && !moved && queue === 0) return;
     const before = [...wanted.near, ...wanted.mid];
     if (moved || warm) replan(camera);

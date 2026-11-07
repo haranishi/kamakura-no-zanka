@@ -1,14 +1,13 @@
-import { createSurfaceCodeAt } from './kamakura-surface.js';
 import { shoreHash, shorePropAt } from './kamakura-shore.js';
 const SHORE_COLORS=[0xb3a590,0x6d716b,0x665343,0x4c5140];
-// W2c-9e: bare sand -> deterministic, bounded local shell/pebble/wrack window.
+// W2c-9e2: include every land class within the signed 0–16m wrack band.
 // THREE is injected, keeping ownership and the bundled Node harness explicit.
 export function buildShoreProps(THREE, terrain, data, quality='standard') {
   const group=new THREE.Group(), cap=quality==='light'?120:300;
   const geometry=new THREE.OctahedronGeometry(1,0), material=new THREE.MeshLambertMaterial({color:0xffffff});
   let mesh=new THREE.InstancedMesh(geometry,material,cap), spare=new THREE.InstancedMesh(geometry,material,cap);
   for(const item of [mesh,spare]){item.count=0;item.frustumCulled=false;item.receiveShadow=true;group.add(item);}spare.visible=false;
-  const codeAt=createSurfaceCodeAt(data.meta,data.surface), dummy=new THREE.Object3D(), color=new THREE.Color();
+  const dummy=new THREE.Object3D(), color=new THREE.Color();
   // Four silhouettes share one 8-triangle geometry; no per-frame allocation.
   let cx=Infinity,cz=Infinity,step=0,cursor=0,count=0,pending=false,disposed=false;
   function update(pos) {
@@ -20,7 +19,7 @@ export function buildShoreProps(THREE, terrain, data, quality='standard') {
     for(let n=0;n<96&&pending;n++) {
       const a=cursor%36-18,b=Math.floor(cursor/36)-18,x=(cx*2+a)*2,z=(cz*2+b)*2;
       if(++cursor>=1296)pending=false;
-      const h=shoreHash(x,z);if(h>.3||count>=cap||Math.hypot(x-pos.x,z-pos.z)>30||!shorePropAt(terrain,codeAt,x,z))continue;
+      const h=shoreHash(x,z);if(h>.3||count>=cap||Math.hypot(x-pos.x,z-pos.z)>30||!shorePropAt(terrain,null,x,z))continue;
       const type=Math.floor(h/.075),s=.06+shoreHash(x,z,12)*.12;
       dummy.position.set(x,terrain.heightAt(x,z)+.035,z);dummy.rotation.set(0,shoreHash(x,z,3)*6.283,0);
       dummy.scale.set(type===2?s*5:s,type===0?s*.25:s*.45,type===3?s*2:s);dummy.updateMatrix();spare.setMatrixAt(count,dummy.matrix);

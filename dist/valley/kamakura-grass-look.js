@@ -4,12 +4,15 @@ export const grassLookEnabled = search => new URLSearchParams(search).get('glook
 const clamp = v => Math.max(0, Math.min(1, v));
 const smooth = v => { const t = clamp(v); return t*t*(3-2*t); };
 export const grassHash = (x,z,n=0) => { const v=Math.sin(x*127.1+z*311.7+n*74.7)*43758.5453; return v-Math.floor(v); };
-export function grassEcology(x,z,{ river=Infinity, shade=0, house=Infinity, path=Infinity, sand=0, elevation=0, seed=1333 }={}) {
+export function grassEcology(x,z,{ river=Infinity, shade=0, house=Infinity, path=Infinity, sand=0, elevation=0, slopeBreak=0, seed=1333 }={}) {
   const wet=1-smooth(river/15), managed=1-smooth(Math.min(house/9,(path-2.5)/7.5));
   const broad=clamp(.5+.65*fbm(x/95,z/95,seed+701,2)+.25*fbm(x/21,z/21,seed+709,2));
   const dry=clamp(.12+.45*sand+.22*smooth(elevation/100)+.22*broad-.35*wet);
   const edge=smooth((path-2.5)/2.5), shadow=clamp(shade);
+  // W2c-9c2: uncut margins keep tall tufts even where nearby lawns are managed.
+  const refuge=clamp(Math.max(1-smooth(house/9),shadow,wet,slopeBreak));
   return { wet, dry, shade:shadow, managed, edge,
+    midDensity:edge*(1.10+.55*broad)*(1+.65*refuge),
     density:edge*(.42+.58*broad)*(1-.65*shadow)*(1-.6*managed)*(1+.25*wet),
     height:(.5+.5*broad)*(1-.7*managed)*(1+.35*wet),
     flowers:clamp((fbm(x/23,z/23,seed+727,2)-.12)*1.8)*(1-shadow)*(1-.8*managed)*edge };
@@ -46,7 +49,13 @@ export function packGrassLook(data,kind,ecology,quality='standard') {
           for(let j=0;j<3;j++)flower[8+j]=c[j]; records.push(flower);
         }
       }
-    } else {a[4]*=.65+.35*e.height;records.push(a);}
+    } else {
+      // W2c-9c2: 35–70cm tufts, independent widths and lean; never a dry ridge shard.
+      a[4]=.35+.35*h; a[5]=.65+.65*grassHash(x,z,151);
+      a[12]=(.5-grassHash(x,z,157))*.16;
+      for(let j=0;j<3;j++) a[8+j]=Math.max(MID_GRASS.floor,a[8+j]*.55);
+      records.push(a);
+    }
   }
   const out=new Float32Array(records.length*15);for(let i=0;i<records.length;i++)out.set(records[i],i*15);return out;
 }
@@ -71,8 +80,12 @@ export function createGrassEnvironment(terrain,{ colliders, extraColliders, path
         if(o.type==='circle')shade=Math.max(shade,1-smooth((Math.hypot(x-o.x,z-o.z)-o.r)/Math.min(10,Math.max(3,o.height*.4))));
         else {const dx=x-o.x,dz=z-o.z,d=Math.hypot(Math.max(0,Math.abs(dx*o.c-dz*o.s)-o.hx),Math.max(0,Math.abs(dx*o.s+dz*o.c)-o.hz));house=Math.min(house,d);shade=Math.max(shade,.65*(1-smooth(d/8)));}
       }
-    const e=grassEcology(x,z,{river:terrain.riverDistanceAt(x,z,15),path,house,shade,sand:1-smooth((terrain.seaDistanceAt?.(x,z)??Infinity)/40),elevation:terrain.heightAt(x,z)});
+    const e=grassEcology(x,z,{river:terrain.riverDistanceAt(x,z,15),path,house,shade,sand:1-smooth((terrain.seaDistanceAt?.(x,z)??Infinity)/40),elevation:terrain.heightAt(x,z),slopeBreak:terrain.slopeAt ? smooth(terrain.slopeAt(x,z)/24) : 0});
     if(withNormal){const nx=terrain.heightAt(x-.5,z)-terrain.heightAt(x+.5,z),nz=terrain.heightAt(x,z-.5)-terrain.heightAt(x,z+.5),length=Math.hypot(nx,1,nz);e.normalX=nx/length;e.normalY=1/length;e.normalZ=nz/length;}
     return e;
   };
 }
+
+// W2c-9c2: shaded clumps retain separation from the mean ground, including dusk.
+export const MID_GRASS = Object.freeze({groundScale:.68, blend:.40, floor:.035, sink:.12, maxSlope:36});
+export function grassGroundTint(rgb) { return rgb.map(v=>Math.max(MID_GRASS.floor,v*MID_GRASS.groundScale)); }

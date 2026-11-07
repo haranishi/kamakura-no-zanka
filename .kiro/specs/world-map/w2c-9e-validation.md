@@ -90,3 +90,10 @@ commit・push・外部通信・素材ファイルの追加は行っていない�
 
 変更・追加：kamakura-shore.js、kamakura-ground-detail.js、kamakura-sea-view.js、kamakura-shore-props.js、
 world-kamakura.jsの海の配線、tests/kamakura-sea.test.mjs、本記録、tasks.md、FILES_SHA256.json。
+
+## 9e2（今回の修正）
+
+16mの別々の距離から8mの符号つき格子1枚へ変更し、海色・泡・砂・川岸・小物を修正した。
+担当Node試験は私有データ込み12件成功。括弧と条件コンパイルの対応も検査した。
+前回の小物0個は試験のnorth→south反転漏れも原因。最新は53／63個。
+[設計・数値・実機手順・残件](w2c-9e2-validation.md)。実画面・GPU費用と曲折岸の位置ずれが残る。

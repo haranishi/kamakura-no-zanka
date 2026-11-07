@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { installGroundDetail } from './kamakura-ground-detail.js';
+import { installGroundSoil } from './kamakura-ground-soil.js';
 import { FLY } from './kamakura-fly.js';
 import { CHUNK_CELLS as SIZE, chooseLOD, choosePatchLOD, chunkGeometry } from './kamakura-chunks.js';
 import { createChunkJobs, chunkBudget, withinChunkBudget, shouldPlanChunks } from './kamakura-chunk-jobs.js';
@@ -7,6 +8,7 @@ export function buildKamakuraChunks(t, scene, spawn, ground = true, quality = 's
   const colored = ground && !!t.groundColorAt?.(t.x0, t.z0);
   const material = new THREE.MeshLambertMaterial({ color: colored ? 0xffffff : 0x858563, vertexColors: colored });
   const detail = installGroundDetail(THREE, material, detailOptions.data, { quality, search: detailOptions.search });
+  installGroundSoil(THREE, material, detail, { quality, search: detailOptions.search });
   const chunks = [], grid = new Map();
   for (let j = 0; j < t.h - 1; j += SIZE) for (let i = 0; i < t.w - 1; i += SIZE) {
     const ch = { i, j, i1: Math.min(t.w - 1, i + SIZE), j1: Math.min(t.h - 1, j + SIZE), step: 8, mesh: null };

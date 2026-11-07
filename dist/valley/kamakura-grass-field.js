@@ -62,16 +62,16 @@ export function createGrassCell(terrain, { surfaceCodeAt, exclude = () => null, 
     // Fixed theoretical envelope replaces window-wide quantiles/normalisation: moving
     // the window must never change a shared cell's value. Same two-scale mid patch.
     const mid = clamp(1 + .4 * (noise(seed,x,z,1/3,593) + noise(seed,x,z,1/14,599)),.2,1.8);
-    return { placeable: +(density > 0), density: Math.ceil(density * 255 / 2), height: Math.round(clamp((.5 + noise(seed,x,z,GRASS.heightScale,541)*.5)*(ecology?.height ?? 1),0,1)*255), species, midPatch: mid * scale * (ecology?.density ?? 1), heights };
+    return { placeable: +(density > 0), density: Math.ceil(density * 255 / 2), height: Math.round(clamp((.5 + noise(seed,x,z,GRASS.heightScale,541)*.5)*(ecology?.height ?? 1),0,1)*255), species, midPatch: mid * scale * (ecology?.midDensity ?? ecology?.density ?? 1), heights };
   };
 }
-function emptyField(pos, seed) {
-  const nx = GRASS_WINDOW, nz = nx, n = nx * nz;
+function emptyField(pos, seed, size) {
+  const nx = size, nz = nx, n = nx * nz;
   return { seed, edge: GRASS_EDGE, x0: Math.floor(pos.x) - nx/2, z0: Math.floor(pos.z) - nz/2, nx, nz,
     placeable: new Uint8Array(n), density: new Uint8Array(n), height: new Uint8Array(n), species: new Uint8Array(n), midPatch: new Float32Array(n),
     rawDensity: new Uint8Array(n), rawMidPatch: new Float32Array(n), heights: new Float32Array((nx+1)*(nz+1)), stats: { evaluated: 0, reused: 0 } };
 }
-export function createGrassWindows(cell, { seed = 1333 } = {}) {
+export function createGrassWindows(cell, { seed = 1333, size = GRASS_WINDOW } = {}) {
   let field = null, pending = null, generation = 0;
   function plan(pos) {
     if (!Number.isFinite(pos.x + pos.z)) throw new RangeError('grass window: finite position required');
@@ -80,7 +80,7 @@ export function createGrassWindows(cell, { seed = 1333 } = {}) {
     if (pending) return false;
     const target = field;
     if (target && Math.hypot(pos.x - (target.x0 + target.nx/2),pos.z - (target.z0 + target.nz/2)) < GRASS_MOVE) return false;
-    pending = { field: emptyField(pos, seed), cursor: 0, generation: ++generation };
+    pending = { field: emptyField(pos, seed, size), cursor: 0, generation: ++generation };
     return true;
   }
   // At least one cell per call; the caller supplies elapsed milliseconds (no clock here).
