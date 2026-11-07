@@ -101,7 +101,9 @@ test('water opt-out and missing data leave movement rules and the original valle
   }
   const source=await fs.readFile(new URL('../dist/valley/world-kamakura.js',import.meta.url),'utf8');
   assert.match(source,/data.rivers && waterEnabled\(search\)/); assert.match(source,/sunDir: atmosphere.sunDir/);
-  assert.match(source,/water\?\.update\(uniforms.uTime\)/); assert.match(source,/water\?\.dispose\(\)/);
+  assert.match(source,/flight\.updateViews\(uniforms.uTime, paused \? 0 : dt\)/);
+  const flightSource=await fs.readFile(new URL('../dist/valley/kamakura-fly-view.js',import.meta.url),'utf8');
+  assert.match(flightSource,/water\?\.update\(time\)/); assert.match(source,/water\?\.dispose\(\)/);
 });
 test('shipped Three view: construction, shader uniforms/fog/distance, static geometry and idempotent disposal (no GPU)', async () => {
   const three=new URL('../dist/vendor/three.module.min.js',import.meta.url).href, THREE=await import(three);

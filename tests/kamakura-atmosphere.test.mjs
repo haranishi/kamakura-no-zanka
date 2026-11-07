@@ -95,7 +95,8 @@ test('ground receives shadows after progressive rebuilding, house flags and boot
   const boot=source('world-kamakura.js');
   assert(boot.indexOf('atmosphere = createKamakuraAtmosphere')<boot.indexOf('roster = await loadRoster'));
   assert(boot.indexOf('atmosphere = createKamakuraAtmosphere')<boot.indexOf('chunks = buildKamakuraChunks'));
-  assert.match(boot,/atmosphere\.update\(camera, paused \? 0 : dt, g.hero.pos, rig.yaw\)/);
+  assert.match(boot,/flight\.updateViews\(uniforms.uTime, paused \? 0 : dt\)/);
+  assert.match(source('kamakura-fly-view.js'),/atmosphere\.update\(camera, dt, pos, yaw\)/);
   assert.match(source('kamakura-house-view.js'),/mesh.castShadow = true; mesh.receiveShadow = true/);
   assert.match(source('characters.js'),/o.castShadow = true; o.receiveShadow = true/);
 });
