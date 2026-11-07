@@ -1,3 +1,4 @@
+import { createSurfaceAt, createRiverIndex } from './kamakura-surface.js';
 // Pure provider. Public coordinates use the game's x=east, y=up, z=south.
 export const KAMAKURA_MAX_WALK_SLOPE_DEG = 46;
 export const KAMAKURA_SLOPE_WINDOW_M = 3.9;
@@ -21,7 +22,7 @@ export function insidePolygon(x, y, polygon) {
   }
   return inside;
 }
-export function createKamakuraTerrain({ meta, heights, walk, patches = null, ground = null }, vscale = 1, maxSlope = KAMAKURA_MAX_WALK_SLOPE_DEG) {
+export function createKamakuraTerrain({ meta, heights, walk, patches = null, ground = null, surface = null, rivers = null }, vscale = 1, maxSlope = KAMAKURA_MAX_WALK_SLOPE_DEG) {
   if (!Number.isFinite(vscale) || vscale <= 0) throw new RangeError('Invalid vertical scale');
   if (!Number.isFinite(maxSlope) || maxSlope <= 0 || maxSlope >= 90) throw new RangeError('Invalid slope limit');
   const { width: w, height: h, cell_m: cell } = meta.grid;
@@ -90,7 +91,12 @@ export function createKamakuraTerrain({ meta, heights, walk, patches = null, gro
   const insidePatch = (x, z) => x >= x0 && x <= -x0 && z >= z0 && z <= -z0 && patchSample(x, z) !== null;
   const maskAt = (x, z) => { const { i, j } = gridAt(x, z); return walk[Math.round(j) * w + Math.round(i)]; };
   const isWater = (x, z) => maskAt(x, z) === 2 || heightAt(x, z) <= 0;
-  const waterAt = (x, z) => isWater(x, z) ? Math.max(0.46, -heightAt(x, z)) : 0;
+  const { riverDistanceAt } = createRiverIndex(rivers);
+  const surfaceAt = createSurfaceAt(meta, surface);
+  // The sea is deep water (blocks, >= 0.46). A river is wadeable: K7's rivers are 0.5 m deep at the surface, schematic. The value
+  // stays under collision.js's 0.45 m cut-off, so the hero walks in a river, while it is still > 0.05 for the water footstep.
+  const RIVER_WADE_DEPTH = 0.4;
+  const waterAt = (x, z) => isWater(x, z) ? Math.max(0.46, -heightAt(x, z)) : (riverDistanceAt(x, z) === 0 ? RIVER_WADE_DEPTH : 0);
   function blockedAt(x, z) {
     if ((!insideA(x, z) || maskAt(x, z) === 0) && !insidePatch(x, z)) return 'bounds';
     if (isWater(x, z)) return 'water';
@@ -102,6 +108,6 @@ export function createKamakuraTerrain({ meta, heights, walk, patches = null, gro
     return null;
   }
   return { meta, groundColorAt, patches, patchIndex, baseHeightAt, vscale, w, h, cell, x0, z0, at, heightAt, slopeAt, maxSlope, insidePatch, normalAt, waterAt, insideA, maskAt,
-    waterLevelAt: () => 0, roadInfo: () => null, surfaceAt: () => ({ grass: 0, dirt: 1, rock: 0, gravel: 0, mud: 0, litter: 0 }),
+    waterLevelAt: () => 0, roadInfo: () => null, surfaceAt, riverDistanceAt,
     walkable: (x, z) => !blockedAt(x, z), movementBlockedAt, bounds };
 }
