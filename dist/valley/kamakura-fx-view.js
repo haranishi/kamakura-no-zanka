@@ -92,7 +92,8 @@ export function buildKamakuraFx({ terrain, data, preparedRivers, search = '', qu
       obj.position.set(r.x, r.y, r.z); obj.quaternion.copy(flat);
       obj.rotateZ(r.yaw);
       if (r.wake) { obj.position.x -= Math.sin(r.yaw) * r.radius; obj.position.z -= Math.cos(r.yaw) * r.radius; }
-      obj.scale.set(r.radius * 2.4, r.radius * 2.4 * rippleAspect(r.strength), 1); obj.updateMatrix(); rings.mesh.setMatrixAt(n, obj.matrix);
+      // W2c-9d4: shader front at UV radius .68 -> primary ring reaches the specified metres.
+      obj.scale.set(r.radius * (2 / .68), r.radius * (2 / .68) * rippleAspect(r.strength), 1); obj.updateMatrix(); rings.mesh.setMatrixAt(n, obj.matrix);
       rings.alpha.array[n] = rippleAlpha(r.age,r.strength); rings.wake.array[n] = +r.wake; rings.mesh.setColorAt(n,color.setRGB(.89,.95,.97));
       rings.shape.array[n*3] = rippleBand(r.radius) / Math.max(.08,r.radius); rings.shape.array[n*3+1] = rippleSecondary(r.age); rings.shape.array[n*3+2] = r.radius; n++;
     }
@@ -101,8 +102,8 @@ export function buildKamakuraFx({ terrain, data, preparedRivers, search = '', qu
     for (let i = 0; i < state.drops.length; i++) {
       const p = state.drops[i]; if (p.life <= 0) continue;
       obj.position.set(p.x, p.y, p.z); obj.quaternion.copy(camera.quaternion || identity);
-      const size = p.size * (p.dust || p.mist ? 1 + p.age * 2 : 1); obj.scale.set(size, size, size); obj.updateMatrix(); drops.mesh.setMatrixAt(n, obj.matrix);
-      color.setRGB(p.r, p.g, p.b); drops.mesh.setColorAt(n, color); drops.alpha.array[n] = (p.dust ? .23 : p.mist ? .12 : .8) * p.life / p.duration; drops.wake.array[n]=p.dust || p.mist ? 0 : 1; n++;
+      const size = p.mist ? Math.min(.9,p.size*(1+.12*p.age/p.duration)) : p.size * (p.dust ? 1 + p.age * 2 : 1); obj.scale.set(size, size, size); obj.updateMatrix(); drops.mesh.setMatrixAt(n, obj.matrix);
+      color.setRGB(p.r, p.g, p.b); drops.mesh.setColorAt(n, color); drops.alpha.array[n] = (p.dust ? .23 : p.mist ? .22 : .88) * p.life / p.duration; drops.wake.array[n]=p.dust || p.mist ? 0 : 1; n++;
     }
     drops.mesh.count = n; drops.mesh.instanceMatrix.needsUpdate = true; drops.alpha.needsUpdate = true; drops.wake.needsUpdate=true; drops.mesh.instanceColor.needsUpdate = true;
   }

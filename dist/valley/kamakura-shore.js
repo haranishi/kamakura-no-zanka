@@ -87,6 +87,31 @@ export function shoreHash(x,z,salt=0) {
   let n=Math.imul(x|0,73856093)^Math.imul(z|0,19349663)^salt;
   n=Math.imul(n^(n>>>16),0x45d9f3b);return ((n^(n>>>16))>>>0)/4294967296;
 }
+// W2c-9e3: one muted depth palette, broken three-front surf and six-second wet memory.
+export const SEA_PALETTE=Object.freeze([[0,'#6d8579'],[6,'#4d7d7e'],[40,'#1f4b5a'],[200,'#143549']]);
+export const SEA_CHROMA=.8;
+export const WET_MEMORY=Object.freeze({seconds:6,decay:4,step:.5,edge:1.5});
+export const BREAKERS=Object.freeze([{speed:1,phase:0,offset:0},{speed:.85,phase:2.7,offset:14},{speed:.7,phase:5.1,offset:29}]);
+export const shoreReach=wave=>SEA_VIS.minReach+(SEA_VIS.reach-SEA_VIS.minReach)*wave;
+export function wetReachAt(time,envelope){
+  let reach=0;
+  for(let age=0;age<=WET_MEMORY.seconds;age+=WET_MEMORY.step)reach=Math.max(reach,shoreReach(envelope(Math.max(0,time-age)))*Math.exp(-age/WET_MEMORY.decay));
+  return reach;
+}
+export const wetFromReach=(d,reach)=>Math.max(0,Math.min(1,(reach-d)/WET_MEMORY.edge));
+const fract=x=>x-Math.floor(x),mix=(a,b,t)=>a+(b-a)*t;
+const noiseHash=(x,z)=>fract(Math.sin(x*127.1+z*311.7)*43758.5453);
+export function shoreNoise(x,z){let i=Math.floor(x),j=Math.floor(z),u=fract(x),v=fract(z);u=u*u*(3-2*u);v=v*v*(3-2*v);return mix(mix(noiseHash(i,j),noiseHash(i+1,j),u),mix(noiseHash(i,j+1),noiseHash(i+1,j+1),u),v);}
+export function breakerFoam(d,wave,x,z,offset=0){
+  if(d<0||d>45)return 0;
+  const n=shoreNoise(x/16+offset,z/16+offset),wide=.5+2.5*shoreNoise(x/8+7+offset,z/8+offset);
+  const broken=Math.max(0,Math.min(1,(n-.34)/.24));
+  const delta=Math.abs(d-(1+5*(1-wave)+offset));
+  const body=Math.max(0,1-delta/(wide*.5));
+  const lace=.65+.35*shoreNoise(x*2.3,z*2.3);
+  const tip=Math.max(0,1-Math.abs(d-(1+5*(1-wave)+offset-wide*.32))/.12);
+  return Math.min(1,body*.75+tip*.55)*broken*lace;
+}
 // Shared JS/GLSL constants and algebra: wave is evaluated once on the audio clock.
 export const SHORE_GLSL=`
 vec2 sandWindDirection(vec2 p){return vec2(${SAND_WIND.x.toFixed(1)}+sin(p.y*${SAND_WIND.xScale})*${SAND_WIND.warp},${SAND_WIND.z}+sin(p.x*${SAND_WIND.zScale})*${SAND_WIND.warp});}
@@ -95,6 +120,17 @@ float shoreNoise(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);return mix
 
 float shoreWet(float d,float wave){return clamp((${SEA_VIS.minReach.toFixed(1)}+${(SEA_VIS.reach-SEA_VIS.minReach).toFixed(1)}*wave-d)/2.0,0.0,1.0);}
 float shoreFoam(float d,float wave){return max(0.0,1.0-abs(d-(1.0+5.0*(1.0-wave)))/${SEA_VIS.foamWidth.toFixed(1)});}
+float shoreWetReach(float d,float reach){return clamp((reach-d)/${WET_MEMORY.edge.toFixed(1)},0.0,1.0);}
+float breakerFoam(float d,float wave,vec2 p,float offset){
+  if(d<0.0||d>45.0)return 0.0;
+  float n=shoreNoise(p/16.0+offset),wide=.5+2.5*shoreNoise(p/8.0+vec2(7.0+offset,offset));
+  float broken=clamp((n-.34)/.24,0.0,1.0);
+  float delta=abs(d-(1.0+5.0*(1.0-wave)+offset));
+  float body=max(0.0,1.0-delta/(wide*.5));
+  float lace=.65+.35*shoreNoise(p*2.3);
+  float tip=max(0.0,1.0-abs(d-(1.0+5.0*(1.0-wave)+offset-wide*.32))/.12);
+  return min(1.0,body*.75+tip*.55)*broken*lace;
+}
 float tideLine(float d){return max(0.0,1.0-abs(d-${SEA_VIS.tide.toFixed(1)})/${SEA_VIS.tideWidth.toFixed(1)});}
 `;
 

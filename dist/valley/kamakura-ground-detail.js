@@ -54,7 +54,7 @@ export function installGroundDetail(THREE, material, data, {quality='standard',s
       groundCompile(shader);
       shader.fragmentShader=shader.fragmentShader.replace('#include <common>',`#include <common>
         uniform sampler2D uShoreSea;uniform vec4 uShoreGrid;
-        uniform float uShoreReady,uShoreTime,uShoreWave,uShoreOldWave,uShoreAnimate,uShoreDetail;
+        uniform float uShoreReady,uShoreTime,uShoreWave,uShoreOldWave,uShoreAnimate,uShoreDetail,uShoreWetReach;
         ${SHORE_GLSL}
         float groundShoreWet=0.0;
       `).replace('#include <color_fragment>',`#include <color_fragment>
@@ -65,7 +65,8 @@ export function installGroundDetail(THREE, material, data, {quality='standard',s
         float shoreD=-texture2D(uShoreSea,(shoreP-uShoreGrid.xy+4.0)/uShoreGrid.zw).r;
         if((shoreCode==0.0||shoreCode==1.0)&&uShoreReady>.5){
           float wave=uShoreAnimate>.5?uShoreWave:.45;
-          groundShoreWet=shoreWet(shoreD,wave);
+          // W2c-9e3: instantaneous reach -> decaying six-second maximum, 1.5m soft edge.
+          groundShoreWet=shoreWetReach(shoreD,uShoreAnimate>.5?uShoreWetReach:5.0);
           float footprint=max(length(fwidth(shoreP)),.001);
           float detail=(1.0-smoothstep(.08,.8,footprint))*uShoreAnimate*mix(.35,1.0,uShoreDetail);
           float wind=sin(dot(shoreP,sandWindDirection(shoreP)));
@@ -84,7 +85,7 @@ export function installGroundDetail(THREE, material, data, {quality='standard',s
         #include <opaque_fragment>`);
     };
   }
-  material.customProgramCacheKey=()=> shore?'kamakura-ground-9e2-v2':'kamakura-ground-9b-v1';
+  material.customProgramCacheKey=()=> shore?'kamakura-ground-9e3-v1':'kamakura-ground-9b-v1';
   let disposed=false;
   return {uniforms,textures:[surface,texture],setAdapt(policy){const step=typeof policy==='number'?policy:policy.step;uniforms.uGroundStrength.value=step>=3?0:quality==='light'?.7:1;uniforms.uGroundSecond.value=quality==='light'||step>=2?0:1;},dispose(){if(disposed)return;disposed=true;surface.dispose();texture.dispose();}};
 }

@@ -19,11 +19,11 @@ export function grassEdge(field, x, z) {
 // Reuse the collision grid (including dynamically registered stand trunks). No all-tree scan.
 // No start-point exclusion: grass does not block anything, and a bare disc around the
 // hero's start looked like a crop circle (seen in real Chrome, 2026-11-07).
-export function grassExclusions(terrain, { colliders, extraColliders, paths = {}, pathMargin = 2.5 + Math.SQRT1_2 } = {}) {
+export function grassExclusions(terrain, { colliders, extraColliders, paths = {}, pathMargin = 2.5 + Math.SQRT1_2, rootMargin = Math.SQRT1_2 } = {}) {
   const path = vegExclusions({ waterAt: () => 0, heightAt: () => 1 }, { paths, pathMargin });
   return (x, z) => {
     const reason = path({ x, z }); if (reason) return reason;
-    const margin = Math.SQRT1_2;
+    const margin = rootMargin;
     // The box test widens each local half-extent by margin + .4. Turned 45 degrees that is sqrt(2) times as far
     // along the world axes, and the collision grid (8 m cells) registers a box without any margin: search that far.
     const reach = (margin + .4) * Math.SQRT2;
@@ -42,7 +42,7 @@ export function grassExclusions(terrain, { colliders, extraColliders, paths = {}
   };
 }
 // Surface codes are the original eight classes, before the footstep mapping merges them.
-export function createGrassCell(terrain, { surfaceCodeAt, exclude = () => null, seed = 1333, environmentAt } = {}) {
+export function createGrassCell(terrain, { surfaceCodeAt, exclude = () => null, seed = 1333, environmentAt, riverMargin = 1 + Math.SQRT1_2 } = {}) {
   return (ix, iz) => {
     const x = ix + .5, z = iz + .5;
     const heights = [terrain.heightAt(ix, iz), terrain.heightAt(ix + 1, iz), terrain.heightAt(ix, iz + 1), terrain.heightAt(ix + 1, iz + 1)];
@@ -53,19 +53,21 @@ export function createGrassCell(terrain, { surfaceCodeAt, exclude = () => null, 
     if (Math.max(Math.hypot(b-a,c-a),Math.hypot(d-c,d-b)) > Math.tan(32 * Math.PI / 180)) return empty;
     // W2c-9p: isSea plus the bank exclusion subsumes waterAt's reach=0
     // river query. Older/custom providers retain their original waterAt fallback.
-    const river = terrain.riverDistanceAt(x, z, 25);   // only the 1.7 m exclusion and the 25 m bank band matter here
-    if (river <= 1 + Math.SQRT1_2) return empty;
+    const river = terrain.riverDistanceAt(x, z, 25);   // shared bank query; look may opt into the 0.25–1.5m uncut margin
+    if (river <= riverMargin) return empty;
     const patch = clamp(.5 + GRASS.patch.largeWeight * noise(seed,x,z,GRASS.patch.largeScale,521) + GRASS.patch.smallWeight * noise(seed,x,z,GRASS.patch.smallScale,523),0,1);
     // W2c-9p: the existing 25m query also supplies ecology's 15m band.
     const ecology = environmentAt?.(x,z,false,river);
-    const density = (1 + (GRASS.maxDensity - 1) * patch) * scale * (ecology?.density ?? 1);
+    // W2c-9c3: uncut soil margins use grassland coverage; trampled soil stays sparse.
+    const localScale = ecology?.margin ? 1 : scale;
+    const density = (1 + (GRASS.maxDensity - 1) * patch) * localScale * (ecology?.nearDensity ?? ecology?.density ?? 1);
     const s = noise(seed,x,z,GRASS.speciesScale,557);
     let species = code === 3 ? FERN : code === 0 ? SUSUKI : code === 4 ? SHORT : s > GRASS.tallThreshold ? TALL : SHORT;
     if (river < 25) species = s < GRASS.fernThreshold ? FERN : SUSUKI;
     // Fixed theoretical envelope replaces window-wide quantiles/normalisation: moving
     // the window must never change a shared cell's value. Same two-scale mid patch.
     const mid = clamp(1 + .4 * (noise(seed,x,z,1/3,593) + noise(seed,x,z,1/14,599)),.2,1.8);
-    return { placeable: +(density > 0), density: Math.ceil(density * 255 / 2), height: Math.round(clamp((.5 + noise(seed,x,z,GRASS.heightScale,541)*.5)*(ecology?.height ?? 1),0,1)*255), species, midPatch: mid * scale * (ecology?.midDensity ?? ecology?.density ?? 1), heights };
+    return { placeable: +(density > 0), density: Math.ceil(density * 255 / 2), height: Math.round(clamp((.5 + noise(seed,x,z,GRASS.heightScale,541)*.5)*(ecology?.height ?? 1),0,1)*255), species, midPatch: ecology ? Math.min(1.8,mid * localScale * (ecology.midDensity ?? ecology.density)) : mid * scale, heights };
   };
 }
 function emptyField(pos, seed, size) {

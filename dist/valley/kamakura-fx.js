@@ -24,19 +24,20 @@ export function createFxState({ terrain, rivers = prepareFishRivers(null), parti
   let capP = particles, capR = rings, pi = 0, ri = 0, time = 0, lastContact = -1, lastX = Infinity, lastZ = Infinity;
   function random() { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t ^= t + Math.imul(t ^ t >>> 7, 61 | t); return ((t ^ t >>> 14) >>> 0) / 4294967296; }
   function ripple(x, y, z, strength = 1, wake = false, yaw = 0) {
-    if (!capR) return; const r = ripples[ri++ % capR]; r.x = x; r.y = y; r.z = z; r.strength = strength; r.wake = wake; r.yaw = yaw; r.life = 1.3; r.age = 0; r.radius = .08;
+    if (!capR) return; const r = ripples[ri++ % capR]; r.x = x; r.y = y; r.z = z; r.strength = strength; r.wake = wake; r.yaw = yaw; r.life = 1.3; r.age = 0; r.radius = .15;
   }
+  // W2c-9d4: tiny flecks -> 32 drops reaching 0.3–0.7m and 0.5–0.9m mist.
   function splash(x, y, z, running) {
     if (!capP) return;
-    for (let n = 0, count = running ? 24 : 12; n < count; n++) {
+    for (let n = 0, count = running ? 32 : 19; n < count; n++) {
       const p = drops[pi++ % capP], a = random() * Math.PI * 2, speed = (.15 + random() * .45) * (running ? 1.8 : 1);
-      p.x = x; p.y = y + .015; p.z = z; p.vx = Math.sin(a) * speed; p.vz = Math.cos(a) * speed; p.vy = (.8 + random() * .8) * (running ? 1.5 : 1); p.water = y; p.dust = false; p.mist = false; p.duration = .7; p.size = .01 + random() * .02; p.life = .7; p.age = 0;
+      p.x = x; p.y = y + .015; p.z = z; p.vx = Math.sin(a) * speed; p.vz = Math.cos(a) * speed; p.vy = Math.sqrt(14 * (.3 + random() * .4)) * (running ? 1 : .6); p.water = y; p.dust = false; p.mist = false; p.duration = 1; p.size = (.02 + random() * .03) * (running ? 1 : .6); p.life = 1; p.age = 0;
       const white = random(); p.r = .624 + white * .264; p.g = .768 + white * .17; p.b = .823 + white * .133;
     }
-    if (running) for (let n=0;n<4;n++) {
+    for (let n=0;n<(running?4:2);n++) {
       const p=drops[pi++ % capP],a=random()*Math.PI*2;
       p.x=x; p.y=y+.03; p.z=z; p.vx=Math.sin(a)*.18; p.vz=Math.cos(a)*.18; p.vy=.15+random()*.1;
-      p.water=y; p.dust=false; p.mist=true; p.size=.10+random()*.08; p.duration=.4+random()*.2; p.life=p.duration; p.age=0; p.r=.888; p.g=.939; p.b=.956;
+      p.water=y; p.dust=false; p.mist=true; p.size=(.5+random()*.4)*(running?1:.6); p.duration=.4+random()*.2; p.life=p.duration; p.age=0; p.r=.888; p.g=.939; p.b=.956;
     }
   }
   function dust(pos, n = 1) {
@@ -63,7 +64,7 @@ export function createFxState({ terrain, rivers = prepareFishRivers(null), parti
     },
     update(dt) {
       dt = Math.max(0, dt); time += dt;
-      for (let i = 0; i < capR; i++) { const r = ripples[i]; if (r.life <= 0) continue; r.age += dt; r.life = Math.max(0, 1.3 - r.age); r.radius = .08 + r.age / 1.3 * (r.strength < .2 ? .12 : r.strength > .8 ? 1.35 : 1.1); }
+      for (let i = 0; i < capR; i++) { const r = ripples[i]; if (r.life <= 0) continue; r.age += dt; r.life = Math.max(0, 1.3 - r.age); r.radius = (r.strength < .2 ? .03 : .15) + r.age / 1.3 * (r.strength < .2 ? .12 : r.strength > .8 ? 1.65 : 1.25); }
       for (let i = 0; i < capP; i++) {
         const p = drops[i]; if (p.life <= 0) continue; const gravity = p.dust ? -.12 : p.mist ? 0 : 7;
         p.age += dt; p.life = Math.max(0, p.duration - p.age);
