@@ -1,4 +1,4 @@
-import { SOIL, soilEdge } from './kamakura-ground-pattern.js';
+import { SOIL, soilEdge, SOIL_GRAIN_GLSL } from './kamakura-ground-pattern.js';
 
 // W2c-9b2: single-colour soil/walls -> world-anchored, pixel-filtered material detail.
 // Reuse 9b's surface/grid; pre-average grass on CPU instead of nine GPU lookups per pixel.
@@ -6,6 +6,8 @@ export function installGroundSoil(THREE, material, groundDetail, {quality='stand
   const shared=groundDetail?.uniforms;
   if(new URLSearchParams(search).get('gsoil')==='0'||new URLSearchParams(search).get('gdetail')==='0'||!shared?.uGroundSurface||!shared.uGroundGrid||!shared.uGroundPattern)
     return {textures:[],setAdapt(){},dispose(){},ready:Promise.resolve()};
+  // W2c-9r1 ground round 2: tone owns the filtered class path; avoid an unused full-resolution edge copy.
+  if(groundDetail.tone)return {textures:[],setAdapt(){},dispose(){},ready:groundDetail.tone.ready};
   const image=shared.uGroundSurface.value.image,w=image.width,h=image.height;
   const edgeData=new Uint8Array(w*h),edge=new THREE.DataTexture(edgeData,w,h,THREE.RedFormat,THREE.UnsignedByteType);
   edge.minFilter=edge.magFilter=THREE.LinearFilter;edge.generateMipmaps=false;edge.unpackAlignment=1;
@@ -29,11 +31,12 @@ export function installGroundSoil(THREE, material, groundDetail, {quality='stand
   prepare();
   const prior=material.onBeforeCompile,priorKey=material.customProgramCacheKey;
   const cacheKey=priorKey.call(material)+'|soil-9b2-v1';
+  // W2c-9r1 ground: stacked soil correction -> legacy only while the unified tone is inactive.
   const compile=function(shader,...args){
     prior.call(this,shader,...args);Object.assign(shader.uniforms,shared,uniforms);
     shader.fragmentShader=shader.fragmentShader.replace('void main() {',`${SOIL_GLSL}\nvoid main() {`)
       .replace('#include <color_fragment>',`#include <color_fragment>
-        diffuseColor.rgb=soilColor(diffuseColor.rgb*soilMaterial(vGroundWorld,vGroundSlope,distance(vGroundWorld,cameraPosition)),vGroundWorld.xz,distance(vGroundWorld,cameraPosition));`);
+        if(${shared.uToneStrength ? 'uToneReady*uToneStrength<=0.0' : 'true'})diffuseColor.rgb=soilColor(diffuseColor.rgb*soilMaterial(vGroundWorld,vGroundSlope,distance(vGroundWorld,cameraPosition)),vGroundWorld.xz,distance(vGroundWorld,cameraPosition));`);
   };
   material.onBeforeCompile=compile;material.customProgramCacheKey=()=>cacheKey;material.needsUpdate=true;
   function setAdapt(policy){const step=typeof policy==='number'?policy:policy.step;uniforms.uSoilDetail.value=quality==='light'||step>=2?0:1;uniforms.uSoilLayers.value=step>=3?0:1;}
@@ -49,6 +52,7 @@ export const SOIL_GLSL=`
 uniform sampler2D uSoilEdge;
 uniform vec2 uSoilEdgeMean;
 uniform float uSoilReady,uSoilDetail,uSoilLayers;
+${SOIL_GRAIN_GLSL}
 float soilHash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453123);}
 float soilNoise(vec2 p){
   vec2 i=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);
@@ -91,8 +95,7 @@ vec3 soilMaterial(vec3 world,float normalY,float d){
     if(code==4.0||code==255.0||code==6.0||code==3.0){
       float cell=code==3.0?.09:code==6.0?.05:.06;
       vec2 g=q/cell,i=floor(g),f=fract(g)-.5;
-      float hash=soilHash(i),stone=1.0-smoothstep(.16,.38,length(f));
-      float grain=(hash-.5)*stone;
+      float hash=soilHash(i),grain=groundSoilGrain(q,cell);
       fine+=grain*(code==6.0?.8:.45)*soilFine(d,px,cell);
       if(code==3.0){
         tint+=vec3(.16,.04,-.18)*grain*soilFine(d,px,cell);
