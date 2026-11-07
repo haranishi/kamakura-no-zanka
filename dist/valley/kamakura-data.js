@@ -1,7 +1,7 @@
 // Private data only: no bundled fallback, derived elevations, or remote service.
 export function validateMeta(m) {
   const g = m?.grid, h = m?.height;
-  if (!['kz-world-web/0.1', 'kz-world-web/0.2'].includes(m?.schema) || !g || !h ||
+  if (!['kz-world-web/0.1', 'kz-world-web/0.2', 'kz-world-web/0.3'].includes(m?.schema) || !g || !h ||
       !Number.isInteger(g.width) || !Number.isInteger(g.height) || g.width < 2 || g.height < 2 ||
       !(g.cell_m > 0) || !Number.isFinite(g.cell_m) || g.width * g.height > 32e6 ||
       g.row0 !== 'north' || g.col0 !== 'west' || g.sample_position !== 'cell_center' ||
@@ -15,7 +15,7 @@ export function validateMeta(m) {
     throw new Error('鎌倉データの形式が対応していません');
   }
   if (m.patches && (m.patches.cells_file !== 'patch_cells_i32.bin' || m.patches.h_file !== 'patch_h_f32.bin' ||
-      m.patches.axes_file !== 'patch_axes.json' || m.patches.subdivisions !== 4 ||
+      m.patches.axes_file !== 'patch_axes.json' || (m.patches.paths_file !== undefined && m.patches.paths_file !== 'patch_paths.json') || m.patches.subdivisions !== 4 ||
       !Number.isInteger(m.patches.total_cells) || m.patches.total_cells < 1 || m.patches.total_cells > g.width * g.height)) {
     throw new Error('鎌倉パッチの形式が対応していません');
   }
@@ -50,7 +50,15 @@ export function decodeData(meta, heightBuffer, walkBuffer, patchBuffers) {
         a.xy_m.every((p, i) => p.length === 2 && p.every(Number.isFinite) && (!i || Math.hypot(p[0] - a.xy_m[i - 1][0], p[1] - a.xy_m[i - 1][1]) > 0)) && a.floor_m.every(Number.isFinite) &&
         a.s_m.every((v, i) => Number.isFinite(v) && (i === 0 || v > a.s_m[i - 1]));
     })) throw new Error('鎌倉パッチの軸が不正です');
-    patches = { cells, heights: values, index, axes };
+    const paths = patchBuffers.paths;
+    if (meta.patches.paths_file && (!paths || !meta.patches.items.every(({ id }) => {
+      const p = Object.hasOwn(paths, id) ? paths[id] : null, n = p?.xyz_m?.length;
+      return n >= 2 && typeof p.route_id === 'string' && p.s_m?.length === n &&
+        p.xyz_m.every((q, i) => q.length === 3 && q.every(Number.isFinite) &&
+          (!i || Math.hypot(q[0] - p.xyz_m[i - 1][0], q[1] - p.xyz_m[i - 1][1]) > 0)) &&
+        p.s_m.every((v, i) => Number.isFinite(v) && (!i || v > p.s_m[i - 1]));
+    }))) throw new Error('鎌倉パッチの道の線が不正です');
+    patches = { cells, heights: values, index, axes, paths: paths || null };
   }
   return { meta, heights, walk, patches };
 }
@@ -66,6 +74,7 @@ export async function loadKamakura(fetcher = fetch) {
   if (meta.patches) {
     const [cells, heights, axes] = await Promise.all([read(meta.patches.cells_file), read(meta.patches.h_file), read(meta.patches.axes_file)]);
     patchBuffers = { cells: await cells.arrayBuffer(), heights: await heights.arrayBuffer(), axes: await axes.json() };
+    if (meta.patches.paths_file) patchBuffers.paths = await (await read(meta.patches.paths_file)).json();
   }
   return decodeData(meta, await height.arrayBuffer(), await walk.arrayBuffer(), patchBuffers);
 }

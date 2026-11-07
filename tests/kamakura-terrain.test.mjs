@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { fixture } from './helpers/kamakura-fixture.mjs';
-import { createKamakuraTerrain, insidePolygon } from '../dist/valley/kamakura-terrain.js';
+import { createKamakuraTerrain, insidePolygon, maxWalkSlope } from '../dist/valley/kamakura-terrain.js';
 import { decodeData, loadKamakura } from '../dist/valley/kamakura-data.js';
 import { buildColliders, moveActor } from '../dist/valley/collision.js';
 import { readPrivateData, verifySamples, verifySeams } from '../tools/lib/kamakura-validation.mjs';
@@ -17,12 +17,12 @@ test('synthetic cell centres, north row, little-endian decode and bilinear inter
   assert.equal(t.heightAt(-100, -100), 10);
   assert.throws(() => decodeData(f.meta, new ArrayBuffer(2), f.walk.buffer));
 });
-test('slope uses scaled real metres; 40 degrees is a strict limit', () => {
-  const f = fixture({ cell: 10, slope: 0.5 }); const t = createKamakuraTerrain(f), scaled = createKamakuraTerrain(f, 1.8);
+test('slope uses scaled real metres; default 46 and optional 40 degrees are strict limits', () => {
+  const f = fixture({ cell: 10, slope: 0.5 }); const t = createKamakuraTerrain(f), scaled = createKamakuraTerrain(f, 2.2);
   assert(Math.abs(t.slopeAt(0, 0) - Math.atan(0.5) * 180 / Math.PI) < 1e-8);
   assert(t.walkable(0, 0)); assert(!scaled.walkable(0, 0));
-  assert(Math.abs(scaled.heightAt(0, 0) / t.heightAt(0, 0) - 1.8) < 1e-9);
-  const steep = createKamakuraTerrain(fixture({ slope: 1 })); assert.equal(steep.slopeAt(0, 0), 45); assert(!steep.walkable(0, 0));
+  assert(Math.abs(scaled.heightAt(0, 0) / t.heightAt(0, 0) - 2.2) < 1e-9);
+  const steep = createKamakuraTerrain(fixture({ slope: 1 })); assert(Math.abs(steep.slopeAt(0, 0) - 45) < 1e-9); assert(steep.walkable(0, 0)); assert(!createKamakuraTerrain(fixture({ slope: 1 }), 1, 40).walkable(0, 0));
   assert.equal(t.roadInfo(0, 0), null); assert.equal(Object.values(t.surfaceAt(0, 0)).reduce((a, b) => a + b), 1);
 });
 test('water mask, sea level, mask exclusion, polygon and swept movement stop at boundaries', () => {
@@ -36,7 +36,7 @@ test('water mask, sea level, mask exclusion, polygon and swept movement stop at 
   f.heights.fill(10); f.walk.fill(0); assert(!t.walkable(0, 0));
 });
 test('optional world hook enforces 40 degrees without relaxing legacy collision limits', () => {
-  const f = fixture({ slope: 1 }), t = createKamakuraTerrain(f), col = buildColliders({ bounds: t.bounds });
+  const f = fixture({ slope: 1 }), t = createKamakuraTerrain(f, 1, 40), col = buildColliders({ bounds: t.bounds });
   const p = { x: 0, y: t.heightAt(0, 0), z: 0 };
   assert.equal(moveActor(col, t, p, 1, 0).blocked, 'slope');
   const legacy = { ...t }; delete legacy.movementBlockedAt;
@@ -62,7 +62,7 @@ test('LOD hysteresis avoids threshold flicker', () => {
   assert.equal(chooseLOD(4000, 1), 8); assert.equal(chooseLOD(10, 8), 1);
 });
 test('default entry loads only valley; opt-in and missing-data fallback run once', async () => {
-  for (const search of ['', '?spawn=asaina_pass&at=.5', '?world=on', '?world=other']) {
+  for (const search of ['', '?maxslope=40', '?spawn=asaina_pass&at=.5', '?world=on', '?world=other']) {
     const calls = []; await startWorld(search, { valley: () => calls.push('valley'), kamakura: () => calls.push('private'), fallback: () => calls.push('notice') });
     assert.deepEqual(calls, ['valley']);
   }
@@ -92,4 +92,9 @@ test('private check_samples, coordinate orientation and real-data LOD seams', { 
     assert(next.y === t.heightAt(next.x, next.z), 'Ground height stays attached'); p = next;
   }
   assert(advanced, 'Real-metre route advances from spawn');
+});
+
+test('numeric maxslope query validates finite physical limits', () => {
+  for (const q of ['', '?maxslope=', '?maxslope=NaN', '?maxslope=Infinity', '?maxslope=0', '?maxslope=90']) assert.equal(maxWalkSlope(q), 46);
+  assert.equal(maxWalkSlope('?maxslope=40'), 40); assert.equal(maxWalkSlope('?maxslope=43.5'), 43.5);
 });

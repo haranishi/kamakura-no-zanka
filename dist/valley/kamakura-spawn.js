@@ -1,4 +1,10 @@
-// Pure axis interpolation and test departure; coordinates at the public boundary use z=south.
+// Pure path/axis interpolation and test departure; coordinates at the public boundary use z=south.
+export function patchRoute(patches, id) {
+  const path = patches?.paths && Object.hasOwn(patches.paths, id) ? patches.paths[id] : null;
+  if (path) return { ...path, xy_m: path.xyz_m.map(p => p.slice(0, 2)), floor_m: path.xyz_m.map(p => p[2]),
+    floor_width_m: patches.axes[id].floor_width_m };
+  return patches?.axes && Object.hasOwn(patches.axes, id) ? patches.axes[id] : null;
+}
 export function axisPoint(axis, distance) {
   const s = axis.s_m, d = Math.max(s[0], Math.min(s.at(-1), s[0] + distance));
   let lo = 0, hi = s.length - 1;
@@ -10,7 +16,7 @@ export function axisPoint(axis, distance) {
 }
 export function kamakuraSpawn(t, search) {
   const params = new URLSearchParams(search), id = params.get('spawn');
-  const axis = t.patches && Object.hasOwn(t.patches.axes, id) ? t.patches.axes[id] : null;
+  const axis = patchRoute(t.patches, id);
   if (!axis) return { x: t.meta.spawn.x, z: -t.meta.spawn.y, yaw: -t.meta.spawn.yaw_deg_clockwise_from_north * Math.PI / 180 };
   const raw = Number(params.get('at')), at = Number.isFinite(raw) ? Math.max(0, Math.min(1, raw)) : 0;
   const p = axisPoint(axis, (axis.s_m.at(-1) - axis.s_m[0]) * at), yaw = Math.atan2(-p.dx, -p.dz);
