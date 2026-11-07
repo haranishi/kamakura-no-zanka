@@ -18,6 +18,8 @@ import { buildKamakuraStands } from './kamakura-stand-view.js';
 import { windUniforms } from './vegetation.js';
 import { createWind, stepWind, toUniforms } from './wind.js';
 import { createKamakuraAtmosphere } from './kamakura-atmosphere-view.js';
+import { waterEnabled, prepareRivers } from './kamakura-rivers.js';
+import { buildKamakuraWater } from './kamakura-water-view.js';
 import { verticalScale } from './world-entry.js';
 export async function bootKamakura(data, search) {
   const t = createKamakuraTerrain(data, verticalScale(search), maxWalkSlope(search)), meta = data.meta;
@@ -25,13 +27,13 @@ export async function bootKamakura(data, search) {
   if (!t.walkable(spawn.x, spawn.z)) throw new Error('出発点を歩けません');
   // Load the existing hero only. Do not load the chapter's enemies or scenery.
   let roster;
-  let renderer, chunks, hud, houses, trees, stands, standPrepared, treeOptions, atmosphere, sea, hero, input, hintTimer;
+  let renderer, chunks, hud, houses, trees, stands, standPrepared, treeOptions, atmosphere, sea, water, hero, input, hintTimer;
   const events = new AbortController(); let disposed = false;
   function dispose() {
     if (disposed) return; disposed = true; events.abort(); clearTimeout(hintTimer);
     input?.setEnabled(false); input?.base.releaseLock();
     renderer?.setAnimationLoop(null); hero?.remove(); chunks?.dispose(); houses?.dispose(); trees?.dispose(); stands?.dispose();
-    sea?.geometry.dispose(); sea?.material.dispose(); atmosphere?.dispose();
+    water?.dispose(); sea?.geometry.dispose(); sea?.material.dispose(); atmosphere?.dispose();
     const resources = new Set();
     for (const tpl of roster?.templates.values() || []) tpl.scene.traverse(o => {
       if (o.geometry) resources.add(o.geometry);
@@ -43,6 +45,7 @@ export async function bootKamakura(data, search) {
   }
   const wind = windUniforms(); let windState = createWind();
   let vegNotice = data.vegNotice || '';
+  let riverNotice = data.riverNotice || '';
   let houseNotice = data.houseNotice || '';
   const style = document.createElement('link'); style.rel = 'stylesheet'; style.href = new URL('./kamakura.css', import.meta.url).href;
   try {
@@ -58,6 +61,10 @@ export async function bootKamakura(data, search) {
     const seaG = new THREE.PlaneGeometry((t.bounds.maxX - t.bounds.minX) * 1.2, (t.bounds.maxZ - t.bounds.minZ) * 1.2);
     seaG.rotateX(-Math.PI / 2);
     sea = new THREE.Mesh(seaG, new THREE.MeshLambertMaterial({ color: 0x426f83 })); scene.add(sea);
+    if (data.rivers && waterEnabled(search)) {
+      try { water = buildKamakuraWater(prepareRivers(data.rivers, t.vscale, quality), { sunDir: atmosphere.sunDir }); scene.add(water.group); }
+      catch { riverNotice = '川を準備できませんでした。川なしで散策を続けます'; }
+    }
     hud = createKamakuraHUD(meta, new URLSearchParams(search).get('debug') === '1');
     hud.status('鎌倉の地形と家を準備しています');
     if (data.houses && new URLSearchParams(search).get('houses') !== '0') {
@@ -79,7 +86,7 @@ export async function bootKamakura(data, search) {
         } finally { hiddenHouses?.dispose(); }
       } catch { vegNotice = '木を準備できませんでした。木なしで散策を続けます'; }
     }
-    const status = text => hud.status(text || [houseNotice, treesEnabled(search) && vegNotice, groundEnabled(search) && data.groundNotice, atmosphere.notice].filter(Boolean).join('。'));
+    const status = text => hud.status(text || [houseNotice, waterEnabled(search) && riverNotice, treesEnabled(search) && vegNotice, groundEnabled(search) && data.groundNotice, atmosphere.notice].filter(Boolean).join('。'));
     const g = { scene, roster, terrain: t, col: buildColliders({ bounds: t.bounds, extraBoxes: houses?.boxes || [], extraCircles: trees?.circles || [] }), enemies: [], ally: null };
     if (standPrepared) {
       try { stands = buildKamakuraStands(standPrepared, { ...treeOptions, colliders: g.col }); scene.add(stands.group); }
@@ -138,6 +145,7 @@ export async function bootKamakura(data, search) {
       wind.uTime.value = uniforms.uTime; wind.uWind.value = uniforms.uWind;
       wind.uWindDir.value.set(...uniforms.uWindDir); wind.uGuideMix.value = uniforms.uGuideMix;
       chunks.update(g.hero.pos); houses?.update(g.hero.pos); trees?.update(camera); stands?.update(camera);
+      water?.update(uniforms.uTime);
       atmosphere.update(camera, paused ? 0 : dt, g.hero.pos, rig.yaw); renderer.render(scene, camera);
     });
     return { dispose };

@@ -1,3 +1,4 @@
+import { verifyRivers } from './lib/kamakura-river-validation.mjs';
 import { verifyAtmosphere } from './lib/kamakura-atmosphere-validation.mjs';
 import { verifyStands } from './lib/kamakura-stand-validation.mjs';
 import { verifyVeg } from './lib/kamakura-veg-validation.mjs';
@@ -14,6 +15,8 @@ if (!process.env.KZ_WORLD_DIR) {
   try {
     const { data, checks } = await readPrivateData(process.env.KZ_WORLD_DIR);
     verifySamples(data, checks);
+    const rivers = await verifyRivers(data, process.env.KZ_WORLD_DIR);
+    if (rivers.skip) console.log(rivers.skip);
     console.log(JSON.stringify({ ground: await verifyGround(data, process.env.KZ_WORLD_DIR) }, null, 2));
     const t = createKamakuraTerrain(data);
     verifySeams(t, Math.floor((t.w / 2) / 64) * 64, Math.floor((t.h / 2) / 64) * 64);
