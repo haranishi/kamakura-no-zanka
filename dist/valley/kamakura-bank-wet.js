@@ -1,5 +1,5 @@
 import { chunkGeometry, CHUNK_CELLS } from './kamakura-chunks.js';
-import { shore2Enabled } from './kamakura-shore.js';
+import { shore2Enabled, bankCrossingDistance } from './kamakura-shore.js';
 // W2c-9e3: 4m floating quads -> fine normal-offset strips with terrain error refinement.
 export const BANK_WIDTH=1.5;
 export function bankRibbon(ribbon,terrain,width=BANK_WIDTH){
@@ -52,12 +52,63 @@ export function bankRibbon(ribbon,terrain,width=BANK_WIDTH){
   }
   return {positions:new Float32Array(positions),uvs:new Float32Array(uvs),indices,rejected,folds};
 }
+// W2c-9r2 shore fix: independent crossing jumps -> shared, smoothed bounded rows.
+export const BANK_REACH_STEP=.4;
+export const BANK_MAX_ASPECT=32;
+export function bankTriangleAspect(a,b,c){
+  const u=b.map((v,i)=>v-a[i]),v=c.map((v,i)=>v-a[i]);
+  const twiceArea=Math.hypot(u[1]*v[2]-u[2]*v[1],u[2]*v[0]-u[0]*v[2],u[0]*v[1]-u[1]*v[0]);
+  const edge2=Math.max(...[[a,b],[b,c],[c,a]].map(([p,q])=>p.reduce((sum,n,i)=>sum+(n-q[i])**2,0)));
+  return twiceArea>0?edge2/twiceArea:Infinity;
+}
+export function* bankWaterlineRibbonSteps(ribbon,terrain){
+  const src=ribbon.positions,positions=new Float32Array(src),rows=src.length/6;
+  const reaches=new Float64Array(rows*2),caps=new Float64Array(rows*2);
+  for(let row=0;row<rows;row++){
+    const k=row*6,x=(src[k]+src[k+3])/2,z=(src[k+2]+src[k+5])/2,level=(src[k+1]+src[k+4])/2;
+    for(let side=0;side<2;side++){
+      const i=k+side*3,dx=src[i]-x,dz=src[i+2]-z,half=Math.hypot(dx,dz),n=row*2+side;
+      caps[n]=2*half;
+      reaches[n]=Math.min(caps[n],half>1e-6?bankCrossingDistance(terrain,x,z,level,dx/half,dz/half,half):0);
+    }
+    yield;
+  }
+  // Convolution removes isolated protrusions; two projections bound every neighbour
+  // including narrow source rows. Shared rows remain identical across source segments.
+  const smooth=new Float64Array(reaches);
+  for(let row=1;row<rows-1;row++)for(let side=0;side<2;side++){
+    const n=row*2+side;smooth[n]=Math.min(caps[n],(reaches[n-2]+2*reaches[n]+reaches[n+2])/4);
+  }
+  for(let row=1;row<rows;row++){for(let side=0;side<2;side++){const n=row*2+side;smooth[n]=Math.min(smooth[n],smooth[n-2]+BANK_REACH_STEP);}yield;}
+  for(let row=rows-2;row>=0;row--){for(let side=0;side<2;side++){const n=row*2+side;smooth[n]=Math.min(smooth[n],smooth[n+2]+BANK_REACH_STEP);}yield;}
+  for(let row=0;row<rows;row++){
+    const k=row*6,x=(src[k]+src[k+3])/2,z=(src[k+2]+src[k+5])/2;
+    for(let side=0;side<2;side++){
+      const i=k+side*3,dx=src[i]-x,dz=src[i+2]-z,half=Math.hypot(dx,dz),reach=smooth[row*2+side];
+      if(half>1e-6){positions[i]=x+dx/half*reach;positions[i+2]=z+dz/half*reach;}
+    }
+    yield;
+  }
+  return {positions,indices:ribbon.indices};
+}
+export function bankWaterlineRibbon(ribbon,terrain){
+  const job=bankWaterlineRibbonSteps(ribbon,terrain);let r=job.next();while(!r.done)r=job.next();return r.value;
+}
+function boundedBankTriangles(f){
+  const indices=[];
+  for(let k=0;k<f.indices.length;k+=3){const ids=f.indices.slice(k,k+3),v=ids.map(i=>Array.from(f.positions.slice(i*3,i*3+3)));
+    // Clipping at a terrain vertex can still produce arbitrarily thin slivers.
+    if(bankTriangleAspect(...v)<=BANK_MAX_ASPECT)indices.push(...ids);
+  }
+  return {...f,indices};
+}
 // W2c-9r1 shore: bilinear drape intersected the rendered triangles on saddle cells.
 // Clip the wet footprint onto the actual near-LOD terrain faces instead. A bounded
 // cache of local cells limits preparation memory; no terrain data is copied into assets.
 const surfaceCaches=new WeakMap();
-export function* bankSurfaceRibbonSteps(ribbon,terrain,width=BANK_WIDTH){
-  if(!terrain.cell||!terrain.normalAt)return bankRibbon(ribbon,terrain,width);
+export function* bankSurfaceRibbonSteps(ribbon,terrain,width=BANK_WIDTH,alignWater=false){
+  if(alignWater)ribbon=yield* bankWaterlineRibbonSteps(ribbon,terrain);
+  if(!terrain.cell||!terrain.normalAt){const f=bankRibbon(ribbon,terrain,width);return alignWater?boundedBankTriangles(f):f;}
   let cache=surfaceCaches.get(terrain);if(!cache){cache=new Map();surfaceCaches.set(terrain,cache);}
   const positions=[],uvs=[],indices=[],p=ribbon.positions,c=terrain.cell;
   const cross=(a,b,x,z)=>(b[0]-a[0])*(z-a[2])-(b[2]-a[2])*(x-a[0]);
@@ -104,7 +155,7 @@ export function* bankSurfaceRibbonSteps(ribbon,terrain,width=BANK_WIDTH){
           const face=[poly[0],poly[n],poly[n+1]];
           // Recheck Float32 winding, including clipping slivers.
           const f=face.map(a=>a.map(Math.fround)),area=-cross(f[0],f[1],f[2][0],f[2][2]);
-          if(area<=1e-8)continue;
+          if(area<=1e-8||alignWater&&bankTriangleAspect(...f)>BANK_MAX_ASPECT)continue;
           const base=positions.length/3;
           for(const a of f){positions.push(a[0],a[1]+.015,a[2]);uvs.push(Math.max(0,Math.min(1,((a[0]-v[0])*nx+(a[2]-v[2])*nz)/width)),0);}
           indices.push(base,base+1,base+2);
@@ -115,22 +166,22 @@ export function* bankSurfaceRibbonSteps(ribbon,terrain,width=BANK_WIDTH){
   }
   return {positions:new Float32Array(positions),uvs:new Float32Array(uvs),indices,rejected:0,folds:0};
 }
-export function bankSurfaceRibbon(ribbon,terrain,width=BANK_WIDTH){
-  const job=bankSurfaceRibbonSteps(ribbon,terrain,width);let result=job.next();
+export function bankSurfaceRibbon(ribbon,terrain,width=BANK_WIDTH,alignWater=false){
+  const job=bankSurfaceRibbonSteps(ribbon,terrain,width,alignWater);let result=job.next();
   while(!result.done)result=job.next();return result.value;
 }
 export function buildBankWet(THREE,prepared,terrain,{search='',defer=false}={}){
   const group=new THREE.Group();group.name='kamakura-bank-wet';let disposed=false;
-  const shore2=shore2Enabled(search),ribbonFor=shore2?bankSurfaceRibbon:bankRibbon;
+  const shore2=shore2Enabled(search),ribbonFor=shore2?(r,t)=>bankSurfaceRibbon(r,t,BANK_WIDTH,true):bankRibbon;
   if(!terrain||new URLSearchParams(search).get('seav')==='0'||new URLSearchParams(search).get('bankwet')==='0')return {group,update(){},setAdapt(){},dispose(){}};
-  const material=new THREE.MeshBasicMaterial({color:0x514b40,transparent:true,opacity:.58,depthWrite:false,side:THREE.DoubleSide});material.fog=true;material.forceSinglePass=shore2;
+  const material=new THREE.MeshBasicMaterial({color:shore2?0x55574d:0x514b40,transparent:true,opacity:shore2?.68:.58,depthWrite:false,side:THREE.DoubleSide});material.fog=true;material.forceSinglePass=shore2;
   const uniforms={uBankRange:{value:defer?96:prepared.policy.maxDistance}};
   material.onBeforeCompile=s=>{
     Object.assign(s.uniforms,uniforms);
     s.vertexShader=s.vertexShader.replace('#include <common>','#include <common>\nvarying vec2 vBankUv;varying vec3 vBankWorld;').replace('#include <begin_vertex>','#include <begin_vertex>\nvBankUv=uv;vBankWorld=(modelMatrix*vec4(position,1.0)).xyz;');
     s.fragmentShader=s.fragmentShader.replace('#include <common>','#include <common>\nuniform float uBankRange;varying vec2 vBankUv;varying vec3 vBankWorld;').replace('#include <color_fragment>',`#include <color_fragment>
       float bankFilter=1.0-smoothstep(.1,.7,length(fwidth(vBankWorld.xz)));
-      float bankMottle=.5+.5*sin(vBankWorld.x*7.1+sin(vBankWorld.z*4.7))*bankFilter;
+      float bankMottle=${shore2?".5":".5+.5*sin(vBankWorld.x*7.1+sin(vBankWorld.z*4.7))*bankFilter"};
       diffuseColor.rgb*=mix(.75,1.2,bankMottle);
       diffuseColor.a*=(1.0-smoothstep(0.0,1.0,vBankUv.x))*(1.0-smoothstep(uBankRange-32.0,uBankRange-16.0,distance(cameraPosition.xz,vBankWorld.xz)));`);
   };
@@ -142,7 +193,7 @@ export function buildBankWet(THREE,prepared,terrain,{search='',defer=false}={}){
   // W2c-9e3: do not build/render all rivers at once. Only a nearby 96m window,
   // one source segment per preparation tick. Far buffers are released on travel.
   const sources=defer?prepared.ribbons.map(r=>{
-    const segments=[];
+    const segments=[],alignment=shore2?{job:bankWaterlineRibbonSteps(r,terrain),result:null}:null;
     for(let k=0;k<r.indices.length;k+=6){
       const a=r.indices[k],b=r.indices[k+2],p=r.positions;
       segments.push({ribbon:{positions:p,indices:r.indices.slice(k,k+6)},
@@ -150,7 +201,7 @@ export function buildBankWet(THREE,prepared,terrain,{search='',defer=false}={}){
         maxX:Math.max(p[a*3],p[b*3],p[(a+1)*3],p[(b+1)*3])+BANK_WIDTH,
         minZ:Math.min(p[a*3+2],p[b*3+2],p[(a+1)*3+2],p[(b+1)*3+2])-BANK_WIDTH,
         maxZ:Math.max(p[a*3+2],p[b*3+2],p[(a+1)*3+2],p[(b+1)*3+2])+BANK_WIDTH,
-        mesh:null,near:false,done:false,job:null});
+        alignment,mesh:null,near:false,done:false,job:null});
     }return segments;
   }).flat():[];
   if(!defer)for(const r of prepared.ribbons)addMesh(ribbonFor(r,terrain));
@@ -172,10 +223,23 @@ export function buildBankWet(THREE,prepared,terrain,{search='',defer=false}={}){
         }
         if(!s.done){
           if(shore2){
-            if(!s.job)s.job=bankSurfaceRibbonSteps(s.ribbon,terrain);
+            if(s.alignment&&!s.alignment.result){
+              const start=performance.now();let next;
+              for(let n=0;n<128;n++){
+                next=s.alignment.job.next();
+                if(next.done||performance.now()-start>(adapt>=2?.15:.35))break;
+              }
+              if(!next.done){cursor--;break;}
+              s.alignment.result=next.value;s.alignment.job=null;
+            }
+            if(!s.job){
+              const aligned={positions:s.alignment.result.positions,indices:s.ribbon.indices};
+              // Already aligned over the whole river; retain the final triangle guard.
+              s.job=bankSurfaceRibbonSteps(aligned,terrain,BANK_WIDTH,false);
+            }
             const result=s.job.next();
             if(!result.done){cursor--;break;}
-            s.job=null;s.mesh=addMesh(result.value,false);
+            s.job=null;s.mesh=addMesh(boundedBankTriangles(result.value),false);
           }else s.mesh=addMesh(ribbonFor(s.ribbon,terrain),false);
           s.done=true;break;
         }
@@ -194,5 +258,5 @@ export function buildBankWet(THREE,prepared,terrain,{search='',defer=false}={}){
       }
     },
     setAdapt(value){adapt=value;group.visible=adapt<3;lastX=Infinity;},
-    dispose(){if(disposed)return;disposed=true;surfaceCaches.delete(terrain);for(const s of sources){s.job?.return();s.job=null;if(s.mesh)s.mesh.geometry.dispose();}for(const m of group.children)m.geometry.dispose();group.clear();group.removeFromParent();material.dispose();}};
+    dispose(){if(disposed)return;disposed=true;surfaceCaches.delete(terrain);for(const s of sources){s.alignment?.job?.return();s.job?.return();s.job=null;if(s.mesh)s.mesh.geometry.dispose();}for(const m of group.children)m.geometry.dispose();group.clear();group.removeFromParent();material.dispose();}};
 }

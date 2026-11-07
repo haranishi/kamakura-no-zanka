@@ -44,11 +44,12 @@ export function buildShoreProps(THREE,terrain,data,quality='standard',{shore2=fa
     for(let n=0;n<96&&pending;n++){
       const a=cursor%36-18,b=Math.floor(cursor/36)-18,x=(cx*2+a)*2,z=(cz*2+b)*2;
       if(++cursor>=1296)pending=false;
+      // W2c-9r2 shore: 6–19cm river pebbles / tiny shoots -> 18–41cm stones / 0.7–1.3m clumps.
       // W2c-9r1 shore: beach-only scatter -> distance/slope-gated river pebbles and weed.
       const river=shore2&&terrain.riverDistanceAt&&riverPropAt(terrain,x,z);
       const h=shoreHash(x,z);if((!river&&h>.22)||total>=cap||Math.hypot(x-pos.x,z-pos.z)>30||(!river&&!shorePropAt(terrain,null,x,z)))continue;
       let {type,size}=shorePropShape(x,z);
-      if(river){type=shoreHash(x,z,34)<.3?1:0;size=type===1?.22+shoreHash(x,z,35)*.22:.06+shoreHash(x,z,36)*.13;}
+      if(river){type=shoreHash(x,z,34)<.3?1:0;size=type===1?.42+shoreHash(x,z,35)*.30:.18+shoreHash(x,z,36)*.23;}
       if(type===2&&wood>=2)type=0,size=.05;
       const d=terrain.shoreSigned?-terrain.shoreSigned.signedDistanceAt(x,z):terrain.seaDistanceAt(x,z);
       // Weed is concentrated along the high-water wrack, rather than spread inland.
