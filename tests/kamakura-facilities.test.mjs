@@ -188,7 +188,7 @@ test('private v0.8 facility nodes, triangles, placement, grounding and overlaps'
 test('9g2 facility ftex A/B preserves all geometry, placement, boxes and counts; adaptation and resources',async()=>{
   const {buildKamakuraFacilities}=await loadFacilityView(),nodes=[node('hall'),node('fence')],data={nodes,kit:kit(nodes)},terrain={heightAt:(x,z)=>2+x*.01+z*.02};
   const scenes=[new THREE.Scene(),new THREE.Scene()];
-  const fields=await Promise.all(scenes.map((s,i)=>buildKamakuraFacilities(data,terrain,s,'standard',{search:i?'?ftex=0':''})));
+  const fields=await Promise.all(scenes.map((s,i)=>buildKamakuraFacilities(data,terrain,s,'standard',{search:i?'?ftex=0':'?hparts=0'})));
   const snapshot=f=>f.records.map(r=>r.meshes.map(m=>({p:[...m.geometry.attributes.position.array],n:m.geometry.attributes.normal && [...m.geometry.attributes.normal.array],matrix:[...m.matrix.elements],indices:m.geometry.index && [...m.geometry.index.array]})));
   assert.deepEqual(snapshot(fields[0]),snapshot(fields[1]));assert.deepEqual(fields[0].boxes,fields[1].boxes);assert.deepEqual(fields[0].exclusionBoxes,fields[1].exclusionBoxes);
   const resources=new Set();for(const r of fields[0].records)for(const m of r.meshes){
@@ -208,7 +208,7 @@ test('9g3 facility roles use mesh hints with anonymous materials; unknown torii 
   const {buildKamakuraFacilities}=await loadFacilityView();
   const nodes=[{...node('hall'),node:'synthetic_wall'},{...node('torii'),node:'synthetic_torii'}];
   const f={...decodeFacilities(catalog(nodes)),kit:kit(nodes)},scene=new THREE.Scene();
-  const view=await buildKamakuraFacilities(f,{heightAt:()=>0},scene);
+  const view=await buildKamakuraFacilities(f,{heightAt:()=>0},scene,'standard',{search:'?hparts=0'});
   try {
     const wall=view.records.find(r=>r.node.part==='hall').meshes[0].material;
     const torii=view.records.find(r=>r.node.part==='torii').meshes[0].material;
