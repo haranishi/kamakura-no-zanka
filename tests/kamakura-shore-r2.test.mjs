@@ -35,7 +35,7 @@ test('R2 river foam has long gaps, variable centre/width and pixel filtering wit
 test('R2 wet sand is saturated at the waterline and fades over 0.6–1.5m; river reflection and quality switches retain A/B',async()=>{
   for(const reach of [3.3,5,9]){assert.equal(shoreWetBand(0,reach),1);assert(shoreWetBand(.3,reach)>.45);assert.equal(shoreWetBand(1.5,reach),0);}
   const {buildKamakuraWater}=await load('kamakura-water-view.js');
-  for(const search of ['', '?shore2=0']){const w=buildKamakuraWater(prepared(),{search,terrain}),s=shader(w.material);assert.equal(w.material.envMapIntensity,search?.95:1.65);assert(s.fragmentShader.includes('uShore2>.5?.45:.9'));
+  for(const search of ['?shore3=0', '?shore2=0']){const w=buildKamakuraWater(prepared(),{search,terrain}),s=shader(w.material);assert.equal(w.material.envMapIntensity,search==='?shore2=0'?.95:1.65);assert(s.fragmentShader.includes('uShore2>.5?.45:.9'));
     for(const step of [0,2,3,0]){w.setAdapt(step);assert.equal(w.uniforms.uRiverBands.value,step===3?0:step===2?1:2);}
     w.dispose();w.dispose();}
 });

@@ -1,3 +1,5 @@
+export { shore3Enabled, FOAM_LINEAR_MAX } from './kamakura-shore-r3.js';
+import { SHORE_R3_GLSL } from './kamakura-shore-r3.js';
 // W2c-9a: silent sea → shared, pure shore-distance field (metres, 3–4 chamfer).
 export const SHORE_LIMIT_M = 3000;
 const clamp = (v, hi) => Math.max(0, Math.min(hi, v));
@@ -138,10 +140,11 @@ float shoreSurf(float d,float wave,vec2 p,float band){
 }
 
 
+${SHORE_R3_GLSL}
 float shoreWet(float d,float wave){return clamp((${SEA_VIS.minReach.toFixed(1)}+${(SEA_VIS.reach-SEA_VIS.minReach).toFixed(1)}*wave-d)/2.0,0.0,1.0);}
 float shoreFoam(float d,float wave){return max(0.0,1.0-abs(d-(1.0+5.0*(1.0-wave)))/${SEA_VIS.foamWidth.toFixed(1)});}
 // W2c-9r2 shore: diffuse 9m wash -> readable 0.6–1.5m saturated sand at the waterline.
-float shoreWetReach(float d,float reach){return uShore2>.5?shoreSmooth(d,shoreBandWidth(clamp(reach*.18,.6,1.5),max(fwidth(d),.001)*2.0)):clamp((reach-d)/${WET_MEMORY.edge.toFixed(1)},0.0,1.0);}
+float shoreWetReach(float d,float reach){if(uShore3>.5)return shoreSmooth(d,surfWetWidth3(reach,max(fwidth(d),.001))*(1.0+.18*shoreNoise(gl_FragCoord.xy/37.0)+.12*shoreNoise(gl_FragCoord.xy/113.0)));return uShore2>.5?shoreSmooth(d,shoreBandWidth(clamp(reach*.18,.6,1.5),max(fwidth(d),.001)*2.0)):clamp((reach-d)/${WET_MEMORY.edge.toFixed(1)},0.0,1.0);}
 // Short, scattered river foam; the long-wave gaps are independent of the moving lace.
 float riverFoamCentre(vec2 p){return .35+.38*shoreNoise(p/5.7);}
 float riverFoamWidth(vec2 p){return .18+.36*shoreNoise(p/2.9+8.0);}

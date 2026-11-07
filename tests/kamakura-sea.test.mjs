@@ -72,7 +72,7 @@ test('9e private distance preparation, texture bytes, bounded update and props (
     assert(job.field.data.every(Number.isFinite));measure.push({cell:job.field.cell,w:job.field.w,h:job.field.h,ms:+ms.toFixed(2),bytes:job.field.data.length*2});
   }
   const {buildKamakuraSea}=await load('kamakura-sea-view.js'),v=buildKamakuraSea(terrain,data),pos={x:data.meta.spawn.x,z:-data.meta.spawn.y};
-  let frames=0,max=0,start=performance.now();while(v.uniforms.uShoreReady.value===0&&frames<10000){const a=performance.now();v.update(1/60,pos);max=Math.max(max,performance.now()-a);frames++;}
+  let frames=0,max=0,start=performance.now();while(!v.preparedShore&&frames<10000){const a=performance.now();v.update(1/60,pos);max=Math.max(max,performance.now()-a);frames++;}
   assert.equal(v.uniforms.uShoreReady.value,1);const prep=performance.now()-start;
   start=performance.now();for(let i=0;i<10000;i++)v.update(1/60,pos,20);const steady=(performance.now()-start)/10000;
   const counts=[];for(const [x,z]of [[-1057.2,-1801.4],[-1849.2,-1465.4]]){const p={x,z:-z};for(let i=0;i<20;i++)v.update(1/60,p,20);counts.push(v.props.count);}
