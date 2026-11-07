@@ -6,7 +6,8 @@ export function createGrassLook(ecology,quality,heroUniform,bands=false) {
   const uniforms={uHero:heroUniform,uHeroStrength:{value:0},uGrassTrail:{value:trail},uGrassTrailRadii:{value:radii},uGrassLookStep:{value:0}};
   let cursor=0, elapsed=0, cameraX=0, cameraZ=0;
   // W2c-9c2: plan each metre; 7m CPU lawn guard covers the unchanged 6m shader fade.
-  return { replanDistance:1, bulkMid:true, midPlacement:{sink:MID_GRASS.sink,maxSlope:MID_GRASS.maxSlope,cardRate:bands ? .62 : .28,maxCards:1}, segments:6, normalBlend:.78, capacityFactor:3, uniforms,
+  // W2c-9r2 grass: longer mid reach -> fewer candidates per grassland cell.
+  return { replanDistance:1, bulkMid:true, midPlacement:{sink:MID_GRASS.sink,maxSlope:MID_GRASS.maxSlope,cardRate:bands ? .38 : .28,maxCards:1}, segments:6, normalBlend:.78, capacityFactor:3, uniforms,
     pack:(data,kind)=>{const packed=packGrassLook(data,kind,ecology,quality);return bands?packGrassBands(packed,kind):packed;},
     prepare(camera){cameraX=camera.position.x;cameraZ=camera.position.z;},
     accept(data,i,kind){
@@ -108,7 +109,7 @@ ${GRASS_BAND_GLSL}`);
         if(kind==='mid'){
           shader.uniforms.uGrassLookStep=uniforms.uGrassLookStep;
           shader.vertexShader=shader.vertexShader.replace('uniform vec2 uGrassRadii;','uniform float uGrassLookStep; uniform vec2 uGrassRadii;')
-            .replace(/float tail=mix[\s\S]*?float appear = [^;]*; alive \*= [^;]*;/,`float bandDistance=dd/${quality==='light'?'0.6':'1.0'}+grassBandOffset(rootWorld.xz);
+            .replace(/float tail=mix[\s\S]*?float appear = [^;]*; alive \*= [^;]*;/,`float bandDistance=dd/${quality==='light'?'0.6':'1.0'}+midGrassBandOffset(rootWorld.xz)*smoothstep(30.0,70.0,dd/${quality==='light'?'0.6':'1.0'});
               float bandDensity=midGrassDensity(bandDistance)*mix(1.0,.55,step(1.5,uGrassLookStep));
               float alive=smoothstep(fract(iShape.w*17.31)-.08,fract(iShape.w*17.31)+.08,bandDensity)*smoothstep(0.0,.08,bandDensity);
               float appear=smoothstep(6.0,18.0,bandDistance);`)
