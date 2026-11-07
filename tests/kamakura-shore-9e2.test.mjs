@@ -58,7 +58,7 @@ test('9e2 every modified shader balances braces, parentheses and #if; single R16
   const {buildKamakuraSea}=await load('kamakura-sea-view.js');const terrain=plane(),data={meta:{grid:{width:81,height:81,cell_m:8},surface:{}},surface:new Uint8Array(6561)};
   let noon;
   for(const search of ['', '?time=evening','?seav=0']){
-    const v=buildKamakuraSea(terrain,data,{search});let frames=0;while(v.jobs.length&&v.uniforms.uShoreReady.value===0&&frames++<10000)v.update(1/60,{x:0,z:0});v.update(1/60,{x:0,z:0});
+    const v=buildKamakuraSea(terrain,data,{search});let frames=0;while(v.jobs.length&&!v.preparedShore&&frames++<10000)v.update(1/60,{x:0,z:0});v.update(1/60,{x:0,z:0});
     for(const m of [v.mesh.material,v.props?.meshes[0].material,v.bank?.material].filter(Boolean)){const s=shaderFor(m);balanced(s.vertexShader);balanced(s.fragmentShader);}
     const m=new THREE.MeshLambertMaterial(),g=installGroundDetail(THREE,m,data);const s=shaderFor(m);balanced(s.vertexShader);balanced(s.fragmentShader);
     if(search!=='?seav=0'){
