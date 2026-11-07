@@ -1,7 +1,9 @@
+import { ShaderChunk } from '../vendor/three.module.min.js';
+import { nearGrassR3DensityAt, GRASS_R3_NEAR_GLSL, GRASS_SHADOW_EMISSIVE_FLOOR } from './kamakura-grass-r3.js';
 // W2c-9c: optional ribbon shading and four fading footsteps; valley never calls this.
 import { GRASS_BAND_GLSL, packGrassBands, nearGrassDensityAt } from './kamakura-grass-band.js';
 import { packGrassLook, grassRecovery, MID_GRASS, MID_BANDS } from './kamakura-grass-look.js';
-export function createGrassLook(ecology,quality,heroUniform,bands=false) {
+export function createGrassLook(ecology,quality,heroUniform,bands=false,r3=false) {
   const trail=new Float32Array(16), ages=new Float64Array(4).fill(10), radii=new Float32Array(4), strengths=new Float32Array(4);
   const uniforms={uHero:heroUniform,uHeroStrength:{value:0},uGrassTrail:{value:trail},uGrassTrailRadii:{value:radii},uGrassLookStep:{value:0}};
   let cursor=0, elapsed=0, cameraX=0, cameraZ=0;
@@ -14,7 +16,8 @@ export function createGrassLook(ecology,quality,heroUniform,bands=false) {
       if(kind!=='near')return true;
       const marker=data[i+11];
       // W2c-9r1 grass: submit only roots whose smooth shader gate can be nonzero.
-      if(bands && data[i+7]-.06>=nearGrassDensityAt(data[i],data[i+2],(Math.hypot(data[i]-cameraX,data[i+2]-cameraZ)-1)/(quality==='light'?.6:1)))return false;
+      if(bands && data[i+7]-.06>=(r3?nearGrassR3DensityAt:nearGrassDensityAt)(data[i],data[i+2],(Math.hypot(data[i]-cameraX,data[i+2]-cameraZ)-1)/(quality==='light'?.6:1)))return false;
+      if(r3 && nearGrassR3DensityAt(data[i],data[i+2],(Math.hypot(data[i]-cameraX,data[i+2]-cameraZ)-1)/(quality==='light'?.6:1))===0)return false;
       if(marker===-1)return uniforms.uGrassLookStep.value<2&&Math.hypot(data[i]-cameraX,data[i+2]-cameraZ)<7;
       if(marker===-2)return uniforms.uGrassLookStep.value<2;
       return true;
@@ -102,6 +105,17 @@ export function createGrassLook(ecology,quality,heroUniform,bands=false) {
         shader.vertexShader=shader.vertexShader.replace('vGrassColor = mix(iColor,iTip.yzw,smoothstep(.55,1.0,t)*step(.01,iTip.x))',
           'vGrassColor = (iTip.x < -1.5 ? mix(vec3(.085,.16,.035),iTip.x < -2.5 ? vec3(.25,.17,.075) : iColor,smoothstep(.70,.85,t)) : iColor)');
       }
+      if(r3){
+        // W2c-9r3 grass fix: double-darkened sky -> ground's unshadowed sky, softer emissive shade.
+        // No additional texture fetch; visibility=1 also covers disabled shadow maps.
+        const lighting=ShaderChunk.lights_fragment_begin.replace(
+          /directLight.color \*= (\( directLight.visible && receiveShadow \) \? getShadow\( directionalShadowMap[^;]+);/,
+          'grassSunVisibility = $1; directLight.color *= grassSunVisibility;');
+        shader.fragmentShader=shader.fragmentShader
+          .replace('#include <lights_fragment_begin>','float grassSunVisibility = 1.0;\n'+lighting)
+          .replace('#include <lights_fragment_end>',`#include <lights_fragment_end>
+            totalEmissiveRadiance *= mix(${GRASS_SHADOW_EMISSIVE_FLOOR.toFixed(2)},1.0,grassSunVisibility);`);
+      }
       // W2c-9r1 grass: replace the 9c3 tail/appear gates only in the opt-in band look.
       if(bands){
         shader.vertexShader=shader.vertexShader.replace('uniform vec2 uGrassRadii;',`uniform vec2 uGrassRadii;
@@ -118,6 +132,14 @@ ${GRASS_BAND_GLSL}`);
           shader.vertexShader=shader.vertexShader.replace('float alive = step(fadeOut,iShape.w);',`float bandDistance=dd/${quality==='light'?'0.6':'1.0'}+grassBandOffset(rootWorld.xz);
             float alive=smoothstep(iShape.w-.06,iShape.w+.06,nearGrassDensity(bandDistance))*smoothstep(0.0,.06,nearGrassDensity(bandDistance));`);
         }
+      }
+      if(r3){
+        // W2c-9r3 grass: broaden both density and species handoffs, without transparent tiers.
+        shader.vertexShader=shader.vertexShader
+          .replace(/float grassBandOffset\(vec2 p\)\{[^}]+\}/, '')
+          .replace(/float nearGrassDensity\(float d\)\{[^}]+\}/, GRASS_R3_NEAR_GLSL)
+          .replaceAll('smoothstep(6.0,18.0,','smoothstep(6.0,26.0,')
+          .replaceAll('smoothstep(28.0,32.0,dd)','smoothstep(18.0,38.0,dd)');
       }
     }
   };

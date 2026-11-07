@@ -36,7 +36,7 @@ export function facilityGrassAt(x,z,boxes=[]) {
 export const sandGrassAt = (x,z,shoreDistance,refuge=0,crest=0) =>
   smooth(SEA_VIS.reach+1,26,shoreDistance)*Math.max(refuge,
     2.2*smooth(.30,.78,grassColony(x*.75,z*.75)+.12*smooth(0,.4,crest)));
-export function createGrassBandCell(cell,terrain,{surfaceCodeAt,facilityBoxes=[],environmentAt}={}) {
+export function createGrassBandCell(cell,terrain,{surfaceCodeAt,facilityBoxes=[],environmentAt,sandHabitatAt=sandGrassAt,sandMidScale=2}={}) {
   // Inflate by the rotated half-cell diagonal, then index once (never scan all facilities per cell).
   const buckets=new Map(),empty=[];
   for(const b of facilityBoxes){const box={...b,w:b.w+Math.SQRT2,d:b.d+Math.SQRT2},r=Math.hypot(box.w,box.d)/2+4;
@@ -55,7 +55,7 @@ export function createGrassBandCell(cell,terrain,{surfaceCodeAt,facilityBoxes=[]
     const root=tree>=.5&&tree<=1.5?1:0,base=house>0&&house<=2.5?1:0;
     const bank=smooth(.25,1,river)*(1-smooth(18,25,river));
     const refuge=Math.max(root,base,bank),crest=e?.crest??0;
-    const habitat=facility*(code===0?sandGrassAt(x,z,shore,refuge*.85,crest):1);
+    const habitat=facility*(code===0?sandHabitatAt(x,z,shore,refuge*.85,crest):1);
     if(terrain.slopeAt(x,z)>=35 || !habitat){v.placeable=0;v.density=0;v.midPatch=0;return v;}
     v.density=Math.min(255,Math.round(Math.max(v.density,refuge*145)*habitat));
     if(code===3||root||base)v.species=FERN;
@@ -65,7 +65,7 @@ export function createGrassBandCell(cell,terrain,{surfaceCodeAt,facilityBoxes=[]
     // R1 overwrote ecology's root/bank boosts AND ridge suppression here.
     const ridge=(1-.8*smooth(30,32,terrain.slopeAt(x,z)))*(1-.85*smooth(0,1.2,crest));
     // Sand keeps its local card rate as the extended grassland band is thinned.
-    v.midPatch=Math.min(1.8,Math.max(colony*scale,refuge*1.8)*habitat)*ridge*(code===0?2:1);
+    v.midPatch=Math.min(1.8,Math.max(colony*scale,refuge*1.8)*habitat)*ridge*(code===0?sandMidScale:1);
     v.placeable=+(v.density>0||v.midPatch>0);
     return v;
   };
