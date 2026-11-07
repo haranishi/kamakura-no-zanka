@@ -1,16 +1,19 @@
 // W2c-9c: optional ribbon shading and four fading footsteps; valley never calls this.
+import { GRASS_BAND_GLSL, packGrassBands, nearGrassDensityAt } from './kamakura-grass-band.js';
 import { packGrassLook, grassRecovery, MID_GRASS, MID_BANDS } from './kamakura-grass-look.js';
-export function createGrassLook(ecology,quality,heroUniform) {
+export function createGrassLook(ecology,quality,heroUniform,bands=false) {
   const trail=new Float32Array(16), ages=new Float64Array(4).fill(10), radii=new Float32Array(4), strengths=new Float32Array(4);
   const uniforms={uHero:heroUniform,uHeroStrength:{value:0},uGrassTrail:{value:trail},uGrassTrailRadii:{value:radii},uGrassLookStep:{value:0}};
   let cursor=0, elapsed=0, cameraX=0, cameraZ=0;
   // W2c-9c2: plan each metre; 7m CPU lawn guard covers the unchanged 6m shader fade.
-  return { replanDistance:1, bulkMid:true, midPlacement:{sink:MID_GRASS.sink,maxSlope:MID_GRASS.maxSlope,cardRate:.28,maxCards:1}, segments:6, normalBlend:.78, capacityFactor:3, uniforms,
-    pack:(data,kind)=>packGrassLook(data,kind,ecology,quality),
+  return { replanDistance:1, bulkMid:true, midPlacement:{sink:MID_GRASS.sink,maxSlope:MID_GRASS.maxSlope,cardRate:bands ? .62 : .28,maxCards:1}, segments:6, normalBlend:.78, capacityFactor:3, uniforms,
+    pack:(data,kind)=>{const packed=packGrassLook(data,kind,ecology,quality);return bands?packGrassBands(packed,kind):packed;},
     prepare(camera){cameraX=camera.position.x;cameraZ=camera.position.z;},
     accept(data,i,kind){
       if(kind!=='near')return true;
       const marker=data[i+11];
+      // W2c-9r1 grass: submit only roots whose smooth shader gate can be nonzero.
+      if(bands && data[i+7]-.06>=nearGrassDensityAt(data[i],data[i+2],(Math.hypot(data[i]-cameraX,data[i+2]-cameraZ)-1)/(quality==='light'?.6:1)))return false;
       if(marker===-1)return uniforms.uGrassLookStep.value<2&&Math.hypot(data[i]-cameraX,data[i+2]-cameraZ)<7;
       if(marker===-2)return uniforms.uGrassLookStep.value<2;
       return true;
@@ -97,6 +100,23 @@ export function createGrassLook(ecology,quality,heroUniform) {
         // Tip markers are not RGB: keep flower stems green and colour their heads.
         shader.vertexShader=shader.vertexShader.replace('vGrassColor = mix(iColor,iTip.yzw,smoothstep(.55,1.0,t)*step(.01,iTip.x))',
           'vGrassColor = (iTip.x < -1.5 ? mix(vec3(.085,.16,.035),iTip.x < -2.5 ? vec3(.25,.17,.075) : iColor,smoothstep(.70,.85,t)) : iColor)');
+      }
+      // W2c-9r1 grass: replace the 9c3 tail/appear gates only in the opt-in band look.
+      if(bands){
+        shader.vertexShader=shader.vertexShader.replace('uniform vec2 uGrassRadii;',`uniform vec2 uGrassRadii;
+${GRASS_BAND_GLSL}`);
+        if(kind==='mid'){
+          shader.uniforms.uGrassLookStep=uniforms.uGrassLookStep;
+          shader.vertexShader=shader.vertexShader.replace('uniform vec2 uGrassRadii;','uniform float uGrassLookStep; uniform vec2 uGrassRadii;')
+            .replace(/float tail=mix[\s\S]*?float appear = [^;]*; alive \*= [^;]*;/,`float bandDistance=dd/${quality==='light'?'0.6':'1.0'}+grassBandOffset(rootWorld.xz);
+              float bandDensity=midGrassDensity(bandDistance)*mix(1.0,.55,step(1.5,uGrassLookStep));
+              float alive=smoothstep(fract(iShape.w*17.31)-.08,fract(iShape.w*17.31)+.08,bandDensity)*smoothstep(0.0,.08,bandDensity);
+              float appear=smoothstep(6.0,18.0,bandDistance);`)
+            .replace('t*(grassHeight+0.12)','t*(grassHeight*(.82+.36*iTip.w)+0.12)');
+        }else{
+          shader.vertexShader=shader.vertexShader.replace('float alive = step(fadeOut,iShape.w);',`float bandDistance=dd/${quality==='light'?'0.6':'1.0'}+grassBandOffset(rootWorld.xz);
+            float alive=smoothstep(iShape.w-.06,iShape.w+.06,nearGrassDensity(bandDistance))*smoothstep(0.0,.06,nearGrassDensity(bandDistance));`);
+        }
       }
     }
   };
