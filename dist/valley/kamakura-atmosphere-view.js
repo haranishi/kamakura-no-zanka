@@ -79,6 +79,7 @@ export function createKamakuraAtmosphere({ scene, renderer, search = '', quality
   // Only objects created here belong to this controller (later scene additions do not).
   const owned = scene.children.filter(o => !before.has(o));
   return { atmosphere, policy, notice, sunDir,
+    setAdapt(next) { if (!disposed && atmosphere) atmosphere.sun.castShadow = next.shadows; },
     update(camera, dt, hero, yaw) {
       if (disposed || !atmosphere) return;
       atmosphere.update(camera, dt);

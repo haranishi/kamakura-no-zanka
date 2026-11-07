@@ -9,12 +9,12 @@ export function createKamakuraHUD(meta, debug) {
   coords.hidden = !debug;
   return { root, run: root.querySelector('.kz-run'), pause: root.querySelector('.kz-pause'),
     status(text) { root.querySelector('.kz-state').textContent = text; },
-    update(pos, yaw, terrain) {
+    update(pos, yaw, terrain, perf) {
       north.style.transform = `rotate(${yaw}rad)`;
       let nearest = null, distance = 150;
       for (const p of meta.places) { const d = Math.hypot(p.x - pos.x, p.y + pos.z); if (d <= distance) { distance = d; nearest = p; } }
       place.textContent = nearest ? nearest.name : '鎌倉';
-      if (debug) coords.textContent = `東 ${pos.x.toFixed(1)}m · 北 ${(-pos.z).toFixed(1)}m · 高さ ${pos.y.toFixed(1)}m · 勾配 ${terrain.slopeAt(pos.x, pos.z).toFixed(1)}° · 縦倍率 ${terrain.vscale}`;
+      if (debug) coords.textContent = `東 ${pos.x.toFixed(1)}m · 北 ${(-pos.z).toFixed(1)}m · 高さ ${pos.y.toFixed(1)}m · 勾配 ${terrain.slopeAt(pos.x, pos.z).toFixed(1)}° · 縦倍率 ${terrain.vscale}` + (perf ? ` · 描 ${perf.calls}・三角 ${(perf.triangles / 1e6).toFixed(1)}M・${perf.averageMs.toFixed(1)}ms・段階${perf.step}` : '');
     }
   };
 }

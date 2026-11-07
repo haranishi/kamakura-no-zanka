@@ -20,6 +20,7 @@ import { createWind, stepWind, toUniforms } from './wind.js';
 import { createKamakuraAtmosphere } from './kamakura-atmosphere-view.js';
 import { waterEnabled, prepareRivers } from './kamakura-rivers.js';
 import { buildKamakuraWater } from './kamakura-water-view.js';
+import { adaptOptions, createAdapt, stepAdapt, adaptPolicy, adaptPixelRatio } from './kamakura-adapt.js';
 import { verticalScale } from './world-entry.js';
 export async function bootKamakura(data, search) {
   const t = createKamakuraTerrain(data, verticalScale(search), maxWalkSlope(search)), meta = data.meta;
@@ -51,16 +52,17 @@ export async function bootKamakura(data, search) {
   try {
     document.head.append(style); document.body.classList.add('kamakura');
     renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
+    
     const scene = new THREE.Scene();
-    const quality = matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 0 || new URLSearchParams(search).get('q') === 'light' ? 'light' : 'standard';
+    const options = adaptOptions(search, matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 0);
+    const quality = options.quality; let adapt = createAdapt(options.step);
     atmosphere = createKamakuraAtmosphere({ scene, renderer, search, quality });
     roster = await loadRoster({ names: ['hero'] });
     const camera = new THREE.PerspectiveCamera(58, 1, 0.15, standsEnabled(search) ? 10000 : 7000);
-    chunks = buildKamakuraChunks(t, scene, spawn, groundEnabled(search));
+    chunks = buildKamakuraChunks(t, scene, spawn, groundEnabled(search), quality);
     const seaG = new THREE.PlaneGeometry((t.bounds.maxX - t.bounds.minX) * 1.2, (t.bounds.maxZ - t.bounds.minZ) * 1.2);
     seaG.rotateX(-Math.PI / 2);
-    sea = new THREE.Mesh(seaG, new THREE.MeshLambertMaterial({ color: 0x426f83 })); scene.add(sea);
+    sea = new THREE.Mesh(seaG, new THREE.MeshLambertMaterial({ color: 0x426f83 })); sea.updateMatrix(); sea.matrixAutoUpdate = false; scene.add(sea);
     if (data.rivers && waterEnabled(search)) {
       try { water = buildKamakuraWater(prepareRivers(data.rivers, t.vscale, quality), { sunDir: atmosphere.sunDir }); scene.add(water.group); }
       catch { riverNotice = '川を準備できませんでした。川なしで散策を続けます'; }
@@ -109,9 +111,9 @@ export async function bootKamakura(data, search) {
     const view = document.getElementById('view'); view.append(renderer.domElement); view.setAttribute('aria-label', '鎌倉を歩く3Dシーン');
     const base = new Input(renderer.domElement, { signal: events.signal });
     input = new TouchInput(base, renderer.domElement, hud.run, { signal: events.signal });
-    let paused = false;
+    let paused = false, skipAdaptFrame = true;
     function setPaused(on) {
-      paused = on; input.setEnabled(!on);
+      paused = on; skipAdaptFrame = true; input.setEnabled(!on);
       // Clear the locomotive momentum on pause; release alone retains the existing smooth stop.
       g.hero.speed = g.hero.locoV = g.hero.locoA = 0;
       if (on) base.releaseLock();
@@ -122,12 +124,18 @@ export async function bootKamakura(data, search) {
     addEventListener('keydown', e => { if ((e.code === 'KeyP' || e.code === 'Escape') && !e.repeat) setPaused(!paused); }, { signal: events.signal });
     addEventListener('blur', () => setPaused(true), { signal: events.signal });
     document.addEventListener('visibilitychange', () => { if (document.hidden) setPaused(true); }, { signal: events.signal });
-    const resize = () => { renderer.setSize(innerWidth, innerHeight); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); };
+    const resize = () => { renderer.setPixelRatio(adaptPixelRatio(devicePixelRatio, quality, adapt.step)); renderer.setSize(innerWidth, innerHeight); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); };
+    const applyAdapt = () => { const policy = adaptPolicy(adapt.step); atmosphere.setAdapt(policy); trees?.setAdapt(policy); stands?.setAdapt(policy); };
+    applyAdapt();
     addEventListener('resize', resize, { signal: events.signal }); resize(); setPaused(false);
     configureLoco(search);
     let last = performance.now();
     renderer.setAnimationLoop(now => {
-      const dt = Math.max(0, Math.min((now - last) / 1000, 0.05)); last = now;
+      const rawDt = Math.max(0, (now - last) / 1000), dt = Math.min(rawDt, .05); last = now;
+      const oldStep = adapt.step;
+      adapt = stepAdapt(adapt, rawDt, { paused: paused || skipAdaptFrame, hidden: document.hidden, enabled: options.enabled });
+      skipAdaptFrame = false;
+      if (adapt.step !== oldStep) { applyAdapt(); resize(); }
       if (!paused) {
         const look = input.look(dt), ax = input.axis(), yaw = rig.yaw;
         const vx = -Math.sin(yaw) * ax.forward + Math.cos(yaw) * ax.right, vz = -Math.cos(yaw) * ax.forward - Math.sin(yaw) * ax.right;
@@ -138,7 +146,7 @@ export async function bootKamakura(data, search) {
         hero.tickCharacter(dt); hero.sync(); ch.finishPose();
         rig.update(dt, hero.pos, { lookDx: look.dx, lookDy: look.dy, zoom: input.wheel, groundAt: t.heightAt,
           rayClip: (a, b) => rayClip(g.col, t, a, b, 0.3, { ignoreThin: 0.2 }) });
-        hud.update(hero.pos, rig.yaw, t); input.endFrame();
+        input.endFrame();
       }
       windState = stepWind(windState, dt, { paused });
       const uniforms = toUniforms(windState);
@@ -147,6 +155,7 @@ export async function bootKamakura(data, search) {
       chunks.update(g.hero.pos); houses?.update(g.hero.pos); trees?.update(camera); stands?.update(camera);
       water?.update(uniforms.uTime);
       atmosphere.update(camera, paused ? 0 : dt, g.hero.pos, rig.yaw); renderer.render(scene, camera);
+      hud.update(g.hero.pos, rig.yaw, t, { ...renderer.info.render, averageMs: adapt.averageMs, step: adapt.step });
     });
     return { dispose };
   } catch (error) {

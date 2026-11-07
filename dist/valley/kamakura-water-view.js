@@ -65,6 +65,7 @@ export function buildKamakuraWater(prepared, { sunDir = new THREE.Vector3(.5, .1
       geometry.setAttribute('position', new THREE.Float32BufferAttribute(chunk.positions, 3));
       geometry.setAttribute('uv', new THREE.Float32BufferAttribute(chunk.uvs, 2));
       geometry.setIndex(chunk.indices); geometry.computeVertexNormals(); geometry.computeBoundingSphere();
+      mesh.updateMatrix(); mesh.matrixAutoUpdate = false;
       mesh.name = 'kamakura-water'; mesh.renderOrder = 2; mesh.frustumCulled = true;
     }
     return { group, material, uniforms, update(time) { if (!disposed) uniforms.uTime.value = time; }, dispose };

@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { CHUNK_CELLS as SIZE, chooseLOD, choosePatchLOD, chunkGeometry } from './kamakura-chunks.js';
-export function buildKamakuraChunks(t, scene, spawn, ground = true) {
+import { createChunkJobs, chunkBudget, withinChunkBudget, shouldPlanChunks } from './kamakura-chunk-jobs.js';
+export function buildKamakuraChunks(t, scene, spawn, ground = true, quality = 'standard') {
   const colored = ground && !!t.groundColorAt?.(t.x0, t.z0);
   const material = new THREE.MeshLambertMaterial({ color: colored ? 0xffffff : 0x858563, vertexColors: colored });
   const chunks = [], grid = new Map();
@@ -13,37 +14,53 @@ export function buildKamakuraChunks(t, scene, spawn, ground = true) {
     chunks.push(ch); grid.set(`${i},${j}`, ch);
   }
   const neighbors = ch => ({ north: grid.get(`${ch.i},${ch.j - SIZE}`), south: grid.get(`${ch.i},${ch.j + SIZE}`), west: grid.get(`${ch.i - SIZE},${ch.j}`), east: grid.get(`${ch.i + SIZE},${ch.j}`) });
-  function rebuild(ch) {
-    const edges = Object.fromEntries(Object.entries(neighbors(ch)).map(([side, n]) => [side, n?.step ?? ch.step]));
-    const data = chunkGeometry(t, ch.i, ch.j, ch.i1, ch.j1, ch.step, edges, ground), g = new THREE.BufferGeometry();
-    if (data.colors) g.setAttribute('color', new THREE.Float32BufferAttribute(data.colors, 3));
-    g.setAttribute('position', new THREE.Float32BufferAttribute(data.positions, 3));
-    g.setAttribute('normal', new THREE.Float32BufferAttribute(data.normals, 3)); g.setIndex(data.indices); g.computeBoundingSphere();
-    if (ch.mesh) { ch.mesh.geometry.dispose(); ch.mesh.geometry = g; }
-    else { ch.mesh = new THREE.Mesh(g, material); ch.mesh.receiveShadow = true; scene.add(ch.mesh); }
-  }
   const wantLOD = (ch, d) => t.patches ? choosePatchLOD(d, ch.step) : ch.nearA ? chooseLOD(d, ch.step) : 8;
-  // Plan all initial LODs before construction, so progressively arriving neighbors already match.
   for (const ch of chunks) ch.step = wantLOD(ch, Math.hypot(ch.x - spawn.x, ch.z - spawn.z));
+  const scheduler = createChunkJobs(chunks, neighbors, wantLOD), prepared = new Map();
+  let last = null, frame = 0, disposed = false;
+  function discard() { for (const g of prepared.values()) g.dispose(); prepared.clear(); }
+  function prepare(job) {
+    const ch = job.ch, data = chunkGeometry(t, ch.i, ch.j, ch.i1, ch.j1, job.step, job.edges, ground);
+    const g = new THREE.BufferGeometry();
+    try {
+      if (data.colors) g.setAttribute('color', new THREE.Float32BufferAttribute(data.colors, 3));
+      g.setAttribute('position', new THREE.Float32BufferAttribute(data.positions, 3));
+      g.setAttribute('normal', new THREE.Float32BufferAttribute(data.normals, 3)); g.setIndex(data.indices); g.computeBoundingSphere();
+      return g;
+    } catch (error) { g.dispose(); throw error; }
+  }
   function update(pos) {
-    const sorted = chunks.map(ch => ({ ch, d: Math.hypot(ch.x - pos.x, ch.z - pos.z) })).sort((a, b) => a.d - b.d);
-    // A LOD change and its four loaded neighbors are rebuilt atomically (at most five meshes).
-    for (const { ch, d } of sorted) {
-      const want = wantLOD(ch, d);
-      if (ch.mesh && want !== ch.step) {
-        ch.step = want; rebuild(ch);
-        for (const n of Object.values(neighbors(ch))) if (n?.mesh) rebuild(n);
-        return;
-      }
+    if (disposed) return;
+    if (shouldPlanChunks(last, pos, ++frame)) {
+      const old = scheduler.active; scheduler.plan(pos);
+      if (old && old !== scheduler.active) discard();
+      last = { x: pos.x, z: pos.z };
+      for (const ch of chunks) if (ch.mesh) ch.mesh.visible = ch.visible;
     }
-    let budget = 2;
-    for (const { ch, d } of sorted) {
-      if (ch.mesh) ch.mesh.visible = d < 3300;
-      else if (d < 3300 && budget > 0) { rebuild(ch); budget--; }
+    const start = performance.now(); let count = 0;
+    while (withinChunkBudget(start, performance.now(), count, chunkBudget(quality))) {
+      const batch = scheduler.next(); if (!batch) break;
+      const job = batch.jobs.find(j => !j.done);
+      try { prepared.set(job, prepare(job)); }
+      catch (error) { discard(); scheduler.cancel(); throw error; }
+      scheduler.prepared(batch.generation, job); count++;
+      if (batch.jobs.every(j => j.done)) {
+        // No renderer runs inside this synchronous commit: every shared edge changes together.
+        for (const j of batch.jobs) {
+          const ch = j.ch, geometry = prepared.get(j);
+          if (ch.mesh) { ch.mesh.geometry.dispose(); ch.mesh.geometry = geometry; }
+          else {
+            ch.mesh = new THREE.Mesh(geometry, material); ch.mesh.receiveShadow = true;
+            ch.mesh.updateMatrix(); ch.mesh.matrixAutoUpdate = false; scene.add(ch.mesh);
+          }
+          ch.mesh.visible = ch.visible;
+        }
+        scheduler.commit(batch.generation); prepared.clear();
+      }
     }
   }
   function ready(pos) {
     return chunks.filter(ch => Math.hypot(ch.x - pos.x, ch.z - pos.z) < 420).every(ch => ch.mesh);
   }
-  return { chunks, update, ready, dispose() { for (const ch of chunks) { if (ch.mesh) { scene.remove(ch.mesh); ch.mesh.geometry.dispose(); } } material.dispose(); } };
+  return { chunks, update, ready, scheduler, dispose() { if (disposed) return; disposed = true; discard(); scheduler.cancel(); for (const ch of chunks) { if (ch.mesh) { scene.remove(ch.mesh); ch.mesh.geometry.dispose(); } } material.dispose(); } };
 }
