@@ -38,6 +38,9 @@ test('9b2 CPU references: classes, monotone slope/distance, pixel footprint, bou
   for(let x=-800;x<800;x+=17)for(let z=-600;z<600;z+=29){
     const m=soilMacro(x,z);assert.deepEqual(m,soilMacro(x,z));assert(m.lightness>=.92&&m.lightness<=1.08);assert(m.saturation>=.9&&m.saturation<=1.1);assert(Math.abs(m.hue)<=3);
     assert.deepEqual(soilMacro(x,z,2500),{lightness:1,saturation:1,hue:0});
+  }
+  assert(SOIL_GLSL.includes(`smoothstep(${SOIL.slopeFull},${SOIL.slopeStart},y)`));
+});
 test('9b2 real 9e shore and 9b grass fragments coexist with soil and retain balanced GLSL',()=>{
   const m=new THREE.MeshLambertMaterial();registerShoreView(data,{});
   try{
@@ -45,9 +48,6 @@ test('9b2 real 9e shore and 9b grass fragments coexist with soil and retain bala
     assert(s.fragmentShader.includes('groundShoreWet'));assert(s.fragmentShader.includes('groundGrassDetail'));assert(s.fragmentShader.includes('soilColor(diffuseColor.rgb'));
     balanced(s.fragmentShader);balanced(s.vertexShader);detail.dispose();soil.dispose();m.dispose();
   }finally{unregisterShoreView(data);}
-});
-  }
-  assert(SOIL_GLSL.includes(`smoothstep(${SOIL.slopeFull},${SOIL.slopeStart},y)`));
 });
 test('9b2 full 3x3 grass average includes diagonal and clamps boundary',()=>{
   assert(Math.abs(soilEdge(data.surface,3,3,4)-(8+.15)/9)<1e-12);
