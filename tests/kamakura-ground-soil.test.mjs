@@ -41,14 +41,6 @@ test('9b2 CPU references: classes, monotone slope/distance, pixel footprint, bou
   }
   assert(SOIL_GLSL.includes(`smoothstep(${SOIL.slopeFull},${SOIL.slopeStart},y)`));
 });
-test('9b2 real 9e shore and 9b grass fragments coexist with soil and retain balanced GLSL',()=>{
-  const m=new THREE.MeshLambertMaterial();registerShoreView(data,{});
-  try{
-    const detail=installGroundDetail(THREE,m,data),soil=installGroundSoil(THREE,m,detail),s=shader();m.onBeforeCompile(s);
-    assert(s.fragmentShader.includes('groundShoreWet'));assert(s.fragmentShader.includes('groundGrassDetail'));assert(s.fragmentShader.includes('soilColor(diffuseColor.rgb'));
-    balanced(s.fragmentShader);balanced(s.vertexShader);detail.dispose();soil.dispose();m.dispose();
-  }finally{unregisterShoreView(data);}
-});
 test('9b2 full 3x3 grass average includes diagonal and clamps boundary',()=>{
   assert(Math.abs(soilEdge(data.surface,3,3,4)-(8+.15)/9)<1e-12);
   assert.equal(soilEdge(new Uint8Array([2]),1,1,0),1);
@@ -84,6 +76,14 @@ test('9b2 GLSL bracket and preprocessor guard rejects real structural errors',()
   for(const broken of ['{(})','{','(',']','#ifdef A\n','#endif\n','#else\n','#if A\n#else\n#elif B\n#endif'])assert.throws(()=>balanced(broken));
   assert.equal((SOIL_GLSL.match(/texture2D\(/g)||[]).length,2,'at most two additional fetch sites');
   assert(!SOIL_GLSL.includes('discard'));
+});
+test('9b2 real 9e shore and 9b grass fragments coexist with soil and retain balanced GLSL',()=>{
+  const m=new THREE.MeshLambertMaterial();registerShoreView(data,{});
+  try{
+    const detail=installGroundDetail(THREE,m,data),soil=installGroundSoil(THREE,m,detail),s=shader();m.onBeforeCompile(s);
+    assert(s.fragmentShader.includes('groundShoreWet'));assert(s.fragmentShader.includes('groundGrassDetail'));assert(s.fragmentShader.includes('soilColor(diffuseColor.rgb'));
+    balanced(s.fragmentShader);balanced(s.vertexShader);detail.dispose();soil.dispose();m.dispose();
+  }finally{unregisterShoreView(data);}
 });
 test('9b2 cancellation stops sliced preparation and still releases its texture once',async()=>{
   const input={meta:{surface:{},grid:{width:100,height:100,cell_m:4}},surface:new Uint8Array(10000).fill(4)};
