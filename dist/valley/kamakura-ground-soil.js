@@ -29,11 +29,12 @@ export function installGroundSoil(THREE, material, groundDetail, {quality='stand
   prepare();
   const prior=material.onBeforeCompile,priorKey=material.customProgramCacheKey;
   const cacheKey=priorKey.call(material)+'|soil-9b2-v1';
+  // W2c-9r1 ground: stacked soil correction -> legacy only while the unified tone is inactive.
   const compile=function(shader,...args){
     prior.call(this,shader,...args);Object.assign(shader.uniforms,shared,uniforms);
     shader.fragmentShader=shader.fragmentShader.replace('void main() {',`${SOIL_GLSL}\nvoid main() {`)
       .replace('#include <color_fragment>',`#include <color_fragment>
-        diffuseColor.rgb=soilColor(diffuseColor.rgb*soilMaterial(vGroundWorld,vGroundSlope,distance(vGroundWorld,cameraPosition)),vGroundWorld.xz,distance(vGroundWorld,cameraPosition));`);
+        if(${shared.uToneStrength ? 'uToneReady*uToneStrength<=0.0' : 'true'})diffuseColor.rgb=soilColor(diffuseColor.rgb*soilMaterial(vGroundWorld,vGroundSlope,distance(vGroundWorld,cameraPosition)),vGroundWorld.xz,distance(vGroundWorld,cameraPosition));`);
   };
   material.onBeforeCompile=compile;material.customProgramCacheKey=()=>cacheKey;material.needsUpdate=true;
   function setAdapt(policy){const step=typeof policy==='number'?policy:policy.step;uniforms.uSoilDetail.value=quality==='light'||step>=2?0:1;uniforms.uSoilLayers.value=step>=3?0:1;}

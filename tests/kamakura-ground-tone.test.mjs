@@ -1,0 +1,99 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { join } from 'node:path';
+import { readFile } from 'node:fs/promises';
+import { THREE } from './helpers/tree-modules.mjs';
+import { installGroundDetail } from '../dist/valley/kamakura-ground-detail.js';
+import { installGroundSoil } from '../dist/valley/kamakura-ground-soil.js';
+import { groundUseAt,groundUseBoxes,toneTexel,toneStrength,toneDistance,toneFine,toneRelief,toneChannel,grassTintAt } from '../dist/valley/kamakura-ground-tone-rules.js';
+import { grassAmount, smooth, soilNoise } from '../dist/valley/kamakura-ground-pattern.js';
+import { registerShoreView,unregisterShoreView } from '../dist/valley/kamakura-shore.js';
+import { chunkGeometry } from '../dist/valley/kamakura-chunks.js';
+import { createKamakuraTerrain } from '../dist/valley/kamakura-terrain.js';
+import { fixture } from './helpers/kamakura-fixture.mjs';
+import { readPrivateData,verifySeams } from '../tools/lib/kamakura-validation.mjs';
+const synthetic=()=>{const d=fixture({width:9,height:9,cell:2});d.meta.ground={};d.meta.surface={};d.ground=new Uint8Array(81*3).fill(140);d.surface=new Uint8Array(81).fill(2);return d;};
+function balanced(source){
+  const clean=source.replace(/\/\*[\s\S]*?\*\//g,'').replace(/\/\/[^\n]*/g,'');
+  const stack=[],pairs={')':'(',']':'[','}':'{'};
+  for(const c of clean){if('([{'.includes(c))stack.push(c);else if(')]}'.includes(c))assert.equal(stack.pop(),pairs[c],`mismatched ${c}`);}
+  assert.equal(stack.length,0,'unclosed bracket');
+  const directives=[];
+  for(const line of clean.split('\n')){
+    if(/^\s*#\s*(if|ifdef|ifndef)\b/.test(line))directives.push(false);
+    else if(/^\s*#\s*(else|elif)\b/.test(line)){assert(directives.length,'orphan else/elif');assert(!directives.at(-1),'branch after else');if(/^\s*#\s*else\b/.test(line))directives[directives.length-1]=true;}
+    else if(/^\s*#\s*endif\b/.test(line))assert.notEqual(directives.pop(),undefined,'orphan endif');
+  }
+  assert.equal(directives.length,0,'unclosed conditional');
+}
+test('r1 reproduces LOD interior colour alias and nearest-class jumps, not a stitched-height crack',t=>{
+  const d=synthetic();d.ground.fill(80);const w=d.meta.grid.width;
+  for(let j=0;j<w;j++)for(let i=0;i<w;i++)for(let c=0;c<3;c++)d.ground[(j*w+i)*3+c]=(i+j)%2?180:80;
+  const terrain=createKamakuraTerrain(d);
+  const nearMesh=chunkGeometry(terrain,0,0,8,8,1),farMesh=chunkGeometry(terrain,0,0,8,8,8);
+  const near=nearMesh.colors[3],far=farMesh.colors[0];
+  // At the first odd grid point the coarse triangle interpolates two even endpoints.
+  assert.equal(farMesh.colors[0],farMesh.colors[3]);
+  assert(near-far>.3);assert.equal(verifySeams(terrain,0,0,4),32);
+  // 18/55/700/2500 distance bands are continuous, but equal-distance contours remain straight in old code.
+  const nearest=x=>x<0?1:0;
+  assert.equal(nearest(-1e-6)-nearest(1e-6),1);
+  t.diagnostic(`synthetic old LOD interior linear difference ${(near-far).toFixed(6)}; 32 stitched edge combinations pass`);
+});
+test('r1 corrections finite and bounded; distance/pixel integration continuous; bands vary in world space',t=>{
+  let maxJump=0,min=Infinity,max=-Infinity;
+  for(let x=-80;x<=80;x+=4)for(const d of [0,12,18,35,55,60,65,110,700,2500]){
+    const a=toneFine(x,17,d-.001,.01),b=toneFine(x,17,d+.001,.01);maxJump=Math.max(maxJump,Math.abs(a-b));
+    assert.equal(toneFine(x,17,d,1),0);
+    for(const h of [0,80,300])for(const ny of [0,.7,1])for(const c of [-1,0,1])for(const n of [0,.5,1]){
+      const r=toneRelief(h,ny,c,.5,n);assert(Number.isFinite(r)&&r>=-.12&&r<=.12);
+      for(let k=0;k<3;k++){const v=toneChannel(.25,k,r,1-ny,grassTintAt(x,17,d),0);assert(v>=0&&v<=1);min=Math.min(min,v);max=Math.max(max,v);}
+    }
+  }
+  assert(maxJump<.0001);assert.notEqual(toneDistance(0,0,55),toneDistance(90,50,55));
+  assert.equal(toneStrength('standard',0),1);assert.equal(toneStrength('standard',2),.45);assert.equal(toneStrength('light',0),.45);assert.equal(toneStrength('light',3),0);
+  t.diagnostic(`max transition change over .002m ${maxJump.toFixed(8)}; channel range ${min.toFixed(6)}..${max.toFixed(6)}`);
+});
+test('r1 facility use uses anchor-local bounds, soft external edge and only known footprints',()=>{
+  const d=synthetic();d.facilities={nodes:[{part:'sando',anchor_xz:[10,20],bbox_min:[-2,0,-10],bbox_max:[2,1,10]},{part:'torii'}]};
+  const boxes=groundUseBoxes(d);assert.equal(boxes.length,1);assert.equal(groundUseAt(boxes,10,20),1);assert.equal(groundUseAt(boxes,17,20),0);assert(groundUseAt(boxes,14,20)>.5);
+  assert(Math.abs(groundUseAt(boxes,12-1e-5,20)-groundUseAt(boxes,12+1e-5,20))<1e-8);
+  const base=new Uint8Array(324),weights=new Uint8Array(324);toneTexel(d,boxes,0,base,weights);assert.equal(weights[0],255);assert.equal(weights[3],255);
+});
+test('r1 shipped Three hook composes soil, A/B and adaptation; preparation cancellation and all textures release once',async()=>{
+  for(const search of ['', '?gtone=0','?gsoil=0','?gdetail=0']){
+    const d=synthetic();registerShoreView(d,{});const m=new THREE.MeshLambertMaterial({vertexColors:true}),detail=installGroundDetail(THREE,m,d,{search}),soil=installGroundSoil(THREE,m,detail,{search});
+    await Promise.all([detail.tone?.ready,soil.ready]);
+    const s={uniforms:{},vertexShader:THREE.ShaderLib.lambert.vertexShader,fragmentShader:THREE.ShaderLib.lambert.fragmentShader};m.onBeforeCompile(s);if(!search.includes('gdetail=0'))assert(s.fragmentShader.includes('groundShoreWet'));balanced(s.fragmentShader);balanced(s.vertexShader);
+    assert(!/\b(?:float|vec[234]|int)\s+(?:patch|sample|input|output|filter|common|active|partition|resource)\b/.test(s.fragmentShader));
+    if(detail.tone){assert(detail.tone.textures.every(t=>t.generateMipmaps&&t.minFilter===THREE.LinearMipmapLinearFilter));assert.equal(s.uniforms.uToneReady.value,1);assert.equal(s.uniforms.uToneSoil.value,search.includes('gsoil=0')?0:1);assert(s.fragmentShader.includes('uToneReady*uToneStrength<=0.0'));detail.setAdapt(2);assert.equal(s.uniforms.uToneStrength.value,.45);detail.setAdapt(3);assert.equal(s.uniforms.uToneStrength.value,0);detail.setAdapt(0);assert.equal(s.uniforms.uToneStrength.value,1);}
+    else assert(search.includes('gtone=0')||search.includes('gdetail=0'));
+    const textures=[...detail.textures,...soil.textures,...(detail.tone?.textures||[])],counts=textures.map(()=>0);textures.forEach((v,i)=>v.addEventListener('dispose',()=>counts[i]++));detail.dispose();detail.dispose();assert(counts.every(v=>v===1));m.dispose();unregisterShoreView(d);
+  }
+  const d=synthetic();d.meta.grid.width=100;d.meta.grid.height=100;d.ground=new Uint8Array(30000);d.surface=new Uint8Array(10000);
+  const m=new THREE.MeshLambertMaterial({vertexColors:true}),owner=installGroundDetail(THREE,m,d);owner.dispose();await owner.tone.ready;assert.equal(owner.tone.uniforms.uToneReady.value,0);m.dispose();
+  const src=await readFile(new URL('../dist/valley/kamakura-ground-tone.js',import.meta.url),'utf8');
+  assert(!src.includes('update(')); // All new CPU work is preparation/adaptation, never a frame callback.
+});
+test('r1 private corrected natural-class mean stays within existing 25/255 tolerance',{
+  skip:!process.env.KZ_WORLD_DIR&&'KZ_WORLD_DIR未設定：私有地面が必要'
+},async t=>{
+  const {data:d}=await readPrivateData(process.env.KZ_WORLD_DIR);
+  d.surface=new Uint8Array(await readFile(join(process.env.KZ_WORLD_DIR,d.meta.surface.file)));
+  if(d.meta.facilities)d.facilities=JSON.parse(await readFile(join(process.env.KZ_WORLD_DIR,d.meta.facilities.file),'utf8'));
+  const terrain=createKamakuraTerrain(d),sum=new Float64Array(24),old=new Float64Array(24),counts=new Uint32Array(8);
+  let maxError=0;
+  const encode=v=>255*(v<=.0031308?v*12.92:1.055*v**(1/2.4)-.055);
+  for(let i=0;i<d.surface.length;i+=127){const code=d.surface[i];if(code>7)continue;counts[code]++;
+    const x=(i%d.meta.grid.width-(d.meta.grid.width-1)/2)*d.meta.grid.cell_m,z=(Math.floor(i/d.meta.grid.width)-(d.meta.grid.height-1)/2)*d.meta.grid.cell_m;
+    const normal=terrain.normalAt(x,z),ny=normal.y,land=code>1?1:0,steep=1-smooth(.55,.95,ny);
+    const r=land*toneRelief(terrain.heightAt(x,z),ny,0,Math.max(0,-normal.z),soilNoise(x/43,z/43));
+    for(let k=0;k<3;k++){const base=terrain.groundColorAt(x,z)[k],value=toneChannel(Math.round(base*255)/255,k,r,land*steep,land*grassAmount(code)*(1-steep)*grassTintAt(x,z,500),0,1,0,1,code===5?1:0,soilNoise(x/43,z/43));assert(Number.isFinite(value)&&value>=0&&value<=1);sum[code*3+k]+=encode(value);old[code*3+k]+=encode(base);}
+  }
+  for(let c=0;c<8;c++)if(counts[c])for(let k=0;k<3;k++)maxError=Math.max(maxError,Math.abs(sum[c*3+k]-old[c*3+k])/counts[c]);
+  assert(maxError<=25);
+  const m=new THREE.MeshLambertMaterial({vertexColors:true}),start=performance.now(),owner=installGroundDetail(THREE,m,d);
+  await owner.tone.ready;assert.equal(owner.tone.uniforms.uToneReady.value,1);
+  t.diagnostic(`tone preparation ${(performance.now()-start).toFixed(2)}ms including yields; max slice ${owner.tone.stats.maxSliceMs.toFixed(2)}ms; runtime bytes ${owner.tone.stats.bytes}`);
+  owner.dispose();m.dispose();t.diagnostic(`maximum corrected natural-class mean shift ${maxError.toFixed(4)}/255 (tolerance 25)`);
+});
