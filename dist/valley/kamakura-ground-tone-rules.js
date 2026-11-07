@@ -61,7 +61,11 @@ export function groundUseBoxes(data) {
 }
 export function groundUseAt(boxes,x,z) {
   let amount=0;
-  for(const b of boxes){const d=Math.hypot(Math.max(b.x0-x,0,x-b.x1),Math.max(b.z0-z,0,z-b.z1));amount=Math.max(amount,1-smooth(0,5,d));}
+  for(const b of boxes){
+    // The falloff ends 5 m outside a box: points beyond that square are exactly 0, so skip the hypot (the bake visits millions).
+    if(x<b.x0-5||x>b.x1+5||z<b.z0-5||z>b.z1+5)continue;
+    const d=Math.hypot(Math.max(b.x0-x,0,x-b.x1),Math.max(b.z0-z,0,z-b.z1));amount=Math.max(amount,1-smooth(0,5,d));
+  }
   return amount;
 }
 // W2c-9r1 ground round 2: four-metre byte weights; RGB reuses the source bytes.
