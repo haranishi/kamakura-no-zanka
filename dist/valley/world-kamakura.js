@@ -9,10 +9,11 @@ import { CameraRig } from './camera-rig.js';
 import { buildColliders, rayClip } from './collision.js';
 import { HeroActor, configureLoco, yawOf } from './actors.js';
 import { loadRoster } from './characters.js';
+import { kamakuraSpawn } from './kamakura-spawn.js';
 import { verticalScale } from './world-entry.js';
 export async function bootKamakura(data, search) {
   const t = createKamakuraTerrain(data, verticalScale(search)), meta = data.meta;
-  const spawn = { x: meta.spawn.x, z: -meta.spawn.y, yaw: -meta.spawn.yaw_deg_clockwise_from_north * Math.PI / 180 };
+  const spawn = kamakuraSpawn(t, search);
   if (!t.walkable(spawn.x, spawn.z)) throw new Error('出発点を歩けません');
   // Load the existing hero only. Do not load the chapter's enemies or scenery.
   const roster = await loadRoster({ names: ['hero'] });
