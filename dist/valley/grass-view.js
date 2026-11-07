@@ -204,6 +204,7 @@ export function buildGrass({ field, wind, quality = 'standard', sunDir }) {
   const resident = { near: new Map(), mid: new Map() }, pools = { near: [], mid: [] };
   const all = new Set();
   let last = null, wanted = { near: [], mid: [] }, active = { near: new Set(), mid: new Set() }, dead = false;
+  let densityScale = 1;
   let builds = 0, queue = 0, lastBuildMs = 0, maxBuildMs = 0, overBudget = 0;
   const perCell = { near: Math.ceil(Math.round(GRASS.nearDensity * Math.ceil(GRASS.maxDensity * 255 / 2) * 2 / 255) * q.density) + 13,
     mid: Math.min(GRASS.midMaxCards, Math.ceil(GRASS.midCardRate * q.density * 1.8)) };
@@ -217,7 +218,14 @@ export function buildGrass({ field, wind, quality = 'standard', sunDir }) {
   }
   function submit(c, kind) {
     let offset = 0;
-    for (const t of c.tiles) if (active[kind].has(t.key)) { c.buffer.array.set(t.data, offset); offset += t.data.length; }
+    for (const t of c.tiles) if (active[kind].has(t.key)) {
+      if (densityScale === 1) { c.buffer.array.set(t.data, offset); offset += t.data.length; }
+      // Thin by a hash of the root position, not by iShape.w: the shader also uses w for the distance fade and the
+      // card pattern, so thinning on w would drop the far blades first and wipe out the last card pattern.
+      else for (let i = 0; i < t.data.length; i += STRIDE) if (hash(t.data[i], t.data[i + 2], 61) < densityScale) {
+        c.buffer.array.set(t.data.subarray(i, i + STRIDE), offset); offset += STRIDE;
+      }
+    }
     c.mesh.geometry.instanceCount = offset / STRIDE; c.mesh.visible = offset > 0;
     c.buffer.clearUpdateRanges(); if (offset) c.buffer.addUpdateRange(0, offset); c.buffer.needsUpdate = true;
   }
@@ -273,6 +281,28 @@ export function buildGrass({ field, wind, quality = 'standard', sunDir }) {
     queue = ['near', 'mid'].reduce((n, k) => n + wanted[k].filter(c => !resident[k].has(c.key)).length, 0);
   }
   return { group, update: camera => stream(camera), warm: camera => stream(camera, true),
+    // Keep fully interior chunks: their world-cell values are unchanged. Only
+    // chunks touching either field's feathered edge need replacement, using pools.
+    setField(next) {
+      if (dead || next === field) return;
+      const interior = (f, c, kind) => {
+        const size = (kind === 'near' ? GRASS.nearSize : GRASS.midSize) * CHUNK_TILES[kind];
+        const edge = f.edge ?? 0;
+        return c.cx * size >= f.x0 + edge && c.cz * size >= f.z0 + edge &&
+          (c.cx + 1) * size <= f.x0 + f.nx - edge && (c.cz + 1) * size <= f.z0 + f.nz - edge;
+      };
+      for (const kind of ['near', 'mid']) for (const [key, c] of resident[kind]) {
+        if (interior(field, c, kind) && interior(next, c, kind)) continue;
+        resident[kind].delete(key); c.mesh.visible = false; c.mesh.geometry.instanceCount = 0; c.tiles = []; pools[kind].push(c);
+      }
+      field = next; last = null;
+    },
+    setDensityScale(value) {
+      if (dead) return;
+      const next = Math.max(0, Math.min(1, value)); if (next === densityScale) return;
+      densityScale = next;
+      for (const kind of ['near', 'mid']) for (const c of resident[kind].values()) submit(c, kind);
+    },
     setSun(dir) { sun.value.copy(dir).normalize(); },
     stats() {
       const count = kind => [...resident[kind].values()].reduce((n, c) => n + c.mesh.geometry.instanceCount, 0);

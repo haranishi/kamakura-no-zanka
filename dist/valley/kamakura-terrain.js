@@ -91,12 +91,13 @@ export function createKamakuraTerrain({ meta, heights, walk, patches = null, gro
   const insidePatch = (x, z) => x >= x0 && x <= -x0 && z >= z0 && z <= -z0 && patchSample(x, z) !== null;
   const maskAt = (x, z) => { const { i, j } = gridAt(x, z); return walk[Math.round(j) * w + Math.round(i)]; };
   const isWater = (x, z) => maskAt(x, z) === 2 || heightAt(x, z) <= 0;
-  const { riverDistanceAt } = createRiverIndex(rivers);
+  // 32 m cells keep a query to a few dozen segments; the water test below only asks "is it 0?", so it stops after its own cell.
+  const { riverDistanceAt } = createRiverIndex(rivers, 32);
   const surfaceAt = createSurfaceAt(meta, surface);
   // The sea is deep water (blocks, >= 0.46). A river is wadeable: K7's rivers are 0.5 m deep at the surface, schematic. The value
   // stays under collision.js's 0.45 m cut-off, so the hero walks in a river, while it is still > 0.05 for the water footstep.
   const RIVER_WADE_DEPTH = 0.4;
-  const waterAt = (x, z) => isWater(x, z) ? Math.max(0.46, -heightAt(x, z)) : (riverDistanceAt(x, z) === 0 ? RIVER_WADE_DEPTH : 0);
+  const waterAt = (x, z) => isWater(x, z) ? Math.max(0.46, -heightAt(x, z)) : (riverDistanceAt(x, z, 0) === 0 ? RIVER_WADE_DEPTH : 0);
   function blockedAt(x, z) {
     if ((!insideA(x, z) || maskAt(x, z) === 0) && !insidePatch(x, z)) return 'bounds';
     if (isWater(x, z)) return 'water';

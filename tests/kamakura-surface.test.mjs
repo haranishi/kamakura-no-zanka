@@ -43,6 +43,28 @@ test('256m index agrees with brute force, including empty cells, outside bounds 
     near(index.riverDistanceAt(x,z),Math.min(...index.segments.map(s=>segmentBankDistance(s,x,z))));
   }
 });
+test('finer cells and a search reach keep exact distances up to the reach and report "far" beyond it',()=>{
+  const rng = mulberry32(77), rivers = Array.from({length:12},()=> {
+    const points=Array.from({length:20},()=>[(rng()-.5)*4000,(rng()-.5)*4000]); points.push(points.at(-1));
+    return river(points,points.map(()=>1+rng()*40));
+  });
+  const brute = (index,x,z)=>Math.min(...index.segments.map(s=>segmentBankDistance(s,x,z)));
+  for (const cell of [16,32,64,256]) {
+    const index=createRiverIndex({rivers},cell); assert.equal(index.cell,cell);
+    for(let i=0;i<400;i++) {
+      const x=(rng()-.5)*9000,z=(rng()-.5)*9000,truth=brute(index,x,z);
+      near(index.riverDistanceAt(x,z),truth);                    // no reach: always exact
+      for (const reach of [0,1.7,25,300]) {
+        const d=index.riverDistanceAt(x,z,reach);
+        if (truth<=reach) near(d,truth); else assert(d>reach,`cell ${cell} reach ${reach}: ${d} should be > reach (truth ${truth})`);
+      }
+    }
+    // The centre line of every river is water (distance 0) even when only the home cell is searched.
+    for (const s of index.segments.filter((_,i)=>i%7===0)) assert.equal(index.riverDistanceAt((s.ax+s.bx)/2,(s.az+s.bz)/2,0),0);
+  }
+  const index=createRiverIndex({rivers:[river([[0,0],[100,0]],[10,10])]},32);
+  near(index.riverDistanceAt(50,8,5),3); assert(index.riverDistanceAt(50,60,5)>5); assert.equal(createRiverIndex(null,32).riverDistanceAt(0,0,0),Infinity);
+});
 test('a river is wadeable through the real collision rule (waterAt under the 0.45 m cut-off) while the sea still blocks',()=>{
   const f=flat(); f.rivers={rivers:[river([[0,10],[0,-10]],[4,4])]};
   const t=createKamakuraTerrain(f), col=buildColliders({bounds:t.bounds});
