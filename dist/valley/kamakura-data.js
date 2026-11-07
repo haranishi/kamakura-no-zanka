@@ -1,10 +1,11 @@
+import { decodeFacilities } from './kamakura-facilities.js';
 import { decodeRivers } from './kamakura-rivers.js';
 import { decodeVeg } from './kamakura-veg.js';
 import { decodeHouses } from './kamakura-houses.js';
 // Private data only: no bundled fallback, derived elevations, or remote service.
 export function validateMeta(m) {
   const g = m?.grid, h = m?.height;
-  if (!['kz-world-web/0.1', 'kz-world-web/0.2', 'kz-world-web/0.3', 'kz-world-web/0.4', 'kz-world-web/0.5', 'kz-world-web/0.6', 'kz-world-web/0.7'].includes(m?.schema) || !g || !h ||
+  if (!['kz-world-web/0.1', 'kz-world-web/0.2', 'kz-world-web/0.3', 'kz-world-web/0.4', 'kz-world-web/0.5', 'kz-world-web/0.6', 'kz-world-web/0.7', 'kz-world-web/0.8'].includes(m?.schema) || !g || !h ||
       !Number.isInteger(g.width) || !Number.isInteger(g.height) || g.width < 2 || g.height < 2 ||
       !(g.cell_m > 0) || !Number.isFinite(g.cell_m) || g.width * g.height > 32e6 ||
       g.row0 !== 'north' || g.col0 !== 'west' || g.sample_position !== 'cell_center' ||
@@ -113,6 +114,15 @@ export async function loadKamakura(fetcher = fetch) {
       data.rivers = decodeRivers(await (await read('rivers.json')).json());
       if (data.rivers.points !== meta.rivers.points) throw new Error();
     } catch { data.rivers = null; data.riverNotice = '川を読み込めませんでした。川なしで散策を続けます'; }
+  }
+  if (meta.facilities) {
+    try {
+      if (meta.facilities.file !== 'facilities.json' || meta.facilities.kit !== 'facilities.glb') throw new Error();
+      const [catalog, kit] = await Promise.all([read('facilities.json'), read('facilities.glb')]);
+      data.facilities = decodeFacilities(await catalog.json());
+      if (data.facilities.nodes.length !== meta.facilities.count || data.facilities.catalog.total_triangles !== meta.facilities.total_triangles) throw new Error();
+      data.facilities.kit = await kit.arrayBuffer();
+    } catch { data.facilities = null; data.facilityNotice = '施設を読み込めませんでした。施設なしで散策を続けます'; }
   }
   return data;
 }
