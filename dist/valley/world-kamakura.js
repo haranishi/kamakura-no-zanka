@@ -11,6 +11,10 @@ import { HeroActor, configureLoco, yawOf } from './actors.js';
 import { loadRoster } from './characters.js';
 import { kamakuraSpawn } from './kamakura-spawn.js';
 import { buildKamakuraHouses } from './kamakura-house-view.js';
+import { prepareVeg, treesEnabled } from './kamakura-veg.js';
+import { buildKamakuraVeg } from './kamakura-veg-view.js';
+import { windUniforms } from './vegetation.js';
+import { createWind, stepWind, toUniforms } from './wind.js';
 import { verticalScale } from './world-entry.js';
 export async function bootKamakura(data, search) {
   const t = createKamakuraTerrain(data, verticalScale(search), maxWalkSlope(search)), meta = data.meta;
@@ -18,7 +22,9 @@ export async function bootKamakura(data, search) {
   if (!t.walkable(spawn.x, spawn.z)) throw new Error('出発点を歩けません');
   // Load the existing hero only. Do not load the chapter's enemies or scenery.
   const roster = await loadRoster({ names: ['hero'] });
-  let renderer, chunks, hud, houses;
+  let renderer, chunks, hud, houses, trees;
+  const wind = windUniforms(); let windState = createWind();
+  let vegNotice = data.vegNotice || '';
   let houseNotice = data.houseNotice || '';
   const style = document.createElement('link'); style.rel = 'stylesheet'; style.href = new URL('./kamakura.css', import.meta.url).href;
   try {
@@ -39,8 +45,20 @@ export async function bootKamakura(data, search) {
       try { houses = await buildKamakuraHouses(data.houses, t, scene); }
       catch { houseNotice = '家を読み込めませんでした。家なしで散策を続けます'; }
     }
-    const status = text => hud.status(text || [houseNotice, groundEnabled(search) && data.groundNotice].filter(Boolean).join('。'));
-    const g = { scene, roster, terrain: t, col: buildColliders({ bounds: t.bounds, extraBoxes: houses?.boxes || [] }), enemies: [], ally: null };
+    if (data.veg && treesEnabled(search)) {
+      try {
+        // House exclusions also apply when the houses are hidden for comparison.
+        const hiddenHouses = !houses && data.houses ? await buildKamakuraHouses(data.houses, t, new THREE.Scene()) : null;
+        try {
+          const prepared = prepareVeg(data.veg, t, { boxes: houses?.boxes || hiddenHouses?.boxes || [], paths: data.patches?.paths || {}, spawn });
+          const quality = matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 0 || new URLSearchParams(search).get('q') === 'light' ? 'light' : 'standard';
+          trees = buildKamakuraVeg(prepared, { wind, sunDir: sun.position.clone().normalize(), quality, renderer });
+          scene.add(trees.group);
+        } finally { hiddenHouses?.dispose(); }
+      } catch { vegNotice = '木を準備できませんでした。木なしで散策を続けます'; }
+    }
+    const status = text => hud.status(text || [houseNotice, treesEnabled(search) && vegNotice, groundEnabled(search) && data.groundNotice].filter(Boolean).join('。'));
+    const g = { scene, roster, terrain: t, col: buildColliders({ bounds: t.bounds, extraBoxes: houses?.boxes || [], extraCircles: trees?.circles || [] }), enemies: [], ally: null };
     g.hero = new HeroActor(g, spawn);
     // W2c-1 has no audio. Contacts and IK continue to run through the existing character.
     g.hero.onFootContact = () => {};
@@ -85,10 +103,14 @@ export async function bootKamakura(data, search) {
           rayClip: (a, b) => rayClip(g.col, t, a, b, 0.3, { ignoreThin: 0.2 }) });
         hud.update(hero.pos, rig.yaw, t); input.endFrame();
       }
-      chunks.update(g.hero.pos); houses?.update(g.hero.pos); renderer.render(scene, camera);
+      windState = stepWind(windState, dt, { paused });
+      const uniforms = toUniforms(windState);
+      wind.uTime.value = uniforms.uTime; wind.uWind.value = uniforms.uWind;
+      wind.uWindDir.value.set(...uniforms.uWindDir); wind.uGuideMix.value = uniforms.uGuideMix;
+      chunks.update(g.hero.pos); houses?.update(g.hero.pos); trees?.update(camera); renderer.render(scene, camera);
     });
   } catch (error) {
-    renderer?.setAnimationLoop(null); chunks?.dispose(); houses?.dispose(); renderer?.domElement.remove(); renderer?.dispose(); hud?.root.remove();
+    renderer?.setAnimationLoop(null); chunks?.dispose(); houses?.dispose(); trees?.dispose(); renderer?.domElement.remove(); renderer?.dispose(); hud?.root.remove();
     style.remove(); document.body.classList.remove('kamakura'); throw error;
   }
 }
