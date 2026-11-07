@@ -1,8 +1,9 @@
+import { decodeVeg } from './kamakura-veg.js';
 import { decodeHouses } from './kamakura-houses.js';
 // Private data only: no bundled fallback, derived elevations, or remote service.
 export function validateMeta(m) {
   const g = m?.grid, h = m?.height;
-  if (!['kz-world-web/0.1', 'kz-world-web/0.2', 'kz-world-web/0.3', 'kz-world-web/0.4', 'kz-world-web/0.5'].includes(m?.schema) || !g || !h ||
+  if (!['kz-world-web/0.1', 'kz-world-web/0.2', 'kz-world-web/0.3', 'kz-world-web/0.4', 'kz-world-web/0.5', 'kz-world-web/0.6'].includes(m?.schema) || !g || !h ||
       !Number.isInteger(g.width) || !Number.isInteger(g.height) || g.width < 2 || g.height < 2 ||
       !(g.cell_m > 0) || !Number.isFinite(g.cell_m) || g.width * g.height > 32e6 ||
       g.row0 !== 'north' || g.col0 !== 'west' || g.sample_position !== 'cell_center' ||
@@ -63,7 +64,7 @@ export function decodeData(meta, heightBuffer, walkBuffer, patchBuffers, groundB
   }
   const ground = meta.ground && groundBuffer?.byteLength === count * 3 ? new Uint8Array(groundBuffer) : null;
   const groundNotice = ground ? '' : '地面の色を読み込めませんでした。単色で散策を続けます';
-  return { meta, heights, walk, patches, ground, groundNotice };
+  return { meta, heights, walk, patches, ground, groundNotice, veg: null, vegNotice: '' };
 }
 export async function loadKamakura(fetcher = fetch) {
   const read = async name => {
@@ -97,6 +98,13 @@ export async function loadKamakura(fetcher = fetch) {
     } catch {
       data.houses = null; data.houseNotice = '家を読み込めませんでした。家なしで散策を続けます';
     }
+  }
+  if (meta.veg) {
+    try {
+      if (!Number.isInteger(meta.veg.count) || meta.veg.file !== 'veg_f32.bin' || meta.veg.info !== 'veg.json') throw new Error();
+      const [info, bin] = await Promise.all([read('veg.json'), read('veg_f32.bin')]);
+      data.veg = decodeVeg(await info.json(), await bin.arrayBuffer(), meta.veg.count);
+    } catch { data.veg = null; data.vegNotice = '木を読み込めませんでした。木なしで散策を続けます'; }
   }
   return data;
 }

@@ -1,3 +1,4 @@
+import { verifyVeg } from './lib/kamakura-veg-validation.mjs';
 import { verifyGround } from './lib/kamakura-ground-validation.mjs';
 import { readPrivateHouses, verifyHouses } from './lib/kamakura-house-validation.mjs';
 import { verifyPatches } from './lib/kamakura-patch-validation.mjs';
@@ -14,7 +15,9 @@ if (!process.env.KZ_WORLD_DIR) {
     const t = createKamakuraTerrain(data);
     verifySeams(t, Math.floor((t.w / 2) / 64) * 64, Math.floor((t.h / 2) / 64) * 64);
     if (!t.walkable(data.meta.spawn.x, -data.meta.spawn.y)) throw new Error('spawn');
-    const houses = verifyHouses(data, await readPrivateHouses(process.env.KZ_WORLD_DIR, data));
+    const privateHouses = await readPrivateHouses(process.env.KZ_WORLD_DIR, data);
+    console.log(JSON.stringify({ vegetation: await verifyVeg(data, process.env.KZ_WORLD_DIR, privateHouses) }, null, 2));
+    const houses = verifyHouses(data, privateHouses);
     console.log(JSON.stringify({ houses }, null, 2));
     if (!houses.skip && !houses.accepted) { console.error('FAIL: 家の箱と出発点・道の線に重なりがあります。'); process.exitCode = 1; }
     if (!houses.skip && !houses.foundationAccepted) { console.error('FAIL: 家の裾の底が地面より上に出る（浮く）家があります。slopeFitのfloatingSamplesを確認してください。'); process.exitCode = 1; }
