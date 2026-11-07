@@ -1,3 +1,4 @@
+import { createKamakuraAudio } from './kamakura-audio-view.js';
 import { buildKamakuraFacilities } from './kamakura-facility-view.js';
 import { facilitiesEnabled, causewayShown } from './kamakura-facilities.js';
 // Separate Kamakura composition with a development flight camera. No chapter state, quests, or save access.
@@ -31,12 +32,12 @@ export async function bootKamakura(data, search) {
   if (!t.walkable(spawn.x, spawn.z)) throw new Error('出発点を歩けません');
   // Load the existing hero only. Do not load the chapter's enemies or scenery.
   let roster;
-  let renderer, chunks, hud, houses, trees, stands, standPrepared, treeOptions, atmosphere, sea, water, hero, input, hintTimer, flight, facilities, hiddenFacilities;
+  let renderer, chunks, hud, houses, trees, stands, standPrepared, treeOptions, atmosphere, sea, water, hero, input, hintTimer, flight, facilities, hiddenFacilities, audioView;
   const events = new AbortController(); let disposed = false;
   function dispose() {
     if (disposed) return; disposed = true; events.abort(); clearTimeout(hintTimer);
     input?.setEnabled(false); input?.base.releaseLock();
-    renderer?.setAnimationLoop(null); flight?.dispose(); hero?.remove(); chunks?.dispose(); houses?.dispose(); trees?.dispose(); stands?.dispose();
+    renderer?.setAnimationLoop(null); audioView?.dispose(); flight?.dispose(); hero?.remove(); chunks?.dispose(); houses?.dispose(); trees?.dispose(); stands?.dispose();
     facilities?.dispose(); hiddenFacilities?.dispose(); water?.dispose(); sea?.geometry.dispose(); sea?.material.dispose(); atmosphere?.dispose();
     const resources = new Set();
     for (const tpl of roster?.templates.values() || []) tpl.scene.traverse(o => {
@@ -52,6 +53,7 @@ export async function bootKamakura(data, search) {
   let riverNotice = data.riverNotice || '';
   let facilityNotice = data.facilityNotice || '';
   let houseNotice = data.houseNotice || '';
+  let audioNotice = '';
   const style = document.createElement('link'); style.rel = 'stylesheet'; style.href = new URL('./kamakura.css', import.meta.url).href;
   try {
     document.head.append(style); document.body.classList.add('kamakura');
@@ -101,15 +103,17 @@ export async function bootKamakura(data, search) {
       } catch { vegNotice = '木を準備できませんでした。木なしで散策を続けます'; }
     }
     hiddenFacilities?.dispose(); hiddenFacilities = null;
-    const status = text => hud.status(text || [houseNotice, facilitiesEnabled(search) && facilityNotice, waterEnabled(search) && riverNotice, treesEnabled(search) && vegNotice, groundEnabled(search) && data.groundNotice, atmosphere.notice].filter(Boolean).join('。'));
+    const status = text => hud.status(text || [houseNotice, facilitiesEnabled(search) && facilityNotice, waterEnabled(search) && riverNotice, treesEnabled(search) && vegNotice, groundEnabled(search) && data.groundNotice, atmosphere.notice, audioNotice].filter(Boolean).join('。'));
     const g = { scene, roster, terrain: t, col: buildColliders({ bounds: t.bounds, extraBoxes: [...(houses?.boxes || []), ...(facilities?.boxes || [])], extraCircles: trees?.circles || [] }), enemies: [], ally: null };
     if (standPrepared) {
       try { stands = buildKamakuraStands(standPrepared, { ...treeOptions, colliders: g.col }); scene.add(stands.group); }
       catch { vegNotice = '林分を準備できませんでした。一本ずつの木で散策を続けます'; }
     }
+    audioView = createKamakuraAudio({ search, terrain: t, button: hud.sound,
+      flying: () => !!flight?.active,
+      onUnavailable: text => { audioNotice = text; status(''); } });
+    audioView.attach(g);
     g.hero = hero = new HeroActor(g, spawn);
-    // W2c-1 has no audio. Contacts and IK continue to run through the existing character.
-    g.hero.onFootContact = () => {};
     g.hud = { hint: (_id, text, ms) => {
       clearTimeout(hintTimer); status(text);
       hintTimer = setTimeout(() => { if (!paused) status(''); }, ms);
@@ -126,7 +130,7 @@ export async function bootKamakura(data, search) {
     input = new TouchInput(base, renderer.domElement, hud.run, { signal: events.signal, upButton: hud.up, downButton: hud.down });
     let paused = false, skipAdaptFrame = true;
     function setPaused(on) {
-      paused = on; skipAdaptFrame = true; input.setEnabled(!on);
+      paused = on; audioView.setPaused(on); skipAdaptFrame = true; input.setEnabled(!on);
       // Clear the locomotive momentum on pause; release alone retains the existing smooth stop.
       g.hero.speed = g.hero.locoV = g.hero.locoA = 0;
       if (on) base.releaseLock();
@@ -167,12 +171,13 @@ export async function bootKamakura(data, search) {
           rayClip: (a, b) => rayClip(g.col, t, a, b, 0.3, { ignoreThin: 0.2 }) });
         input.endFrame();
       }
+      audioView.update(rawDt, flight.pos);
       windState = stepWind(windState, dt, { paused });
       const uniforms = toUniforms(windState);
       wind.uTime.value = uniforms.uTime; wind.uWind.value = uniforms.uWind;
       wind.uWindDir.value.set(...uniforms.uWindDir); wind.uGuideMix.value = uniforms.uGuideMix;
       flight.updateViews(uniforms.uTime, paused ? 0 : dt); facilities?.update(flight.pos); renderer.render(scene, camera);
-      hud.update(flight.pos, flight.yaw, t, { ...renderer.info.render, averageMs: adapt.averageMs, step: adapt.step }, flight.state);
+      hud.update(flight.pos, flight.yaw, t, { ...renderer.info.render, averageMs: adapt.averageMs, step: adapt.step }, flight.state, audioView.debugText());
     });
     return { dispose };
   } catch (error) {

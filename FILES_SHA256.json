@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-07T12:21:10.473973+00:00",
+  "generatedAt": "2026-11-07T12:21:11.005678+00:00",
   "scope": "Source, assets and verification artifacts; excludes this manifest, Git metadata, ignored files and private runtime data",
   "files": [
     {
@@ -435,8 +435,8 @@
     },
     {
       "path": ".kiro/specs/world-map/tasks.md",
-      "size": 7701,
-      "sha256": "8eab9cc7df983290aa695e05e85b056863002ec063ac2a47b9779805ec58a50a"
+      "size": 8192,
+      "sha256": "cd4b2a9dcc260e9393b08d785506754481a697b35e7fe8a60941bba775d23fda"
     },
     {
       "path": ".kiro/specs/world-map/w2c-1-validation.md",
@@ -497,6 +497,11 @@
       "path": ".kiro/specs/world-map/w2c-6b-validation.md",
       "size": 7309,
       "sha256": "44d089c0f24d1d19ef35bf5c1e6a95362d416762aee087f035f99fc1617b7835"
+    },
+    {
+      "path": ".kiro/specs/world-map/w2c-6c-validation.md",
+      "size": 7423,
+      "sha256": "80209199762be8bae177e4d2072611ef29c49ca0055627ca7e0f34bc957e5f7f"
     },
     {
       "path": ".kiro/specs/world-map/w2c-8-validation.md",
@@ -1190,8 +1195,8 @@
     },
     {
       "path": "dist/valley/hud-kamakura.js",
-      "size": 3407,
-      "sha256": "30c7ac768cdd743af7694c66d8f7f1d669c67de53a7d39ac20c0c55bdf9f5a96"
+      "size": 3560,
+      "sha256": "a917c2a3fd70750c7f0c2c8a2cce1a030a36bb39311d41eb50da45d6b9fc18d9"
     },
     {
       "path": "dist/valley/hud.js",
@@ -1224,6 +1229,11 @@
       "sha256": "105cd34cc499296023d6e4683893d76a9fbe4bd27484aba6560f61ad07a1d022"
     },
     {
+      "path": "dist/valley/kamakura-audio-view.js",
+      "size": 4007,
+      "sha256": "cbedd40ce6cce4cad8a966de4fec6fd42bf200520ce7c180244dac349c8b2bc0"
+    },
+    {
       "path": "dist/valley/kamakura-chunk-jobs.js",
       "size": 2789,
       "sha256": "1f7e2a48003f6f0af8796d81476fcae635911e5630cab4014dbab90407052f13"
@@ -1240,8 +1250,8 @@
     },
     {
       "path": "dist/valley/kamakura-data.js",
-      "size": 9043,
-      "sha256": "c7ec2aba74151a640a5c2e6a28bc12ccccacaf86e39d7c7158f0b13fa92982bd"
+      "size": 9530,
+      "sha256": "abf0376e9be73b7e0522d97152b6b604c490a27554cbc8b58b46692aa3ff96f8"
     },
     {
       "path": "dist/valley/kamakura-facilities.js",
@@ -1294,9 +1304,14 @@
       "sha256": "48edb0fb993685bd6ae911f4e33f44c3309d94001e40ff76dcf209173529616b"
     },
     {
+      "path": "dist/valley/kamakura-surface.js",
+      "size": 3898,
+      "sha256": "97c0a6094b4157bc47fc86fcbc4865b9f6c960cdb757815c35140c9a52249e90"
+    },
+    {
       "path": "dist/valley/kamakura-terrain.js",
-      "size": 6505,
-      "sha256": "bfcc97bf9a47fc863ac89657d831b51871a3de5fc25dd9ec4d1276e8cfbcf568"
+      "size": 7007,
+      "sha256": "8186fb8a9f44fa6757873e0d883442fe119c8920e6b26baf6da341b60b833483"
     },
     {
       "path": "dist/valley/kamakura-veg-view.js",
@@ -1315,8 +1330,8 @@
     },
     {
       "path": "dist/valley/kamakura.css",
-      "size": 1785,
-      "sha256": "ad0a45174dd134ccead125046f0a58383cf714c18e3b17903932db1e80dbca3a"
+      "size": 1948,
+      "sha256": "3643c95e575ebaecc71a337da820cfea00f7a5806a500372b291f93e772f0668"
     },
     {
       "path": "dist/valley/knockback.js",
@@ -1645,8 +1660,8 @@
     },
     {
       "path": "dist/valley/world-kamakura.js",
-      "size": 13012,
-      "sha256": "8c0cf06410f0ffc159eac831092f4da8c700a26b1dc3fef9d3b956f131227f0c"
+      "size": 13318,
+      "sha256": "484a9906d5a0d080ea6028545c62426870b3d41a6b1dedc73614a32cb9348eb0"
     },
     {
       "path": "dist/valley/world.html",
@@ -4324,6 +4339,11 @@
       "sha256": "66eaa74a9ff220dbccbaa536474a39b2cba7209f71e5c34779cd7f44be68abb2"
     },
     {
+      "path": "tests/helpers/kamakura-audio.mjs",
+      "size": 1666,
+      "sha256": "670aa1ae78b72a7cc717e929c0ca05c196cf55ef81d608c17f9c50ddba30b0e4"
+    },
+    {
       "path": "tests/helpers/kamakura-facility-view.mjs",
       "size": 983,
       "sha256": "9471b147142abe7954ac3140927d00c18def43e122e0d6f9eb45fea057e10dcb"
@@ -4379,6 +4399,11 @@
       "sha256": "40fe0539500c39375ca4f4fffa7c0de47c6f4f0cd1fb1c3812921104b29f7830"
     },
     {
+      "path": "tests/kamakura-audio.test.mjs",
+      "size": 7580,
+      "sha256": "4bf43e10a8151142334def49761d541340f7053e48917cd11a3f0b81da1da735"
+    },
+    {
       "path": "tests/kamakura-chunk-jobs.test.mjs",
       "size": 8169,
       "sha256": "ffe07ce53580c8210a2ba83d2c86a68dd55f9adbc6935e94cf5e346ce2bd587e"
@@ -4422,6 +4447,11 @@
       "path": "tests/kamakura-stands.test.mjs",
       "size": 15409,
       "sha256": "02310544825bf56460893e897427c7bb2b49405dd12142e15f59edd82b970661"
+    },
+    {
+      "path": "tests/kamakura-surface.test.mjs",
+      "size": 5865,
+      "sha256": "2db637ecef64c667a5cb98be05da856cbcacec81538dc73a1141ac869b6f7a22"
     },
     {
       "path": "tests/kamakura-terrain.test.mjs",
@@ -4895,8 +4925,8 @@
     },
     {
       "path": "tools/check-valley.mjs",
-      "size": 12717,
-      "sha256": "f669f668ca94a611ff1fa8f8b251df8dd086cf80002bacae09c62fb8f9ba7f2d"
+      "size": 12757,
+      "sha256": "a1b737fe9c06d164443533883eb5725bdb25f81ffb4563e3d4ecd96c7fd7a8b5"
     },
     {
       "path": "tools/compare-shots.mjs",
@@ -4997,6 +5027,11 @@
       "path": "tools/lib/kamakura-stand-validation.mjs",
       "size": 5728,
       "sha256": "2a2fec0c4985ee0ebe6dadf4d56a4e7d86b0a09e04b0b7cee566fc4d4a89bd86"
+    },
+    {
+      "path": "tools/lib/kamakura-surface-validation.mjs",
+      "size": 2416,
+      "sha256": "61d161a9bbca5865b49640720af484b60858bf67009c0d1bc2b6b66e00b4e217"
     },
     {
       "path": "tools/lib/kamakura-validation.mjs",
