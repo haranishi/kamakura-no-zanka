@@ -12,6 +12,18 @@ export const soilSlope = y => 1-smooth(SOIL.slopeFull,SOIL.slopeStart,y);
 export const soilFine = (d,pixelWidth=0,scale=.05) => (1-smooth(SOIL.fineNear,SOIL.fineFar,d))*(1-smooth(scale*.35,scale,pixelWidth));
 export const soilMacroFade = d => 1-smooth(SOIL.macroNear,SOIL.macroFar,d);
 export const soilHash = (x,z) => {const v=Math.sin(x*127.1+z*311.7)*43758.5453123;return v-Math.floor(v);};
+// W2c-9r1 ground round 3: keep the legacy soil's point kernel in both render paths.
+export function soilGrain(x,z,cell) {
+  const u=x/cell,v=z/cell;
+  return (soilHash(Math.floor(u),Math.floor(v))-.5)*(1-smooth(.16,.38,Math.hypot(u-Math.floor(u)-.5,v-Math.floor(v)-.5)));
+}
+export const SOIL_GRAIN_GLSL=`
+float groundSoilGrain(vec2 q,float cell){
+  vec2 g=q/cell;
+  float seed=fract(sin(dot(floor(g),vec2(127.1,311.7)))*43758.5453123);
+  return (seed-.5)*(1.0-smoothstep(.16,.38,length(fract(g)-.5)));
+}
+`;
 export function soilNoise(x,z) {
   const i=Math.floor(x),j=Math.floor(z),u=smooth(0,1,x-i),v=smooth(0,1,z-j);
   return (1-v)*((1-u)*soilHash(i,j)+u*soilHash(i+1,j))+v*((1-u)*soilHash(i,j+1)+u*soilHash(i+1,j+1));
