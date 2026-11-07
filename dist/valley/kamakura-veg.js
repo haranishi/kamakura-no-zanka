@@ -18,10 +18,12 @@ export function decodeVeg(info, buffer, count = info?.count) {
 }
 export const treesEnabled = search => new URLSearchParams(search).get('trees') !== '0';
 // W2c-9r1 veg: the near trunk bows, the middle trunk is one straight prism. Entering early (inside the near model's
-// opaque range) drew it as a pale dithered ghost beside the trunk. It now enters as the near trunk starts to leave.
+// opaque range) drew it as a pale dithered ghost beside the trunk. It now steps in over one quarter of a blend as the near
+// trunk starts to leave. A wider window (a full blend) left both trunks partly transparent for metres: against bright ground
+// or sky the trunk read as a see-through band at 50-54 m (found by the R1 review), worse than the ghost it replaced.
 // `&vtrunk=0` restores the shared enter-early window for A/B comparison.
 export const vegTrunkHandover = search => new URLSearchParams(search).get('vtrunk') !== '0';
-export const vegTrunkLod = ({ lod: [a, b], blend: w }) => [a, a + w, b, b + 2 * w];
+export const vegTrunkLod = ({ lod: [a, b], blend: w }) => [a, a + w / 4, b, b + 2 * w];
 const smooth = (a, b, d) => { const t = Math.max(0, Math.min(1, (d - a) / (b - a))); return t * t * (3 - 2 * t); };
 // [near trunk, middle trunk] weights as the shader evaluates them (the near model leaves over a..a+2w).
 export function vegTrunkWeights(distance, policy, handover = true) {

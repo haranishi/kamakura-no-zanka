@@ -24,13 +24,14 @@ for (const quality of ['standard', 'light']) {
   test(`${quality}: the handover keeps the trunk covered and finishes before the near trunk is gone`, () => {
     let floor = 1;
     for (let d = 0; d <= b - 1; d += .05) floor = Math.min(floor, Math.max(...vegTrunkWeights(d, policy)));
-    // Both trunks are partly transparent for about a metre: a quarter of the samples at the worst point, never a gap.
-    assert(floor >= .73, `trunk coverage floor ${floor}`);
+    // The middle trunk steps in over a quarter of a blend while the near trunk is still almost whole: at most about 4% of
+    // the samples are open. (A full-blend window opened 26%, which showed as a see-through trunk against bright ground.)
+    assert(floor >= .95, `trunk coverage floor ${floor}`);
     const [x0, x1] = vegTrunkLod(policy).slice(0, 2);
-    assert.equal(x0, a); assert.equal(x1, a + w);
-    assert.equal(vegTrunkWeights(a + w, policy)[1], 1, 'the middle trunk is whole while the near trunk is half gone');
-    assert(vegTrunkWeights(a + w, policy)[0] > 0 && vegTrunkWeights(a + 2 * w, policy)[0] === 0);
-    let last = 0; for (let d = a; d <= a + w; d += .1) { const m = vegTrunkWeights(d, policy)[1]; assert(m >= last - 1e-12, 'monotone fade-in'); last = m; }
+    assert.equal(x0, a); assert.equal(x1, a + w / 4);
+    assert.equal(vegTrunkWeights(a + w / 4, policy)[1], 1, 'the middle trunk is whole once the near trunk has begun to leave');
+    assert(vegTrunkWeights(a + w / 4, policy)[0] > .95 && vegTrunkWeights(a + 2 * w, policy)[0] === 0);
+    let last = 0; for (let d = a; d <= a + w / 4; d += .02) { const m = vegTrunkWeights(d, policy)[1]; assert(m >= last - 1e-12, 'monotone fade-in'); last = m; }
   });
   test(`${quality}: the middle trunk still leaves where the shared window leaves`, () => {
     for (const d of [b - 2 * w, b, b + w, b + 2 * w]) assert.equal(vegTrunkWeights(d, policy)[1], vegTrunkWeights(d, policy, false)[1]);
