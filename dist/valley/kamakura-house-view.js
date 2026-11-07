@@ -2,6 +2,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { createHouseTextures, createHouseMaterial } from './kamakura-house-materials.js';
+import { houseIndexSeed } from './kamakura-house-texture.js';
 import { houseNodeName, houseBounds, houseBodyBounds, houseMatrix, houseBox, houseChunks, houseChunkDistance, houseLOD } from './kamakura-houses.js';
 
 // The mid view stands on a coarser terrain mesh (LOD2+), so its box sinks deeper than the detailed skirt to stay hidden.
@@ -29,6 +30,7 @@ export async function buildKamakuraHouses(houses, terrain, scene, { search = '',
   const chunks = houseChunks(houses), boxes = [];
   // W2c-9g: optional surface layer; shared resources never affect placement or LOD.
   const textured = new URLSearchParams(search).get('htex') !== '0';
+  const parts = new URLSearchParams(search).get('hparts') !== '0';
   let texture = null, disposed = false;
   function releaseGroup(group) {
     if (!group) return;
@@ -42,7 +44,7 @@ export async function buildKamakuraHouses(houses, terrain, scene, { search = '',
   }
   gltf.scene.traverse(o => { if (o.isMesh) { sourceGeometries.add(o.geometry); for (const m of [].concat(o.material)) materials.add(m); } });
   try {
-    if (textured) texture = await createHouseTextures();
+    if (textured) texture = await createHouseTextures({quality,parts});
     gltf.scene.updateMatrixWorld(true);
     for (const kind of houses.kinds.values()) {
       if (!houses.catalog.count_by_kind[kind.node]) continue;
@@ -70,7 +72,7 @@ export async function buildKamakuraHouses(houses, terrain, scene, { search = '',
         const shared = new Map(), { min, max } = houseBounds(kind);
         for (const part of near) {
           if (!shared.has(part.material)) {
-            const m = createHouseMaterial(part.material, { texture, quality, eave: max[1]-(max[1]-min[1])*.28, top: max[1] });
+            const m = createHouseMaterial(part.material, { texture, quality, parts, eave: max[1]-(max[1]-min[1])*.28, top: max[1] });
             shared.set(part.material,m); materials.add(m);
           }
           part.material = shared.get(part.material);
@@ -97,11 +99,15 @@ export async function buildKamakuraHouses(houses, terrain, scene, { search = '',
     for (const [kind, items] of kinds) for (const part of templates.get(kind)[level === 0 ? 'near' : 'mid']) jobs.push({ part, items });
     ch.pending = { group, jobs, level };
   }
+  const sorted = chunks.slice(), distanceSort=(a,b)=>a.distance-b.distance;
+  const instanceMatrix=new THREE.Matrix4(), instanceSeed=new THREE.Color();
   function update(pos) {
     if (disposed) return;
     let budget = 2;
-    const sorted = chunks.map(ch => ({ ch, distance: houseChunkDistance(ch, pos) })).sort((a,b) => a.distance - b.distance);
-    for (const { ch, distance } of sorted) {
+    for(const ch of sorted)ch.distance=houseChunkDistance(ch,pos);
+    sorted.sort(distanceSort);
+    for (const ch of sorted) {
+      const distance=ch.distance;
       const want = houseLOD(distance, ch.level);
       if (ch.pending && want !== ch.pending.level) { releaseGroup(ch.pending.group); ch.pending = null; }
       if (want === 2) { releaseGroup(ch.group); ch.group = null; ch.level = 2; continue; }
@@ -112,7 +118,10 @@ export async function buildKamakuraHouses(houses, terrain, scene, { search = '',
         const { part, items } = pending.jobs.shift(), mesh = new THREE.InstancedMesh(part.geometry, part.material, items.length);
         mesh.updateMatrix(); mesh.matrixAutoUpdate = false;
         mesh.name = 'house-instances'; mesh.castShadow = true; mesh.receiveShadow = true;
-        items.forEach((item, i) => mesh.setMatrixAt(i, new THREE.Matrix4().fromArray(item.grounded)));
+        items.forEach((item, i) => {
+          mesh.setMatrixAt(i, instanceMatrix.fromArray(item.grounded));
+          if(parts && texture){const seed=houseIndexSeed(item.id);instanceSeed.setRGB(...seed);mesh.setColorAt(i,instanceSeed);}
+        });
         mesh.instanceMatrix.needsUpdate = true; mesh.computeBoundingSphere(); pending.group.add(mesh); budget--;
       }
       if (pending && !pending.jobs.length) {

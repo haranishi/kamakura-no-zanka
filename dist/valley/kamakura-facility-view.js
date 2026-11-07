@@ -1,7 +1,7 @@
 // View only: self-contained GLB, one static mesh per node/material, CPU placement once.
 import * as THREE from 'three';
 import { createHouseTextures, createHouseMaterial } from './kamakura-house-materials.js';
-import { facilityMaterialRole } from './kamakura-house-texture.js';
+import { facilityMaterialRole, facilityPartRole } from './kamakura-house-texture.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { facilityPlacement, facilityFootprint, facilitySolid, facilityExcludesTrees, facilityCastsShadow, facilityVisible, FACILITY_HELD_BACK } from './kamakura-facilities.js';
 export async function buildKamakuraFacilities(facilities, terrain, scene, quality='standard', { showHeldBack = false, search = globalThis.location?.search ?? '' } = {}) {
@@ -13,13 +13,15 @@ export async function buildKamakuraFacilities(facilities, terrain, scene, qualit
   const geometries=new Set(), materials=new Set(), records=[], boxes=[], exclusionBoxes=[];
   let disposed=false,step=0,shadows=true,texture=null;
   const surfaceCache=new Map();
+  // W2c-9r1 house: anonymous facility colors -> catalog roles and node-height frames.
+  const partsEnabled=new URLSearchParams(search).get('hparts')!=='0';
   // W2c-9g2: facility surfaces use the house atlas; ftex=0 retains the original PBR.
-  function surface(base, hint) {
+  function surface(base, hint, node, floor, top) {
     if(!texture)return base;
-    if(Array.isArray(base))return base.map(m=>surface(m,hint));
+    if(Array.isArray(base))return base.map(m=>surface(m,hint,node,floor,top));
     // W2c-9g3: mesh hints identify walls/roofs when the shared material is anonymous.
-    const role=facilityMaterialRole(base.name) || facilityMaterialRole(hint), key=`${base.uuid}:${role}`;
-    if(!surfaceCache.has(key)){const m=createHouseMaterial(base,{texture,quality,facilityRole:role});surfaceCache.set(key,m);materials.add(m);}
+    const role=partsEnabled?facilityPartRole(node.part,base.name+' '+hint):facilityMaterialRole(base.name) || facilityMaterialRole(hint), key=`${base.uuid}:${role}:${partsEnabled?node.node:''}`;
+    if(!surfaceCache.has(key)){const m=createHouseMaterial(base,{texture,quality,facilityRole:role,parts:partsEnabled,floor,top,eave:partsEnabled?top-(top-floor)*.28:3});surfaceCache.set(key,m);materials.add(m);}
     return surfaceCache.get(key);
   }
   const group=new THREE.Group();group.name='kamakura-facilities';
@@ -28,7 +30,7 @@ export async function buildKamakuraFacilities(facilities, terrain, scene, qualit
   try {
     // Loader may keep an unused base material when it clones one for flat normals.
     for(const m of await gltf.parser.getDependencies('material'))materials.add(m);
-    if(new URLSearchParams(search).get('ftex')!=='0')texture=await createHouseTextures();
+    if(new URLSearchParams(search).get('ftex')!=='0')texture=await createHouseTextures({quality,parts:partsEnabled});
     const byName=new Map();
     gltf.scene.traverse(o=>{const index=gltf.parser.associations.get(o)?.nodes;if(index!==undefined){const name=json.nodes[index].name;if(byName.has(name))throw new Error('施設の節が重複しています');byName.set(name,o);}});
     const meshNodes=json.nodes.filter(n=>n.mesh!==undefined);
@@ -53,11 +55,14 @@ export async function buildKamakuraFacilities(facilities, terrain, scene, qualit
       }
       // One anchor sample for each rigid node, even if it contains several material primitives.
       const placed=facilityPlacement(n,positions,terrain); let offset=0;
+      let floor=Infinity,top=-Infinity;
+      for(let i=1;i<positions.length;i+=3){floor=Math.min(floor,positions[i]);top=Math.max(top,positions[i]);}
+      if(n.soft)floor=0; // Soil contact is at the datum, not the buried skirt bottom.
       for(const {g,material,hint} of parts) {
         const count=g.getAttribute('position').array.length;
         g.setAttribute('position',new THREE.Float32BufferAttribute(placed.positions.slice(offset,offset+count),3));offset+=count;
         if(placed.rebuildNormals)g.computeVertexNormals();g.computeBoundingBox();g.computeBoundingSphere();
-        const mesh=new THREE.Mesh(g,surface(material,hint));mesh.position.copy(placed.position);mesh.updateMatrix();mesh.matrixAutoUpdate=false;
+        const mesh=new THREE.Mesh(g,surface(material,hint,n,floor,top));mesh.position.copy(placed.position);mesh.updateMatrix();mesh.matrixAutoUpdate=false;
         mesh.name=n.node;mesh.castShadow=facilityCastsShadow(n);mesh.receiveShadow=true;group.add(mesh);meshes.push(mesh);
       }
       records.push({node:n,bounds,meshes});
