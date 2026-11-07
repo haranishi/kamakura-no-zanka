@@ -122,7 +122,7 @@ export async function bootKamakura(data, search) {
     }
     // Share the live trunk index with collision; index hidden comparison boxes separately.
     const grassExtra = buildColliders({ bounds: t.bounds, extraBoxes: [...(!houses ? houseExclusions : []), ...(!facilities ? facilityExclusions : [])] });
-    grass = buildKamakuraGrass({ data, terrain: t, colliders: g.col, extraColliders: grassExtra, search, wind, sunDir: atmosphere.sunDir, quality });
+    grass = buildKamakuraGrass({ data, terrain: t, colliders: g.col, extraColliders: grassExtra, facilityBoxes: (facilities || hiddenFacilities)?.records.filter(r => ['hall','buddha','stairs','sando','platform','kairo'].includes(r.node.part)).map(r => r.bounds) || [], search, wind, sunDir: atmosphere.sunDir, quality });
     scene.add(grass.group);
     audioView = createKamakuraAudio({ search, terrain: t, button: hud.sound,
       flying: () => !!flight?.active,
