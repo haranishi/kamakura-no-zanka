@@ -5,7 +5,7 @@ import { decodeHouses } from './kamakura-houses.js';
 // Private data only: no bundled fallback, derived elevations, or remote service.
 export function validateMeta(m) {
   const g = m?.grid, h = m?.height;
-  if (!['kz-world-web/0.1', 'kz-world-web/0.2', 'kz-world-web/0.3', 'kz-world-web/0.4', 'kz-world-web/0.5', 'kz-world-web/0.6', 'kz-world-web/0.7', 'kz-world-web/0.8'].includes(m?.schema) || !g || !h ||
+  if (!['kz-world-web/0.1', 'kz-world-web/0.2', 'kz-world-web/0.3', 'kz-world-web/0.4', 'kz-world-web/0.5', 'kz-world-web/0.6', 'kz-world-web/0.7', 'kz-world-web/0.8', 'kz-world-web/0.9'].includes(m?.schema) || !g || !h ||
       !Number.isInteger(g.width) || !Number.isInteger(g.height) || g.width < 2 || g.height < 2 ||
       !(g.cell_m > 0) || !Number.isFinite(g.cell_m) || g.width * g.height > 32e6 ||
       g.row0 !== 'north' || g.col0 !== 'west' || g.sample_position !== 'cell_center' ||
@@ -83,6 +83,15 @@ export async function loadKamakura(fetcher = fetch) {
     if (meta.patches.paths_file) patchBuffers.paths = await (await read(meta.patches.paths_file)).json();
   }
   const data = decodeData(meta, await height.arrayBuffer(), await walk.arrayBuffer(), patchBuffers);
+  data.surface = null;
+  if (meta.surface) {
+    try {
+      if (meta.surface.file !== 'surface_class_u8.bin' || !/^uint8(?:$| )/.test(meta.surface.encoding)) throw new Error();
+      const surface = await (await read('surface_class_u8.bin')).arrayBuffer();
+      if (surface.byteLength !== meta.grid.width * meta.grid.height) throw new Error();
+      data.surface = new Uint8Array(surface);
+    } catch { /* Optional surface failure retains dirt footsteps. */ }
+  }
   if (meta.ground) {
     try {
       if (meta.ground.file !== 'ground_rgb.bin') throw new Error();
