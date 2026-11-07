@@ -1,25 +1,24 @@
-import { grassAmount, smooth, soilNoise, soilGrain } from './kamakura-ground-pattern.js';
+import { grassAmount, smooth, soilNoise, scatterStone, scatterFade } from './kamakura-ground-pattern.js';
 
 // W2c-9r1 ground: independent vertex/class bands -> one continuous world-space source.
 export const toneStrength = (quality='standard', step=0) => step>=3?0:quality==='light'||step>=2?.45:1;
-// Temporary pure grass interface; replace this implementation with the grass branch's export.
+// W2c-9r2 ground: weak one-scale tint -> zero-centred 5/20/80m grass and wind streaks.
 export function grassTintAt(x, y, dist) {
-  return smooth(35,110,dist)*(.035+.025*soilNoise(x/32,y/32));
+  if(dist<=20||dist>=1500)return 0;
+  const n=(soilNoise(x/5,y/5)-.5)*.10+(soilNoise(x/20,y/20)-.5)*.6+(soilNoise(x/80,y/80)-.5)*1.3;
+  const streak=Math.sin(x*.25+y*.7+soilNoise(x/20,y/20)*4)*.025;
+  return Math.max(-.28,Math.min(.28,n+streak))*smooth(20,60,dist)*(1-smooth(400,1500,dist));
 }
 export const toneDistance = (x,z,d) => Math.max(0,d+(soilNoise(x/29,z/29)-.5)*18);
 export const toneFine = (x,z,d,px) => (1-smooth(12,65,toneDistance(x,z,d)))*(1-smooth(.025,.12,px));
-// Near relief may tint the existing texture, but must not erase its contrast in dark patches.
 export const toneNearRelief = (relief,x,z,d) => relief*(.1+.9*smooth(12,65,toneDistance(x,z,d)));
 export function toneGrain(x,z,d,px) {
-  const qx=x+Math.sin(z*.11)*.22,qz=z+Math.sin(x*.09)*.22;
-  return soilGrain(qx,qz,.06)*(1-smooth(12,65,toneDistance(x,z,d)))*(1-smooth(.021,.06,px));
+  return scatterStone(x,z,.08)*scatterFade(x,z,d,px,.08)*1.2
+    +scatterStone(x+13.7,z-9.3,.16)*scatterFade(x,z,d,px,.16)*.95
+    +scatterStone(x-5.1,z+17.9,.32)*scatterFade(x,z,d,px,.32)*.8;
 }
 export function tonePebble(x,z,d,px) {
-  const u=(x+Math.sin(z*.11)*.22)/.14,v=(z+Math.sin(x*.09)*.22)/.14;
-  const seed=soilNoise(Math.floor(u),Math.floor(v));
-  const stone=1-smooth(.18,.38,Math.hypot(u-Math.floor(u)-.5,v-Math.floor(v)-.5));
-  // Area of the smooth disk times the probability of a bright stone: zero far mean.
-  return ((seed>=.68?stone:0)-.32*Math.PI*(.3*.18**2+.4*.18*.38+.3*.38**2))*toneFine(x,z,d,px);
+  return scatterStone(x+37.1,z-21.3,.24)*scatterFade(x,z,d,px,.24);
 }
 export function toneRelief(height, normalY, cavity, shade, noise) {
   const dry=smooth(0,180,height), steep=1-smooth(.55,.95,normalY);
@@ -27,10 +26,10 @@ export function toneRelief(height, normalY, cavity, shade, noise) {
 }
 // Scalar CPU reference for class-mean and range checks (no array allocation).
 export function toneChannel(base,channel,relief,steep,grass,use,strength=1,grain=0,soil=1,rock=0,macro=.5,detail=1,pebble=0) {
-  const tint=(channel===0?.015:channel===1?-.005:-.02)*steep+(channel===0?-.25:channel===1?.3:-.15)*grass;
+  const tint=(channel===0?.015:channel===1?-.005:-.02)*steep+(channel===0?.26:channel===1?.34:.12)*grass;
   const natural=base*(1+strength*(relief+tint));
-  const yard=base*(channel===0?1.30:channel===1?1.25:1.13)+(channel===0?.035:channel===1?.032:.022);
-  return Math.max(0,Math.min(1,(natural+(yard-natural)*use*strength)*detail*(1+soil*strength*(grain*.8+pebble*.85*use+(macro-.5)*.05*rock))));
+  const yard=base*1.08+.008;
+  return Math.max(0,Math.min(1,(natural+(yard-natural)*use*strength)*detail*(1+soil*strength*(Math.max(-.35,Math.min(.35,grain*.8+pebble*.22*use))+(macro-.5)*.05*rock))));
 }
 // Catalog bounds are local to anchor_xz. Fill a site's gaps, rather than just its building floors.
 export function groundUseBoxes(data) {

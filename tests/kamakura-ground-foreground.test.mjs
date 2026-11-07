@@ -8,7 +8,7 @@ import { readPrivateData } from '../tools/lib/kamakura-validation.mjs';
 import { installGroundDetail } from '../dist/valley/kamakura-ground-detail.js';
 import { installGroundSoil } from '../dist/valley/kamakura-ground-soil.js';
 import { createKamakuraTerrain } from '../dist/valley/kamakura-terrain.js';
-import { grassAmount, smooth, soilNoise, soilGrain, soilFine, SOIL_GRAIN_GLSL } from '../dist/valley/kamakura-ground-pattern.js';
+import { grassAmount, smooth, soilNoise, soilGrain, soilFine, scatterFade, SOIL_GRAIN_GLSL } from '../dist/valley/kamakura-ground-pattern.js';
 import { toneChannel, toneGrain, tonePebble, toneRelief, toneNearRelief, groundUseAt, groundUseBoxes } from '../dist/valley/kamakura-ground-tone-rules.js';
 import { groundDetailChannel as detail } from './helpers/kamakura-ground-color.mjs';
 
@@ -47,7 +47,7 @@ test('r3 actual shader stacks continuous tone -> legacy detail -> shared soil gr
       const f=s.fragmentShader.slice(s.fragmentShader.indexOf('vec3 groundTone('),s.fragmentShader.indexOf('void main()'));
       assert(f.indexOf('vec3 result=mix(natural,yard')<f.indexOf('result*=groundGrassDetail'));
       assert(f.indexOf('result*=groundGrassDetail')<f.indexOf('result*=1.0+uToneSoil'));
-      assert(f.includes('groundSoilGrain(q,.06)'));assert(f.includes('grain*.8+pebble*.85*use'));
+      assert(f.includes('groundScatter(p,.08)'));assert(f.includes('grain*.8+pebble*.22*use'));
       assert(!f.includes('texture2D(uGroundSurface'));
       assert(s.fragmentShader.indexOf('vec3 groundGrassDetail(')<s.fragmentShader.indexOf('vec3 groundTone('));
     }else assert(s.fragmentShader.includes('grain=groundSoilGrain(q,cell)'));
@@ -77,25 +77,26 @@ test('r3 near flat field preserves >=80% legacy luminance sigma at 2–12m, with
   assert(previous<old*.8);t.diagnostic(`r2 isolated grain regression sigma=${previous.toFixed(4)} vs legacy=${old.toFixed(4)} (ratio=${(previous/old).toFixed(3)})`);
 });
 
-test('r3 visible bright gravel, differing inside/outside means and smooth distance/pixel integration',t=>{
+test('r2 restrained gravel and source-hued packed earth and smooth distance/pixel integration',t=>{
   const pts=points(),outside=pts.map(([x,z])=>luminance(colors(x,z,5,4,0))),inside=pts.map(([x,z])=>luminance(colors(x,z,5,4,1)));
   const mean=v=>v.reduce((s,x)=>s+x,0)/v.length,sd=sigma(inside);
-  const bright=inside.filter((_,i)=>tonePebble(...pts[i],5,.01)>.6);
+  const bright=inside.filter((_,i)=>tonePebble(...pts[i],5,.01)>.25);
   const contrast=mean(bright)-mean(inside);
   const rgb=use=>[0,1,2].map(k=>mean(pts.map(([x,z])=>encode(colors(x,z,5,4,use)[k]))).toFixed(3));
   assert(bright.length>pts.length*.01,'stones must occupy visible area');
-  assert(contrast>=sd*1.5,'bright stone contrast must exceed 1.5 times total ground sigma');
-  assert(mean(inside)-mean(outside)>15,'packed earth must differ from outside');
+  assert(contrast>0 && contrast<sd*2,'R2 small stones have restrained contrast');
+  assert(mean(inside)-mean(outside)>3 && mean(inside)-mean(outside)<12,'R2 packed earth stays near the source colour');
   let maxJump=0;
   for(const [x,z] of pts.slice(0,240)){
     let last=Infinity;
     for(let d=0;d<=100;d+=.25){
       const amplitude=Math.abs(toneGrain(x,z,d,.01))+Math.abs(tonePebble(x,z,d,.01));
-      assert(amplitude<=last+1e-12,'distance fade must be monotone');last=amplitude;
+      // Independent signed scales may cancel; each scale envelope must still fade monotonically.
+      for(const cell of [.08,.16,.24,.32])assert(scatterFade(x,z,d,.01,cell)<=scatterFade(x,z,Math.max(0,d-.25),.01,cell)+1e-12);last=amplitude;
       maxJump=Math.max(maxJump,...colors(x,z,d-.001,4,1).map((v,k)=>Math.abs(encode(v)-encode(colors(x,z,d+.001,4,1)[k]))));
     }
-    assert.equal(Math.abs(toneGrain(x,z,200,.01)),0);assert.equal(Math.abs(tonePebble(x,z,200,.01)),0);
-    assert.equal(Math.abs(toneGrain(x,z,5,.06)),0);assert.equal(Math.abs(tonePebble(x,z,5,.12)),0);
+    assert.equal(Math.abs(toneGrain(x,z,400,.01)),0);assert.equal(Math.abs(tonePebble(x,z,400,.01)),0);
+    assert.equal(Math.abs(toneGrain(x,z,5,.3)),0);assert.equal(Math.abs(tonePebble(x,z,5,.3)),0);
   }
   assert(maxJump<.01);
   t.diagnostic(`mean outside=${mean(outside).toFixed(4)}, inside=${mean(inside).toFixed(4)} sRGB luma/255; bright contrast=${contrast.toFixed(4)}, sigma=${sd.toFixed(4)}, ratio=${(contrast/sd).toFixed(3)}; .002m distance jump=${maxJump.toFixed(6)}/255`);
