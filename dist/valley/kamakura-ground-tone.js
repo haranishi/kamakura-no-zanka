@@ -161,7 +161,7 @@ vec3 groundTone(vec3 fallback,vec3 world,float normalY,float dist){
   // Larger margin stones reuse the irregular kernel; no regular centred disks.
   if(r3>0.0 && margin>.001 && uToneSoil>0.0 && dist<312.0 && px<.288)
     pebble+=groundScatter(p+vec2(-11.3,49.7),.48)*groundScatterFade(p,dist,px,.48)*margin*.22*r3;
-  toneFineMultiplier=1.0+uToneSoil*weights.a*uToneStrength*clamp((grain*.8+pebble*.22*use)*(1.0-track*.12*r3),-.35,.35);
+  toneFineMultiplier=1.0+uToneSoil*weights.a*uToneStrength*clamp((grain*.8+pebble*.22*use)*(1.0-track*.35*r3),-.35,.35);
   result*=toneFineMultiplier+uToneSoil*weights.a*uToneStrength*(macro-.5)*.05*weights.g;
 
   return clamp(result,0.0,1.0);

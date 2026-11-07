@@ -146,10 +146,13 @@ if (houseFade > 0.0) {
  vec2 strawUV=vec2(dot(vHouseRoofP,across),dot(vHouseRoofP,down));
  strawUV.x+=vHouseRandom.y*17.0;
  float su=strawUV.x+.012*sin(strawUV.y*1.7+sin(strawUV.x*.71));
- float sf=su*${(2*Math.PI/R.straw).toFixed(8)}+.5*sin(strawUV.x*2.3);
- float sc=su*${(2*Math.PI/R.bundle).toFixed(8)}+sin(strawUV.y*.63);
+ // W2c-9r3 fix: a strictly periodic sine read as corrugated iron (R3 review). The phase and the strength wander, so the spacing varies.
+ float sw=3.4*sin(su*7.3+sin(strawUV.y*.9))+2.2*sin(su*3.1+strawUV.y*.8);
+ float sf=su*${(2*Math.PI/R.straw).toFixed(8)}+sw+.5*sin(strawUV.x*2.3);
+ float sa=.85+.35*sin(strawUV.x*.83+strawUV.y*.37)*sin(strawUV.x*.29-strawUV.y*.51);
+ float sc=su*${(2*Math.PI/R.bundle).toFixed(8)}+sin(strawUV.y*.63)+1.4*sin(su*2.1);
  // Analytic footprint integration tends to the mean without a distance-only seam.
- float strawDetail=${R.fine}*sin(sf)*exp(-.5*pow(fwidth(sf),2.0))+${R.coarse}*sin(sc)*exp(-.5*pow(fwidth(sc),2.0));
+ float strawDetail=${R.fine}*sa*sin(sf)*exp(-.5*pow(fwidth(sf),2.0))+${R.coarse}*sin(sc)*exp(-.5*pow(fwidth(sc),2.0));
  roofSurface=mix(roofSurface,.5+strawDetail,houseRelief);
  #endif
  #endif

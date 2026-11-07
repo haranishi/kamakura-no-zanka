@@ -26,7 +26,7 @@ test('R3 straw has metre density on either roof slope, stronger fine contrast, z
     assert(vertexShader.includes('vHouseRoofP *= houseScale'));
     assert(fragmentShader.includes('dot(vHouseRoofP,across)'));assert(fragmentShader.includes('dot(vHouseRoofP,down)'));
     assert(fragmentShader.includes('roofSurface=mix(roofSurface,.5+strawDetail,houseRelief)'));
-    const lines=['su','sf','sc','strawDetail'].map(name=>fragmentShader.match(new RegExp(`float ${name}=([^;]+);`))[0]).join('\n')
+    const lines=['su','sw','sf','sa','sc','strawDetail'].map(name=>fragmentShader.match(new RegExp(`float ${name}=([^;]+);`))[0]).join('\n')
       .replace(/float /g,'let ').replace(/\b(sin|exp|pow)\(/g,'Math.$1(').replace(/strawUV\.x/g,'x').replace(/strawUV\.y/g,'y');
     const actual=new Function('x','y','fwidth',lines+'return strawDetail;');
     const values=[];
@@ -115,4 +115,11 @@ test('R3 private halls contain detected timber and interiors; source vermilion s
     }
     assert(timber&&interior&&red);
   }finally{field.dispose();}
+});
+test('R3 fix roof straw spacing wanders instead of repeating like corrugated iron',()=>{
+  const gaps=[];let last=houseRoofRelief(0,1),previous=null;
+  for(let x=.001;x<30;x+=.001){const v=houseRoofRelief(x,1);if(last<=0&&v>0){if(previous!==null)gaps.push(x-previous);previous=x;}last=v;}
+  const mean=gaps.reduce((a,b)=>a+b)/gaps.length,sd=Math.sqrt(gaps.reduce((a,g)=>a+(g-mean)**2,0)/gaps.length);
+  assert(gaps.length>200);assert(Math.abs(mean-R.straw)<.01,`mean spacing ${mean}`);
+  assert(sd/mean>=.25,`spacing variation ${sd/mean}`); // the periodic version measured 0.10
 });

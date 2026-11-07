@@ -39,7 +39,8 @@ export function groundAxes(data, boxes=[]) {
   return axes;
 }
 // Shared coefficients keep the CPU thresholds tied to the shipped shader.
-export const YARD=Object.freeze({macroNear:70,macroFar:150,macroA:.21,macroB:.16,track:.18,margin:.09,desaturate:.10,gamma:2.2});
+// W2c-9r3 fix: +18%/-9% read as a bright streak with dark sides (R3 review); the approach is now a quiet change of material.
+export const YARD=Object.freeze({macroNear:70,macroFar:150,macroA:.126,macroB:.096,track:.09,margin:.055,desaturate:.10,gamma:2.2});
 export const yardMacro=(x,z)=>(soilNoise(x/YARD.macroNear,z/YARD.macroNear)-.5)*YARD.macroA+(soilNoise((.8*x+.6*z)/YARD.macroFar,(-.6*x+.8*z)/YARD.macroFar)-.5)*YARD.macroB;
 // A perceptual brightness change needs a larger linear multiplier. Grey mixing
 // preserves linear luminance; the slight margin green also preserves luminance.
