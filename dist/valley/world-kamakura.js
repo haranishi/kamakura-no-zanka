@@ -1,3 +1,6 @@
+import { buildKamakuraSea } from './kamakura-sea-view.js';
+import { prepareKamakuraFx } from './kamakura-fx-view.js';
+import { bindFxContact } from './kamakura-fx.js';
 import { buildKamakuraGrass } from './kamakura-grass-view.js';
 import { createKamakuraAudio } from './kamakura-audio-view.js';
 import { buildKamakuraFacilities } from './kamakura-facility-view.js';
@@ -33,13 +36,13 @@ export async function bootKamakura(data, search) {
   if (!t.walkable(spawn.x, spawn.z)) throw new Error('出発点を歩けません');
   // Load the existing hero only. Do not load the chapter's enemies or scenery.
   let roster;
-  let renderer, chunks, hud, houses, trees, stands, standPrepared, treeOptions, atmosphere, sea, water, hero, input, hintTimer, flight, facilities, hiddenFacilities, audioView, grass;
+  let renderer, chunks, hud, houses, trees, stands, standPrepared, treeOptions, atmosphere, sea, water, hero, input, hintTimer, flight, facilities, hiddenFacilities, audioView, grass, fx;
   const events = new AbortController(); let disposed = false;
   function dispose() {
     if (disposed) return; disposed = true; events.abort(); clearTimeout(hintTimer);
     input?.setEnabled(false); input?.base.releaseLock();
-    renderer?.setAnimationLoop(null); audioView?.dispose(); grass?.dispose(); flight?.dispose(); hero?.remove(); chunks?.dispose(); houses?.dispose(); trees?.dispose(); stands?.dispose();
-    facilities?.dispose(); hiddenFacilities?.dispose(); water?.dispose(); sea?.geometry.dispose(); sea?.material.dispose(); atmosphere?.dispose();
+    renderer?.setAnimationLoop(null); audioView?.dispose(); fx?.dispose(); grass?.dispose(); flight?.dispose(); hero?.remove(); chunks?.dispose(); houses?.dispose(); trees?.dispose(); stands?.dispose();
+    facilities?.dispose(); hiddenFacilities?.dispose(); water?.dispose(); sea?.dispose(); atmosphere?.dispose();
     const resources = new Set();
     for (const tpl of roster?.templates.values() || []) tpl.scene.traverse(o => {
       if (o.geometry) resources.add(o.geometry);
@@ -66,19 +69,18 @@ export async function bootKamakura(data, search) {
     atmosphere = createKamakuraAtmosphere({ scene, renderer, search, quality });
     roster = await loadRoster({ names: ['hero'] });
     const camera = new THREE.PerspectiveCamera(58, 1, 0.15, standsEnabled(search) ? 10000 : 7000);
-    chunks = buildKamakuraChunks(t, scene, spawn, groundEnabled(search), quality);
-    const seaG = new THREE.PlaneGeometry((t.bounds.maxX - t.bounds.minX) * 1.2, (t.bounds.maxZ - t.bounds.minZ) * 1.2);
-    seaG.rotateX(-Math.PI / 2);
-    sea = new THREE.Mesh(seaG, new THREE.MeshLambertMaterial({ color: 0x426f83 })); sea.updateMatrix(); sea.matrixAutoUpdate = false; scene.add(sea);
+    // W2c-9e: register shared shoreline uniforms before installing ground detail.
+    sea = buildKamakuraSea(t, data, { search, quality, sunDir: atmosphere.sunDir }); scene.add(sea.group);
+    chunks = buildKamakuraChunks(t, scene, spawn, groundEnabled(search), quality, { data, search });
     if (data.rivers && waterEnabled(search)) {
-      try { water = buildKamakuraWater(prepareRivers(data.rivers, t.vscale, quality), { sunDir: atmosphere.sunDir }); scene.add(water.group); }
+      try { water = buildKamakuraWater(prepareRivers(data.rivers, t.vscale, quality), { sunDir: atmosphere.sunDir, terrain: t }); scene.add(water.group); }
       catch { riverNotice = '川を準備できませんでした。川なしで散策を続けます'; }
     }
     const params = new URLSearchParams(search);
     hud = createKamakuraHUD(meta, params.get('debug') === '1', params.get('debug') === '1' || params.has('fly'));
     hud.status('鎌倉の地形と家を準備しています');
     if (data.houses && new URLSearchParams(search).get('houses') !== '0') {
-      try { houses = await buildKamakuraHouses(data.houses, t, scene); }
+      try { houses = await buildKamakuraHouses(data.houses, t, scene, { search, quality }); }
       catch { houseNotice = '家を読み込めませんでした。家なしで散策を続けます'; }
     }
     if (data.facilities) {
@@ -91,7 +93,7 @@ export async function bootKamakura(data, search) {
     let houseExclusions = houses?.boxes || [];
     if (!houses && data.houses) {
       try {
-        const hidden = await buildKamakuraHouses(data.houses, t, new THREE.Scene());
+        const hidden = await buildKamakuraHouses(data.houses, t, new THREE.Scene(), { search: '?htex=0' });
         houseExclusions = hidden.boxes; hidden.dispose();
       } catch { houseNotice = '家の除外範囲を準備できませんでした'; }
     }
@@ -123,6 +125,9 @@ export async function bootKamakura(data, search) {
       onUnavailable: text => { audioNotice = text; status(''); } });
     audioView.attach(g);
     g.hero = hero = new HeroActor(g, spawn);
+    // W2c-9d: preserve the base footstep before adding local river and dust effects.
+    fx = await prepareKamakuraFx({ terrain: t, data, search, quality }); scene.add(fx.group);
+    g.fx = fx.api; bindFxContact(hero, fx);
     g.hud = { hint: (_id, text, ms) => {
       clearTimeout(hintTimer); status(text);
       hintTimer = setTimeout(() => { if (!paused) status(''); }, ms);
@@ -154,10 +159,13 @@ export async function bootKamakura(data, search) {
     addEventListener('blur', () => setPaused(true), { signal: events.signal });
     document.addEventListener('visibilitychange', () => { if (document.hidden) setPaused(true); }, { signal: events.signal });
     const resize = () => { renderer.setPixelRatio(adaptPixelRatio(devicePixelRatio, quality, adapt.step)); renderer.setSize(innerWidth, innerHeight); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); flight.resize(); };
-    const applyAdapt = () => { const policy = adaptPolicy(adapt.step); atmosphere.setAdapt(policy); trees?.setAdapt(policy); stands?.setAdapt(policy); facilities?.setAdapt(policy); grass?.setAdapt(adapt.step); };
+    const applyAdapt = () => { const policy = adaptPolicy(adapt.step); atmosphere.setAdapt(policy); trees?.setAdapt(policy); stands?.setAdapt(policy); facilities?.setAdapt(policy); grass?.setAdapt(adapt.step); fx?.setAdapt(adapt.step); houses?.setAdapt(adapt.step); chunks?.setAdapt(adapt.step); sea?.setAdapt(adapt.step); };
     applyAdapt();
     addEventListener('resize', resize, { signal: events.signal }); resize(); setPaused(false);
     configureLoco(search);
+    // W2c-9c: first grass window is complete before the first render.
+    if (!flight.active) rig.update(0, hero.pos, { groundAt: t.heightAt, rayClip: (a, b) => rayClip(g.col, t, a, b, 0.3, { ignoreThin: 0.2 }) });
+    grass.warm(camera, flight.pos);
     let last = performance.now();
     renderer.setAnimationLoop(now => {
       const rawDt = Math.max(0, (now - last) / 1000), dt = Math.min(rawDt, .05); last = now;
@@ -181,11 +189,13 @@ export async function bootKamakura(data, search) {
         input.endFrame();
       }
       audioView.update(rawDt, flight.pos);
+      sea.update(paused ? 0 : dt, camera.position, audioView.audio.context?.currentTime);
       windState = stepWind(windState, dt, { paused });
       const uniforms = toUniforms(windState);
       wind.uTime.value = uniforms.uTime; wind.uWind.value = uniforms.uWind;
       wind.uWindDir.value.set(...uniforms.uWindDir); wind.uGuideMix.value = uniforms.uGuideMix;
-      flight.updateViews(uniforms.uTime, paused ? 0 : dt); facilities?.update(flight.pos); grass.update(camera, flight.pos, paused); renderer.render(scene, camera);
+      grass.updateHero(hero.pos, hero.speed, flight.active, paused ? 0 : dt);
+      flight.updateViews(uniforms.uTime, paused ? 0 : dt); facilities?.update(flight.pos); grass.update(camera, flight.pos, paused); fx.update(paused ? 0 : dt, camera, hero); renderer.render(scene, camera);
       hud.update(flight.pos, flight.yaw, t, { ...renderer.info.render, averageMs: adapt.averageMs, step: adapt.step }, flight.state, audioView.debugText());
     });
     return { dispose };

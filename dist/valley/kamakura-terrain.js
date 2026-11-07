@@ -1,3 +1,4 @@
+import { createShoreField } from './kamakura-shore.js';
 import { createSurfaceAt, createRiverIndex } from './kamakura-surface.js';
 // Pure provider. Public coordinates use the game's x=east, y=up, z=south.
 export const KAMAKURA_MAX_WALK_SLOPE_DEG = 46;
@@ -108,7 +109,12 @@ export function createKamakuraTerrain({ meta, heights, walk, patches = null, gro
     for (const [dx, dz] of [[0, 0], [r, 0], [-r, 0], [0, r], [0, -r]]) { const why = blockedAt(x + dx, z + dz); if (why) return why; }
     return null;
   }
-  return { meta, groundColorAt, patches, patchIndex, baseHeightAt, vscale, w, h, cell, x0, z0, at, heightAt, slopeAt, maxSlope, insidePatch, normalAt, waterAt, insideA, maskAt,
+  const terrain = { meta, groundColorAt, patches, patchIndex, baseHeightAt, vscale, w, h, cell, x0, z0, at, heightAt, slopeAt, maxSlope, insidePatch, normalAt, waterAt, insideA, maskAt,
     waterLevelAt: () => 0, roadInfo: () => null, surfaceAt, riverDistanceAt,
-    walkable: (x, z) => !blockedAt(x, z), movementBlockedAt, bounds };
+    walkable: (x, z) => !blockedAt(x, z), movementBlockedAt, bounds,
+    // W2c-9a: expose the existing sea rule; rivers remain shallow water only.
+    isSea: isWater };
+  terrain.shoreField = createShoreField(terrain);
+  terrain.seaDistanceAt = terrain.shoreField.seaDistanceAt;
+  return terrain;
 }

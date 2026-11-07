@@ -48,13 +48,13 @@ function cardTexture() {
   return map;
 }
 
-function materialFor(kind, wind, sun, radii, map, quality) {
+function materialFor(kind, wind, sun, radii, map, quality, groundTint, look) {
   const m = new THREE.MeshLambertMaterial({ side: THREE.DoubleSide, map,
     alphaTest: kind === 'mid' ? .3 : 0, alphaToCoverage: kind === 'mid' && quality === 'standard', emissive: 0x182212 });
   patchLift(m, .8);
   const lift = m.onBeforeCompile;
   m.onBeforeCompile = shader => {
-    Object.assign(shader.uniforms, wind, { uSunDir: sun, uGrassRadii: radii, uGroundTint: { value: new THREE.Color('#6b6a35') } });
+    Object.assign(shader.uniforms, wind, { uSunDir: sun, uGrassRadii: radii, uGroundTint: groundTint });
     shader.vertexShader = shader.vertexShader.replace('#include <common>', `#include <common>
       attribute vec4 iRoot; attribute vec4 iShape; attribute vec3 iColor; attribute vec4 iTip;
       uniform float uTime; uniform float uWind; uniform vec2 uWindDir; uniform float uGuideMix;
@@ -122,6 +122,7 @@ function materialFor(kind, wind, sun, radii, map, quality) {
         backlight *= ${kind === 'near' ? '(1.0-smoothstep(5.0,14.0,vGrassDistance))' : '.6'};
         float edge = pow(abs(vGrassUV.x*2.0-1.0),3.0);
         totalEmissiveRadiance += min(vec3(.35),vec3(.50,.60,.16)*backlight*vGrassUV.y*vGrassUV.y*mix(.8,1.0,edge)*.39);`);
+    look?.patch(shader, kind);
     lift(shader);
     if (kind === 'mid') {
       // Expand after patchLift, which also hooks map_fragment.
@@ -134,15 +135,18 @@ function materialFor(kind, wind, sun, radii, map, quality) {
           #endif`);
     }
   };
-  m.customProgramCacheKey = () => `grass-ribbon-v3-${kind}-lift3-.8`;
+  m.customProgramCacheKey = () => `grass-ribbon-v3-${kind}-lift3-.8${look ? "-kamakura-9c" : ""}`;
   return m;
 }
 
-function geometryFor(kind, capacity) {
+function geometryFor(kind, capacity, look) {
   const g = new THREE.InstancedBufferGeometry(), pos = [], uv = [], idx = [];
   if (kind === 'near') {
-    for (let i = 0; i < 4; i++) for (const side of [-.5, .5]) { pos.push(side, i / 3, 0); uv.push(side + .5, i / 3); }
-    for (let i = 0; i < 3; i++) { const a = i * 2; idx.push(a, a + 1, a + 3, a, a + 3, a + 2); }
+    // W2c-9c: valley's three sections -> optional six, with a coarse index range.
+    const segments = look?.segments ?? 3;
+    for (let i = 0; i <= segments; i++) for (const side of [-.5, .5]) { pos.push(side, i / segments, 0); uv.push(side + .5, i / segments); }
+    if (look) for (let i = 0; i < segments; i += 2) { const a=i*2; idx.push(a,a+1,a+5,a,a+5,a+4); }
+    for (let i = 0; i < segments; i++) { const a = i * 2; idx.push(a, a + 1, a + 3, a, a + 3, a + 2); }
   } else {
     for (let k = 0; k < 3; k++) {
       const a = pos.length / 3;
@@ -155,6 +159,7 @@ function geometryFor(kind, capacity) {
   const buffer = new THREE.InstancedInterleavedBuffer(new Float32Array(capacity * STRIDE), STRIDE).setUsage(THREE.DynamicDrawUsage);
   for (const [name, size, offset] of [['iRoot', 4, 0], ['iShape', 4, 4], ['iColor', 3, 8], ['iTip', 4, 11]]) g.setAttribute(name, new THREE.InterleavedBufferAttribute(buffer, size, offset));
   g.instanceCount = 0;
+  if (look && kind === 'near') g.setDrawRange(look.uniforms.uGrassLookStep.value >= 2 ? 0 : 18, look.uniforms.uGrassLookStep.value >= 2 ? 18 : 36);
   return { g, buffer };
 }
 
@@ -194,13 +199,15 @@ function packTile(d, kind) {
   return data.subarray(0, n * STRIDE);
 }
 
-export function buildGrass({ field, wind, quality = 'standard', sunDir }) {
+export function buildGrass({ field, wind, quality = 'standard', sunDir, reach, look }) {
   const q = GRASS.quality[quality]; if (!q) throw new RangeError('grass quality');
   const group = new THREE.Group(); group.name = 'grass';
   const sun = { value: new THREE.Vector3().copy(sunDir).normalize() };
-  const radii = { value: new THREE.Vector2(GRASS.nearRadius * q.distance, GRASS.midRadius * q.distance) };
+  // W2c-9b: optional Kamakura reach; valley keeps its original radii.
+  const groundTint = { value: new THREE.Color('#6b6a35') };
+  const radii = { value: new THREE.Vector2((reach?.near ?? GRASS.nearRadius) * q.distance, (reach?.mid ?? GRASS.midRadius) * q.distance) };
   const map = cardTexture();
-  const materials = { near: materialFor('near', wind, sun, radii, null, quality), mid: materialFor('mid', wind, sun, radii, map, quality) };
+  const materials = { near: materialFor('near', wind, sun, radii, null, quality, groundTint, look), mid: materialFor('mid', wind, sun, radii, map, quality, groundTint, look) };
   const resident = { near: new Map(), mid: new Map() }, pools = { near: [], mid: [] };
   const all = new Set();
   let last = null, wanted = { near: [], mid: [] }, active = { near: new Set(), mid: new Set() }, dead = false;
@@ -211,7 +218,7 @@ export function buildGrass({ field, wind, quality = 'standard', sunDir }) {
   function slot(kind) {
     if (pools[kind].length) return pools[kind].pop();
     const size = (kind === 'near' ? GRASS.nearSize : GRASS.midSize) * CHUNK_TILES[kind];
-    const { g, buffer } = geometryFor(kind, size * size * perCell[kind]);
+    const { g, buffer } = geometryFor(kind, size * size * perCell[kind] * (look?.capacityFactor ?? 1), look);
     const mesh = new THREE.Mesh(g, materials[kind]); mesh.name = `grass-${kind}`;
     mesh.receiveShadow = true; mesh.frustumCulled = true; mesh.visible = false;
     group.add(mesh); const s = { mesh, buffer, tiles: [] }; all.add(s); return s;
@@ -219,19 +226,26 @@ export function buildGrass({ field, wind, quality = 'standard', sunDir }) {
   function submit(c, kind) {
     let offset = 0;
     for (const t of c.tiles) if (active[kind].has(t.key)) {
-      if (densityScale === 1) { c.buffer.array.set(t.data, offset); offset += t.data.length; }
+      if (densityScale === 1 && !look) { c.buffer.array.set(t.data, offset); offset += t.data.length; }
       // Thin by a hash of the root position, not by iShape.w: the shader also uses w for the distance fade and the
       // card pattern, so thinning on w would drop the far blades first and wipe out the last card pattern.
-      else for (let i = 0; i < t.data.length; i += STRIDE) if (hash(t.data[i], t.data[i + 2], 61) < densityScale) {
-        c.buffer.array.set(t.data.subarray(i, i + STRIDE), offset); offset += STRIDE;
+      else for (let i = 0; i < t.data.length; i += STRIDE) if ((!look || look.accept(t.data,i,kind)) && (densityScale === 1 || hash(t.data[i], t.data[i + 2], 61) < densityScale)) {
+        if (look) { for (let j=0;j<STRIDE;j++) c.buffer.array[offset++]=t.data[i+j]; }
+        else { c.buffer.array.set(t.data.subarray(i, i + STRIDE), offset); offset += STRIDE; }
       }
     }
     c.mesh.geometry.instanceCount = offset / STRIDE; c.mesh.visible = offset > 0;
     c.buffer.clearUpdateRanges(); if (offset) c.buffer.addUpdateRange(0, offset); c.buffer.needsUpdate = true;
   }
+  // W2c-9c: optional look only; omitted packs exactly the valley bytes.
+  function packed(data, kind) {
+    // Optional look owns its flowers/seed heads; legacy elevated clumps would float above shorter leaves.
+    const raw = packTile(look && kind === 'near' ? { ...data, clumps: null } : data,kind);
+    return look ? look.pack(raw,kind) : raw;
+  }
   function build(c, kind) {
     const s = slot(kind), make = kind === 'near' ? nearTile : midTile;
-    Object.assign(s, c); s.tiles = chunkTiles(kind, c.cx, c.cz).map(t => ({ key: `${kind}:${t.tx},${t.tz}`, data: packTile(make(field, t.tx, t.tz, { quality }), kind) }));
+    Object.assign(s, c); s.tiles = chunkTiles(kind, c.cx, c.cz).map(t => ({ key: `${kind}:${t.tx},${t.tz}`, data: packed(make(field, t.tx, t.tz, { quality }), kind) }));
     // All roots and every possible displaced tip, including elevated flower/plume roots.
     const size = (kind === 'near' ? GRASS.nearSize : GRASS.midSize) * CHUNK_TILES[kind];
     let minY = Infinity, maxY = -Infinity;
@@ -242,7 +256,8 @@ export function buildGrass({ field, wind, quality = 'standard', sunDir }) {
     submit(s, kind); resident[kind].set(c.key, s); builds++;
   }
   function replan(camera) {
-    const { x, z } = camera.position, tiles = tilesAround(field, x, z, { quality });
+    look?.prepare(camera);
+    const { x, z } = camera.position, tiles = tilesAround(field, x, z, { quality, reach });
     wanted = wantedChunks(tiles);
     for (const kind of ['near', 'mid']) {
       active[kind] = new Set(tiles[kind].map(t => t.key));
@@ -258,6 +273,7 @@ export function buildGrass({ field, wind, quality = 'standard', sunDir }) {
     if (dead) return;
     const distance = last ? Math.hypot(camera.position.x - last.x, camera.position.z - last.z) : Infinity;
     const moved = distance >= .25;
+    if (look && !warm && !moved && queue === 0) return;
     const before = [...wanted.near, ...wanted.mid];
     if (moved || warm) replan(camera);
     const next = new Set([...wanted.near, ...wanted.mid].map(c => c.key));
@@ -303,12 +319,21 @@ export function buildGrass({ field, wind, quality = 'standard', sunDir }) {
       densityScale = next;
       for (const kind of ['near', 'mid']) for (const c of resident[kind].values()) submit(c, kind);
     },
+    setLookQuality(step) {
+      if (!look || dead) return;
+      look.setAdapt(step);
+      for (const kind of ['near', 'mid']) for (const c of resident[kind].values()) submit(c,kind);
+      for (const c of all) if (c.mesh.name === 'grass-near') c.mesh.geometry.setDrawRange(step >= 2 ? 0 : 18, step >= 2 ? 18 : 36);
+    },
+    setGroundTint(color) { groundTint.value.copy(color); },
     setSun(dir) { sun.value.copy(dir).normalize(); },
     stats() {
       const count = kind => [...resident[kind].values()].reduce((n, c) => n + c.mesh.geometry.instanceCount, 0);
       const chunks = kind => [...resident[kind].values()].filter(c => c.mesh.visible).length;
       const nearBlades = count('near'), midCards = count('mid'), nearChunks = chunks('near'), midChunks = chunks('mid');
-      return { nearChunks, midChunks, nearBlades, midCards, triangles: nearBlades * 6 + midCards * 6, drawCalls: nearChunks + midChunks, builds, queue, lastBuildMs, maxBuildMs, overBudget };
+      let lawn=0, flowers=0;
+      if (look) for (const c of resident.near.values()) { const a=c.buffer.array; for(let i=0;i<c.mesh.geometry.instanceCount;i++){const marker=a[i*STRIDE+11]; if(marker===-1)lawn++; if(marker===-2)flowers++;} }
+      return { ...(look ? { lawn, flowers, tallBlades: nearBlades-lawn-flowers, nearTriangles: nearBlades*(look.uniforms.uGrassLookStep.value>=2?6:12) } : {}), nearChunks, midChunks, nearBlades, midCards, triangles: nearBlades * (look && look.uniforms.uGrassLookStep.value < 2 ? 12 : 6) + midCards * 6, drawCalls: nearChunks + midChunks, builds, queue, lastBuildMs, maxBuildMs, overBudget };
     },
     dispose() {
       if (dead) return; dead = true;

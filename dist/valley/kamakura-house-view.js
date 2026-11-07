@@ -1,6 +1,7 @@
 // View only. Reuses the bundled GLTFLoader, instancing and bounded chunk lifecycle.
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { createHouseTextures, createHouseMaterial } from './kamakura-house-materials.js';
 import { houseNodeName, houseBounds, houseBodyBounds, houseMatrix, houseBox, houseChunks, houseChunkDistance, houseLOD } from './kamakura-houses.js';
 
 // The mid view stands on a coarser terrain mesh (LOD2+), so its box sinks deeper than the detailed skirt to stay hidden.
@@ -18,7 +19,7 @@ function simplified(kind, material) {
   roof.setIndex([0,1,2,0,2,3,4,5,6,4,6,7]); roof.computeVertexNormals();
   return [{ geometry, material }, { geometry: roof, material }];
 }
-export async function buildKamakuraHouses(houses, terrain, scene) {
+export async function buildKamakuraHouses(houses, terrain, scene, { search = '', quality = 'standard' } = {}) {
   // Reject external resource links before handing the private, self-contained GLB to the loader.
   const dv = new DataView(houses.kit);
   const json = JSON.parse(new TextDecoder().decode(new Uint8Array(houses.kit, 20, dv.getUint32(12, true))));
@@ -26,16 +27,22 @@ export async function buildKamakuraHouses(houses, terrain, scene) {
   const gltf = await new GLTFLoader().parseAsync(houses.kit, '');
   const templates = new Map(), owned = new Set(), sourceGeometries = new Set(), materials = new Set();
   const chunks = houseChunks(houses), boxes = [];
+  // W2c-9g: optional surface layer; shared resources never affect placement or LOD.
+  const textured = new URLSearchParams(search).get('htex') !== '0';
+  let texture = null, disposed = false;
   function releaseGroup(group) {
     if (!group) return;
     group.traverse(o => { if (o.isInstancedMesh) o.dispose(); }); group.removeFromParent();
   }
   function dispose() {
+    if (disposed) return; disposed = true;
+    texture?.dispose();
     for (const ch of chunks) { releaseGroup(ch.group); releaseGroup(ch.pending?.group); }
     for (const g of owned) g.dispose(); for (const g of sourceGeometries) g.dispose(); for (const m of materials) m.dispose();
   }
   gltf.scene.traverse(o => { if (o.isMesh) { sourceGeometries.add(o.geometry); for (const m of [].concat(o.material)) materials.add(m); } });
   try {
+    if (textured) texture = await createHouseTextures();
     gltf.scene.updateMatrixWorld(true);
     for (const kind of houses.kinds.values()) {
       if (!houses.catalog.count_by_kind[kind.node]) continue;
@@ -59,6 +66,16 @@ export async function buildKamakuraHouses(houses, terrain, scene) {
         } else near.push({ geometry: g, material: o.material });
       });
       if (!near.length) throw new Error('家の部品がありません');
+      if (texture) {
+        const shared = new Map(), { min, max } = houseBounds(kind);
+        for (const part of near) {
+          if (!shared.has(part.material)) {
+            const m = createHouseMaterial(part.material, { texture, quality, eave: max[1]-(max[1]-min[1])*.28, top: max[1] });
+            shared.set(part.material,m); materials.add(m);
+          }
+          part.material = shared.get(part.material);
+        }
+      }
       // Current kit uses one flat main color per kind. Weight by primitive triangle count for future kits.
       const main = [...near].sort((a, b) => (b.geometry.index?.count ?? b.geometry.attributes.position.count) - (a.geometry.index?.count ?? a.geometry.attributes.position.count))[0].material;
       const mid = simplified(kind, main); for (const p of mid) owned.add(p.geometry);
@@ -81,6 +98,7 @@ export async function buildKamakuraHouses(houses, terrain, scene) {
     ch.pending = { group, jobs, level };
   }
   function update(pos) {
+    if (disposed) return;
     let budget = 2;
     const sorted = chunks.map(ch => ({ ch, distance: houseChunkDistance(ch, pos) })).sort((a,b) => a.distance - b.distance);
     for (const { ch, distance } of sorted) {
@@ -102,5 +120,5 @@ export async function buildKamakuraHouses(houses, terrain, scene) {
       }
     }
   }
-  return { update, boxes, dispose, ready: pos => chunks.filter(ch => houseChunkDistance(ch, pos) < 350).every(ch => ch.level === 0) };
+  return { update, boxes, dispose, setAdapt: step => { for (const m of materials) m.userData.setHouseAdapt?.(step); }, ready: pos => chunks.filter(ch => houseChunkDistance(ch, pos) < 350).every(ch => ch.level === 0) };
 }

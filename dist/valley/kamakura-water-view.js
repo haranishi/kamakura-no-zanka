@@ -1,19 +1,21 @@
 // Valley water appearance copied unchanged in style; distance gate and standard fog added for Kamakura.
 // Keep water.js independent. MeshStandardMaterial includes the installed atmosphere fog chunks.
 import * as THREE from 'three';
-export function buildKamakuraWater(prepared, { sunDir = new THREE.Vector3(.5, .17, .85) } = {}) {
+import { WATER_ALPHA } from './kamakura-fx.js';
+export function buildKamakuraWater(prepared, { sunDir = new THREE.Vector3(.5, .17, .85), terrain = null } = {}) {
   const group = new THREE.Group(); group.name = 'kamakura-rivers';
   const uniforms = { uTime: { value: 0 } };
-  const material = new THREE.MeshStandardMaterial({ color: 0x23565c, roughness: 0.09, metalness: 0.0, transparent: true, opacity: 0.92, depthWrite: false, envMapIntensity: 0.95 });
+  const material = new THREE.MeshStandardMaterial({ color: 0x23565c, roughness: 0.09, metalness: 0.0, transparent: true, opacity: 1, depthWrite: false, envMapIntensity: 0.95 });
   material.fog = true;
   material.onBeforeCompile = shader => {
+    shader.uniforms.uWaterAlpha = { value: new THREE.Vector3(WATER_ALPHA.shallow, WATER_ALPHA.deep, WATER_ALPHA.depth) };
     shader.uniforms.uTime = uniforms.uTime; shader.uniforms.uWaterDistance = { value: prepared.policy.maxDistance }; shader.uniforms.SUN_DIR_W = { value: sunDir.clone().normalize() };
     shader.vertexShader = shader.vertexShader
-      .replace('#include <common>', '#include <common>\nvarying vec2 vWUv; varying vec3 vWPos;')
-      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvWUv = uv; vWPos = (modelMatrix * vec4(transformed, 1.0)).xyz;');
+      .replace('#include <common>', '#include <common>\nattribute float waterDepth; varying vec2 vWUv; varying vec3 vWPos; varying float vWDepth;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvWDepth = waterDepth; vWUv = uv; vWPos = (modelMatrix * vec4(transformed, 1.0)).xyz;');
     shader.fragmentShader = shader.fragmentShader
       .replace('#include <common>', `#include <common>
-        uniform float uWaterDistance; uniform float uTime; varying vec2 vWUv; varying vec3 vWPos; uniform vec3 SUN_DIR_W;
+        uniform vec3 uWaterAlpha; uniform float uWaterDistance; uniform float uTime; varying vec2 vWUv; varying vec3 vWPos; varying float vWDepth; uniform vec3 SUN_DIR_W;
         float w_hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
         float w_noise(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
           return mix(mix(w_hash(i), w_hash(i + vec2(1., 0.)), f.x), mix(w_hash(i + vec2(0., 1.)), w_hash(i + vec2(1.)), f.x), f.y); }
@@ -24,6 +26,8 @@ export function buildKamakuraWater(prepared, { sunDir = new THREE.Vector3(.5, .1
         if (waterDistance >= uWaterDistance) discard;
         diffuseColor.a *= 1.0 - smoothstep(uWaterDistance - 128.0, uWaterDistance, waterDistance);
         float edge = abs(vWUv.x);
+        // W2c-9d: uniform opacity -> depth/edge transparency, retain the existing distance and bank fades.
+        diffuseColor.a *= mix(uWaterAlpha.x, uWaterAlpha.y, (1.0-clamp(edge,0.0,1.0))*clamp(vWDepth/uWaterAlpha.z,0.0,1.0));
         vec3 deep = vec3(0.035, 0.12, 0.15), shallow = vec3(0.14, 0.27, 0.26);
         diffuseColor.rgb = mix(deep, shallow, smoothstep(0.35, 1.0, edge));
         float foam = smoothstep(0.80, 0.98, edge) * smoothstep(0.35, 0.8, w_fbm(vWPos.xz * 1.6 + vec2(0.0, -uTime * 0.6)));
@@ -50,7 +54,7 @@ export function buildKamakuraWater(prepared, { sunDir = new THREE.Vector3(.5, .1
         }
         #include <opaque_fragment>`);
   };
-  material.customProgramCacheKey = () => 'kamakura-water-v1';
+  material.customProgramCacheKey = () => 'kamakura-water-v2-depth';
   let disposed = false;
   function dispose() {
     if (disposed) return; disposed = true;
@@ -63,6 +67,13 @@ export function buildKamakuraWater(prepared, { sunDir = new THREE.Vector3(.5, .1
       // Attach before filling so that partial construction is also owned by dispose().
       const mesh = new THREE.Mesh(geometry, material); group.add(mesh);
       geometry.setAttribute('position', new THREE.Float32BufferAttribute(chunk.positions, 3));
+      const depths = new Float32Array(chunk.positions.length / 3);
+      // Ribbon vertices are stored in left/right pairs, so sample the channel bed once per pair.
+      for (let i = 0; i < depths.length; i += 2) {
+        const k = i * 3, x = (chunk.positions[k] + chunk.positions[k + 3]) / 2, z = (chunk.positions[k + 2] + chunk.positions[k + 5]) / 2;
+        depths[i] = depths[i + 1] = terrain ? Math.max(0, chunk.positions[k + 1] - terrain.heightAt(x, z)) : .5;
+      }
+      geometry.setAttribute('waterDepth', new THREE.Float32BufferAttribute(depths, 1));
       geometry.setAttribute('uv', new THREE.Float32BufferAttribute(chunk.uvs, 2));
       geometry.setIndex(chunk.indices); geometry.computeVertexNormals(); geometry.computeBoundingSphere();
       mesh.updateMatrix(); mesh.matrixAutoUpdate = false;
