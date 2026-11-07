@@ -2,7 +2,7 @@ import { decodeHouses } from './kamakura-houses.js';
 // Private data only: no bundled fallback, derived elevations, or remote service.
 export function validateMeta(m) {
   const g = m?.grid, h = m?.height;
-  if (!['kz-world-web/0.1', 'kz-world-web/0.2', 'kz-world-web/0.3', 'kz-world-web/0.4'].includes(m?.schema) || !g || !h ||
+  if (!['kz-world-web/0.1', 'kz-world-web/0.2', 'kz-world-web/0.3', 'kz-world-web/0.4', 'kz-world-web/0.5'].includes(m?.schema) || !g || !h ||
       !Number.isInteger(g.width) || !Number.isInteger(g.height) || g.width < 2 || g.height < 2 ||
       !(g.cell_m > 0) || !Number.isFinite(g.cell_m) || g.width * g.height > 32e6 ||
       g.row0 !== 'north' || g.col0 !== 'west' || g.sample_position !== 'cell_center' ||
@@ -22,7 +22,7 @@ export function validateMeta(m) {
   }
   return m;
 }
-export function decodeData(meta, heightBuffer, walkBuffer, patchBuffers) {
+export function decodeData(meta, heightBuffer, walkBuffer, patchBuffers, groundBuffer) {
   validateMeta(meta);
   const count = meta.grid.width * meta.grid.height;
   if (heightBuffer.byteLength !== count * 2 || walkBuffer.byteLength !== count) throw new Error('鎌倉データの長さが一致しません');
@@ -61,11 +61,13 @@ export function decodeData(meta, heightBuffer, walkBuffer, patchBuffers) {
     }))) throw new Error('鎌倉パッチの道の線が不正です');
     patches = { cells, heights: values, index, axes, paths: paths || null };
   }
-  return { meta, heights, walk, patches };
+  const ground = meta.ground && groundBuffer?.byteLength === count * 3 ? new Uint8Array(groundBuffer) : null;
+  const groundNotice = ground ? '' : '地面の色を読み込めませんでした。単色で散策を続けます';
+  return { meta, heights, walk, patches, ground, groundNotice };
 }
 export async function loadKamakura(fetcher = fetch) {
   const read = async name => {
-    const response = await fetcher('/world-private/' + name, { cache: 'no-store', signal: AbortSignal.timeout(20000) });
+    const response = await fetcher('/world-private/' + name, { cache: 'no-store', redirect: 'error', signal: AbortSignal.timeout(20000) });
     if (!response.ok) throw new Error('鎌倉データを読み込めません');
     return response;
   };
@@ -78,6 +80,14 @@ export async function loadKamakura(fetcher = fetch) {
     if (meta.patches.paths_file) patchBuffers.paths = await (await read(meta.patches.paths_file)).json();
   }
   const data = decodeData(meta, await height.arrayBuffer(), await walk.arrayBuffer(), patchBuffers);
+  if (meta.ground) {
+    try {
+      if (meta.ground.file !== 'ground_rgb.bin') throw new Error();
+      const ground = await (await read(meta.ground.file)).arrayBuffer();
+      if (ground.byteLength !== meta.grid.width * meta.grid.height * 3) throw new Error();
+      data.ground = new Uint8Array(ground); data.groundNotice = '';
+    } catch { /* Optional colour failure keeps the decoded, walkable terrain. */ }
+  }
   if (meta.houses) {
     try {
       if (meta.houses.file !== 'houses.json' || meta.houses.instances !== 'houses_f32.bin' || meta.houses.kit !== 'houses_kit.glb') throw new Error();
