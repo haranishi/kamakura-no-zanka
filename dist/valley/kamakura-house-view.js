@@ -31,6 +31,7 @@ export async function buildKamakuraHouses(houses, terrain, scene, { search = '',
   // W2c-9g: optional surface layer; shared resources never affect placement or LOD.
   const textured = new URLSearchParams(search).get('htex') !== '0';
   const parts = new URLSearchParams(search).get('hparts') !== '0';
+  const relief = new URLSearchParams(search).get('hrelief') !== '0';
   let texture = null, disposed = false;
   function releaseGroup(group) {
     if (!group) return;
@@ -72,7 +73,7 @@ export async function buildKamakuraHouses(houses, terrain, scene, { search = '',
         const shared = new Map(), { min, max } = houseBounds(kind);
         for (const part of near) {
           if (!shared.has(part.material)) {
-            const m = createHouseMaterial(part.material, { texture, quality, parts, eave: max[1]-(max[1]-min[1])*.28, top: max[1] });
+            const m = createHouseMaterial(part.material, { texture, quality, parts, relief, eave: max[1]-(max[1]-min[1])*.28, top: max[1] });
             shared.set(part.material,m); materials.add(m);
           }
           part.material = shared.get(part.material);

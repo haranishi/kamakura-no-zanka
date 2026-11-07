@@ -118,6 +118,7 @@ export function facilityPartRole(part, name = '') {
   if (part === 'buddha') return 6;
   if (part === 'torii') return 7;
   if (part === 'fence') return 8; // R2 light lime/stone, never a timber grid.
+  if (/frame|梁|窓枠/i.test(name)) return 5;
   const named = facilityMaterialRole(name);
   if (named) return named;
   if (['causeway','stairs','jetty','sando','platform'].includes(part)) return 3;
@@ -130,4 +131,45 @@ export function facilityPartRole(part, name = '') {
 export function facilityPreservesPigment(rgb, role) {
   const [r,g,b]=rgb;
   return role===7 || (r>g*2.5 && r>b*3) || Math.max(r,g,b)<.085;
+}
+
+// W2c-9r3 facility: anonymous white geometry -> actual connected timber members.
+// Weld duplicated face vertices, but never infer a painted grid on a large wall.
+export function facilityTimberWeights(positions, indices, floor, top) {
+  const count=positions.length/3, parent=Array.from({length:count},(_,i)=>i), weld=new Map();
+  const root=i=>{while(parent[i]!==i){parent[i]=parent[parent[i]];i=parent[i];}return i;};
+  const join=(a,b)=>{parent[root(a)]=root(b);};
+  for(let i=0;i<count;i++){
+    const key=[0,1,2].map(k=>Math.round(positions[i*3+k]*10000)).join(',');
+    if(weld.has(key))join(i,weld.get(key));else weld.set(key,i);
+  }
+  const at=i=>indices?indices[i]:i, length=indices?.length??count;
+  for(let i=0;i<length;i+=3){join(at(i),at(i+1));join(at(i),at(i+2));}
+  const bounds=new Map();
+  for(let i=0;i<count;i++){
+    const r=root(i);if(!bounds.has(r))bounds.set(r,{min:[Infinity,Infinity,Infinity],max:[-Infinity,-Infinity,-Infinity]});
+    const b=bounds.get(r);for(let k=0;k<3;k++){b.min[k]=Math.min(b.min[k],positions[i*3+k]);b.max[k]=Math.max(b.max[k],positions[i*3+k]);}
+  }
+  const timber=new Set(), height=Math.max(.1,top-floor), thin=Math.min(.65,height*.09);
+  for(const [r,b] of bounds){
+    const [x,y,z]=b.max.map((v,k)=>v-b.min[k]), above=b.min[1]>floor+height*.08;
+    const post=y>height*.22 && Math.max(x,z)<thin && y>Math.max(x,z)*3;
+    const beam=above && y<thin && Math.min(x,z)<thin && Math.max(x,z)>Math.max(y,Math.min(x,z))*3;
+    if(post||beam)timber.add(r);
+  }
+  return Float32Array.from(parent,(_,i)=>timber.has(root(i))?1:0);
+}
+export function facilityInterior(rgb, role) {
+  return [1,2,4,5].includes(role) && Math.max(...rgb)<.085 && Math.max(...rgb)-Math.min(...rgb)<Math.max(...rgb)*.45;
+}
+// Shared R3 constants are interpolated into GLSL and exercised with synthetic metre samples.
+export const HOUSE_RELIEF = Object.freeze({ straw: .105, bundle: .31, fine: .17, coarse: .085, interiorMin: .010, interiorMax: .055 });
+export function houseRoofRelief(across, along, footprint=0) {
+  const u=across+.012*Math.sin(along*1.7+Math.sin(across*.71));
+  return HOUSE_RELIEF.fine*Math.sin(u*2*Math.PI/HOUSE_RELIEF.straw+.5*Math.sin(across*2.3))*Math.exp(-.5*(footprint*2*Math.PI/HOUSE_RELIEF.straw)**2)
+    +HOUSE_RELIEF.coarse*Math.sin(u*2*Math.PI/HOUSE_RELIEF.bundle+Math.sin(along*.63))*Math.exp(-.5*(footprint*2*Math.PI/HOUSE_RELIEF.bundle)**2);
+}
+export function houseInteriorTone(y, across) {
+  const beam=Math.exp(-(((y-.78)/.045)**2)), plank=houseHash(Math.floor(across/.32),17);
+  return Math.max(HOUSE_RELIEF.interiorMin,Math.min(HOUSE_RELIEF.interiorMax,.041-.027*y-.008*beam+.006*(plank-.5)));
 }
