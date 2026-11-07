@@ -14,11 +14,13 @@ export async function buildKamakuraFacilities(facilities, terrain, scene, qualit
   let disposed=false,step=0,shadows=true,texture=null;
   const surfaceCache=new Map();
   // W2c-9g2: facility surfaces use the house atlas; ftex=0 retains the original PBR.
-  function surface(base) {
+  function surface(base, hint) {
     if(!texture)return base;
-    if(Array.isArray(base))return base.map(surface);
-    if(!surfaceCache.has(base)){const m=createHouseMaterial(base,{texture,quality,facilityRole:facilityMaterialRole(base.name)});surfaceCache.set(base,m);materials.add(m);}
-    return surfaceCache.get(base);
+    if(Array.isArray(base))return base.map(m=>surface(m,hint));
+    // W2c-9g3: mesh hints identify walls/roofs when the shared material is anonymous.
+    const role=facilityMaterialRole(base.name) || facilityMaterialRole(hint), key=`${base.uuid}:${role}`;
+    if(!surfaceCache.has(key)){const m=createHouseMaterial(base,{texture,quality,facilityRole:role});surfaceCache.set(key,m);materials.add(m);}
+    return surfaceCache.get(key);
   }
   const group=new THREE.Group();group.name='kamakura-facilities';
   function dispose() {if(disposed)return;disposed=true;group.removeFromParent();texture?.dispose();for(const g of geometries)g.dispose();for(const m of materials)m.dispose();}
@@ -41,7 +43,7 @@ export async function buildKamakuraFacilities(facilities, terrain, scene, qualit
         const p=g.getAttribute('position');
         if(texture)g.setAttribute('houseLocalY',new THREE.Float32BufferAttribute(Array.from({length:p.count},(_,i)=>p.getY(i)),1));
         for(let i=0;i<p.count;i++)positions.push(p.getX(i),p.getY(i),p.getZ(i));
-        triangles+=(g.index?.count??p.count)/3;parts.push({g,material:o.material});
+        triangles+=(g.index?.count??p.count)/3;parts.push({g,material:o.material,hint:o.name});
       });
       if(triangles!==n.triangles || !parts.length || !positions.every(Number.isFinite)) throw new Error('施設の部品が一致しません');
       const bounds=facilityFootprint(n,positions,false), meshes=[];
@@ -51,11 +53,11 @@ export async function buildKamakuraFacilities(facilities, terrain, scene, qualit
       }
       // One anchor sample for each rigid node, even if it contains several material primitives.
       const placed=facilityPlacement(n,positions,terrain); let offset=0;
-      for(const {g,material} of parts) {
+      for(const {g,material,hint} of parts) {
         const count=g.getAttribute('position').array.length;
         g.setAttribute('position',new THREE.Float32BufferAttribute(placed.positions.slice(offset,offset+count),3));offset+=count;
         if(placed.rebuildNormals)g.computeVertexNormals();g.computeBoundingBox();g.computeBoundingSphere();
-        const mesh=new THREE.Mesh(g,surface(material));mesh.position.copy(placed.position);mesh.updateMatrix();mesh.matrixAutoUpdate=false;
+        const mesh=new THREE.Mesh(g,surface(material,hint));mesh.position.copy(placed.position);mesh.updateMatrix();mesh.matrixAutoUpdate=false;
         mesh.name=n.node;mesh.castShadow=facilityCastsShadow(n);mesh.receiveShadow=true;group.add(mesh);meshes.push(mesh);
       }
       records.push({node:n,bounds,meshes});

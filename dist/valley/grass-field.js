@@ -171,9 +171,15 @@ export function nearTile(field, tx, tz, { quality = 'standard', size = GRASS.nea
   }
   return out;
 }
-export function midTile(field, tx, tz, { quality = 'standard', size = GRASS.midSize } = {}) {
+export function midTile(field, tx, tz, { quality = 'standard', size = GRASS.midSize, sink = GRASS.sink, maxSlope } = {}) {
   const q = qualityOf(quality), entries = []; let count = 0;
   cells(field, tx, tz, size, (x, z, k) => {
+    // W2c-9c2 optional conservative corner envelope; valley takes its original path.
+    if (maxSlope !== undefined) {
+      const h=(z-field.z0)*(field.nx+1)+x-field.x0, stride=field.nx+1;
+      const a=field.heights[h],b=field.heights[h+1],c=field.heights[h+stride],d=field.heights[h+stride+1];
+      if(Math.max(Math.hypot(b-a,c-a),Math.hypot(d-c,d-b))>Math.tan(maxSlope*Math.PI/180))return;
+    }
     const rng = cellRand(field.seed + GRASS.midSeed, x, z);
     const average = GRASS.midCardRate * q.density;
     const patch = field.midPatch?.[k] ?? 1;
@@ -186,7 +192,7 @@ export function midTile(field, tx, tz, { quality = 'standard', size = GRASS.midS
     const rng = cellRand(field.seed + GRASS.midSeed, x, z); rng(); // count draw
     for (let j = 0; j < n; j++, i++) {
       out.x[i] = x + 0.001 + rng() * 0.998; out.z[i] = z + 0.001 + rng() * 0.998;
-      out.y[i] = bilinear(field, field.heights, out.x[i], out.z[i], true) - GRASS.sink;
+      out.y[i] = bilinear(field, field.heights, out.x[i], out.z[i], true) - sink;
       const u = rng();
       out.s[i] = .5 + 1.4 * u * u;
       out.sx[i] = 1 + GRASS.card.aspect * (2 * rng() - 1);

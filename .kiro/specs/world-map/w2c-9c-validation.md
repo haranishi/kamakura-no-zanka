@@ -92,3 +92,8 @@ KZ_WORLD_DIRに私有v0.9を指定してnpm start。基点は
 - git diff --check成功。文書lintはsudachipy未導入で起動できず、natural-japaneseの手動チェックで確認した。
 - 新規：kamakura-grass-look.js／kamakura-grass-look-view.js、9c試験と私有検証helper、この記録。
   更新：grass-view.js、kamakura-grass-field.js／view.js、world-kamakura.jsの草の配線、既存の草試験、tasks.md、FILES_SHA256.json。
+
+## 9c2 中景の株と尾根の接地
+
+地面への混色を60%から40%へ下げ、中景専用の分布・35〜70cmの株・12cmの埋めを追加した。
+設計、比較表、試験結果と実機確認の残件は [9c2検証記録](w2c-9c2-validation.md) を参照。

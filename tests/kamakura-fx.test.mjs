@@ -2,8 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { performance } from 'node:perf_hooks';
-import { prepareFishRivers, createFishState } from '../dist/valley/kamakura-fish.js';
-import { createFxState, bindFxContact, riverDepthAlpha, fxOptions } from '../dist/valley/kamakura-fx.js';
+import { prepareFishRivers, createFishState, fishPigment, fishHaze, FISH_WATER } from '../dist/valley/kamakura-fish.js';
+import { createFxState, bindFxContact, riverDepthAlpha, fxOptions, rippleWidth, rippleAlpha, rippleAspect, rippleSecondary } from '../dist/valley/kamakura-fx.js';
 const terrain = { vscale: 1, waterAt: (x,z) => z < 2 ? .4 : 0, surfaceAt: () => ({ dirt: 1 }), groundColorAt: () => [.2,.3,.1], heightAt: () => 2 };
 const river = (xy = [[-20,0],[0,0],[20,0]], widths = xy.map(()=>4)) => ({ xy_m: xy, width_m: widths, water_elev_m: xy.map(()=>2.5), bed_m: xy.map(()=>2) });
 const data = (...rivers) => ({ rivers });
@@ -68,11 +68,11 @@ test('bundled Three: three draws, fog, resources dispose once, quality changes r
   const matrices=fx.group.children.map(m=>m.instanceMatrix);
   fx.contact({foot:'left'},h);fx.update(.1,camera,h);assert.equal(fx.group.children.length,3);
   for(const m of fx.group.children){assert.equal(m.material.fog,true);assert(!m.castShadow);const shader={vertexShader:THREE.ShaderLib[m.material.isMeshStandardMaterial?'standard':'basic'].vertexShader,fragmentShader:THREE.ShaderLib[m.material.isMeshStandardMaterial?'standard':'basic'].fragmentShader,uniforms:{}};m.material.onBeforeCompile(shader);assert(!shader.vertexShader.includes('undefined'));if(m.material.transparent) {assert(!m.material.depthWrite);assert(m.material.forceSinglePass);assert(shader.fragmentShader.includes('vFxAlpha'));}}
-  fx.setAdapt(2);fx.update(.1,camera,h);assert(fx.fish.count<=14);assert.equal(fx.state.drops.filter(p=>p.life>0).length,6);
+  fx.setAdapt(2);fx.update(.1,camera,h);assert(fx.fish.count<=14);assert.equal(fx.state.drops.filter(p=>p.life>0).length,12);
   fx.setAdapt(3);fx.contact({},h);fx.update(.1,camera,h);assert(fx.group.children.every(m=>m.count===0));fx.setAdapt(0);fx.contact({},h);fx.update(.1,camera,h);
   assert.deepEqual(fx.group.children.map(m=>m.instanceMatrix),matrices);
   const begin=performance.now();for(let i=0;i<10000;i++){if(i%15===0)fx.contact({},h);fx.update(1/60,camera,h);}console.log('W2c-9d synthetic Node update ms/frame:',(performance.now()-begin)/10000);
-  console.log('W2c-9d max draws/triangles:',3,24*2+192*2+56*28);
+  console.log('W2c-9d max draws/triangles:',3,24*2+192*2+56*60);
   fx.dispose();fx.dispose();assert([...resources.values()].every(n=>n===1));
   const off=buildKamakuraFx({terrain,data:{},search:'?fx=0&fish=0'});assert.equal(off.group.children.length,0);assert.equal(off.state,null);assert.equal(off.fish,null);off.dispose();
   const light=buildKamakuraFx({terrain,data:{rivers:data(river())},quality:'light'});assert.equal(light.state.drops.length,96);assert.equal(light.state.ripples.length,12);assert.equal(light.fish.fish.length,28);light.dispose();
@@ -118,7 +118,7 @@ test('saturated geometry budgets and outward fish body normals',async()=>{
  fx.update(0,camera,h);assert.equal(fx.fish.count,56);assert.equal(fx.group.children[0].count,24);assert.equal(fx.group.children[1].count,192);
  const mesh=fx.group.children[2],pos=mesh.geometry.attributes.position,normal=mesh.geometry.attributes.normal;
  for(let i=4;i<12;i++)assert(pos.getX(i)*normal.getX(i)+pos.getY(i)*normal.getY(i)>0,'fish body normals must face out');
- let triangles=0;for(const m of fx.group.children)triangles+=m.geometry.index.count/3*m.count;assert.equal(triangles,2000);
+ let triangles=0;for(const m of fx.group.children)triangles+=m.geometry.index.count/3*m.count;assert.equal(triangles,3792);
  const begin=performance.now();for(let i=0;i<10000;i++)fx.update(0,camera,h);console.log('W2c-9d saturated 192/24/56 Node dt=0 state+matrix upload ms/frame:',(performance.now()-begin)/10000);fx.dispose();
 });
 
@@ -142,7 +142,7 @@ test('nearest schools survive saturation, hero priority falls back to camera, 24
    assert.equal(state.fish.slice(0,state.count).filter(f=>f.school===nearest.id).length,10);
    for(let j=0;j<state.count;j++) {
      const f=state.fish[j]; assert(Math.hypot(f.x-camera.x,f.z-camera.z)<=24);
-     assert(f.big ? f.size>=.55&&f.size<=.65 : f.size>=.22&&f.size<=.30);
+     assert(f.big ? f.size>=.55&&f.size<=.70 : f.size>=.25&&f.size<=.35);
    }
  }
  // Camera and hero prefer different schools: the player must win.
@@ -154,15 +154,16 @@ test('nearest schools survive saturation, hero priority falls back to camera, 24
  outside.update(0,{x:0,z:0});assert.equal(outside.count,0);
 });
 
-test('silver belly and flanks contrast with teal back and retain a light floor',async()=>{
+test('9d3 olive back and silver belly preserve specified linear pigment and depth contrast',async()=>{
  const {buildFishView}=await import(await load('kamakura-fish-view.js')),THREE=await import(threeURL);
  const view=buildFishView(createFishState(prep())),g=view.mesh.geometry,c=g.attributes.color,p=g.attributes.position;
  const luminance=i=>c.getX(i)*.2126+c.getY(i)*.7152+c.getZ(i)*.0722;
- assert(luminance(2)>.9);assert(luminance(1)>.5);assert(luminance(0)<.25);
+ assert(Math.abs(luminance(2)-(.2126*fishPigment(0,0)+.7152*fishPigment(1,0)+.0722*fishPigment(2,0)))<1e-6);
+ assert(luminance(2)>.59);assert(luminance(1)>.3);assert(luminance(0)<.05);
  assert(luminance(2)>luminance(0)*4);
  let min=Infinity,max=-Infinity;for(let i=0;i<p.count;i++){min=Math.min(min,p.getZ(i));max=Math.max(max,p.getZ(i));}assert.equal(max-min,1);
  const shader={vertexShader:THREE.ShaderLib.standard.vertexShader,fragmentShader:THREE.ShaderLib.standard.fragmentShader};view.mesh.material.onBeforeCompile(shader);
- assert(shader.fragmentShader.includes('totalEmissiveRadiance += vColor.rgb * 0.18'));
+ assert(shader.fragmentShader.includes('0.15+0.45*vFishDepth')); assert(shader.fragmentShader.includes('backLimit'));
  view.dispose();
 });
 
@@ -191,4 +192,80 @@ test('private v0.9 three habitable points: at least two fish within 10m for 95% 
    console.log('W2c-9d2 private point summary (min / median / >=2 fraction):',counts[0],(counts[299]+counts[300])/2,pass/600);
    assert(pass/600>=.95);
  }
+});
+
+// W2c-9d3: test the generated shader (including Three chunks), not just JS parsing.
+function shaderBalance(source) {
+ const clean=source.replace(/\/\*[\s\S]*?\*\//g,'').replace(/\/\/[^\n]*/g,'');
+ const stack=[];
+ for(const token of clean.matchAll(/[{}()]/g)) {
+   const t=token[0]; if(t==='{'||t==='(')stack.push(t);
+   else assert.equal(stack.pop(),t==='}'?'{':'(','GLSL bracket nesting');
+ }
+ assert.equal(stack.length,0,'GLSL unclosed bracket');
+ const pp=[];
+ for(const m of clean.matchAll(/^\s*#\s*(if|ifdef|ifndef|elif|else|endif)\b/gm)) {
+   if(['if','ifdef','ifndef'].includes(m[1]))pp.push(m[1]);
+   else {assert(pp.length>0,'GLSL orphan conditional');if(m[1]==='endif')pp.pop();}
+ }
+ assert.equal(pp.length,0,'GLSL unclosed conditional');
+}
+function expandChunks(source,THREE) {
+ return source.replace(/#include <([^>]+)>/g,(_,key)=>{assert.equal(typeof THREE.ShaderChunk[key],'string',key);return expandChunks(THREE.ShaderChunk[key],THREE);});
+}
+test('9d3 GLSL braces, parentheses and preprocessor pairs on every generated fish/FX shader',async()=>{
+ for(const bad of ['void main(){ foo(1.0; }','void main() {}}','#ifdef A\nvoid main() {}','#endif']) assert.throws(()=>shaderBalance(bad));
+ const THREE=await import(threeURL),{buildKamakuraFx}=await import(await load('kamakura-fx-view.js'));
+ for(const quality of ['standard','light']) {
+   const fx=buildKamakuraFx({terrain,data:{rivers:data(river())},quality});
+   for(const mesh of fx.group.children) {
+     const shader={...THREE.ShaderLib.basic};mesh.material.onBeforeCompile(shader);
+     for(const stage of ['vertexShader','fragmentShader']) {
+       shaderBalance(shader[stage]);shaderBalance(expandChunks(shader[stage],THREE));
+     }
+   }
+   fx.dispose();
+ }
+});
+test('9d3 fish shape budget, tail, dorsal, speed, heading spread, phases, depth and haze bounds',async()=>{
+ const fish=createFishState(prep()),camera={x:0,z:0},far={x:500,z:500};
+ for(let k=0;k<120;k++) {
+   fish.update(.1,camera,far);
+   const headings=[];
+   for(let i=0;i<fish.count;i++) {
+     const f=fish.fish[i];assert(f.speed>=.3&&f.speed<=.9);assert(f.variation>=.9&&f.variation<=1.1);
+     assert(Math.abs(f.headingOffset)<=25*Math.PI/180+1e-9);
+     if(f.school===fish.fish[0].school)headings.push(f.headingOffset*180/Math.PI);
+     if(!f.jumping) {assert(f.depth>=.2&&f.depth<=.45);assert(f.y>=2.08);}
+   }
+   const mean=headings.reduce((a,b)=>a+b)/headings.length;
+   const sd=Math.sqrt(headings.reduce((a,b)=>a+(b-mean)**2,0)/headings.length);assert(sd>=12);
+   assert.notEqual(fish.fish[0].phase,fish.fish[1].phase);
+ }
+ const lum=rgb=>rgb[0]*.2126+rgb[1]*.7152+rgb[2]*.0722;
+ for(const d of [.2,.3,.45]) for(const variation of [.9,1,1.1]) {
+   const back=[0,1,2].map(c=>fishHaze(c,1,d,variation)),belly=[0,1,2].map(c=>fishHaze(c,0,d,variation));
+   assert(lum(FISH_WATER)-lum(back)>=.04-1e-9);assert(lum(belly)-lum(back)>.30);
+ }
+ const {buildFishView}=await import(await load('kamakura-fish-view.js')),view=buildFishView(fish),g=view.mesh.geometry,p=g.attributes.position;
+ assert.equal(g.index.count/3,60);assert(g.index.count/3*56<=3400);
+ assert(p.getY(0)-p.getY(2)>=.59,'vertical tail');assert(p.getY(29)>.25,'dorsal projection');
+ assert.equal(view.mesh.material.transparent,false);view.dispose();
+});
+test('9d3 square white droplets, soft mist lifetime, landing micro-rings and double elliptical fading fronts',async()=>{
+ const fx=createFxState({terrain,rivers:prep()}),h=hero();h.stepGait='run';fx.contact({},h);
+ const live=fx.drops.filter(p=>p.life>0),mist=live.filter(p=>p.mist),drops=live.filter(p=>!p.mist);
+ assert.equal(drops.length,24);assert.equal(mist.length,4);
+ for(const p of drops) {assert(p.size>=.01&&p.size<=.03);assert(p.r>=.624&&p.r<=.889);assert(p.g>=.768&&p.g<=.939);assert(p.b>=.823&&p.b<=.957);}
+ for(const p of mist) assert(p.duration>=.4&&p.duration<=.6);
+ fx.update(.6);assert(mist.every(p=>p.life===0));assert(fx.ripples.some(r=>r.strength<.2&&r.life>0));
+ assert(rippleWidth(.7)>rippleWidth(.08));assert(rippleWidth(.7)>rippleWidth(1.43));assert.notEqual(rippleWidth(.7,0),rippleWidth(.7,.5));
+ assert(rippleSecondary(.3)>rippleSecondary(0));assert(rippleAspect()>1);
+ let alpha=.5;for(let age=0;age<=1.3;age+=.01){const a=rippleAlpha(age);assert(a<=alpha+1e-9);alpha=a;}assert.equal(rippleAlpha(1.3),0);
+ const THREE=await import(threeURL),{buildKamakuraFx}=await import(await load('kamakura-fx-view.js'));
+ const view=buildKamakuraFx({terrain,data:{rivers:data(river())}}),camera=new THREE.PerspectiveCamera();camera.rotation.set(.3,.7,.2);view.contact({},h);view.update(.1,camera,h);
+ const mesh=view.group.children[1],matrix=new THREE.Matrix4(),pos=new THREE.Vector3(),rotation=new THREE.Quaternion(),scale=new THREE.Vector3();
+ for(let i=0;i<mesh.count;i++){mesh.getMatrixAt(i,matrix);matrix.decompose(pos,rotation,scale);assert(Math.abs(scale.x/scale.y-1)<1e-6);assert(Math.abs(rotation.dot(camera.quaternion))>1-1e-6);}
+ const shader={...THREE.ShaderLib.basic};view.group.children[0].material.onBeforeCompile(shader);assert(shader.fragmentShader.includes('max(inner,outer)'));assert(shader.fragmentShader.includes('uneven'));
+ view.dispose();
 });

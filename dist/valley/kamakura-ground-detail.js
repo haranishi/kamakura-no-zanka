@@ -53,35 +53,29 @@ export function installGroundDetail(THREE, material, data, {quality='standard',s
     material.onBeforeCompile=shader=>{
       groundCompile(shader);
       shader.fragmentShader=shader.fragmentShader.replace('#include <common>',`#include <common>
-        uniform sampler2D uShoreSea,uShoreRiver;uniform vec4 uShoreGrid,uShoreRiverGrid;
-        uniform float uShoreReady,uShoreRiverReady,uShoreTime,uShoreWave,uShoreOldWave,uShoreAnimate;
+        uniform sampler2D uShoreSea;uniform vec4 uShoreGrid;
+        uniform float uShoreReady,uShoreTime,uShoreWave,uShoreOldWave,uShoreAnimate,uShoreDetail;
         ${SHORE_GLSL}
         float groundShoreWet=0.0;
       `).replace('#include <color_fragment>',`#include <color_fragment>
-        // W2c-9e: flat ochre -> moving wet edge, tide wrack and filtered wind ripples.
+        // W2c-9e2: signed sub-cell shore -> aligned wet sand and tide wrack.
         vec2 shoreP=vGroundWorld.xz;
         vec2 shoreUV=shoreP/(uGroundGrid.z*uGroundGrid.xy)+.5;
         float shoreCode=floor(texture2D(uGroundSurface,shoreUV).r*255.0+.5);
-        float shoreD=texture2D(uShoreSea,(shoreP-uShoreGrid.xy+8.0)/uShoreGrid.zw).r;
+        float shoreD=-texture2D(uShoreSea,(shoreP-uShoreGrid.xy+4.0)/uShoreGrid.zw).r;
         if((shoreCode==0.0||shoreCode==1.0)&&uShoreReady>.5){
           float wave=uShoreAnimate>.5?uShoreWave:.45;
           groundShoreWet=shoreWet(shoreD,wave);
           float footprint=max(length(fwidth(shoreP)),.001);
-          float detail=(1.0-smoothstep(.08,.8,footprint))*uShoreAnimate;
-          float wind=sin(dot(shoreP,vec2(5.0,1.7))+sin(shoreP.x*.04)*2.0);
+          float detail=(1.0-smoothstep(.08,.8,footprint))*uShoreAnimate*mix(.35,1.0,uShoreDetail);
+          float wind=sin(dot(shoreP,sandWindDirection(shoreP)));
           float grain=texture2D(uGroundPattern,shoreP/1.7).r-.5;
           diffuseColor.rgb*=mix(vec3(1.0),vec3(.48,.55,.59),groundShoreWet);
           diffuseColor.rgb*=1.0+detail*(wind*.055+grain*.12);
           float wrack=tideLine(shoreD)*smoothstep(-.2,.6,sin(shoreP.x*.7+sin(shoreP.y*.9)));
           diffuseColor.rgb*=1.0-.28*wrack;
-          float residue=.22*shoreFoam(shoreD,1.0-uShoreOldWave)*uShoreAnimate;
+          float residue=.22*shoreFoam(-shoreD,uShoreOldWave)*uShoreAnimate;
           diffuseColor.rgb=mix(diffuseColor.rgb,vec3(.65,.70,.62),residue);
-        }
-        if(uShoreRiverReady>.5){
-          float bank=texture2D(uShoreRiver,(shoreP-uShoreRiverGrid.xy+4.0)/uShoreRiverGrid.zw).r;
-          float damp=1.0-smoothstep(.6,2.0,bank);
-          diffuseColor.rgb*=mix(vec3(1.0),vec3(.49,.47,.40),damp);
-          groundShoreWet=max(groundShoreWet,damp);
         }
       `).replace('#include <opaque_fragment>',`
         // Lambert ground keeps its owner, shadow and fog pipeline; analytic wet sheen.
@@ -90,7 +84,7 @@ export function installGroundDetail(THREE, material, data, {quality='standard',s
         #include <opaque_fragment>`);
     };
   }
-  material.customProgramCacheKey=()=> shore?'kamakura-ground-9e-v1':'kamakura-ground-9b-v1';
+  material.customProgramCacheKey=()=> shore?'kamakura-ground-9e2-v2':'kamakura-ground-9b-v1';
   let disposed=false;
   return {uniforms,textures:[surface,texture],setAdapt(policy){const step=typeof policy==='number'?policy:policy.step;uniforms.uGroundStrength.value=step>=3?0:quality==='light'?.7:1;uniforms.uGroundSecond.value=quality==='light'||step>=2?0:1;},dispose(){if(disposed)return;disposed=true;surface.dispose();texture.dispose();}};
 }

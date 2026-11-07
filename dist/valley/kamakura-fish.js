@@ -4,6 +4,18 @@ export function fxHash(x, z, n = 0) {
   let h = Math.imul(Math.round(x * 16) ^ n, 374761393) ^ Math.imul(Math.round(z * 16), 668265263);
   h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
 }
+// W2c-9d3: linear pigment from olive #344032 and silver #c9cfc6.
+export const FISH_WATER = Object.freeze([.035,.12,.15]);
+const linear = c => c <= .04045 ? c / 12.92 : ((c + .055) / 1.055) ** 2.4;
+const back = [52,64,50].map(c=>linear(c/255)), belly = [201,207,198].map(c=>linear(c/255));
+export function fishPigment(channel, top) { return belly[channel] * (1-top) + back[channel] * top; }
+export function fishHaze(channel, top, depth, variation=1) {
+  const haze=clamp(.15+.45*depth,.15,.60);
+  let lum=0; for(let c=0;c<3;c++) lum+=(fishPigment(c,top)*variation*(1-haze)+FISH_WATER[c]*haze)*[.2126,.7152,.0722][c];
+  const limit=FISH_WATER[0]*.2126+FISH_WATER[1]*.7152+FISH_WATER[2]*.0722-.04;
+  const scale=top===1?Math.min(1,limit/Math.max(.0001,lum)):1;
+  return (fishPigment(channel,top)*variation*(1-haze)+FISH_WATER[channel]*haze)*scale;
+}
 // Split long segments once; index by numeric cell key. Queries never scan the whole river.
 export function* prepareFishRiverSteps(data, vscale = 1, terrain = null) {
   const segments = [], cells = new Map(), stride = 1048576, key = (i, j) => i + j * stride;
@@ -66,7 +78,7 @@ export function prepareFishRivers(data, vscale = 1, terrain = null) {
   return result.value;
 }
 export function createFishState(rivers, { limit = 56, ripple = () => {} } = {}) {
-  const fish = Array.from({ length: limit }, () => ({ x: 0, y: 0, z: 0, yaw: 0, size: 0, phase: 0, big: false, lane: 0, half: 0, school: 0, scare: 0, jumping: false }));
+  const fish = Array.from({ length: limit }, () => ({ x: 0, y: 0, z: 0, yaw: 0, size: 0, phase: 0, big: false, lane: 0, half: 0, school: 0, scare: 0, jumping: false, depth: 0, variation: 1, speed: 0, headingOffset: 0 }));
   // W2c-9d2: scan order / 35m -> nearest 40 schools / camera gate 24m.
   // Allocate once; bounded insertion keeps the nearest schools even after saturation.
   const candidates = new Array(40), distances = new Float64Array(40);
@@ -93,7 +105,7 @@ export function createFishState(rivers, { limit = 56, ripple = () => {} } = {}) 
     const schoolCount = s.count + Math.round((10 - s.count) * clamp(1 - distance / 24, 0, 1));
     let near = false;
     for (let i = 0; i < schoolCount; i++) {
-      const phase = s.id * 19 + i * .47, speed = .3 + fxHash(s.ax, s.az, i + 1) * .5;
+      const phase = s.id * 19 + i * .47, speed = .3 + fxHash(s.ax, s.az, i + 1) * .6;
       const u = ((time + s.travel) * speed / Math.max(1, s.length * .7) + phase) % 2;
       const t = .15 + .7 * (u < 1 ? u : 2 - u), half = (s.wa + (s.wb - s.wa) * t) / 2;
       const lane = half * .35 * Math.sin(phase + time * .23) * .65;
@@ -103,21 +115,28 @@ export function createFishState(rivers, { limit = 56, ripple = () => {} } = {}) 
     s.scare = Math.max(0, s.scareUntil - time); s.travel += dtNow * 2 * s.scare;
     const cycle = Math.floor((time + s.id * s.period) / s.period), jump = (time + s.id * s.period) % s.period;
     for (let i = 0; i < schoolCount && count < cap; i++) {
-      const phase = s.id * 19 + i * .47, speed = .3 + fxHash(s.ax, s.az, i + 1) * .5;
+      const phase = s.id * 19 + i * .47, speed = .3 + fxHash(s.ax, s.az, i + 1) * .6;
       const u = ((time + s.travel) * speed / Math.max(1, s.length * .7) + phase) % 2, forward = u < 1;
       const t = .15 + .7 * (forward ? u : 2 - u), half = (s.wa + (s.wb - s.wa) * t) / 2;
       const lane = half * .35 * clamp(Math.sin(phase + time * .23) * .65 + Math.sign(Math.sin(phase) || 1) * s.scare * .35, -1, 1);
       const x = s.ax + s.dx * t - s.dz / s.length * lane, z = s.az + s.dz * t + s.dx / s.length * lane;
       if (Math.hypot(x - camera.x, z - camera.z) > 24) continue;
       const f = fish[count++], water = s.ya + (s.yb - s.ya) * t;
-      f.x = x; f.z = z; f.y = water - .18 - (i % 3) * .04;
+      // W2c-9d3: surface slivers -> staggered swimming depths and individual headings.
+      f.x = x; f.z = z;
+      const bed = s.ba + (s.bb - s.ba) * t;
+      f.y = water - clamp(.325 + .075 * Math.sin(time * .7 + phase), .2, .45);
       f.jumping = i === 0 && jump < .7;
       if (f.jumping) { f.y = water - .18 + Math.sin(jump / .7 * Math.PI) * .55;
-        if (cycle !== s.jumpCycle) { ripple(x, water + .015, z, .6); s.jumpCycle = cycle; } }
-      f.y = Math.max(s.ba + (s.bb - s.ba) * t + .06, f.y);
-      f.yaw = Math.atan2(s.dx, s.dz) + (forward ? 0 : Math.PI); f.big = i === 0 && s.id > .65;
-      // W2c-9d2: 15–22cm / 45cm -> 22–30cm / 55–65cm.
-      f.size = f.big ? .55 + s.id * .1 : .22 + (i % 3) * .04; f.phase = phase + (time + s.travel) * 9; f.lane = lane; f.half = half; f.school = s.id; f.scare = s.scare;
+        if (cycle !== s.jumpCycle) { ripple(x, water + .015, z, 1); ripple(x + .06, water + .016, z, .85); s.jumpCycle = cycle; } }
+      f.y = Math.max(bed + .08, f.y);
+      f.depth = Math.max(0, water - f.y);
+      // Alternating endpoints ensure even a small school has visible angular spread.
+      f.headingOffset = ((i % 2 ? 1 : -1) * (19 + 6 * Math.sin(time * .31 + phase))) * Math.PI / 180;
+      f.yaw = Math.atan2(s.dx, s.dz) + (forward ? 0 : Math.PI) + f.headingOffset;
+      f.speed = speed; f.variation = .9 + fxHash(s.ax, s.az, i + 101) * .2; f.big = i === 0 && s.id > .65;
+      // W2c-9d3: thicker 25–35cm fish, 55–70cm large fish.
+      f.size = f.big ? .55 + s.id * .15 : .25 + (i % 3) * .05; f.phase = phase + (time + s.travel) * 9; f.lane = lane; f.half = half; f.school = s.id; f.scare = s.scare;
     }
   }
   return { fish, get count() { return count; }, setLimit(n) { cap = Math.min(limit, Math.max(0, n)); },
