@@ -91,6 +91,7 @@ test('real Three BufferGeometry uses neutral white vertex material; ground=0 and
   const THREE = await import(three);
   const source = (await fs.readFile(new URL('../dist/valley/kamakura-chunk-view.js',import.meta.url),'utf8'))
     .replace("from 'three'", `from '${three}'`)
+    .replace("from './kamakura-ground-detail.js'", `from '${new URL('../dist/valley/kamakura-ground-detail.js',import.meta.url).href}'`)
     .replace("from './kamakura-chunk-jobs.js'", `from '${new URL('../dist/valley/kamakura-chunk-jobs.js',import.meta.url).href}'`)
     .replace("from './kamakura-fly.js'", `from '${new URL('../dist/valley/kamakura-fly.js',import.meta.url).href}'`)
     .replace("from './kamakura-chunks.js'", `from '${new URL('../dist/valley/kamakura-chunks.js',import.meta.url).href}'`);

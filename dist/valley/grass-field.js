@@ -209,10 +209,10 @@ function tileList(x, z, size, inner, outer) {
   }
   return out.sort((a, b) => a.dist - b.dist || a.tz - b.tz || a.tx - b.tx);
 }
-export function tilesAround(field, x, z, { quality = 'standard' } = {}) {
+export function tilesAround(field, x, z, { quality = 'standard', reach } = {}) {
   if (!Number.isFinite(x + z)) throw new RangeError('camera: finite coordinates required');
   const q = qualityOf(quality), out = {};
-  for (const [name, size, inner, outer] of [['near', GRASS.nearSize, 0, GRASS.nearRadius * q.distance], ['mid', GRASS.midSize, GRASS.nearRadius * q.distance * 0.8, GRASS.midRadius * q.distance]]) {
+  for (const [name, size, inner, outer] of [['near', GRASS.nearSize, 0, (reach?.near ?? GRASS.nearRadius) * q.distance], ['mid', GRASS.midSize, (reach?.near ?? GRASS.nearRadius) * q.distance * 0.8, (reach?.mid ?? GRASS.midRadius) * q.distance]]) {
     out[name] = tileList(x, z, size, inner, outer).filter(t => t.tx * size < field.x0 + field.nx && (t.tx + 1) * size > field.x0 && t.tz * size < field.z0 + field.nz && (t.tz + 1) * size > field.z0).map(t => ({ ...t, key: `${name}:${t.tx},${t.tz}` }));
   }
   return out;

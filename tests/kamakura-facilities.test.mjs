@@ -168,7 +168,38 @@ test('private v0.8 facility nodes, triangles, placement, grounding and overlaps'
   const {buildKamakuraFacilities}=await loadFacilityView(),scene=new THREE.Scene();
   const {createKamakuraTerrain}=await import('../dist/valley/kamakura-terrain.js');
   for(const scale of [1,1.8]){const field=await buildKamakuraFacilities(input.facilities,createKamakuraTerrain(data,scale),scene);const held=input.facilities.nodes.filter(n=>FACILITY_HELD_BACK.has(n.part)).length;assert(held>=1);
+    const plain=await buildKamakuraFacilities(input.facilities,createKamakuraTerrain(data,scale),new THREE.Scene(),'standard',{search:'?ftex=0'});
+    assert.deepEqual(field.boxes,plain.boxes);assert.deepEqual(field.exclusionBoxes,plain.exclusionBoxes);
+    assert.equal(field.records.length,plain.records.length);
+    for(let i=0;i<field.records.length;i++){
+      assert.equal(field.records[i].meshes.length,plain.records[i].meshes.length);
+      for(let j=0;j<field.records[i].meshes.length;j++){
+        const a=field.records[i].meshes[j],b=plain.records[i].meshes[j];
+        assert.deepEqual(a.geometry.attributes.position.array,b.geometry.attributes.position.array);
+        assert.deepEqual(a.geometry.attributes.normal?.array,b.geometry.attributes.normal?.array);
+        assert.deepEqual(a.matrix.elements,b.matrix.elements);
+      }
+    }
+    plain.dispose();
     assert.equal(field.records.length,report.count-held);assert.equal(field.boxes.length,report.colliders);field.update({x:data.meta.spawn.x,z:-data.meta.spawn.y});field.dispose();
     const all=await buildKamakuraFacilities(input.facilities,createKamakuraTerrain(data,scale),new THREE.Scene(),'standard',{showHeldBack:true});assert.equal(all.records.length,report.count);all.dispose();assert.equal(scene.children.length,0);}
   t.diagnostic(JSON.stringify({count:report.count,parts:report.parts,triangles:report.triangles,colliders:report.colliders,overlaps:Object.fromEntries(Object.entries(report.overlaps).map(([k,v])=>[k,v.length]))}));
+});
+test('9g2 facility ftex A/B preserves all geometry, placement, boxes and counts; adaptation and resources',async()=>{
+  const {buildKamakuraFacilities}=await loadFacilityView(),nodes=[node('hall'),node('fence')],data={nodes,kit:kit(nodes)},terrain={heightAt:(x,z)=>2+x*.01+z*.02};
+  const scenes=[new THREE.Scene(),new THREE.Scene()];
+  const fields=await Promise.all(scenes.map((s,i)=>buildKamakuraFacilities(data,terrain,s,'standard',{search:i?'?ftex=0':''})));
+  const snapshot=f=>f.records.map(r=>r.meshes.map(m=>({p:[...m.geometry.attributes.position.array],n:m.geometry.attributes.normal && [...m.geometry.attributes.normal.array],matrix:[...m.matrix.elements],indices:m.geometry.index && [...m.geometry.index.array]})));
+  assert.deepEqual(snapshot(fields[0]),snapshot(fields[1]));assert.deepEqual(fields[0].boxes,fields[1].boxes);assert.deepEqual(fields[0].exclusionBoxes,fields[1].exclusionBoxes);
+  const resources=new Set();for(const r of fields[0].records)for(const m of r.meshes){
+    const u=m.material.userData.houseUniforms;assert(u);assert.equal(u.houseRole.value,2);assert(m.geometry.hasAttribute('houseLocalY'));
+    resources.add(m.geometry);resources.add(m.material);resources.add(u.houseAtlas.value);
+    fields[0].setAdapt({scale:.7,shadows:true});assert.equal(u.houseBump.value,0);assert.equal(u.houseStrength.value,1);
+    fields[0].setAdapt({scale:.58,shadows:false});assert.equal(u.houseStrength.value,0);
+    fields[0].setAdapt({scale:1,shadows:true});assert.equal(u.houseBump.value,1);assert.equal(u.houseStrength.value,1);
+  }
+  for(const r of fields[1].records)for(const m of r.meshes)assert(!m.material.userData.houseUniforms);
+  const calls=new Map();for(const r of resources)r.addEventListener('dispose',()=>calls.set(r,(calls.get(r)||0)+1));
+  for(const f of fields){f.dispose();f.dispose();f.update({x:0,z:0});}
+  assert([...resources].every(r=>calls.get(r)===1));assert(scenes.every(s=>s.children.length===0));
 });

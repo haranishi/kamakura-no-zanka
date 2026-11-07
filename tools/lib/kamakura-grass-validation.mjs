@@ -32,8 +32,8 @@ export async function verifyPrivateGrass(dir) {
     const evaluate = createGrassCell(terrain,{surfaceCodeAt,exclude:grassExclusions(terrain,{colliders:col,paths:data.patches?.paths || {}})});
     const w = createGrassWindows(evaluate); w.plan(spawn);
     let start = performance.now(); w.work(()=>0); const first = w.commit(); const initialMs = performance.now()-start;
-    w.plan({x:spawn.x+24,z:spawn.z}); start=performance.now(); w.work(()=>0); const moved=w.commit(); const moveMs=performance.now()-start;
-    assert.equal(moved.stats.evaluated,2304); assert.equal(moved.stats.reused,6912); assert(first.heights.every(Number.isFinite));
+    w.plan({x:spawn.x+32,z:spawn.z}); start=performance.now(); w.work(()=>0); const moved=w.commit(); const moveMs=performance.now()-start;
+    assert.equal(moved.stats.evaluated,8192); assert.equal(moved.stats.reused,57344); assert(first.heights.every(Number.isFinite));
     const sites = { spawn };
     // Deterministic grid search for representative walkable grass/forest cells; never export points.
     const {width,height,cell_m:cell} = data.meta.grid;
@@ -52,9 +52,16 @@ export async function verifyPrivateGrass(dir) {
           v.update(camera);const s=v.stats();if(s.switches&&!s.pending&&s.queue===0)break;
           assert(frame<1999,'Private grass failed to settle (location withheld)');
         }
-        const s=v.stats();samples[name]={nearBlades:s.nearBlades,midCards:s.midCards,triangles:s.triangles,maxWindowFrameMs:round(s.maxWorkMs)};
+        const steadyStart=performance.now();for(let i=0;i<300;i++)v.update(camera);
+        const steadyMs=(performance.now()-steadyStart)/300;
+        const probe=createGrassWindows(evaluate);probe.plan(pos);probe.work(()=>0);probe.commit();
+        probe.plan({x:pos.x+32,z:pos.z});let prepFrames6=0,prepCpuMs=0;
+        while(probe.pending){const tick=performance.now();probe.work(()=>(performance.now()-tick)*6,2);prepCpuMs+=performance.now()-tick;prepFrames6++;probe.commit();assert(prepFrames6<1000);}
+        // 5 m/s sprint at 60 Hz: old window must cover mid radius + feather until commit.
+        assert(prepFrames6/60*5<20,'CPU6 preparation exceeds streaming headroom');probe.dispose();
+        const s=v.stats();samples[name]={nearBlades:s.nearBlades,midCards:s.midCards,triangles:s.triangles,maxWindowFrameMs:round(s.maxWorkMs),steadyCpuMs:round(steadyMs),prepFrames6,prepCpuMs:round(prepCpuMs),prepSeconds60Hz:round(prepFrames6/60)};
       } finally {v.dispose();}
     }
-    return {windowM:96,initialCells:9216,newCells:moved.stats.evaluated,reusedCells:moved.stats.reused,initialMs:round(initialMs),moveMs:round(moveMs),samples};
+    return {windowM:256,initialCells:65536,newCells:moved.stats.evaluated,reusedCells:moved.stats.reused,initialMs:round(initialMs),moveMs:round(moveMs),samples};
   } finally {houses?.dispose();facilities?.dispose();}
 }
