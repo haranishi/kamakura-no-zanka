@@ -16,7 +16,7 @@ export function axisPoint(axis, distance) {
 }
 // Test departure at a chosen point: ?pos=<east>,<north> (metres, as the debug HUD prints them) and ?yaw=<degrees clockwise from north>.
 // The nearest walkable point within 40 m is used, so a point inside a house or on a cliff still starts the walk.
-export function pointDeparture(t, params) {
+export function pointDeparture(t, params, radius = 40) {
   const parts = String(params.get('pos') ?? '').split(',');
   if (parts.length !== 2 || parts.some(v => v.trim() === '')) return null;
   const east = Number(parts[0]), north = Number(parts[1]);
@@ -25,9 +25,9 @@ export function pointDeparture(t, params) {
   const yaw = Number.isFinite(turn) ? -turn * Math.PI / 180 : -t.meta.spawn.yaw_deg_clockwise_from_north * Math.PI / 180;
   if (t.walkable(east, -north)) return { x: east, z: -north, yaw };
   const step = t.cell / 4, found = [];
-  for (let z = -40; z <= 40; z += step) for (let x = -40; x <= 40; x += step) found.push({ x: east + x, z: -north + z, d: Math.hypot(x, z) });
+  for (let z = -radius; z <= radius; z += step) for (let x = -radius; x <= radius; x += step) found.push({ x: east + x, z: -north + z, d: Math.hypot(x, z) });
   found.sort((a, b) => a.d - b.d);
-  const best = found.find(q => q.d <= 40 && t.walkable(q.x, q.z));
+  const best = found.find(q => q.d <= radius && t.walkable(q.x, q.z));
   return best ? { x: best.x, z: best.z, yaw } : null;
 }
 export function kamakuraSpawn(t, search) {

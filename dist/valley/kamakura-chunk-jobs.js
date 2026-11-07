@@ -8,14 +8,14 @@ export function createChunkJobs(chunks, neighbors, wantLOD) {
   let generation = 0, active = null, queue = [], cursor = 0, targets = new Map(), ranks = new Map();
   const distance2 = (ch, pos) => (ch.x - pos.x) ** 2 + (ch.z - pos.z) ** 2;
   function cancel() { generation++; active = null; }
-  function plan(pos) {
+  function plan(pos, distance = 3300) {
     const ordered = chunks.map(ch => {
       const d2 = distance2(ch, pos); return { ch, d2, want: wantLOD(ch, Math.sqrt(d2)) };
     }).sort((a, b) => a.d2 - b.d2);
     targets = new Map(ordered.map(v => [v.ch, v.want]));
     ranks = new Map(ordered.map((v, i) => [v.ch, i]));
     if (active && active.jobs.some(job => targets.get(job.ch) !== job.want)) cancel();
-    for (const { ch, d2 } of ordered) ch.visible = d2 < 3300 ** 2;
+    for (const { ch, d2 } of ordered) ch.visible = d2 < distance ** 2;
     queue = ordered.filter(({ ch, want }) => ch.visible && (!ch.loaded || want !== ch.step)); cursor = 0;
   }
   function next() {

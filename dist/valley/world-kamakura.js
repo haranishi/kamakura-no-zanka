@@ -1,4 +1,4 @@
-// Separate walk-only composition. No chapter state, quests, or save access.
+// Separate Kamakura composition with a development flight camera. No chapter state, quests, or save access.
 import * as THREE from 'three';
 import { createKamakuraTerrain, maxWalkSlope, groundEnabled } from './kamakura-terrain.js';
 import { buildKamakuraChunks } from './kamakura-chunk-view.js';
@@ -21,6 +21,7 @@ import { createKamakuraAtmosphere } from './kamakura-atmosphere-view.js';
 import { waterEnabled, prepareRivers } from './kamakura-rivers.js';
 import { buildKamakuraWater } from './kamakura-water-view.js';
 import { adaptOptions, createAdapt, stepAdapt, adaptPolicy, adaptPixelRatio } from './kamakura-adapt.js';
+import { createKamakuraFlight, bindKamakuraFlight } from './kamakura-fly-view.js';
 import { verticalScale } from './world-entry.js';
 export async function bootKamakura(data, search) {
   const t = createKamakuraTerrain(data, verticalScale(search), maxWalkSlope(search)), meta = data.meta;
@@ -28,12 +29,12 @@ export async function bootKamakura(data, search) {
   if (!t.walkable(spawn.x, spawn.z)) throw new Error('出発点を歩けません');
   // Load the existing hero only. Do not load the chapter's enemies or scenery.
   let roster;
-  let renderer, chunks, hud, houses, trees, stands, standPrepared, treeOptions, atmosphere, sea, water, hero, input, hintTimer;
+  let renderer, chunks, hud, houses, trees, stands, standPrepared, treeOptions, atmosphere, sea, water, hero, input, hintTimer, flight;
   const events = new AbortController(); let disposed = false;
   function dispose() {
     if (disposed) return; disposed = true; events.abort(); clearTimeout(hintTimer);
     input?.setEnabled(false); input?.base.releaseLock();
-    renderer?.setAnimationLoop(null); hero?.remove(); chunks?.dispose(); houses?.dispose(); trees?.dispose(); stands?.dispose();
+    renderer?.setAnimationLoop(null); flight?.dispose(); hero?.remove(); chunks?.dispose(); houses?.dispose(); trees?.dispose(); stands?.dispose();
     water?.dispose(); sea?.geometry.dispose(); sea?.material.dispose(); atmosphere?.dispose();
     const resources = new Set();
     for (const tpl of roster?.templates.values() || []) tpl.scene.traverse(o => {
@@ -67,7 +68,8 @@ export async function bootKamakura(data, search) {
       try { water = buildKamakuraWater(prepareRivers(data.rivers, t.vscale, quality), { sunDir: atmosphere.sunDir }); scene.add(water.group); }
       catch { riverNotice = '川を準備できませんでした。川なしで散策を続けます'; }
     }
-    hud = createKamakuraHUD(meta, new URLSearchParams(search).get('debug') === '1');
+    const params = new URLSearchParams(search);
+    hud = createKamakuraHUD(meta, params.get('debug') === '1', params.get('debug') === '1' || params.has('fly'));
     hud.status('鎌倉の地形と家を準備しています');
     if (data.houses && new URLSearchParams(search).get('houses') !== '0') {
       try { houses = await buildKamakuraHouses(data.houses, t, scene); }
@@ -110,7 +112,7 @@ export async function bootKamakura(data, search) {
     }
     const view = document.getElementById('view'); view.append(renderer.domElement); view.setAttribute('aria-label', '鎌倉を歩く3Dシーン');
     const base = new Input(renderer.domElement, { signal: events.signal });
-    input = new TouchInput(base, renderer.domElement, hud.run, { signal: events.signal });
+    input = new TouchInput(base, renderer.domElement, hud.run, { signal: events.signal, upButton: hud.up, downButton: hud.down });
     let paused = false, skipAdaptFrame = true;
     function setPaused(on) {
       paused = on; skipAdaptFrame = true; input.setEnabled(!on);
@@ -119,12 +121,15 @@ export async function bootKamakura(data, search) {
       if (on) base.releaseLock();
       hud.pause.textContent = on ? '再開' : '休止'; status(on ? '休止中。「再開」で散策に戻ります' : '');
     }
-    hud.pause.onclick = () => setPaused(!paused);
+    flight = createKamakuraFlight({ search, terrain: t, spawn, camera, rig, hero, chunks, houses, trees, stands, water, atmosphere, hud,
+      hint: text => g.hud.hint('flight', text, 2200) });
+    bindKamakuraFlight({ flight, input, hud, element: renderer.domElement, paused: () => paused, signal: events.signal });
+    hud.pause.addEventListener('click', () => setPaused(!paused), { signal: events.signal });
     base.onLockChange = locked => { if (!locked) setPaused(true); };
     addEventListener('keydown', e => { if ((e.code === 'KeyP' || e.code === 'Escape') && !e.repeat) setPaused(!paused); }, { signal: events.signal });
     addEventListener('blur', () => setPaused(true), { signal: events.signal });
     document.addEventListener('visibilitychange', () => { if (document.hidden) setPaused(true); }, { signal: events.signal });
-    const resize = () => { renderer.setPixelRatio(adaptPixelRatio(devicePixelRatio, quality, adapt.step)); renderer.setSize(innerWidth, innerHeight); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); };
+    const resize = () => { renderer.setPixelRatio(adaptPixelRatio(devicePixelRatio, quality, adapt.step)); renderer.setSize(innerWidth, innerHeight); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); flight.resize(); };
     const applyAdapt = () => { const policy = adaptPolicy(adapt.step); atmosphere.setAdapt(policy); trees?.setAdapt(policy); stands?.setAdapt(policy); };
     applyAdapt();
     addEventListener('resize', resize, { signal: events.signal }); resize(); setPaused(false);
@@ -136,7 +141,10 @@ export async function bootKamakura(data, search) {
       adapt = stepAdapt(adapt, rawDt, { paused: paused || skipAdaptFrame, hidden: document.hidden, enabled: options.enabled });
       skipAdaptFrame = false;
       if (adapt.step !== oldStep) { applyAdapt(); resize(); }
-      if (!paused) {
+      if (!paused && flight.active) {
+        const look = input.flightLook(dt);
+        flight.step({ ...input.flightAxis(), ...look }, dt); input.endFrame();
+      } else if (!paused) {
         const look = input.look(dt), ax = input.axis(), yaw = rig.yaw;
         const vx = -Math.sin(yaw) * ax.forward + Math.cos(yaw) * ax.right, vz = -Math.cos(yaw) * ax.forward - Math.sin(yaw) * ax.right;
         const hero = g.hero, ch = hero.character;
@@ -152,10 +160,8 @@ export async function bootKamakura(data, search) {
       const uniforms = toUniforms(windState);
       wind.uTime.value = uniforms.uTime; wind.uWind.value = uniforms.uWind;
       wind.uWindDir.value.set(...uniforms.uWindDir); wind.uGuideMix.value = uniforms.uGuideMix;
-      chunks.update(g.hero.pos); houses?.update(g.hero.pos); trees?.update(camera); stands?.update(camera);
-      water?.update(uniforms.uTime);
-      atmosphere.update(camera, paused ? 0 : dt, g.hero.pos, rig.yaw); renderer.render(scene, camera);
-      hud.update(g.hero.pos, rig.yaw, t, { ...renderer.info.render, averageMs: adapt.averageMs, step: adapt.step });
+      flight.updateViews(uniforms.uTime, paused ? 0 : dt); renderer.render(scene, camera);
+      hud.update(flight.pos, flight.yaw, t, { ...renderer.info.render, averageMs: adapt.averageMs, step: adapt.step }, flight.state);
     });
     return { dispose };
   } catch (error) {

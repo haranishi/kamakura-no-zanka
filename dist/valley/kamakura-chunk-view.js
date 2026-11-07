@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { FLY } from './kamakura-fly.js';
 import { CHUNK_CELLS as SIZE, chooseLOD, choosePatchLOD, chunkGeometry } from './kamakura-chunks.js';
 import { createChunkJobs, chunkBudget, withinChunkBudget, shouldPlanChunks } from './kamakura-chunk-jobs.js';
 export function buildKamakuraChunks(t, scene, spawn, ground = true, quality = 'standard') {
@@ -14,7 +15,11 @@ export function buildKamakuraChunks(t, scene, spawn, ground = true, quality = 's
     chunks.push(ch); grid.set(`${i},${j}`, ch);
   }
   const neighbors = ch => ({ north: grid.get(`${ch.i},${ch.j - SIZE}`), south: grid.get(`${ch.i},${ch.j + SIZE}`), west: grid.get(`${ch.i - SIZE},${ch.j}`), east: grid.get(`${ch.i + SIZE},${ch.j}`) });
-  const wantLOD = (ch, d) => t.patches ? choosePatchLOD(d, ch.step) : ch.nearA ? chooseLOD(d, ch.step) : 8;
+  let flying = false, flyHeight = 0;
+  const wantLOD = (ch, distance) => {
+    const d = flying ? Math.hypot(distance, flyHeight) : distance;
+    return t.patches ? choosePatchLOD(d, ch.step) : ch.nearA ? chooseLOD(d, ch.step) : 8;
+  };
   for (const ch of chunks) ch.step = wantLOD(ch, Math.hypot(ch.x - spawn.x, ch.z - spawn.z));
   const scheduler = createChunkJobs(chunks, neighbors, wantLOD), prepared = new Map();
   let last = null, frame = 0, disposed = false;
@@ -32,13 +37,14 @@ export function buildKamakuraChunks(t, scene, spawn, ground = true, quality = 's
   function update(pos) {
     if (disposed) return;
     if (shouldPlanChunks(last, pos, ++frame)) {
-      const old = scheduler.active; scheduler.plan(pos);
+      flyHeight = flying ? Math.max(0, pos.y - t.heightAt(pos.x, pos.z)) : 0;
+      const old = scheduler.active; scheduler.plan(pos, flying ? FLY.distance : 3300);
       if (old && old !== scheduler.active) discard();
       last = { x: pos.x, z: pos.z };
       for (const ch of chunks) if (ch.mesh) ch.mesh.visible = ch.visible;
     }
     const start = performance.now(); let count = 0;
-    while (withinChunkBudget(start, performance.now(), count, chunkBudget(quality))) {
+    while (flying ? count < FLY.builds : withinChunkBudget(start, performance.now(), count, chunkBudget(quality))) {
       const batch = scheduler.next(); if (!batch) break;
       const job = batch.jobs.find(j => !j.done);
       try { prepared.set(job, prepare(job)); }
@@ -62,5 +68,5 @@ export function buildKamakuraChunks(t, scene, spawn, ground = true, quality = 's
   function ready(pos) {
     return chunks.filter(ch => Math.hypot(ch.x - pos.x, ch.z - pos.z) < 420).every(ch => ch.mesh);
   }
-  return { chunks, update, ready, scheduler, dispose() { if (disposed) return; disposed = true; discard(); scheduler.cancel(); for (const ch of chunks) { if (ch.mesh) { scene.remove(ch.mesh); ch.mesh.geometry.dispose(); } } material.dispose(); } };
+  return { chunks, update, ready, scheduler, setFlying(on) { if (flying !== on) { flying = on; last = null; } }, get distance() { return flying ? FLY.distance : 3300; }, dispose() { if (disposed) return; disposed = true; discard(); scheduler.cancel(); for (const ch of chunks) { if (ch.mesh) { scene.remove(ch.mesh); ch.mesh.geometry.dispose(); } } material.dispose(); } };
 }
