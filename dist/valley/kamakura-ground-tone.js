@@ -5,7 +5,7 @@ export function installGroundTone(THREE,material,data,owner,{quality='standard',
   const {width:w,height:h}=data.meta.grid;
   const base=new Uint8Array(w*h*4),weights=new Uint8Array(w*h*4),boxes=groundUseBoxes(data);
   const textures=[base,weights].map(bytes=>{const t=new THREE.DataTexture(bytes,w,h,THREE.RGBAFormat);t.minFilter=THREE.LinearMipmapLinearFilter;t.magFilter=THREE.LinearFilter;t.generateMipmaps=true;t.unpackAlignment=1;return t;});
-  const uniforms={uToneBase:{value:textures[0]},uToneWeights:{value:textures[1]},uToneReady:{value:0},uToneStrength:{value:toneStrength(quality)},uToneSoil:{value:new URLSearchParams(search).get('gsoil')==='0'?0:1}};
+  const uniforms={uToneGrid:{value:new THREE.Vector3(w,h,data.meta.grid.cell_m)},uToneBase:{value:textures[0]},uToneWeights:{value:textures[1]},uToneReady:{value:0},uToneStrength:{value:toneStrength(quality)},uToneSoil:{value:new URLSearchParams(search).get('gsoil')==='0'?0:1}};
   Object.assign(owner.uniforms,uniforms);
   let cursor=0,timer,disposed=false,resolveReady;
   const ready=new Promise(resolve=>{resolveReady=resolve;});
@@ -35,6 +35,8 @@ export function installGroundTone(THREE,material,data,owner,{quality='standard',
 }
 
 export const TONE_GLSL=`
+// W2c-9r1 ground fix: own grid declaration precedes tone functions, independent of detail insertion order.
+uniform vec3 uToneGrid;
 uniform sampler2D uToneBase,uToneWeights;
 uniform float uToneReady,uToneStrength,uToneSoil;
 float toneHash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453123);}
@@ -42,7 +44,7 @@ float toneNoise(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);return mix(
 // Same temporary (x, y, dist) interface as the pure grassTintAt above; y is map south.
 float grassTintAt(float x,float y,float dist){return smoothstep(35.0,110.0,dist)*(.035+.025*toneNoise(vec2(x,y)/32.0));}
 vec3 groundTone(vec3 world,float normalY,float dist){
-  vec2 p=world.xz,uv=p/(uGroundGrid.z*uGroundGrid.xy)+.5;
+  vec2 p=world.xz,uv=p/(uToneGrid.z*uToneGrid.xy)+.5;
   vec3 base=texture2D(uToneBase,uv).rgb;
   vec4 weights=texture2D(uToneWeights,uv);
   float px=max(length(fwidth(p)),.0001);

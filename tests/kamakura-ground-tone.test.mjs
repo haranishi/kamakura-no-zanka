@@ -26,6 +26,60 @@ function balanced(source){
   }
   assert.equal(directives.length,0,'unclosed conditional');
 }
+// Expand shipped Three chunks too: checking only hook text misses declarations in includes.
+function expanded(source){
+  return source.replace(/#include\s+<([\w]+)>/g,(_,name)=>{
+    assert.equal(typeof THREE.ShaderChunk[name],'string',`unknown chunk ${name}`);
+    return expanded(THREE.ShaderChunk[name]);
+  });
+}
+function uniformDeclarations(source,label){
+  const clean=expanded(source).replace(/\/\*[\s\S]*?\*\//g,'').replace(/\/\/[^\n]*/g,'');
+  const declared=new Map();
+  for(const match of clean.matchAll(/\buniform\s+(?:(?:lowp|mediump|highp)\s+)?\w+\s+([^;]+);/g)){
+    for(const entry of match[1].split(',')){
+      const name=entry.trim().match(/^\w+/)?.[0];
+      if(name&&!declared.has(name))declared.set(name,match.index);
+    }
+  }
+  // Project uniforms use u + capital; Three's injected builtins (cameraPosition,
+  // modelMatrix, etc.) have other names and are supplied by WebGLProgram.
+  for(const match of clean.matchAll(/\bu[A-Z]\w*\b/g)){
+    assert(declared.has(match[0]),`${label}: ${match[0]} missing uniform declaration`);
+    assert(declared.get(match[0])<match.index,`${label}: ${match[0]} used before uniform declaration`);
+  }
+}
+test('r1 uniform checker rejects absent, late and comma-list declarations with a missing member',()=>{
+  for(const s of ['void main(){float x=uMissing;}','float f(){return uLate;} uniform float uLate;','uniform float uA,uB; float f(){return uC;}'])
+    assert.throws(()=>uniformDeclarations(s,'checker'),/uniform declaration/);
+  uniformDeclarations('uniform sampler2D uA,uB; uniform highp vec3 uGrid; float f(){return uGrid.z;}','checker');
+});
+test('r1 assembled Lambert uniforms are declared before use for every detail/soil/tone/light combination',async t=>{
+  for(let mask=0;mask<16;mask++)for(const shore of [false,true]){
+    const params=new URLSearchParams();
+    for(const [bit,key] of [[1,'gdetail'],[2,'gsoil'],[4,'gtone']])if(mask&bit)params.set(key,'0');
+    const quality=mask&8?'light':'standard';if(mask&8)params.set('q','light');
+    const search=`?${params}`,label=`${search} shore=${shore}`;
+    await t.test(label,async()=>{
+      const d=synthetic(),m=new THREE.MeshLambertMaterial({vertexColors:true});
+      if(shore)registerShoreView(d,{});
+      const detail=installGroundDetail(THREE,m,d,{search,quality});
+      const soil=installGroundSoil(THREE,m,detail,{search,quality});
+      try{
+        await Promise.all([detail.tone?.ready,soil.ready]);
+        const s={uniforms:{},vertexShader:THREE.ShaderLib.lambert.vertexShader,fragmentShader:THREE.ShaderLib.lambert.fragmentShader};
+        m.onBeforeCompile(s);
+        for(const stage of ['vertexShader','fragmentShader']){
+          balanced(expanded(s[stage]));uniformDeclarations(s[stage],`${label} ${stage}`);
+        }
+        if(detail.tone){
+          assert.deepEqual(s.uniforms.uToneGrid.value.toArray(),[9,9,2]);
+          assert.equal(s.uniforms.uToneStrength.value,quality==='light'?.45:1);
+        }
+      }finally{detail.dispose();soil.dispose();m.dispose();if(shore)unregisterShoreView(d);}
+    });
+  }
+});
 test('r1 reproduces LOD interior colour alias and nearest-class jumps, not a stitched-height crack',t=>{
   const d=synthetic();d.ground.fill(80);const w=d.meta.grid.width;
   for(let j=0;j<w;j++)for(let i=0;i<w;i++)for(let c=0;c<3;c++)d.ground[(j*w+i)*3+c]=(i+j)%2?180:80;

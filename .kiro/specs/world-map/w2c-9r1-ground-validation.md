@@ -2,6 +2,7 @@
 
 依頼書の地面担当を実装した。Node検証は通過し、画像・GPU・性能の判定は親へ引き継ぐ。
 既存world-map仕様と今回のGROUND・COMMON依頼書を実装条件とした。tasksとハッシュ台帳は変更していない。
+親のChromeで判明したGLSL宣言順の不具合を修正した。再現・回帰試験は末尾に記す。GPUでの再確認は親が行う。
 
 ## 設計と実装
 
@@ -62,3 +63,22 @@
 - ブラウザ・サーバー・画面・撮影・GPUコンパイル・Safari・スマホは未実施。見た目の改善を合格とは断定しない。
   外縁の草は地面色のみで、立体の草の配置はgrass担当。施設bboxの屋根の張り出しによる広がりも要確認。
 - 次は親が6画角のA/Bと性能を確認し、grassTintAtの本実装を統合する。
+
+## GLSL宣言順の修正（親の実機エラーへの対応）
+
+- 原因：detail内でtoneを導入し、その後soilを導入する実際のhookを同梱ThreeのLambertで実行した。
+  common直後への挿入でtoneの関数がdetailのuniform宣言より前に置かれ、uGroundGridを宣言前に参照していた。
+  uniformは全文には存在するため、有無だけの検査では見逃す。既定・gsoil=0・q=lightとその組み合わせで発生する。
+  gdetail=0はtoneも無効、gtone=0はtoneだけ無効なので、この誤りは発生しない。
+- 修正：tone専用uToneGridをJS側で登録し、TONE_GLSL内で関数より先に宣言した。detailの宣言への依存を除いた。
+- 回帰試験：detail/soil/toneのオン・オフとstandard/lightの全16通りに水際の有無を掛けた32ケース。
+  実際のonBeforeCompileを呼び、両ステージのThree includeを再帰展開し、括弧・条件分岐とuniform宣言順を検査する。
+  プロジェクトのu＋大文字の識別子を抽出し、複数uniformの一括宣言にも対応。Three組み込み名は別扱い。
+  検査器自体も宣言欠落・宣言前参照・カンマ区切りの不足を拒否する試験を追加した。
+- 修正前：追加した組み立て試験は8ケースでuGroundGrid used before uniform declarationとなり失敗した。
+  修正後：同じ32ケースすべて成功。tone単体ファイル全体は38成功・私有1省略。
+- 今回の最終npm testは1166成功・22省略、指定のKZ_WORLD_DIR付きnpm testは1188成功・省略なし。
+  npm run checkとgit diff --checkは成功。開始・終了時のnpm run smokeはlisten EPERMで失敗した。
+  文書lintはsudachipyが無く実行できず、追記を手動で通読した。
+- GPUコンパイルと画像は未確認。親はtools/shader_errors.mjsで基点URLの既定・gtone=0・gdetail=0・q=lightを確認し、
+  GLSLエラーが無いことと地形が描かれることを確かめる。commit・pushは行っていない。
