@@ -1,6 +1,6 @@
 // Separate walk-only composition. No chapter state, quests, or save access.
 import * as THREE from 'three';
-import { createKamakuraTerrain } from './kamakura-terrain.js';
+import { createKamakuraTerrain, maxWalkSlope } from './kamakura-terrain.js';
 import { buildKamakuraChunks } from './kamakura-chunk-view.js';
 import { createKamakuraHUD } from './hud-kamakura.js';
 import { Input } from './input.js';
@@ -12,7 +12,7 @@ import { loadRoster } from './characters.js';
 import { kamakuraSpawn } from './kamakura-spawn.js';
 import { verticalScale } from './world-entry.js';
 export async function bootKamakura(data, search) {
-  const t = createKamakuraTerrain(data, verticalScale(search)), meta = data.meta;
+  const t = createKamakuraTerrain(data, verticalScale(search), maxWalkSlope(search)), meta = data.meta;
   const spawn = kamakuraSpawn(t, search);
   if (!t.walkable(spawn.x, spawn.z)) throw new Error('出発点を歩けません');
   // Load the existing hero only. Do not load the chapter's enemies or scenery.

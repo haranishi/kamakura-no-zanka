@@ -14,7 +14,7 @@ if (!process.env.KZ_WORLD_DIR) {
     const patches = verifyPatches(data);
     console.log(JSON.stringify(patches, null, 2));
     if (!patches.skip && !patches.accepted) {
-      console.error('FAIL: 細密パッチの軸・床・境界の受け入れ基準。上のJSONに全違反を記録。');
+      console.error('FAIL: ①′道の線の歩行・②′高さ・③厳密一致・⑤到達性。failuresに理由と値、routesに全違反を記録。④境界は報告のみ。');
       process.exitCode = 1;
     }
     console.log('PASS: 基本格子の標本・北向き・案A・既定出発点・全LOD組の縁（高さ／法線）。');

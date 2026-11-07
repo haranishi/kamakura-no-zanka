@@ -12,6 +12,7 @@ export async function readPrivateData(dir) {
   if (meta.patches) {
     const [cells, heights, axes] = await Promise.all([meta.patches.cells_file, meta.patches.h_file, meta.patches.axes_file].map(n => fs.readFile(path.join(dir, n))));
     patches = { cells: buffer(cells), heights: buffer(heights), axes: JSON.parse(axes.toString()) };
+    if (meta.patches.paths_file) patches.paths = JSON.parse(await fs.readFile(path.join(dir, meta.patches.paths_file), 'utf8'));
   }
   return { data: decodeData(meta, buffer(height), buffer(walk), patches), checks: JSON.parse(samples.toString()) };
 }
