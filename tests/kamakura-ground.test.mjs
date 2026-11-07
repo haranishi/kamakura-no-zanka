@@ -18,7 +18,11 @@ test('ground centres, north orientation, known sRGB conversion, linear interpola
   const f = colored({ width: 2, height: 2, cell: 2 });
   f.ground.set([0, 10, 128, 255, 255, 255, 255, 0, 0, 0, 255, 0]);
   const t = createKamakuraTerrain(f);
-  assert.deepEqual(t.groundColorAt(-1, -1), [0, 10 / 255 / 12.92, 0.21586050011389926]);
+  // sRGB→線形の変換は Math.pow を使い、OS によって最後の1桁がずれる（CI の Linux と手元の macOS）ので、許容誤差で比べる。
+  const g = t.groundColorAt(-1, -1);
+  assert.equal(g[0], 0);
+  assert.ok(Math.abs(g[1] - 10 / 255 / 12.92) < 1e-12);
+  assert.ok(Math.abs(g[2] - 0.21586050011389926) < 1e-12);
   assert.deepEqual(t.groundColorAt(1, -1), [1, 1, 1]);
   assert.deepEqual(t.groundColorAt(-1, 1), [1, 0, 0]);
   assert.deepEqual(t.groundColorAt(1, 1), [0, 1, 0]);
