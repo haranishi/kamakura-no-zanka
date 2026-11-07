@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-07T12:21:08.180357+00:00",
+  "generatedAt": "2026-11-07T12:21:08.593096+00:00",
   "scope": "Source, assets and verification artifacts; excludes this manifest, Git metadata, ignored files and private runtime data",
   "files": [
     {
@@ -435,8 +435,8 @@
     },
     {
       "path": ".kiro/specs/world-map/tasks.md",
-      "size": 5903,
-      "sha256": "7a0487a86422ed12fa69a75c96911d226ea094c95eccff949cd047a647b06fd7"
+      "size": 6369,
+      "sha256": "a4a9aa7c9e1fc8b4c2a6ea651c391a9b047f46d21f64052331a9f57cdb52b393"
     },
     {
       "path": ".kiro/specs/world-map/w2c-1-validation.md",
@@ -452,6 +452,11 @@
       "path": ".kiro/specs/world-map/w2c-2a-validation.md",
       "size": 4109,
       "sha256": "a2812783c08e2b6bb88bcdd254bf8d4bc850a4f34be466c2e0ee0d7d5c3c9931"
+    },
+    {
+      "path": ".kiro/specs/world-map/w2c-2b-validation.md",
+      "size": 5424,
+      "sha256": "7f11ca9cb9d46952df04aa7fac63f9e569b20eeac11215ca39dc5f5af4281fc7"
     },
     {
       "path": ".kiro/specs/world-map/w2c-4-validation.md",
@@ -1210,8 +1215,8 @@
     },
     {
       "path": "dist/valley/kamakura-data.js",
-      "size": 7730,
-      "sha256": "5ec923fb05df589da257f1088f26e068698e1bad6cde2e78e77fe7a59f624949"
+      "size": 8282,
+      "sha256": "9cc0c3eceaf65be058782312ae38fb6e3d0ba5c051e4f279142ded1b419a8b72"
     },
     {
       "path": "dist/valley/kamakura-house-view.js",
@@ -1222,6 +1227,11 @@
       "path": "dist/valley/kamakura-houses.js",
       "size": 7535,
       "sha256": "e92b4ba2a20fafd97297995d8bfd9663195d518f07c9f51bf0a211f09e6482c3"
+    },
+    {
+      "path": "dist/valley/kamakura-rivers.js",
+      "size": 5571,
+      "sha256": "83a1920dca1d0b247675f4174799df74af45d4fdfa7ea691b72b1df69bf221dd"
     },
     {
       "path": "dist/valley/kamakura-spawn.js",
@@ -1252,6 +1262,11 @@
       "path": "dist/valley/kamakura-veg.js",
       "size": 7137,
       "sha256": "7274b1d4fad917d3b5c85ad113865f9910ae28f6fdc3eb030c77bd140b665822"
+    },
+    {
+      "path": "dist/valley/kamakura-water-view.js",
+      "size": 5447,
+      "sha256": "52cb0ef9543ba1e1cf34a9e913d79d1879120a12e2e972918452a1e4946a70a6"
     },
     {
       "path": "dist/valley/kamakura.css",
@@ -1585,8 +1600,8 @@
     },
     {
       "path": "dist/valley/world-kamakura.js",
-      "size": 9917,
-      "sha256": "5ec85a3e2a79a093fcc8b489ce82dab77c0f157753748d322b688015c9f6f7a7"
+      "size": 10494,
+      "sha256": "58a94d0f8e7a56a6600d828aecd2f4cf1fd80543ee7b2d8e823b30e41aab77e0"
     },
     {
       "path": "dist/valley/world.html",
@@ -4324,6 +4339,11 @@
       "sha256": "4bc1617107b5935f3f39c896377be3c47b2a4d0547d716fe916154e222210a93"
     },
     {
+      "path": "tests/kamakura-rivers.test.mjs",
+      "size": 11448,
+      "sha256": "aef2715aea25e721ae6e74eb68220241d5af70cd11063118c27c6102929dbd17"
+    },
+    {
       "path": "tests/kamakura-server.test.mjs",
       "size": 3371,
       "sha256": "30fd1b8126286a329239a82588a519810437fb3f6560cdd5af4f539592e5ee22"
@@ -4795,8 +4815,8 @@
     },
     {
       "path": "tools/check-kamakura.mjs",
-      "size": 2943,
-      "sha256": "9583378a56403f084b92451ed62b309f35f66a029285cb1612e2ba628c541e7e"
+      "size": 3129,
+      "sha256": "a9f3f6a11e63a1767a6aa98d9bf7b5b95f6f6ab8df83aa24f7f30c755ba2740b"
     },
     {
       "path": "tools/check-package.mjs",
@@ -4805,8 +4825,8 @@
     },
     {
       "path": "tools/check-valley.mjs",
-      "size": 12519,
-      "sha256": "8710615ca6c65f0b220a71a7d1f4f11e39f348928eadb8f279a409f7935e0a5d"
+      "size": 12557,
+      "sha256": "fde0e35b1637d7dcc5abbfa7bb037ae56647d6108440411e1ef006581aac7fa9"
     },
     {
       "path": "tools/compare-shots.mjs",
@@ -4887,6 +4907,11 @@
       "path": "tools/lib/kamakura-patch-validation.mjs",
       "size": 8820,
       "sha256": "2202e660cd5aca6edf9883b9d9dc230df93d4374430a3e027393c4d96cc85729"
+    },
+    {
+      "path": "tools/lib/kamakura-river-validation.mjs",
+      "size": 2909,
+      "sha256": "8fabff3f464adaae0cc3b1b849605359c451f1dc46836ab1dc54e089d7d98d78"
     },
     {
       "path": "tools/lib/kamakura-stand-validation.mjs",
