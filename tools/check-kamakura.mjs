@@ -1,3 +1,4 @@
+import { verifyScheduledSeams } from './lib/kamakura-chunk-validation.mjs';
 import { verifyRivers } from './lib/kamakura-river-validation.mjs';
 import { verifyAtmosphere } from './lib/kamakura-atmosphere-validation.mjs';
 import { verifyStands } from './lib/kamakura-stand-validation.mjs';
@@ -20,6 +21,7 @@ if (!process.env.KZ_WORLD_DIR) {
     console.log(JSON.stringify({ ground: await verifyGround(data, process.env.KZ_WORLD_DIR) }, null, 2));
     const t = createKamakuraTerrain(data);
     verifySeams(t, Math.floor((t.w / 2) / 64) * 64, Math.floor((t.h / 2) / 64) * 64);
+    console.log(JSON.stringify({ scheduledSeams: verifyScheduledSeams(t, Math.floor((t.w / 2) / 64) * 64, Math.floor((t.h / 2) / 64) * 64) }));
     if (!t.walkable(data.meta.spawn.x, -data.meta.spawn.y)) throw new Error('spawn');
     const privateHouses = await readPrivateHouses(process.env.KZ_WORLD_DIR, data);
     console.log(JSON.stringify({ vegetation: await verifyVeg(data, process.env.KZ_WORLD_DIR, privateHouses) }, null, 2));

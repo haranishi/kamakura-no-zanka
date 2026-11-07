@@ -56,6 +56,9 @@ test('actual atmosphere creation, fog once before materials, quality, follow, up
     assert(renderer.shadowMap.enabled); assert.equal(renderer.shadowMap.type,THREE.PCFSoftShadowMap);
     assert.equal(a.sun.shadow.mapSize.x,quality==='light'?2048:4096); assert.equal(a.sun.shadow.camera.left,-46); assert.equal(a.sun.shadow.camera.right,46);
     assert(a.sun.castShadow); assert.equal(a.params.sunDir.length(),1);
+    const seenBefore = renderer.seen.size;
+    for (let i=0;i<4;i++) { controller.setAdapt({shadows:false}); assert(!a.sun.castShadow); controller.setAdapt({shadows:true}); assert(a.sun.castShadow); }
+    assert.equal(renderer.seen.size,seenBefore);
     const installed=chunks(), camera=new THREE.PerspectiveCamera(); camera.position.set(2,10,3);
     const skyG=a.sky.geometry, skyM=a.sky.material; let skyDisposed=0; skyG.addEventListener('dispose',()=>skyDisposed++); skyM.addEventListener('dispose',()=>skyDisposed++);
     controller.update(camera,.1,{x:200,y:5,z:300},Math.PI/2);

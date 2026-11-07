@@ -111,6 +111,8 @@ test('shipped Three view: construction, shader uniforms/fog/distance, static geo
     const prepared=prepareRivers({rivers:[river(Array.from({length:151},(_,i)=>[i*10,0]))]},1,quality), sunDir=new THREE.Vector3(1,2,3).normalize();
     const view=buildKamakuraWater(prepared,{sunDir}), scene=new THREE.Scene(); scene.add(view.group);
     assert.equal(view.group.children.length,3); const mesh=view.group.children[0], before=mesh.geometry.attributes.position.array.slice();
+    scene.updateMatrixWorld(true);
+    for(const child of view.group.children) { assert.equal(child.matrixAutoUpdate,false); assert.deepEqual(child.matrixWorld.elements,new THREE.Matrix4().elements); }
     assert(mesh.frustumCulled); assert(mesh.geometry.boundingSphere.radius>0); assert.equal(mesh.renderOrder,2);
     assert(view.material.transparent); assert(!view.material.depthWrite); assert(view.material.fog);
     const shader={uniforms:{},vertexShader:THREE.ShaderLib.standard.vertexShader,fragmentShader:THREE.ShaderLib.standard.fragmentShader};

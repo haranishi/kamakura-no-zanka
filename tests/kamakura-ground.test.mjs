@@ -1,3 +1,4 @@
+import { verifyScheduledSeams } from '../tools/lib/kamakura-chunk-validation.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
@@ -64,6 +65,7 @@ test('optional loader supports all old schemas and reports missing, truncated, u
 test('all LOD pairs and partial edges share identical Float32 colours without altering geometry', () => {
   const f = colored(), t = createKamakuraTerrain(f);
   assert.equal(verifySeams(t),32); assert.equal(verifySeams(t,128,128,8),32);
+  assert.equal(verifyScheduledSeams(t,128,128,8).combinations,32);
   const g = chunkGeometry(t,0,0,64,64,1,{east:8});
   assert(g.colors instanceof Float32Array); assert.equal(g.colors.length,g.positions.length);
   const off = chunkGeometry(t,0,0,64,64,1,{east:8},groundEnabled('?world=kamakura&ground=0'));
@@ -75,7 +77,7 @@ test('fine patch quarter vertices and base neighbors share the same ground query
   const f = colored();
   f.patches = {index:new Map([[63*f.meta.grid.width+63,0]]),heights:new Float32Array(25).fill(1000)};
   const t = createKamakuraTerrain(f);
-  assert.equal(verifySeams(t),32);
+  assert.equal(verifySeams(t),32); assert.equal(verifyScheduledSeams(t).combinations,32);
   const g = chunkGeometry(t,0,0,64,64,1,{east:1,south:1});
   for(let i=0;i<g.positions.length;i+=3) assert.deepEqual(Array.from(g.colors.slice(i,i+3)),
     Array.from(new Float32Array(t.groundColorAt(g.positions[i],g.positions[i+2]))));
@@ -85,14 +87,16 @@ test('real Three BufferGeometry uses neutral white vertex material; ground=0 and
   const THREE = await import(three);
   const source = (await fs.readFile(new URL('../dist/valley/kamakura-chunk-view.js',import.meta.url),'utf8'))
     .replace("from 'three'", `from '${three}'`)
+    .replace("from './kamakura-chunk-jobs.js'", `from '${new URL('../dist/valley/kamakura-chunk-jobs.js',import.meta.url).href}'`)
     .replace("from './kamakura-chunks.js'", `from '${new URL('../dist/valley/kamakura-chunks.js',import.meta.url).href}'`);
   const {buildKamakuraChunks} = await import('data:text/javascript;base64,'+Buffer.from(source).toString('base64'));
   for (const [f,on] of [[colored({width:70,height:70}),true],[colored({width:70,height:70}),false],[fixture({width:70,height:70}),true]]) {
     const scene=new THREE.Scene(), t=createKamakuraTerrain(f), pos={x:0,z:0};
     const field=buildKamakuraChunks(t,scene,pos,on);
-    field.update(pos); assert.equal(scene.children.length,2,'unchanged generation budget');
+    // Generation now uses elapsed time, rather than the former fixed count of two.
+    field.update(pos); assert(scene.children.length >= 1 && scene.children.length <= 4);
     for(let i=0;i<10;i++)field.update(pos);
-    assert(field.ready(pos));
+    assert(field.ready(pos)); assert.equal(scene.children.length,4);
     for (const mesh of scene.children) {
       const enabled=on && !!f.ground;
       assert.equal(mesh.material.vertexColors,enabled);

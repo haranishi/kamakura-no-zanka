@@ -28,7 +28,7 @@ export function buildKamakuraStands(prepared, { wind, sunDir, quality = 'standar
   const group = new THREE.Group(), distant = [], resident = new Map(), releases = new Map();
   const eye = { value: new THREE.Vector3() }, resources = new Set();
   let children, disposed = false, last = null, stats = null;
-  const policy = prepared.policy;
+  const policy = prepared.policy; let rangeScale = 1;
   const families = [];
   for (const species of [0, 1, 2]) for (let shape = 0; shape < TREES.variants[TREE_NAMES[species]]; shape++) families.push(`${species}/${shape}`);
   function dispose() {
@@ -73,7 +73,8 @@ export function buildKamakuraStands(prepared, { wind, sunDir, quality = 'standar
         matrix.compose(position, rotation, scale); mesh.setMatrixAt(k, matrix);
         mesh.setColorAt(k, color.setRGB(...i.color));
       });
-      mesh.computeBoundingBox(); mesh.computeBoundingSphere(); group.add(mesh);
+      mesh.computeBoundingBox(); mesh.computeBoundingSphere();
+      mesh.updateMatrix(); mesh.matrixAutoUpdate = false; group.add(mesh);
       const sphere = mesh.boundingSphere;
       distant.push({ mesh, sphere, range: policy.ranges[tier] });
     }
@@ -85,7 +86,7 @@ export function buildKamakuraStands(prepared, { wind, sunDir, quality = 'standar
     const pos = camera.position; eye.value.set(pos.x, pos.y ?? 0, pos.z);
     // No stand instance matrix changes after construction. Tile culling is bounded by tile count.
     if (last && stats?.pending === 0 && Math.hypot(pos.x - last.x, pos.z - last.z) < 5) return stats;
-    for (const { mesh, sphere, range } of distant) mesh.visible = Math.hypot(sphere.center.x - pos.x, sphere.center.z - pos.z) - sphere.radius <= range;
+    for (const { mesh, sphere, range } of distant) mesh.visible = Math.hypot(sphere.center.x - pos.x, sphere.center.z - pos.z) - sphere.radius <= range * rangeScale;
     let changed = false;
     const plan = planStandChunks(prepared, resident, pos);
     for (const key of plan.remove) { releases.get(key)?.(); releases.delete(key); resident.delete(key); changed = true; }
@@ -102,5 +103,5 @@ export function buildKamakuraStands(prepared, { wind, sunDir, quality = 'standar
       distant: distant.reduce((n, i) => n + (i.mesh.visible ? i.mesh.count : 0), 0) };
     return stats;
   }
-  return { group, distant, resident, children, eye, update, dispose, get stats() { return stats; } };
+  return { group, distant, resident, children, eye, update, dispose, setAdapt(policy) { rangeScale = policy.standRange; last = null; children.setAdapt(policy); }, get stats() { return stats; } };
 }
