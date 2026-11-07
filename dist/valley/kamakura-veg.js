@@ -17,6 +17,17 @@ export function decodeVeg(info, buffer, count = info?.count) {
   return items;
 }
 export const treesEnabled = search => new URLSearchParams(search).get('trees') !== '0';
+// W2c-9r1 veg: the near trunk bows, the middle trunk is one straight prism. Entering early (inside the near model's
+// opaque range) drew it as a pale dithered ghost beside the trunk. It now enters as the near trunk starts to leave.
+// `&vtrunk=0` restores the shared enter-early window for A/B comparison.
+export const vegTrunkHandover = search => new URLSearchParams(search).get('vtrunk') !== '0';
+export const vegTrunkLod = ({ lod: [a, b], blend: w }) => [a, a + w, b, b + 2 * w];
+const smooth = (a, b, d) => { const t = Math.max(0, Math.min(1, (d - a) / (b - a))); return t * t * (3 - 2 * t); };
+// [near trunk, middle trunk] weights as the shader evaluates them (the near model leaves over a..a+2w).
+export function vegTrunkWeights(distance, policy, handover = true) {
+  const [a, b] = policy.lod, w = policy.blend, [x0, x1, z0, z1] = handover ? vegTrunkLod(policy) : [a - 2 * w, a, b, b + 2 * w];
+  return [1 - smooth(a, a + 2 * w, distance), smooth(x0, x1, distance) * (1 - smooth(z0, z1, distance))];
+}
 export function mapVeg(item) {
   const species = [1, 2, 0, 1, 5, null, 3][item.sourceSpecies];
   if (item.tier !== 0 || species === null) return null;

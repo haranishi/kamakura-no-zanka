@@ -6,10 +6,10 @@ import { treeMaterials } from './tree-materials.js';
 import { createTreeSet, createImpostorSet } from './tree-view.js';
 import { treeImpostors } from './tree-bake.js';
 import { uLodFor } from './tree-lod.js';
-import { selectVeg, vegPolicy, vegCircles } from './kamakura-veg.js';
+import { selectVeg, vegPolicy, vegCircles, vegTrunkHandover, vegTrunkLod } from './kamakura-veg.js';
 export const vegHeight = (species, shape = 0) => treeGeometry(species, 0, shape).height;
-export function buildKamakuraVeg(prepared, { wind, sunDir, quality = 'standard', renderer = null, families = [] }) {
-  const policy = vegPolicy(quality), group = new THREE.Group(), sets = new Map();
+export function buildKamakuraVeg(prepared, { wind, sunDir, quality = 'standard', renderer = null, families = [], search = '' }) {
+  const policy = vegPolicy(quality), group = new THREE.Group(), sets = new Map(), trunkHandover = vegTrunkHandover(search);
   const materials = treeMaterials({ wind, sunDir, quality });
   let farScale = 1;
   let impostors = null, disposed = false, last = null, stats = null;
@@ -38,7 +38,9 @@ export function buildKamakuraVeg(prepared, { wind, sunDir, quality = 'standard',
         for (const mesh of [set.leaf, set.wood]) if (mesh) {
           mesh.geometry.setAttribute('aKzPhase', new THREE.InstancedBufferAttribute(new Float32Array(capacity), 1));
           const range = species === 5 ? (quality === 'light' ? TREES.shrub.lightDistance : TREES.shrub.distance) : policy.range;
-          const values = species === 5 ? (level === 0 ? [-1, -1, TREES.shrub.split, TREES.shrub.split + .01] : [TREES.shrub.split, TREES.shrub.split + .01, -1, -1]) : uLodFor(level, policy);
+          let values = species === 5 ? (level === 0 ? [-1, -1, TREES.shrub.split, TREES.shrub.split + .01] : [TREES.shrub.split, TREES.shrub.split + .01, -1, -1]) : uLodFor(level, policy);
+          // W2c-9r1 veg: only the trunk hands over late; crowns keep entering early so alpha-cut crowns leave no holes.
+          if (trunkHandover && species !== 5 && level === 1 && mesh === set.wood) values = vegTrunkLod(policy);
           mesh.material.userData.uLod.value.set(...values);
           const original = mesh.material.onBeforeCompile, originalKey = mesh.material.customProgramCacheKey();
           mesh.material.onBeforeCompile = shader => {
