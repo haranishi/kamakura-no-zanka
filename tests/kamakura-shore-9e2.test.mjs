@@ -59,7 +59,7 @@ test('9e2 every modified shader balances braces, parentheses and #if; single R16
   let noon;
   for(const search of ['', '?time=evening','?seav=0']){
     const v=buildKamakuraSea(terrain,data,{search});let frames=0;while(v.jobs.length&&v.uniforms.uShoreReady.value===0&&frames++<10000)v.update(1/60,{x:0,z:0});v.update(1/60,{x:0,z:0});
-    for(const m of [v.mesh.material,v.props?.mesh.material,v.bank?.material].filter(Boolean)){const s=shaderFor(m);balanced(s.vertexShader);balanced(s.fragmentShader);}
+    for(const m of [v.mesh.material,v.props?.meshes[0].material,v.bank?.material].filter(Boolean)){const s=shaderFor(m);balanced(s.vertexShader);balanced(s.fragmentShader);}
     const m=new THREE.MeshLambertMaterial(),g=installGroundDetail(THREE,m,data);const s=shaderFor(m);balanced(s.vertexShader);balanced(s.fragmentShader);
     if(search!=='?seav=0'){
       assert(terrain.shoreSigned);assert.equal(v.jobs.length,1);assert.equal(v.uniforms.uShoreSea.value,v.uniforms.uShoreLand.value);// W2c-9 parent fix: the finished grid is a NEW texture (a 1x1 placeholder cannot be resized on the GPU: texStorage2D is immutable), shared by sea and sand.
@@ -76,7 +76,7 @@ test('9e2 private signed grid timing, aggregate coast counts and both beaches ha
   const {data}=await readPrivateData(process.env.KZ_WORLD_DIR),terrain=createKamakuraTerrain(data);const start=performance.now(),f=finish(createSignedShoreJob(terrain));const ms=performance.now()-start;terrain.shoreSigned=f;
   let sea=0,coast=0;for(const d of f.data){if(d>0)sea++;if(Math.abs(d)<8)coast++;}
   const props=buildShoreProps(THREE,terrain,data),counts=[];
-  for(const [x,z] of [[-1057.2,-1801.4],[-1849.2,-1465.4]]){for(let i=0;i<20;i++)props.update({x,z:-z});counts.push(props.mesh.count);}
-  assert(counts.every(n=>n>=24),`props aggregate: ${counts}`);props.dispose();
-  t.diagnostic(JSON.stringify({grid:[f.w,f.h],cell:f.cell,ms:+ms.toFixed(2),texture_bytes:f.data.length*2,sea_fraction:+(sea/f.data.length).toFixed(3),coast_cells:coast,props:counts,triangles:counts.map(n=>n*8)}));
+  for(const [x,z] of [[-1057.2,-1801.4],[-1849.2,-1465.4]]){for(let i=0;i<20;i++)props.update({x,z:-z});counts.push(props.count);}
+  assert(counts.every(n=>n>=20&&n<=50),`props aggregate: ${counts}`);props.dispose();
+  t.diagnostic(JSON.stringify({grid:[f.w,f.h],cell:f.cell,ms:+ms.toFixed(2),texture_bytes:f.data.length*2,sea_fraction:+(sea/f.data.length).toFixed(3),coast_cells:coast,props:counts,triangle_upper_bound:counts.map(n=>n*20)}));
 });

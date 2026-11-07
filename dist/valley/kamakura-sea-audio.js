@@ -26,8 +26,9 @@ export function waveEnvelope(t, seed = SEA_AUDIO.seed) {
   return 0;
 }
 export class KamakuraAudio extends ValleyAudio {
-  constructor(onUnavailable, { sea = true } = {}) {
-    super(onUnavailable); this.seaEnabled = sea; this.seaDistance = Infinity; this.seaGain = 0;
+  // gainScale: 1 = the tuned level; ?seagain=2 in the URL doubles it (for the listener to tune the surf by ear).
+  constructor(onUnavailable, { sea = true, gainScale = 1 } = {}) {
+    super(onUnavailable); this.seaEnabled = sea; this.seaDistance = Infinity; this.seaGain = 0; this.seaScale = Number.isFinite(gainScale) && gainScale > 0 ? Math.min(gainScale, 8) : 1;
   }
   startAmbient() {
     super.startAmbient();
@@ -53,7 +54,7 @@ export class KamakuraAudio extends ValleyAudio {
         swell.start(); foam.start();
       }
       const t = ctx.currentTime, smooth = SEA_AUDIO.smoothing;
-      this.seaGain = SEA_AUDIO.gain * seaNear(this.seaDistance);
+      this.seaGain = SEA_AUDIO.gain * this.seaScale * seaNear(this.seaDistance);
       voice.gain.gain.setTargetAtTime(this.seaGain, t, smooth);
       voice.swell.gain.setTargetAtTime(.85 * waveEnvelope(t), t, smooth);
       voice.foam.gain.setTargetAtTime(.5 * waveEnvelope(t - .9) ** 3, t, smooth);

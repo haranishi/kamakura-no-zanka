@@ -6,7 +6,7 @@ const RIVER_HEARING_M = 300;
 export function createKamakuraAudio({ search = '', terrain, button, onUnavailable = () => {},
   target = globalThis, storage = () => globalThis.localStorage, flying = () => false } = {}) {
   const params = new URLSearchParams(search), enabled = params.get('audio') !== '0';
-  const audio = enabled ? new KamakuraAudio(onUnavailable, { sea: params.get('sea') !== '0' }) : null;
+  const audio = enabled ? new KamakuraAudio(onUnavailable, { sea: params.get('sea') !== '0', gainScale: params.has('seagain') ? Number(params.get('seagain')) : 1 }) : null;
   const events = new AbortController(), gestures = new AbortController();
   let disposed = false, paused = false, steps = 0, elapsed = 0;
   let savedMute = false;

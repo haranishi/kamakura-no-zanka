@@ -86,3 +86,10 @@ test('partial sea creation failure stops and disconnects every acquired node', (
   const masterNodes = [a.master, a.comp, a.limiter];
   assert(a.context.nodes.filter(n => !masterNodes.includes(n)).every(n => n.connections.length === 0));
 }));
+
+test('seagain scales the surf level (default 1, bad values fall back, capped at 8)', () => {
+  assert.equal(new KamakuraAudio(() => {}).seaScale, 1);
+  assert.equal(new KamakuraAudio(() => {}, { gainScale: 2 }).seaScale, 2);
+  for (const bad of [NaN, 0, -3, Infinity]) assert.equal(new KamakuraAudio(() => {}, { gainScale: bad }).seaScale, 1);
+  assert.equal(new KamakuraAudio(() => {}, { gainScale: 100 }).seaScale, 8);
+});
