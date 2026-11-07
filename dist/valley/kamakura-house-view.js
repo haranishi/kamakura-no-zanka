@@ -92,7 +92,7 @@ export async function buildKamakuraHouses(houses, terrain, scene) {
       const pending = ch.pending;
       while (pending?.jobs.length && budget) {
         const { part, items } = pending.jobs.shift(), mesh = new THREE.InstancedMesh(part.geometry, part.material, items.length);
-        mesh.name = 'house-instances';
+        mesh.name = 'house-instances'; mesh.castShadow = true; mesh.receiveShadow = true;
         items.forEach((item, i) => mesh.setMatrixAt(i, new THREE.Matrix4().fromArray(item.grounded)));
         mesh.instanceMatrix.needsUpdate = true; mesh.computeBoundingSphere(); pending.group.add(mesh); budget--;
       }

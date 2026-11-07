@@ -1,6 +1,7 @@
 // Opt-in adapter: keyboard/mouse Input is unchanged outside the walk prototype.
 export class TouchInput {
-  constructor(base, element, runButton) {
+  constructor(base, element, runButton, { signal } = {}) {
+    const listen = (target, type, listener, options) => target.addEventListener(type, listener, signal ? { ...options, signal } : options);
     this.base = base; this.element = element; this.pointers = new Map(); this.runPointers = new Set();
     this.forward = this.right = this.dx = this.dy = 0; this.runPressed = false;
     element.style.touchAction = 'none'; runButton.style.touchAction = 'none';
@@ -11,8 +12,8 @@ export class TouchInput {
       if ([...this.pointers.values()].some(p => p.side === side)) return;
       this.pointers.set(e.pointerId, { side, x: e.clientX, y: e.clientY, lastX: e.clientX, lastY: e.clientY });
     };
-    element.addEventListener('pointerdown', down);
-    element.addEventListener('pointermove', e => {
+    listen(element, 'pointerdown', down);
+    listen(element, 'pointermove', e => {
       const p = this.pointers.get(e.pointerId); if (!p || !base.enabled) return;
       e.preventDefault();
       if (p.side === 'move') {
@@ -27,13 +28,13 @@ export class TouchInput {
       if (p?.side === 'look') this.dx = this.dy = 0;
       this.runPointers.delete(e.pointerId);
     };
-    for (const type of ['pointerup', 'pointercancel', 'lostpointercapture']) { element.addEventListener(type, up); runButton.addEventListener(type, up); }
-    runButton.addEventListener('pointerdown', e => {
+    for (const type of ['pointerup', 'pointercancel', 'lostpointercapture']) { listen(element, type, up); listen(runButton, type, up); }
+    listen(runButton, 'pointerdown', e => {
       if (e.pointerType !== 'touch' || !base.enabled) return;
       e.preventDefault(); runButton.setPointerCapture?.(e.pointerId); this.runPointers.add(e.pointerId); this.runPressed = true;
     });
-    addEventListener('blur', () => this.clear());
-    document.addEventListener('visibilitychange', () => this.clear());
+    listen(globalThis, 'blur', () => this.clear());
+    listen(document, 'visibilitychange', () => this.clear());
     // Any base clear (including pointer-lock loss) releases touch state too.
     const clear = base.clear.bind(base); base.clear = () => { clear(); this.reset(); };
   }

@@ -122,11 +122,13 @@ test('real GLTF nodes, instancing budget, atomic LOD replacement, distance evict
   field.update(pos); assert.equal(meshes().length,2); assert(!field.ready(pos));
   field.update(pos); assert(field.ready(pos)); assert.equal(meshes().length,4);
   assert.equal(field.boxes.length,4);
+  assert(meshes().every(mesh=>mesh.castShadow && mesh.receiveShadow));
   const m = new THREE.Matrix4(); meshes()[0].getMatrixAt(0,m);assert.equal(m.elements[13],7);
   // Mid detail is built hidden, then replaces near detail as one complete group.
   field.update({x:-600,z:200});
   for (let i=0;i<20;i++)field.update({x:-600,z:200});
   assert(meshes().every(mesh=>mesh.parent.visible));
+  assert(meshes().every(mesh=>mesh.castShadow && mesh.receiveShadow));
   const disposed=[];for(const mesh of meshes())mesh.addEventListener('dispose',()=>disposed.push(mesh));
   field.update({x:1e6,z:1e6});assert.equal(scene.children.length,0);assert(disposed.length>0);
   for(let i=0;i<10;i++)field.update(pos);assert(field.ready(pos));field.dispose();assert.equal(scene.children.length,0);

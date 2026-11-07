@@ -1,5 +1,6 @@
 // Static forest skin and a bounded, shared pool of ordinary child trees. No valley TreeField changes.
 import * as THREE from 'three';
+import { atmospherePolicy } from './kamakura-atmosphere.js';
 import { TREES } from './config.js';
 import { TREE_NAMES, vegCircles } from './kamakura-veg.js';
 import { buildKamakuraVeg, vegHeight } from './kamakura-veg-view.js';
@@ -63,6 +64,7 @@ export function buildKamakuraStands(prepared, { wind, sunDir, quality = 'standar
       const g = geometry.clone(); resources.add(g);
       g.setAttribute('aStandExpand', new THREE.InstancedBufferAttribute(Float32Array.from(items, i => tier === 2 || i.expandable ? 1 : 0), 1));
       const mesh = new THREE.InstancedMesh(g, materials.get(tier), items.length); resources.add(mesh); mesh.name = `stand/${key}`;
+      mesh.castShadow = atmospherePolicy(quality).standShadows; mesh.receiveShadow = true;
       mesh.instanceMatrix.setUsage(THREE.StaticDrawUsage);
       items.forEach((i, k) => {
         // Minimum of five ground samples: bury the lower crown even on a slope.
