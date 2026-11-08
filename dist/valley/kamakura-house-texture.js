@@ -176,3 +176,74 @@ export function houseInteriorTone(y, across) {
   const beam=Math.exp(-(((y-.78)/.045)**2)), plank=houseHash(Math.floor(across/.32),17);
   return Math.max(HOUSE_RELIEF.interiorMin,Math.min(HOUSE_RELIEF.interiorMax,.041-.027*y-.008*beam+.006*(plank-.5)));
 }
+
+// W2c-10 facility: equal runoff stripes -> independently jittered eave drip origins (metres).
+export function houseRainCentre(cell, seed) { return (cell+.1+.8*houseHash(cell,seed*31))*.85; }
+
+// W2c-10 facility F4: blank house walls -> metre-sized, independently jittered openings.
+// The wall interval excludes eaves. Callers pass each connected wall span, not the roof bbox.
+export function houseOpeningCell(cell, kind, seed, face, min, max) {
+  const pitch=3+2*houseHash(kind,9), shift=houseHash(cell+kind*17,seed*31+face*11);
+  const centre=(cell+.5+(shift-.5)*.5)*pitch, pick=houseHash(cell+kind,seed*17+face*5);
+  const door=kind%5!==0 && pick<.30, window=!door && kind%4!==0 && pick>.52;
+  if(!door&&!window)return null;
+  const width=door?.9:.7, height=door?1.75:.5, bottom=door?0:1.3+.1*shift;
+  if(centre-width/2<min+.6 || centre+width/2>max-.6)return null;
+  return {type:door?'door':'window',centre,width,height,bottom,pitch};
+}
+// Shared emitted GLSL is independently sampled by the Node test against the rule above.
+export const HOUSE_OPENING_GLSL = `
+float houseBarIntegral(float x,float width){ return floor(x)*width+min(fract(x),width); }
+vec4 houseOpeningCell(float cell, float kind, float seed, float face, vec2 bounds){
+ float pitch=3.0+2.0*houseHash(vec2(kind,9.0));
+ float shift=houseHash(vec2(cell+kind*17.0,seed*31.0+face*11.0));
+ float centre=(cell+.5+(shift-.5)*.5)*pitch;
+ float pick=houseHash(vec2(cell+kind,seed*17.0+face*5.0));
+ bool door=mod(kind,5.0)!=0.0 && pick<.30;
+ bool window=!door && mod(kind,4.0)!=0.0 && pick>.52;
+ float width=door?.9:.7, height=door?1.75:.5, bottom=door?0.0:1.3+.1*shift;
+ if((!door&&!window) || centre-width*.5<bounds.x+.6 || centre+width*.5>bounds.y-.6)return vec4(0.0);
+ return vec4(centre,width,height,bottom);
+}`;
+
+// W2c-10 F4: whole-building bounds -> connected coplanar wall spans, including inset towers.
+// Only an attribute is added; vertices, indices, placement and collision stay unchanged.
+export function houseWallSpans(positions, indices) {
+  const count=positions.length/3, size=indices?.length??count, groups=new Map(), spans=new Float32Array(count*2);
+  const at=i=>indices?indices[i]:i;
+  for(let t=0;t<size;t+=3){
+    const ids=[at(t),at(t+1),at(t+2)],p=ids.map(i=>positions.slice(i*3,i*3+3));
+    const a=p[1].map((v,k)=>v-p[0][k]),b=p[2].map((v,k)=>v-p[0][k]);
+    const n=[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]],length=Math.hypot(...n);
+    if(!length || Math.abs(n[1])/length>.05)continue;
+    const axis=Math.abs(n[2])>Math.abs(n[0])?0:2,planeAxis=axis===0?2:0;
+    // Only vertical axis-aligned wall faces have the wall UV frame used by F4.
+    if(Math.abs(n[planeAxis])/length<.995)continue;
+    const key=planeAxis+':'+Math.sign(n[planeAxis])+':'+Math.round(p[0][planeAxis]*10000);
+    if(!groups.has(key))groups.set(key,{axis,triangles:[]});
+    groups.get(key).triangles.push(ids);
+  }
+  const assigned=new Uint8Array(count);
+  for(const {axis,triangles} of groups.values()){
+    const parents=triangles.map((_,i)=>i),weld=new Map();
+    const root=i=>{while(parents[i]!==i){parents[i]=parents[parents[i]];i=parents[i];}return i;};
+    for(const [i,ids] of triangles.entries())for(const id of ids){
+      const key=[0,1,2].map(k=>Math.round(positions[id*3+k]*10000)).join(',');
+      if(weld.has(key))parents[root(i)]=root(weld.get(key));else weld.set(key,i);
+    }
+    const bounds=new Map();
+    for(const [i,ids] of triangles.entries()){
+      const r=root(i);if(!bounds.has(r))bounds.set(r,[Infinity,-Infinity]);const b=bounds.get(r);
+      for(const id of ids){const x=positions[id*3+axis];b[0]=Math.min(b[0],x);b[1]=Math.max(b[1],x);}
+    }
+    for(const [i,ids] of triangles.entries())for(const id of ids){
+      const b=bounds.get(root(i)),k=id*2;
+      if(!assigned[id]){spans[k]=b[0];spans[k+1]=b[1];assigned[id]=1;}
+      else if(spans[k]!==b[0] || spans[k+1]!==b[1]){
+        // A smooth shared corner cannot carry two face intervals safely: suppress openings there.
+        spans[k]=1;spans[k+1]=-1;assigned[id]=2;
+      }
+    }
+  }
+  return spans;
+}

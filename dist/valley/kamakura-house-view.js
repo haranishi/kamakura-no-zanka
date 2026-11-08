@@ -2,7 +2,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { createHouseTextures, createHouseMaterial } from './kamakura-house-materials.js';
-import { houseIndexSeed } from './kamakura-house-texture.js';
+import { houseIndexSeed, houseWallSpans } from './kamakura-house-texture.js';
 import { houseNodeName, houseBounds, houseBodyBounds, houseMatrix, houseBox, houseChunks, houseChunkDistance, houseLOD } from './kamakura-houses.js';
 
 // The mid view stands on a coarser terrain mesh (LOD2+), so its box sinks deeper than the detailed skirt to stay hidden.
@@ -60,6 +60,7 @@ export async function buildKamakuraHouses(houses, terrain, scene, { search = '',
         if (!o.isMesh) return;
         const g = o.geometry.clone().applyMatrix4(o.matrixWorld); owned.add(g);
         const p = g.getAttribute('position');
+        if(parts && texture)g.setAttribute('houseWallSpan',new THREE.Float32BufferAttribute(houseWallSpans(p.array,g.index?.array),2));
         for (let i = 0; i < p.count; i++) positions.push(p.getX(i), p.getY(i), p.getZ(i));
         if (Array.isArray(o.material)) {
           for (const group of g.groups) {
@@ -69,11 +70,12 @@ export async function buildKamakuraHouses(houses, terrain, scene, { search = '',
         } else near.push({ geometry: g, material: o.material });
       });
       if (!near.length) throw new Error('家の部品がありません');
+      const body=houseBodyBounds(positions);
       if (texture) {
         const shared = new Map(), { min, max } = houseBounds(kind);
         for (const part of near) {
           if (!shared.has(part.material)) {
-            const m = createHouseMaterial(part.material, { texture, quality, parts, relief, eave: max[1]-(max[1]-min[1])*.28, top: max[1] });
+            const m = createHouseMaterial(part.material, { search, texture, quality, parts, relief, kind:kind.index, eave: max[1]-(max[1]-min[1])*.28, top: max[1] });
             shared.set(part.material,m); materials.add(m);
           }
           part.material = shared.get(part.material);
@@ -81,8 +83,11 @@ export async function buildKamakuraHouses(houses, terrain, scene, { search = '',
       }
       // Current kit uses one flat main color per kind. Weight by primitive triangle count for future kits.
       const main = [...near].sort((a, b) => (b.geometry.index?.count ?? b.geometry.attributes.position.count) - (a.geometry.index?.count ?? a.geometry.attributes.position.count))[0].material;
-      const mid = simplified(kind, main); for (const p of mid) owned.add(p.geometry);
-      templates.set(kind.index, { near, mid, body: houseBodyBounds(positions) });
+      const mid = simplified(kind, main); for (const p of mid) {
+        if(parts && texture)p.geometry.setAttribute('houseWallSpan',new THREE.Float32BufferAttribute(houseWallSpans(p.geometry.attributes.position.array,p.geometry.index?.array),2));
+        owned.add(p.geometry);
+      }
+      templates.set(kind.index, { near, mid, body });
     }
     for (const ch of chunks) {
       ch.level = null; ch.group = null; ch.pending = null;

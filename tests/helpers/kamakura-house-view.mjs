@@ -6,7 +6,7 @@ const moduleURL = s => 'data:text/javascript;base64,' + Buffer.from(s).toString(
 const read = p => fs.readFileSync(new URL(p, import.meta.url), 'utf8').replace(/from 'three'/g, `from '${three}'`);
 const utils = moduleURL(read('../../dist/vendor/utils/BufferGeometryUtils.js'));
 const loader = moduleURL(read('../../dist/vendor/loaders/GLTFLoader.js').replace("from '../utils/BufferGeometryUtils.js'", `from '${utils}'`));
-const materials = moduleURL(read('../../dist/valley/kamakura-house-materials.js').replace("from './kamakura-house-texture.js'", `from '${new URL('../../dist/valley/kamakura-house-texture.js', import.meta.url).href}'`));
+const materials = moduleURL(read('../../dist/valley/kamakura-house-materials.js').replace("from './kamakura-photo-tex.js'", `from '${new URL('../../dist/valley/kamakura-photo-tex.js', import.meta.url).href}'`).replace("from './kamakura-house-texture.js'", `from '${new URL('../../dist/valley/kamakura-house-texture.js', import.meta.url).href}'`));
 export const loadHouseMaterials = (fresh = false) => import(materials+(fresh?'#fresh':''));
 const view = read('../../dist/valley/kamakura-house-view.js')
   .replace("from './kamakura-house-texture.js'", `from '${new URL('../../dist/valley/kamakura-house-texture.js', import.meta.url).href}'`)
