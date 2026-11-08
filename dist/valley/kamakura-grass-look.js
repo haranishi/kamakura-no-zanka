@@ -85,7 +85,7 @@ export function packGrassLook(data,kind,ecology,quality='standard') {
   const out=new Float32Array(records.length*15);for(let i=0;i<records.length;i++)out.set(records[i],i*15);return out;
 }
 // Index paths once; reuse the live eight-metre collision buckets for shade/maintenance.
-export function createGrassEnvironment(terrain,{ colliders, extraColliders, paths={}, surfaceCodeAt }={}) {
+export function createGrassEnvironment(terrain,{ colliders, extraColliders, paths={}, surfaceCodeAt, r4=false }={}) {
   const routes=new Map(), key=(x,z)=>`${x},${z}`;
   for(const path of Object.values(paths))for(let i=1;i<path.xyz_m.length;i++) {
     const a=path.xyz_m[i-1],b=path.xyz_m[i],segment={x:a[0],z:-a[1],dx:b[0]-a[0],dz:a[1]-b[1]};
@@ -131,6 +131,7 @@ export function createGrassEnvironment(terrain,{ colliders, extraColliders, path
     // A positive local crest suppresses ridge rows; bowls retain their colonies.
     const crest=Math.max(0,terrain.heightAt(x,z)-(terrain.heightAt(x-4,z)+terrain.heightAt(x+4,z)+terrain.heightAt(x,z-4)+terrain.heightAt(x,z+4))/4);
     e.margin=margin;e.colony=grassColony(x,z);
+    if(r4){e.sand=code===0;e.sea=terrain.seaDistanceAt?.(x,z)??Infinity;e.elevation=terrain.heightAt(x,z);}
     // W2c-9r2 grass: expose physical refuge/crest distances to the band placement rule.
     e.tree=tree;e.house=house;e.river=riverDistance;e.crest=crest;
     const colonyWeight=e.colony>.53 ? 1.55 : e.colony>.40 ? .35 : .025;
@@ -158,3 +159,49 @@ export function createGrassEnvironment(terrain,{ colliders, extraColliders, path
 // W2c-9c2: shaded clumps retain separation from the mean ground, including dusk.
 export const MID_GRASS = Object.freeze({groundScale:.68, blend:.40, floor:.035, sink:.12, maxSlope:36});
 export function grassGroundTint(rgb) { return rgb.map(v=>Math.max(MID_GRASS.floor,v*MID_GRASS.groundScale)); }
+
+// W2c-10 grass: uniform dark ribbons -> world-keyed pigment and growth.
+export const grassR4Enabled = search => new URLSearchParams(search).get('grass4') !== '0';
+export const grassLuminance = rgb => rgb[0]*.2126+rgb[1]*.7152+rgb[2]*.0722;
+export function grassR4Variation(x,z) {
+  const cx=Math.floor(x*2)/2,cz=Math.floor(z*2)/2;
+  const broad=clamp(.5+fbm(x/17,z/17,1933,2));
+  return {brightness:.82+.36*grassHash(cx,cz,1201),hue:-.03+.05*grassHash(cx,cz,1207),
+    blade:.96+.08*grassHash(x,z,1213),tipStart:.75+.10*grassHash(x,z,1217),
+    height:(.65+.70*broad)*(.72+.56*grassHash(x,z,1223)),
+    width:.65+.70*grassHash(x,z,1229),lean:(grassHash(x,z,1231)-.5)*.55};
+}
+// HSV hue drift, then reduce saturation at constant linear luminance.
+export function grassR4Pigment(rgb,x,z,v=grassR4Variation(x,z),saturation=.78) {
+  const hi=Math.max(...rgb),lo=Math.min(...rgb),chroma=hi-lo;
+  let h=chroma===0?0:hi===rgb[0]?((rgb[1]-rgb[2])/chroma)%6:hi===rgb[1]?(rgb[2]-rgb[0])/chroma+2:(rgb[0]-rgb[1])/chroma+4;
+  h=((h/6+v.hue)%1+1)%1;
+  const c=chroma*(1-Math.abs((h*6)%2-1)),m=hi-chroma;
+  const rotated= h<1/6?[chroma,c,0]:h<2/6?[c,chroma,0]:h<3/6?[0,chroma,c]:h<4/6?[0,c,chroma]:h<5/6?[c,0,chroma]:[chroma,0,c];
+  const shifted=rotated.map(n=>n+m),y=grassLuminance(shifted),target=grassLuminance(rgb)*v.brightness*v.blade;
+  return shifted.map(n=>(y+(n-y)*saturation)*target/Math.max(y,1e-6));
+}
+export function grassR4Coast(distance,elevation) {
+  const inland=smooth((distance-10)/65),dune=smooth((elevation-.5)/6);
+  return {height:.45+.35*inland+.20*dune,width:.60+.25*inland+.15*dune,density:.35+.40*inland+.25*dune};
+}
+export function packGrassR4(data,kind,ecology,quality='standard') {
+  for(let i=0;i<data.length;i+=15){
+    const x=data[i],z=data[i+2],marker=data[i+11];
+    if(kind==='near' && marker< -1.5)continue;
+    const e=ecology(Math.floor(x)+.5,Math.floor(z)+.5),v=grassR4Variation(x,z);
+    // W2c-10 grass FIX1 GX2: preparation-only desaturation -> after all soil/tip mixing.
+    // W2c-10 grass FIX2 GX3: mid keeps its base pigment, with bounded stock drift only.
+    const pigment=kind==='mid'?{...v,brightness:.90+(v.brightness-.82)/.36*.20,hue:-.015+(v.hue+.03)/.05*.030,blade:1}:v;
+    const color=grassR4Pigment(Array.from(data.subarray(i+8,i+11)),x,z,pigment,1);
+    data.set(color,i+8);
+    if(quality==='light')continue;
+    const coast=e.sand?grassR4Coast(e.sea,e.elevation):{height:1,width:1};
+    // Mid heights are selected again in the vertex hook; retain their growth ratio there.
+    const growth=kind==='mid'?Math.max(.80,Math.min(1.25,v.height*coast.height)):v.height*coast.height;
+    data[i+4]*=growth;data[i+5]*=v.width*coast.width;
+    if(kind==='near')data[i+6]+=v.lean;
+    else {data[i+12]+=v.lean*.3;data[i+6]=(data[i+6]<0?-1:1)*growth;}
+  }
+  return data;
+}
