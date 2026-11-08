@@ -1,7 +1,7 @@
 // W2c-9g: flat kit colors -> shared procedural house surfaces (geometry/lighting unchanged).
 import * as THREE from 'three';
 import { PHOTO_GLSL, PHOTO_TEX_DATA, photoSampler, photoBlendUniform } from './kamakura-photo-tex.js';
-import { HOUSE_SURFACE as S, HOUSE_PALETTE, houseTextureRows, facilityPreservesPigment, facilityInterior, HOUSE_RELIEF as R, HOUSE_OPENING_GLSL } from './kamakura-house-texture.js';
+import { HOUSE_SURFACE as S, HOUSE_PALETTE, houseTextureRows, facilityPreservesPigment, facilityInterior, HOUSE_RELIEF as R, HOUSE_OPENING_GLSL, HOUSE_AMBIENT, houseAmbientEnabled } from './kamakura-house-texture.js';
 // W2c-9p: houses/facilities reuse immutable CPU pixels; each owner retains its own
 // DataTexture and disposal. Generation still yields after at most one 8ms slice.
 const atlasPixels = new Map();
@@ -86,7 +86,7 @@ varying vec2 vHouseWallSpan;
 varying float vHouseTimber;
 #endif
 uniform float houseRelief, houseInterior;
-uniform float housePhoto, housePhotoAdapt, houseDebug;
+uniform float housePhoto, housePhotoAdapt, houseDebug, houseGain;
 uniform float houseOpenings, houseKind;
 uniform float uPhotoBlend;
 ${photoKeys.map(key=>`uniform sampler2D hPhoto_${key};`).join('\n')}
@@ -352,6 +352,7 @@ if (houseFade > 0.0) {
  #ifdef HOUSE_PARTS
  hc=mix(diffuseColor.rgb,target,.92);
  #endif
+ hc*=houseGain; // W2c-10 harmony: albedo gain that keeps houses readable once their ambient matches the Lambert world (&hgain=)
  float brightness = 1.0+(vHouseRandom.x*2.0-1.0)*${S.brightness.toFixed(2)};
  vec3 tone = vec3(brightness*(1.0+broad-stain+.10*ridge)) + moss*vec3(-.4,.12,-.3);
  float angle=(vHouseRandom.y*2.0-1.0)*${S.hue.toFixed(6)};
@@ -416,13 +417,16 @@ if (houseFade > 0.0) {
 // UV diagnostic: red increases along u, green along v (metre checker); blue marks roof.
 if(houseDebug>0.0 && hBlend>0.0)diffuseColor.rgb=vec3(fract(hPhotoUV.x),fract(hPhotoUV.y),roof>.5?.7:.1);`;
 // Clone once per source material/kind, share across every chunk, part and LOD.
-export function createHouseMaterial(base, { texture, quality = 'standard', eave = 3, top = 4, facilityRole = null, parts = false, floor = 0, relief = true, search = '', kind = 0 } = {}) {
+export function createHouseMaterial(base, { texture, quality = 'standard', eave = 3, top = 4, facilityRole = null, parts = false, floor = 0, relief = true, search = '', kind = 0, environment = null } = {}) {
   const material = base.clone(), previous = base.onBeforeCompile.bind(base);
+  // W2c-10 harmony: own envMap so envMapIntensity works (with only scene.environment, Three r180 ignores it and uses 0.7).
+  const ambient = !!environment && houseAmbientEnabled(search);
+  if (ambient && material.isMeshStandardMaterial) { material.envMap = environment; material.envMapIntensity = HOUSE_AMBIENT.envIntensity; }
   // W2c-9r2 facility: plastic roof response -> dry diffuse thatch.
   if(parts && facilityRole===null){material.roughness=1;material.metalness=0;}
   const keepPigment=facilityRole!==null && facilityPreservesPigment([base.color.r,base.color.g,base.color.b],facilityRole);
   const options=new URLSearchParams(search);
-  const uniforms = { houseOpenings:{value:options.get('hopen')==='0'?0:1}, houseKind:{value:kind}, housePhoto:{value:options.get('hphoto')==='0' || options.get('photo')==='0'?0:1}, housePhotoAdapt:{value:1}, houseDebug:{value:options.get('hdebug')==='1'?1:0},
+  const uniforms = { houseOpenings:{value:options.get('hopen')==='0'?0:1}, houseGain:{value:ambient?(options.get('hgain')!==null&&Number.isFinite(+options.get('hgain'))?+options.get('hgain'):(facilityRole===null?HOUSE_AMBIENT.gain:HOUSE_AMBIENT.facilityGain)):1}, houseKind:{value:kind}, housePhoto:{value:options.get('hphoto')==='0' || options.get('photo')==='0'?0:1}, housePhotoAdapt:{value:1}, houseDebug:{value:options.get('hdebug')==='1'?1:0},
     uPhotoBlend:photoBlendUniform, ...Object.fromEntries(photoKeys.map(key=>['hPhoto_'+key,photoSampler(key)])), houseRelief: {value:parts&&relief?(quality==='light'?.7:1):0}, houseInterior: {value:facilityRole!==null && facilityInterior([base.color.r,base.color.g,base.color.b],facilityRole)?1:0}, houseKeepPigment: {value:keepPigment?1:0}, houseAtlas: { value: texture }, houseStrength: { value: quality === 'light' ? .7 : 1 },
     houseDetail: { value: 1 }, houseFrame: { value: new THREE.Vector3(floor,0,0) }, houseBump: { value: 1 }, houseDirt: { value: quality === 'light' ? 0 : 1 }, houseRole: { value: facilityRole ?? -1 }, houseRoofBand: { value: new THREE.Vector2(eave,top) } };
   material.userData.houseUniforms = uniforms;
@@ -455,7 +459,7 @@ export function createHouseMaterial(base, { texture, quality = 'standard', eave 
       .replace('#include <metalnessmap_fragment>', `#include <metalnessmap_fragment>
       metalnessFactor=mix(metalnessFactor,0.0,hBlend);`);
   };
-  material.customProgramCacheKey = () => `house-r4-${parts}-${facilityRole}-${quality}-${base.customProgramCacheKey()}`;
+  material.customProgramCacheKey = () => `house-r4-${parts}-${facilityRole}-${quality}-${ambient}-${base.customProgramCacheKey()}`;
   material.userData.setHouseAdapt = step => {
     uniforms.housePhotoAdapt.value = step >= 3 ? 0 : 1;
     uniforms.houseStrength.value = step >= 3 ? 0 : quality === 'light' ? .7 : 1;

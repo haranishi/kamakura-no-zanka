@@ -32,6 +32,7 @@ import { adaptOptions, createAdapt, stepAdapt, adaptPolicy, adaptPixelRatio } fr
 import { createKamakuraFlight, bindKamakuraFlight } from './kamakura-fly-view.js';
 import { verticalScale } from './world-entry.js';
 import { startPhoto } from './kamakura-photo-tex.js';
+import { HOUSE_AMBIENT, houseAmbientEnabled } from './kamakura-house-texture.js';
 export async function bootKamakura(data, search) {
   const t = createKamakuraTerrain(data, verticalScale(search), maxWalkSlope(search)), meta = data.meta;
   const spawn = kamakuraSpawn(t, search);
@@ -75,6 +76,13 @@ export async function bootKamakura(data, search) {
     // W2c-9f: isolate HDR/grade from the shared valley renderer.
     post = createKamakuraPost({ renderer, quality, search, params: atmosphere.atmosphere?.params, sunDir: atmosphere.sunDir });
     roster = await loadRoster({ names: ['hero'] });
+    // W2c-10 harmony: the hero is MeshStandardMaterial too and took ~2.5x the shade-side light of the Lambert world; a small own-envMap
+    // intensity (a bit above the houses so the figure stays readable in shade) puts it on the same ambient (&henv=0 restores the old look).
+    if (houseAmbientEnabled(search) && scene.environment) {
+      for (const tpl of roster.templates.values()) tpl.scene.traverse(o => {
+        for (const m of [].concat(o.material || [])) if (m.isMeshStandardMaterial && !m.envMap) { m.envMap = scene.environment; m.envMapIntensity = HOUSE_AMBIENT.heroEnvIntensity; m.needsUpdate = true; }
+      });
+    }
     const camera = new THREE.PerspectiveCamera(58, 1, 0.15, standsEnabled(search) ? 10000 : 7000);
     // W2c-9e: register shared shoreline uniforms before installing ground detail.
     sea = buildKamakuraSea(t, data, { search, quality, sunDir: atmosphere.sunDir }); scene.add(sea.group);

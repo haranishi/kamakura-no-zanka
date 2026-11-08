@@ -1,4 +1,11 @@
 // W2c-9g: deterministic house surface rules/data; no renderer, DOM, clock or random state.
+// W2c-10 harmony: houses and halls are MeshStandardMaterial and, with scene.environment, received ~2.5x the shade-side light of the
+// Lambert terrain/grass/trees for the same albedo (measured: grey 0.216 facing away from the sun, 11,14,15 vs 28,36,41 at noon).
+// An own envMap with a small intensity puts them back on the Lambert level (0 = identical, 0.1 = +25% sky fill in shade).
+// gain: with ambient matched, a sunlit wall loses ~1/3 of its light (39 vs 58 at noon), so houses get x1.5 albedo to keep their sunlit
+// brightness while the shade deepens to the terrain's level; halls were blown out white, so they only get x1.05.
+export const HOUSE_AMBIENT = Object.freeze({ envIntensity: .1, heroEnvIntensity: .25, gain: 1.5, facilityGain: 1.05 });
+export const houseAmbientEnabled = (search = '') => new URLSearchParams(search).get('henv') !== '0';
 export const HOUSE_SURFACE = Object.freeze({ base: .5, roof: .35, wood: .85, near: 40, far: 120, brightness: .12, broad: .20, detail: 1.15, hue: Math.PI / 60 });
 const fract = x => x - Math.floor(x);
 export const houseHash = (x, z) => fract(Math.sin(x * 12.9898 + z * 78.233) * 43758.5453);
