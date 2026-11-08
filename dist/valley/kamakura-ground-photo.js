@@ -15,7 +15,9 @@ export const GROUND_PHOTO_MEANS=Object.freeze([
 ].map(Object.freeze));
 // W2c-10 ground (parent tuning): river pebbles carry far more contrast than soil or sand, so a gravel yard read as a cobble field.
 // Per-material scale of (normal, ratio-1) after de-meaning; the mean ratio stays 1. Order = GROUND_PHOTO_KEYS.
-export const GROUND_PHOTO_CONTRAST=Object.freeze([.9,.9,1,1,.9,1,.5]);
+// R4 critic (04): the 15 m sand tile carries broad dark blotches that read as a muddy path, and the 4 m soil tile has dark smudges that
+// made the halls' yards look neglected; both lose contrast (grain and relief stay). R3's 70/150 m yard macro is deliberately untouched.
+export const GROUND_PHOTO_CONTRAST=Object.freeze([.5,.7,1,1,.9,.7,.5]);
 export function groundPhotoMean(id,lod){const a=GROUND_PHOTO_MEANS[id],v=Math.max(0,Math.min(a.length-1,lod)),i=Math.floor(v);return a[i]+(a[Math.min(i+1,a.length-1)]-a[i])*(v-i);}
 export function selectGroundPhotos(weights,light=false){
   let first=-1,second=-1;
