@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { THREE, load, source } from './helpers/tree-modules.mjs';
-import { postOptions, postRoute, bloomSizes, projectSun, neutralGray, postMemory } from '../dist/valley/kamakura-post.js';
+import { postOptions, postRoute, bloomSizes, projectSun, neutralGray, postMemory, neutralToneChunk, POST_DEFAULTS } from '../dist/valley/kamakura-post.js';
+import { KAMAKURA_TIMES } from '../dist/valley/kamakura-atmosphere.js';
 const { createKamakuraPost, POST_SHADERS }=await load('kamakura-post-view.js');
 function stub(){
   let target=null;
@@ -14,7 +15,7 @@ function stub(){
 test('post URL routes, one-way downgrade, pyramid edge sizes and memory',()=>{
   assert.equal(postOptions('?tone=bad').tone,'neutral');
   for(const tone of ['none','aces','neutral','agx'])assert.equal(postOptions('?tone='+tone).tone,tone);
-  assert.deepEqual(postOptions('?post=0&bloom=0&glare=0&tone=none'),{post:false,bloom:false,glare:false,tone:'none'});
+  assert.deepEqual(postOptions('?post=0&bloom=0&glare=0&tone=none'),{post:false,bloom:false,glare:false,tone:'none',toe:null});
   for(const step of [0,1])assert(postRoute('standard',step,true));
   for(const args of [['light',0,true],['standard',2,true],['standard',3,true],['standard',0,false],['standard',0,true,true]])assert(!postRoute(...args));
   assert.deepEqual(bloomSizes(3,1),[[1,1],[1,1],[1,1]]);
@@ -73,4 +74,32 @@ test('GLSL includes resolve; all shader delimiters and conditionals balance; res
   assert.match(THREE.WebGLRenderer.toString(),/this.toneMapping=\w+,this.toneMappingExposure=1/);
   assert.match(source('world-kamakura.js'),/post.render\(scene, camera\)/);
   for(const file of ['main.js','game.js'])assert(!source(file).includes('kamakura-post'));
+});
+
+// W2c-10 grade: three's Neutral operator subtracts x-6.25x^2 (up to .04) from every channel. In shade that strips the smallest channel,
+// so shadows turn dark, green and over-saturated. The factor is scaled by the time-of-day preset (a blind A/B on 11/8 preferred .6 by day
+// and the unchanged operator at dusk) and by &ptoe=.
+test('Neutral toe: pure idempotent chunk patch, bounded URL option, presets and a monotonic scaled transfer',()=>{
+  const chunk=THREE.ShaderChunk.tonemapping_pars_fragment,one=neutralToneChunk(chunk,1),six=neutralToneChunk(chunk,.6);
+  assert(one.includes('color -= offset * 1.0000;'));assert(six.includes('color -= offset * 0.6000;'));
+  assert.equal(six.replace('0.6000','1.0000'),one);
+  assert.equal(neutralToneChunk(six,.25),neutralToneChunk(chunk,.25));
+  assert.equal(neutralToneChunk(chunk,2),one);assert.equal(neutralToneChunk(chunk,-1),neutralToneChunk(chunk,0));
+  assert.throws(()=>neutralToneChunk('vec3 other(){}',1));assert.throws(()=>neutralToneChunk('vec3 NeutralToneMapping( vec3 color ) { return color; }',1));
+  assert.equal(postOptions('').toe,null);assert.equal(postOptions('?ptoe=.4').toe,.4);assert.equal(postOptions('?ptoe=0').toe,0);assert.equal(postOptions('?ptoe=1').toe,1);
+  for(const bad of ['?ptoe=2','?ptoe=-1','?ptoe=x','?ptoe='])assert.equal(postOptions(bad).toe,null);
+  assert.equal(POST_DEFAULTS.toe,.6);
+  assert.equal(KAMAKURA_TIMES.noon.postToe,.6);assert.equal(KAMAKURA_TIMES.morning.postToe,.6);assert.equal(KAMAKURA_TIMES.evening.postToe,1);
+  // The pure mirror: toe=1 is the shipped operator; a smaller toe lifts darks, keeps black at 0 and stays monotonic with an unclipped shoulder.
+  assert.equal(neutralGray(.02),neutralGray(.02,1,1));assert(neutralGray(.02,1,.6)>neutralGray(.02,1,1));assert.equal(neutralGray(0,1,.6),0);
+  let last=0;for(let i=1;i<=4096;i++){const y=neutralGray(i/1024,1,.6);assert(y>=last);assert(y<1);last=y;}
+  assert(neutralGray(4,1,.6)>.98);
+});
+test('post owner patches the global tone chunk (preset or URL) before any program compiles and restores it on dispose',()=>{
+  const before=THREE.ShaderChunk.tonemapping_pars_fragment;
+  for(const [args,expect] of [[{params:{postToe:.6}},'0.6000'],[{params:{postToe:1}},'1.0000'],[{params:{postToe:1},search:'?ptoe=.3'},'0.3000'],[{params:{}},'0.6000'],[{quality:'light',params:{postToe:.6}},'0.6000']]){
+    const r=stub(),p=createKamakuraPost({renderer:r,...args});
+    assert(THREE.ShaderChunk.tonemapping_pars_fragment.includes(`color -= offset * ${expect};`),expect);
+    p.dispose();p.dispose();assert.equal(THREE.ShaderChunk.tonemapping_pars_fragment,before);
+  }
 });

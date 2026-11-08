@@ -1,6 +1,6 @@
 // W2c-9f: direct render -> HDR scene + five fullscreen passes, Kamakura only.
 import * as THREE from 'three';
-import { POST_DEFAULTS, postOptions, postRoute, bloomSizes, projectSun, bloomCap } from './kamakura-post.js';
+import { POST_DEFAULTS, postOptions, postRoute, bloomSizes, projectSun, bloomCap, neutralToneChunk } from './kamakura-post.js';
 const VERT = 'varying vec2 vUv; void main(){ vUv=position.xy*.5+.5; gl_Position=vec4(position.xy,0.,1.); }';
 export const POST_SHADERS = {
   down: `varying vec2 vUv; uniform sampler2D tex; uniform vec2 delta; uniform float threshold, liftCap;
@@ -45,6 +45,10 @@ const TONES = { none: THREE.NoToneMapping, aces: THREE.ACESFilmicToneMapping, ne
 export function createKamakuraPost({ renderer, quality = 'standard', search = '', params = {}, sunDir }) {
   const options = postOptions(search), savedTone = renderer.toneMapping, savedExposure = renderer.toneMappingExposure;
   const exposure = params.postExposure ?? 1, bloomCapValue = bloomCap(search);
+  // W2c-10 grade: Neutral's dark offset, scaled (URL > time-of-day preset > default). The chunk is global, so it is patched before any program
+  // compiles (this runs before the first render) and put back on dispose; both the final pass and the no-post route include it.
+  const toe = options.toe ?? params.postToe ?? POST_DEFAULTS.toe, savedToneChunk = THREE.ShaderChunk.tonemapping_pars_fragment;
+  THREE.ShaderChunk.tonemapping_pars_fragment = neutralToneChunk(savedToneChunk, toe);
   let active = false, latched = false, disposed = false, targets = null, width = 0, height = 0;
   let scene, camera, mesh, geometry, down, combine, final;
   const size = new THREE.Vector2(), direction = new THREE.Vector3(), projected = { x: .5, y: .5, strength: 0 };
@@ -114,6 +118,6 @@ export function createKamakuraPost({ renderer, quality = 'standard', search = ''
         draw(final,previous);
       } finally {renderer.setRenderTarget(previous);renderer.autoClear=autoClear;}
     },
-    dispose(){if(disposed)return;disposed=true;releaseTargets();geometry?.dispose();down?.dispose();combine?.dispose();final?.dispose();renderer.toneMapping=savedTone;renderer.toneMappingExposure=savedExposure;},
+    dispose(){if(disposed)return;disposed=true;releaseTargets();geometry?.dispose();down?.dispose();combine?.dispose();final?.dispose();renderer.toneMapping=savedTone;THREE.ShaderChunk.tonemapping_pars_fragment=savedToneChunk;renderer.toneMappingExposure=savedExposure;},
   };
 }

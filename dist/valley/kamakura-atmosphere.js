@@ -1,7 +1,7 @@
 // Pure settings. Directions are [east, up, south]; colors stay sRGB hex strings.
 export const KAMAKURA_TIMES = {
   noon: {
-    postExposure: 1, postBloom: .12, postGlare: .7, postWarmth: .008,
+    postExposure: 1, postBloom: .12, postGlare: .7, postWarmth: .008, postToe: .6,
     sunDir: [.08, .8480480962, .523803], sunColor: '#fff1d6', sunIntensity: 2.8,
     zenith: '#5a86c0', mid: '#a4c3df', horizon: '#cfe0ea', below: '#829389',
     fogColor: '#cfe0ea', hazeCool: '#cfe0ea', hazeWarm: '#e0e6e7', hazeExp: 4,
@@ -10,7 +10,7 @@ export const KAMAKURA_TIMES = {
     envIntensity: .7, fillColor: '#d0e1f2', fillIntensity: .3, exposure: 1,
   },
   morning: {
-    postExposure: 1.04, postBloom: .15, postGlare: .85, postWarmth: .012,
+    postExposure: 1.04, postBloom: .15, postGlare: .85, postWarmth: .012, postToe: .6,
     sunDir: [.837319, .4226182617, .346829], sunColor: '#ffe6bf', sunIntensity: 2.6,
     zenith: '#648bb9', mid: '#adc5dc', horizon: '#d1e0ea', below: '#7e9085',
     fogColor: '#c4d8e8', hazeCool: '#c4d8e8', hazeWarm: '#e9ddd0', hazeExp: 5,
@@ -19,7 +19,8 @@ export const KAMAKURA_TIMES = {
     envIntensity: .7, fillColor: '#b9cfe7', fillIntensity: .35, exposure: 1,
   },
   // All evening colors/light values come from the unchanged valley ATMOS.
-  evening: { postExposure: 1.12, postBloom: .18, postGlare: 1, postWarmth: .018, fogDensity: .0001, mist: { density: .00005, base: -4, falloff: .045 } },
+  // postToe 1 = three.js's Neutral as shipped: a blind A/B (11/8) kept the evening's warmth only with the full dark offset.
+  evening: { postExposure: 1.12, postBloom: .18, postGlare: 1, postWarmth: .018, postToe: 1, fogDensity: .0001, mist: { density: .00005, base: -4, falloff: .045 } },
 };
 export function atmosphereOptions(search) {
   const q = new URLSearchParams(search), requested = q.get('time');
