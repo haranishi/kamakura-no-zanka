@@ -1,6 +1,7 @@
 // Static forest skin and a bounded, shared pool of ordinary child trees. No valley TreeField changes.
 import * as THREE from 'three';
 import { atmospherePolicy } from './kamakura-atmosphere.js';
+import { applyVegLook, vegLookEnabled } from './kamakura-veg-look.js';
 import { TREES } from './config.js';
 import { TREE_NAMES, vegCircles } from './kamakura-veg.js';
 import { buildKamakuraVeg, vegHeight } from './kamakura-veg-view.js';
@@ -29,6 +30,7 @@ export function buildKamakuraStands(prepared, { wind, sunDir, quality = 'standar
   const eye = { value: new THREE.Vector3() }, resources = new Set();
   let children, disposed = false, last = null, stats = null;
   const policy = prepared.policy; let rangeScale = 1;
+  const look = { value: quality === 'light' ? .65 : 1 }, lookEnabled = vegLookEnabled(search);
   const families = [];
   for (const species of [0, 1, 2]) for (let shape = 0; shape < TREES.variants[TREE_NAMES[species]]; shape++) families.push(`${species}/${shape}`);
   function dispose() {
@@ -60,8 +62,11 @@ export function buildKamakuraStands(prepared, { wind, sunDir, quality = 'standar
           `);
         };
         material.customProgramCacheKey = () => `kamakura-stand-${tier}`;
+        // W2c-10b veg5: far forest uses the same foliage arithmetic, preserving Three's fog.
+        if (lookEnabled) applyVegLook(material, { lightsChunk: THREE.ShaderChunk.lights_fragment_begin, species: -1, leaf: true, geometry, sunDir, strength: look, stand: true });
       }
       const g = geometry.clone(); resources.add(g);
+      if (lookEnabled) g.setAttribute('aKzSpecies', new THREE.InstancedBufferAttribute(Float32Array.from(items, i => i.species), 1));
       g.setAttribute('aStandExpand', new THREE.InstancedBufferAttribute(Float32Array.from(items, i => tier === 2 || i.expandable ? 1 : 0), 1));
       const mesh = new THREE.InstancedMesh(g, materials.get(tier), items.length); resources.add(mesh); mesh.name = `stand/${key}`;
       mesh.castShadow = atmospherePolicy(quality).standShadows; mesh.receiveShadow = true;
