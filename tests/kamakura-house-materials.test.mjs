@@ -174,7 +174,7 @@ test('9g3: warm linear palette, painted colors preserved, bounded reflectance an
   assert(HOUSE_DIMENSIONS.seam>=.01 && HOUSE_DIMENSIONS.seam<=.02);
   assert(HOUSE_DIMENSIONS.strawMin>=.30 && HOUSE_DIMENSIONS.strawMax<=.45);
   assert.equal(houseAmplitude(40),1);assert.equal(houseAmplitude(120),0);assert.equal(houseAmplitude(300),0);
-  let lo=1,hi=-1;for(let i=0;i<20000;i++){const v=houseBroad(i*.013,i*.007,i*.021);lo=Math.min(lo,v);hi=Math.max(hi,v);}assert(lo<-.15 && hi>.15);
+  let lo=1,hi=-1;for(let i=0;i<20000;i++){const v=houseBroad(i*.013,i*.007);lo=Math.min(lo,v);hi=Math.max(hi,v);}assert(lo<-.15 && hi>.15);
   for(const [name,role] of [['roof tile',4],['pillar',5],['board',1],['stone',3],['wall',2],['unknown',0]])assert.equal(facilityMaterialRole(name),role);
   t.diagnostic(JSON.stringify({broadRange:[lo,hi],fineAt40:houseAmplitude(40),fineAt120:houseAmplitude(120)}));
 });
