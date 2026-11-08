@@ -1,7 +1,7 @@
 // W2c-9g: flat kit colors -> shared procedural house surfaces (geometry/lighting unchanged).
 import * as THREE from 'three';
 import { PHOTO_GLSL, PHOTO_TEX_DATA, photoSampler, photoBlendUniform } from './kamakura-photo-tex.js';
-import { HOUSE_SURFACE as S, HOUSE_PALETTE, houseTextureRows, facilityPreservesPigment, facilityInterior, HOUSE_RELIEF as R, HOUSE_OPENING_GLSL, HOUSE_AMBIENT, houseAmbientEnabled } from './kamakura-house-texture.js';
+import { HOUSE_SURFACE as S, HOUSE_PALETTE, houseTextureRows, facilityPreservesPigment, facilityInterior, HOUSE_RELIEF as R, HOUSE_OPENING_GLSL, HOUSE_BROAD_GLSL, HOUSE_WOOD_MEAN, HOUSE_AMBIENT, houseAmbientEnabled } from './kamakura-house-texture.js';
 // W2c-9p: houses/facilities reuse immutable CPU pixels; each owner retains its own
 // DataTexture and disposal. Generation still yields after at most one 8ms slice.
 const atlasPixels = new Map();
@@ -32,11 +32,13 @@ export async function createHouseTextures({quality='standard',parts=false} = {})
   return texture;
 }
 const paletteGLSL = Object.entries(HOUSE_PALETTE).map(([name,c]) => `const vec3 house_${name} = vec3(${c.map(v=>v.toFixed(4)).join(",")});`).join("\n");
-const photoKeys = ['wallWoodA','wallWoodB','wallPlaster','roofThatch','roofThatchOld','roofTile','stoneRubble','wallPlasterWorn'];
+const photoKeys = ['wallWoodA','wallWoodB','wallPlaster','roofThatch','roofThatchOld','roofTile','stoneRubble'];
 const photoMeters = key => PHOTO_TEX_DATA[key].meters.toFixed(3);
 const vertexPars = `
 #if defined(HOUSE_PARTS) && !defined(HOUSE_FACILITY)
 attribute vec2 houseWallSpan;
+attribute vec2 houseWallHeight;
+attribute vec2 houseRoofHeight;
 #endif
 varying vec3 vHouseObj; varying vec3 vHouseN; varying vec3 vHouseRandom; varying float vHouseNorth;
 #ifdef HOUSE_FACILITY
@@ -47,12 +49,16 @@ varying float vHouseTimber;
 varying vec3 vHouseRoofP; varying vec3 vHouseRoofN; varying vec3 vHouseScale;
 #if defined(HOUSE_PARTS) && !defined(HOUSE_FACILITY)
 varying vec2 vHouseWallSpan;
+varying vec2 vHouseWallHeight;
+varying vec2 vHouseRoofHeight;
 #endif
 float houseHash(vec2 p) { return fract(sin(dot(p, vec2(12.9898,78.233))) * 43758.5453); }`;
 const vertexBody = `
 vHouseObj = transformed;
 #if defined(HOUSE_PARTS) && !defined(HOUSE_FACILITY)
 vHouseWallSpan=houseWallSpan;
+vHouseWallHeight=houseWallHeight;
+vHouseRoofHeight=houseRoofHeight;
 #endif
 #ifdef HOUSE_FACILITY
 vHouseObj.y = houseLocalY;
@@ -81,13 +87,15 @@ varying vec3 vHouseObj; varying vec3 vHouseN; varying vec3 vHouseRandom; varying
 varying vec3 vHouseRoofP; varying vec3 vHouseRoofN; varying vec3 vHouseScale;
 #if defined(HOUSE_PARTS) && !defined(HOUSE_FACILITY)
 varying vec2 vHouseWallSpan;
+varying vec2 vHouseWallHeight;
+varying vec2 vHouseRoofHeight;
 #endif
 #ifdef HOUSE_FACILITY
 varying float vHouseTimber;
 #endif
 uniform float houseRelief, houseInterior;
 uniform float housePhoto, housePhotoAdapt, houseDebug, houseGain;
-uniform float houseOpenings, houseKind;
+uniform float houseOpenings, houseKind, houseFoundation;
 uniform float uPhotoBlend;
 ${photoKeys.map(key=>`uniform sampler2D hPhoto_${key};`).join('\n')}
 ${PHOTO_GLSL}
@@ -98,6 +106,8 @@ vec3 housePhotoRead(sampler2D photoMap, vec2 uv, vec2 gx, vec2 gy, float roofWei
  #endif
  return kzPhotoGrad(photoMap,uv,gx,gy);
 }
+// W2c-10b F7: isolated white flecks -> compressed highlights, mean corrected.
+float houseWoodRatio(float r,float meanRatio){return (min(r,1.0)+.45*max(r-1.0,0.0))/meanRatio;}
 uniform sampler2D houseAtlas;
 uniform float houseStrength, houseBump, houseDirt;
 uniform vec2 houseRoofBand;
@@ -107,6 +117,7 @@ ${paletteGLSL}
 float houseHash(vec2 p) { return fract(sin(dot(p,vec2(12.9898,78.233)))*43758.5453); }
 
 ${HOUSE_OPENING_GLSL}
+${HOUSE_BROAD_GLSL}
 vec4 houseTri(vec3 p, vec3 w, float flip) {
  return texture2D(houseAtlas,p.zy)*w.x + texture2D(houseAtlas,mix(p.xz,p.zx,flip))*w.y + texture2D(houseAtlas,p.xy)*w.z;
 }`;
@@ -167,6 +178,10 @@ if(houseRole==6.0 || houseRole==7.0)hBlend=0.0;
 vec3 hPhoto=vec3(0.0,0.0,1.0);
 float hRough=.92, hPhotoAmount=1.0;
 // Only one selected surface is read (three reads for a standard roof, one in light).
+// W2c-10b F6: the stone band and door share the kit's actual foundation top.
+#if defined(HOUSE_PARTS) && !defined(HOUSE_FACILITY)
+ if(hBlend>0.0)stone=step(0.0,vHouseObj.y)*step(vHouseObj.y,houseFoundation);
+#endif
 if(hBlend>0.0){
  if(stone>.5){
   hPhoto=housePhotoRead(hPhoto_stoneRubble,hPhotoUV/${photoMeters('stoneRubble')},hPhotoDx/${photoMeters('stoneRubble')},hPhotoDy/${photoMeters('stoneRubble')},0.0);
@@ -176,7 +191,7 @@ if(hBlend>0.0){
   hPhoto=housePhotoRead(hPhoto_roofTile,hPhotoUV/${photoMeters('roofTile')},hPhotoDx/${photoMeters('roofTile')},hPhotoDy/${photoMeters('roofTile')},1.0);
   hRough=.55+.10*vHouseRandom.x;
   #else
-  if(vHouseRandom.x+vHouseNorth*.25>.55){
+  if(vHouseRandom.x>.80 && vHouseNorth>.5){
    hPhoto=housePhotoRead(hPhoto_roofThatchOld,hPhotoUV/${photoMeters('roofThatchOld')},hPhotoDx/${photoMeters('roofThatchOld')},hPhotoDy/${photoMeters('roofThatchOld')},1.0);
   }else{
    hPhoto=housePhotoRead(hPhoto_roofThatch,hPhotoUV/${photoMeters('roofThatch')},hPhotoDx/${photoMeters('roofThatch')},hPhotoDy/${photoMeters('roofThatch')},1.0);
@@ -189,6 +204,9 @@ if(hBlend>0.0){
   }else{
    hPhoto=housePhotoRead(hPhoto_wallWoodA,hPhotoUV/${photoMeters('wallWoodA')},hPhotoDx/${photoMeters('wallWoodA')},hPhotoDy/${photoMeters('wallWoodA')},0.0);
   }
+  hPhoto.z=houseWoodRatio(hPhoto.z,vHouseRandom.y>.65 && post<.5?${HOUSE_WOOD_MEAN.wallWoodB}:${HOUSE_WOOD_MEAN.wallWoodA});
+  // Mip/distance fade returns to the palette mean, including the correction term.
+  hPhoto.z=mix(hPhoto.z,1.0,smoothstep(40.0,120.0,length(vViewPosition)));
   hRough=.80;
  }else{
   #ifdef HOUSE_FACILITY
@@ -196,8 +214,11 @@ if(hBlend>0.0){
    hPhoto=housePhotoRead(hPhoto_stoneRubble,hPhotoUV/${photoMeters('stoneRubble')},hPhotoDx/${photoMeters('stoneRubble')},hPhotoDy/${photoMeters('stoneRubble')},0.0);
    hRough=.85;
   }else{
-   hPhoto=housePhotoRead(hPhoto_wallPlasterWorn,hPhotoUV/${photoMeters('wallPlasterWorn')},hPhotoDx/${photoMeters('wallPlasterWorn')},hPhotoDy/${photoMeters('wallPlasterWorn')},0.0);
-   hPhotoAmount=.35;
+   // W2c-10b FIX1 FX2: hex-blended worn plaster -> one weak soil-plaster read.
+   // hPhotoUV already has a stable per-hall origin offset; derivatives are above branches.
+   hPhoto=kzPhotoGrad(hPhoto_wallPlaster,hPhotoUV/2.000,hPhotoDx/2.000,hPhotoDy/2.000);
+   hPhoto.xy*=.4; hPhoto.z=mix(1.0,hPhoto.z,.4);
+   hPhotoAmount=1.0;
   }
   #else
   hPhoto=housePhotoRead(hPhoto_wallPlaster,hPhotoUV/${photoMeters('wallPlaster')},hPhotoDx/${photoMeters('wallPlaster')},hPhotoDy/${photoMeters('wallPlaster')},0.0);
@@ -216,9 +237,19 @@ vec2 hWallDx=dFdx(hWallUV), hWallDy=dFdy(hWallUV);
  vec2 hBounds=abs(hpn.z)>abs(hpn.x)?vHouseWallSpan*vHouseScale.x:vHouseWallSpan*vHouseScale.z;
  float hPitch=3.0+2.0*houseHash(vec2(houseKind,9.0));
  vec4 hOp=houseOpeningCell(floor(hOpX/hPitch),houseKind,vHouseRandom.z,hFace,hBounds);
- vec2 hOpUV=vec2(hOpX-hOp.x,hWallY-hOp.w);
+ // W2c-10b FIX2 FX3: fixed tall candidates -> fit to each scaled wall above its floor.
+ float hOpFloor=houseFoundation*vHouseScale.y;
+ float hOpAvail=min(houseRoofBand.x,vHouseWallHeight.y)*vHouseScale.y-.10-hOpFloor;
+ float hOpDoor=1.0-step(.1,hOp.w);
+ hOp.z=mix(.5,min(1.75,.90*hOpAvail),hOpDoor);
+ hOp.w=hOpFloor+mix(clamp(.55*hOpAvail,.65,max(.65,hOp.w)),0.0,hOpDoor);
+ // W2c-10b FIX3: every face may carry openings (hFace only keys the hash), as before facility5; the one-face gate hid most doors.
+ float hOpValid=step(max(houseFoundation,vHouseWallHeight.x)*vHouseScale.y,hOp.w)
+  *step(hOp.w+hOp.z,min(houseRoofBand.x,vHouseWallHeight.y)*vHouseScale.y-.10)
+  *mix(1.0,step(1.0,hOp.z),hOpDoor);
+ vec2 hOpUV=vec2(hOpX-hOp.x,hpp.y-hOp.w);
  // Analytic pixel coverage keeps the recess edge and fine bars stable under minification.
- vec2 hOpAA=max(fwidth(vec2(hOpX,hWallY)),vec2(.003));
+ vec2 hOpAA=max(fwidth(vec2(hOpX,hpp.y)),vec2(.003));
  float hOpInside=(1.0-smoothstep(hOp.y*.5-hOpAA.x,hOp.y*.5+hOpAA.x,abs(hOpUV.x)))
   *(1.0-smoothstep(hOp.z*.5-hOpAA.y,hOp.z*.5+hOpAA.y,abs(hOpUV.y-hOp.z*.5)))*step(.1,hOp.y);
  float hFrame=(1.0-smoothstep(hOp.y*.5-.045-hOpAA.x,hOp.y*.5-.045+hOpAA.x,abs(hOpUV.x)))
@@ -228,12 +259,12 @@ vec2 hWallDx=dFdx(hWallUV), hWallDy=dFdy(hWallUV);
  float hBarCoverage=(houseBarIntegral(hBarU+hBarPixel*.5,hBarWidth)-houseBarIntegral(hBarU-hBarPixel*.5,hBarWidth))/hBarPixel;
  float hBarResolve=1.0-smoothstep(18.0,28.0,length(vViewPosition));
  float hBars=mix(hBarWidth,hBarCoverage,hBarResolve);
- float hOpMask=hOpInside*(1.0-stone)*(1.0-roof)*(1.0-post)*(1.0-abs(hpn.y));
+ float hOpMask=hOpValid*step(hOp.w,hpp.y)*hOpInside*(1.0-stone)*(1.0-roof)*(1.0-post)*(1.0-abs(hpn.y));
  float hDoorRatio=1.0;
  // Doors in plaster use wood as well. The explicit gradients were taken before any branch.
- if(hBlend*houseOpenings*hOpMask>0.0 && hOp.w<.1){
+ if(hBlend*houseOpenings*hOpMask>0.0 && hOp.w-houseFoundation*vHouseScale.y<.1){
   vec3 hDoorPhoto=kzPhotoGrad(hPhoto_wallWoodA,hWallUV/${photoMeters('wallWoodA')},hWallDx/${photoMeters('wallWoodA')},hWallDy/${photoMeters('wallWoodA')});
-  hDoorRatio=hDoorPhoto.z;
+  hDoorRatio=houseWoodRatio(hDoorPhoto.z,${HOUSE_WOOD_MEAN.wallWoodA});
  }
 #endif
 if (houseFade > 0.0) {
@@ -291,10 +322,29 @@ if (houseFade > 0.0) {
  pixelFade=mix(pixelFade,1.0,roof*houseRelief);
  #endif
  float detail = (1.0-hBlend)*(surface-.5)*${S.detail.toFixed(2)}*houseFine*pixelFade;
+ #if defined(HOUSE_PARTS) && !defined(HOUSE_FACILITY)
+ // W2c-10b F8: photograph grain alone -> slope-aligned integrated fibre bundles.
+ detail+=hBlend*roof*strawDetail*.45*houseFine*houseRelief;
+ #endif
  float overlap = (1.0-hBlend)*(1.0-smoothstep(.03,.13,abs(sin(hp.y*22.0))))*tile*houseFine*pixelFade;
  float eave = (1.0-smoothstep(0.0,.38,abs(vHouseObj.y-houseRoofBand.x)))*roof;
+ // W2c-10b F8: flat lower edge -> 0.15--0.30m irregular thickness shadow.
+ #if defined(HOUSE_PARTS) && !defined(HOUSE_FACILITY)
+ float hEaveHeight=.15+.15*houseHash(vec2(floor(hWallX/.19),vHouseRandom.y*23.0));
+ float hAboveEave=(vHouseObj.y-vHouseRoofHeight.x)*vHouseScale.y;
+ float hThatchEdge=(1.0-smoothstep(hEaveHeight-.04,hEaveHeight+.04,hAboveEave))*step(0.0,hAboveEave)*roof*step(.01,vHouseRoofHeight.y-vHouseRoofHeight.x);
+ eave=mix(eave,hThatchEdge,hBlend);
+ #endif
  float ridge = smoothstep(houseRoofBand.y-.26,houseRoofBand.y,vHouseObj.y)*roof;
+ #if defined(HOUSE_PARTS) && !defined(HOUSE_FACILITY)
+ ridge=mix(ridge,smoothstep(-.20,0.0,(vHouseObj.y-vHouseRoofHeight.y)*vHouseScale.y)*roof*step(.01,vHouseRoofHeight.y-vHouseRoofHeight.x),hBlend);
+ #endif
+ // W2c-10b FIX2 FX4: all parts (houses/halls/facilities), even photo=0, use noise.
+ #if defined(HOUSE_PARTS) && !defined(HOUSE_BROAD_LEGACY)
+ float broad=houseBroad(hPhotoUV.x,hPhotoUV.y);
+ #else
  float broad = ${S.broad.toFixed(2)}*(.65*sin(hp.x*2.1+sin(hp.z*1.7)+hp.y*.9)+.35*sin(hp.y*3.1+hp.z*2.3));
+ #endif
  float mud = (1.0-smoothstep(0.0,1.0,vHouseObj.y))*(1.0-roof);
  float underEave=(1.0-roof)*(1.0-smoothstep(0.0,.65,abs(vHouseObj.y-houseRoofBand.x)));
  float rain=pow(.5+.5*sin(hp.x*7.3+sin(hp.z*2.7)),8.0)*(1.0-roof)*smoothstep(0.0,1.0,vHouseObj.y);
@@ -323,7 +373,7 @@ if (houseFade > 0.0) {
  }
  float hY=hpp.y-houseFrame.x;
  #ifndef HOUSE_FACILITY
- hY-=.5*vHouseScale.y; // wall foot is above the foundation, in instance metres
+ hY-=mix(.5,houseFoundation,hBlend)*vHouseScale.y; // wall foot is above the foundation, in instance metres
  #endif
  float hSplashTop=.30+.20*houseHash(vec2(floor(hWallX/.16),vHouseRandom.z*23.0));
  float hMud=(1.0-smoothstep(0.0,hSplashTop,hY))*(1.0-roof);
@@ -337,6 +387,10 @@ if (houseFade > 0.0) {
  #ifdef HOUSE_FACILITY
  target = mix(house_plaster,house_wood,board);
  #endif
+ // W2c-10b F9: hall plaster only; house palette and other facility roles stay unchanged.
+ #if defined(HOUSE_PARTS) && defined(HOUSE_FACILITY)
+ if(houseRole==2.0)target*=mix(1.0,.65,hBlend*(1.0-board));
+ #endif
  target = mix(target,mix(house_roof,house_oldRoof,vHouseRandom.x),roof);
  target = mix(target,mix(house_stone,house_oldStone,vHouseRandom.y),stone); target = mix(target,house_tile,tile);
  target = mix(target,house_post,post);
@@ -344,7 +398,7 @@ if (houseFade > 0.0) {
  #ifndef HOUSE_FACILITY
  target=mix(target,mix(house_thatch,house_oldThatch,vHouseRandom.x),roof);
  #else
- if(houseRole==2.0)target=mix(target,mix(house_lime,house_oldLime,vHouseRandom.x*.3),(1.0-roof)*(1.0-stone)*(1.0-post));
+ if(houseRole==2.0)target=mix(target,mix(house_lime,house_oldLime,vHouseRandom.x*.3)*mix(1.0,.65,hBlend),(1.0-roof)*(1.0-stone)*(1.0-post));
  if(houseRole==8.0)target=mix(house_lime,house_oldLime,vHouseRandom.x*.3);
  #endif
  #endif
@@ -402,13 +456,19 @@ if (houseFade > 0.0) {
  // W2c-10 facility F4: wall box -> human-scale recessed door / renji window.
  // Facilities already carry modelled openings; no extra opening is ever drawn there.
  #if defined(HOUSE_PARTS) && !defined(HOUSE_FACILITY)
- float hWoodRatio=mix(1.0,hDoorRatio,.35); // wood ratio even on a plaster house
- vec3 hDoor=house_wood*(.20*hWoodRatio);
- vec3 hWindow=house_wood*mix(.10,.42,hBars);
- vec3 hRecess=mix(hDoor,hWindow,step(.1,hOp.w));
- hRecess*=mix(.45,1.0,hFrame); // dark jamb; no new geometry or lighting
+ // W2c-10b F6: black holes -> dark timber, inset lattice and a slim frame highlight.
+ float hWoodRatio=mix(1.0,hDoorRatio,.35);
+ vec3 hDoor=vec3(.032,.028,.023)*hWoodRatio;
+ float hInset=clamp(hOpUV.y/max(hOp.z,.01),0.0,1.0);
+ vec3 hWindow=mix(vec3(.020,.018,.015),vec3(.038,.033,.026),hBars)*(1.0-.20*hInset);
+ vec3 hRecess=mix(hDoor,hWindow,step(.1,hOp.w-houseFoundation*vHouseScale.y));
+ hRecess=mix(vec3(.055,.047,.036),hRecess,hFrame);
  float hOpeningFade=(1.0-smoothstep(35.0,70.0,length(vViewPosition)));
- aged=mix(aged,hRecess,hOpMask*hBlend*houseOpenings*hOpeningFade);
+ float hOpeningWeight=hOpMask*hBlend*houseOpenings*hOpeningFade;
+ aged=mix(aged,hRecess,hOpeningWeight);
+ // Local bounded fill keeps timber/frame contrast through evening tone mapping.
+ houseInteriorFill+=hRecess*.85*hOpeningWeight;
+
  #endif
  vec3 mixed=mix(diffuseColor.rgb,aged,houseFade);
  diffuseColor.rgb=painted?mixed:min(vec3(.45),mixed);
@@ -417,7 +477,7 @@ if (houseFade > 0.0) {
 // UV diagnostic: red increases along u, green along v (metre checker); blue marks roof.
 if(houseDebug>0.0 && hBlend>0.0)diffuseColor.rgb=vec3(fract(hPhotoUV.x),fract(hPhotoUV.y),roof>.5?.7:.1);`;
 // Clone once per source material/kind, share across every chunk, part and LOD.
-export function createHouseMaterial(base, { texture, quality = 'standard', eave = 3, top = 4, facilityRole = null, parts = false, floor = 0, relief = true, search = '', kind = 0, environment = null } = {}) {
+export function createHouseMaterial(base, { texture, quality = 'standard', eave = 3, top = 4, facilityRole = null, parts = false, floor = 0, relief = true, search = '', kind = 0, foundation = .5, environment = null } = {}) {
   const material = base.clone(), previous = base.onBeforeCompile.bind(base);
   // W2c-10 harmony: own envMap so envMapIntensity works (with only scene.environment, Three r180 ignores it and uses 0.7).
   const ambient = !!environment && houseAmbientEnabled(search);
@@ -426,11 +486,13 @@ export function createHouseMaterial(base, { texture, quality = 'standard', eave 
   if(parts && facilityRole===null){material.roughness=1;material.metalness=0;}
   const keepPigment=facilityRole!==null && facilityPreservesPigment([base.color.r,base.color.g,base.color.b],facilityRole);
   const options=new URLSearchParams(search);
-  const uniforms = { houseOpenings:{value:options.get('hopen')==='0'?0:1}, houseGain:{value:ambient?(options.get('hgain')!==null&&Number.isFinite(+options.get('hgain'))?+options.get('hgain'):(facilityRole===null?HOUSE_AMBIENT.gain:HOUSE_AMBIENT.facilityGain)):1}, houseKind:{value:kind}, housePhoto:{value:options.get('hphoto')==='0' || options.get('photo')==='0'?0:1}, housePhotoAdapt:{value:1}, houseDebug:{value:options.get('hdebug')==='1'?1:0},
+  const uniforms = { houseOpenings:{value:options.get('hopen')==='0'?0:1}, houseGain:{value:ambient?(options.get('hgain')!==null&&Number.isFinite(+options.get('hgain'))?+options.get('hgain'):(facilityRole===null?HOUSE_AMBIENT.gain:HOUSE_AMBIENT.facilityGain)):1}, houseFoundation:{value:foundation}, houseKind:{value:kind}, housePhoto:{value:options.get('hphoto')==='0' || options.get('photo')==='0'?0:1}, housePhotoAdapt:{value:1}, houseDebug:{value:options.get('hdebug')==='1'?1:0},
     uPhotoBlend:photoBlendUniform, ...Object.fromEntries(photoKeys.map(key=>['hPhoto_'+key,photoSampler(key)])), houseRelief: {value:parts&&relief?(quality==='light'?.7:1):0}, houseInterior: {value:facilityRole!==null && facilityInterior([base.color.r,base.color.g,base.color.b],facilityRole)?1:0}, houseKeepPigment: {value:keepPigment?1:0}, houseAtlas: { value: texture }, houseStrength: { value: quality === 'light' ? .7 : 1 },
     houseDetail: { value: 1 }, houseFrame: { value: new THREE.Vector3(floor,0,0) }, houseBump: { value: 1 }, houseDirt: { value: quality === 'light' ? 0 : 1 }, houseRole: { value: facilityRole ?? -1 }, houseRoofBand: { value: new THREE.Vector2(eave,top) } };
   material.userData.houseUniforms = uniforms;
   if(parts)material.defines={...material.defines,HOUSE_PARTS:1};
+  // W2c-10b FIX2 FX4: explicit A/B for the procedural waves, independent of photo switches.
+  if(options.get('hbroad')==='0')material.defines={...material.defines,HOUSE_BROAD_LEGACY:1};
   if (facilityRole !== null) material.defines = { ...material.defines, HOUSE_FACILITY: 1 };
   if (quality === 'light') material.defines = { ...material.defines, HOUSE_LIGHT: 1 };
   material.onBeforeCompile = (shader, renderer) => {
@@ -459,7 +521,7 @@ export function createHouseMaterial(base, { texture, quality = 'standard', eave 
       .replace('#include <metalnessmap_fragment>', `#include <metalnessmap_fragment>
       metalnessFactor=mix(metalnessFactor,0.0,hBlend);`);
   };
-  material.customProgramCacheKey = () => `house-r4-${parts}-${facilityRole}-${quality}-${ambient}-${base.customProgramCacheKey()}`;
+  material.customProgramCacheKey = () => `house-r4b-fix2-${options.get('hbroad')!=='0'}-${parts}-${facilityRole}-${quality}-${ambient}-${base.customProgramCacheKey()}`;
   material.userData.setHouseAdapt = step => {
     uniforms.housePhotoAdapt.value = step >= 3 ? 0 : 1;
     uniforms.houseStrength.value = step >= 3 ? 0 : quality === 'light' ? .7 : 1;

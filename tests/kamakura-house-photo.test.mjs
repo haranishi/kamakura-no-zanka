@@ -21,7 +21,7 @@ test('R4 photo shader: real PBR in both qualities, all roles; shared samplers, e
   const m=createHouseMaterial(base,{quality,facilityRole,parts:true}),s=shaderFor(m),code=s.fragmentShader;
   balanced(code);balanced(s.vertexShader);
   assert.equal(s.uniforms.uPhotoBlend,photoBlendUniform);
-  for(const key of ['wallWoodA','wallWoodB','wallPlaster','roofThatch','roofThatchOld','roofTile','stoneRubble','wallPlasterWorn']){
+  for(const key of ['wallWoodA','wallWoodB','wallPlaster','roofThatch','roofThatchOld','roofTile','stoneRubble']){
    assert.equal(s.uniforms['hPhoto_'+key],photoSampler(key));
    assert(code.includes(`hPhotoUV/${PHOTO_TEX_DATA[key].meters.toFixed(3)}`));
   }
@@ -67,8 +67,8 @@ test('R4 ratios blend around 1, never add photograph colour; material roughnesse
    const ratios=Array.from({length:1001},(_,i)=>.1+1.8*i/1000);
    for(const c of HOUSE_PALETTE.wood)assert(Math.abs(stats(ratios.map(r=>c*mix(1,r,b))).mean-c)<1e-12);
   }
-  for(const literal of ['hRough=.80','hRough=.92','hRough=1.0','hRough=.55+.10*vHouseRandom.x','hRough=mix(.85,.60,hWet)','hPhotoAmount=.35'])assert(code.includes(literal));
-  assert(code.includes('hpn*hpn.y-vec3(0.0,1.0,0.0)'));assert(code.includes('vHouseNorth*.25'));
+  for(const literal of ['hRough=.80','hRough=.92','hRough=1.0','hRough=.55+.10*vHouseRandom.x','hRough=mix(.85,.60,hWet)','hPhotoAmount=1.0'])assert(code.includes(literal));
+  assert(code.includes('hpn*hpn.y-vec3(0.0,1.0,0.0)'));assert(code.includes('vHouseRandom.x>.80 && vHouseNorth>.5'));
   assert(code.includes('float detail = (1.0-hBlend)'));assert(code.includes('float overlap = (1.0-hBlend)'));
   t.diagnostic('Synthetic unbiased ratios preserve hc mean to <1e-12; final clamp, light, dirt and openings require screen comparison.');
  }finally{m.dispose();base.dispose();}

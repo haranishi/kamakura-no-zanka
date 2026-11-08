@@ -38,9 +38,35 @@ export function houseRoleColor(base, role, age = .5, brightness = 1) {
 export const HOUSE_DIMENSIONS = Object.freeze({tile:8, boardMin:.18, boardMax:.30, seam:.015, strawMin:.30, strawMax:.45});
 // Equal-width cells with independently jittered boundaries, shared by JS sampling tests.
 export const houseBoardBoundary = i => i*.24 + (houseHash(i,9)-.5)*.06;
-export function houseBroad(x,y,z) {
-  return HOUSE_SURFACE.broad * (.65*Math.sin(x*2.1+Math.sin(z*1.7)+y*.9)+.35*Math.sin(y*3.1+z*2.3));
+// W2c-10b FIX2 FX4: crossed sine waves -> smooth nonperiodic metre-scale patches.
+export function houseValueNoise(u,v) {
+  const x=Math.floor(u),y=Math.floor(v),fx=u-x,fy=v-y;
+  const sx=fx*fx*(3-2*fx),sy=fy*fy*(3-2*fy);
+  return (houseHash(x,y)*(1-sx)+houseHash(x+1,y)*sx)*(1-sy)
+    +(houseHash(x,y+1)*(1-sx)+houseHash(x+1,y+1)*sx)*sy;
 }
+export function houseBroad(u,v,light=false) {
+  const first=2*houseValueNoise(u/3.3,v/3.3)-1;
+  const second=light?0:2*houseValueNoise((.8*u-.6*v)/1.1+19.7,(.6*u+.8*v)/1.1-7.3)-1;
+  // Value interpolation reduces variance; bounded gain restores the old contrast.
+  return HOUSE_SURFACE.broad*Math.max(-1,Math.min(1,1.6*(light?first:.65*first+.35*second)));
+}
+export const HOUSE_BROAD_GLSL = `
+float houseValueNoise(float u,float v) {
+ float x=floor(u),y=floor(v),fx=u-x,fy=v-y;
+ float sx=fx*fx*(3.0-2.0*fx),sy=fy*fy*(3.0-2.0*fy);
+ return (houseHash(vec2(x,y))*(1.0-sx)+houseHash(vec2(x+1.0,y))*sx)*(1.0-sy)
+   +(houseHash(vec2(x,y+1.0))*(1.0-sx)+houseHash(vec2(x+1.0,y+1.0))*sx)*sy;
+}
+float houseBroad(float u,float v) {
+ float first=2.0*houseValueNoise(u/3.3,v/3.3)-1.0;
+ #ifdef HOUSE_LIGHT
+ return ${HOUSE_SURFACE.broad.toFixed(2)}*clamp(1.6*first,-1.0,1.0);
+ #else
+ float second=2.0*houseValueNoise((.8*u-.6*v)/1.1+19.7,(.6*u+.8*v)/1.1-7.3)-1.0;
+ return ${HOUSE_SURFACE.broad.toFixed(2)}*clamp(1.6*(.65*first+.35*second),-1.0,1.0);
+ #endif
+}`;
 // Material names are optional hints. Unknown facility parts retain their source color, sloping faces tile.
 export function facilityMaterialRole(name = '') {
   if (/tile|roof|瓦|屋根/i.test(name)) return 4;
@@ -215,7 +241,7 @@ vec4 houseOpeningCell(float cell, float kind, float seed, float face, vec2 bound
 
 // W2c-10 F4: whole-building bounds -> connected coplanar wall spans, including inset towers.
 // Only an attribute is added; vertices, indices, placement and collision stay unchanged.
-export function houseWallSpans(positions, indices) {
+export function houseWallSpans(positions, indices, vertical = false) {
   const count=positions.length/3, size=indices?.length??count, groups=new Map(), spans=new Float32Array(count*2);
   const at=i=>indices?indices[i]:i;
   for(let t=0;t<size;t+=3){
@@ -241,7 +267,7 @@ export function houseWallSpans(positions, indices) {
     const bounds=new Map();
     for(const [i,ids] of triangles.entries()){
       const r=root(i);if(!bounds.has(r))bounds.set(r,[Infinity,-Infinity]);const b=bounds.get(r);
-      for(const id of ids){const x=positions[id*3+axis];b[0]=Math.min(b[0],x);b[1]=Math.max(b[1],x);}
+      for(const id of ids){const x=positions[id*3+(vertical?1:axis)];b[0]=Math.min(b[0],x);b[1]=Math.max(b[1],x);}
     }
     for(const [i,ids] of triangles.entries())for(const id of ids){
       const b=bounds.get(root(i)),k=id*2;
@@ -253,4 +279,61 @@ export function houseWallSpans(positions, indices) {
     }
   }
   return spans;
+}
+
+// W2c-10b FIX1 FX1: roof/upper-storey ledges used to turn entire walls to stone.
+// The buried skirt is not the floor: house geometry uses the local datum y=0.
+export function houseFoundationTop(positions, eave, normals = null) {
+  if(!Number.isFinite(eave))return HOUSE_SURFACE.base;
+  const ceiling=Math.max(.2,Math.min(.9,.30*eave));
+  let bottom=Infinity, top=Infinity;
+  for(let i=1;i<positions.length;i+=3){
+    if(!Number.isFinite(positions[i]))return Math.min(HOUSE_SURFACE.base,ceiling);
+    bottom=Math.min(bottom,positions[i]);
+  }
+  if(normals){
+    for(let i=1;i<positions.length;i+=3)
+      if(normals[i]>.99 && positions[i]>bottom+1e-4)top=Math.min(top,positions[i]);
+  }
+  if(!Number.isFinite(top)){
+    for(let i=1;i<positions.length;i+=3)
+      if(positions[i]>bottom+1e-4)top=Math.min(top,positions[i]);
+  }
+  // Reject implausible ledges before clamping, including missing/invalid detections.
+  if(!Number.isFinite(top) || top>ceiling || top>=eave)top=HOUSE_SURFACE.base;
+  return Math.max(.2,Math.min(ceiling,top));
+}
+// Existing cell rule remains the legacy A/B path. New openings use absolute metre heights.
+export function houseOpeningFit(cell,kind,seed,face,min,max,floor,eave,wallBottom=-Infinity,wallTop=Infinity) {
+  // W2c-10b FIX3: no entrance-face gate; `face` only keys the per-face hash.
+  const opening=houseOpeningCell(cell,kind,seed,face,min,max);
+  if(!opening)return null;
+  // W2c-10b FIX2 FX3: fixed tall openings -> dimensions fitted above the stone band.
+  const avail=Math.min(eave,wallTop)-.10-floor;
+  const door=opening.type==='door',height=door?Math.min(1.75,.90*avail):.5;
+  const bottom=floor+(door?0:Math.min(opening.bottom,Math.max(.65,.55*avail)));
+  if((door&&height<1) || bottom<Math.max(floor,wallBottom) || bottom+height>Math.min(eave,wallTop)-.10)return null;
+  return {...opening,bottom,height};
+}
+// W2c-10b F7: measured packed-JPEG means after highlight-only compression.
+// Pillow decoded B channel, ratio=3*(B/255)^2. No photo colour is imported.
+export const HOUSE_WOOD_MEAN=Object.freeze({wallWoodA:.9497778734627342,wallWoodB:.9359104928321355});
+export function houseWoodRatio(ratio,mean) { return (Math.min(ratio,1)+.45*Math.max(ratio-1,0))/mean; }
+// W2c-10b F8: bbox estimate -> each sloped roof plane's actual eave/ridge levels.
+// Separate low annex / tower roofs retain their own edge instead of one global band.
+export function houseRoofSpans(positions,indices) {
+  const count=positions.length/3,out=new Float32Array(count*2),groups=new Map(),at=i=>indices?indices[i]:i;
+  for(let t=0;t<(indices?.length??count);t+=3){
+    const ids=[at(t),at(t+1),at(t+2)],p=ids.map(i=>positions.slice(i*3,i*3+3));
+    const a=p[1].map((v,k)=>v-p[0][k]),b=p[2].map((v,k)=>v-p[0][k]);
+    const n=[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]],length=Math.hypot(...n);
+    if(!length || n[1]/length<.05 || n[1]/length>.98)continue;
+    const normal=n.map(v=>v/length),d=normal.reduce((s,v,k)=>s+v*p[0][k],0);
+    const key=[...normal,d].map(v=>Math.round(v*10000)).join(',');
+    if(!groups.has(key))groups.set(key,{ids:new Set(),min:Infinity,max:-Infinity});
+    const g=groups.get(key);
+    for(const id of ids){g.ids.add(id);g.min=Math.min(g.min,positions[id*3+1]);g.max=Math.max(g.max,positions[id*3+1]);}
+  }
+  for(const g of groups.values())for(const id of g.ids){out[id*2]=g.min;out[id*2+1]=g.max;}
+  return out;
 }

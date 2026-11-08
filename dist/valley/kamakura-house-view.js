@@ -2,7 +2,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { createHouseTextures, createHouseMaterial } from './kamakura-house-materials.js';
-import { houseIndexSeed, houseWallSpans } from './kamakura-house-texture.js';
+import { houseIndexSeed, houseWallSpans, houseFoundationTop, houseRoofSpans } from './kamakura-house-texture.js';
 import { houseNodeName, houseBounds, houseBodyBounds, houseMatrix, houseBox, houseChunks, houseChunkDistance, houseLOD } from './kamakura-houses.js';
 
 // The mid view stands on a coarser terrain mesh (LOD2+), so its box sinks deeper than the detailed skirt to stay hidden.
@@ -55,13 +55,21 @@ export async function buildKamakuraHouses(houses, terrain, scene, { search = '',
         if (index !== undefined && houseNodeName(json.nodes[index].name) === kind.node) node = o;
       });
       if (!node) throw new Error('家の型に対応する節がありません');
-      const near = [], positions = [];
+      const near = [], positions = [], surfaceNormals = [];
       node.traverse(o => {
         if (!o.isMesh) return;
         const g = o.geometry.clone().applyMatrix4(o.matrixWorld); owned.add(g);
         const p = g.getAttribute('position');
-        if(parts && texture)g.setAttribute('houseWallSpan',new THREE.Float32BufferAttribute(houseWallSpans(p.array,g.index?.array),2));
-        for (let i = 0; i < p.count; i++) positions.push(p.getX(i), p.getY(i), p.getZ(i));
+        if(parts && texture){
+          g.setAttribute('houseWallSpan',new THREE.Float32BufferAttribute(houseWallSpans(p.array,g.index?.array),2));
+          g.setAttribute('houseRoofHeight',new THREE.Float32BufferAttribute(houseRoofSpans(p.array,g.index?.array),2));
+          g.setAttribute('houseWallHeight',new THREE.Float32BufferAttribute(houseWallSpans(p.array,g.index?.array,true),2));
+        }
+        const n=g.getAttribute('normal');
+        for (let i = 0; i < p.count; i++) {
+          positions.push(p.getX(i), p.getY(i), p.getZ(i));
+          surfaceNormals.push(n?.getX(i)??0,n?.getY(i)??0,n?.getZ(i)??0);
+        }
         if (Array.isArray(o.material)) {
           for (const group of g.groups) {
             const part = g.clone(); part.clearGroups(); part.setDrawRange(group.start, group.count); owned.add(part);
@@ -75,7 +83,7 @@ export async function buildKamakuraHouses(houses, terrain, scene, { search = '',
         const shared = new Map(), { min, max } = houseBounds(kind);
         for (const part of near) {
           if (!shared.has(part.material)) {
-            const m = createHouseMaterial(part.material, { search, texture, quality, parts, relief, environment: scene.environment, kind:kind.index, eave: max[1]-(max[1]-min[1])*.28, top: max[1] });
+            const m = createHouseMaterial(part.material, { search, texture, quality, parts, relief, environment: scene.environment, foundation:houseFoundationTop(positions,max[1]-(max[1]-min[1])*.28,surfaceNormals), kind:kind.index, eave: max[1]-(max[1]-min[1])*.28, top: max[1] });
             shared.set(part.material,m); materials.add(m);
           }
           part.material = shared.get(part.material);
@@ -84,7 +92,11 @@ export async function buildKamakuraHouses(houses, terrain, scene, { search = '',
       // Current kit uses one flat main color per kind. Weight by primitive triangle count for future kits.
       const main = [...near].sort((a, b) => (b.geometry.index?.count ?? b.geometry.attributes.position.count) - (a.geometry.index?.count ?? a.geometry.attributes.position.count))[0].material;
       const mid = simplified(kind, main); for (const p of mid) {
-        if(parts && texture)p.geometry.setAttribute('houseWallSpan',new THREE.Float32BufferAttribute(houseWallSpans(p.geometry.attributes.position.array,p.geometry.index?.array),2));
+        if(parts && texture){
+          p.geometry.setAttribute('houseWallSpan',new THREE.Float32BufferAttribute(houseWallSpans(p.geometry.attributes.position.array,p.geometry.index?.array),2));
+          p.geometry.setAttribute('houseRoofHeight',new THREE.Float32BufferAttribute(houseRoofSpans(p.geometry.attributes.position.array,p.geometry.index?.array),2));
+          p.geometry.setAttribute('houseWallHeight',new THREE.Float32BufferAttribute(houseWallSpans(p.geometry.attributes.position.array,p.geometry.index?.array,true),2));
+        }
         owned.add(p.geometry);
       }
       templates.set(kind.index, { near, mid, body });
