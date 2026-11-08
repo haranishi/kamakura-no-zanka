@@ -1,3 +1,4 @@
+import { shore4Enabled } from './kamakura-shore-r4.js';
 // W2c-9d3: uniform rings / blue boards -> uneven double fronts / soft white round drops. Three bounded draws.
 import * as THREE from 'three';
 import { shore2Enabled } from './kamakura-shore.js';
@@ -76,7 +77,7 @@ export function buildKamakuraFx({ terrain, data, preparedRivers, search = '', qu
   const options = fxOptions(search, quality), group = new THREE.Group(); group.name = 'kamakura-fx';
   // A/B flags avoid creating the corresponding states, geometries and materials.
   const rivers = options.enabled || options.fish ? preparedRivers || prepareFishRivers(data?.rivers, terrain.vscale, terrain) : null;
-  const state = options.enabled ? createFxState({ shore2:shore2Enabled(search), terrain, rivers, particles: options.particles, rings: options.rings }) : null;
+  const state = options.enabled ? createFxState({ shore4:shore4Enabled(search),shore2:shore2Enabled(search), terrain, rivers, particles: options.particles, rings: options.rings }) : null;
   const fish = options.fish ? createFishState(rivers, { limit: options.fishLimit, ripple: state?.ripple }) : null;
   const rings = state ? boards(options.rings, true) : null, drops = state ? boards(options.particles, false) : null;
   const fishView = fish ? buildFishView(fish) : null;
@@ -94,9 +95,9 @@ export function buildKamakuraFx({ terrain, data, preparedRivers, search = '', qu
       obj.rotateZ(r.yaw);
       if (r.wake) { obj.position.x -= Math.sin(r.yaw) * r.radius; obj.position.z -= Math.cos(r.yaw) * r.radius; }
       // W2c-9d4: shader front at UV radius .68 -> primary ring reaches the specified metres.
-      obj.scale.set(r.radius * (2 / .68), r.radius * (2 / .68) * rippleAspect(r.strength), 1); obj.updateMatrix(); rings.mesh.setMatrixAt(n, obj.matrix);
+      obj.scale.set(r.radius * (2 / .68), r.radius * (2 / .68) * (r.local?1.45:rippleAspect(r.strength)), 1); obj.updateMatrix(); rings.mesh.setMatrixAt(n, obj.matrix);
       rings.alpha.array[n] = rippleAlpha(r.age,r.strength); rings.wake.array[n] = +r.wake; rings.mesh.setColorAt(n,color.setRGB(.89,.95,.97));
-      rings.shape.array[n*3] = rippleBand(r.radius) / Math.max(.08,r.radius); rings.shape.array[n*3+1] = rippleSecondary(r.age); rings.shape.array[n*3+2] = r.radius; n++;
+      rings.shape.array[n*3] = rippleBand(r.radius) / Math.max(.08,r.radius); rings.shape.array[n*3+1] = (r.local?.82:rippleSecondary(r.age)); rings.shape.array[n*3+2] = r.radius; n++;
     }
     rings.mesh.count = n; rings.mesh.instanceMatrix.needsUpdate = true; rings.alpha.needsUpdate = true; rings.wake.needsUpdate = true; rings.shape.needsUpdate=true; rings.mesh.instanceColor.needsUpdate=true;
     n = 0;

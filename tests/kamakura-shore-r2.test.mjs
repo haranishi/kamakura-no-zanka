@@ -43,7 +43,7 @@ test('R2 water cross-sections prepare in bounded updates, publish once, and disp
   const {buildKamakuraWater}=await load('kamakura-water-view.js');let calls=0;
   const t={heightAt(x){calls++;return terrain.heightAt(x);}},p=prepared(),w=buildKamakuraWater(p,{terrain:t});
   const g=w.group.children[0].geometry,a=g.attributes.waterBanks,buffer=a.array;
-  assert.equal(calls,g.attributes.position.count/2,'construction samples the bed only; no synchronous bank search');assert(!w.preparedBanks);
+  assert.equal(calls,g.attributes.position.count/2+2*p.ribbons.length,'construction samples the bed and two flow endpoints per river; no synchronous bank search');assert(!w.preparedBanks);
   w.setAdapt(3);const paused=calls;w.update(0);assert.equal(calls,paused);assert(!w.preparedBanks);w.setAdapt(0);
   let frames=0;while(!w.preparedBanks&&frames++<1000)w.update(0);assert(w.preparedBanks);assert.equal(a.version,1);
   const count=calls;for(let i=0;i<1000;i++)w.update(i/60);assert.equal(calls,count);assert.equal(a.array,buffer);

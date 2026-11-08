@@ -88,7 +88,7 @@ export function splitRiverRibbon(ribbon, chunkLength = 512) {
     }
   }
   return chunks.map(c => ({ positions: new Float32Array(c.positions), uvs: new Float32Array(c.uvs), indices: c.indices,
-    sourceVertices: [...c.sourceVertices.keys()] }));
+    riverId: ribbon.id, sourceVertices: [...c.sourceVertices.keys()] }));
 }
 export function prepareRivers(data, vscale = 1, quality = 'standard') {
   const policy = riverPolicy(quality), ribbons = (data?.rivers || []).map(r => riverRibbon(r, vscale));

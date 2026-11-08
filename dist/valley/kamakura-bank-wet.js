@@ -1,3 +1,5 @@
+import { shore4Enabled } from './kamakura-shore-r4.js';
+import { PHOTO_GLSL, PHOTO_TEX_DATA, photoSampler, photoBlendUniform } from './kamakura-photo-tex.js';
 import { chunkGeometry, CHUNK_CELLS } from './kamakura-chunks.js';
 import { shore2Enabled, bankCrossingDistance } from './kamakura-shore.js';
 // W2c-9e3: 4m floating quads -> fine normal-offset strips with terrain error refinement.
@@ -170,12 +172,13 @@ export function bankSurfaceRibbon(ribbon,terrain,width=BANK_WIDTH,alignWater=fal
   const job=bankSurfaceRibbonSteps(ribbon,terrain,width,alignWater);let result=job.next();
   while(!result.done)result=job.next();return result.value;
 }
-export function buildBankWet(THREE,prepared,terrain,{search='',defer=false}={}){
+export function buildBankWet(THREE,prepared,terrain,{search='',defer=false,sunDir=null}={}){
   const group=new THREE.Group();group.name='kamakura-bank-wet';let disposed=false;
-  const shore2=shore2Enabled(search),ribbonFor=shore2?(r,t)=>bankSurfaceRibbon(r,t,BANK_WIDTH,true):bankRibbon;
+  const shore4=shore4Enabled(search),shore2=shore2Enabled(search),ribbonFor=shore2?(r,t)=>bankSurfaceRibbon(r,t,BANK_WIDTH,true):bankRibbon;
   if(!terrain||new URLSearchParams(search).get('seav')==='0'||new URLSearchParams(search).get('bankwet')==='0')return {group,update(){},setAdapt(){},dispose(){}};
   const material=new THREE.MeshBasicMaterial({color:shore2?0x55574d:0x514b40,transparent:true,opacity:shore2?.68:.58,depthWrite:false,side:THREE.DoubleSide});material.fog=true;material.forceSinglePass=shore2;
-  const uniforms={uBankRange:{value:defer?96:prepared.policy.maxDistance}};
+  // W2c-10 shore4: flat stain -> normalized photo relief; preserve the neutral first frame and pigment.
+  const uniforms={uBankSun:{value:sunDir?.clone().normalize()??new THREE.Vector3(.5,.17,.85).normalize()},uBankPhoto:{value:+shore4},uPhotoBlend:photoBlendUniform,uBankSand:photoSampler('groundSandWet'),uBankPebbles:photoSampler('groundPebbles'),uBankRange:{value:defer?96:prepared.policy.maxDistance}};
   material.onBeforeCompile=s=>{
     Object.assign(s.uniforms,uniforms);
     s.vertexShader=s.vertexShader.replace('#include <common>','#include <common>\nvarying vec2 vBankUv;varying vec3 vBankWorld;').replace('#include <begin_vertex>','#include <begin_vertex>\nvBankUv=uv;vBankWorld=(modelMatrix*vec4(position,1.0)).xyz;');
@@ -185,9 +188,34 @@ export function buildBankWet(THREE,prepared,terrain,{search='',defer=false}={}){
       diffuseColor.rgb*=mix(.75,1.2,bankMottle);
       diffuseColor.a*=(1.0-smoothstep(0.0,1.0,vBankUv.x))*(1.0-smoothstep(uBankRange-32.0,uBankRange-16.0,distance(cameraPosition.xz,vBankWorld.xz)));`);
   };
+  if(shore4){
+    const legacyCompile=material.onBeforeCompile;
+    material.onBeforeCompile=s=>{
+      legacyCompile(s);
+      s.vertexShader=s.vertexShader.replace('#include <common>','#include <common>\nvarying vec3 vBankView4,vBankN4;').replace('#include <project_vertex>','#include <project_vertex>\nvBankView4=mvPosition.xyz;vBankN4=normalMatrix*normal;');
+      s.fragmentShader=s.fragmentShader.replace('#include <common>',`#include <common>
+        ${PHOTO_GLSL}
+        uniform sampler2D uBankSand,uBankPebbles;uniform float uPhotoBlend,uBankPhoto;uniform vec3 uBankSun;varying vec3 vBankView4,vBankN4;`)
+        .replace('#include <color_fragment>',`#include <color_fragment>
+          vec2 wetUv=vBankWorld.xz/${PHOTO_TEX_DATA.groundSandWet.meters.toFixed(2)};
+          vec2 pebbleUv=vBankWorld.xz/${PHOTO_TEX_DATA.groundPebbles.meters.toFixed(2)};
+          vec2 wetDx=dFdx(wetUv),wetDy=dFdy(wetUv),pebbleDx=dFdx(pebbleUv),pebbleDy=dFdy(pebbleUv);
+          vec3 wetPhoto=vec3(0.0,0.0,1.0);
+          float wetStrength=uPhotoBlend*uBankPhoto;
+          if(wetStrength>0.0){
+            wetPhoto=.65*kzPhotoHexGrad(uBankSand,wetUv,1.2,1.0,wetDx,wetDy)+.35*kzPhotoHexGrad(uBankPebbles,pebbleUv,1.2,1.0,pebbleDx,pebbleDy);
+          }
+          vec3 bankN4=normalize(vBankN4);
+          vec3 wetNormal=kzPerturbNormal(bankN4,vBankView4,wetUv,wetPhoto.xy,.35*wetStrength*(1.0-smoothstep(40.0,120.0,distance(cameraPosition,vBankWorld))));
+          vec3 bankLight4=normalize((viewMatrix*vec4(uBankSun,0.0)).xyz);
+          float relief4=(.8+.2*max(0.0,dot(wetNormal,bankLight4)))/(.8+.2*max(0.0,dot(bankN4,bankLight4)));
+          diffuseColor.rgb*=mix(1.0,wetPhoto.z,.45*wetStrength)*relief4;`);
+    };
+    material.customProgramCacheKey=()=> 'kamakura-bank-10-shore4';
+  }
   function addMesh(f,attach=true){
     if(!f.indices.length)return null;
-    const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(f.positions,3));g.setAttribute('uv',new THREE.Float32BufferAttribute(f.uvs,2));g.setIndex(Array.isArray(f.indices)?f.indices:new THREE.BufferAttribute(f.indices,1));g.computeBoundingSphere();
+    const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(f.positions,3));g.setAttribute('uv',new THREE.Float32BufferAttribute(f.uvs,2));g.setIndex(Array.isArray(f.indices)?f.indices:new THREE.BufferAttribute(f.indices,1));if(shore4)g.computeVertexNormals();g.computeBoundingSphere();
     const mesh=new THREE.Mesh(g,material);mesh.renderOrder=1;if(attach)group.add(mesh);return mesh;
   }
   // W2c-9e3: do not build/render all rivers at once. Only a nearby 96m window,
@@ -257,6 +285,6 @@ export function buildBankWet(THREE,prepared,terrain,{search='',defer=false}={}){
         batch=addMesh({positions,uvs,indices});
       }
     },
-    setAdapt(value){adapt=value;group.visible=adapt<3;lastX=Infinity;},
+    setAdapt(value){uniforms.uBankPhoto.value=shore4&&value<3?(value>=2?.5:1):0;adapt=value;group.visible=adapt<3;lastX=Infinity;},
     dispose(){if(disposed)return;disposed=true;surfaceCaches.delete(terrain);for(const s of sources){s.alignment?.job?.return();s.job?.return();s.job=null;if(s.mesh)s.mesh.geometry.dispose();}for(const m of group.children)m.geometry.dispose();group.clear();group.removeFromParent();material.dispose();}};
 }
