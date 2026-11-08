@@ -172,11 +172,12 @@ export function bankSurfaceRibbon(ribbon,terrain,width=BANK_WIDTH,alignWater=fal
   const job=bankSurfaceRibbonSteps(ribbon,terrain,width,alignWater);let result=job.next();
   while(!result.done)result=job.next();return result.value;
 }
-export function buildBankWet(THREE,prepared,terrain,{search='',defer=false,sunDir=null}={}){
+export function buildBankWet(THREE,prepared,terrain,{search='',defer=false,sunDir=null,now=()=>performance.now()}={}){
   const group=new THREE.Group();group.name='kamakura-bank-wet';let disposed=false;
   const shore4=shore4Enabled(search),shore2=shore2Enabled(search),ribbonFor=shore2?(r,t)=>bankSurfaceRibbon(r,t,BANK_WIDTH,true):bankRibbon;
   if(!terrain||new URLSearchParams(search).get('seav')==='0'||new URLSearchParams(search).get('bankwet')==='0')return {group,update(){},setAdapt(){},dispose(){}};
-  const material=new THREE.MeshBasicMaterial({color:shore2?0x55574d:0x514b40,transparent:true,opacity:shore2?.68:.58,depthWrite:false,side:THREE.DoubleSide});material.fog=true;material.forceSinglePass=shore2;
+  const material=new THREE.MeshBasicMaterial({color:shore4?0x49463e:shore2?0x55574d:0x514b40,transparent:true,opacity:shore2?.68:.58,depthWrite:false,side:THREE.DoubleSide});material.fog=true;material.forceSinglePass=shore2;
+  // W2c-10b shore5: pale unlit bank -> darker neutral earth tint.
   // W2c-10 shore4: flat stain -> normalized photo relief; preserve the neutral first frame and pigment.
   const uniforms={uBankSun:{value:sunDir?.clone().normalize()??new THREE.Vector3(.5,.17,.85).normalize()},uBankPhoto:{value:+shore4},uPhotoBlend:photoBlendUniform,uBankSand:photoSampler('groundSandWet'),uBankPebbles:photoSampler('groundPebbles'),uBankRange:{value:defer?96:prepared.policy.maxDistance}};
   material.onBeforeCompile=s=>{
@@ -252,10 +253,10 @@ export function buildBankWet(THREE,prepared,terrain,{search='',defer=false,sunDi
         if(!s.done){
           if(shore2){
             if(s.alignment&&!s.alignment.result){
-              const start=performance.now();let next;
+              const start=now();let next;
               for(let n=0;n<128;n++){
                 next=s.alignment.job.next();
-                if(next.done||performance.now()-start>(adapt>=2?.15:.35))break;
+                if(next.done||now()-start>(adapt>=2?.15:.35))break;
               }
               if(!next.done){cursor--;break;}
               s.alignment.result=next.value;s.alignment.job=null;

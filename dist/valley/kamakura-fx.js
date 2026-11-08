@@ -38,8 +38,11 @@ export function createFxState({ terrain, rivers = prepareFishRivers(null), parti
   let capP = particles, capR = rings, pi = 0, ri = 0, time = 0, lastContact = -1, lastX = Infinity, lastZ = Infinity;
   function random() { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t ^= t + Math.imul(t ^ t >>> 7, 61 | t); return ((t ^ t >>> 14) >>> 0) / 4294967296; }
   function ripple(x, y, z, strength = 1, wake = false, yaw = 0, local = false) {
-    if (!capR) return; const r = ripples[ri++ % capR]; r.x = x; r.y = y; r.z = z; r.strength = strength; r.wake = wake; r.yaw = yaw; r.life = 1.3; r.age = 0; r.radius = .15;r.local=shore4&&local;r.vx=r.vz=0;
-    if(r.local){flowRing=r;flowBest=Infinity;rivers.visit?.(x,z,0,nearestFlow);r.yaw=Math.atan2(-r.vx,-r.vz);r.strength*=.65;}
+    if (!capR) return;
+    // W2c-10b shore5: bounded overlapping foot fronts, fish/landing rings unchanged.
+    if(shore4&&local){if(time<nextIdle)return;let live=0;for(let i=0;i<capR;i++)if(ripples[i].local&&ripples[i].life>0)live++;if(live>=3)return;}
+    const r = ripples[ri++ % capR]; r.x = x; r.y = y; r.z = z; r.strength = strength; r.wake = wake; r.yaw = yaw; r.life = 1.3; r.age = 0; r.radius = .15;r.local=shore4&&local;r.vx=r.vz=0;
+    if(r.local){nextIdle=time+.42;flowRing=r;flowBest=Infinity;rivers.visit?.(x,z,0,nearestFlow);r.yaw=Math.atan2(-r.vx,-r.vz);r.strength*=.65;}
   }
   // W2c-9d4: tiny flecks -> 32 drops reaching 0.3–0.7m and 0.5–0.9m mist.
   function splash(x, y, z, running) {
@@ -69,7 +72,7 @@ export function createFxState({ terrain, rivers = prepareFishRivers(null), parti
   return { drops, ripples, api: { dust }, ripple,
     setLimits(p, r) { capP = Math.min(particles, p); capR = Math.min(rings, r); for (let i = capP; i < particles; i++) drops[i].life = 0; for (let i = capR; i < rings; i++) ripples[i].life = 0; },
     contact(c, hero) {
-      const pos = hero.pos, wet = terrain.waterAt(pos.x, pos.z); if (wet <= .05 || wet >= .46) return;
+      const pos = hero.pos, wet = terrain.waterAt(pos.x, pos.z); if (wet <= .05 || (!shore4 && wet >= .46)) return;
       const water = rivers.sampleAt(pos.x, pos.z); if (!water.valid) return; // river only, never sea
       const run = hero.stepGait === 'run', yaw = hero.yaw || 0, side = c.foot === 'L' || c.foot === 'left' ? -.12 : .12;
       const x = pos.x + Math.cos(yaw) * side, z = pos.z - Math.sin(yaw) * side;
@@ -81,11 +84,11 @@ export function createFxState({ terrain, rivers = prepareFishRivers(null), parti
       dt = Math.max(0, dt); time += dt;
       // W2c-9r1 shore: contact-only effects -> gentle standing rings around submerged legs.
       if(shore2&&hero&&dt>0&&capR&&time>=nextIdle){
-        nextIdle=time+(shore4?1.2:.65);
+        if(!shore4)nextIdle=time+.65;
         const pos=hero.pos,wet=terrain.waterAt(pos.x,pos.z);
-        if(wet>.05&&wet<.46){const water=rivers.sampleAt(pos.x,pos.z);if(water.valid)ripple(pos.x,water.y+.025,pos.z,.28,false,hero.yaw||0,true);}
+        if(wet>.05&&(shore4||wet<.46)){const water=rivers.sampleAt(pos.x,pos.z);if(water.valid)ripple(pos.x,water.y+.025,pos.z,shore4?.6:.28,false,hero.yaw||0,true);else if(shore4)nextIdle=time+.42;}else if(shore4)nextIdle=time+.42;
       }
-      for (let i = 0; i < capR; i++) { const r = ripples[i]; if (r.life <= 0) continue; r.age += dt; r.life = Math.max(0, 1.3 - r.age); r.radius = (r.strength < .2 ? .03 : .15) + r.age / 1.3 * (r.strength < .2 ? .12 : r.strength > .8 ? 1.65 : 1.25); if(r.local){r.radius*=.5;r.x+=r.vx*dt;r.z+=r.vz*dt;} }
+      for (let i = 0; i < capR; i++) { const r = ripples[i]; if (r.life <= 0) continue; r.age += dt; r.life = Math.max(0, 1.3 - r.age); r.radius = (r.strength < .2 ? .03 : .15) + r.age / 1.3 * (r.strength < .2 ? .12 : r.strength > .8 ? 1.65 : 1.25); if(r.local){r.radius=.3+.25*r.age/1.3;r.x+=r.vx*dt;r.z+=r.vz*dt;} }
       for (let i = 0; i < capP; i++) {
         const p = drops[i]; if (p.life <= 0) continue; const gravity = p.dust ? -.12 : p.mist ? 0 : 7;
         p.age += dt; p.life = Math.max(0, p.duration - p.age);
