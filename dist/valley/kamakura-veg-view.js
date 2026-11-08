@@ -1,5 +1,6 @@
 // Kamakura-only allocation. The valley TreeField and shared templates remain unchanged.
 import * as THREE from 'three';
+import { applyVegLook, barkMeters, vegLookEnabled } from './kamakura-veg-look.js';
 import { TREES } from './config.js';
 import { treeGeometry } from './tree-geometry.js';
 import { treeMaterials } from './tree-materials.js';
@@ -11,6 +12,8 @@ export const vegHeight = (species, shape = 0) => treeGeometry(species, 0, shape)
 export function buildKamakuraVeg(prepared, { wind, sunDir, quality = 'standard', renderer = null, families = [], search = '' }) {
   const policy = vegPolicy(quality), group = new THREE.Group(), sets = new Map(), trunkHandover = vegTrunkHandover(search);
   const materials = treeMaterials({ wind, sunDir, quality });
+  // W2c-10b veg5: shared valley shaders stay untouched; this uniform controls only Kamakura.
+  const look = { value: quality === 'light' ? .65 : 1 }, lookEnabled = vegLookEnabled(search);
   let farScale = 1;
   let impostors = null, disposed = false, last = null, stats = null;
   const circles = vegCircles(prepared, vegHeight);
@@ -58,6 +61,10 @@ export function buildKamakuraVeg(prepared, { wind, sunDir, quality = 'standard',
               shader.vertexShader = 'attribute float aKzPhase;\n' + shader.vertexShader.replace('float ph = treeOrigin.x*.37+treeOrigin.z*.21;', 'float ph = treeOrigin.x*.37+treeOrigin.z*.21+aKzPhase*6.283185;');
             };
             depth.customProgramCacheKey = () => `${depthKey}-kamakura-phase`;
+          }
+          if (lookEnabled) {
+            if (mesh === set.wood) mesh.geometry.setAttribute('aKzBarkMeters', new THREE.BufferAttribute(barkMeters(mesh.geometry), 2));
+            applyVegLook(mesh.material, { lightsChunk: THREE.ShaderChunk.lights_fragment_begin, species, leaf: mesh === set.leaf, geometry: mesh.geometry, sunDir, strength: look, impostor: !!set.impostor });
           }
           group.add(mesh);
         }
