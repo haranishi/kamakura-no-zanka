@@ -22,7 +22,7 @@ export async function buildKamakuraFacilities(facilities, terrain, scene, qualit
     if(Array.isArray(base))return base.map(m=>surface(m,hint,node,floor,top));
     // W2c-9g3: mesh hints identify walls/roofs when the shared material is anonymous.
     const role=partsEnabled?facilityPartRole(node.part,base.name+' '+hint):facilityMaterialRole(base.name) || facilityMaterialRole(hint), key=`${base.uuid}:${role}:${partsEnabled?node.node:''}`;
-    if(!surfaceCache.has(key)){const m=createHouseMaterial(base,{texture,quality,facilityRole:role,parts:partsEnabled,relief,floor,top,eave:partsEnabled?top-(top-floor)*.28:3});surfaceCache.set(key,m);materials.add(m);}
+    if(!surfaceCache.has(key)){const m=createHouseMaterial(base,{search,texture,quality,facilityRole:role,parts:partsEnabled,relief,floor,top,eave:partsEnabled?top-(top-floor)*.28:3});surfaceCache.set(key,m);materials.add(m);}
     return surfaceCache.get(key);
   }
   const group=new THREE.Group();group.name='kamakura-facilities';
