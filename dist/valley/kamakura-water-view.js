@@ -1,3 +1,5 @@
+import { PHOTO_GLSL, PHOTO_TEX_DATA, photoSampler, photoBlendUniform } from './kamakura-photo-tex.js';
+import { shore6Enabled, SHORE_R6_GLSL } from './kamakura-shore-r6.js';
 // Valley water appearance copied unchanged in style; distance gate and standard fog added for Kamakura.
 // Keep water.js independent. MeshStandardMaterial includes the installed atmosphere fog chunks.
 import * as THREE from 'three';
@@ -7,11 +9,11 @@ import { shore4Enabled, riverFlow, FOAM_LINEAR_MAX5, SHORE_R4_GLSL } from './kam
 import { atmosphereOptions, kamakuraAtmosphere, eveningEnabled } from './kamakura-atmosphere.js';
 import { ATMOS } from './atmosphere.js';
 export function buildKamakuraWater(prepared, { sunDir = new THREE.Vector3(.5, .17, .85), terrain = null, search = '', quality = 'standard' } = {}) {
-  const shore2=shore2Enabled(search),shore3=shore3Enabled(search),shore4=shore4Enabled(search);
+  const shore6=shore6Enabled(search),shore2=shore2Enabled(search),shore3=shore3Enabled(search),shore4=shore4Enabled(search);
   const sky=kamakuraAtmosphere(atmosphereOptions(search).time,{...ATMOS,sunDir:ATMOS.sunDir.toArray()},eveningEnabled(search),quality==='light'?.55:1);
   const flows=new Map((shore4?prepared.ribbons||[]:[]).map(r=>[r.id,riverFlow(r,terrain)]));
   const group = new THREE.Group(); group.name = 'kamakura-rivers';
-  const uniforms = { uShore4:{value:+shore4},uShore4Detail:{value:quality==='light'?0:1},uWaterSkyMid:{value:new THREE.Color(sky.mid)},uWaterSkyHorizon:{value:new THREE.Color(sky.horizon)},uWaterSun:{value:new THREE.Color(sky.sunColor)}, uShore3:{value:+shore3},uShore2:{value:+shore2},uRiverBands:{value:quality==='light'?1:2}, uTime: { value: 0 } };
+  const uniforms = { uRiverPebbles6:photoSampler('groundPebbles'),uPhotoBlend:photoBlendUniform, uShore6:{value:shore6?(quality==='light'?.5:1):0}, uShore4:{value:+shore4},uShore4Detail:{value:quality==='light'?0:1},uWaterSkyMid:{value:new THREE.Color(sky.mid)},uWaterSkyHorizon:{value:new THREE.Color(sky.horizon)},uWaterSun:{value:new THREE.Color(sky.sunColor)}, uShore3:{value:+shore3},uShore2:{value:+shore2},uRiverBands:{value:quality==='light'?1:2}, uTime: { value: 0 } };
   const material = new THREE.MeshStandardMaterial({ color: shore4?0xffffff:0x23565c, roughness: 0.09, metalness: 0.0, transparent: true, opacity: 1, depthWrite: false, envMapIntensity: shore3?.95:shore2?(quality==='light'?1.2:1.65):0.95 });
   material.fog = true;
   material.onBeforeCompile = shader => {
@@ -24,6 +26,9 @@ export function buildKamakuraWater(prepared, { sunDir = new THREE.Vector3(.5, .1
       .replace('#include <common>', `#include <common>
         ${SHORE_GLSL}
         ${SHORE_R4_GLSL}
+        ${SHORE_R6_GLSL}
+        ${PHOTO_GLSL}
+        uniform sampler2D uRiverPebbles6;uniform float uPhotoBlend;
         varying vec4 vWFlow;varying float vWTurn;uniform vec3 uWaterSun;
         uniform float uRiverBands;varying vec3 vWFoamShape;varying float vWHalf;varying vec2 vWBanks;
         uniform vec3 uWaterAlpha; uniform float uWaterDistance; uniform float uTime; varying vec2 vWUv; varying vec3 vWPos; varying float vWDepth; uniform vec3 SUN_DIR_W;
@@ -33,6 +38,10 @@ export function buildKamakuraWater(prepared, { sunDir = new THREE.Vector3(.5, .1
         float w_fbm(vec2 p) { float s = 0.0, a = 0.5; for (int i = 0; i < 4; i++) { s += a * w_noise(p); p = p * 2.03 + 11.7; a *= 0.5; } return s; }
         float w_height(vec2 p) { return w_fbm(p * vec2(0.9, 0.55) + vec2(0.0, -uTime * 0.55)) + 0.5 * w_fbm(p * 2.1 + vec2(uTime * 0.18, -uTime * 0.9)); }`)
       .replace('#include <color_fragment>', `#include <color_fragment>
+        // Derivatives precede the distance discard and all effect branches.
+        float riverPixel6=max(length(fwidth(vWPos.xz)),.001);
+        vec2 bedUv6=vWPos.xz/${PHOTO_TEX_DATA.groundPebbles.meters.toFixed(2)};
+        vec2 bedDx6=dFdx(bedUv6),bedDy6=dFdy(bedUv6);
         float waterDistance = length(vWPos.xz - cameraPosition.xz);
         if (waterDistance >= uWaterDistance) discard;
         diffuseColor.a *= 1.0 - smoothstep(uWaterDistance - 128.0, uWaterDistance, waterDistance);
@@ -54,6 +63,15 @@ export function buildKamakuraWater(prepared, { sunDir = new THREE.Vector3(.5, .1
           float depth4=max(0.0,min(vWDepth,bankD*.6));
           diffuseColor.rgb=mix(riverColor4(depth4),riverColor5(depth4),uShore4);
           diffuseColor.a=mix(waterAlpha4(vWDepth,bankD,waterCosine),waterOpacity5(vWDepth,bankD,waterCosine),uShore4)*(1.0-smoothstep(uWaterDistance-128.0,uWaterDistance,waterDistance));
+        }
+        // W2c-11 shore6: uniform pigment -> sand-visible shallows and blue-green depth.
+        if(uShore6>0.0){
+          float depthTone6=riverDepth6(vWDepth,bankD);
+          vec3 depthColor6=mix(vec3(.18,.20,.12),vec3(.02,.085,.105),depthTone6);
+          // Photo-derived bottom detail: mean-one ratio only, no source photograph colour.
+          float bedGain6=.35*uPhotoBlend*(1.0-depthTone6)*(1.0-smoothstep(.15,1.0,riverPixel6));
+          if(bedGain6>0.0){vec3 bed6=kzPhotoHexGrad(uRiverPebbles6,bedUv6,1.2,1.0,bedDx6,bedDy6);depthColor6*=mix(1.0,bed6.z,bedGain6);}
+          diffuseColor.rgb=mix(diffuseColor.rgb,depthColor6,uShore6);
         }
         float foam=0.0,streak=0.0,rapid=0.0;
         if(uShore2<.5){
@@ -85,25 +103,41 @@ export function buildKamakuraWater(prepared, { sunDir = new THREE.Vector3(.5, .1
           foam*=riverFoam5(depth5,bankSlope5,localSpeed5,vWTurn)*uShore4;
           rapid=0.0;streak=0.0;
         }
+        if(uShore6>0.0)foam=mix(foam,riverFoam6(bankD,vWPos.xz,uTime,riverPixel6,vWTurn,vWUv.x)*uShore4,uShore6);
         if(uShore4<=0.0)diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.86, 0.9, 0.88), clamp(foam + rapid + streak * (1.0 - edge), 0.0, 0.88));
         if(uShore3>.5&&uShore4<=0.0)diffuseColor.rgb=mix(mix(vec3(.16,.21,.13),vec3(.025,.145,.20),tone3),vec3(.53,.59,.57),foam*.65);
         if(uShore4>.0)diffuseColor.rgb=mix(diffuseColor.rgb,vec3(.32,.36,.33),foam*.45);
-        diffuseColor.a *= uShore2>.5?smoothstep(0.0,.18,bankD):1.0-smoothstep(0.93,1.0,edge);`)
+        // W2c-11 shore6: fixed .18m rim -> irregular .15–.4m feather; physical buffers unchanged.
+        float rim6=uShore2>.5?smoothstep(0.0,.18,bankD):1.0-smoothstep(0.93,1.0,edge);
+        diffuseColor.a *= uShore6>0.0?mix(rim6,edgeAlpha6(bankD,vWPos.xz),uShore6):rim6;`)
       .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
         {
           vec2 p = vWPos.xz; float e = 0.16;
+          float flowPixel6=max(length(fwidth(vec2(vWUv.x*vWHalf,vWUv.y))),.001);
           // W2c-10 shore4: finite differences in channel metres, then rotate slopes back to world XZ.
           if(uShore4>.0){
             vec2 channel=vec2(vWUv.x*vWHalf,vWUv.y);
             // W2c-10b shore5: equal stripes -> 48m strength/spacing variation.
             float broad5=riverMacro5(vWPos.xz);
             channel.x=channel.x*(.65+.7*broad5)+3.0*(broad5-.5);
-            float h=riverHeight4(channel,uTime,vWFlow.z,vWUv.x);
-            float ha=riverHeight4(channel+vec2(e,0.0),uTime,vWFlow.z,vWUv.x);
-            float hl=riverHeight4(channel+vec2(0.0,e),uTime,vWFlow.z,vWUv.x);
+            float h,ha,hl;
+            if(uShore6>0.0){
+              vec2 gains6=vec2(.35+.65*shoreNoise(p/16.0),.65*(.35+.65*shoreNoise(p/16.0+11.0)));
+              vec2 channel6=vec2(vWUv.x*vWHalf,vWUv.y);
+              gains6*=uShore6;
+              float speed6=vWFlow.z*(1.0-.6*edge*edge);
+              h=riverHeight6(channel6,uTime,speed6,gains6);
+              ha=riverHeight6(channel6+vec2(e,0.0),uTime,speed6,gains6);
+              hl=riverHeight6(channel6+vec2(0.0,e),uTime,speed6,gains6);
+            }else{
+              h=riverHeight4(channel,uTime,vWFlow.z,vWUv.x);
+              ha=riverHeight4(channel+vec2(e,0.0),uTime,vWFlow.z,vWUv.x);
+              hl=riverHeight4(channel+vec2(0.0,e),uTime,vWFlow.z,vWUv.x);
+            }
             vec2 tangent=normalize(vWFlow.xy),acrossDir=vec2(-tangent.y,tangent.x);
             vec2 slope=(acrossDir*(h-ha)+tangent*(h-hl))*vWFlow.w/e;
             slope*=riverStreak5(vWFlow.z,vWUv.x,broad5)*uShore4*(1.0-smoothstep(60.0,200.0,waterDistance));
+            slope*=mix(1.0,1.0-smoothstep(.16,.9,flowPixel6),uShore6);
             vec3 nw4=normalize(vec3(slope.x,1.0,slope.y));
             normal=normalize(mix(normal,normalize((viewMatrix*vec4(nw4,0.0)).xyz),.65));
           }else{
@@ -130,7 +164,7 @@ export function buildKamakuraWater(prepared, { sunDir = new THREE.Vector3(.5, .1
         if(uShore3>.5&&foam>.04)gl_FragColor.rgb=min(gl_FragColor.rgb,vec3(.85));
         #include <premultiplied_alpha_fragment>`);
   };
-  material.customProgramCacheKey = () => 'kamakura-water-10b-shore5';
+  material.customProgramCacheKey = () => 'kamakura-water-11-shore6';
   let disposed = false,bankCursor=0,bankBudget=quality==='light'?.15:.35;
   const bankJobs=[];
   function dispose() {
@@ -178,7 +212,7 @@ export function buildKamakuraWater(prepared, { sunDir = new THREE.Vector3(.5, .1
       if(shore2&&terrain)bankJobs.push({geometry,positions:chunk.positions,banks:geometry.attributes.waterBanks.array,shapes:geometry.attributes.waterFoamShape.array,widths,cursor:0});
       mesh.name = 'kamakura-water'; mesh.renderOrder = 2; mesh.frustumCulled = true;
     }
-    return { group, material, uniforms, setAdapt(step){uniforms.uShore4.value=shore4&&step<3?(step>=2?.45:1):0;uniforms.uShore4Detail.value=quality==='light'||step>=2?0:1;uniforms.uShore3.value=shore3&&step<3?1:0;bankBudget=step>=3?0:quality==='light'||step>=2?.15:.35;material.envMapIntensity=shore3||!shore2||step>=3?.95:quality==='light'||step>=2?1.2:1.65;uniforms.uRiverBands.value=step>=3?0:quality==='light'||step>=2?1:2;}, get preparedBanks(){return bankCursor>=bankJobs.length;}, update(time) {
+    return { group, material, uniforms, setAdapt(step){uniforms.uShore6.value=shore6&&step<3?(quality==='light'||step>=2?.5:1):0;uniforms.uShore4.value=shore4&&step<3?(step>=2?.45:1):0;uniforms.uShore4Detail.value=quality==='light'||step>=2?0:1;uniforms.uShore3.value=shore3&&step<3?1:0;bankBudget=step>=3?0:quality==='light'||step>=2?.15:.35;material.envMapIntensity=shore3||!shore2||step>=3?.95:quality==='light'||step>=2?1.2:1.65;uniforms.uRiverBands.value=step>=3?0:quality==='light'||step>=2?1:2;}, get preparedBanks(){return bankCursor>=bankJobs.length;}, update(time) {
       if(disposed)return;uniforms.uTime.value=time;if(bankCursor>=bankJobs.length||bankBudget===0)return;
       // W2c-9r2 shore: avoid blocking startup on all cross-sections; neutral nominal
       // widths render immediately, each completed chunk publishes once, no frame allocations.

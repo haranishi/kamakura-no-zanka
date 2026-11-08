@@ -1,4 +1,6 @@
-import { shore4Enabled } from './kamakura-shore-r4.js';
+import { shore6Enabled, SHORE_R6_GLSL } from './kamakura-shore-r6.js';
+import { SHORE_GLSL } from './kamakura-shore.js';
+import { shore4Enabled, riverFlow } from './kamakura-shore-r4.js';
 import { PHOTO_GLSL, PHOTO_TEX_DATA, photoSampler, photoBlendUniform } from './kamakura-photo-tex.js';
 import { chunkGeometry, CHUNK_CELLS } from './kamakura-chunks.js';
 import { shore2Enabled, bankCrossingDistance } from './kamakura-shore.js';
@@ -174,12 +176,16 @@ export function bankSurfaceRibbon(ribbon,terrain,width=BANK_WIDTH,alignWater=fal
 }
 export function buildBankWet(THREE,prepared,terrain,{search='',defer=false,sunDir=null,now=()=>performance.now()}={}){
   const group=new THREE.Group();group.name='kamakura-bank-wet';let disposed=false;
-  const shore4=shore4Enabled(search),shore2=shore2Enabled(search),ribbonFor=shore2?(r,t)=>bankSurfaceRibbon(r,t,BANK_WIDTH,true):bankRibbon;
+  const shore6=shore6Enabled(search),shore4=shore4Enabled(search),shore2=shore2Enabled(search),ribbonFor=shore2?(r,t)=>bankSurfaceRibbon(r,t,BANK_WIDTH,true):bankRibbon;
   if(!terrain||new URLSearchParams(search).get('seav')==='0'||new URLSearchParams(search).get('bankwet')==='0')return {group,update(){},setAdapt(){},dispose(){}};
-  const material=new THREE.MeshBasicMaterial({color:shore4?0x49463e:shore2?0x55574d:0x514b40,transparent:true,opacity:shore2?.68:.58,depthWrite:false,side:THREE.DoubleSide});material.fog=true;material.forceSinglePass=shore2;
+  const material=new THREE.MeshBasicMaterial({color:shore4?0x49463e:shore2?0x55574d:0x514b40,transparent:true,opacity:shore2?.68:.58,depthWrite:false,side:THREE.DoubleSide});material.fog=!shore6;material.forceSinglePass=shore2;
+  // W2c-11 shore6: unlit fixed stain -> multiplicative film preserving terrain shadows and grain.
+  // Premultiplied custom blend: dst * (tint * alpha + 1 - alpha).
+  if(shore6){material.color.setRGB(1,1,1);material.opacity=1;material.premultipliedAlpha=true;
+    material.blending=THREE.CustomBlending;material.blendSrc=THREE.DstColorFactor;material.blendDst=THREE.OneMinusSrcAlphaFactor;}
   // W2c-10b shore5: pale unlit bank -> darker neutral earth tint.
   // W2c-10 shore4: flat stain -> normalized photo relief; preserve the neutral first frame and pigment.
-  const uniforms={uBankSun:{value:sunDir?.clone().normalize()??new THREE.Vector3(.5,.17,.85).normalize()},uBankPhoto:{value:+shore4},uPhotoBlend:photoBlendUniform,uBankSand:photoSampler('groundSandWet'),uBankPebbles:photoSampler('groundPebbles'),uBankRange:{value:defer?96:prepared.policy.maxDistance}};
+  const uniforms={uShore6:{value:+shore6},uBankSun:{value:sunDir?.clone().normalize()??new THREE.Vector3(.5,.17,.85).normalize()},uBankPhoto:{value:+shore4},uPhotoBlend:photoBlendUniform,uBankSand:photoSampler('groundSandWet'),uBankPebbles:photoSampler('groundPebbles'),uBankRange:{value:defer?96:prepared.policy.maxDistance}};
   material.onBeforeCompile=s=>{
     Object.assign(s.uniforms,uniforms);
     s.vertexShader=s.vertexShader.replace('#include <common>','#include <common>\nvarying vec2 vBankUv;varying vec3 vBankWorld;').replace('#include <begin_vertex>','#include <begin_vertex>\nvBankUv=uv;vBankWorld=(modelMatrix*vec4(position,1.0)).xyz;');
@@ -212,7 +218,37 @@ export function buildBankWet(THREE,prepared,terrain,{search='',defer=false,sunDi
           float relief4=(.8+.2*max(0.0,dot(wetNormal,bankLight4)))/(.8+.2*max(0.0,dot(bankN4,bankLight4)));
           diffuseColor.rgb*=mix(1.0,wetPhoto.z,.45*wetStrength)*relief4;`);
     };
-    material.customProgramCacheKey=()=> 'kamakura-bank-10-shore4';
+    material.customProgramCacheKey=()=> shore6?'kamakura-bank-11-shore6':'kamakura-bank-10-shore4';
+  }
+  if(shore6){
+    const photoCompile=material.onBeforeCompile;
+    material.onBeforeCompile=s=>{
+      photoCompile(s);
+      s.vertexShader=s.vertexShader.replace('#include <common>','#include <common>\nvarying float vBankSlope6;')
+        .replace('#include <begin_vertex>','#include <begin_vertex>\nvBankSlope6=normal.y;');
+      s.fragmentShader=s.fragmentShader.replace('#include <common>',`#include <common>
+        ${SHORE_GLSL}
+        ${SHORE_R6_GLSL}
+        varying float vBankSlope6;`)
+        .replace('#include <opaque_fragment>',`
+          float bankNoise6=shoreNoise(vBankWorld.xz/3.7);
+          float bankSlope6=sqrt(max(0.0,1.0-vBankSlope6*vBankSlope6))/max(.01,abs(vBankSlope6));
+          float width6=bankWidth6(bankSlope6,vBankUv.y,bankNoise6);
+          float shoreLand6=max(0.0,vBankUv.x*${BANK_WIDTH.toFixed(1)}-edgeOffset6(vBankWorld.xz));
+          float coverage6=1.0-smoothstep(width6*.65,width6,shoreLand6);
+          coverage6*=1.0-smoothstep(uBankRange-32.0,uBankRange-16.0,distance(cameraPosition.xz,vBankWorld.xz));
+          // Photo ratios average 1; cap the relief to keep the core 25–35% darker.
+          vec3 tint6=vec3(bankDark6(bankNoise6));
+          tint6*=vec3(.99,1.0,1.01);
+          tint6*=clamp(diffuseColor.rgb/.975,vec3(.98),vec3(1.02));
+          float sheen6=.018*pow(1.0-abs(dot(normalize(vBankView4),normalize(vBankN4))),4.0);
+          outgoingLight=clamp(tint6+sheen6,vec3(.65),vec3(.75));
+          diffuseColor.a=coverage6*uShore6;
+          #include <opaque_fragment>`)
+        // A blend multiplier is a ratio, not radiance: never tone-map or encode it.
+        .replace('#include <premultiplied_alpha_fragment>',`gl_FragColor.rgb=outgoingLight;
+          #include <premultiplied_alpha_fragment>`);
+    };
   }
   function addMesh(f,attach=true){
     if(!f.indices.length)return null;
@@ -230,10 +266,11 @@ export function buildBankWet(THREE,prepared,terrain,{search='',defer=false,sunDi
         maxX:Math.max(p[a*3],p[b*3],p[(a+1)*3],p[(b+1)*3])+BANK_WIDTH,
         minZ:Math.min(p[a*3+2],p[b*3+2],p[(a+1)*3+2],p[(b+1)*3+2])-BANK_WIDTH,
         maxZ:Math.max(p[a*3+2],p[b*3+2],p[(a+1)*3+2],p[(b+1)*3+2])+BANK_WIDTH,
-        alignment,mesh:null,near:false,done:false,job:null});
+        flowSource:r,alignment,mesh:null,near:false,done:false,job:null});
     }return segments;
   }).flat():[];
-  if(!defer)for(const r of prepared.ribbons)addMesh(ribbonFor(r,terrain));
+  function withFlow6(f,r){if(shore6){const speed=riverFlow(r,terrain).speed;for(let i=1;i<f.uvs.length;i+=2)f.uvs[i]=speed;}return f;}
+  if(!defer)for(const r of prepared.ribbons)addMesh(withFlow6(ribbonFor(r,terrain),r));
   let lastX=Infinity,lastZ=Infinity,cursor=0,pending=false,adapt=0,batch=null;
   return {group,material,uniforms,
     update(pos){
@@ -268,8 +305,8 @@ export function buildBankWet(THREE,prepared,terrain,{search='',defer=false,sunDi
             }
             const result=s.job.next();
             if(!result.done){cursor--;break;}
-            s.job=null;s.mesh=addMesh(boundedBankTriangles(result.value),false);
-          }else s.mesh=addMesh(ribbonFor(s.ribbon,terrain),false);
+            s.job=null;s.mesh=addMesh(withFlow6(boundedBankTriangles(result.value),s.flowSource),false);
+          }else s.mesh=addMesh(withFlow6(ribbonFor(s.ribbon,terrain),s.flowSource),false);
           s.done=true;break;
         }
       }
@@ -286,6 +323,6 @@ export function buildBankWet(THREE,prepared,terrain,{search='',defer=false,sunDi
         batch=addMesh({positions,uvs,indices});
       }
     },
-    setAdapt(value){uniforms.uBankPhoto.value=shore4&&value<3?(value>=2?.5:1):0;adapt=value;group.visible=adapt<3;lastX=Infinity;},
+    setAdapt(value){uniforms.uShore6.value=shore6&&value<3?(value>=2?.5:1):0;uniforms.uBankPhoto.value=shore4&&value<3?(value>=2?.5:1):0;adapt=value;group.visible=adapt<3;lastX=Infinity;},
     dispose(){if(disposed)return;disposed=true;surfaceCaches.delete(terrain);for(const s of sources){s.alignment?.job?.return();s.job?.return();s.job=null;if(s.mesh)s.mesh.geometry.dispose();}for(const m of group.children)m.geometry.dispose();group.clear();group.removeFromParent();material.dispose();}};
 }
