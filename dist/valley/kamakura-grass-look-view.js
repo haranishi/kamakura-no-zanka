@@ -1,23 +1,25 @@
+import { nearGrassR5DensityAt, packGrassR5 } from './kamakura-grass-r5.js';
+import { patchGrassR5 } from './kamakura-grass-r5-view.js';
 import { ShaderChunk } from '../vendor/three.module.min.js';
 import { nearGrassR3DensityAt, GRASS_R3_NEAR_GLSL, GRASS_SHADOW_EMISSIVE_FLOOR } from './kamakura-grass-r3.js';
 // W2c-9c: optional ribbon shading and four fading footsteps; valley never calls this.
 import { GRASS_BAND_GLSL, packGrassBands, nearGrassDensityAt } from './kamakura-grass-band.js';
 import { packGrassLook, grassRecovery, MID_GRASS, MID_BANDS, packGrassR4 } from './kamakura-grass-look.js';
-export function createGrassLook(ecology,quality,heroUniform,bands=false,r3=false,r4=false) {
+export function createGrassLook(ecology,quality,heroUniform,bands=false,r3=false,r4=false,r5=false) {
   const trail=new Float32Array(16), ages=new Float64Array(4).fill(10), radii=new Float32Array(4), strengths=new Float32Array(4);
-  const uniforms={uHero:heroUniform,uHeroStrength:{value:0},uGrassTrail:{value:trail},uGrassTrailRadii:{value:radii},uGrassLookStep:{value:0},uGrass4Strength:{value:1}};
+  const uniforms={uHero:heroUniform,uHeroStrength:{value:0},uGrassTrail:{value:trail},uGrassTrailRadii:{value:radii},uGrassLookStep:{value:0},uGrass4Strength:{value:1},uGrass6Strength:{value:quality==='light'?.5:1}};
   let cursor=0, elapsed=0, cameraX=0, cameraZ=0;
   // W2c-9c2: plan each metre; 7m CPU lawn guard covers the unchanged 6m shader fade.
   // W2c-9r2 grass: longer mid reach -> fewer candidates per grassland cell.
-  return { replanDistance:1, bulkMid:true, midPlacement:{sink:MID_GRASS.sink,maxSlope:MID_GRASS.maxSlope,cardRate:bands ? .38 : .28,maxCards:1}, segments:6, normalBlend:.78, capacityFactor:3, uniforms,
-    pack:(data,kind)=>{const packed=packGrassLook(data,kind,ecology,quality);const result=bands?packGrassBands(packed,kind):packed;return r4?packGrassR4(result,kind,ecology,quality):result;},
+  return { replanDistance:1, bulkMid:true, midPlacement:{sink:MID_GRASS.sink,maxSlope:MID_GRASS.maxSlope,cardRate:bands ? r5&&quality!=='light'?.42:.38 : .28,maxCards:1}, segments:6, normalBlend:.78, capacityFactor:3, uniforms,
+    pack:(data,kind)=>{const packed=packGrassLook(data,kind,ecology,quality,r5);const result=bands?packGrassBands(packed,kind):packed;const colored=r4?packGrassR4(result,kind,ecology,quality):result;return r5?packGrassR5(colored,kind,ecology,quality):colored;},
     prepare(camera){cameraX=camera.position.x;cameraZ=camera.position.z;},
     accept(data,i,kind){
       if(kind!=='near')return true;
       const marker=data[i+11];
       // W2c-9r1 grass: submit only roots whose smooth shader gate can be nonzero.
-      if(bands && data[i+7]-.06>=(r3?nearGrassR3DensityAt:nearGrassDensityAt)(data[i],data[i+2],(Math.hypot(data[i]-cameraX,data[i+2]-cameraZ)-1)/(quality==='light'?.6:1)))return false;
-      if(r3 && nearGrassR3DensityAt(data[i],data[i+2],(Math.hypot(data[i]-cameraX,data[i+2]-cameraZ)-1)/(quality==='light'?.6:1))===0)return false;
+      if(bands && data[i+7]-.06>=(r5?nearGrassR5DensityAt:r3?nearGrassR3DensityAt:nearGrassDensityAt)(data[i],data[i+2],(Math.hypot(data[i]-cameraX,data[i+2]-cameraZ)-1)/(quality==='light'?.6:1)))return false;
+      if(r3 && !r5 && nearGrassR3DensityAt(data[i],data[i+2],(Math.hypot(data[i]-cameraX,data[i+2]-cameraZ)-1)/(quality==='light'?.6:1))===0)return false;
       if(marker===-1)return uniforms.uGrassLookStep.value<2&&Math.hypot(data[i]-cameraX,data[i+2]-cameraZ)<7;
       if(marker===-2)return uniforms.uGrassLookStep.value<2;
       return true;
@@ -30,7 +32,7 @@ export function createGrassLook(ecology,quality,heroUniform,bands=false,r3=false
       if(flying){ages.fill(10);return;}
       if(elapsed>=.20){elapsed=0;const i=cursor++%4;ages[i]=0;trail[i*4]=pos.x;trail[i*4+1]=pos.y??0;trail[i*4+2]=pos.z;trail[i*4+3]=uniforms.uHeroStrength.value;radii[i]=radius;strengths[i]=uniforms.uHeroStrength.value;}
     },
-    setAdapt(step){uniforms.uGrassLookStep.value=step;uniforms.uGrass4Strength.value=step>=3?0:step>=2?.35:1;},
+    setAdapt(step){uniforms.uGrass6Strength.value=(quality==='light'?.5:1)*(step>=3?0:step>=2?.35:1);uniforms.uGrassLookStep.value=step;uniforms.uGrass4Strength.value=step>=3?0:step>=2?.35:1;},
     patch(shader,kind) {
       Object.assign(shader.uniforms,uniforms);
       if(kind==='mid') {
@@ -142,6 +144,7 @@ ${GRASS_BAND_GLSL}`);
           .replaceAll('smoothstep(28.0,32.0,dd)','smoothstep(18.0,38.0,dd)');
       }
       if(r4)patchGrassR4(shader,kind,quality);
+      if(r5)patchGrassR5(shader,kind,quality);
     }
   };
 }

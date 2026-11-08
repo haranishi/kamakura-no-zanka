@@ -18,6 +18,8 @@ function balanced(s){
   for(const c of s.replace(/\/\/[^\n]*|\/\*[\s\S]*?\*\//g,'')){if('([{'.includes(c))stack.push(c);if(')]}'.includes(c))assert.equal(stack.pop(),pairs[c]);}assert.equal(stack.length,0);
   let depth=0;for(const m of s.matchAll(/^\s*#(if\w*|endif|else|elif)\b/gm)){if(m[1].startsWith('if'))depth++;if(m[1]==='endif')assert(--depth>=0);}assert.equal(depth,0);
   assert(!/\b(?:float|vec[234])\s+(?:patch|sample|input|output|filter|common|active|partition|resource|texture)\b/.test(s));
+  // A replaced fragment that leaves a digit glued to an identifier ('0mix(') is a GLSL compile error only a real GPU reports.
+  assert(!/(?<![A-Za-z_0-9])(?:\d+\.?\d*|\.\d+)(?:mix|vec[234]|smoothstep|clamp|max|min|abs|pow|sin|cos|dot|length|normalize|float)\(/.test(s.replace(/\/\/[^\n]*|\/\*[\s\S]*?\*\//g,'')));
 }
 const shaderFor=m=>{const s={uniforms:{},vertexShader:THREE.ShaderLib.lambert.vertexShader,fragmentShader:THREE.ShaderLib.lambert.fragmentShader};m.onBeforeCompile(s);return s;};
 const cv=a=>{const m=a.reduce((s,v)=>s+v,0)/a.length;return Math.sqrt(a.reduce((s,v)=>s+(v-m)**2,0)/a.length)/m;};
