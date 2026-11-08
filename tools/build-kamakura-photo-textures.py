@@ -50,6 +50,8 @@ MATERIALS = [
     ("groundSand", "coast_sand_01", 1024, False, "dry coastal sand with grit (15 m per tile, so 1K)"),
     ("groundSandWet", "damp_beach_sand", 512, False, "damp sand"),
     ("groundPebbles", "ganges_river_pebbles", 512, False, "river pebbles"),
+    ("barkCedar", "japanese_cedar_bark", 512, True, "Japanese cedar trunks (grooves run up the trunk)"),
+    ("barkPine", "pine_bark", 1024, True, "pine trunks (plates run up the trunk)"),
 ]
 UA = "kamakura-no-zanka-asset-build/1 (CC0 texture fetch)"
 

@@ -18,4 +18,6 @@ export const PHOTO_TEX_DATA = Object.freeze({
   groundSand: Object.freeze({ file: 'groundSand.jpg', size: 1024, meters: 15.0, oriented: false, meanLinearRgb: [0.2276, 0.174, 0.1098], roughness: 0.963 }),
   groundSandWet: Object.freeze({ file: 'groundSandWet.jpg', size: 512, meters: 2.0, oriented: false, meanLinearRgb: [0.152, 0.1186, 0.0747], roughness: 0.942 }),
   groundPebbles: Object.freeze({ file: 'groundPebbles.jpg', size: 512, meters: 2.16, oriented: false, meanLinearRgb: [0.2325, 0.1955, 0.1554], roughness: 0.808 }),
+  barkCedar: Object.freeze({ file: 'barkCedar.jpg', size: 512, meters: 1.0, oriented: true, meanLinearRgb: [0.0659, 0.0363, 0.0181], roughness: 0.908 }),
+  barkPine: Object.freeze({ file: 'barkPine.jpg', size: 1024, meters: 2.0, oriented: true, meanLinearRgb: [0.1386, 0.0891, 0.0541], roughness: 0.707 }),
 });

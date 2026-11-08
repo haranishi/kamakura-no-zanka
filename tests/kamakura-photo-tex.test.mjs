@@ -48,7 +48,7 @@ test('shipped detail textures match their provenance: files, hashes, sizes, 4:4:
     assert(Math.abs(m.stats.ratioP50 - 1) < .3, `${m.key} median ratio`);
   }
   assert.equal(total, provenance.totalBytes);
-  assert(total < 4.6 * 1048576, `total ${total} bytes`);
+  assert(total < 5 * 1048576, `total ${total} bytes`); // requirement 7.5: under 5 MiB
   assert.equal(PHOTO_PACK.ratioCap, 3);
 });
 

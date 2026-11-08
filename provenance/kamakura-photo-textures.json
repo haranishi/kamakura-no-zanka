@@ -13,7 +13,7 @@
    "subsampling": "4:4:4"
   }
  },
- "totalBytes": 4140981,
+ "totalBytes": 4908563,
  "materials": [
   {
    "key": "wallWoodA",
@@ -1201,6 +1201,164 @@
     "path": "dist/assets/kamakura/photo/groundPebbles.jpg",
     "bytes": 202513,
     "sha256": "219ff6a89d40b4c2d84f4a64d5d24d72a6d1d45082a62e532b30c7936a6baf04"
+   }
+  },
+  {
+   "key": "barkCedar",
+   "polyhaven": "japanese_cedar_bark",
+   "title": "Japanese Cedar Bark",
+   "authors": [
+    "Charlotte Baglioni"
+   ],
+   "page": "https://polyhaven.com/a/japanese_cedar_bark",
+   "license": "CC0-1.0",
+   "role": "Japanese cedar trunks (grooves run up the trunk)",
+   "oriented": true,
+   "meters": 1.0,
+   "size": 512,
+   "file": "barkCedar.jpg",
+   "sources": [
+    {
+     "map": "diff",
+     "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/japanese_cedar_bark/japanese_cedar_bark_diff_1k.jpg",
+     "bytes": 1371666,
+     "md5": "51e45ec05fc2d9ce21f38f2613704fc7",
+     "sha256": "fa240510e9ef127a8979ebd63628950abdc048a1e091d8a1611c86bbe2c6cda4",
+     "size": [
+      1024,
+      2048
+     ]
+    },
+    {
+     "map": "nor",
+     "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/japanese_cedar_bark/japanese_cedar_bark_nor_gl_1k.jpg",
+     "bytes": 2053757,
+     "md5": "437ca87e2f2a0d96deb4343ebf4b05f5",
+     "sha256": "7302db344bcd63f3a2eb2bd2321377798c54831b0ff691de44315509db83962e",
+     "size": [
+      1024,
+      2048
+     ]
+    },
+    {
+     "map": "ao",
+     "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/japanese_cedar_bark/japanese_cedar_bark_ao_1k.jpg",
+     "bytes": 1482386,
+     "md5": "9a3c105ce030decdce054ce7c68bd270",
+     "sha256": "7fbee72e1ca7df3512e305380eb4849c6eb762b4610ea51c376c6ae8e6ef8994",
+     "size": [
+      1024,
+      2048
+     ]
+    },
+    {
+     "map": "rough",
+     "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/japanese_cedar_bark/japanese_cedar_bark_rough_1k.jpg",
+     "bytes": 373636,
+     "md5": "4ca55d434f325c124ce29aeef29c7532",
+     "sha256": "f0a984349c78a6ce5161eaa38540ab73cf72d062df2ab2e74130e1191125cda4",
+     "size": [
+      1024,
+      2048
+     ]
+    }
+   ],
+   "stats": {
+    "meanLinearRgb": [
+     0.0659,
+     0.0363,
+     0.0181
+    ],
+    "meanLuma": 0.0413,
+    "ratioP05": 0.492,
+    "ratioP50": 0.984,
+    "ratioP95": 1.541,
+    "roughness": 0.908,
+    "seam": 0.967
+   },
+   "output": {
+    "path": "dist/assets/kamakura/photo/barkCedar.jpg",
+    "bytes": 155107,
+    "sha256": "dfc668a978d01069b66aeb456822fb9994b1ddbef5353bd3a4741b2fb6ecd3d4"
+   }
+  },
+  {
+   "key": "barkPine",
+   "polyhaven": "pine_bark",
+   "title": "Pine Bark",
+   "authors": [
+    "Dimitrios Savva"
+   ],
+   "page": "https://polyhaven.com/a/pine_bark",
+   "license": "CC0-1.0",
+   "role": "pine trunks (plates run up the trunk)",
+   "oriented": true,
+   "meters": 2.0,
+   "size": 1024,
+   "file": "barkPine.jpg",
+   "sources": [
+    {
+     "map": "diff",
+     "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/pine_bark/pine_bark_diff_1k.jpg",
+     "bytes": 837641,
+     "md5": "7bb38cccfc647aeaf2f5b6488c815e75",
+     "sha256": "89ddfbff0388d30caff902ba600cdf75eb1e651ca71ece6594b5a9b27abb47ab",
+     "size": [
+      1024,
+      1024
+     ]
+    },
+    {
+     "map": "nor",
+     "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/pine_bark/pine_bark_nor_gl_1k.jpg",
+     "bytes": 1178440,
+     "md5": "7b971070fc986e517b5d2795cec0f4e0",
+     "sha256": "666e5f175a010f12577687dd8029125bff99110e6a97958afb295b34266437db",
+     "size": [
+      1024,
+      1024
+     ]
+    },
+    {
+     "map": "ao",
+     "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/pine_bark/pine_bark_ao_1k.jpg",
+     "bytes": 784749,
+     "md5": "84d55f7cd6b091853c5936b27119fd84",
+     "sha256": "10dc4aba5e505b28ed3cfafa7c44309b87a97aa03ad4ed99280361a77c10bb44",
+     "size": [
+      1024,
+      1024
+     ]
+    },
+    {
+     "map": "rough",
+     "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/pine_bark/pine_bark_rough_1k.jpg",
+     "bytes": 506697,
+     "md5": "f5ba950ee648056809153e0506f8a2e2",
+     "sha256": "04f466447098d0b6d3d4abdc69ce5766d5da67eedfa076e4a3f22fe6996a60a8",
+     "size": [
+      1024,
+      1024
+     ]
+    }
+   ],
+   "stats": {
+    "meanLinearRgb": [
+     0.1386,
+     0.0891,
+     0.0541
+    ],
+    "meanLuma": 0.097,
+    "ratioP05": 0.521,
+    "ratioP50": 0.964,
+    "ratioP95": 1.564,
+    "roughness": 0.707,
+    "seam": 0.965
+   },
+   "output": {
+    "path": "dist/assets/kamakura/photo/barkPine.jpg",
+    "bytes": 612475,
+    "sha256": "2e5a7d99ae70bcf50b9f01a9815ba28fc56c2bf12ebac10216b9399bd577bca2"
    }
   }
  ]
