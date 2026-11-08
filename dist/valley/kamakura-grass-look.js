@@ -48,7 +48,7 @@ const linear = v => v<=.04045?v/12.92:((v+.055)/1.055)**2.4;
 const greens=[[.34,.46,.20],[.48,.55,.27],[.64,.57,.35]].map(c=>c.map(linear));
 const blooms=[[.78,.77,.65],[.78,.65,.27],[.43,.43,.60]].map(c=>c.map(linear));
 // Called during chunk preparation only. Extra roots share the original chunk buffers.
-export function packGrassLook(data,kind,ecology,quality='standard') {
+export function packGrassLook(data,kind,ecology,quality='standard',r5=false) {
   const near=kind==='near', records=[], seen=new Set(), cells=new Map();
   for(let i=0;i<data.length;i+=15) {
     const a=Array.from(data.subarray(i,i+15)), x=a[0],z=a[2], key=`${Math.floor(x)},${Math.floor(z)}`, e=cells.get(key)??ecology(Math.floor(x)+.5,Math.floor(z)+.5,near), h=grassHash(x,z,113);
@@ -78,7 +78,7 @@ export function packGrassLook(data,kind,ecology,quality='standard') {
       a[11]=e.margin ? -1 : grassHash(x,z,149); a[14]=h;
       a[12]=(.5-grassHash(x,z,157))*.16;
       const variation=.6+1.2*grassHash(x,z,163);
-      for(let j=0;j<3;j++) a[8+j]=Math.max(MID_GRASS.floor,a[8+j]*.70*variation);
+      if(!r5)for(let j=0;j<3;j++) a[8+j]=Math.max(MID_GRASS.floor,a[8+j]*.70*variation);
       records.push(a);
     }
   }
@@ -181,9 +181,9 @@ export function grassR4Pigment(rgb,x,z,v=grassR4Variation(x,z),saturation=.78) {
   const shifted=rotated.map(n=>n+m),y=grassLuminance(shifted),target=grassLuminance(rgb)*v.brightness*v.blade;
   return shifted.map(n=>(y+(n-y)*saturation)*target/Math.max(y,1e-6));
 }
-export function grassR4Coast(distance,elevation) {
+export function grassR4Coast(distance,elevation,r5=false) {
   const inland=smooth((distance-10)/65),dune=smooth((elevation-.5)/6);
-  return {height:.45+.35*inland+.20*dune,width:.60+.25*inland+.15*dune,density:.35+.40*inland+.25*dune};
+  return {height:.45+.35*inland+.20*dune,width:.60+.25*inland+.15*dune,density:r5?.55+.28*inland+.17*dune:.35+.40*inland+.25*dune};
 }
 export function packGrassR4(data,kind,ecology,quality='standard') {
   for(let i=0;i<data.length;i+=15){
