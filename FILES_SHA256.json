@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-08T08:01:47.346Z",
+  "generatedAt": "2026-11-08T09:58:43.435Z",
   "scope": "Source, assets and verification artifacts; excludes this manifest, Git metadata, ignored files and private runtime data",
   "files": [
     {
@@ -425,8 +425,8 @@
     },
     {
       "path": ".kiro/specs/world-map/design-web.md",
-      "size": 15902,
-      "sha256": "fcca18de8d0ebc60e7bd9384d4febfe77f3f7ac959507544e8f6b0659ba4c69d"
+      "size": 17018,
+      "sha256": "fdfb599c9d01c0b74b183a0aa8ad2f362c95cd601c20b534698c88f1f2579121"
     },
     {
       "path": ".kiro/specs/world-map/design.md",
@@ -435,8 +435,8 @@
     },
     {
       "path": ".kiro/specs/world-map/requirements-web.md",
-      "size": 8242,
-      "sha256": "668c5af32a9c7fff07a8d408267c2f64fa8c47a4eaadf47ea641f26cbbad591d"
+      "size": 9853,
+      "sha256": "0b13e20eb4d88a9c1db03a93f1f6576cd6c85e42c5cfa894fa7d9480ee2796bb"
     },
     {
       "path": ".kiro/specs/world-map/requirements.md",
@@ -445,8 +445,8 @@
     },
     {
       "path": ".kiro/specs/world-map/tasks-web.md",
-      "size": 38153,
-      "sha256": "11aab95d5d0b185b965938ed6d57237c3dadf992565bb365c74b3b60204525b4"
+      "size": 41832,
+      "sha256": "8664f453fd00cadbc121cf4953c9e491935ba63ac0b7138b36ce548c74ab21bd"
     },
     {
       "path": ".kiro/specs/world-map/tasks.md",
@@ -497,6 +497,31 @@
       "path": ".kiro/specs/world-map/w2c-10c-grade-validation.md",
       "size": 3479,
       "sha256": "5625f6f3cace399dd73d1841b37fc27e61a22ff49bd8a3511340b05e0b5feb64"
+    },
+    {
+      "path": ".kiro/specs/world-map/w2c-11-facility-validation.md",
+      "size": 7128,
+      "sha256": "502d274b4d250e5dc55a34ae85c3afaa920471b2caafa060b2416242761720b7"
+    },
+    {
+      "path": ".kiro/specs/world-map/w2c-11-grass-validation.md",
+      "size": 7910,
+      "sha256": "aeb7bf5f39c473cc2599e6419b44f0f0e4676b0e7b02155e3417ecf2746d0cba"
+    },
+    {
+      "path": ".kiro/specs/world-map/w2c-11-ground-validation.md",
+      "size": 7417,
+      "sha256": "db77ec2ec9b6aae05cd188f362df163047b39ce09005c45c01931a50571cdf46"
+    },
+    {
+      "path": ".kiro/specs/world-map/w2c-11-shore-validation.md",
+      "size": 7991,
+      "sha256": "016c4196efc856ba1e6fef878a4633877e5020e2faec690ffd84a94ecefada42"
+    },
+    {
+      "path": ".kiro/specs/world-map/w2c-11-veg-validation.md",
+      "size": 7252,
+      "sha256": "39fa76616a3b6a0c6e41a1ed13d91f0bb32eeba533cd2bb1bfa143d7b9bc7eee"
     },
     {
       "path": ".kiro/specs/world-map/w2c-2a-fix-validation.md",
@@ -1505,8 +1530,8 @@
     },
     {
       "path": "dist/valley/kamakura-bank-wet.js",
-      "size": 18833,
-      "sha256": "cc4b35a9335fe706698dc2c6efb6998236f60dcbe5fed827bfce0eb4da16e97d"
+      "size": 21487,
+      "sha256": "c04db64fb064ae313fcb093d4608ad1632d8231a48c70f5e54b0cc4ecc264398"
     },
     {
       "path": "dist/valley/kamakura-chunk-jobs.js",
@@ -1522,6 +1547,16 @@
       "path": "dist/valley/kamakura-chunks.js",
       "size": 5080,
       "sha256": "150dc74b65b7a72faa88a5fee668e2e1b894f306c394e5545db922a16a883678"
+    },
+    {
+      "path": "dist/valley/kamakura-crown-look.js",
+      "size": 6136,
+      "sha256": "cb718b7fab90564fc9103a356981e664a5e41e3d25f84be1edd4b8466bc38ab7"
+    },
+    {
+      "path": "dist/valley/kamakura-crown.js",
+      "size": 3915,
+      "sha256": "d655df916a96744b181bb67bb933cab1627ebfe170338555ff55f938de761627"
     },
     {
       "path": "dist/valley/kamakura-data.js",
@@ -1580,13 +1615,13 @@
     },
     {
       "path": "dist/valley/kamakura-grass-look-view.js",
-      "size": 19243,
-      "sha256": "d235861cd960dbc28f36532c76977f9f58117871201fe93283bb65a901c92566"
+      "size": 19691,
+      "sha256": "8480039c36cd6a86d52492605b2b399a4284f73235203789235bd482dc6cb9b7"
     },
     {
       "path": "dist/valley/kamakura-grass-look.js",
-      "size": 13506,
-      "sha256": "e68e722a7c1bd36aeb85949eb7594aad627d89ae75bd858355887c3da016941c"
+      "size": 13558,
+      "sha256": "1fdce11a3b23f67c06347a30420d699ddbd3fa643b079bee38f71f8b676c0c5d"
     },
     {
       "path": "dist/valley/kamakura-grass-r3.js",
@@ -1594,9 +1629,24 @@
       "sha256": "1d3982cd836d0b431ef82407d7a519ab9fd970506c63f3b712bff7555733dc2f"
     },
     {
+      "path": "dist/valley/kamakura-grass-r5-view.js",
+      "size": 4060,
+      "sha256": "3582d7a45512f471e3fce504f9c153b5dd0aade0c663e09fbb04a8c6a4c74d3b"
+    },
+    {
+      "path": "dist/valley/kamakura-grass-r5.js",
+      "size": 3340,
+      "sha256": "005c8c5ea10d0635684bd3efb94dbcda79ddf4a98cb9aef91216d63b750f5d15"
+    },
+    {
       "path": "dist/valley/kamakura-grass-view.js",
-      "size": 6396,
-      "sha256": "d7f1437eaf2d846b9f4b37bf9fef358f28f189bbae8532af3146b065e84ef85f"
+      "size": 6923,
+      "sha256": "19b5d2f057c0b8b6a604492d6cdbda7b8ef6322a0b0ffa5eb045f2ab780f56ae"
+    },
+    {
+      "path": "dist/valley/kamakura-ground-contact.js",
+      "size": 4914,
+      "sha256": "7403833a22c2853c3d5439e6cd8060683883748062e8991ffd60afd2129c5675"
     },
     {
       "path": "dist/valley/kamakura-ground-detail.js",
@@ -1625,8 +1675,13 @@
     },
     {
       "path": "dist/valley/kamakura-ground-tone.js",
-      "size": 14254,
-      "sha256": "9aaf72b0efdd81e4d8c311983f3e5fe4234d1d691813ae8117207b4738064b98"
+      "size": 15737,
+      "sha256": "d10f53937899f412d22638be2bdb509da4867a00906efb7de2a46734cb802db2"
+    },
+    {
+      "path": "dist/valley/kamakura-ground-turf.js",
+      "size": 2896,
+      "sha256": "43bc34441b429448d4d4507424aa59314c191ac2067ed606fc3ca13bc23b3618"
     },
     {
       "path": "dist/valley/kamakura-ground-yard.js",
@@ -1635,13 +1690,13 @@
     },
     {
       "path": "dist/valley/kamakura-house-materials.js",
-      "size": 31000,
-      "sha256": "6aff51fd94eab548242a390446a678927bcf74738c95c5fb738a6551e87b8828"
+      "size": 34661,
+      "sha256": "a0b7e7ff3e69e8b4e7eb6cdde77aab34a5771e6833c89f510de337727286399e"
     },
     {
       "path": "dist/valley/kamakura-house-texture.js",
-      "size": 20034,
-      "sha256": "905091432cf9cb80fa660d48ce8513151c86565f0927ca7e5e6e747e593c384b"
+      "size": 21479,
+      "sha256": "a7f083cacdb1f6e01a5112236d729f821f952ede559ddc64a56152fdb8f6c523"
     },
     {
       "path": "dist/valley/kamakura-house-view.js",
@@ -1685,8 +1740,8 @@
     },
     {
       "path": "dist/valley/kamakura-sea-view.js",
-      "size": 15192,
-      "sha256": "255e5201fa049c5939b42761df94e7b7cf70c29756c871e132f637f3f9d12258"
+      "size": 16712,
+      "sha256": "b82824adf1287d28bf16f7b979d85130373955df89094c3370095498847f0e41"
     },
     {
       "path": "dist/valley/kamakura-shore-props.js",
@@ -1704,6 +1759,11 @@
       "sha256": "74b2082b66006583e1f9a3b9f730792a8546651e55f90d7eae08607cd09e9c9f"
     },
     {
+      "path": "dist/valley/kamakura-shore-r6.js",
+      "size": 4094,
+      "sha256": "2221ce492b57e970be248b812c8a14380e9ab195fb89e0dde3795354b5b345ec"
+    },
+    {
       "path": "dist/valley/kamakura-shore.js",
       "size": 16628,
       "sha256": "79c5d7b5f4aeea61c59cb4768de62a2c4c7b7d834532136da80ab7a88bf23577"
@@ -1715,8 +1775,8 @@
     },
     {
       "path": "dist/valley/kamakura-stand-view.js",
-      "size": 7754,
-      "sha256": "c96fe072e2af058ab9ad5750623a37b384cbe094059baf27e5fd9044483ffe49"
+      "size": 8005,
+      "sha256": "2aea033d5f1d89e6ebae73c1b2ed8c3efcf162a4109de315dc89affb33f5b921"
     },
     {
       "path": "dist/valley/kamakura-stands.js",
@@ -1740,8 +1800,8 @@
     },
     {
       "path": "dist/valley/kamakura-veg-view.js",
-      "size": 7691,
-      "sha256": "609a8e39ab0ce4cea31d489d65a0c534fff76bc62dcfd40afaebcd444cc926a8"
+      "size": 8362,
+      "sha256": "0791e61e510a0264899ed3ed5768d0e39080df7ec9e2bec2dc286951a12f2400"
     },
     {
       "path": "dist/valley/kamakura-veg.js",
@@ -1750,8 +1810,8 @@
     },
     {
       "path": "dist/valley/kamakura-water-view.js",
-      "size": 16984,
-      "sha256": "ccd60f050cc20990d8e9066136edafb1296c3ccc3ef7fd71e18e6a7a7a56d84c"
+      "size": 19405,
+      "sha256": "5aaa7f0e86e30751d12a964c5eb47c7d6316d3e90738710ba7f85b38e7bfcc6d"
     },
     {
       "path": "dist/valley/kamakura.css",
@@ -2085,8 +2145,8 @@
     },
     {
       "path": "dist/valley/world-kamakura.js",
-      "size": 16974,
-      "sha256": "703d3c91fbec8293d759ba6557dcfa3f0c43f5d9bc6c9fc2966a24e432ce241b"
+      "size": 17116,
+      "sha256": "a1a521f5923799a7e3036aa35236fbbb02ac1b7297a044c599d899ab636e998e"
     },
     {
       "path": "dist/valley/world.html",
@@ -4854,6 +4914,11 @@
       "sha256": "ffe07ce53580c8210a2ba83d2c86a68dd55f9adbc6935e94cf5e346ce2bd587e"
     },
     {
+      "path": "tests/kamakura-crown.test.mjs",
+      "size": 9064,
+      "sha256": "86f0c7fdf92e816393b68a7c55b9f603a60c8a7dbf98fd6a6cfed445a9e1f725"
+    },
+    {
       "path": "tests/kamakura-facilities.test.mjs",
       "size": 20683,
       "sha256": "7fff5184ac8625afafeaa81d55b981ee5a9482f53624a43e38dd191a49051d16"
@@ -4895,8 +4960,13 @@
     },
     {
       "path": "tests/kamakura-grass-r4.test.mjs",
-      "size": 19057,
-      "sha256": "adf4592c969737176061ebd8eef87e65829489b213070c981f7a06d31c048a67"
+      "size": 19372,
+      "sha256": "f3e1ac87053f3076d649e6eab0a1695942ca67c341b466714ed23741ab98a13e"
+    },
+    {
+      "path": "tests/kamakura-grass-r5.test.mjs",
+      "size": 12207,
+      "sha256": "4e6ccc21477b787fe5c549a92fa4dbff8d3b3e62fe0c7c6247f8ec2c43000ae3"
     },
     {
       "path": "tests/kamakura-grass-restoration.test.mjs",
@@ -4907,6 +4977,11 @@
       "path": "tests/kamakura-grass.test.mjs",
       "size": 15837,
       "sha256": "1349ac0c549074d5ee7d9da542c5f524b6c1b901edc93a0356752e434f688ef3"
+    },
+    {
+      "path": "tests/kamakura-ground-contact.test.mjs",
+      "size": 8167,
+      "sha256": "a9a1d62137724aea29d81fecf7270ad7fc451c4850ef30414779243aaad29a74"
     },
     {
       "path": "tests/kamakura-ground-continuity.test.mjs",
@@ -4962,6 +5037,11 @@
       "path": "tests/kamakura-house-ambient.test.mjs",
       "size": 3404,
       "sha256": "2555b92d2d41c66b34ec8f84fe7000ff11adf1585e49130da1d96be5f12e4f06"
+    },
+    {
+      "path": "tests/kamakura-house-facility6.test.mjs",
+      "size": 6853,
+      "sha256": "f988df36d3281786cb347cb486dc62c7e8a03e1775a5e1b4dc89cd5f05fdf495"
     },
     {
       "path": "tests/kamakura-house-finish.test.mjs",
@@ -5082,6 +5162,11 @@
       "path": "tests/kamakura-shore-r5.test.mjs",
       "size": 7027,
       "sha256": "a97ec61f4624d5f6e37473b224d194e36109052ca2e839878860f32a55e9f5ec"
+    },
+    {
+      "path": "tests/kamakura-shore-r6.test.mjs",
+      "size": 9420,
+      "sha256": "06fc9449ff52e85ef2a9a9416b6229bf2a5cfe184c7e4cfc83aeffd0cbad6099"
     },
     {
       "path": "tests/kamakura-shore.test.mjs",
@@ -5607,6 +5692,11 @@
       "path": "tools/gait-sample.mjs",
       "size": 10146,
       "sha256": "8286cd4a6dba04b1c6f99acc0efe44f33e04732ce89f36752e501a6f1902ac88"
+    },
+    {
+      "path": "tools/grass-row-metrics.py",
+      "size": 3045,
+      "sha256": "4fc37c12320354044904fb1f3ea96cd62a3c5852686c22ebcbfab07c7888224a"
     },
     {
       "path": "tools/lab-play.mjs",
