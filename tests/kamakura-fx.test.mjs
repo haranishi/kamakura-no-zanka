@@ -56,7 +56,7 @@ async function load(name){
   if(cache.has(name))return cache.get(name);
   let s=fs.readFileSync(new URL('../dist/valley/'+name,import.meta.url),'utf8').replace(/from 'three'/g,`from '${threeURL}'`);
   for(const match of [...s.matchAll(/from '(\.\/[^']+)'/g)]) {
-    const rel=match[1].slice(2), url=rel.endsWith('-view.js')?await load(rel):new URL('../dist/valley/'+rel,import.meta.url).href;
+    const rel=match[1].slice(2), url=(rel.endsWith('-view.js')||rel==='atmosphere.js')?await load(rel):new URL('../dist/valley/'+rel,import.meta.url).href;
     s=s.replaceAll(`from '${match[1]}'`,`from '${url}'`);
   }
   const url='data:text/javascript;base64,'+Buffer.from(s).toString('base64');cache.set(name,url);return url;

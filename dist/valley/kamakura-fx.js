@@ -18,14 +18,28 @@ export function bindFxContact(hero, fx) {
   const base = hero.onFootContact.bind(hero);
   hero.onFootContact = c => { base(c); fx.contact(c, hero); };
 }
-export function createFxState({ terrain, rivers = prepareFishRivers(null), particles = 192, rings = 24, seed = 1333, shore2 = true } = {}) {
+export function createFxState({ terrain, rivers = prepareFishRivers(null), particles = 192, rings = 24, seed = 1333, shore2 = true, shore4 = false } = {}) {
   const drops = Array.from({ length: particles }, () => ({ life: 0, age: 0, x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, water: 0, size: 0, dust: false, mist: false, duration: .7, r: 0, g: 0, b: 0 }));
-  const ripples = Array.from({ length: rings }, () => ({ life: 0, age: 0, x: 0, y: 0, z: 0, radius: 0, strength: 0, wake: false, yaw: 0 }));
+  const ripples = Array.from({ length: rings }, () => ({ life: 0, age: 0, x: 0, y: 0, z: 0, radius: 0, strength: 0, wake: false, yaw: 0, local: false, vx: 0, vz: 0 }));
+  // W2c-10 shore4: large stationary foot rings -> smaller, single downstream ellipses.
+  const flows=new Map();
+  if(shore4)for(const seg of rivers.segments||[]){
+    const drop=terrain.heightAt(seg.ax,seg.az)-terrain.heightAt(seg.ax+seg.dx,seg.az+seg.dz);
+    const speed=(drop<0?-1:1)*(.12+Math.min(.9,Math.sqrt(Math.abs(drop)/seg.length)*2.2));
+    flows.set(seg,[seg.dx/seg.length*speed,seg.dz/seg.length*speed]);
+  }
+  let flowRing=null,flowBest=Infinity;
+  function nearestFlow(seg){
+    const t=Math.max(0,Math.min(1,((flowRing.x-seg.ax)*seg.dx+(flowRing.z-seg.az)*seg.dz)/(seg.length*seg.length)));
+    const d=(flowRing.x-seg.ax-seg.dx*t)**2+(flowRing.z-seg.az-seg.dz*t)**2;
+    if(d>=flowBest)return;flowBest=d;const v=flows.get(seg);flowRing.vx=v[0];flowRing.vz=v[1];
+  }
   let nextIdle=0;
   let capP = particles, capR = rings, pi = 0, ri = 0, time = 0, lastContact = -1, lastX = Infinity, lastZ = Infinity;
   function random() { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t ^= t + Math.imul(t ^ t >>> 7, 61 | t); return ((t ^ t >>> 14) >>> 0) / 4294967296; }
-  function ripple(x, y, z, strength = 1, wake = false, yaw = 0) {
-    if (!capR) return; const r = ripples[ri++ % capR]; r.x = x; r.y = y; r.z = z; r.strength = strength; r.wake = wake; r.yaw = yaw; r.life = 1.3; r.age = 0; r.radius = .15;
+  function ripple(x, y, z, strength = 1, wake = false, yaw = 0, local = false) {
+    if (!capR) return; const r = ripples[ri++ % capR]; r.x = x; r.y = y; r.z = z; r.strength = strength; r.wake = wake; r.yaw = yaw; r.life = 1.3; r.age = 0; r.radius = .15;r.local=shore4&&local;r.vx=r.vz=0;
+    if(r.local){flowRing=r;flowBest=Infinity;rivers.visit?.(x,z,0,nearestFlow);r.yaw=Math.atan2(-r.vx,-r.vz);r.strength*=.65;}
   }
   // W2c-9d4: tiny flecks -> 32 drops reaching 0.3–0.7m and 0.5–0.9m mist.
   function splash(x, y, z, running) {
@@ -59,19 +73,19 @@ export function createFxState({ terrain, rivers = prepareFishRivers(null), parti
       const water = rivers.sampleAt(pos.x, pos.z); if (!water.valid) return; // river only, never sea
       const run = hero.stepGait === 'run', yaw = hero.yaw || 0, side = c.foot === 'L' || c.foot === 'left' ? -.12 : .12;
       const x = pos.x + Math.cos(yaw) * side, z = pos.z - Math.sin(yaw) * side;
-      ripple(x, water.y + .015, z, run ? 1 : .55, false, yaw); splash(x, water.y, z, run);
-      if (time - lastContact < .85 && Math.hypot(pos.x - lastX, pos.z - lastZ) > .12) ripple(pos.x, water.y + .018, pos.z, run ? .9 : .5, true, yaw);
+      ripple(x, water.y + .015, z, run ? 1 : .55, false, yaw, true); splash(x, water.y, z, run);
+      if (!shore4 && time - lastContact < .85 && Math.hypot(pos.x - lastX, pos.z - lastZ) > .12) ripple(pos.x, water.y + .018, pos.z, run ? .9 : .5, true, yaw);
       lastContact = time; lastX = pos.x; lastZ = pos.z;
     },
     update(dt, hero) {
       dt = Math.max(0, dt); time += dt;
       // W2c-9r1 shore: contact-only effects -> gentle standing rings around submerged legs.
       if(shore2&&hero&&dt>0&&capR&&time>=nextIdle){
-        nextIdle=time+.65;
+        nextIdle=time+(shore4?1.2:.65);
         const pos=hero.pos,wet=terrain.waterAt(pos.x,pos.z);
-        if(wet>.05&&wet<.46){const water=rivers.sampleAt(pos.x,pos.z);if(water.valid)ripple(pos.x,water.y+.025,pos.z,.28,false,hero.yaw||0);}
+        if(wet>.05&&wet<.46){const water=rivers.sampleAt(pos.x,pos.z);if(water.valid)ripple(pos.x,water.y+.025,pos.z,.28,false,hero.yaw||0,true);}
       }
-      for (let i = 0; i < capR; i++) { const r = ripples[i]; if (r.life <= 0) continue; r.age += dt; r.life = Math.max(0, 1.3 - r.age); r.radius = (r.strength < .2 ? .03 : .15) + r.age / 1.3 * (r.strength < .2 ? .12 : r.strength > .8 ? 1.65 : 1.25); }
+      for (let i = 0; i < capR; i++) { const r = ripples[i]; if (r.life <= 0) continue; r.age += dt; r.life = Math.max(0, 1.3 - r.age); r.radius = (r.strength < .2 ? .03 : .15) + r.age / 1.3 * (r.strength < .2 ? .12 : r.strength > .8 ? 1.65 : 1.25); if(r.local){r.radius*=.5;r.x+=r.vx*dt;r.z+=r.vz*dt;} }
       for (let i = 0; i < capP; i++) {
         const p = drops[i]; if (p.life <= 0) continue; const gravity = p.dust ? -.12 : p.mist ? 0 : 7;
         p.age += dt; p.life = Math.max(0, p.duration - p.age);

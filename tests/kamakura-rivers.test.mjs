@@ -106,10 +106,8 @@ test('water opt-out and missing data leave movement rules and the original valle
   assert.match(flightSource,/water\?\.update\(time\)/); assert.match(source,/water\?\.dispose\(\)/);
 });
 test('shipped Three view: construction, shader uniforms/fog/distance, static geometry and idempotent disposal (no GPU)', async () => {
-  const three=new URL('../dist/vendor/three.module.min.js',import.meta.url).href, THREE=await import(three);
-  const source=(await fs.readFile(new URL('../dist/valley/kamakura-water-view.js',import.meta.url),'utf8')).replace("from 'three'",`from '${three}'`);
-  const resolvedSource=source.replace("from './kamakura-shore.js'", `from '${new URL('../dist/valley/kamakura-shore.js',import.meta.url).href}'`).replace("from './kamakura-fx.js'", `from '${new URL('../dist/valley/kamakura-fx.js',import.meta.url).href}'`);
-  const { buildKamakuraWater }=await import('data:text/javascript;base64,'+Buffer.from(resolvedSource).toString('base64'));
+  const {THREE,load}=await import('./helpers/tree-modules.mjs');
+  const {buildKamakuraWater}=await load('kamakura-water-view.js');
   for(const quality of ['standard','light']) for(let run=0;run<3;run++) {
     const prepared=prepareRivers({rivers:[river(Array.from({length:151},(_,i)=>[i*10,0]))]},1,quality), sunDir=new THREE.Vector3(1,2,3).normalize();
     const view=buildKamakuraWater(prepared,{sunDir}), scene=new THREE.Scene(); scene.add(view.group);

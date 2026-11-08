@@ -45,7 +45,7 @@ test('R2 fix deferred segments use the same shared rows and guards as the comple
 });
 test('R2 fix removal of reach/triangle limits fails the same acceptance checks',async()=>{
   let code=await fs.readFile(new URL('../dist/valley/kamakura-bank-wet.js',import.meta.url),'utf8');
-  code=code.replaceAll("'./kamakura-chunks.js'",JSON.stringify(new URL('../dist/valley/kamakura-chunks.js',import.meta.url).href)).replaceAll("'./kamakura-shore.js'",JSON.stringify(new URL('../dist/valley/kamakura-shore.js',import.meta.url).href));
+  code=code.replace(/from '(\.\/[^']+)'/g,(_,relative)=>`from '${new URL('../dist/valley/'+relative.slice(2),import.meta.url).href}'`);
   code=code.replace('BANK_REACH_STEP=.4','BANK_REACH_STEP=Infinity').replace('BANK_MAX_ASPECT=32','BANK_MAX_ASPECT=Infinity').replace('caps[n]=2*half','caps[n]=Infinity').replace('(reaches[n-2]+2*reaches[n]+reaches[n+2])/4','reaches[n]');
   const broken=await import(`data:text/javascript;base64,${Buffer.from(code).toString('base64')}`);
   assert.throws(()=>checkReach(broken.bankWaterlineRibbon(ribbon,terrain),ribbon));
