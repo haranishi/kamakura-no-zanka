@@ -1,3 +1,5 @@
+import { installGroundContact } from './kamakura-ground-contact.js';
+import { GROUND6_GLSL } from './kamakura-ground-turf.js';
 import { groundAxes, yardTexel, YARD_GLSL } from './kamakura-ground-yard.js';
 import { toneStrength, groundUseBoxes, toneTexel, toneWeightGrid } from './kamakura-ground-tone-rules.js';
 import { groundPhotoUniforms, GROUND_PHOTO_DECL, GROUND_PHOTO_GLSL, GROUND_PHOTO_NORMAL } from './kamakura-ground-photo.js';
@@ -5,6 +7,7 @@ import { SOIL_GRAIN_GLSL, SCATTER_GLSL } from './kamakura-ground-pattern.js';
 
 export function installGroundTone(THREE,material,data,owner,{quality='standard',search=''}={}) {
   if(new URLSearchParams(search).get('gtone')==='0'||!data?.ground||!owner.uniforms)return;
+  const ground6=new URLSearchParams(search).get('ground6')!=='0';
   const r3Enabled=new URLSearchParams(search).get('gyard')!=='0';
   const {width:w,height:h}=data.meta.grid;
   const grid=toneWeightGrid(data),count=grid.width*grid.height;
@@ -20,10 +23,16 @@ export function installGroundTone(THREE,material,data,owner,{quality='standard',
   const yardBytes=new Uint8Array(count*4),axes=groundAxes(data,boxes);
   const yardTexture=new THREE.DataTexture(yardBytes,grid.width,grid.height,THREE.RGBAFormat);
   yardTexture.internalFormat='RGBA8';
-  const classA=new Uint8Array(count*4),classB=new Uint8Array(count*4);
+  // W2c-11 ground6: two class samplers -> one atlas, freeing a slot for contact R8.
+  const classAtlas=ground6?new Uint8Array(count*8):null;
+  const classA=ground6?classAtlas.subarray(0,count*4):new Uint8Array(count*4),classB=ground6?classAtlas.subarray(count*4):new Uint8Array(count*4);
   const classTextures=[classA,classB].map(bytes=>{const t=new THREE.DataTexture(bytes,grid.width,grid.height,THREE.RGBAFormat);t.internalFormat='RGBA8';return t;});
   const textures=[baseTexture,weightTexture,yardTexture,...classTextures];
   for(const t of textures){t.minFilter=THREE.LinearMipmapLinearFilter;t.magFilter=THREE.LinearFilter;t.generateMipmaps=true;t.unpackAlignment=1;}
+  if(ground6){
+    classTextures[0].image={data:classAtlas,width:grid.width,height:grid.height*2};
+    // Retain the original mip-capable format; atlas reads explicitly use level zero to avoid cross-layer bleed.
+  }
   // The base is sampled from the first frame; only the weights wait for the bake.
   baseTexture.needsUpdate=true;
   const uniforms={uToneGrid:{value:new THREE.Vector3(w,h,data.meta.grid.cell_m)},uToneWeightSpan:{value:new THREE.Vector2(grid.width*grid.dx,grid.height*grid.dz)},uToneBase:{value:baseTexture},uToneWeights:{value:weightTexture},uToneYard:{value:yardTexture},uToneYardDebug:{value:new URLSearchParams(search).get('gyard')==='2'?1:0},uToneR3:{value:r3Enabled?toneStrength(quality):0},uToneReady:{value:0},uToneBlend:{value:0},uToneBaked:{value:material.vertexColors?1:0},uToneStrength:{value:toneStrength(quality)},uToneSoil:{value:new URLSearchParams(search).get('gsoil')==='0'?0:1}};
@@ -53,7 +62,10 @@ export function installGroundTone(THREE,material,data,owner,{quality='standard',
     }
   }
   prepare();
-  const prior=material.onBeforeCompile,priorKey=material.customProgramCacheKey,cacheKey=priorKey.call(material)+'|tone-r4-photo';
+  const prior=material.onBeforeCompile,priorKey=material.customProgramCacheKey,cacheKey=priorKey.call(material)+'|tone-r4-photo'+(ground6?'|ground6':'');
+  const toneGLSL=ground6?TONE_GLSL.replace('vec3 groundTone(',GROUND6_GLSL+'\nvec3 groundTone(').replace('  return result;','  float turf6=0.0;\n  if(uToneBlend>0.0 && dist<600.0)turf6=ground6Class((p+warp)/uToneWeightSpan+.5,0.0).b*(1.0-use)*(1.0-steep)*uToneBlend;\n  return ground6Color(result,p,dist,px,turf6,dry);'):TONE_GLSL;
+  const photoDecl=ground6?GROUND_PHOTO_DECL.replace('uGroundPhotoA,uGroundPhotoB','uGroundPhotoA'):GROUND_PHOTO_DECL;
+  const photoGLSL=ground6?GROUND_PHOTO_GLSL.replace('texture2D(uGroundPhotoA,uv)','ground6Class(uv,0.0)').replace('texture2D(uGroundPhotoB,uv)','ground6Class(uv,1.0)'):GROUND_PHOTO_GLSL;
   material.onBeforeCompile=shader=>{
     prior(shader);Object.assign(shader.uniforms,uniforms);
     shader.vertexShader=shader.vertexShader.replace('#include <common>','#include <common>\nvarying vec3 vGroundPhotoView;')
@@ -61,7 +73,7 @@ export function installGroundTone(THREE,material,data,owner,{quality='standard',
     // W2c-9r1 ground round 3: declare after detail's helpers, then multiply
     // their output onto the continuous base. Never re-enable nearest class IDs.
     // The tone runs from the first frame (neutral weights until the bake ends), so the legacy detail never has to stand in.
-    shader.fragmentShader=shader.fragmentShader.replace('void main() {',`${owner.uniforms.uShoreSea?'#define GROUND_PHOTO_SHORE\n':''}${GROUND_PHOTO_DECL}\n${TONE_GLSL}\n${GROUND_PHOTO_GLSL}\nvoid main() {`)
+    shader.fragmentShader=shader.fragmentShader.replace('void main() {',`${owner.uniforms.uShoreSea?'#define GROUND_PHOTO_SHORE\n':''}${photoDecl}\n${toneGLSL}\n${photoGLSL}\nvoid main() {`)
       .replace('if(uGroundStrength>0.0){','if(uGroundStrength>0.0 && uToneStrength<=0.0){')
       .replace('#include <color_fragment>',`#include <color_fragment>
         groundPhotoPrepare(vGroundWorld,distance(vGroundWorld,cameraPosition));
@@ -94,6 +106,11 @@ export function installGroundTone(THREE,material,data,owner,{quality='standard',
   owner.setAdapt=function(policy){oldAdapt.call(this,policy);uniforms.uToneR3.value=r3Enabled?toneStrength(quality,typeof policy==='number'?policy:policy.step):0;uniforms.uToneStrength.value=toneStrength(quality,typeof policy==='number'?policy:policy.step);};
   owner.dispose=function(){if(disposed)return;disposed=true;clearTimeout(timer);clearTimeout(fadeTimer);textures.forEach(t=>t.dispose());resolveReady();resolveFaded();oldDispose.call(this);};
   owner.tone={uniforms,textures,ready,faded,stats};
+  if(ground6){
+    uniforms.uGroundClassSize={value:new THREE.Vector2(grid.width,grid.height)};
+    const contact=installGroundContact(THREE,data,owner,quality);
+    Object.assign(uniforms,contact.uniforms);
+  }
 }
 
 export const TONE_FADE_MS=1200;

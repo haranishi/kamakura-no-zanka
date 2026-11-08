@@ -1,3 +1,4 @@
+import { groundContactFor } from './kamakura-ground-contact.js';
 import { buildKamakuraSea } from './kamakura-sea-view.js';
 import { prepareKamakuraFx } from './kamakura-fx-view.js';
 import { bindFxContact } from './kamakura-fx.js';
@@ -215,7 +216,7 @@ export async function bootKamakura(data, search) {
       wind.uWindDir.value.set(...uniforms.uWindDir); wind.uGuideMix.value = uniforms.uGuideMix;
       grass.updateHero(hero.pos, hero.speed, flight.active, paused ? 0 : dt);
       renderer.info.reset(); // W2c-9r1 light: one reset before all frame draws.
-      flight.updateViews(uniforms.uTime, paused ? 0 : dt); facilities?.update(flight.pos); grass.update(camera, flight.pos, paused); fx.update(paused ? 0 : dt, camera, hero); post.render(scene, camera);
+      flight.updateViews(uniforms.uTime, paused ? 0 : dt); facilities?.update(flight.pos); grass.update(camera, flight.pos, paused); fx.update(paused ? 0 : dt, camera, hero); groundContactFor(data)?.update(camera.position, g.col.boxes, g.col.circles); post.render(scene, camera);
       hud.update(flight.pos, flight.yaw, t, { ...renderer.info.render, averageMs: adapt.averageMs, step: adapt.step }, flight.state, audioView.debugText());
     });
     return { dispose };
