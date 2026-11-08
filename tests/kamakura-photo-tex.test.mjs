@@ -107,10 +107,14 @@ test('shared GLSL helpers are balanced, avoid reserved words and keep the packin
   for (const word of ['patch', 'sample', 'input', 'output', 'filter', 'common', 'active', 'partition', 'resource', 'texture', 'layout', 'precise']) {
     assert(!new RegExp(`\\b(?:float|vec[234]|mat3|sampler2D)\\s+${word}\\b`).test(PHOTO_GLSL), `reserved word ${word} used as a name`);
   }
-  for (const name of ['kzPhoto', 'kzPhotoUnpack', 'kzPhotoHex', 'kzPerturbNormal']) assert(PHOTO_GLSL.includes(`${name}(`), name);
+  for (const name of ['kzPhoto', 'kzPhotoGrad', 'kzPhotoUnpack', 'kzPhotoHex', 'kzPhotoHexGrad', 'kzPerturbNormal']) assert(PHOTO_GLSL.includes(`${name}(`), name);
   // Decoding must mirror the build tool: B = sqrt(ratio / 3).
   assert(PHOTO_GLSL.includes('3.*s.b*s.b') && PHOTO_GLSL.includes('s.rg*2.-1.'));
   assert(/function photoBlend/.test(source('kamakura-photo-tex.js')));
+  // Only the thin wrappers and the normal helper may take screen derivatives; the Grad variants must stay branch-safe.
+  const body = name => { const i = PHOTO_GLSL.indexOf(`vec3 ${name}(`); assert(i >= 0, name); let depth = 0, j = PHOTO_GLSL.indexOf('{', i); const start = j; for (; j < PHOTO_GLSL.length; j++) { if (PHOTO_GLSL[j] === '{') depth++; else if (PHOTO_GLSL[j] === '}' && --depth === 0) break; } return PHOTO_GLSL.slice(start, j + 1); };
+  for (const name of ['kzPhotoGrad', 'kzPhotoHexGrad']) assert(!/dFd[xy]/.test(body(name)), `${name} must not use implicit derivatives`);
+  assert(/dFdx\(uv\)/.test(body('kzPhotoHex')), 'the wrapper supplies the derivatives');
 });
 
 const fakeLoader = (log, fail = new Set()) => async url => {
