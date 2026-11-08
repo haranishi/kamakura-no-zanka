@@ -74,17 +74,25 @@ export function toneWeightGrid(data) {
   const width=Math.max(2,Math.ceil(sx/4)+1),height=Math.max(2,Math.ceil(sz/4)+1);
   return {width,height,dx:sx/(width-1),dz:sz/(height-1)};
 }
-export function toneTexel(data,boxes,i,weights,target=null) {
+export function toneTexel(data,boxes,i,weights,target=null,classA=null,classB=null) {
   const {width:w,height:h,cell_m:cell}=data.meta.grid;
   const g=target||{width:w,height:h,dx:cell,dz:cell};
   const x=(i%g.width-(g.width-1)/2)*g.dx,z=(Math.floor(i/g.width)-(g.height-1)/2)*g.dz,k=i*4;
   // Binomial prefilter rejects alternating-cell alias before bilinear GPU sampling.
   const cx=Math.round(x/cell+(w-1)/2),cz=Math.round(z/cell+(h-1)/2);
   let grass=0,rock=0,land=0;
+  // W2c-10 ground: share the existing 3x3 prefilter and bake budget; no second source-grid walk.
+  if(classA&&classB)for(let c=0;c<4;c++){classA[k+c]=0;classB[k+c]=0;}
   for(let j=-1;j<=1;j++)for(let a=-1;a<=1;a++){
     const code=data.surface[Math.max(0,Math.min(h-1,cz+j))*w+Math.max(0,Math.min(w-1,cx+a))];
     const weight=(a===0?2:1)*(j===0?2:1)/16;
+    if(classA&&classB){const c=code<8?code:4;const dst=c<4?classA:classB;dst[k+(c%4)]+=weight*16;}
     grass+=grassAmount(code)*weight;rock+=(code===5?1:0)*weight;land+=(code===0||code===1?0:1)*weight;
+  }
+  if(classA&&classB){
+    let sum=0,largest=0,largestValue=-1;
+    for(let c=0;c<8;c++){const dst=c<4?classA:classB,j=k+c%4,v=dst[j];if(v>largestValue){largest=c;largestValue=v;}dst[j]=Math.round(v*255/16);sum+=dst[j];}
+    (largest<4?classA:classB)[k+largest%4]+=255-sum;
   }
   weights[k]=Math.round(grass*255);weights[k+1]=Math.round(rock*255);
   weights[k+2]=Math.round(groundUseAt(boxes,x,z)*255);weights[k+3]=Math.round(land*255);
