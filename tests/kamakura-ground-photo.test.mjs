@@ -136,7 +136,9 @@ test('R4 parent tuning: gravel contrast is halved and applied after de-meaning, 
   assert.equal(GROUND_PHOTO_CONTRAST.length,GROUND_PHOTO_KEYS.length);
   const pebbles=GROUND_PHOTO_KEYS.indexOf('groundPebbles');
   assert(GROUND_PHOTO_CONTRAST[pebbles]<=.5);
-  for(const key of ['groundSoil','groundTurf','groundDark'])assert.equal(GROUND_PHOTO_CONTRAST[GROUND_PHOTO_KEYS.indexOf(key)],1);
+  for(const key of ['groundTurf','groundDark'])assert.equal(GROUND_PHOTO_CONTRAST[GROUND_PHOTO_KEYS.indexOf(key)],1);
+  // R4 critic: the broad dark blotches of the sand and soil scans read as mud and neglect, so they carry less contrast than turf.
+  for(const key of ['groundSand','groundSoil'])assert(GROUND_PHOTO_CONTRAST[GROUND_PHOTO_KEYS.indexOf(key)]<=.7,key);
   assert(GROUND_PHOTO_CONTRAST.every(k=>k>0&&k<=1));
   // A zero-mean deviation scaled by k keeps its mean: mean(1+(r-1)k)=1 for any k.
   for(const k of GROUND_PHOTO_CONTRAST){const rs=[.6,.9,1,1.2,1.3],mean=rs.reduce((a,r)=>a+r,0)/rs.length;assert(Math.abs(rs.reduce((a,r)=>a+1+(r-mean)*k,0)/rs.length-1)<1e-12);}
