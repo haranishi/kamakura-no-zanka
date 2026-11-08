@@ -91,7 +91,8 @@ test('9e3 private full-river edge, height and orientation acceptance (aggregate 
 });
 test('9e3 nearby bank preparation yields, fades, evicts buffers once, quality/URL disable work',()=>{
   const terrain={heightAt:()=>1},r={xy_m:[[0,0],[0,-6],[0,-12]],water_elev_m:[1,1,1],width_m:[4,4,4],enters_sea:false},prepared=prepareRivers({rivers:[r]});
-  const bank=buildBankWet(THREE,prepared,terrain,{defer:true});assert.equal(bank.group.children.length,0);
+  // Fixed work clock: CPU scheduling must not decide how many update calls finish this fixture.
+  const bank=buildBankWet(THREE,prepared,terrain,{defer:true,now:()=>0});assert.equal(bank.group.children.length,0);
   bank.update({x:0,z:0});assert.equal(bank.group.children.length,0);bank.update({x:0,z:0});assert.equal(bank.group.children.length,1);
   const geometry=bank.group.children[0].geometry;assert(geometry.index.isBufferAttribute);assert(Number.isFinite(geometry.index.count)&&geometry.index.count>0);assert(geometry.index.array.every(i=>i<geometry.attributes.position.count));
   let disposed=0;for(const m of bank.group.children)m.geometry.addEventListener('dispose',()=>disposed++);

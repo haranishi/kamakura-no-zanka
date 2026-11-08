@@ -42,6 +42,27 @@ export function seaColor4(distance,mid,horizon,footprint=0,out=[0,0,0]) {
     out[i]=c+(horizon[i]-c)*seaBand4(distance,200,footprint);
   }return out;
 }
+// W2c-10b shore5: continuous white rails -> shallow, energetic, broken foam.
+export const FOAM_LINEAR_MAX5=.42;
+export function riverFoam5(depth,slope,speed,bend){
+  return (1-smooth(.12,.65,depth))*smooth(.08,.65,slope)*smooth(.14,.7,Math.abs(speed))*(.015+.985*smooth(.03,.4,Math.abs(bend)));
+}
+// 48m lattice: strength and spacing share broad stationary patches, not camera bands.
+export const riverMacro5=(x,z)=>shoreNoise(x/48,z/48);
+export const riverStreak5=(speed,across,macro)=>clamp(Math.abs(speed)/.22)*(1-.6*clamp(Math.abs(across))**2)*(.45+.55*macro);
+export function riverColor5(depth,mid,horizon,out=[0,0,0]){
+  riverColor4(depth,mid,horizon,out);
+  const l=.2126*out[0]+.7152*out[1]+.0722*out[2];
+  for(let i=0;i<3;i++)out[i]=l+(out[i]-l)*.75;
+  return out;
+}
+// W2c-10b shore5: shallow top view stays transparent; grazing angles hold reflection.
+export function waterOpacity5(depth,bank,cosine){
+  const a=waterAlpha4(depth,bank,cosine),f=smooth(.02,.8,waterFresnel4(cosine));
+  return a+(Math.max(a,.82)-a)*f;
+}
+// Full-strength core is >=2 pixels; the feather lies outside that core.
+export const surfCore5=footprint=>Math.max(.22,Math.max(0,footprint));
 export const SHORE_R4_GLSL=`
 uniform float uShore4,uShore4Detail;
 uniform vec3 uWaterSkyMid,uWaterSkyHorizon;
@@ -59,5 +80,21 @@ vec3 seaColor4(float d,float footprint){
   c=mix(c,vec3(.025,.085,.12),seaBand4(d,20.0,footprint));
   c=mix(c,uWaterSkyMid*.24,seaBand4(d,60.0,footprint));
   return mix(c,uWaterSkyHorizon,seaBand4(d,200.0,footprint));
+}
+float riverFoam5(float depth,float slope,float speed,float bend){
+  return (1.0-smoothstep(.12,.65,depth))*smoothstep(.08,.65,slope)*smoothstep(.14,.7,abs(speed))*(.015+.985*smoothstep(.03,.4,abs(bend)));
+}
+float riverMacro5(vec2 p){return shoreNoise(p/48.0);}
+float riverStreak5(float speed,float across,float broad){return clamp(abs(speed)/.22,0.0,1.0)*(1.0-.6*pow(clamp(abs(across),0.0,1.0),2.0))*(.45+.55*broad);}
+vec3 riverColor5(float depth){vec3 c=riverColor4(depth);float l=dot(c,vec3(.2126,.7152,.0722));return mix(vec3(l),c,.75);}
+float waterOpacity5(float depth,float bank,float cosine){float a=waterAlpha4(depth,bank,cosine);float f=smoothstep(.02,.8,waterFresnel4(cosine));return mix(a,max(a,.82),f);}
+float surfCore5(float footprint){return max(.22,max(0.0,footprint));}
+float shoreSurf5(float d,float wave,vec2 p,float band,float footprint){
+  float n=shoreNoise(p/23.0+band);
+  float centre=.6+band+2.0*(1.0-wave)+1.1*(n-.5);
+  float core=surfCore5(footprint);
+  float profile=1.0-smoothstep(core,core+max(.35,footprint),abs(d-centre));
+  float gaps=.25+.75*smoothstep(.22,.62,shoreNoise(p/17.0+band));
+  return profile*gaps*(1.0-smoothstep(24.0,40.0,d));
 }
 `;

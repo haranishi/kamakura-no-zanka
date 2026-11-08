@@ -3,7 +3,7 @@
 import * as THREE from 'three';
 import { shore2Enabled, shore3Enabled, FOAM_LINEAR_MAX, SHORE_GLSL, bankCrossingDistance } from './kamakura-shore.js';
 import { WATER_ALPHA } from './kamakura-fx.js';
-import { shore4Enabled, riverFlow, SHORE_R4_GLSL } from './kamakura-shore-r4.js';
+import { shore4Enabled, riverFlow, FOAM_LINEAR_MAX5, SHORE_R4_GLSL } from './kamakura-shore-r4.js';
 import { atmosphereOptions, kamakuraAtmosphere, eveningEnabled } from './kamakura-atmosphere.js';
 import { ATMOS } from './atmosphere.js';
 export function buildKamakuraWater(prepared, { sunDir = new THREE.Vector3(.5, .17, .85), terrain = null, search = '', quality = 'standard' } = {}) {
@@ -52,8 +52,8 @@ export function buildKamakuraWater(prepared, { sunDir = new THREE.Vector3(.5, .1
         float waterCosine=abs(normalize(cameraPosition-vWPos).y);
         if(uShore4>.0){
           float depth4=max(0.0,min(vWDepth,bankD*.6));
-          diffuseColor.rgb=riverColor4(depth4);
-          diffuseColor.a=waterAlpha4(vWDepth,bankD,waterCosine)*(1.0-smoothstep(uWaterDistance-128.0,uWaterDistance,waterDistance));
+          diffuseColor.rgb=mix(riverColor4(depth4),riverColor5(depth4),uShore4);
+          diffuseColor.a=mix(waterAlpha4(vWDepth,bankD,waterCosine),waterOpacity5(vWDepth,bankD,waterCosine),uShore4)*(1.0-smoothstep(uWaterDistance-128.0,uWaterDistance,waterDistance));
         }
         float foam=0.0,streak=0.0,rapid=0.0;
         if(uShore2<.5){
@@ -77,10 +77,17 @@ export function buildKamakuraWater(prepared, { sunDir = new THREE.Vector3(.5, .1
           }
           foam=uRiverBands>.5?riverBankFoam3(bankD,vWPos.xz,uTime,length(fwidth(vWPos.xz)),bend3,slope3)*(uRiverBands>1.5?1.0:.55):0.0;
         }
-        if(uShore4>.0)foam*=riverFoamGain4(vWFlow.z,vWHalf,vWTurn,vWUv.x);
-        diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.86, 0.9, 0.88), clamp(foam + rapid + streak * (1.0 - edge), 0.0, 0.88));
+        // W2c-10b shore5: uniform luminous rim -> energetic shallow patches only.
+        if(uShore4>.0){
+          float bankSlope5=vWBanks.x+vWUv.x*vWHalf<vWBanks.y-vWUv.x*vWHalf?vWFoamShape.y:vWFoamShape.z;
+          float depth5=max(0.0,min(vWDepth,bankD*.6));
+          float localSpeed5=abs(vWFlow.z)*(1.0-.6*edge*edge);
+          foam*=riverFoam5(depth5,bankSlope5,localSpeed5,vWTurn)*uShore4;
+          rapid=0.0;streak=0.0;
+        }
+        if(uShore4<=0.0)diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.86, 0.9, 0.88), clamp(foam + rapid + streak * (1.0 - edge), 0.0, 0.88));
         if(uShore3>.5&&uShore4<=0.0)diffuseColor.rgb=mix(mix(vec3(.16,.21,.13),vec3(.025,.145,.20),tone3),vec3(.53,.59,.57),foam*.65);
-        if(uShore4>.0)diffuseColor.rgb=mix(diffuseColor.rgb,vec3(.53,.59,.57),foam*.65);
+        if(uShore4>.0)diffuseColor.rgb=mix(diffuseColor.rgb,vec3(.32,.36,.33),foam*.45);
         diffuseColor.a *= uShore2>.5?smoothstep(0.0,.18,bankD):1.0-smoothstep(0.93,1.0,edge);`)
       .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
         {
@@ -88,12 +95,15 @@ export function buildKamakuraWater(prepared, { sunDir = new THREE.Vector3(.5, .1
           // W2c-10 shore4: finite differences in channel metres, then rotate slopes back to world XZ.
           if(uShore4>.0){
             vec2 channel=vec2(vWUv.x*vWHalf,vWUv.y);
+            // W2c-10b shore5: equal stripes -> 48m strength/spacing variation.
+            float broad5=riverMacro5(vWPos.xz);
+            channel.x=channel.x*(.65+.7*broad5)+3.0*(broad5-.5);
             float h=riverHeight4(channel,uTime,vWFlow.z,vWUv.x);
             float ha=riverHeight4(channel+vec2(e,0.0),uTime,vWFlow.z,vWUv.x);
             float hl=riverHeight4(channel+vec2(0.0,e),uTime,vWFlow.z,vWUv.x);
             vec2 tangent=normalize(vWFlow.xy),acrossDir=vec2(-tangent.y,tangent.x);
             vec2 slope=(acrossDir*(h-ha)+tangent*(h-hl))*vWFlow.w/e;
-            slope*=uShore4*(1.0-smoothstep(60.0,200.0,waterDistance));
+            slope*=riverStreak5(vWFlow.z,vWUv.x,broad5)*uShore4*(1.0-smoothstep(60.0,200.0,waterDistance));
             vec3 nw4=normalize(vec3(slope.x,1.0,slope.y));
             normal=normalize(mix(normal,normalize((viewMatrix*vec4(nw4,0.0)).xyz),.65));
           }else{
@@ -109,16 +119,18 @@ export function buildKamakuraWater(prepared, { sunDir = new THREE.Vector3(.5, .1
           vec3 wn = normalize((vec4(normal, 0.0) * viewMatrix).xyz);
           vec3 rf = reflect(vdir, wn);
           float glint = pow(max(dot(rf, SUN_DIR_W), 0.0), 90.0) * 3.0 + pow(max(dot(rf, SUN_DIR_W), 0.0), 14.0) * 0.35;
-          if(uShore4>.0){float f4=waterFresnel4(dot(-vdir,wn));outgoingLight=mix(outgoingLight,mix(uWaterSkyMid,uWaterSkyHorizon,1.0-abs(vdir.y)),f4*.65);}
+          // W2c-10b shore5: retain PMREM sky reflection; grazing sky fills its horizon.
+          if(uShore4>.0){float f4=waterFresnel4(dot(-vdir,wn));outgoingLight=mix(outgoingLight,mix(uWaterSkyMid,uWaterSkyHorizon,1.0-abs(vdir.y)),f4*.42);}
+
           outgoingLight += (uShore4>.0?uWaterSun:vec3(1.0, 0.78, 0.55)) * glint * (1.0 - abs(vdir.y));
         }
         // Bound the complete reflected/lit foam film before tone mapping; water reflection stays intact.
-        if(uShore3>.5){outgoingLight=mix(outgoingLight,vec3(.49,.56,.53),foam*.65);if(foam>.04)outgoingLight=min(outgoingLight,vec3(${FOAM_LINEAR_MAX}));}
+        if(uShore3>.5){outgoingLight=mix(outgoingLight,uShore4>.0?vec3(.32,.36,.33):vec3(.49,.56,.53),foam*.65);if(foam>.04)outgoingLight=min(outgoingLight,vec3(uShore4>.0?${FOAM_LINEAR_MAX5}:${FOAM_LINEAR_MAX}));}
         #include <opaque_fragment>`).replace('#include <premultiplied_alpha_fragment>',`
         if(uShore3>.5&&foam>.04)gl_FragColor.rgb=min(gl_FragColor.rgb,vec3(.85));
         #include <premultiplied_alpha_fragment>`);
   };
-  material.customProgramCacheKey = () => 'kamakura-water-10-shore4';
+  material.customProgramCacheKey = () => 'kamakura-water-10b-shore5';
   let disposed = false,bankCursor=0,bankBudget=quality==='light'?.15:.35;
   const bankJobs=[];
   function dispose() {

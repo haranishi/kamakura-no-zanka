@@ -118,6 +118,8 @@ export function breakerFoam(d,wave,x,z,offset=0){
 export const SHORE_GLSL=`
 // W2c-9r1 shore: shared distance controls wet sand, depth and irregular surf.
 uniform float uShore2;
+// W2c-10b shore5: optional shared wet-band control (unset = legacy).
+uniform float uShoreWet5;
 float shoreSmooth(float d,float reach){return 1.0-smoothstep(0.0,reach,max(0.0,d));}
 float shoreDepth(float d){return smoothstep(0.0,32.0,max(0.0,d));}
 
@@ -144,7 +146,16 @@ ${SHORE_R3_GLSL}
 float shoreWet(float d,float wave){return clamp((${SEA_VIS.minReach.toFixed(1)}+${(SEA_VIS.reach-SEA_VIS.minReach).toFixed(1)}*wave-d)/2.0,0.0,1.0);}
 float shoreFoam(float d,float wave){return max(0.0,1.0-abs(d-(1.0+5.0*(1.0-wave)))/${SEA_VIS.foamWidth.toFixed(1)});}
 // W2c-9r2 shore: diffuse 9m wash -> readable 0.6–1.5m saturated sand at the waterline.
-float shoreWetReach(float d,float reach){if(uShore3>.5)return shoreSmooth(d,surfWetWidth3(reach,max(fwidth(d),.001))*(1.0+.18*shoreNoise(gl_FragCoord.xy/37.0)+.12*shoreNoise(gl_FragCoord.xy/113.0)));return uShore2>.5?shoreSmooth(d,shoreBandWidth(clamp(reach*.18,.6,1.5),max(fwidth(d),.001)*2.0)):clamp((reach-d)/${WET_MEMORY.edge.toFixed(1)},0.0,1.0);}
+float shoreWetReach(float d,float reach){
+  float wetPixel5=max(fwidth(d),.001);
+  if(uShoreWet5>0.0){
+    float wetWidth5=surfWetWidth3(reach,wetPixel5);
+    float oldWet5=shoreSmooth(d,wetWidth5*(1.0+.18*shoreNoise(gl_FragCoord.xy/37.0)+.12*shoreNoise(gl_FragCoord.xy/113.0)));
+    // A darker core survives reduction at the 27–70m viewpoints; retain wet memory.
+    float wet5=1.0-smoothstep(wetWidth5*.25,wetWidth5*1.25,max(0.0,d));
+    return mix(oldWet5,wet5,uShoreWet5);
+  }
+if(uShore3>.5)return shoreSmooth(d,surfWetWidth3(reach,max(fwidth(d),.001))*(1.0+.18*shoreNoise(gl_FragCoord.xy/37.0)+.12*shoreNoise(gl_FragCoord.xy/113.0)));return uShore2>.5?shoreSmooth(d,shoreBandWidth(clamp(reach*.18,.6,1.5),max(fwidth(d),.001)*2.0)):clamp((reach-d)/${WET_MEMORY.edge.toFixed(1)},0.0,1.0);}
 // Short, scattered river foam; the long-wave gaps are independent of the moving lace.
 float riverFoamCentre(vec2 p){return .35+.38*shoreNoise(p/5.7);}
 float riverFoamWidth(vec2 p){return .18+.36*shoreNoise(p/2.9+8.0);}
