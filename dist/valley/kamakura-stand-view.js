@@ -2,6 +2,8 @@
 import * as THREE from 'three';
 import { atmospherePolicy } from './kamakura-atmosphere.js';
 import { applyVegLook, vegLookEnabled } from './kamakura-veg-look.js';
+import { crownLookEnabled } from './kamakura-crown.js';
+import { applyCrownLook } from './kamakura-crown-look.js';
 import { TREES } from './config.js';
 import { TREE_NAMES, vegCircles } from './kamakura-veg.js';
 import { buildKamakuraVeg, vegHeight } from './kamakura-veg-view.js';
@@ -64,6 +66,7 @@ export function buildKamakuraStands(prepared, { wind, sunDir, quality = 'standar
         material.customProgramCacheKey = () => `kamakura-stand-${tier}`;
         // W2c-10b veg5: far forest uses the same foliage arithmetic, preserving Three's fog.
         if (lookEnabled) applyVegLook(material, { lightsChunk: THREE.ShaderChunk.lights_fragment_begin, species: -1, leaf: true, geometry, sunDir, strength: look, stand: true });
+        if (lookEnabled && crownLookEnabled(search)) applyCrownLook(material, { geometry, light: quality === 'light', distant: true });
       }
       const g = geometry.clone(); resources.add(g);
       if (lookEnabled) g.setAttribute('aKzSpecies', new THREE.InstancedBufferAttribute(Float32Array.from(items, i => i.species), 1));

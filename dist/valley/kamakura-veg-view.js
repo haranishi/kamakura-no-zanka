@@ -1,6 +1,8 @@
 // Kamakura-only allocation. The valley TreeField and shared templates remain unchanged.
 import * as THREE from 'three';
 import { applyVegLook, barkMeters, vegLookEnabled } from './kamakura-veg-look.js';
+import { crownAttributes, crownLookEnabled } from './kamakura-crown.js';
+import { applyCrownLook } from './kamakura-crown-look.js';
 import { TREES } from './config.js';
 import { treeGeometry } from './tree-geometry.js';
 import { treeMaterials } from './tree-materials.js';
@@ -65,6 +67,14 @@ export function buildKamakuraVeg(prepared, { wind, sunDir, quality = 'standard',
           if (lookEnabled) {
             if (mesh === set.wood) mesh.geometry.setAttribute('aKzBarkMeters', new THREE.BufferAttribute(barkMeters(mesh.geometry), 2));
             applyVegLook(mesh.material, { lightsChunk: THREE.ShaderChunk.lights_fragment_begin, species, leaf: mesh === set.leaf, geometry: mesh.geometry, sunDir, strength: look, impostor: !!set.impostor });
+            if (mesh === set.leaf && crownLookEnabled(search)) {
+              if (!set.impostor) {
+                const attributes = crownAttributes(mesh.geometry);
+                mesh.geometry.setAttribute('aKzCard', new THREE.BufferAttribute(attributes.card, 3));
+                mesh.geometry.setAttribute('aKzCrownNormal', new THREE.BufferAttribute(attributes.normals, 3));
+              }
+              applyCrownLook(mesh.material, { geometry: mesh.geometry, light: quality === 'light', impostor: !!set.impostor });
+            }
           }
           group.add(mesh);
         }
