@@ -337,3 +337,21 @@ export function houseRoofSpans(positions,indices) {
   for(const g of groups.values())for(const id of g.ids){out[id*2]=g.min;out[id*2+1]=g.max;}
   return out;
 }
+
+// W2c-11 facility6: light-independent opening emission -> diffuse-bounded fill.
+export const houseOpeningFillScale = (fillY, diffuseY) => Math.min(1, .35*Math.max(diffuseY,0)/Math.max(fillY,.000001));
+// A material floor, bounded by the wall, never an absolute radiance floor in darkness.
+export const houseOpeningAlbedo = (wall, ratio) => wall.map((v,i)=>Math.min(v*.62,Math.max(.012,v*ratio*[1,.98,.94][i])));
+export const houseHorizontalBoards = (seed, enabled=true) => seed > (enabled?.88:.65);
+const facilitySmooth = (a,b,x) => { const t=Math.max(0,Math.min(1,(x-a)/(b-a))); return t*t*(3-2*t); };
+export function houseRoofRim(edge, viewSun, facing, visibility, distance, elevation) {
+ return .05*edge*facilitySmooth(.80,.98,viewSun)*facilitySmooth(0,.12,facing)*facilitySmooth(.95,1,visibility)
+  *(1-facilitySmooth(35,60,distance))*(1-.65*facilitySmooth(.12,.65,elevation));
+}
+export const HOUSE_FACILITY6_GLSL = `
+float houseOpeningFillScale(float fillY,float diffuseY){return min(1.0,.35*max(diffuseY,0.0)/max(fillY,.000001));}
+vec3 houseOpeningAlbedo(vec3 wall,float ratio){return min(wall*.62,max(vec3(.012),wall*ratio*vec3(1.0,.98,.94)));}
+float houseRoofRim(float edge,float viewSun,float facing,float visibility,float metres,float elevation){
+ return .05*edge*smoothstep(.80,.98,viewSun)*smoothstep(0.0,.12,facing)*smoothstep(.95,1.0,visibility)
+  *(1.0-smoothstep(35.0,60.0,metres))*(1.0-.65*smoothstep(.12,.65,elevation));
+}`;
