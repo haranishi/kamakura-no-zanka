@@ -1,5 +1,6 @@
 import { groundAxes, yardTexel, YARD_GLSL } from './kamakura-ground-yard.js';
 import { toneStrength, groundUseBoxes, toneTexel, toneWeightGrid } from './kamakura-ground-tone-rules.js';
+import { groundPhotoUniforms, GROUND_PHOTO_DECL, GROUND_PHOTO_GLSL, GROUND_PHOTO_NORMAL } from './kamakura-ground-photo.js';
 import { SOIL_GRAIN_GLSL, SCATTER_GLSL } from './kamakura-ground-pattern.js';
 
 export function installGroundTone(THREE,material,data,owner,{quality='standard',search=''}={}) {
@@ -19,15 +20,18 @@ export function installGroundTone(THREE,material,data,owner,{quality='standard',
   const yardBytes=new Uint8Array(count*4),axes=groundAxes(data,boxes);
   const yardTexture=new THREE.DataTexture(yardBytes,grid.width,grid.height,THREE.RGBAFormat);
   yardTexture.internalFormat='RGBA8';
-  const textures=[baseTexture,weightTexture,yardTexture];
+  const classA=new Uint8Array(count*4),classB=new Uint8Array(count*4);
+  const classTextures=[classA,classB].map(bytes=>{const t=new THREE.DataTexture(bytes,grid.width,grid.height,THREE.RGBAFormat);t.internalFormat='RGBA8';return t;});
+  const textures=[baseTexture,weightTexture,yardTexture,...classTextures];
   for(const t of textures){t.minFilter=THREE.LinearMipmapLinearFilter;t.magFilter=THREE.LinearFilter;t.generateMipmaps=true;t.unpackAlignment=1;}
   // The base is sampled from the first frame; only the weights wait for the bake.
   baseTexture.needsUpdate=true;
   const uniforms={uToneGrid:{value:new THREE.Vector3(w,h,data.meta.grid.cell_m)},uToneWeightSpan:{value:new THREE.Vector2(grid.width*grid.dx,grid.height*grid.dz)},uToneBase:{value:baseTexture},uToneWeights:{value:weightTexture},uToneYard:{value:yardTexture},uToneYardDebug:{value:new URLSearchParams(search).get('gyard')==='2'?1:0},uToneR3:{value:r3Enabled?toneStrength(quality):0},uToneReady:{value:0},uToneBlend:{value:0},uToneBaked:{value:material.vertexColors?1:0},uToneStrength:{value:toneStrength(quality)},uToneSoil:{value:new URLSearchParams(search).get('gsoil')==='0'?0:1}};
+  Object.assign(uniforms,groundPhotoUniforms(classTextures,quality,search,owner.uniforms));
   Object.assign(owner.uniforms,uniforms);
   let cursor=0,timer,fadeTimer,disposed=false,resolveReady,resolveFaded;
   const ready=new Promise(resolve=>{resolveReady=resolve;}),faded=new Promise(resolve=>{resolveFaded=resolve;});
-  const stats={bytes:weights.byteLength,slices:0,maxSliceMs:0,yardBytes:yardBytes.byteLength};
+  const stats={bytes:weights.byteLength,slices:0,maxSliceMs:0,yardBytes:yardBytes.byteLength,classBytes:classA.byteLength+classB.byteLength};
   // Until the weights exist the shader runs on neutral land weights (relief and grain only); they then fade in, so the
   // ground is never flat while loading and nothing pops when the bake ends.
   function fade(from){
@@ -38,28 +42,38 @@ export function installGroundTone(THREE,material,data,owner,{quality='standard',
   function prepare(){
     if(disposed)return;
     const start=performance.now(),end=Math.min(cursor+4096,count);
-    for(;cursor<end;cursor++){toneTexel(data,boxes,cursor,weights,grid);
+    for(;cursor<end;cursor++){toneTexel(data,boxes,cursor,weights,grid,classA,classB);
       const x=(cursor%grid.width-(grid.width-1)/2)*grid.dx,z=(Math.floor(cursor/grid.width)-(grid.height-1)/2)*grid.dz;
       yardTexel(boxes,axes,x,z,yardBytes,cursor*4);if((cursor&63)===63&&performance.now()-start>=1.5){cursor++;break;}}
     stats.slices++;stats.maxSliceMs=Math.max(stats.maxSliceMs,performance.now()-start);
     if(cursor<count)timer=setTimeout(prepare,0);
     else {
-      yardTexture.needsUpdate=true;weightTexture.needsUpdate=true;uniforms.uToneReady.value=1;stats.readyMs=performance.now();resolveReady();fade(performance.now());
+      classTextures.forEach(t=>{t.needsUpdate=true;});yardTexture.needsUpdate=true;weightTexture.needsUpdate=true;uniforms.uToneReady.value=1;stats.readyMs=performance.now();resolveReady();fade(performance.now());
       try{performance.mark('kz-tone-ready');}catch{/* marks are optional */}
     }
   }
   prepare();
-  const prior=material.onBeforeCompile,priorKey=material.customProgramCacheKey,cacheKey=priorKey.call(material)+'|tone-r3-yard-fix';
+  const prior=material.onBeforeCompile,priorKey=material.customProgramCacheKey,cacheKey=priorKey.call(material)+'|tone-r4-photo';
   material.onBeforeCompile=shader=>{
     prior(shader);Object.assign(shader.uniforms,uniforms);
+    shader.vertexShader=shader.vertexShader.replace('#include <common>','#include <common>\nvarying vec3 vGroundPhotoView;')
+      .replace('#include <begin_vertex>','#include <begin_vertex>\nvGroundPhotoView=-(modelViewMatrix*vec4(position,1.0)).xyz;');
     // W2c-9r1 ground round 3: declare after detail's helpers, then multiply
     // their output onto the continuous base. Never re-enable nearest class IDs.
     // The tone runs from the first frame (neutral weights until the bake ends), so the legacy detail never has to stand in.
-    shader.fragmentShader=shader.fragmentShader.replace('void main() {',`${TONE_GLSL}\nvoid main() {`)
+    shader.fragmentShader=shader.fragmentShader.replace('void main() {',`${owner.uniforms.uShoreSea?'#define GROUND_PHOTO_SHORE\n':''}${GROUND_PHOTO_DECL}\n${TONE_GLSL}\n${GROUND_PHOTO_GLSL}\nvoid main() {`)
       .replace('if(uGroundStrength>0.0){','if(uGroundStrength>0.0 && uToneStrength<=0.0){')
       .replace('#include <color_fragment>',`#include <color_fragment>
+        groundPhotoPrepare(vGroundWorld,distance(vGroundWorld,cameraPosition));
         if(uToneStrength>0.0)diffuseColor.rgb=groundTone(diffuseColor.rgb,vGroundWorld,vGroundSlope,distance(vGroundWorld,cameraPosition));`)
+      .replace('#include <normal_fragment_maps>',`#include <normal_fragment_maps>\n${GROUND_PHOTO_NORMAL}`)
+      .replace('wind*.055+grain*.12','wind*.055*(1.0-groundPhotoAmount)+grain*.12')
       .replace('#include <opaque_fragment>',`
+        // W2c-10 ground: Lambert has no roughness channel; a restrained sky sheen stands in for damp soil.
+        #ifdef GROUND_PHOTO_SHORE
+        outgoingLight+=uGroundPhotoSky*groundPhotoWet*groundPhotoAmount*groundPhotoEarth*.035
+          *pow(1.0-abs(normalize(cameraPosition-vGroundWorld).y),4.0);
+        #endif
         // W2c-9r3 ground: grain at PCF edges -> suppress its amplitude using the
         // already-lit direct irradiance gradient; no second shadow-map lookup.
         if(uToneR3>0.0){
@@ -68,6 +82,8 @@ export function installGroundTone(THREE,material,data,owner,{quality='standard',
         outgoingLight*=mix(1.0,1.0/toneFineMultiplier,toneShadowEdge*uToneR3);
         }
         #include <opaque_fragment>`);
+    // Keep absent shore uniforms out of the source too (Node's declaration check expands all branches).
+    if(!owner.uniforms.uShoreSea)shader.fragmentShader=shader.fragmentShader.replace(/#ifdef GROUND_PHOTO_SHORE[\s\S]*?#endif/g,'');
     // Diagnostic colours bypass lighting, fog and output transforms. No new shader variant.
     shader.fragmentShader=shader.fragmentShader.replace('#include <dithering_fragment>',`#include <dithering_fragment>
       if(uToneYardDebug>0.5 && uToneR3>0.0 && uToneStrength>0.0)gl_FragColor.rgb=toneYardDebug;
@@ -161,9 +177,16 @@ vec3 groundTone(vec3 fallback,vec3 world,float normalY,float dist){
   // Larger margin stones reuse the irregular kernel; no regular centred disks.
   if(r3>0.0 && margin>.001 && uToneSoil>0.0 && dist<312.0 && px<.288)
     pebble+=groundScatter(p+vec2(-11.3,49.7),.48)*groundScatterFade(p,dist,px,.48)*margin*.22*r3;
+  // W2c-10 ground: round procedural yard/gravel spots -> photographic gravel (6% residual).
+  float photoStones=mix(1.0,.06,groundPhotoAmount*clamp(use+groundPhotoGravel,0.0,1.0));
+  grain*=photoStones;pebble*=photoStones;
   toneFineMultiplier=1.0+uToneSoil*weights.a*uToneStrength*clamp((grain*.8+pebble*.22*use)*(1.0-track*.35*r3),-.35,.35);
   result*=toneFineMultiplier+uToneSoil*weights.a*uToneStrength*(macro-.5)*.05*weights.g;
 
-  return clamp(result,0.0,1.0);
+  // W2c-10 ground: retain the source palette and all earlier relief; detail is an achromatic mean-1 ratio.
+  result=clamp(result,0.0,1.0);
+  result*=mix(1.0,groundPhotoRatio,groundPhotoAmount);
+  result*=1.0-.24*groundPhotoWet*groundPhotoAmount*groundPhotoEarth;
+  return result;
 }
 `;
