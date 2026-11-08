@@ -44,11 +44,14 @@ export const PHOTO_GLSL = `
 float kzPhotoHash(vec2 p){ p=fract(p*vec2(.1031,.1030)); p+=dot(p,p.yx+33.33); return fract((p.x+p.y)*p.x); }
 vec3 kzPhotoUnpack(vec3 s){ return vec3(s.rg*2.-1.,3.*s.b*s.b); }
 vec3 kzPhoto(sampler2D photoMap,vec2 uv){ return kzPhotoUnpack(texture2D(photoMap,uv).rgb); }
+// Explicit-gradient variants never take a screen derivative inside, so they are safe inside branches (skip a material whose
+// weight is 0). Compute vec2 g1=dFdx(uv),g2=dFdy(uv) once at the top level and pass them in.
+vec3 kzPhotoGrad(sampler2D photoMap,vec2 uv,vec2 g1,vec2 g2){ return kzPhotoUnpack(textureGrad(photoMap,uv,g1,g2).rgb); }
 // Anti-tiling: a simplex (triangle) lattice gives every fragment three neighbouring vertices; each vertex picks its own random
 // offset (and, for isotropic materials, rotation) into the tile, and the three lookups are blended with the simplex kernel.
 // Written from the idea of hex-tiling; weights are L2-normalised so the blended patches keep their contrast.
 // cells = lattice cells per tile (about 1.2 gives patches a little smaller than one tile); rotate>.5 for isotropic materials.
-vec3 kzPhotoHex(sampler2D photoMap,vec2 uv,float cells,float rotate){
+vec3 kzPhotoHexGrad(sampler2D photoMap,vec2 uv,float cells,float rotate,vec2 g1,vec2 g2){
   vec2 p=uv*cells;
   float skew=(p.x+p.y)*.3660254;
   vec2 cell=floor(p+skew);
@@ -58,7 +61,6 @@ vec3 kzPhotoHex(sampler2D photoMap,vec2 uv,float cells,float rotate){
   vec3 w=vec3(max(.5-dot(d0,d0),0.),max(.5-dot(d1,d1),0.),max(.5-dot(d2,d2),0.));
   w*=w; w*=w;
   w/=max(length(w),1e-6);
-  vec2 g1=dFdx(uv),g2=dFdy(uv);
   vec2 id0=cell,id1=cell+step1,id2=cell+vec2(1.);
   vec2 o0=vec2(kzPhotoHash(id0),kzPhotoHash(id0+17.3)),o1=vec2(kzPhotoHash(id1),kzPhotoHash(id1+17.3)),o2=vec2(kzPhotoHash(id2),kzPhotoHash(id2+17.3));
   float a0=rotate>.5?o0.x*6.2831853:0.,a1=rotate>.5?o1.x*6.2831853:0.,a2=rotate>.5?o2.x*6.2831853:0.;
@@ -70,6 +72,7 @@ vec3 kzPhotoHex(sampler2D photoMap,vec2 uv,float cells,float rotate){
   s0.xy=vec2(dot(r0[0],s0.xy),dot(r0[1],s0.xy)); s1.xy=vec2(dot(r1[0],s1.xy),dot(r1[1],s1.xy)); s2.xy=vec2(dot(r2[0],s2.xy),dot(r2[1],s2.xy));
   return vec3(s0.xy*w.x+s1.xy*w.y+s2.xy*w.z,max(1.+(s0.z-1.)*w.x+(s1.z-1.)*w.y+(s2.z-1.)*w.z,.05));
 }
+vec3 kzPhotoHex(sampler2D photoMap,vec2 uv,float cells,float rotate){ return kzPhotoHexGrad(photoMap,uv,cells,rotate,dFdx(uv),dFdy(uv)); }
 // Tangent frame from screen-space derivatives (no tangents needed). N and P must share a space (view space inside Three).
 vec3 kzPerturbNormal(vec3 N,vec3 P,vec2 uv,vec2 nxy,float strength){
   vec3 dp1=dFdx(P),dp2=dFdy(P); vec2 duv1=dFdx(uv),duv2=dFdy(uv);
