@@ -15,6 +15,12 @@
 地面・林床・枝葉・岩・板・茅などの画像と元の質感は [Poly Haven](https://polyhaven.com/license)（CC0 1.0）。表示は要りませんが、作者に感謝します。
 dirt_floor は eye-candy.xyz、forest_leaves_02 は Rob Tuytel、fir_tree_01 は Rob Tuytel と Rico Cilliers。ファイルごとの取得元・容量・SHA256 は `provenance/terrain-v18.json` と `provenance/house_v08_*.json`。
 
+### 鎌倉の細部の質感（W2c-10）
+
+`dist/assets/kamakura/photo/` の15枚は、Poly Haven（CC0 1.0）の写真の質感から、法線と「明るさの比」だけを取り出して詰め直した派生物です。元の色は含みません。`tools/build-kamakura-photo-textures.py` で同じものを作り直せます。ファイルごとの取得元・MD5・SHA256・作者は `provenance/kamakura-photo-textures.json` にあります。
+元の素材（Poly Haven の識別子と作者）：
+weathered_planks（Dario Barresi、Dimitrios Savva）、weathered_plank_siding（Dimitrios Savva）、clay_plaster（Amal Kumar）、worn_plaster_wall（Dimitrios Savva）、thatch_roof_angled（Dimitrios Savva、Rob Tuytel）、riet_01（Rob Tuytel）、clay_roof_tiles_02（Amal Kumar）、stone_wall（Charlotte Baglioni、Dario Barresi）、dry_ground_rocks（Rob Tuytel）、forest_ground_06（Charlotte Baglioni）、forrest_ground_03（Rob Tuytel）、grass_ground（Charlotte Baglioni）、coast_sand_01（Rob Tuytel）、damp_beach_sand（Dimitrios Savva）、ganges_river_pebbles（Amal Kumar）。
+
 ## モーションキャプチャ（CMU）
 
 走る・歩く動き（`CMU_Walk`・`CMU_Jog`・`CMU_Run`）は、Carnegie Mellon University の Graphics Lab Motion Capture Database を、Meshy の骨へ写し替えて人物モデルに焼いた物です。
