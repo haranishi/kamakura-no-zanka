@@ -1,0 +1,1207 @@
+{
+ "tool": "tools/build-kamakura-photo-textures.py",
+ "toolVersion": 1,
+ "license": "CC0-1.0",
+ "licenseUrl": "https://polyhaven.com/license",
+ "note": "Detail-only packing: normals and a mean-1 brightness ratio. No source albedo is shipped, so average colours are unchanged.",
+ "packing": {
+  "R": "normal x (OpenGL, 0.5 centred)",
+  "G": "normal y (OpenGL, 0.5 centred)",
+  "B": "sqrt(ratio / 3.0), ratio = luminance * AO^0.7 / mean",
+  "jpeg": {
+   "quality": 88,
+   "subsampling": "4:4:4"
+  }
+ },
+ "totalBytes": 4140981,
+ "materials": [
+  {
+   "key": "wallWoodA",
+   "polyhaven": "weathered_planks",
+   "title": "Weathered Planks",
+   "authors": [
+    "Dario Barresi",
+    "Dimitrios Savva"
+   ],
+   "page": "https://polyhaven.com/a/weathered_planks",
+   "license": "CC0-1.0",
+   "role": "vertical weathered boards",
+   "oriented": true,
+   "meters": 2.0,
+   "size": 1024,
+   "file": "wallWoodA.jpg",
+   "sources": [
+    {
+     "map": "diff",
+     "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/weathered_planks/weathered_planks_diff_1k.jpg",
+     "bytes": 599581,
+     "md5": "5d7c9e7088bfa54490ba03ba15b660d8",
+     "sha256": "01c9a372cfd7a7bf471b59c2458ed3ccecc93448aebf7ba0cc5b3b5b6ed24349",
+     "size": [
+      1024,
+      1024
+     ]
+    },
+    {
+     "map": "nor",
+     "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/weathered_planks/weathered_planks_nor_gl_1k.jpg",
+     "bytes": 681552,
+     "md5": "119541f6b143f21f0a6e9774e9208905",
+     "sha256": "381d298f3194ec4961b04b4912b9b6efea4b2ff7b914dac57e24c8b6b0be6a25",
+     "size": [
+      1024,
+      1024
+     ]
+    },
+    {
+     "map": "ao",
+     "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/weathered_planks/weathered_planks_ao_1k.jpg",
+     "bytes": 594177,
+     "md5": "2ac460c35891d9bade2baadd3251b4e9",
+     "sha256": "a4ff0df66640229e315f75637a135622504094cf4d6d57c6cca4dacf619b1a5b",
+     "size": [
+      1024,
+      1024
+     ]
+    },
+    {
+     "map": "rough",
+     "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/weathered_planks/weathered_planks_rough_1k.jpg",
+     "bytes": 218802,
+     "md5": "4ca50b076e1fc58f6862a5b039a7d5c9",
+     "sha256": "a017728183597417a350d1846a5a46db9702ee6d472a21c5da2f23015d606aa3",
+     "size": [
+      1024,
+      1024
+     ]
+    }
+   ],
+   "stats": {
+    "meanLinearRgb": [
+     0.0821,
+     0.0583,
+     0.0441
+    ],
+    "meanLuma": 0.0622,
+    "ratioP05": 0.651,
+    "ratioP50": 0.994,
+    "ratioP95": 1.388,
+    "roughness": 0.736,
+    "seam": 1.363
+   },
+   "output": {
+    "path": "dist/assets/kamakura/photo/wallWoodA.jpg",
+    "bytes": 268314,
+    "sha256": "acf327d6d92d52286ba1da3d56cdc1c9ad06697fbaf52999475d4c2b721bac5c"
+   }
+  },
+  {
+   "key": "wallWoodB",
+   "polyhaven": "weathered_plank_siding",
+   "title": "Weathered Plank Siding",
+   "authors": [
+    "Dimitrios Savva"
+   ],
+   "page": "https://polyhaven.com/a/weathered_plank_siding",
+   "license": "CC0-1.0",
+   "role": "lapped siding and plank roofs",
+   "oriented": true,
+   "meters": 1.57,
+   "size": 512,
+   "file": "wallWoodB.jpg",
+   "sources": [
+    {
+     "map": "diff",
+     "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/weathered_plank_siding/weathered_plank_siding_diff_1k.jpg",
+     "bytes": 567956,
+     "md5": "90f818fd61602ac7268ee89857e77396",
+     "sha256": "dad0442114f1efd9a25195f2e2ac480693c2a6199f3987f4cfac4002b2820fbd",
+     "size": [
+      1024,
+      1024
+     ]
+    },
+    {
+     "map": "nor",
+     "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/weathered_plank_siding/weathered_plank_siding_nor_gl_1k.jpg",
+     "bytes": 609905,
+     "md5": "e2db9c3a055a85707eb453ee09624cfb",
+     "sha256": "229440bb21992d7f97bbbe03f6488e21cc061119ab3774ad0c30e352c9690a74",
+     "size": [
+      1024,
+      1024
+     ]
+    },
+    {
+     "map": "ao",
+     "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/weathered_plank_siding/weathered_plank_siding_ao_1k.jpg",
+     "bytes": 378752,
+     "md5": "950922839c6bcb94e36c763ce01b11a7",
+     "sha256": "19d391bf1c8f961a7d13037b95128c5c98880c67c3d6ac590eba751e5eb39e78",
+     "size": [
+      1024,
+      1024
+     ]
+    },
+    {
+     "map": "rough",
+     "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/weathered_plank_siding/weathered_plank_siding_rough_1k.jpg",
+     "bytes": 381425,
+     "md5": "1473bc74c994faf339fc69009d90bb94",
+     "sha256": "1f4707c748102d1faf275d35dea798e2e51dcc0d425ddd2121643b08d2b3af3e",
+     "size": [
+      1024,
+      1024
+     ]
+    }
+   ],
+   "stats": {
+    "meanLinearRgb": [
+     0.0733,
+     0.048,
+     0.0327
+    ],
+    "meanLuma": 0.0522,
+    "ratioP05": 0.481,
+    "ratioP50": 1.013,
+    "ratioP95": 1.464,
+    "roughness": 0.896,
+    "seam": 0.794
+   },
+   "output": {
+    "path": "dist/assets/kamakura/photo/wallWoodB.jpg",
+    "bytes": 67226,
+    "sha256": "eeabcf5e87166a06af50152e23699c7fdc87fd59804a0ea1221fa7a512cf872f"
+   }
+  },
+  {
+   "key": "wallPlaster",
+   "polyhaven": "clay_plaster",
+   "title": "Clay Plaster",
+   "authors": [
+    "Amal Kumar"
+   ],
+   "page": "https://polyhaven.com/a/clay_plaster",
+   "license": "CC0-1.0",
+   "role": "earth plaster wall",
+   "oriented": false,
+   "meters": 2.0,
+   "size": 1024,
+   "file": "wallPlaster.jpg",
+   "sources": [
+    {
+     "map": "diff",
+     "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/clay_plaster/clay_plaster_diff_1k.jpg",
+     "bytes": 354209,
+     "md5": "aab6ac83dcf134a370279825de143c26",
+     "sha256": "82e43c68bddebb55a18577ae3cb0d01c02c23f086d342a854ff8a174d9f4fd73",
+     "size": [
+      1024,
+      1024
+     ]
+    },
+    {
+     "map": "nor",
+     "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/clay_plaster/clay_plaster_nor_gl_1k.jpg",
+     "bytes": 784921,
+     "md5": "82e9cc526a00b3b8fddf7e43c40bdb38",
+     "sha256": "359f814292005ab16be86807678a4a51e8256a87c282ebf5f5333ce18c428fba",
+     "size": [
+      1024,
+      1024
+     ]
+    },
+    {
+     "map": "ao",
+     "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/clay_plaster/clay_plaster_ao_1k.jpg",
+     "bytes": 347863,
+     "md5": "64bddcc6a371111e81e9e15df729ea77",
+     "sha256": "68abd3834d30e8bdaa4b12b67f463f79e39514b5a21b0347b63cd5a520352fb2",
+     "size": [
+      1024,
+      1024
+     ]
+    },
+    {
+     "map": "rough",
+     "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/clay_plaster/clay_plaster_rough_1k.jpg",
+     "bytes": 345709,
+     "md5": "d46fdc82c0538d0905281a761c63d9cf",
+     "sha256": "e91a6238456b54a82dbf2c025e0b046851c90e7e772fe2affd26a46b243ce7b7",
+     "size": [
+      1024,
+      1024
+     ]
+    }
+   ],
+   "stats": {
+    "meanLinearRgb": [
+     0.1696,
+     0.1021,
+     0.045
+    ],
+    "meanLuma": 0.1124,
+    "ratioP05": 0.921,
+    "ratioP50": 0.999,
+    "ratioP95": 1.08,
+    "roughness": 0.923,
+    "seam": 0.99
+   },
+   "output": {
+    "path": "dist/assets/kamakura/photo/wallPlaster.jpg",
+    "bytes": 263960,
+    "sha256": "acea3d78f0ba6abe0f689258b79e0d55aa4b1414847817317861cbc80f3d5c8c"
+   }
+  },
+  {
+   "key": "wallPlasterWorn",
+   "polyhaven": "worn_plaster_wall",
+   "title": "Worn Plaster Wall",
+   "authors": [
+    "Dimitrios Savva"
+   ],
+   "page": "https://polyhaven.com/a/worn_plaster_wall",
+   "license": "CC0-1.0",
+   "role": "patched whitewash",
+   "oriented": false,
+   "meters": 1.8,
+   "size": 512,
+   "file": "wallPlasterWorn.jpg",
+   "sources": [
+    {
+     "map": "diff",
+     "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/worn_plaster_wall/worn_plaster_wall_diff_1k.jpg",
+     "bytes": 750361,
+     "md5": "31aab3a5bf3859361cd423e15b9735bc",
+     "sha256": "f769bee35504ff713e89e89d2b64c1eb3c373dd184973ac8706310f19fd63efe",
+     "size": [
+      1024,
+      1024
+     ]
+    },
+    {
+     "map": "nor",
+     "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/worn_plaster_wall/worn_plaster_wall_nor_gl_1k.jpg",
+     "bytes": 680164,
+     "md5": "2e1cb2651163105acda653e9c9b9b7b8",
+     "sha256": "5d1dc80a354fc7de3f0ada286176b56d50067c85c9f95140aadf7d5db15adee1",
+     "size": [
+      1024,
+      1024
+     ]
+    },
+    {
+     "map": "ao",
+     "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/worn_plaster_wall/worn_plaster_wall_ao_1k.jpg",
+     "bytes": 424263,
+     "md5": "2e4d3bae9acd8069e1f510f1c1d541cc",
+     "sha256": "e47fd759383bb6c26be16a58402c73c799e6775619a90ed2d61c8f25b4a93ec7",
+     "size": [
+      1024,
+      1024
+     ]
+    },
+    {
+     "map": "rough",
+     "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/worn_plaster_wall/worn_plaster_wall_rough_1k.jpg",
+     "bytes": 242497,
+     "md5": "7584ca081047d7e025fd80adbdcec4df",
+     "sha256": "383584ed24edd4dd6e6a675fd822ec04152684ba15f4b0eda1f0dbe31979a7c6",
+     "size": [
+      1024,
+      1024
+     ]
+    }
+   ],
+   "stats": {
+    "meanLinearRgb": [
+     0.184,
+     0.1565,
+     0.1124
+    ],
+    "meanLuma": 0.1591,
+    "ratioP05": 0.419,
+    "ratioP50": 1.039,
+    "ratioP95": 1.497,
+    "roughness": 0.971,
+    "seam": 0.987
+   },
+   "output": {
+    "path": "dist/assets/kamakura/photo/wallPlasterWorn.jpg",
+    "bytes": 63271,
+    "sha256": "63627456356e5d1ebe5d5b0dff1b6fd01376a81dc74be070ce7c9d3519181dd5"
+   }
+  },
+  {
+   "key": "roofThatch",
+   "polyhaven": "thatch_roof_angled",
+   "title": "Thatch Roof Angled",
+   "authors": [
+    "Dimitrios Savva",
+    "Rob Tuytel"
+   ],
+   "page": "https://polyhaven.com/a/thatch_roof_angled",
+   "license": "CC0-1.0",
+   "role": "thatch, straw runs down the slope",
+   "oriented": true,
+   "meters": 0.54,
+   "size": 1024,
+   "file": "roofThatch.jpg",
+   "sources": [
+    {
+     "map": "diff",
+     "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/thatch_roof_angled/thatch_roof_angled_diff_1k.jpg",
+     "bytes": 860319,
+     "md5": "645a32cd470a4b14aa033793d0e7aa83",
+     "sha256": "ad84b9bf0a826c6e573f4bac09a0b96f33aec673a7e31cdd360667dc355f3599",
+     "size": [
+      1024,
+      1024
+     ]
+    },
+    {
+     "map": "nor",
+     "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/thatch_roof_angled/thatch_roof_angled_nor_gl_1k.jpg",
+     "bytes": 1278796,
+     "md5": "eaa0da45ad5ce3fdb664be4202943fdf",
+     "sha256": "073e2b374f2477605e23a1054e605de5268a012d2701865040d4551816b70d06",
+     "size": [
+      1024,
+      1024
+     ]
+    },
+    {
+     "map": "ao",
+     "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/thatch_roof_angled/thatch_roof_angled_ao_1k.jpg",
+     "bytes": 856859,
+     "md5": "0343b34607d6d91074a5f5b64a5a3a85",
+     "sha256": "55bdbc07f1c49cdee5455ef5851def4da3b160028c1c1187f2d17713de6d29e7",
+     "size": [
+      1024,
+      1024
+     ]
+    },
+    {
+     "map": "rough",
+     "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/thatch_roof_angled/thatch_roof_angled_rough_1k.jpg",
+     "bytes": 588100,
+     "md5": "6368f0014bf7411f38950d5dc23bd2e2",
+     "sha256": "81891e8df23ad0019c467095f5eb9631fef44e558a66ed2a472842349a7449ba",
+     "size": [
+      1024,
+      1024
+     ]
+    }
+   ],
+   "stats": {
+    "meanLinearRgb": [
+     0.0952,
+     0.0857,
+     0.0728
+    ],
+    "meanLuma": 0.0868,
+    "ratioP05": 0.268,
+    "ratioP50": 0.896,
+    "ratioP95": 2.07,
+    "roughness": 0.892,
+    "seam": 0.928
+   },
+   "output": {
+    "path": "dist/assets/kamakura/photo/roofThatch.jpg",
+    "bytes": 728586,
+    "sha256": "ab3847072c3b4ff0f99dc360e755d823f5e924ce863e0f54ced3239bf5a24a98"
+   }
+  },
+  {
+   "key": "roofThatchOld",
+   "polyhaven": "riet_01",
+   "title": "Riet 01",
+   "authors": [
+    "Rob Tuytel"
+   ],
+   "page": "https://polyhaven.com/a/riet_01",
+   "license": "CC0-1.0",
+   "role": "old grey reed thatch",
+   "oriented": true,
+   "meters": 2.5,
+   "size": 512,
+   "file": "roofThatchOld.jpg",
+   "sources": [
+    {
+     "map": "diff",
+     "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/riet_01/riet_01_diff_1k.jpg",
+     "bytes": 698549,
+     "md5": "dc18da0daf13038c553af89e1abb9cc7",
+     "sha256": "273ce3e44dce8060f80cc1615c7bb0769181dd4eec267b22963e2e1bdd89c7e1",
+     "size": [
+      1024,
+      1024
+     ]
+    },
+    {
+     "map": "nor",
+     "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/riet_01/riet_01_nor_gl_1k.jpg",
+     "bytes": 607046,
+     "md5": "0ac29715622ab649e6a4540d9d1de744",
+     "sha256": "f2c73d4647d8ee73601b11fe82441251b379442240c631580dcbb2b79d028070",
+     "size": [
+      1024,
+      1024
+     ]
+    },
+    {
+     "map": "ao",
+     "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/riet_01/riet_01_ao_1k.jpg",
+     "bytes": 150823,
+     "md5": "f4c4076ef1f363f9cef81fe4f6a72737",
+     "sha256": "dc4f78d0d6bd9bb3b7f642bdb43dc9fe29110471a8c5cfd3b95d1467065c731a",
+     "size": [
+      1024,
+      1024
+     ]
+    },
+    {
+     "map": "rough",
+     "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/riet_01/riet_01_rough_1k.jpg",
+     "bytes": 616185,
+     "md5": "55d5c87c800e8f501e9666f08b621642",
+     "sha256": "b5eeffe5a4c9de8c5bbc7a23c911ee639c86b98d08c3d2de178674a78e98ad94",
+     "size": [
+      1024,
+      1024
+     ]
+    }
+   ],
+   "stats": {
+    "meanLinearRgb": [
+     0.1325,
+     0.1181,
+     0.101
+    ],
+    "meanLuma": 0.1199,
+    "ratioP05": 0.163,
+    "ratioP50": 0.811,
+    "ratioP95": 2.489,
+    "roughness": 0.85,
+    "seam": 1.19
+   },
+   "output": {
+    "path": "dist/assets/kamakura/photo/roofThatchOld.jpg",
+    "bytes": 189755,
+    "sha256": "3cee48e97aeb8aa090b93760da1a0a56248ce215f3ed3a64cf6b7095f8e5d47b"
+   }
+  },
+  {
+   "key": "roofTile",
+   "polyhaven": "clay_roof_tiles_02",
+   "title": "Clay Roof Tiles 02",
+   "authors": [
+    "Amal Kumar"
+   ],
+   "page": "https://polyhaven.com/a/clay_roof_tiles_02",
+   "license": "CC0-1.0",
+   "role": "clay roof tiles",
+   "oriented": true,
+   "meters": 2.5,
+   "size": 512,
+   "file": "roofTile.jpg",
+   "sources": [
+    {
+     "map": "diff",
+     "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/clay_roof_tiles_02/clay_roof_tiles_02_diff_1k.jpg",
+     "bytes": 903929,
+     "md5": "43c45fa3ac4c68ffb28aa813cec32608",
+     "sha256": "227a062b38b170e02c27eaa513dae45dc8bc893a62cbd8d0c08e2c32b381fc25",
+     "size": [
+      1024,
+      1024
+     ]
+    },
+    {
+     "map": "nor",
+     "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/clay_roof_tiles_02/clay_roof_tiles_02_nor_gl_1k.jpg",
+     "bytes": 990101,
+     "md5": "9e24ddc6fbf048291f8e24bfb1f16e6d",
+     "sha256": "1548d3ebce335a4590d9e421556c4189a7b63852c793a568c71b9e533f8b62d5",
+     "size": [
+      1024,
+      1024
+     ]
+    },
+    {
+     "map": "ao",
+     "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/clay_roof_tiles_02/clay_roof_tiles_02_ao_1k.jpg",
+     "bytes": 577838,
+     "md5": "d3a385916cd071a2449445c8448f7184",
+     "sha256": "c4e1bf5a1b51bb49ec08a3afa68941a4d74c4792d38d85576f81ada86d5d8214",
+     "size": [
+      1024,
+      1024
+     ]
+    },
+    {
+     "map": "rough",
+     "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/clay_roof_tiles_02/clay_roof_tiles_02_rough_1k.jpg",
+     "bytes": 341520,
+     "md5": "f26a67aa20fbdcb7b70b85ccf4153245",
+     "sha256": "6d7596c4f3644ac50237381aeadf58f9b68a6dddeb66b6eef4f64462dcbbf82f",
+     "size": [
+      1024,
+      1024
+     ]
+    }
+   ],
+   "stats": {
+    "meanLinearRgb": [
+     0.3109,
+     0.0865,
+     0.0269
+    ],
+    "meanLuma": 0.1298,
+    "ratioP05": 0.194,
+    "ratioP50": 0.941,
+    "ratioP95": 1.971,
+    "roughness": 0.915,
+    "seam": 0.954
+   },
+   "output": {
+    "path": "dist/assets/kamakura/photo/roofTile.jpg",
+    "bytes": 143142,
+    "sha256": "78aef0deba1e3cf8146313f728f232d27bffa679f1a69e954cfdbcac2724c161"
+   }
+  },
+  {
+   "key": "stoneRubble",
+   "polyhaven": "stone_wall",
+   "title": "Stone Wall",
+   "authors": [
+    "Charlotte Baglioni",
+    "Dario Barresi"
+   ],
+   "page": "https://polyhaven.com/a/stone_wall",
+   "license": "CC0-1.0",
+   "role": "rubble masonry",
+   "oriented": false,
+   "meters": 2.0,
+   "size": 512,
+   "file": "stoneRubble.jpg",
+   "sources": [
+    {
+     "map": "diff",
+     "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/stone_wall/stone_wall_diff_1k.jpg",
+     "bytes": 836975,
+     "md5": "451e4c5e2309af341fcdc1f1d637b1d6",
+     "sha256": "390969aead48d9a10ac731a5e0af8761cc4ed89faa02ba775b913930b4398d87",
+     "size": [
+      1024,
+      1024
+     ]
+    },
+    {
+     "map": "nor",
+     "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/stone_wall/stone_wall_nor_gl_1k.jpg",
+     "bytes": 1172420,
+     "md5": "5c686c6c907ae2a1bb5c438ad96da055",
+     "sha256": "801d7ff8bc472e5ad95872546c19a4c63cc776060b4ced629fece2d08591964e",
+     "size": [
+      1024,
+      1024
+     ]
+    },
+    {
+     "map": "ao",
+     "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/stone_wall/stone_wall_ao_1k.jpg",
+     "bytes": 594347,
+     "md5": "e149063a67a8d60c790542297100d6ad",
+     "sha256": "92b98832bd941106810faab6cf7bce575e1f2c5026eca2cb685f6b0502451654",
+     "size": [
+      1024,
+      1024
+     ]
+    },
+    {
+     "map": "rough",
+     "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/stone_wall/stone_wall_rough_1k.jpg",
+     "bytes": 301003,
+     "md5": "ddc708ee3b0730ec9c5e79c52990aff1",
+     "sha256": "8c06e7c67d0d9701966732cc90c4e356b5bd5656aa35bf82650576e78322cbdd",
+     "size": [
+      1024,
+      1024
+     ]
+    }
+   ],
+   "stats": {
+    "meanLinearRgb": [
+     0.3733,
+     0.2967,
+     0.2041
+    ],
+    "meanLuma": 0.3062,
+    "ratioP05": 0.342,
+    "ratioP50": 1.039,
+    "ratioP95": 1.593,
+    "roughness": 0.826,
+    "seam": 0.946
+   },
+   "output": {
+    "path": "dist/assets/kamakura/photo/stoneRubble.jpg",
+    "bytes": 181748,
+    "sha256": "54833316b8284672eb697f5f806ea6ef82bb20fffc88506e5723c548cc220742"
+   }
+  },
+  {
+   "key": "groundSoil",
+   "polyhaven": "dry_ground_rocks",
+   "title": "Dry Ground Rocks",
+   "authors": [
+    "Rob Tuytel"
+   ],
+   "page": "https://polyhaven.com/a/dry_ground_rocks",
+   "license": "CC0-1.0",
+   "role": "dry tan soil with pebbles",
+   "oriented": false,
+   "meters": 4.0,
+   "size": 1024,
+   "file": "groundSoil.jpg",
+   "sources": [
+    {
+     "map": "diff",
+     "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/dry_ground_rocks/dry_ground_rocks_diff_1k.jpg",
+     "bytes": 826834,
+     "md5": "7cc10e3eb12ce7bb8235d3e3c3041ded",
+     "sha256": "491ac5be54859171730c620ad768a615f600b81ce00d83bbeab8a7aed7b199d8",
+     "size": [
+      1024,
+      1024
+     ]
+    },
+    {
+     "map": "nor",
+     "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/dry_ground_rocks/dry_ground_rocks_nor_gl_1k.jpg",
+     "bytes": 1263934,
+     "md5": "7f2d336686d4b5e380ba76c5e3ddd4bb",
+     "sha256": "0bba49a710d0d1f7497ac7c72db2f0ed622ed07397539ce2d5ba756bf5fb3051",
+     "size": [
+      1024,
+      1024
+     ]
+    },
+    {
+     "map": "ao",
+     "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/dry_ground_rocks/dry_ground_rocks_ao_1k.jpg",
+     "bytes": 610553,
+     "md5": "efc4f14532d2d991e7c587d8b5aa3122",
+     "sha256": "e425feccc700d33aec02daacb898b427ab5284b24ad695894a0981e251978831",
+     "size": [
+      1024,
+      1024
+     ]
+    },
+    {
+     "map": "rough",
+     "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/dry_ground_rocks/dry_ground_rocks_rough_1k.jpg",
+     "bytes": 454494,
+     "md5": "0f5d1be1483fc6ccd5971a724b178129",
+     "sha256": "7138e6101ccc994eab22d9b02289e72668d2b2c0863e22141cb42b1043e9f122",
+     "size": [
+      1024,
+      1024
+     ]
+    }
+   ],
+   "stats": {
+    "meanLinearRgb": [
+     0.3129,
+     0.1832,
+     0.0844
+    ],
+    "meanLuma": 0.2034,
+    "ratioP05": 0.27,
+    "ratioP50": 0.952,
+    "ratioP95": 1.844,
+    "roughness": 0.812,
+    "seam": 1.304
+   },
+   "output": {
+    "path": "dist/assets/kamakura/photo/groundSoil.jpg",
+    "bytes": 831506,
+    "sha256": "61b599d27d7eab4ad9f090d99e67861f813c1a832fb528cc8012e3458baeec77"
+   }
+  },
+  {
+   "key": "groundDark",
+   "polyhaven": "forest_ground_06",
+   "title": "Forest Ground 06",
+   "authors": [
+    "Charlotte Baglioni"
+   ],
+   "page": "https://polyhaven.com/a/forest_ground_06",
+   "license": "CC0-1.0",
+   "role": "dark forest soil with scattered leaves",
+   "oriented": false,
+   "meters": 2.11,
+   "size": 512,
+   "file": "groundDark.jpg",
+   "sources": [
+    {
+     "map": "diff",
+     "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/forest_ground_06/forest_ground_06_diff_1k.jpg",
+     "bytes": 851532,
+     "md5": "a91ecaf924f680905dd8be50b32bf3cb",
+     "sha256": "2bcfe6e3de263e50c236b1e7db09b674a4385e79f8906c94dce4c9d10afa7e18",
+     "size": [
+      1024,
+      1024
+     ]
+    },
+    {
+     "map": "nor",
+     "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/forest_ground_06/forest_ground_06_nor_gl_1k.jpg",
+     "bytes": 1392106,
+     "md5": "67ce2b9c31cee76eda36947c0cf9b5b5",
+     "sha256": "73d28252b149b46c9274b3da84d2ffb6b7749ad9e2cf1c73906811dd90643822",
+     "size": [
+      1024,
+      1024
+     ]
+    },
+    {
+     "map": "ao",
+     "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/forest_ground_06/forest_ground_06_ao_1k.jpg",
+     "bytes": 1049375,
+     "md5": "b9d40b4f51d8c28711d9ac0181b4685b",
+     "sha256": "8c0b015c87950ec3f5020319172fccd95195831c1ebe603a98685bbd9711780a",
+     "size": [
+      1024,
+      1024
+     ]
+    },
+    {
+     "map": "rough",
+     "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/forest_ground_06/forest_ground_06_rough_1k.jpg",
+     "bytes": 745145,
+     "md5": "8122a312bc6ecb99d5ddaab8a54bc458",
+     "sha256": "7eae1a43d6aaf62d5cfa421588348da44deffcbe7bdfe61ed758aef7a57a036e",
+     "size": [
+      1024,
+      1024
+     ]
+    }
+   ],
+   "stats": {
+    "meanLinearRgb": [
+     0.1037,
+     0.0591,
+     0.0289
+    ],
+    "meanLuma": 0.0663,
+    "ratioP05": 0.56,
+    "ratioP50": 0.953,
+    "ratioP95": 1.625,
+    "roughness": 0.934,
+    "seam": 0.94
+   },
+   "output": {
+    "path": "dist/assets/kamakura/photo/groundDark.jpg",
+    "bytes": 190727,
+    "sha256": "c3eaee12c0df44f5533273704bacb9ac0be14902aa5183c01ccebf353574aee2"
+   }
+  },
+  {
+   "key": "groundNeedles",
+   "polyhaven": "forrest_ground_03",
+   "title": "Forest Ground 03",
+   "authors": [
+    "Rob Tuytel"
+   ],
+   "page": "https://polyhaven.com/a/forrest_ground_03",
+   "license": "CC0-1.0",
+   "role": "needle litter",
+   "oriented": false,
+   "meters": 2.0,
+   "size": 512,
+   "file": "groundNeedles.jpg",
+   "sources": [
+    {
+     "map": "diff",
+     "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/forrest_ground_03/forrest_ground_03_diff_1k.jpg",
+     "bytes": 821191,
+     "md5": "0a63f012ae0e3663451b5a0e5049975a",
+     "sha256": "69c3ae8a40c70eecbb312c2ca1044b5dea4f48d37f2a6f84ca7ed56b95f04a7b",
+     "size": [
+      1024,
+      1024
+     ]
+    },
+    {
+     "map": "nor",
+     "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/forrest_ground_03/forrest_ground_03_nor_gl_1k.jpg",
+     "bytes": 1587102,
+     "md5": "9f44096b43a0f796ae6f52d7fe784698",
+     "sha256": "2f2a18622ff1fde203ad7b17f12da5e46608b77b27307f6a91cc5a016cc72e41",
+     "size": [
+      1024,
+      1024
+     ]
+    },
+    {
+     "map": "ao",
+     "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/forrest_ground_03/forrest_ground_03_ao_1k.jpg",
+     "bytes": 668218,
+     "md5": "6c5e3e28587eea729fc6d92c5812746d",
+     "sha256": "2a97f472f48b2e823e14b6156dfb454e48b9ea5923f8ec96fedba79c135a283f",
+     "size": [
+      1024,
+      1024
+     ]
+    },
+    {
+     "map": "rough",
+     "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/forrest_ground_03/forrest_ground_03_rough_1k.jpg",
+     "bytes": 418230,
+     "md5": "99b60c4ba1dc799e8eddf6e2f1460c09",
+     "sha256": "faa2fc4305cb839a2240ffa84de513dc16671879915a13c88fb319d5e168e926",
+     "size": [
+      1024,
+      1024
+     ]
+    }
+   ],
+   "stats": {
+    "meanLinearRgb": [
+     0.3492,
+     0.2276,
+     0.1412
+    ],
+    "meanLuma": 0.247,
+    "ratioP05": 0.309,
+    "ratioP50": 0.936,
+    "ratioP95": 1.897,
+    "roughness": 0.885,
+    "seam": 1.033
+   },
+   "output": {
+    "path": "dist/assets/kamakura/photo/groundNeedles.jpg",
+    "bytes": 237632,
+    "sha256": "43b3646aa1900cf18f8d46f8864c2a1d787b1a6173906fb4d7086be78c0e778f"
+   }
+  },
+  {
+   "key": "groundTurf",
+   "polyhaven": "grass_ground",
+   "title": "Grass Ground",
+   "authors": [
+    "Charlotte Baglioni"
+   ],
+   "page": "https://polyhaven.com/a/grass_ground",
+   "license": "CC0-1.0",
+   "role": "dry turf and roots",
+   "oriented": false,
+   "meters": 2.51,
+   "size": 512,
+   "file": "groundTurf.jpg",
+   "sources": [
+    {
+     "map": "diff",
+     "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/grass_ground/grass_ground_diff_1k.jpg",
+     "bytes": 876584,
+     "md5": "299047258586c762735b7284d3c662c3",
+     "sha256": "a79cc5ed65af0f80261b39a383b64a8c5272c5144d724deb43dbc29f0e4cd19b",
+     "size": [
+      1024,
+      1024
+     ]
+    },
+    {
+     "map": "nor",
+     "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/grass_ground/grass_ground_nor_gl_1k.jpg",
+     "bytes": 1310516,
+     "md5": "d518c5b2af6f2c0297bc807b351f511f",
+     "sha256": "7000e2ccd479bb7b66dcdf4faef7b47554324566886314ca620cbf03e274e826",
+     "size": [
+      1024,
+      1024
+     ]
+    },
+    {
+     "map": "ao",
+     "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/grass_ground/grass_ground_ao_1k.jpg",
+     "bytes": 968681,
+     "md5": "de85b335b1dafb6a9296b93563607f4d",
+     "sha256": "5f6c3623404f9c3f0ef4d27fb96cc3bf107554352e1193e8480ab3e2c9fb187d",
+     "size": [
+      1024,
+      1024
+     ]
+    },
+    {
+     "map": "rough",
+     "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/grass_ground/grass_ground_rough_1k.jpg",
+     "bytes": 328190,
+     "md5": "2e6afca246cf6b80bdb53f46fe7e5ce5",
+     "sha256": "111341f948b7e073edf7ac6add8777e1bf10df8959400df3863243e89bbc8c08",
+     "size": [
+      1024,
+      1024
+     ]
+    }
+   ],
+   "stats": {
+    "meanLinearRgb": [
+     0.1582,
+     0.119,
+     0.0492
+    ],
+    "meanLuma": 0.1223,
+    "ratioP05": 0.656,
+    "ratioP50": 0.976,
+    "ratioP95": 1.423,
+    "roughness": 0.937,
+    "seam": 0.968
+   },
+   "output": {
+    "path": "dist/assets/kamakura/photo/groundTurf.jpg",
+    "bytes": 140248,
+    "sha256": "c41d962b4fef3dea8e087fae7aef58333e22fbef632a90ee49173c1997ffc866"
+   }
+  },
+  {
+   "key": "groundSand",
+   "polyhaven": "coast_sand_01",
+   "title": "Coast Sand 01",
+   "authors": [
+    "Rob Tuytel"
+   ],
+   "page": "https://polyhaven.com/a/coast_sand_01",
+   "license": "CC0-1.0",
+   "role": "dry coastal sand with grit (15 m per tile, so 1K)",
+   "oriented": false,
+   "meters": 15.0,
+   "size": 1024,
+   "file": "groundSand.jpg",
+   "sources": [
+    {
+     "map": "diff",
+     "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/coast_sand_01/coast_sand_01_diff_1k.jpg",
+     "bytes": 960614,
+     "md5": "a1e243fc8635806381505c7dc44b192a",
+     "sha256": "58af2e40100f7f405703a86d593af64379f822c4786850def23ecfc921450d54",
+     "size": [
+      1024,
+      1024
+     ]
+    },
+    {
+     "map": "nor",
+     "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/coast_sand_01/coast_sand_01_nor_gl_1k.jpg",
+     "bytes": 1146826,
+     "md5": "38bbe6863249a3d20d8417c9db207780",
+     "sha256": "fe4d045aec99e71e80f682fcf0ad958d2dff1fe614b73178b304d1bac047b54a",
+     "size": [
+      1024,
+      1024
+     ]
+    },
+    {
+     "map": "ao",
+     "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/coast_sand_01/coast_sand_01_ao_1k.jpg",
+     "bytes": 701579,
+     "md5": "2c8b0a9e304e316e2b2b31c0d88bff41",
+     "sha256": "8876cf6f88179996efaaf3bda9a072b8c571530ee5797e850c7a730448c588c6",
+     "size": [
+      1024,
+      1024
+     ]
+    },
+    {
+     "map": "rough",
+     "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/coast_sand_01/coast_sand_01_rough_1k.jpg",
+     "bytes": 383892,
+     "md5": "978aca9e374cf988095392a91d3a4f71",
+     "sha256": "cbc3e0bf2214e04318a643c9dc81f50f33cc5f7b935a20016c5d9efd9a6d1696",
+     "size": [
+      1024,
+      1024
+     ]
+    }
+   ],
+   "stats": {
+    "meanLinearRgb": [
+     0.2276,
+     0.174,
+     0.1098
+    ],
+    "meanLuma": 0.1806,
+    "ratioP05": 0.536,
+    "ratioP50": 0.998,
+    "ratioP95": 1.468,
+    "roughness": 0.963,
+    "seam": 1.107
+   },
+   "output": {
+    "path": "dist/assets/kamakura/photo/groundSand.jpg",
+    "bytes": 593183,
+    "sha256": "e51e4ba3f4d10bcaee2a9e40ba53ef08093c7e178c79341365ebaa0667a3dbaf"
+   }
+  },
+  {
+   "key": "groundSandWet",
+   "polyhaven": "damp_beach_sand",
+   "title": "Damp Beach Sand",
+   "authors": [
+    "Dimitrios Savva"
+   ],
+   "page": "https://polyhaven.com/a/damp_beach_sand",
+   "license": "CC0-1.0",
+   "role": "damp sand",
+   "oriented": false,
+   "meters": 2.0,
+   "size": 512,
+   "file": "groundSandWet.jpg",
+   "sources": [
+    {
+     "map": "diff",
+     "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/damp_beach_sand/damp_beach_sand_diff_1k.jpg",
+     "bytes": 686694,
+     "md5": "7914af7bb383c00889e0838edd85f1a0",
+     "sha256": "99420d879aa16e6f262a83048bca7cd022e2b41533916d21cb5ccb97b1d3ff0c",
+     "size": [
+      1024,
+      1024
+     ]
+    },
+    {
+     "map": "nor",
+     "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/damp_beach_sand/damp_beach_sand_nor_gl_1k.jpg",
+     "bytes": 684809,
+     "md5": "7d27a3d1448b7b407a8644b32ee19fbc",
+     "sha256": "91e167ebe090703dc05861c296fa897e9e3ddb53227f108e29cc46688bf248b2",
+     "size": [
+      1024,
+      1024
+     ]
+    },
+    {
+     "map": "ao",
+     "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/damp_beach_sand/damp_beach_sand_ao_1k.jpg",
+     "bytes": 741943,
+     "md5": "89d3e6d286f7a4477c5a6ad7f34a91e9",
+     "sha256": "5955a09126b90929a72811e699039e26c89b427950d8671c677ce15d90040b24",
+     "size": [
+      1024,
+      1024
+     ]
+    },
+    {
+     "map": "rough",
+     "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/damp_beach_sand/damp_beach_sand_rough_1k.jpg",
+     "bytes": 572464,
+     "md5": "071a074edf51f2cd9532f5ad9f838896",
+     "sha256": "8c345e51e3b534d1aab90d233a1adc9e09f2e8ac466f9e231448117c388e3d60",
+     "size": [
+      1024,
+      1024
+     ]
+    }
+   ],
+   "stats": {
+    "meanLinearRgb": [
+     0.152,
+     0.1186,
+     0.0747
+    ],
+    "meanLuma": 0.1225,
+    "ratioP05": 0.801,
+    "ratioP50": 1.002,
+    "ratioP95": 1.197,
+    "roughness": 0.942,
+    "seam": 0.972
+   },
+   "output": {
+    "path": "dist/assets/kamakura/photo/groundSandWet.jpg",
+    "bytes": 39170,
+    "sha256": "8903756716da1cbd64aadcfd9e0df7403b61d8c8ebb89e22d5c388cd7df4e049"
+   }
+  },
+  {
+   "key": "groundPebbles",
+   "polyhaven": "ganges_river_pebbles",
+   "title": "Ganges River Pebbles",
+   "authors": [
+    "Amal Kumar"
+   ],
+   "page": "https://polyhaven.com/a/ganges_river_pebbles",
+   "license": "CC0-1.0",
+   "role": "river pebbles",
+   "oriented": false,
+   "meters": 2.16,
+   "size": 512,
+   "file": "groundPebbles.jpg",
+   "sources": [
+    {
+     "map": "diff",
+     "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/ganges_river_pebbles/ganges_river_pebbles_diff_1k.jpg",
+     "bytes": 868952,
+     "md5": "0dabfef242e8801c333a60d610dfa396",
+     "sha256": "8a52d8712e8fc184eee1f8fd4598f051c9d82dfa00371b1b88e1d2c7518faa56",
+     "size": [
+      1024,
+      1024
+     ]
+    },
+    {
+     "map": "nor",
+     "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/ganges_river_pebbles/ganges_river_pebbles_nor_gl_1k.jpg",
+     "bytes": 1212799,
+     "md5": "6a64e7646e0b556056d52dc67c793a7c",
+     "sha256": "80ea9d0cf01402632e1161def4d4f4efc99df21c5382de90c8c16ee827ea7735",
+     "size": [
+      1024,
+      1024
+     ]
+    },
+    {
+     "map": "ao",
+     "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/ganges_river_pebbles/ganges_river_pebbles_ao_1k.jpg",
+     "bytes": 783805,
+     "md5": "ef2460ac3d5ffa1cfbdf8e89b158e06f",
+     "sha256": "33fc2029fed59ed5eb810414b04d1dde41aca12e8445db64881fbe7427d2d98f",
+     "size": [
+      1024,
+      1024
+     ]
+    },
+    {
+     "map": "rough",
+     "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/ganges_river_pebbles/ganges_river_pebbles_rough_1k.jpg",
+     "bytes": 495688,
+     "md5": "3ce5d468c2e6094c7898c94958fe57ab",
+     "sha256": "d701e0e4efc4159d6c4dd5192e291ed47901a17eaca23d9f105e17fb7787464d",
+     "size": [
+      1024,
+      1024
+     ]
+    }
+   ],
+   "stats": {
+    "meanLinearRgb": [
+     0.2325,
+     0.1955,
+     0.1554
+    ],
+    "meanLuma": 0.2004,
+    "ratioP05": 0.271,
+    "ratioP50": 0.824,
+    "ratioP95": 2.347,
+    "roughness": 0.808,
+    "seam": 1.032
+   },
+   "output": {
+    "path": "dist/assets/kamakura/photo/groundPebbles.jpg",
+    "bytes": 202513,
+    "sha256": "219ff6a89d40b4c2d84f4a64d5d24d72a6d1d45082a62e532b30c7936a6baf04"
+   }
+  }
+ ]
+}

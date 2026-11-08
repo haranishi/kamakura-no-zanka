@@ -31,18 +31,19 @@ import { buildKamakuraWater } from './kamakura-water-view.js';
 import { adaptOptions, createAdapt, stepAdapt, adaptPolicy, adaptPixelRatio } from './kamakura-adapt.js';
 import { createKamakuraFlight, bindKamakuraFlight } from './kamakura-fly-view.js';
 import { verticalScale } from './world-entry.js';
+import { startPhoto } from './kamakura-photo-tex.js';
 export async function bootKamakura(data, search) {
   const t = createKamakuraTerrain(data, verticalScale(search), maxWalkSlope(search)), meta = data.meta;
   const spawn = kamakuraSpawn(t, search);
   if (!t.walkable(spawn.x, spawn.z)) throw new Error('出発点を歩けません');
   // Load the existing hero only. Do not load the chapter's enemies or scenery.
   let roster;
-  let post, renderer, chunks, hud, houses, trees, stands, standPrepared, treeOptions, atmosphere, sea, water, hero, input, hintTimer, flight, facilities, hiddenFacilities, audioView, grass, fx;
+  let photo, post, renderer, chunks, hud, houses, trees, stands, standPrepared, treeOptions, atmosphere, sea, water, hero, input, hintTimer, flight, facilities, hiddenFacilities, audioView, grass, fx;
   const events = new AbortController(); let disposed = false;
   function dispose() {
     if (disposed) return; disposed = true; events.abort(); clearTimeout(hintTimer);
     input?.setEnabled(false); input?.base.releaseLock();
-    renderer?.setAnimationLoop(null); audioView?.dispose(); fx?.dispose(); grass?.dispose(); flight?.dispose(); hero?.remove(); chunks?.dispose(); houses?.dispose(); trees?.dispose(); stands?.dispose();
+    renderer?.setAnimationLoop(null); photo?.dispose(); audioView?.dispose(); fx?.dispose(); grass?.dispose(); flight?.dispose(); hero?.remove(); chunks?.dispose(); houses?.dispose(); trees?.dispose(); stands?.dispose();
     facilities?.dispose(); hiddenFacilities?.dispose(); water?.dispose(); sea?.dispose(); post?.dispose(); atmosphere?.dispose();
     const resources = new Set();
     for (const tpl of roster?.templates.values() || []) tpl.scene.traverse(o => {
@@ -68,6 +69,8 @@ export async function bootKamakura(data, search) {
     const scene = new THREE.Scene();
     const options = adaptOptions(search, matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 0);
     const quality = options.quality; let adapt = createAdapt(options.step);
+    // W2c-10 r4 photo: CC0 detail textures start loading now and swap in together; failure keeps the procedural look.
+    photo = startPhoto(THREE, { search, quality, maxAnisotropy: renderer.capabilities.getMaxAnisotropy() });
     atmosphere = createKamakuraAtmosphere({ scene, renderer, search, quality });
     // W2c-9f: isolate HDR/grade from the shared valley renderer.
     post = createKamakuraPost({ renderer, quality, search, params: atmosphere.atmosphere?.params, sunDir: atmosphere.sunDir });
@@ -164,7 +167,7 @@ export async function bootKamakura(data, search) {
     document.addEventListener('visibilitychange', () => { if (document.hidden) setPaused(true); }, { signal: events.signal });
     let postDpr = devicePixelRatio;
     const resize = () => { postDpr = devicePixelRatio; renderer.setPixelRatio(adaptPixelRatio(devicePixelRatio, quality, adapt.step)); renderer.setSize(innerWidth, innerHeight); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); flight.resize(); post.resize(); };
-    const applyAdapt = () => { const policy = adaptPolicy(adapt.step); post.setAdapt(adapt.step); atmosphere.setAdapt(policy); trees?.setAdapt(policy); stands?.setAdapt(policy); facilities?.setAdapt(policy); grass?.setAdapt(adapt.step); fx?.setAdapt(adapt.step); houses?.setAdapt(adapt.step); chunks?.setAdapt(adapt.step); sea?.setAdapt(adapt.step); water?.setAdapt(adapt.step); };
+    const applyAdapt = () => { const policy = adaptPolicy(adapt.step); photo.setAdapt(adapt.step); post.setAdapt(adapt.step); atmosphere.setAdapt(policy); trees?.setAdapt(policy); stands?.setAdapt(policy); facilities?.setAdapt(policy); grass?.setAdapt(adapt.step); fx?.setAdapt(adapt.step); houses?.setAdapt(adapt.step); chunks?.setAdapt(adapt.step); sea?.setAdapt(adapt.step); water?.setAdapt(adapt.step); };
     applyAdapt();
     addEventListener('resize', resize, { signal: events.signal }); resize(); setPaused(false);
     configureLoco(search);
@@ -197,6 +200,7 @@ export async function bootKamakura(data, search) {
       }
       audioView.update(rawDt, flight.pos);
       sea.update(paused ? 0 : dt, camera.position, audioView.audio.context?.currentTime);
+      photo.step(paused ? 0 : dt);
       windState = stepWind(windState, dt, { paused });
       const uniforms = toUniforms(windState);
       wind.uTime.value = uniforms.uTime; wind.uWind.value = uniforms.uWind;
