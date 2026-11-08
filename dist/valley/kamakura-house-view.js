@@ -75,7 +75,7 @@ export async function buildKamakuraHouses(houses, terrain, scene, { search = '',
         const shared = new Map(), { min, max } = houseBounds(kind);
         for (const part of near) {
           if (!shared.has(part.material)) {
-            const m = createHouseMaterial(part.material, { search, texture, quality, parts, relief, kind:kind.index, eave: max[1]-(max[1]-min[1])*.28, top: max[1] });
+            const m = createHouseMaterial(part.material, { search, texture, quality, parts, relief, environment: scene.environment, kind:kind.index, eave: max[1]-(max[1]-min[1])*.28, top: max[1] });
             shared.set(part.material,m); materials.add(m);
           }
           part.material = shared.get(part.material);
