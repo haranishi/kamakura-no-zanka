@@ -549,7 +549,12 @@ export function createHouseMaterial(base, { texture, quality = 'standard', eave 
       // Light quality mixes more of the original wall back in: reduce fill, never relax its cap.
       float hFillY=dot(houseInteriorFill,vec3(.2126,.7152,.0722));
       float hDiffuseY=dot(reflectedLight.directDiffuse+reflectedLight.indirectDiffuse,vec3(.2126,.7152,.0722));
+      // W2c-11 parent: the cap is for house openings only. A hall's interior fill keeps the dark recess above black (capping it made 11's interior a black hole).
+      #ifdef HOUSE_FACILITY
+      totalEmissiveRadiance+=houseInteriorFill;
+      #else
       totalEmissiveRadiance+=houseInteriorFill*mix(1.0,houseOpeningFillScale(hFillY,hDiffuseY*houseFade*houseFade*houseFade),housePhoto*housePhotoAdapt*uPhotoBlend);
+      #endif
       #if NUM_DIR_LIGHTS > 0
       vec3 hSun=directionalLights[0].direction;
       float hSunUp=inverseTransformDirection(hSun,viewMatrix).y;

@@ -40,7 +40,9 @@ export function applyCrownLook(material, { geometry, light = false, distant = fa
         kzCardWorld = instanceMatrix*kzCardWorld;
       #endif
       kzCardWorld = modelMatrix*kzCardWorld;
-      vKzCardTint = vec2(1.0+.24*(kzCardHash(kzCardWorld.xyz,0.0)-.5),.06*(kzCardHash(kzCardWorld.xyz,19.7)-.5));`;
+      // W2c-11 parent: per-card variation reads as rough noise on small distant cards (blind critic, 02): fade the tint and the tilt with distance.
+      float kzFarCard = smoothstep(30.0,110.0,distance(kzCardWorld.xyz,cameraPosition));
+      vKzCardTint = vec2(1.0+.24*(kzCardHash(kzCardWorld.xyz,0.0)-.5)*(1.0-.55*kzFarCard),.06*(kzCardHash(kzCardWorld.xyz,19.7)-.5)*(1.0-.55*kzFarCard));`;
     // Normals must be defined before Three applies instance/model normal matrices.
     shader.vertexShader = shader.vertexShader.replace('#include <beginnormal_vertex>', `#include <beginnormal_vertex>
       ${world}
@@ -50,7 +52,7 @@ export function applyCrownLook(material, { geometry, light = false, distant = fa
       kzTiltAxis = kzTiltAxis*cos(kzTurn)+cross(kzTargetNormal,kzTiltAxis)*sin(kzTurn);
       float kzTilt = ${CROWN_TILT_RADIANS.toFixed(9)}*kzCardHash(kzCardWorld.xyz,73.1);
       vec3 kzTiltedNormal = kzTargetNormal*cos(kzTilt)+cross(kzTiltAxis,kzTargetNormal)*sin(kzTilt);
-      objectNormal = normalize(mix(objectNormal,kzTiltedNormal,uKzVeg*uKzCrownPhoto));`}`);
+      objectNormal = normalize(mix(objectNormal,kzTiltedNormal,uKzVeg*uKzCrownPhoto*(1.0-.75*kzFarCard)));`}`);
     // Stands and baked boards also contain beginnormal_vertex in the Lambert base.
     // Negative constants stay parenthesised below: 'y--0.01' is a GLSL compile error that only a real GPU reports (found in real Chrome).
     shader.vertexShader = shader.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>
