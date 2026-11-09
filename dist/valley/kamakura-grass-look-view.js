@@ -1,4 +1,7 @@
+import { grass9DensityAt, packGrassStream } from './kamakura-grass-stream.js';
+import { patchGrassStream } from './kamakura-grass-stream-view.js';
 import { packGrassR7 } from './kamakura-grass-r7.js';
+import { attachGrassR10 } from './kamakura-grass-r10-view.js';
 import { patchGrassR7 } from './kamakura-grass-r7-view.js';
 import { nearGrassR5DensityAt, packGrassR5 } from './kamakura-grass-r5.js';
 import { patchGrassR5 } from './kamakura-grass-r5-view.js';
@@ -7,17 +10,26 @@ import { nearGrassR3DensityAt, GRASS_R3_NEAR_GLSL, GRASS_SHADOW_EMISSIVE_FLOOR }
 // W2c-9c: optional ribbon shading and four fading footsteps; valley never calls this.
 import { GRASS_BAND_GLSL, packGrassBands, nearGrassDensityAt } from './kamakura-grass-band.js';
 import { packGrassLook, grassRecovery, MID_GRASS, MID_BANDS, packGrassR4 } from './kamakura-grass-look.js';
-export function createGrassLook(ecology,quality,heroUniform,bands=false,r3=false,r4=false,r5=false,r7=false) {
+export function createGrassLook(ecology,quality,heroUniform,bands=false,r3=false,r4=false,r5=false,r7=false,stream=null) {
   const trail=new Float32Array(16), ages=new Float64Array(4).fill(10), radii=new Float32Array(4), strengths=new Float32Array(4);
   const uniforms={uHero:heroUniform,uHeroStrength:{value:0},uGrassTrail:{value:trail},uGrassTrailRadii:{value:radii},uGrassLookStep:{value:0},uGrass4Strength:{value:1},uGrass7Strength:{value:quality==='light'?0:1},uGrass6Strength:{value:quality==='light'?.5:1}};
   let cursor=0, elapsed=0, cameraX=0, cameraZ=0;
   // W2c-9c2: plan each metre; 7m CPU lawn guard covers the unchanged 6m shader fade.
   // W2c-9r2 grass: longer mid reach -> fewer candidates per grassland cell.
-  return { replanDistance:1, bulkMid:true, midPlacement:{sink:MID_GRASS.sink,maxSlope:MID_GRASS.maxSlope,cardRate:bands ? r5&&quality!=='light'?.42:.38 : .28,maxCards:1}, segments:6, normalBlend:.78, capacityFactor:3, uniforms,
-    pack:(data,kind)=>{const packed=packGrassLook(data,kind,ecology,quality,r5);const result=bands?packGrassBands(packed,kind):packed;const colored=r4?packGrassR4(result,kind,ecology,quality):result;const shaded=r5?packGrassR5(colored,kind,ecology,quality):colored;return r7?packGrassR7(shaded,kind,quality):shaded;},
-    prepare(camera){cameraX=camera.position.x;cameraZ=camera.position.z;},
+  const look = { replanDistance:1, bulkMid:true, midPlacement:{sink:MID_GRASS.sink,maxSlope:MID_GRASS.maxSlope,cardRate:bands ? r5&&quality!=='light'?.42:.38 : .28,maxCards:1}, segments:6, normalBlend:.78, capacityFactor:3, uniforms,
+    pack:(data,kind)=>{const packed=packGrassLook(data,kind,ecology,quality,r5);const result=bands?packGrassBands(packed,kind):packed;const colored=r4?packGrassR4(result,kind,ecology,quality):result;const shaded=r5?packGrassR5(colored,kind,ecology,quality):colored;const result7=r7?packGrassR7(shaded,kind,quality):shaded;return stream?packGrassStream(result7,kind):result7;},
+    prepare(camera){cameraX=stream?stream.center.value.x:camera.position.x;cameraZ=stream?stream.center.value.y:camera.position.z;},
     accept(data,i,kind){
       if(kind!=='near')return true;
+      if(stream && uniforms.uGrassLookStep.value>=2 && (data[i+11]===-1||data[i+11]===-2))return false;
+      if(stream){
+        // Exact, and cheap for the ~330,000 resident blades: the blend is below 1 (accepted) for every jitter (0.75..1.25) inside
+        // r+13 m and is 1 (rejected) from r+16 m, so only the 3 m ring between needs the hash.
+        const r=stream.radiusUniform.value,dx=data[i]-cameraX,dz=data[i+2]-cameraZ,d2=dx*dx+dz*dz;
+        if(d2<(r+13)*(r+13))return true;
+        if(d2>=(r+16)*(r+16))return false;
+        return grass9DensityAt(data[i],data[i+2],Math.max(0,Math.sqrt(d2)-1),r)>0;
+      }
       const marker=data[i+11];
       // W2c-9r1 grass: submit only roots whose smooth shader gate can be nonzero.
       if(bands && data[i+7]-.06>=(r5?nearGrassR5DensityAt:r3?nearGrassR3DensityAt:nearGrassDensityAt)(data[i],data[i+2],(Math.hypot(data[i]-cameraX,data[i+2]-cameraZ)-1)/(quality==='light'?.6:1)))return false;
@@ -148,8 +160,10 @@ ${GRASS_BAND_GLSL}`);
       if(r4)patchGrassR4(shader,kind,quality);
       if(r5)patchGrassR5(shader,kind,quality);
       if(r7)patchGrassR7(shader,kind,quality);
+      if(stream)patchGrassStream(shader,kind,stream);
     }
   };
+  return attachGrassR10(look,ecology,quality); // W2c-15: one optional variety adapter.
 }
 
 // W2c-10 grass: colour and contact are arithmetic only; no new texture/shadow lookup.

@@ -57,19 +57,19 @@ test('band shader composes, balances all includes, evaluates the same distance a
 test('A/B, light and adaptive stages; stable frame buffers and exactly-once disposal',t=>{
   const d=fixture();d.meta.surface={};d.surface=new Uint8Array(d.meta.grid.width*d.meta.grid.height).fill(2);
   const rows=[];
-  for(const [search,quality] of [['&gband=0','standard'],['','standard'],['','light']]){
+  for(const [search,quality] of [['&gband=0','standard'],['','standard'],['','light'],['&grass9=0','standard']]){ // R9: '&grass9=0' keeps the pre-stream path under test
     const v=buildKamakuraGrass({data:d,terrain:flat,search,quality,wind,sunDir:new THREE.Vector3(1,1,0)});
-    try{v.warm(camera);v.update(camera);for(let i=0;i<4000&&(v.stats().pending||v.stats().queue);i++)v.update(camera);assert(!v.stats().pending&&!v.stats().queue);assert.equal(v.stats().bands,search==='');const before=v.stats();rows.push({search,quality,near:before.nearBlades,mid:before.midCards,triangles:before.triangles});
+    try{v.warm(camera);v.update(camera);for(let i=0;i<4000&&(v.stats().pending||v.stats().queue);i++)v.update(camera);assert(!v.stats().pending&&!v.stats().queue);assert.equal(v.stats().bands,search===''||search==='&grass9=0');const before=v.stats();rows.push({search,quality,near:before.nearBlades,mid:before.midCards,triangles:before.triangles});
       const resources=new Map(),buffers=[];v.group.traverse(o=>{if(o.isMesh){for(const r of [o.geometry,o.material,o.material.map].filter(Boolean))resources.set(r,0);buffers.push([o,o.geometry.attributes.iRoot.data.array]);}});
       for(const r of resources.keys())r.addEventListener('dispose',()=>resources.set(r,resources.get(r)+1));
       const start=performance.now();for(let i=0;i<1000;i++){v.updateHero({x:0,y:10,z:0},0,false,1/60);v.update(camera);}
       rows.at(-1).steadyCpuMs=(performance.now()-start)/1000;
       assert.equal(v.stats().builds,before.builds);for(const [o,a] of buffers)assert.equal(o.geometry.attributes.iRoot.data.array,a);
-      v.setAdapt(2);assert(v.stats().midCards<before.midCards);v.setAdapt(3);assert(!v.group.visible);v.setAdapt(0);assert(v.group.visible);assert.equal(v.stats().midCards,before.midCards);
+      v.setAdapt(2);assert(v.stats().midCards<before.midCards);v.setAdapt(3);assert.equal(v.group.visible,!search.includes('gband')?search!=='&grass9=0':false); /* stream keeps a 12 m disc at step 3; the old path hides the group */ v.setAdapt(0);assert(v.group.visible);for(let i=0;i<4000&&(v.stats().pending||v.stats().queue);i++)v.update(camera);/* the stream rebuilds the wider disc over a few frames */ assert.equal(v.stats().midCards,before.midCards);
       v.dispose();v.dispose();assert([...resources.values()].every(n=>n===1));
     }finally{v.dispose();}
   }
-  assert(rows[1].triangles<=1450000);assert(rows[2].mid<rows[1].mid);t.diagnostic(JSON.stringify(rows));
+  assert(rows[3].triangles<=1450000);assert(rows[1].triangles<=rows[3].triangles*1.6); /* R9 budget: the 30 m stream may add at most 60% triangles */ assert(rows[2].mid<rows[1].mid);t.diagnostic(JSON.stringify(rows));
   assert(!grassBandEnabled('?gband=0'));assert(grassBandEnabled(''));
   for(const p of [/from 'three'/,/document\./,/performance\./,/Math\.random/,/Date\.now/])assert(!p.test(source('kamakura-grass-band.js')));
   const lightLook=createGrassLook(()=>({height:1,dry:0,shade:0,flowers:0}),'light',{value:new THREE.Vector4()},true);

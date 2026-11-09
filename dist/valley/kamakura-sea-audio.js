@@ -1,4 +1,5 @@
 import { ValleyAudio } from './audio-valley.js';
+import { playKamakuraStep, balanceSteps } from './kamakura-step-audio.js';
 // W2c-9a: Kamakura-only surf. Valley synthesis and its wind/river targets stay unchanged.
 // Retuned by the parent after measuring the real output (analyser at the limiter): gain .14/scale 45 left the surf at -42 dBFS (about the wind floor; the river at 3 m is -30). W2c-9a: .14 -> .5, 45 -> 60.
 export const SEA_AUDIO = Object.freeze({ gain: .5, scale: 60, power: 1.6, reach: 600, smoothing: .25, seed: 1333 });
@@ -27,8 +28,12 @@ export function waveEnvelope(t, seed = SEA_AUDIO.seed) {
 }
 export class KamakuraAudio extends ValleyAudio {
   // gainScale: 1 = the tuned level; ?seagain=2 in the URL doubles it (for the listener to tune the surf by ear).
-  constructor(onUnavailable, { sea = true, gainScale = 1 } = {}) {
-    super(onUnavailable); this.seaEnabled = sea; this.seaDistance = Infinity; this.seaGain = 0; this.seaScale = Number.isFinite(gainScale) && gainScale > 0 ? Math.min(gainScale, 8) : 1;
+  constructor(onUnavailable, { sea = true, gainScale = 1, steps9 = false } = {}) {
+    super(onUnavailable); this.steps9 = steps9; this.grassMix = null; this.seaEnabled = sea; this.seaDistance = Infinity; this.seaGain = 0; this.seaScale = Number.isFinite(gainScale) && gainScale > 0 ? Math.min(gainScale, 8) : 1;
+  }
+  playStep(step, options) {
+    if (!this.steps9 || !['water', 'grass', 'dirt'].includes(step.recipe.surface)) return super.playStep(step, options);
+    return playKamakuraStep(this, step, this.grassMix ?? +(step.recipe.surface === 'grass'), options);
   }
   startAmbient() {
     super.startAmbient();
@@ -66,7 +71,7 @@ export class KamakuraAudio extends ValleyAudio {
     super.updateListener({ river, fire });
   }
   release(voice) {
-    if (voice.kind !== 'sea') return super.release(voice);
+    if (voice.kind !== 'sea') { const result = super.release(voice); balanceSteps(this); return result; }
     if (voice.released) return;
     voice.released = true;
     if (this.ambient.get('sea') === voice) this.ambient.delete('sea');

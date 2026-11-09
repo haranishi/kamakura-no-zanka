@@ -2,23 +2,23 @@
 import { GRASS } from './config.js';
 import { grassBudget } from './grass-field.js';
 export const CHUNK_TILES = Object.freeze({ near: 3, mid: 6 });
-export function chunkOf(kind, tx, tz) {
-  const n = CHUNK_TILES[kind];
+export function chunkOf(kind, tx, tz, sizes = CHUNK_TILES) {
+  const n = sizes[kind];
   if (!n || !Number.isInteger(tx) || !Number.isInteger(tz)) throw new RangeError('chunk: integer tiles and near/mid required');
   const cx = Math.floor(tx / n), cz = Math.floor(tz / n);
   return { cx, cz, key: `${kind}:${cx},${cz}` };
 }
-export function chunkTiles(kind, cx, cz) {
-  const n = CHUNK_TILES[kind], out = [];
+export function chunkTiles(kind, cx, cz, sizes = CHUNK_TILES) {
+  const n = sizes[kind], out = [];
   if (!n || !Number.isInteger(cx) || !Number.isInteger(cz)) throw new RangeError('chunk: integer coordinates required');
   for (let z = 0; z < n; z++) for (let x = 0; x < n; x++) out.push({ tx: cx * n + x, tz: cz * n + z });
   return out;
 }
-export function wantedChunks(tiles) {
+export function wantedChunks(tiles, sizes = CHUNK_TILES) {
   return Object.fromEntries(['near', 'mid'].map(kind => {
     const unique = new Map();
     for (const t of tiles[kind]) {
-      const c = chunkOf(kind, t.tx, t.tz), old = unique.get(c.key);
+      const c = chunkOf(kind, t.tx, t.tz, sizes), old = unique.get(c.key);
       if (!old || t.dist < old.dist) unique.set(c.key, { ...c, dist: t.dist });
     }
     return [kind, [...unique.values()].sort((a, b) => a.dist - b.dist || a.cz - b.cz || a.cx - b.cx)];

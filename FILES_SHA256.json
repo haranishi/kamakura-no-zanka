@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-09T09:28:48.456Z",
+  "generatedAt": "2026-11-09T12:18:30.809Z",
   "scope": "Source, assets and verification artifacts; excludes this manifest, Git metadata, ignored files and private runtime data",
   "files": [
     {
@@ -25,8 +25,8 @@
     },
     {
       "path": ".github/workflows/verify.yml",
-      "size": 2824,
-      "sha256": "a930fa18a7807851c005bc1910e12af4e69a86c6f1c14fd5a628f38ebdfb5407"
+      "size": 2900,
+      "sha256": "d42a565071d4537c92151194f7b8e1d8174e5e5539f06571894024a14589a8d8"
     },
     {
       "path": ".gitignore",
@@ -439,6 +439,11 @@
       "sha256": "501b89330ce81fb05ad88e222386f657603efdc7336361430b262d5e5e6c2eb2"
     },
     {
+      "path": ".kiro/specs/world-map/design-web-r9.md",
+      "size": 3731,
+      "sha256": "14f4ed563d5aeb7617491667f7f79115162564dcdf7e4e0e52ae3a5f05bc6846"
+    },
+    {
       "path": ".kiro/specs/world-map/design-web.md",
       "size": 19558,
       "sha256": "12d4076b234ba96e4004f66922e8c7f625db94ecb4d05c18d643558997553043"
@@ -450,8 +455,8 @@
     },
     {
       "path": ".kiro/specs/world-map/requirements-web-polish.md",
-      "size": 7381,
-      "sha256": "d4e5c678d057d51d7de0ccdf038f7d80c4a0025f148df6d7ada991f9b10ca996"
+      "size": 9055,
+      "sha256": "0d617f431a0bd881a77c313fbcf867d21cc1d13174776c57f23a4c7f8f6d641c"
     },
     {
       "path": ".kiro/specs/world-map/requirements-web.md",
@@ -465,8 +470,8 @@
     },
     {
       "path": ".kiro/specs/world-map/tasks-web.md",
-      "size": 50800,
-      "sha256": "68e2595a1975636983dc236ae9e3cda161dc98cf97b14a25957bb9f8922c7935"
+      "size": 52006,
+      "sha256": "c087ad469263ad45b94d85b32adfc2caa978317a961f2ec5c5891f5243a6121a"
     },
     {
       "path": ".kiro/specs/world-map/tasks.md",
@@ -577,6 +582,21 @@
       "path": ".kiro/specs/world-map/w2c-14-ground-validation.md",
       "size": 7298,
       "sha256": "29135e6681c6fc5f86ef40140626bb839df9eb8a7b33c4a8ad5d8f30ce04f484"
+    },
+    {
+      "path": ".kiro/specs/world-map/w2c-15-sound-validation.md",
+      "size": 4872,
+      "sha256": "7e5efb5977153e1d740d9f6f1c82d0850007bcc1afc38de121def15182524962"
+    },
+    {
+      "path": ".kiro/specs/world-map/w2c-15-stream-validation.md",
+      "size": 10088,
+      "sha256": "20c492fe5b6558c609486e7148f1a0abd810c5d0de4c52117ae269c85c214260"
+    },
+    {
+      "path": ".kiro/specs/world-map/w2c-15-variety-validation.md",
+      "size": 8435,
+      "sha256": "541a55af3c602d1e28130b2f64b10fff7e2e0d226165071752ca92397699926e"
     },
     {
       "path": ".kiro/specs/world-map/w2c-2a-fix-validation.md",
@@ -1505,13 +1525,13 @@
     },
     {
       "path": "dist/valley/grass-schedule.js",
-      "size": 3518,
-      "sha256": "ec23539c931faeb569069409137909bc7ede888c7bae0952c7411f2c5507696d"
+      "size": 3576,
+      "sha256": "b74aaac610974c1a9cb6b18b58cdf9dc42c2cf38c064f960d67fa368caf7ac0f"
     },
     {
       "path": "dist/valley/grass-view.js",
-      "size": 23032,
-      "sha256": "8ce6c5ab964f517030b5a491dfdad526ef2ec7ceaf74e71acd12bf5f4d9fc57f"
+      "size": 29458,
+      "sha256": "37d637dc90db50287ddfc8686448ca6aebf1285c37ed70bd0b53b9d92e9b0cba"
     },
     {
       "path": "dist/valley/guide-nav.js",
@@ -1580,8 +1600,8 @@
     },
     {
       "path": "dist/valley/kamakura-audio-view.js",
-      "size": 4766,
-      "sha256": "bb6996437d86823213ea43dcb5306398a21d079ae759df9009ea0b639d0343ad"
+      "size": 6015,
+      "sha256": "149fab211447660ea056d3373e0d6c77811fcf458ba1a364c32d3ed373c02790"
     },
     {
       "path": "dist/valley/kamakura-bank-wet.js",
@@ -1665,18 +1685,28 @@
     },
     {
       "path": "dist/valley/kamakura-grass-field.js",
-      "size": 8893,
-      "sha256": "ce4db96bd7296faff2597d725dcc584fddeed3cafa664f5f2ee8f2c9c3961512"
+      "size": 8918,
+      "sha256": "1269a61ba7503abd17216b3aa5f424a8013e1d7581bf01702f807906db3f766a"
     },
     {
       "path": "dist/valley/kamakura-grass-look-view.js",
-      "size": 20038,
-      "sha256": "e8f6cdf59c57e1deedfc46a2ae3a6add3bff9ad61fb77eb0ce037f666aae4bc2"
+      "size": 21148,
+      "sha256": "f426abf9bb7e22029d77074e07b4c82f65636584f8063d66b13fee8ef0806573"
     },
     {
       "path": "dist/valley/kamakura-grass-look.js",
       "size": 13558,
       "sha256": "1fdce11a3b23f67c06347a30420d699ddbd3fa643b079bee38f71f8b676c0c5d"
+    },
+    {
+      "path": "dist/valley/kamakura-grass-r10-view.js",
+      "size": 4789,
+      "sha256": "cef160608fe7357019e1d06992b03e840f3bbca1adc1ca14266da2d7155c19db"
+    },
+    {
+      "path": "dist/valley/kamakura-grass-r10.js",
+      "size": 6971,
+      "sha256": "f9fd8e1b473e78ca6f30f5823d84896042ecf8f381c65da3fa7a093b876cb207"
     },
     {
       "path": "dist/valley/kamakura-grass-r3.js",
@@ -1704,9 +1734,19 @@
       "sha256": "8e787a1a57c7e69bc2cef4ae8328ab3b0b1fe95176c22e03b9c11b75597db03f"
     },
     {
+      "path": "dist/valley/kamakura-grass-stream-view.js",
+      "size": 2012,
+      "sha256": "278f96b3b0f7385ec17e0a214dee89bfc5886ae5edd6cbd285548a4cdf23483d"
+    },
+    {
+      "path": "dist/valley/kamakura-grass-stream.js",
+      "size": 6145,
+      "sha256": "24f4111f7c2ac93d25fdcf8a52b54999a4d2cf2dad880890d5e1ecc53773854e"
+    },
+    {
       "path": "dist/valley/kamakura-grass-view.js",
-      "size": 7090,
-      "sha256": "720372ecf40cb97a03636ef103f4f49b4fab725fcb40070b1615eb8b314db0d1"
+      "size": 9197,
+      "sha256": "51e689304d61d9a78928a78deab6f3bed381ee551353fe40adf4f3af535398aa"
     },
     {
       "path": "dist/valley/kamakura-ground-contact.js",
@@ -1825,8 +1865,8 @@
     },
     {
       "path": "dist/valley/kamakura-sea-audio.js",
-      "size": 4440,
-      "sha256": "e32e4ec0d37477dad4ba1aece0330d46f5a3ff563d0fa1e0895f320d851ed9d6"
+      "size": 4878,
+      "sha256": "0cde63515c2927a301d8ab53246028c2610dc5c803655c78496a181c8552703a"
     },
     {
       "path": "dist/valley/kamakura-sea-view.js",
@@ -1877,6 +1917,16 @@
       "path": "dist/valley/kamakura-stands.js",
       "size": 5831,
       "sha256": "48edb0fb993685bd6ae911f4e33f44c3309d94001e40ff76dcf209173529616b"
+    },
+    {
+      "path": "dist/valley/kamakura-step-audio.js",
+      "size": 3976,
+      "sha256": "7c1243c35b207987ecb78ad672b7932185ff23892566238d1d854d6046a945ff"
+    },
+    {
+      "path": "dist/valley/kamakura-step-rules.js",
+      "size": 2402,
+      "sha256": "a926465e6252bc3d9b8ed6c513be0f243e2eeb27126841776aee93350a87c7a3"
     },
     {
       "path": "dist/valley/kamakura-surface.js",
@@ -2240,8 +2290,8 @@
     },
     {
       "path": "dist/valley/world-kamakura.js",
-      "size": 17241,
-      "sha256": "145fd4cf27d778023292422883c9ec5babe94d54cc005026d9a718062a3542d9"
+      "size": 17398,
+      "sha256": "8a447d7ee69e223d52faaab6c44e0307c66db74d3a20c40f4c49d6d26624342d"
     },
     {
       "path": "dist/valley/world.html",
@@ -5045,8 +5095,8 @@
     },
     {
       "path": "tests/kamakura-grass-band.test.mjs",
-      "size": 9275,
-      "sha256": "76c1e1f120acc0060a3ecf68b14702d9ccd8e74c328b3276a52604937e831f86"
+      "size": 9758,
+      "sha256": "6cdfc1d3f3c448dd694687b237bf01c8eaebe9621093f7ab954fd10d77f03647"
     },
     {
       "path": "tests/kamakura-grass-colony.test.mjs",
@@ -5055,13 +5105,18 @@
     },
     {
       "path": "tests/kamakura-grass-look.test.mjs",
-      "size": 14326,
-      "sha256": "7ff2bdce3a203d664e56848c4cc8ccc7c88e69afe5d6e352219ac3bd53cdb42d"
+      "size": 14592,
+      "sha256": "bd18e51b5c1e8e1235de7837dc9fc103b51217d6f19272a2fe251a0202a5681f"
     },
     {
       "path": "tests/kamakura-grass-mid.test.mjs",
       "size": 9812,
       "sha256": "1a5cc2965b83ab86cf9fcda3c048c633684fb9a276b49f0f1007c1314364ed54"
+    },
+    {
+      "path": "tests/kamakura-grass-r10.test.mjs",
+      "size": 9323,
+      "sha256": "06201ce083325b5baccead82fb9e82c906cf716aaba5990cc652c1569c083b2b"
     },
     {
       "path": "tests/kamakura-grass-r3.test.mjs",
@@ -5089,9 +5144,14 @@
       "sha256": "c8742f53d83e218dbeee850ecbb97360de4e505050c9dbe51d76615c52adf14d"
     },
     {
+      "path": "tests/kamakura-grass-stream.test.mjs",
+      "size": 16714,
+      "sha256": "c59bb403ea5c8698a137660ab08ed3bb88d52d613f8a2a2a6a5cd78f97d4f071"
+    },
+    {
       "path": "tests/kamakura-grass.test.mjs",
-      "size": 15837,
-      "sha256": "1349ac0c549074d5ee7d9da542c5f524b6c1b901edc93a0356752e434f688ef3"
+      "size": 15960,
+      "sha256": "60a81c5b00b687babd9f854bd4149a3bc27820aac2c5cff835495763ae433350"
     },
     {
       "path": "tests/kamakura-ground-contact.test.mjs",
@@ -5322,6 +5382,11 @@
       "path": "tests/kamakura-stands.test.mjs",
       "size": 15409,
       "sha256": "02310544825bf56460893e897427c7bb2b49405dd12142e15f59edd82b970661"
+    },
+    {
+      "path": "tests/kamakura-steps9.test.mjs",
+      "size": 9485,
+      "sha256": "768465ff7b469ffb04cf25f29737a8c55775e3e174ef104c3b877b445f75bcdd"
     },
     {
       "path": "tests/kamakura-surface.test.mjs",
@@ -5710,8 +5775,8 @@
     },
     {
       "path": "tools/README-ci.md",
-      "size": 4054,
-      "sha256": "a0a31342568d7fc3f081ebb3f50763d4f638955c0d608ccf7c4305adccd6f594"
+      "size": 4158,
+      "sha256": "570715a9f2619deeb1c2e8be61ed4055d91e714e6ace550f692df97057ccd267"
     },
     {
       "path": "tools/README-polish2-measure.md",
@@ -5850,8 +5915,8 @@
     },
     {
       "path": "tools/gl-smoke.mjs",
-      "size": 6081,
-      "sha256": "565f41225b69a0fd3ddda3950bc97cbf4810a1639ad7ea47a302b5816921f42e"
+      "size": 6352,
+      "sha256": "193410556515d1e48a77236e84f9a8f395e84e32517ab107b0ca4453bb7bcf2e"
     },
     {
       "path": "tools/grass-row-metrics.py",
@@ -6024,9 +6089,19 @@
       "sha256": "34bf8c49da03f7071d8b2bc3e202879c8f5dc6ec03f3db0a18c18535c9705c08"
     },
     {
+      "path": "tools/measure-grass-r10.mjs",
+      "size": 2546,
+      "sha256": "3e58d727b29677ed66b080fb170a903b2cda4d8f09ddeb8c3f851392e213cf1c"
+    },
+    {
       "path": "tools/measure-grass-r7.mjs",
       "size": 272,
       "sha256": "f3a51cbc8890d75db5c35bbae375e6882b8f4c440f51e7b406f4ed2ebb140087"
+    },
+    {
+      "path": "tools/measure-grass-stream.mjs",
+      "size": 3989,
+      "sha256": "26c3262fa717b86055bc985173df1bab15271ab4211be5e7c94697f7ebb0389a"
     },
     {
       "path": "tools/measure-guide-baselines.mjs",
