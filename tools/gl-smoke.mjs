@@ -7,13 +7,13 @@ import { chromeArgs, initScript, collectEvent, unexpectedEvents, validateAllowli
 export { chromeArgs, initScript, collectEvent, unexpectedEvents, withChrome };
 const pause=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 async function freePort(){const s=net.createServer();await new Promise((resolve,reject)=>{s.once('error',reject);s.listen(0,'127.0.0.1',resolve);});const port=s.address().port;await new Promise(resolve=>s.close(resolve));return port;}
-export async function runSmoke({base=process.env.GL_SMOKE_URL||'http://127.0.0.1:8080',out=process.env.GL_SMOKE_OUT||'reports/local/gl-smoke',inject=false}={}) {
+export async function runSmoke({base=process.env.GL_SMOKE_URL||'http://127.0.0.1:8080',out=process.env.GL_SMOKE_OUT||'reports/local/gl-smoke',inject=false,deadlineMs=inject?120000:330000}={}) {
   await fs.mkdir(out,{recursive:true});const events=[], shots=[], started=Date.now();let cdp, failure, shaderFailure=false, stderr='';
   const allowlist=validateAllowlist(JSON.parse(await fs.readFile(new URL('./ci-smoke-allowlist.json',import.meta.url),'utf8')));
   const binary=process.env.CHROME_BIN||(process.platform==='darwin'?'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome':'google-chrome');
   let deadline;
   let interrupt;
-  const stop=new Promise((_,reject)=>{interrupt=()=>reject(Error('GL smoke interrupted'));deadline=setTimeout(()=>reject(Error('GL smoke deadline; cleanup reserved within 180 seconds')),175000);});
+  const stop=new Promise((_,reject)=>{interrupt=()=>reject(Error('GL smoke interrupted'));deadline=setTimeout(()=>reject(Error(`GL smoke deadline (${Math.round(deadlineMs/1000)} s); cleanup is reserved after it`)),deadlineMs);});
   // Keep cleanup reachable when the caller's timeout or terminal sends a signal.
   process.on('SIGINT',interrupt);process.on('SIGTERM',interrupt);
   stop.catch(()=>{});
@@ -34,8 +34,9 @@ export async function runSmoke({base=process.env.GL_SMOKE_URL||'http://127.0.0.1
         for(const domain of ['Page','Runtime','Log','Network'])await cdp.send(domain+'.enable');
         await cdp.send('Emulation.setDeviceMetricsOverride',{width:960,height:640,deviceScaleFactor:1,mobile:false});
         await cdp.send('Page.addScriptToEvaluateOnNewDocument',{source:initScript(inject)});
-        const evaluate=async expression=>{
-          const r=await cdp.send('Runtime.evaluate',{expression,returnByValue:true,awaitPromise:true});
+        // Software GL on a shared runner can need many seconds per frame: waits that depend on frames get a longer budget (the run deadline still bounds everything).
+        const evaluate=async (expression,timeoutMs)=>{
+          const r=await cdp.send('Runtime.evaluate',{expression,returnByValue:true,awaitPromise:true},timeoutMs);
           if(r.exceptionDetails)throw Error(r.exceptionDetails.text);return r.result.value;
         };
         // Existing query parameters select reproducible positions and headings; no game hook added.
@@ -52,12 +53,12 @@ export async function runSmoke({base=process.env.GL_SMOKE_URL||'http://127.0.0.1
           if(!ready)throw Error('HUD / kz-tone-ready did not become ready');
           // Allow the bounded chunk queues and two animation frames to reach the GPU.
           await pause(700);
-          await evaluate('new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))');
-          const status=await evaluate(`document.querySelector('.kz-state')?.textContent || ''`);
+          await evaluate('new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))',90000);
+          const status=await evaluate(`document.querySelector('.kz-state')?.textContent || ''`,60000);
           if(status)events.push({level:'error',source:'HUD',text:status});
           await capture(name);
         }
-        if(inject && !await evaluate('Boolean(globalThis.__ciBadGlslInjected)'))throw Error('GLSL injection was not exercised');
+        if(inject && !await evaluate('Boolean(globalThis.__ciBadGlslInjected)',60000))throw Error('GLSL injection was not exercised');
       };
       try{await Promise.race([work(),stop]);}
       catch(e){failure=e;try{if(cdp)await capture('failure');}catch{}}

@@ -25,8 +25,9 @@ jobs:
   gl-smoke:
     name: GL smoke
     runs-on: ubuntu-24.04
-    # Software GL on a shared runner: the normal run may take ~3 minutes (limit 175 s inside), plus the broken-GLSL run.
-    timeout-minutes: 10
+    # Software GL on a shared runner: one normal run took 99 s, another 202 s (the old 175 s limit failed it).
+    # Limits inside: normal 330 s, broken-GLSL 120 s; the job allows both plus setup.
+    timeout-minutes: 14
     env:
       NODE_OPTIONS: --max-old-space-size=1536
     steps:
@@ -47,12 +48,12 @@ jobs:
           echo 'Synthetic server did not become ready'
           exit 1
       - name: Render synthetic Kamakura
-        run: timeout 300 node tools/gl-smoke.mjs
+        run: timeout 400 node tools/gl-smoke.mjs
         env:
           GL_SMOKE_OUT: reports/gl-smoke/normal
       - name: Prove broken GLSL is detected
         run: |
-          if timeout 300 node tools/gl-smoke.mjs --inject-bad-glsl; then
+          if timeout 200 node tools/gl-smoke.mjs --inject-bad-glsl; then
             echo 'Broken shader unexpectedly passed'
             exit 1
           fi
