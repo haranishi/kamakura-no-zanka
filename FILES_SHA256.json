@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-09T12:18:30.809Z",
+  "generatedAt": "2026-11-09T12:40:15.983Z",
   "scope": "Source, assets and verification artifacts; excludes this manifest, Git metadata, ignored files and private runtime data",
   "files": [
     {
@@ -440,8 +440,8 @@
     },
     {
       "path": ".kiro/specs/world-map/design-web-r9.md",
-      "size": 3731,
-      "sha256": "14f4ed563d5aeb7617491667f7f79115162564dcdf7e4e0e52ae3a5f05bc6846"
+      "size": 3939,
+      "sha256": "e3a28bf4507ecb97d808fc5acc4aa72161250735c75e669a31f79d4d13dfd1b0"
     },
     {
       "path": ".kiro/specs/world-map/design-web.md",
@@ -470,8 +470,8 @@
     },
     {
       "path": ".kiro/specs/world-map/tasks-web.md",
-      "size": 52006,
-      "sha256": "c087ad469263ad45b94d85b32adfc2caa978317a961f2ec5c5891f5243a6121a"
+      "size": 52099,
+      "sha256": "ec4d3ffd26a89ac7ee1ae1b309e5e2e3a0c25d724601e6b24c3085ae115c3be4"
     },
     {
       "path": ".kiro/specs/world-map/tasks.md",
@@ -585,8 +585,8 @@
     },
     {
       "path": ".kiro/specs/world-map/w2c-15-sound-validation.md",
-      "size": 4872,
-      "sha256": "7e5efb5977153e1d740d9f6f1c82d0850007bcc1afc38de121def15182524962"
+      "size": 5604,
+      "sha256": "878fe65705db16bc1092daa97fd9471c559a5637e304a58d0a7c671dbfecce64"
     },
     {
       "path": ".kiro/specs/world-map/w2c-15-stream-validation.md",
