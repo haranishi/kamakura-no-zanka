@@ -1,7 +1,7 @@
 // View only: self-contained GLB, one static mesh per node/material, CPU placement once.
 import * as THREE from 'three';
 import { createHouseTextures, createHouseMaterial } from './kamakura-house-materials.js';
-import { facilityMaterialRole, facilityPartRole, facilityTimberWeights } from './kamakura-house-texture.js';
+import { facilityMaterialRole, facilityPartRole, facilityTimberWeights, facilityInterior, houseInteriorOpeningFrame } from './kamakura-house-texture.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { facilityPlacement, facilityFootprint, facilitySolid, facilityExcludesTrees, facilityCastsShadow, facilityVisible, FACILITY_HELD_BACK } from './kamakura-facilities.js';
 export async function buildKamakuraFacilities(facilities, terrain, scene, quality='standard', { showHeldBack = false, search = globalThis.location?.search ?? '' } = {}) {
@@ -17,12 +17,12 @@ export async function buildKamakuraFacilities(facilities, terrain, scene, qualit
   const partsEnabled=new URLSearchParams(search).get('hparts')!=='0';
   const relief=new URLSearchParams(search).get('hrelief')!=='0';
   // W2c-9g2: facility surfaces use the house atlas; ftex=0 retains the original PBR.
-  function surface(base, hint, node, floor, top) {
+  function surface(base, hint, node, floor, top, interiorFrame) {
     if(!texture)return base;
-    if(Array.isArray(base))return base.map(m=>surface(m,hint,node,floor,top));
+    if(Array.isArray(base))return base.map(m=>surface(m,hint,node,floor,top,interiorFrame));
     // W2c-9g3: mesh hints identify walls/roofs when the shared material is anonymous.
     const role=partsEnabled?facilityPartRole(node.part,base.name+' '+hint):facilityMaterialRole(base.name) || facilityMaterialRole(hint), key=`${base.uuid}:${role}:${partsEnabled?node.node:''}`;
-    if(!surfaceCache.has(key)){const m=createHouseMaterial(base,{search,texture,quality,environment:scene.environment,facilityRole:role,parts:partsEnabled,relief,floor,top,eave:partsEnabled?top-(top-floor)*.28:3});surfaceCache.set(key,m);materials.add(m);}
+    if(!surfaceCache.has(key)){const m=createHouseMaterial(base,{search,texture,quality,environment:scene.environment,facilityRole:role,parts:partsEnabled,relief,floor,top,interiorFrame,eave:partsEnabled?top-(top-floor)*.28:3});surfaceCache.set(key,m);materials.add(m);}
     return surfaceCache.get(key);
   }
   const group=new THREE.Group();group.name='kamakura-facilities';
@@ -58,6 +58,14 @@ export async function buildKamakuraFacilities(facilities, terrain, scene, qualit
       const placed=facilityPlacement(n,positions,terrain); let offset=0;
       let floor=Infinity,top=-Infinity;
       for(let i=1;i<positions.length;i+=3){floor=Math.min(floor,positions[i]);top=Math.max(top,positions[i]);}
+      // W2c-12 facility7 FH5: infer opening from existing dark interior surfaces only.
+      const interiors=[];
+      if(partsEnabled && n.part==='hall' && new URLSearchParams(search).get('facility7')!=='0')for(const {g,material,hint} of parts){
+        const list=[].concat(material);
+        if(list.some(m=>facilityInterior([m.color.r,m.color.g,m.color.b],facilityPartRole(n.part,m.name+' '+hint))))
+          interiors.push({positions:g.attributes.position.array,indices:g.index?.array});
+      }
+      const interiorFrame=n.part==='hall'?houseInteriorOpeningFrame(interiors):[0,1,0,0];
       if(n.soft)floor=0; // Soil contact is at the datum, not the buried skirt bottom.
       for(const {g,material,hint} of parts) {
         // R3 classification uses original rigid component shapes, before terrain placement.
@@ -65,7 +73,7 @@ export async function buildKamakuraFacilities(facilities, terrain, scene, qualit
         const count=g.getAttribute('position').array.length;
         g.setAttribute('position',new THREE.Float32BufferAttribute(placed.positions.slice(offset,offset+count),3));offset+=count;
         if(placed.rebuildNormals)g.computeVertexNormals();g.computeBoundingBox();g.computeBoundingSphere();
-        const mesh=new THREE.Mesh(g,surface(material,hint,n,floor,top));mesh.position.copy(placed.position);mesh.updateMatrix();mesh.matrixAutoUpdate=false;
+        const mesh=new THREE.Mesh(g,surface(material,hint,n,floor,top,interiorFrame));mesh.position.copy(placed.position);mesh.updateMatrix();mesh.matrixAutoUpdate=false;
         mesh.name=n.node;mesh.castShadow=facilityCastsShadow(n);mesh.receiveShadow=true;group.add(mesh);meshes.push(mesh);
       }
       records.push({node:n,bounds,meshes});
