@@ -1,3 +1,4 @@
+import { grassR7Enabled } from './kamakura-grass-r7.js';
 import { grassR5Enabled } from './kamakura-grass-r5.js';
 import { grassR3Enabled, coastalGrassAt } from './kamakura-grass-r3.js';
 // Reuse valley geometry/materials. Only the bounded CPU window is Kamakura-specific.
@@ -16,10 +17,11 @@ export function buildKamakuraGrass({ data, terrain, colliders, extraColliders, s
   const r3 = bands && grassR3Enabled(search);
   const r4 = r3 && grassR4Enabled(search); // W2c-10 grass: opt out restores the complete R3 path.
   const r5 = r4 && grassR5Enabled(search);
+  const r7 = r5 && grassR7Enabled(search); // W2c-13: off restores the complete R6 path.
   const paths = data.patches?.paths || {};
   // W2c-9c3: metre surface transitions and narrow collider/bank margins replace bare rims.
   const ecology = improved ? createGrassEnvironment(terrain, {colliders, extraColliders, paths, r4, surfaceCodeAt:createSurfaceCodeAt(data.meta,data.surface)}) : null;
-  const look = improved ? createGrassLook(ecology, quality, {value:new THREE.Vector4(0,0,0,0)},bands,r3,r4,r5) : undefined;
+  const look = improved ? createGrassLook(ecology, quality, {value:new THREE.Vector4(0,0,0,0)},bands,r3,r4,r5,r7) : undefined;
   const cell = createGrassCell(terrain, { surfaceCodeAt: createSurfaceCodeAt(data.meta, data.surface),
     environmentAt: ecology, ...(improved ? {riverMargin:.25} : {}), exclude: grassExclusions(terrain, { colliders, extraColliders, paths, ...(improved ? {pathMargin:2.5,rootMargin:bands?Math.SQRT1_2:0} : {}) }) });
   // W2c-9r2 grass: 400m band window leaves 200-32-158-6=4m headroom.
@@ -57,7 +59,7 @@ export function buildKamakuraGrass({ data, terrain, colliders, extraColliders, s
       // W2c-11 grass: warm creates the meshes; key the R5 program after that,
       // before the renderer can compile it. R4/off keeps the shipped cache key.
       if(r5 && grass && !keyed){
-        for(const material of new Set(grass.group.children.map(mesh=>mesh.material))){const key=material.customProgramCacheKey();material.customProgramCacheKey=()=>key+'-r5';}
+        for(const material of new Set(grass.group.children.map(mesh=>mesh.material))){const key=material.customProgramCacheKey();material.customProgramCacheKey=()=>key+(r7?'-r7':'')+'-r5';}
         keyed=true;
       }
       if(warm && initial){initial=false;backgroundWanted=true;}
@@ -78,7 +80,7 @@ export function buildKamakuraGrass({ data, terrain, colliders, extraColliders, s
     update(camera,pos=camera.position,paused=false) { if(!paused) advance(camera,pos); },
     updateHero(pos,speed,flying,dt) { if(!disposed && enabled) look?.updateHero(pos,speed,flying,dt); },
     setAdapt(next) { step = typeof next === 'number' ? next : next.step; group.visible = step !== 3; grass?.setDensityScale(step === 2 ? .6 : 1); grass?.setLookQuality(step); },
-    stats() { return { enabled, improved, bands, r3, r4, r5, switches, pending: !!windows.pending, window: windows.field?.stats || null, lastWorkMs, maxWorkMs, ...(grass?.stats() || { nearBlades: 0, midCards: 0, triangles: 0 }) }; },
+    stats() { return { enabled, improved, bands, r3, r4, r5, r7, switches, pending: !!windows.pending, window: windows.field?.stats || null, lastWorkMs, maxWorkMs, ...(grass?.stats() || { nearBlades: 0, midCards: 0, triangles: 0 }) }; },
     dispose() { if (disposed) return; disposed = true; cancel(background); ecology?.dispose(); windows.dispose(); grass?.dispose(); grass = null; group.clear(); }
   };
 }
