@@ -1,6 +1,6 @@
 // W2c-9f: direct render -> HDR scene + five fullscreen passes, Kamakura only.
 import * as THREE from 'three';
-import { POST_DEFAULTS, postOptions, postRoute, bloomSizes, projectSun, bloomCap, neutralToneChunk } from './kamakura-post.js';
+import { POST_DEFAULTS, postOptions, postRoute, bloomSizes, projectSun, bloomCap, neutralToneChunk, shadeSettings, SHADE_GLSL } from './kamakura-post.js';
 const VERT = 'varying vec2 vUv; void main(){ vUv=position.xy*.5+.5; gl_Position=vec4(position.xy,0.,1.); }';
 export const POST_SHADERS = {
   down: `varying vec2 vUv; uniform sampler2D tex; uniform vec2 delta; uniform float threshold, liftCap;
@@ -19,6 +19,8 @@ export const POST_SHADERS = {
     void main(){ gl_FragColor=vec4(vertical(tex0,dy.x)*.45+vertical(tex1,dy.y)*.35+vertical(tex2,dy.z)*.20,1.); }`,
   final: `varying vec2 vUv; uniform sampler2D sceneTex,bloomTex;
     uniform float bloomStrength,glareStrength,aspect,warmth,saturation,contrast,vignette;
+    uniform float shadeStrength,shadeFloor,shadeDusk;
+    ${SHADE_GLSL}
     uniform vec2 sunUV; uniform vec3 sunColor; uniform int toneMode;
     #include <tonemapping_pars_fragment>
     void main(){
@@ -37,6 +39,7 @@ export const POST_SHADERS = {
       vec3 shaped=pow(max(c,vec3(0.)),vec3(contrast));
       c=shaped/max(shaped+pow(max(vec3(1.)-c,vec3(0.)),vec3(contrast)),vec3(.00000001));
       vec2 edge=vUv-.5; c*=1.-vignette*smoothstep(.12,.5,dot(edge,edge));
+      c=kzShade(c,shadeStrength,shadeFloor,shadeDusk);
       gl_FragColor=vec4(max(c,vec3(0.)),1.);
       #include <colorspace_fragment>
     }`,
@@ -44,6 +47,7 @@ export const POST_SHADERS = {
 const TONES = { none: THREE.NoToneMapping, aces: THREE.ACESFilmicToneMapping, neutral: THREE.NeutralToneMapping, agx: THREE.AgXToneMapping };
 export function createKamakuraPost({ renderer, quality = 'standard', search = '', params = {}, sunDir }) {
   const options = postOptions(search), savedTone = renderer.toneMapping, savedExposure = renderer.toneMappingExposure;
+  const shade = shadeSettings(search, params);
   const exposure = params.postExposure ?? 1, bloomCapValue = bloomCap(search);
   // W2c-10 grade: Neutral's dark offset, scaled (URL > time-of-day preset > default). The chunk is global, so it is patched before any program
   // compiles (this runs before the first render) and put back on dispose; both the final pass and the no-post route include it.
@@ -61,6 +65,7 @@ export function createKamakuraPost({ renderer, quality = 'standard', search = ''
     down = material(POST_SHADERS.down,{ tex:{value:null},delta:{value:new THREE.Vector2()},threshold:{value:0},liftCap:{value:0} });
     combine = material(POST_SHADERS.combine,{ tex0:{value:null},tex1:{value:null},tex2:{value:null},dy:{value:new THREE.Vector3()} });
     final = material(POST_SHADERS.final,{
+      shadeStrength:{value:shade.strength},shadeFloor:{value:shade.floor},shadeDusk:{value:shade.evening?1:0},
       sceneTex:{value:null},bloomTex:{value:null},toneMappingExposure:{value:exposure},toneMode:{value:['none','aces','neutral','agx'].indexOf(options.tone)},
       bloomStrength:{value:options.bloom ? (params.postBloom ?? .12) : 0},glareStrength:{value:0},sunUV:{value:new THREE.Vector2()},
       sunColor:{value:new THREE.Color(params.sunColor ?? '#fff1d6')},aspect:{value:1},warmth:{value:params.postWarmth ?? .008},

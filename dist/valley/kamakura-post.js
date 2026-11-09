@@ -54,3 +54,38 @@ export function bloomCap(search = '') {
   const q = new URLSearchParams(search);
   return q.get('evening2') === '0' ? 0 : q.get('time') === 'evening' ? .65 : .9;
 }
+
+// W2c-12 light7: unchanged black/green shade -> luminance-preserving cooling and dusk floor.
+export function shadeSettings(search = '', params = {}) {
+  const q = new URLSearchParams(search), enabled = q.get('light7') !== '0';
+  return { strength: enabled ? (toeOption(q.get('pshade')) ?? params.postShade ?? .15) : 0,
+    floor: enabled && q.get('time') === 'evening' ? .0068 : 0,
+    evening: q.get('time') === 'evening' };
+}
+const shadeWeight = l => { const t = Math.max(0, Math.min(1, l / .12)); return 1 - t*t*(3-2*t); };
+// Linear display RGB after grading. Cooling moves red/blue toward neutral, never away;
+// the green compensation preserves luminance. No saturation boost, including gray/blue inputs.
+export function shadeColor(r, g, b, settings, out) {
+  const l = .2126*r + .7152*g + .0722*b, w = shadeWeight(l)*settings.strength;
+  const dr = -Math.min(r*(settings.evening ? .01 : .02), Math.max(0,r-l))*w;
+  const db = Math.min(b*.03, Math.max(0,l-b))*w;
+  // Gate the floor by the brightest channel so dark saturated foliage is not
+  // lifted as a whole. 1.5*floor keeps the gray transfer monotonic (max slope 1).
+  const peak = Math.max(r,g,b), knee = Math.max(.000001,settings.floor*1.5);
+  const t = Math.max(0,Math.min(1,peak/knee));
+  const lift = settings.floor*(1-t*t*(3-2*t));
+  // Dusk floor follows the blue-violet hemisphere (#acb4da), normalized peak 1.
+  out[0] = r+dr+lift*.9; out[1] = g-(.2126*dr+.0722*db)/.7152+lift*.94; out[2] = b+db+lift;
+  return out;
+}
+export const SHADE_GLSL = `
+vec3 kzShade(vec3 c, float strength, float duskFloor, float dusk) {
+  float lum = dot(c,vec3(.2126,.7152,.0722));
+  float weight = 1.-smoothstep(0.,.12,lum);
+  float redDelta = -min(c.r*mix(.02,.01,dusk),max(0.,c.r-lum))*weight*strength;
+  float blueDelta = min(c.b*.03,max(0.,lum-c.b))*weight*strength;
+  float peak=max(c.r,max(c.g,c.b));
+  c += vec3(redDelta,-(.2126*redDelta+.0722*blueDelta)/.7152,blueDelta);
+  float floorWeight=1.-smoothstep(0.,max(.000001,duskFloor*1.5),peak);
+  return c+vec3(.9,.94,1.)*duskFloor*floorWeight;
+}`;
