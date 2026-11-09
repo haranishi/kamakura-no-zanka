@@ -68,7 +68,7 @@ export function installGroundContact(THREE,data,owner,quality) {
   texture.internalFormat='R8';texture.minFilter=texture.magFilter=THREE.LinearFilter;texture.generateMipmaps=false;texture.unpackAlignment=1;texture.needsUpdate=true;
   const uniforms={uGroundContact:{value:texture},uGroundContactOrigin:{value:new THREE.Vector2()},uGround6:{value:quality==='light'?.5:1},uGround6Fine:{value:quality==='light'?0:1}};
   let disposed=false;
-  const view={field,texture,uniforms,update(pos,boxes,circles){if(disposed||uniforms.uGround6.value<=0)return false;
+  const view={field,texture,uniforms,update(pos,boxes,circles){if(disposed||(uniforms.uGround6.value<=0 && !owner.uniforms.uGround7?.value))return false;
     if(!field.update(pos,boxes,circles))return false;
     uniforms.uGroundContactOrigin.value.set(field.x,field.z);texture.needsUpdate=true;return true;
   }};
