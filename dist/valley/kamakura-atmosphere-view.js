@@ -2,6 +2,7 @@
 import * as THREE from 'three';
 import { ATMOS, installFog, createAtmosphere } from './atmosphere.js';
 import { atmosphereOptions, atmospherePolicy, kamakuraAtmosphere, eveningEnabled } from './kamakura-atmosphere.js';
+import { contactShadowChunk, softShadowEnabled } from './kamakura-shadow.js';
 const FOG_CHUNKS = ['fog_pars_vertex', 'fog_vertex', 'fog_pars_fragment', 'fog_fragment'];
 
 // The bundled PMREM generator exposes no owner through createAtmosphere. Capture
@@ -45,6 +46,8 @@ export function createKamakuraAtmosphere({ scene, renderer, search = '', quality
   const options = atmosphereOptions(search), resources = new Set(), before = new Set(scene.children);
   const previous = { background: scene.background, fog: scene.fog, environment: scene.environment, environmentIntensity: scene.environmentIntensity,
     shadowEnabled: renderer.shadowMap.enabled, shadowType: renderer.shadowMap.type };
+  const shadowChunk = THREE.ShaderChunk.shadowmap_pars_fragment;
+  let shadowPatched = false;
   const fogChunks = Object.fromEntries(FOG_CHUNKS.map(k => [k, THREE.ShaderChunk[k]]));
   const state = { target: renderer.getRenderTarget(), face: renderer.getActiveCubeFace(), level: renderer.getActiveMipmapLevel(),
     xr: renderer.xr.enabled, toneMapping: renderer.toneMapping, autoClear: renderer.autoClear };
@@ -62,6 +65,8 @@ export function createKamakuraAtmosphere({ scene, renderer, search = '', quality
     renderer.shadowMap.enabled = previous.shadowEnabled; renderer.shadowMap.type = previous.shadowType;
     if (installed) for (const key of FOG_CHUNKS) THREE.ShaderChunk[key] = fogChunks[key];
     installed = false;
+    if (shadowPatched) THREE.ShaderChunk.shadowmap_pars_fragment = shadowChunk;
+    shadowPatched = false;
   }
   try {
     if (options.enabled) {
@@ -71,6 +76,10 @@ export function createKamakuraAtmosphere({ scene, renderer, search = '', quality
       scene.background = null;
       renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
       atmosphere = createAtmosphere({ scene, renderer: captureRenderer(renderer, resources), quality, a });
+      if (softShadowEnabled(search, quality)) {
+        THREE.ShaderChunk.shadowmap_pars_fragment = contactShadowChunk(shadowChunk);
+        shadowPatched = true; atmosphere.sun.shadow.radius = 2;
+      }
       // PMREM scratch targets, environment sky and blur draws are initialization-only.
       for (const resource of [...resources]) if (resource.texture !== scene.environment) resource.dispose();
     }
@@ -92,7 +101,11 @@ export function createKamakuraAtmosphere({ scene, renderer, search = '', quality
   // Only objects created here belong to this controller (later scene additions do not).
   const owned = scene.children.filter(o => !before.has(o));
   return { atmosphere, policy, notice, sunDir,
-    setAdapt(next) { if (!disposed && atmosphere) atmosphere.sun.castShadow = next.shadows; },
+    setAdapt(next) {
+      if (disposed || !atmosphere) return;
+      atmosphere.sun.castShadow = next.shadows;
+      atmosphere.sun.shadow.radius = shadowPatched && softShadowEnabled(search, quality, next) ? 2 : 1;
+    },
     update(camera, dt, hero, yaw) {
       if (disposed || !atmosphere) return;
       atmosphere.update(camera, dt);
