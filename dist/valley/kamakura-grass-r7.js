@@ -17,7 +17,8 @@ export function packGrassR7(data,kind,quality) {
   return data;
 }
 // R7 parent tuning: the first gradient (0.65-1.20) and tip lift (0.12) gave no screen change; x2 reads.
-export const grassR7Gradient=t=>.40+1.00*Math.sqrt(clamp(t));
+// R8 parent tuning: the blind critique still saw the darkest blades fall to black; raise the root floor.
+export const grassR7Gradient=t=>.55+.85*Math.sqrt(clamp(t));
 export const grassR7Angle=u=>(clamp(u)*2-1)*25*Math.PI/180;
 export const grassR7RoundGain=(flat,rounded)=>1+Math.max(-.1,Math.min(.1,.1*(rounded-flat)/Math.sin(25*Math.PI/180)));
 // Reference for the single post-lighting shader deficit. No second floor is added.

@@ -62,12 +62,12 @@ test('SL2 distance monotonicity, forest cap and haze saturation bound including 
   for(let dist=0;dist<=4000;dist+=10){
     const a=farAmount(dist);assert(a>=previous);previous=a;
     const forest=forestColor(base,1,dist),air=slopeHaze(base,fog,dist);
-    if(dist<=300){assert.equal(a,0);assert.deepEqual(forest,base);assert.deepEqual(air,base);}
+    if(dist<=250){assert.equal(a,0);assert.deepEqual(forest,base);assert.deepEqual(air,base);}
     assert(sat(air)<=sat(base)+1e-9);assert(sat(air)>=sat(base)*.75-1e-9);
     assert(air[2]/air[0]>=base[2]/base[0]-1e-9);
     for(const v of [...forest,...air])assert(Number.isFinite(v)&&v>=0);
   }
-  assert.equal(farAmount(3000),1);assert.deepEqual(forestColor(base,1,3000),forestColor(base,1,4000));
+  assert.equal(farAmount(2200),1);assert.equal(farAmount(3000),1);assert.deepEqual(forestColor(base,1,3000),forestColor(base,1,4000));
   assert.deepEqual(forestColor(base,0,4000),base);
   for(const c of [[0,0,0],[.2,.2,.2],[.03,.04,.02]])for(const f of [fog,[.9,.4,.2],[0,0,0]]){
     const out=slopeHaze(c,f,3000);assert(out.every(Number.isFinite));
