@@ -7,13 +7,13 @@ import { chromeArgs, initScript, collectEvent, unexpectedEvents, validateAllowli
 export { chromeArgs, initScript, collectEvent, unexpectedEvents, withChrome };
 const pause=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 async function freePort(){const s=net.createServer();await new Promise((resolve,reject)=>{s.once('error',reject);s.listen(0,'127.0.0.1',resolve);});const port=s.address().port;await new Promise(resolve=>s.close(resolve));return port;}
-export async function runSmoke({base=process.env.GL_SMOKE_URL||'http://127.0.0.1:8080',out=process.env.GL_SMOKE_OUT||'reports/local/gl-smoke',inject=false}={}) {
+export async function runSmoke({base=process.env.GL_SMOKE_URL||'http://127.0.0.1:8080',out=process.env.GL_SMOKE_OUT||'reports/local/gl-smoke',inject=false,deadlineMs=inject?120000:330000}={}) {
   await fs.mkdir(out,{recursive:true});const events=[], shots=[], started=Date.now();let cdp, failure, shaderFailure=false, stderr='';
   const allowlist=validateAllowlist(JSON.parse(await fs.readFile(new URL('./ci-smoke-allowlist.json',import.meta.url),'utf8')));
   const binary=process.env.CHROME_BIN||(process.platform==='darwin'?'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome':'google-chrome');
   let deadline;
   let interrupt;
-  const stop=new Promise((_,reject)=>{interrupt=()=>reject(Error('GL smoke interrupted'));deadline=setTimeout(()=>reject(Error('GL smoke deadline; cleanup reserved within 180 seconds')),175000);});
+  const stop=new Promise((_,reject)=>{interrupt=()=>reject(Error('GL smoke interrupted'));deadline=setTimeout(()=>reject(Error(`GL smoke deadline (${Math.round(deadlineMs/1000)} s); cleanup is reserved after it`)),deadlineMs);});
   // Keep cleanup reachable when the caller's timeout or terminal sends a signal.
   process.on('SIGINT',interrupt);process.on('SIGTERM',interrupt);
   stop.catch(()=>{});
