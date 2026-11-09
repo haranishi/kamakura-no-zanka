@@ -34,8 +34,9 @@ export async function runSmoke({base=process.env.GL_SMOKE_URL||'http://127.0.0.1
         for(const domain of ['Page','Runtime','Log','Network'])await cdp.send(domain+'.enable');
         await cdp.send('Emulation.setDeviceMetricsOverride',{width:960,height:640,deviceScaleFactor:1,mobile:false});
         await cdp.send('Page.addScriptToEvaluateOnNewDocument',{source:initScript(inject)});
-        const evaluate=async expression=>{
-          const r=await cdp.send('Runtime.evaluate',{expression,returnByValue:true,awaitPromise:true});
+        // Software GL on a shared runner can need many seconds per frame: waits that depend on frames get a longer budget (the run deadline still bounds everything).
+        const evaluate=async (expression,timeoutMs)=>{
+          const r=await cdp.send('Runtime.evaluate',{expression,returnByValue:true,awaitPromise:true},timeoutMs);
           if(r.exceptionDetails)throw Error(r.exceptionDetails.text);return r.result.value;
         };
         // Existing query parameters select reproducible positions and headings; no game hook added.
@@ -52,12 +53,12 @@ export async function runSmoke({base=process.env.GL_SMOKE_URL||'http://127.0.0.1
           if(!ready)throw Error('HUD / kz-tone-ready did not become ready');
           // Allow the bounded chunk queues and two animation frames to reach the GPU.
           await pause(700);
-          await evaluate('new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))');
-          const status=await evaluate(`document.querySelector('.kz-state')?.textContent || ''`);
+          await evaluate('new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))',90000);
+          const status=await evaluate(`document.querySelector('.kz-state')?.textContent || ''`,60000);
           if(status)events.push({level:'error',source:'HUD',text:status});
           await capture(name);
         }
-        if(inject && !await evaluate('Boolean(globalThis.__ciBadGlslInjected)'))throw Error('GLSL injection was not exercised');
+        if(inject && !await evaluate('Boolean(globalThis.__ciBadGlslInjected)',60000))throw Error('GLSL injection was not exercised');
       };
       try{await Promise.race([work(),stop]);}
       catch(e){failure=e;try{if(cdp)await capture('failure');}catch{}}
