@@ -1,3 +1,4 @@
+import { GROUND8_GLSL } from './kamakura-ground-mosaic.js';
 import { SLOPE7_GLSL } from './kamakura-ground-slope.js';
 import { createGroundDensity } from './kamakura-ground-density.js';
 import { installGroundPath } from './kamakura-ground-path.js';
@@ -15,6 +16,7 @@ export function installGroundTone(THREE,material,data,owner,{quality='standard',
   const ground6=new URLSearchParams(search).get('ground6')!=='0';
   // W2c-12: legacy exports without route data retain their original shader and resources.
   const ground7=new URLSearchParams(search).get('ground7')!=='0' && data.patches?.paths!=null;
+  const ground8=new URLSearchParams(search).get('ground8')!=='0' && ground7;
   const atlas=ground6||ground7;
   const r3Enabled=new URLSearchParams(search).get('gyard')!=='0';
   const {width:w,height:h}=data.meta.grid;
@@ -47,6 +49,7 @@ export function installGroundTone(THREE,material,data,owner,{quality='standard',
   const uniforms={uToneGrid:{value:new THREE.Vector3(w,h,data.meta.grid.cell_m)},uToneWeightSpan:{value:new THREE.Vector2(grid.width*grid.dx,grid.height*grid.dz)},uToneBase:{value:baseTexture},uToneWeights:{value:weightTexture},uToneYard:{value:yardTexture},uToneYardDebug:{value:new URLSearchParams(search).get('gyard')==='2'?1:0},uToneR3:{value:r3Enabled?toneStrength(quality):0},uToneReady:{value:0},uToneBlend:{value:0},uToneBaked:{value:material.vertexColors?1:0},uToneStrength:{value:toneStrength(quality)},uToneSoil:{value:new URLSearchParams(search).get('gsoil')==='0'?0:1}};
   Object.assign(uniforms,groundPhotoUniforms(classTextures,quality,search,owner.uniforms));
   if(slope7)Object.assign(uniforms,{uSlope7:{value:quality==='light'?.5:1},uSlope7Fine:{value:quality==='light'?0:1}});
+  if(ground8)Object.assign(uniforms,{uGround8:{value:1},uGround8Fine:{value:quality==='light'?0:1}});
   Object.assign(owner.uniforms,uniforms);
   let cursor=0,timer,fadeTimer,disposed=false,resolveReady,resolveFaded;
   const ready=new Promise(resolve=>{resolveReady=resolve;}),faded=new Promise(resolve=>{resolveFaded=resolve;});
@@ -72,7 +75,7 @@ export function installGroundTone(THREE,material,data,owner,{quality='standard',
     }
   }
   prepare();
-  const prior=material.onBeforeCompile,priorKey=material.customProgramCacheKey,cacheKey=priorKey.call(material)+'|tone-r4-photo'+(ground6?'|ground6':'')+(ground7?'|ground7':'')+(slope7?'|slope7':'');
+  const prior=material.onBeforeCompile,priorKey=material.customProgramCacheKey,cacheKey=priorKey.call(material)+'|tone-r4-photo'+(ground6?'|ground6':'')+(ground7?'|ground7':'')+(slope7?'|slope7':'')+(ground8?'|ground8':'');
   let toneGLSL=atlas?TONE_GLSL.replace('vec3 groundTone(',GROUND6_GLSL+'\nvec3 groundTone(').replace('  return result;','  float turf6=0.0;\n  if(uToneBlend>0.0 && dist<600.0)turf6=ground6Class((p+warp)/uToneWeightSpan+.5,0.0).b*(1.0-use)*(1.0-steep)*uToneBlend;\n  return ground6Color(result,p,dist,px,turf6,dry);'):TONE_GLSL;
   const photoDecl=atlas?GROUND_PHOTO_DECL.replace('uGroundPhotoA,uGroundPhotoB','uGroundPhotoA'):GROUND_PHOTO_DECL;
   let photoGLSL=atlas?GROUND_PHOTO_GLSL.replace('texture2D(uGroundPhotoA,uv)','ground6Class(uv,0.0)').replace('texture2D(uGroundPhotoB,uv)','ground6Class(uv,1.0)'):GROUND_PHOTO_GLSL;
@@ -106,6 +109,37 @@ export function installGroundTone(THREE,material,data,owner,{quality='standard',
   for(int i=0;i<7;i++)w[i]*=1.0-pathSoil;
   w[5]+=pathSoil;
   float moist=`);
+  }
+  if(ground8){
+    // W2c-14 GD6/GD7: preserve baseline detail, transfer masses before wet/path rebalancing.
+    // All helpers are declared after toneNoise and before the photograph preparation.
+    photoGLSL=GROUND8_GLSL+'\n'+photoGLSL;
+    const insertion8='  // Rebalance the existing two-photo budget';
+    photoGLSL=photoGLSL.replace(insertion8,`  float avoid8=0.0;
+  vec2 root8=(p-uGroundContactOrigin)/128.0;
+  if(min(min(root8.x,root8.y),min(1.0-root8.x,1.0-root8.y))>0.0)
+    avoid8=max(avoid8,1.0-smoothstep(.7,1.0,textureLod(uGroundContact,vec2(clamp(root8.x,.001953125,.998046875),clamp(root8.y,.001953125,.998046875)/3.0),0.0).r));
+  vec2 route8=(p-uGroundPathOrigin)/128.0;
+  float border8=min(min(route8.x,route8.y),min(1.0-route8.x,1.0-route8.y));
+  // No new detail where the bounded exclusions are unknown; soften the six-metre window rim.
+  avoid8=max(avoid8,1.0-smoothstep(0.0,.046875,border8));
+  if(border8>0.0){
+    vec2 routeUV8=clamp(route8,.001953125,.998046875);
+    float road8=textureLod(uGroundContact,vec2(routeUV8.x,(1.0+routeUV8.y)/3.0),0.0).r;
+    float water8=textureLod(uGroundContact,vec2(routeUV8.x,(2.0+routeUV8.y)/3.0),0.0).r;
+    avoid8=max(avoid8,max(water8,smoothstep(0.0,.15,road8)));
+  }
+  #ifdef GROUND_PHOTO_SHORE
+  if(uGroundPhotoShore>0.0){
+    float coast8=max(0.0,shoreD);
+    avoid8=max(avoid8,1.0-smoothstep(2.0,5.0,coast8));
+  }
+  #endif
+  ground8Weights(w,p,dist,avoid8,max(length(dx),length(dy)));
+  ${insertion8}`);
+    toneGLSL=toneGLSL.replace('vec3 groundTone(', 'vec3 ground8Color(vec3 color,vec2 p,float px);\nvec3 groundTone(')
+      .replace('  result*=1.0-.24*groundPhotoWet*groundPhotoAmount*groundPhotoEarth;',
+        '  result*=1.0-.24*groundPhotoWet*groundPhotoAmount*groundPhotoEarth;\n  result=ground8Color(result,p,px);');
   }
   if(slope7){
     // W2c-13 slope7: additive ecology, after all baseline detail; no new sampler or world wiring.
@@ -168,7 +202,7 @@ vec3 slope7LegacyTone(vec3 fallback,vec3 world,float normalY,float dist){
   };
   material.customProgramCacheKey=()=>cacheKey;
   const oldAdapt=owner.setAdapt,oldDispose=owner.dispose;
-  owner.setAdapt=function(policy){oldAdapt.call(this,policy);if(slope7){const step=typeof policy==='number'?policy:policy.step;uniforms.uSlope7.value=step>=3?0:(quality==='light'?.5:1)*(step>=2?.5:1);uniforms.uSlope7Fine.value=quality==='light'||step>=2?0:1;}uniforms.uToneR3.value=r3Enabled?toneStrength(quality,typeof policy==='number'?policy:policy.step):0;uniforms.uToneStrength.value=toneStrength(quality,typeof policy==='number'?policy:policy.step);};
+  owner.setAdapt=function(policy){oldAdapt.call(this,policy);if(ground8){const step=typeof policy==='number'?policy:policy.step;uniforms.uGround8.value=step>=3?0:step>=2?.5:1;uniforms.uGround8Fine.value=quality==='light'||step>=2?0:1;}if(slope7){const step=typeof policy==='number'?policy:policy.step;uniforms.uSlope7.value=step>=3?0:(quality==='light'?.5:1)*(step>=2?.5:1);uniforms.uSlope7Fine.value=quality==='light'||step>=2?0:1;}uniforms.uToneR3.value=r3Enabled?toneStrength(quality,typeof policy==='number'?policy:policy.step):0;uniforms.uToneStrength.value=toneStrength(quality,typeof policy==='number'?policy:policy.step);};
   owner.dispose=function(){if(disposed)return;disposed=true;clearTimeout(timer);clearTimeout(fadeTimer);textures.forEach(t=>t.dispose());resolveReady();resolveFaded();oldDispose.call(this);};
   owner.tone={uniforms,textures,ready,faded,stats,density};
   if(atlas){
