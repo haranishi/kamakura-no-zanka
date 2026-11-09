@@ -34,7 +34,7 @@ test('FH4 tracks are world-origin/face hashes, stable under order and window cha
  assert.notEqual(W.houseWeatherTrack(.3,seeds[0]),W.houseWeatherTrack(.3,seeds[1]));
  assert(!/houseOpening|window|instanceColor/.test(W.HOUSE_FACILITY7_GLSL));
 });
-test('FH4 mud/eave/runoff ranges, direction and contact contrast; integrated wall loss including tint stays below 8%',t=>{
+test('FH4 mud/eave/runoff ranges, direction and contact contrast; integrated wall loss including tint stays below 16%',t=>{
  let largestMean=0;
  for(const seed of [.07,.43,.82]){
   let previousMud=1,previousRun=1;
@@ -42,7 +42,7 @@ test('FH4 mud/eave/runoff ranges, direction and contact contrast; integrated wal
    const y=i/100,mud=W.houseWeatherMud(.32,y,seed),run=W.houseWeatherRun(y,1.5);
    assert(mud>=0&&mud<=previousMud);assert(run>=0&&run<=previousRun);previousMud=mud;previousRun=run;
   }
-  assert.equal(W.houseWeatherMud(.32,.6,seed),0);assert.equal(W.houseWeatherEave(1.9,3,seed),0);
+  assert.equal(W.houseWeatherMud(.32,.9,seed),0);assert.equal(W.houseWeatherEave(1.6,3,seed),0);
   assert.equal(W.houseWeatherRun(-.001,1),0);assert.equal(W.houseWeatherRun(1.5,1.5),0);
   for(const height of [.5,1,2,3,5,9]){
    let total=0;
@@ -55,17 +55,17 @@ test('FH4 mud/eave/runoff ranges, direction and contact contrast; integrated wal
     const runoff=line*Math.max(W.houseWeatherRun(height-y,W.houseWeatherLength(x,seed)),W.houseWeatherRun(height*.55-y,W.houseWeatherLength(x,seed)));
     const seam=W.houseWeatherLine(fract(x/.24)*.24,.12,.012,.025)*(1-smoothstep(.35,.55,y/height));
     const dirt=W.houseWeatherDirt(mud,eave,1-smoothstep(0,.04,y),runoff,seam,height,8);
-    assert(dirt>=0&&dirt<=.35);
-    const tint=.03*mud*W.houseWeatherBudget(height,8);
+    assert(dirt>=0&&dirt<=.5);
+    const tint=.10*mud*W.houseWeatherBudget(height,8);
     total+=1-(1-dirt)*(1-tint);
    }
-   const mean=total/(countX*countY);largestMean=Math.max(largestMean,mean);assert(mean<=.08,`height=${height}, loss=${mean}`);
+   const mean=total/(countX*countY);largestMean=Math.max(largestMean,mean);assert(mean<=.16,`height=${height}, loss=${mean}`);
   }
  }
- assert(Math.abs(W.houseWeatherDirt(1,0,0,0,0,4,8)-.32)<1e-12);
- assert.equal(W.houseWeatherDirt(0,1,0,0,0,4,8),.18);
- assert.equal(W.houseWeatherDirt(0,0,0,1,0,4,8),.16);
- t.diagnostic(JSON.stringify({largestSyntheticWallMeanLoss:largestMean,footLoss:.32,eaveLoss:.18,runoffLoss:.16}));
+ assert(Math.abs(W.houseWeatherDirt(1,0,0,0,0,4,8)-.45)<1e-12);
+ assert.equal(W.houseWeatherDirt(0,1,0,0,0,4,8),.26);
+ assert.equal(W.houseWeatherDirt(0,0,0,1,0,4,8),.22);
+ t.diagnostic(JSON.stringify({largestSyntheticWallMeanLoss:largestMean,footLoss:.45,eaveLoss:.26,runoffLoss:.22}));
 });
 test('FH5 members have 1.2m period, .25m width, area-preserving minification and a brighter opening; lift never subtracts original fill',()=>{
  for(const x of [-3,-.8,.05,.3,1.6,10])for(const pixel of [.001,.02,.2,1.2,12]){

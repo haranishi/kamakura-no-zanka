@@ -542,7 +542,7 @@ if (houseFade > 0.0) {
  #if defined(HOUSE_FACILITY7) && !defined(HOUSE_FACILITY)
  // FH4: bounded multiplicative loss, independent of the broad colour/light variation.
  aged*=1.0-hWeatherStain*houseWeatherQuality*hWeatherWeight;
- aged*=mix(vec3(1.0),vec3(.99,1.0,.97),hWeatherWeight*houseWeatherQuality*hWeatherMud*houseWeatherBudget(hWeatherHeight,hWeatherSpan));
+ aged*=mix(vec3(1.0),vec3(.96,1.0,.90),hWeatherWeight*houseWeatherQuality*hWeatherMud*houseWeatherBudget(hWeatherHeight,hWeatherSpan));
  #endif
  // W2c-10 facility F4: wall box -> human-scale recessed door / renji window.
  // Facilities already carry modelled openings; no extra opening is ever drawn there.
