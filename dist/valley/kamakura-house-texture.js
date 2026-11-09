@@ -355,3 +355,106 @@ float houseRoofRim(float edge,float viewSun,float facing,float visibility,float 
  return .05*edge*smoothstep(.80,.98,viewSun)*smoothstep(0.0,.12,facing)*smoothstep(.95,1.0,visibility)
   *(1.0-smoothstep(35.0,60.0,metres))*(1.0-.65*smoothstep(.12,.65,elevation));
 }`;
+
+// W2c-12 facility7 FH4: weak, overlapping dirt -> bounded location-specific weathering.
+// The GLSL scalar functions are deliberately scalar-only, mirrored below in Node tests.
+export const HOUSE_FACILITY7_GLSL = `
+float houseWeatherLine(float x,float centre,float width,float pixel){
+ float fp=max(.001,pixel);
+ return max(0.0,min(x+fp*.5,centre+width*.5)-max(x-fp*.5,centre-width*.5))/fp;
+}
+float houseWeatherSeed(float ox,float oz,float nx,float nz){
+ return houseHash(vec2(ox+nx*37.0,oz+nz*37.0));
+}
+float houseWeatherTrack(float x,float seed){
+ float cell=floor(x/.8);
+ return (cell+.15+.70*houseHash(vec2(cell,seed*41.0)))*.8;
+}
+float houseWeatherWidth(float x,float seed){
+ return .02+.04*houseHash(vec2(floor(x/.8)+13.0,seed*41.0));
+}
+float houseWeatherLength(float x,float seed){
+ return .6+.9*houseHash(vec2(floor(x/.8)+29.0,seed*41.0));
+}
+float houseWeatherMud(float x,float y,float seed){
+ float top=.3+.3*houseHash(vec2(floor(x/.16),seed*31.0));
+ return 1.0-smoothstep(.18,top,max(0.0,y));
+}
+float houseWeatherEave(float y,float height,float seed){
+ float band=.6+.4*houseHash(vec2(seed*31.0,7.0));
+ return 1.0-smoothstep(.20,band,max(0.0,height-y));
+}
+float houseWeatherRun(float drop,float extent){
+ return step(0.0,drop)*(1.0-smoothstep(0.0,extent,max(0.0,drop)));
+}
+float houseWeatherBudget(float height,float span){
+ // Area upper bound: mud/contact .126m + eave .108m + two runoff origins .018m
+ // + tint .012m + lower-half seams .0003*height. Rounded UP, including AA.
+ // The finite-span correction covers partial rain cells at both wall edges.
+ return min(1.0,.08/(.28/max(.01,height)+.001+.03/(max(.01,height)*max(.01,span))));
+}
+float houseWeatherDirt(float mud,float eaveShade,float contact,float runoff,float seam,float height,float span){
+ return min(.35,max(.32*mud,.35*contact)+.18*eaveShade+.16*runoff+.012*seam)*houseWeatherBudget(height,span);
+}
+// FH5: 25cm members, 1.2m spacing; pixel integration converges to the duty cycle.
+float houseInteriorMember(float x,float pixel){
+ float fp=max(.001,pixel),a=(x-fp*.5)/1.2,b=(x+fp*.5)/1.2;
+ float duty=.25/1.2;
+ float ia=floor(a)*duty+min(fract(a),duty);
+ float ib=floor(b)*duty+min(fract(b),duty);
+ return (ib-ia)/(b-a);
+}
+float houseInteriorDepth(float depth,float span){
+ return 1.0-smoothstep(0.0,max(.1,span),max(0.0,depth));
+}
+float houseInteriorLift(float nearOpening,float members,float upper){
+ return (.014+.018*nearOpening)*(1.0-.70*members*upper);
+}`;
+// Pure mirrors use exactly the emitted GLSL bodies, with GLSL scalar primitives.
+// No Three, DOM, clock, random state or placement-index seed is involved.
+const weatherFract=x=>x-Math.floor(x);
+const weatherStep=(a,x)=>x<a?0:1;
+export function houseWeatherSeed(ox,oz,nx,nz){return houseHash(ox+nx*37,oz+nz*37);}
+export function houseWeatherTrack(x,seed){const cell=Math.floor(x/.8);return (cell+.15+.70*houseHash(cell,seed*41))*.8;}
+export function houseWeatherWidth(x,seed){return .02+.04*houseHash(Math.floor(x/.8)+13,seed*41);}
+export function houseWeatherLength(x,seed){return .6+.9*houseHash(Math.floor(x/.8)+29,seed*41);}
+export function houseWeatherLine(x,centre,width,pixel){const fp=Math.max(.001,pixel);return Math.max(0,Math.min(x+fp*.5,centre+width*.5)-Math.max(x-fp*.5,centre-width*.5))/fp;}
+export function houseWeatherMud(x,y,seed){const top=.3+.3*houseHash(Math.floor(x/.16),seed*31);return 1-facilitySmooth(.18,top,Math.max(0,y));}
+export function houseWeatherEave(y,height,seed){const band=.6+.4*houseHash(seed*31,7);return 1-facilitySmooth(.20,band,Math.max(0,height-y));}
+export function houseWeatherRun(drop,extent){return weatherStep(0,drop)*(1-facilitySmooth(0,extent,Math.max(0,drop)));}
+export function houseWeatherBudget(height,span){return Math.min(1,.08/(.28/Math.max(.01,height)+.001+.03/(Math.max(.01,height)*Math.max(.01,span))));}
+export function houseWeatherDirt(mud,eaveShade,contact,runoff,seam,height,span){return Math.min(.35,Math.max(.32*mud,.35*contact)+.18*eaveShade+.16*runoff+.012*seam)*houseWeatherBudget(height,span);}
+export function houseInteriorMember(x,pixel){const fp=Math.max(.001,pixel),a=(x-fp*.5)/1.2,b=(x+fp*.5)/1.2,duty=.25/1.2;const ia=Math.floor(a)*duty+Math.min(weatherFract(a),duty),ib=Math.floor(b)*duty+Math.min(weatherFract(b),duty);return (ib-ia)/(b-a);}
+export function houseInteriorDepth(depth,span){return 1-facilitySmooth(0,Math.max(.1,span),Math.max(0,depth));}
+export function houseInteriorLift(nearOpening,members,upper){return (.014+.018*nearOpening)*(1-.70*members*upper);}
+// FH5: summed inward triangle normals point towards the missing/open wall.
+// Frame is local to the rigid node, so terrain placement does not alter its depth.
+export function houseInteriorOpeningFrame(surfaces) {
+  if(!surfaces.length)return [0,1,0,1];
+  let nx=0,nz=0,wallArea=0,massX=0,massZ=0;
+  let x0=Infinity,x1=-Infinity,z0=Infinity,z1=-Infinity;
+  for(const {positions:p,indices} of surfaces){
+    for(let i=0;i<p.length;i+=3){x0=Math.min(x0,p[i]);x1=Math.max(x1,p[i]);z0=Math.min(z0,p[i+2]);z1=Math.max(z1,p[i+2]);}
+    const at=i=>indices?indices[i]:i;
+    for(let i=0;i<(indices?.length??p.length/3);i+=3){
+      const a=at(i)*3,b=at(i+1)*3,c=at(i+2)*3;
+      const ux=p[b]-p[a],uy=p[b+1]-p[a+1],uz=p[b+2]-p[a+2];
+      const vx=p[c]-p[a],vy=p[c+1]-p[a+1],vz=p[c+2]-p[a+2];
+      const tx=uy*vz-uz*vy,tz=ux*vy-uy*vx,weight=Math.hypot(tx,tz);
+      nx+=tx;nz+=tz;
+      wallArea+=weight;massX+=weight*(p[a]+p[b]+p[c])/3;massZ+=weight*(p[a+2]+p[b+2]+p[c+2])/3;
+    }
+  }
+  let size=Math.hypot(nx,nz);
+  if(size<1e-6 && wallArea>0){
+    // Solid wall slabs have cancelling inner/outer normals. The missing side
+    // is opposite their area-weighted mass, relative to the interior bounds.
+    nx=(x0+x1)*.5-massX/wallArea;nz=(z0+z1)*.5-massZ/wallArea;size=Math.hypot(nx,nz);
+  }
+  // A symmetric closed interior supplies no opening direction. Retain its real
+  // depth and use the local +z side; this fallback needs the parent's visual check.
+  if(size<1e-6){nx=0;nz=1;}else{nx/=size;nz/=size;}
+  let front=-Infinity,back=Infinity;
+  for(const {positions:p} of surfaces)for(let i=0;i<p.length;i+=3){const d=p[i]*nx+p[i+2]*nz;front=Math.max(front,d);back=Math.min(back,d);}
+  return [nx,nz,front,Math.max(.1,front-back)];
+}
