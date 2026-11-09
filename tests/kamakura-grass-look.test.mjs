@@ -64,11 +64,11 @@ test('warm completes the first window and chunks; hero uniforms reuse storage, s
   v.updateHero(pos,5,false,1/60);assert(hero.w>walking);assert.equal(u.uHero.value,hero);assert.equal(u.uGrassTrail.value,trail);assert.equal(hero.x,1);
   const old=trail.slice();v.updateHero({x:100,y:10,z:100},5,false,.05);assert(trail.some((n,i)=>i%4===3&&n<old[i]));
   v.updateHero(pos,5,true,1/60);assert.equal(hero.w,0);assert.equal(u.uHeroStrength.value,0);for(let i=3;i<16;i+=4)assert.equal(trail[i],0);
-  for(const text of ['grassPress','uGrassTrail[4]','pow(max(.005,1.0-t),.65)','normalize(iTip.yzw),0.78','vec3(.25,.17,.075)','smoothstep(4.5,6.0,dd)'])assert(s.vertexShader.includes(text),text);
+  for(const text of ['grassPress','uGrassTrail[4]','pow(max(.005,1.0-t),.65)','normalize(iTip.yzw),0.78','vec3(.25,.17,.075)'])assert(s.vertexShader.includes(text),text); // R9: the stream patch removes the 4.5-6 m lawn fade on purpose (lawn blades now reach 30 m)
   assert.match(s.fragmentShader,/float ridge/);assert.match(s.fragmentShader,/float glint/);assert.match(s.fragmentShader,/pow\(lc, vec3\(0.800\)\)/);assert.match(s.fragmentShader,/#include <fog_fragment>/);
   const resources=new Set();v.group.traverse(o=>{if(o.isMesh){resources.add(o.geometry);resources.add(o.material);if(o.material.map)resources.add(o.material.map);}});const disposed=new Map();for(const r of resources)r.addEventListener('dispose',()=>disposed.set(r,(disposed.get(r)||0)+1));
-  const builds=stats.builds;v.setAdapt(2);assert.equal(v.stats().builds,builds);assert.equal(u.uGrassLookStep.value,2);assert.equal(v.stats().lawn,0);assert.equal(v.stats().flowers,0);assert.equal(near.geometry.drawRange.count,18);assert.equal(near.geometry.drawRange.start,0);
-  v.setAdapt(3);assert.equal(v.group.visible,false);v.setAdapt(0);assert.equal(near.geometry.drawRange.count,36);assert.equal(near.geometry.drawRange.start,18);assert.equal(v.stats().nearBlades,stats.nearBlades);
+  const builds=stats.builds;v.setAdapt(2);assert.equal(v.stats().builds,builds);assert.equal(u.uGrassLookStep.value,2);assert.equal(v.stats().lawn,0);assert.equal(v.stats().flowers,0);assert.equal(near.geometry.drawRange.count,12);/* R9: step 2 draws the 4-triangle far-LOD blade (the old path drew the 6-triangle blade) */ assert.equal(near.geometry.drawRange.start,0);
+  v.setAdapt(3);assert.equal(v.group.visible,true);v.setAdapt(0);/* R9: the stream draws the 4-triangle far LOD here; the 12-triangle blades are a separate detail mesh */ assert.equal(near.geometry.drawRange.count,12);assert.equal(near.geometry.drawRange.start,0);assert.equal(v.stats().nearBlades,stats.nearBlades);
   v.dispose();v.dispose();for(const n of disposed.values())assert.equal(n,1);assert.equal(disposed.size,resources.size);
 });
 test('light omits lawn, halves flower candidates; glook=0 restores 9b materials and counts',()=>{

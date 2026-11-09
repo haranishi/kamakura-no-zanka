@@ -78,13 +78,13 @@ function emptyField(pos, seed, size) {
 }
 export function createGrassWindows(cell, { seed = 1333, size = GRASS_WINDOW } = {}) {
   let field = null, pending = null, generation = 0;
-  function plan(pos, sizeOverride = size) {
+  function plan(pos, sizeOverride = size, force = false) {
     if (!Number.isFinite(pos.x + pos.z)) throw new RangeError('grass window: finite position required');
     // Finish the chosen window before chasing movement again; otherwise a slow
     // device or fast flight could cancel every batch before any field commits.
     if (pending) return false;
     const target = field;
-    if (target && target.nx === sizeOverride && Math.hypot(pos.x - (target.x0 + target.nx/2),pos.z - (target.z0 + target.nz/2)) < GRASS_MOVE) return false;
+    if (!force && target && target.nx === sizeOverride && Math.hypot(pos.x - (target.x0 + target.nx/2),pos.z - (target.z0 + target.nz/2)) < GRASS_MOVE) return false;
     pending = { field: emptyField(pos, seed, sizeOverride), cursor: 0, generation: ++generation };
     return true;
   }

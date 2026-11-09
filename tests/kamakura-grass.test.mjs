@@ -87,7 +87,7 @@ function view(code=2,search='',quality='standard') {
 function settle(v,c) {for(let i=0;i<20000;i++){v.update(c);if(!v.stats().pending&&v.stats().switches&&v.stats().queue===0)return;}assert.fail('grass did not settle');}
 test('shipped Three CPU view streams, retains interior chunks, adapts without rebuilding and disposes each resource once',()=>{
   for(const quality of ['standard','light']){
-    const v=view(2,'',quality);settle(v,camera(0));const before=v.stats();assert(before.nearBlades>0&&before.midCards>0);
+    const v=view(2,'&grass9=0',quality); /* R9: this test pins the pre-stream path; the 30 m stream has its own tests (kamakura-grass-stream.test.mjs) */ settle(v,camera(0));const before=v.stats();assert(before.nearBlades>0&&before.midCards>0);
     const allocated=new Map();const watch=()=>v.group.traverse(o=>{for(const r of [o.geometry,...[].concat(o.material||[]),o.material?.map].filter(Boolean))if(!allocated.has(r)){allocated.set(r,0);r.addEventListener('dispose',()=>allocated.set(r,allocated.get(r)+1));}});
     watch();const builds=before.builds;v.setAdapt(2);const reduced=v.stats();assert.equal(reduced.builds,builds);assert(reduced.tallBlades/before.tallBlades>.55&&reduced.tallBlades/before.tallBlades<.65);assert.equal(reduced.lawn,0);assert.equal(reduced.flowers,0);
     // Step 2 must thin by an independent hash: the card pattern and the far fade both read iShape.w.

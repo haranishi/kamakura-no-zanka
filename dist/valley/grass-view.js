@@ -139,12 +139,13 @@ function materialFor(kind, wind, sun, radii, map, quality, groundTint, look) {
   return m;
 }
 
-function geometryFor(kind, capacity, look) {
+function geometryFor(kind, capacity, look, streaming) {
   const g = new THREE.InstancedBufferGeometry(), pos = [], uv = [], idx = [];
   if (kind === 'near') {
     // W2c-9c: valley's three sections -> optional six, with a coarse index range.
     const segments = look?.segments ?? 3;
     for (let i = 0; i <= segments; i++) for (const side of [-.5, .5]) { pos.push(side, i / segments, 0); uv.push(side + .5, i / segments); }
+    if (streaming) idx.push(0,1,7,0,7,6,6,7,13,6,13,12);
     if (look) for (let i = 0; i < segments; i += 2) { const a=i*2; idx.push(a,a+1,a+5,a,a+5,a+4); }
     for (let i = 0; i < segments; i++) { const a = i * 2; idx.push(a, a + 1, a + 3, a, a + 3, a + 2); }
   } else {
@@ -199,7 +200,8 @@ function packTile(d, kind) {
   return data.subarray(0, n * STRIDE);
 }
 
-export function buildGrass({ field, wind, quality = 'standard', sunDir, reach, look }) {
+export function buildGrass({ field, wind, quality = 'standard', sunDir, reach, look, streaming }) {
+  const chunkSizes = streaming?.chunkSizes ?? CHUNK_TILES;
   const q = GRASS.quality[quality]; if (!q) throw new RangeError('grass quality');
   const group = new THREE.Group(); group.name = 'grass';
   const sun = { value: new THREE.Vector3().copy(sunDir).normalize() };
@@ -213,30 +215,71 @@ export function buildGrass({ field, wind, quality = 'standard', sunDir, reach, l
   let last = null, wanted = { near: [], mid: [] }, active = { near: new Set(), mid: new Set() }, dead = false;
   let densityScale = 1;
   let builds = 0, queue = 0, lastBuildMs = 0, maxBuildMs = 0, overBudget = 0;
+  let replans = 0, replanMs = 0, replanMaxMs = 0, submitSkipped = 0;
+  const ALL_ACTIVE = { has: () => true };
   const perCell = { near: Math.ceil(Math.round(GRASS.nearDensity * Math.ceil(GRASS.maxDensity * 255 / 2) * 2 / 255) * q.density) + 13,
     mid: Math.min(GRASS.midMaxCards, Math.ceil(GRASS.midCardRate * q.density * 1.8)) };
-  function slot(kind) {
-    if (pools[kind].length) return pools[kind].pop();
-    const size = (kind === 'near' ? GRASS.nearSize : GRASS.midSize) * CHUNK_TILES[kind];
-    const { g, buffer } = geometryFor(kind, size * size * perCell[kind] * (look?.capacityFactor ?? 1), look);
+  function slot(kind, required = 0) {
+    if (!streaming && pools[kind].length) return pools[kind].pop();
+    if (streaming) {
+      const index=pools[kind].findIndex(s=>s.buffer.array.length>=required*STRIDE);
+      if(index>=0)return pools[kind].splice(index,1)[0];
+    }
+    const size = (kind === 'near' ? GRASS.nearSize : GRASS.midSize) * chunkSizes[kind];
+    const capacity=streaming?2**Math.ceil(Math.log2(Math.max(1,required))):size*size*perCell[kind]*(look?.capacityFactor??1);
+    const { g, buffer } = geometryFor(kind, capacity, look, streaming);
     const mesh = new THREE.Mesh(g, materials[kind]); mesh.name = `grass-${kind}`;
     mesh.receiveShadow = true; mesh.frustumCulled = true; mesh.visible = false;
-    group.add(mesh); const s = { mesh, buffer, tiles: [] }; all.add(s); return s;
+    group.add(mesh); const s = { mesh, buffer, tiles: [] };
+    if(streaming && kind==='near'){
+      const detail=geometryFor(kind,capacity,look,streaming);
+      detail.mesh=new THREE.Mesh(detail.g,materials.near);detail.mesh.name='grass-near';
+      detail.mesh.receiveShadow=true;detail.mesh.frustumCulled=true;detail.mesh.visible=false;
+      detail.g.setDrawRange(30,36);g.setDrawRange(0,12);s.detail=detail;group.add(detail.mesh);
+    }
+    all.add(s); return s;
   }
   function submit(c, kind) {
-    let offset = 0;
-    for (const t of c.tiles) if (active[kind].has(t.key)) {
-      if (densityScale === 1 && (!look || (kind === 'mid' && look.bulkMid))) { c.buffer.array.set(t.data, offset); offset += t.data.length; }
+    let offset = 0, detailOffset=0;
+    const out = c.buffer.array, dout = c.detail?.buffer.array, activeSet = active[kind];
+    const lowStep = Boolean(c.detail) && look.uniforms.uGrassLookStep.value < 2;
+    const sx = streaming ? streaming.position.x : 0, sz = streaming ? streaming.position.z : 0;
+    for (const t of c.tiles) if (activeSet.has(t.key)) {
+      const data = t.data;
+      if (densityScale === 1 && (!look || (kind === 'mid' && look.bulkMid))) { out.set(data, offset); offset += data.length; }
       // Thin by a hash of the root position, not by iShape.w: the shader also uses w for the distance fade and the
       // card pattern, so thinning on w would drop the far blades first and wipe out the last card pattern.
-      else for (let i = 0; i < t.data.length; i += STRIDE) if ((!look || look.accept(t.data,i,kind)) && (densityScale === 1 || hash(t.data[i], t.data[i + 2], 61) < densityScale)) {
-        if (look) { for (let j=0;j<STRIDE;j++) c.buffer.array[offset++]=t.data[i+j]; }
-        else { c.buffer.array.set(t.data.subarray(i, i + STRIDE), offset); offset += STRIDE; }
+      else for (let i = 0; i < data.length; i += STRIDE) if ((!look || look.accept(data,i,kind)) && (densityScale === 1 || hash(data[i], data[i + 2], 61) < densityScale)) {
+        if (lowStep) {
+          // Blades within 12 m take the full-detail mesh (squared distance: this loop runs for every resident blade).
+          const dx = data[i] - sx, dz = data[i + 2] - sz;
+          if (dx * dx + dz * dz < 144) { for (let j = 0; j < STRIDE; j++) dout[detailOffset++] = data[i + j]; continue; }
+        }
+        if (look) { for (let j = 0; j < STRIDE; j++) out[offset++] = data[i + j]; }
+        else { out.set(data.subarray(i, i + STRIDE), offset); offset += STRIDE; }
       }
+    }
+    if(c.detail){
+      c.detail.g.instanceCount=detailOffset/STRIDE;c.detail.mesh.visible=detailOffset>0;
+      c.detail.buffer.clearUpdateRanges();if(detailOffset)c.detail.buffer.addUpdateRange(0,detailOffset);c.detail.buffer.needsUpdate=true;
     }
     c.mesh.geometry.instanceCount = offset / STRIDE; c.mesh.visible = offset > 0;
     c.buffer.clearUpdateRanges(); if (offset) c.buffer.addUpdateRange(0, offset); c.buffer.needsUpdate = true;
+    if (streaming && kind === 'near') c.subClass = nearClass(c);
   }
+  // Streaming only. What look.accept and the 12 m detail disc decide for a chunk cannot change while it stays wholly inside
+  // the always-accepted zone (past the disc) or wholly beyond the rejected zone, so such chunks are not copied again.
+  // 0: accepted and past the disc; 1: rejected; 2: depends on the player's position.
+  function nearClass(c) {
+    const r = streaming.radius(), p = streaming.position, size = GRASS.nearSize * chunkSizes.near, x0 = c.cx * size, z0 = c.cz * size;
+    const nearest = streaming.distance(c);
+    const farthest = Math.hypot(Math.max(Math.abs(x0 - p.x), Math.abs(x0 + size - p.x)), Math.max(Math.abs(z0 - p.z), Math.abs(z0 + size - p.z)));
+    if (nearest >= 12.5 && farthest < r + 12.5) return 0;
+    if (nearest >= r + 16.5) return 1;
+    return 2;
+  }
+  // Mid chunks always show all their tiles, so once submitted they only change through setDensityScale / setLookQuality.
+  const needsSubmit = (c, kind) => kind === 'near' && (c.subClass === 2 || c.subClass !== nearClass(c));
   // W2c-9c: optional look only; omitted packs exactly the valley bytes.
   function packed(data, kind) {
     // Optional look owns its flowers/seed heads; legacy elevated clumps would float above shorter leaves.
@@ -244,33 +287,85 @@ export function buildGrass({ field, wind, quality = 'standard', sunDir, reach, l
     return look ? look.pack(raw,kind) : raw;
   }
   function build(c, kind) {
-    const s = slot(kind), make = kind === 'near' ? nearTile : midTile;
-    Object.assign(s, c); s.tiles = chunkTiles(kind, c.cx, c.cz).map(t => ({ key: `${kind}:${t.tx},${t.tz}`, data: packed(make(field, t.tx, t.tz, { quality, ...(kind === 'mid' ? look?.midPlacement : {}) }), kind) }));
+    const make = kind === 'near' ? nearTile : midTile;
+    const prepare=()=>chunkTiles(kind,c.cx,c.cz,chunkSizes).map(t=>({key:`${kind}:${t.tx},${t.tz}`,data:packed(make(field,t.tx,t.tz,{quality,...(kind==='mid'?look?.midPlacement:{})}),kind)}));
+    const prepared=streaming?prepare():null;
+    const s=slot(kind,prepared?prepared.reduce((n,t)=>n+t.data.length/STRIDE,0):0);
+    Object.assign(s,c);s.tiles=prepared??prepare();
     // All roots and every possible displaced tip, including elevated flower/plume roots.
-    const size = (kind === 'near' ? GRASS.nearSize : GRASS.midSize) * CHUNK_TILES[kind];
+    const size = (kind === 'near' ? GRASS.nearSize : GRASS.midSize) * chunkSizes[kind];
     let minY = Infinity, maxY = -Infinity;
     for (const t of s.tiles) for (let i = 0; i < t.data.length; i += STRIDE) { minY = Math.min(minY, t.data[i + 1]); maxY = Math.max(maxY, t.data[i + 1] + t.data[i + 4]); }
     if (!Number.isFinite(minY)) minY = maxY = 0;
     const margin = 2.5;
     s.mesh.geometry.boundingSphere = new THREE.Sphere(new THREE.Vector3((c.cx + .5) * size, (minY + maxY) / 2, (c.cz + .5) * size), Math.hypot(size / 2 + margin, size / 2 + margin, (maxY - minY) / 2 + margin));
+    if(s.detail)s.detail.g.boundingSphere=s.mesh.geometry.boundingSphere;
     submit(s, kind); resident[kind].set(c.key, s); builds++;
   }
   function replan(camera) {
     look?.prepare(camera);
-    const { x, z } = camera.position, tiles = tilesAround(field, x, z, { quality, reach });
-    wanted = wantedChunks(tiles);
+    const { x, z } = streaming ? streaming.position : camera.position;
+    let tiles = null;
+    if (streaming) {
+      // Both kinds are planned per chunk and every tile of a resident chunk is shown: look.accept rejects near blades
+      // beyond the fade and the mid shader zeroes cards outside its ring.
+      wanted = streaming.plan(field);
+      active.near = active.mid = ALL_ACTIVE;
+    } else {
+      tiles = tilesAround(field, x, z, { quality, reach });
+      wanted = wantedChunks(tiles, chunkSizes);
+    }
     for (const kind of ['near', 'mid']) {
-      active[kind] = new Set(tiles[kind].map(t => t.key));
-      const size = (kind === 'near' ? GRASS.nearSize : GRASS.midSize) * CHUNK_TILES[kind], radius = kind === 'near' ? radii.value.x : radii.value.y;
+      if (!streaming) active[kind] = new Set(tiles[kind].map(t => t.key));
+      const size = (kind === 'near' ? GRASS.nearSize : GRASS.midSize) * chunkSizes[kind], radius = kind === 'near' ? radii.value.x : radii.value.y;
       for (const c of resident[kind].values()) c.dist = Math.hypot(Math.max(c.cx * size - x, 0, x - (c.cx + 1) * size), Math.max(c.cz * size - z, 0, z - (c.cz + 1) * size)) - radius;
       const plan = planChunks({ wanted: wanted[kind], resident: resident[kind], maxBuild: 0 });
-      for (const key of plan.evict) { const c = resident[kind].get(key); resident[kind].delete(key); c.mesh.visible = false; c.mesh.geometry.instanceCount = 0; c.tiles = []; pools[kind].push(c); }
-      for (const c of resident[kind].values()) submit(c, kind);
+      for (const key of plan.evict) { const c = resident[kind].get(key); resident[kind].delete(key); c.mesh.visible = false; c.mesh.geometry.instanceCount = 0; if(c.detail){c.detail.mesh.visible=false;c.detail.g.instanceCount=0;} c.tiles = []; pools[kind].push(c); }
+      for (const c of resident[kind].values()) {
+        if (streaming && kind === 'near') c.dist = streaming.distance(c);
+        if (streaming && !needsSubmit(c, kind)) { submitSkipped++; continue; }
+        submit(c, kind);
+      }
     }
     last = { x, z };
   }
+  // Optional policy is used only by Kamakura R9. Omitted preserves valley/R8.
+  let streamReady = false, appeared30 = 0, holes30 = 0, drawnX=0, drawnZ=0, drawnRadius=0;
+  function forward(camera, warm) {
+    const p=streaming.position;
+    const distance=last?Math.hypot(p.x-last.x,p.z-last.z):Infinity;
+    const jump=streamReady&&Math.hypot(p.x-drawnX,p.z-drawnZ)>=20, radius=streaming.radius();
+    const expandedRadius=radius>drawnRadius;
+    if(!warm && distance<1 && !queue && !streaming.changed)return;
+    if(warm || distance>=1 || streaming.changed) { const r0=streaming.now(); replan(camera); streaming.changed=false; const dt=streaming.now()-r0; replans++; replanMs+=dt; replanMaxMs=Math.max(replanMaxMs,dt); }
+    const start=streaming.now(), full=warm||jump||!streamReady||expandedRadius;
+    let made=0;
+    const pending=streaming.queue(wanted,resident.near);
+    for(const c of pending){
+      const budget=streaming.budget(c.dist,radius);
+      if(!full && made && streaming.now()-start>=budget)break;
+      build(c,'near');made++;
+      if(streamReady&&!jump&&c.dist<=radius){
+        const slot=resident.near.get(c.key);
+        const tally=(a,n)=>{for(let i=0;i<n*STRIDE;i+=STRIDE)if(Math.hypot(a[i]-p.x,a[i+2]-p.z)<=radius)appeared30++;};
+        tally(slot.buffer.array,slot.mesh.geometry.instanceCount);if(slot.detail)tally(slot.detail.buffer.array,slot.detail.g.instanceCount);
+      }
+    }
+    // Mid cards are optional work; urgent blades always take precedence.
+    for(const c of wanted.mid)if(!resident.mid.has(c.key)){
+      if(!full && made && streaming.now()-start>=2)break;
+      build(c,'mid');made++;
+    }
+    holes30=0;
+    for(const c of wanted.near)if(streaming.distance(c)<=radius&&!resident.near.has(c.key))holes30++;
+    queue=wanted.near.filter(c=>!resident.near.has(c.key)).length+wanted.mid.filter(c=>!resident.mid.has(c.key)).length;
+    lastBuildMs=made?streaming.now()-start:0;maxBuildMs=Math.max(maxBuildMs,lastBuildMs);
+    if(!full&&lastBuildMs>6)overBudget++;
+    streamReady=true;drawnX=p.x;drawnZ=p.z;drawnRadius=radius;
+  }
   function stream(camera, warm = false) {
     if (dead) return;
+    if (streaming) return forward(camera,warm);
     const distance = last ? Math.hypot(camera.position.x - last.x, camera.position.z - last.z) : Infinity;
     const moved = distance >= (look?.replanDistance ?? .25);
     if (look && !warm && !moved && queue === 0) return;
@@ -302,14 +397,14 @@ export function buildGrass({ field, wind, quality = 'standard', sunDir, reach, l
     setField(next) {
       if (dead || next === field) return;
       const interior = (f, c, kind) => {
-        const size = (kind === 'near' ? GRASS.nearSize : GRASS.midSize) * CHUNK_TILES[kind];
+        const size = (kind === 'near' ? GRASS.nearSize : GRASS.midSize) * chunkSizes[kind];
         const edge = f.edge ?? 0;
         return c.cx * size >= f.x0 + edge && c.cz * size >= f.z0 + edge &&
           (c.cx + 1) * size <= f.x0 + f.nx - edge && (c.cz + 1) * size <= f.z0 + f.nz - edge;
       };
       for (const kind of ['near', 'mid']) for (const [key, c] of resident[kind]) {
         if (interior(field, c, kind) && interior(next, c, kind)) continue;
-        resident[kind].delete(key); c.mesh.visible = false; c.mesh.geometry.instanceCount = 0; c.tiles = []; pools[kind].push(c);
+        resident[kind].delete(key); c.mesh.visible = false; c.mesh.geometry.instanceCount = 0; if(c.detail){c.detail.mesh.visible=false;c.detail.g.instanceCount=0;} c.tiles = []; pools[kind].push(c);
       }
       field = next; last = null;
     },
@@ -317,27 +412,31 @@ export function buildGrass({ field, wind, quality = 'standard', sunDir, reach, l
       if (dead) return;
       const next = Math.max(0, Math.min(1, value)); if (next === densityScale) return;
       densityScale = next;
-      for (const kind of ['near', 'mid']) for (const c of resident[kind].values()) submit(c, kind);
+      for (const kind of ['near', 'mid']) for (const c of resident[kind].values()) { if(streaming && kind==='near')c.dist=streaming.distance(c); submit(c, kind); }
     },
     setLookQuality(step) {
       if (!look || dead) return;
       look.setAdapt(step);
       for (const kind of ['near', 'mid']) for (const c of resident[kind].values()) submit(c,kind);
-      for (const c of all) if (c.mesh.name === 'grass-near') c.mesh.geometry.setDrawRange(step >= 2 ? 0 : 18, step >= 2 ? 18 : 36);
+      for (const c of all) if (!streaming && c.mesh.name === 'grass-near') c.mesh.geometry.setDrawRange(step >= 2 ? 0 : 18, step >= 2 ? 18 : 36);
     },
     setGroundTint(color) { groundTint.value.copy(color); },
     setSun(dir) { sun.value.copy(dir).normalize(); },
     stats() {
-      const count = kind => [...resident[kind].values()].reduce((n, c) => n + c.mesh.geometry.instanceCount, 0);
-      const chunks = kind => [...resident[kind].values()].filter(c => c.mesh.visible).length;
+      const count = kind => [...resident[kind].values()].reduce((n, c) => n + c.mesh.geometry.instanceCount+(c.detail?.g.instanceCount??0), 0);
+      const chunks = kind => [...resident[kind].values()].reduce((n,c)=>n+Number(c.mesh.visible)+Number(c.detail?.mesh.visible??false),0);
       const nearBlades = count('near'), midCards = count('mid'), nearChunks = chunks('near'), midChunks = chunks('mid');
       let lawn=0, flowers=0;
-      if (look) for (const c of resident.near.values()) { const a=c.buffer.array; for(let i=0;i<c.mesh.geometry.instanceCount;i++){const marker=a[i*STRIDE+11]; if(marker===-1)lawn++; if(marker===-2)flowers++;} }
-      return { ...(look ? { lawn, flowers, tallBlades: nearBlades-lawn-flowers, nearTriangles: nearBlades*(look.uniforms.uGrassLookStep.value>=2?6:12) } : {}), nearChunks, midChunks, nearBlades, midCards, triangles: nearBlades * (look && look.uniforms.uGrassLookStep.value < 2 ? 12 : 6) + midCards * 6, drawCalls: nearChunks + midChunks, builds, queue, lastBuildMs, maxBuildMs, overBudget };
+      if (look) for (const c of resident.near.values()) {
+        const tally=(a,count)=>{for(let i=0;i<count;i++){const marker=a[i*STRIDE+11];if(marker===-1)lawn++;if(marker===-2)flowers++;}};
+        tally(c.buffer.array,c.mesh.geometry.instanceCount);if(c.detail)tally(c.detail.buffer.array,c.detail.g.instanceCount);
+      }
+      const nearTriangles=streaming?[...resident.near.values()].reduce((n,c)=>n+c.mesh.geometry.instanceCount*4+(c.detail?.g.instanceCount??0)*12,0):nearBlades*(look&&look.uniforms.uGrassLookStep.value<2?12:6);
+      return { ...(streaming?{holes30,appeared30,radius30:streaming.radius()}:{}), ...(look ? { lawn, flowers, tallBlades: nearBlades-lawn-flowers, nearTriangles } : {}), nearChunks, midChunks, nearBlades, midCards, triangles: nearTriangles + midCards * 6, drawCalls: nearChunks + midChunks, builds, queue, lastBuildMs, maxBuildMs, overBudget, replans, replanMs, replanMaxMs, submitSkipped };
     },
     dispose() {
       if (dead) return; dead = true;
-      for (const s of all) s.mesh.geometry.dispose();
+      for (const s of all) {s.mesh.geometry.dispose();s.detail?.g.dispose();}
       for (const m of Object.values(materials)) m.dispose(); map.dispose();
       all.clear(); resident.near.clear(); resident.mid.clear(); pools.near.length = pools.mid.length = 0;
       wanted = { near: [], mid: [] }; active = { near: new Set(), mid: new Set() }; queue = 0; group.clear();
