@@ -34,7 +34,7 @@ export function patchGrassR7(shader,kind,quality) {
       // W2c-13 GR2: keep old fine pigment/tips, add a second spatial scale only in shade.
       float grass7Dark=1.0-smoothstep(.020,.025,dot(reflectedLight.directDiffuse,vec3(.2126,.7152,.0722)));
       float grass7Gate=grass7Dark*uGrass7Strength;
-      float grass7Gradient=mix(1.0,.40+1.0*sqrt(clamp(vGrassUV.y,0.0,1.0)),grass7Gate);
+      float grass7Gradient=mix(1.0,.55+.85*sqrt(clamp(vGrassUV.y,0.0,1.0)),grass7Gate);
       reflectedLight.indirectDiffuse*=grass7Gradient;
       totalEmissiveRadiance*=grass7Gradient;
       vec3 grass7TipSky=grass4KeepLuma(grass6Sky*vec3(1.06,1.02,.86),dot(grass6Sky,vec3(.2126,.7152,.0722)));

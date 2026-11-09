@@ -26,7 +26,8 @@ export function slopeColor(color,x,z,{normalY=Math.cos(Math.PI/6),dist=0,strengt
   const hue=Math.max(-.12,Math.min(.12,ochre-green));
   return color.map((v,i)=>v*(1+gain*amount)+L*[1,-.1963087248,-1][i]*hue*amount);
 }
-export const farAmount=dist=>smooth(300,3000,dist);
+// R8 parent tuning: the far brown headlands (04, 05) stayed brown; start the haze earlier and mix more.
+export const farAmount=dist=>smooth(250,2200,dist);
 export function forestColor(color,density,dist,strength=1){
   const linear=v=>v<=.04045?v/12.92:((v+.055)/1.055)**2.4;
   const forest=[0x31,0x40,0x2a].map(v=>linear(v/255)),a=.4*Math.max(0,Math.min(1,density))*farAmount(dist)*strength;
@@ -37,7 +38,7 @@ export function forestColor(color,density,dist,strength=1){
 export function slopeHaze(color,fog,dist,strength=1){
   const a=farAmount(dist)*strength;if(a===0)return color.slice();
   const sat=c=>(Math.max(...c)-Math.min(...c))/Math.max(.00001,Math.max(...c));
-  const before=sat(color),out=color.map((v,i)=>v+(fog[i]-v)*.35*a);
+  const before=sat(color),out=color.map((v,i)=>v+(fog[i]-v)*.55*a);
   const L=out[0]*.2126+out[1]*.7152+out[2]*.0722,hi=Math.max(...out),lo=Math.min(...out);
   const target=Math.max(before*(1-.25*a),Math.min(before,sat(out)));
   const k=target*L/Math.max(.00001,hi-lo-target*(hi-L));
@@ -46,7 +47,7 @@ export function slopeHaze(color,fog,dist,strength=1){
 export const SLOPE7_GLSL=`
 uniform float uSlope7,uSlope7Fine;
 // Parent: no far haze or forest tint from the overview/flight altitudes; they wash the whole map pale.
-float slope7Far(float dist){return smoothstep(300.0,3000.0,dist)*uSlope7*uPhotoBlend*uGroundPhotoEnabled*(1.0-smoothstep(300.0,900.0,cameraPosition.y));}
+float slope7Far(float dist){return smoothstep(250.0,2200.0,dist)*uSlope7*uPhotoBlend*uGroundPhotoEnabled*(1.0-smoothstep(300.0,900.0,cameraPosition.y));}
 float slope7Signal(vec2 p,float px){
   float n=(toneNoise(p/40.0+vec2(61,-83))-toneNoise(p/40.0+vec2(61.5,-82.5)))*.25*(1.0-smoothstep(14.0,40.0,px));
   if(uSlope7Fine>.5){
@@ -85,7 +86,7 @@ vec3 slope7Haze(vec3 color,vec3 fog,float dist){
   float a=slope7Far(dist);if(a<=0.0)return color;
   float hi=max(max(color.r,color.g),color.b),lo=min(min(color.r,color.g),color.b);
   float before=(hi-lo)/max(.00001,hi);
-  vec3 air=mix(color,fog,.35*a);
+  vec3 air=mix(color,fog,.55*a);
   float L=dot(air,vec3(.2126,.7152,.0722));
   hi=max(max(air.r,air.g),air.b);lo=min(min(air.r,air.g),air.b);
   float target=clamp((hi-lo)/max(.00001,hi),before*(1.0-.25*a),before);
