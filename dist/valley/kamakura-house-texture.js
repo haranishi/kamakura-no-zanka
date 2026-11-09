@@ -377,24 +377,25 @@ float houseWeatherLength(float x,float seed){
  return .6+.9*houseHash(vec2(floor(x/.8)+29.0,seed*41.0));
 }
 float houseWeatherMud(float x,float y,float seed){
- float top=.3+.3*houseHash(vec2(floor(x/.16),seed*31.0));
+ float top=.5+.4*houseHash(vec2(floor(x/.16),seed*31.0));
  return 1.0-smoothstep(.18,top,max(0.0,y));
 }
 float houseWeatherEave(float y,float height,float seed){
- float band=.6+.4*houseHash(vec2(seed*31.0,7.0));
+ float band=.8+.5*houseHash(vec2(seed*31.0,7.0));
  return 1.0-smoothstep(.20,band,max(0.0,height-y));
 }
 float houseWeatherRun(float drop,float extent){
  return step(0.0,drop)*(1.0-smoothstep(0.0,extent,max(0.0,drop)));
 }
 float houseWeatherBudget(float height,float span){
- // Area upper bound: mud/contact .126m + eave .108m + two runoff origins .018m
- // + tint .012m + lower-half seams .0003*height. Rounded UP, including AA.
+ // R6b parent tuning (walls read too clean in the blind critique): bands are taller and stronger, so the
+ // mean-loss budget doubles. Area upper bound: mud/contact .25m + eave .20m + two runoff origins .025m
+ // + tint .054m + lower-half seams. Rounded UP, including AA.
  // The finite-span correction covers partial rain cells at both wall edges.
- return min(1.0,.08/(.28/max(.01,height)+.001+.03/(max(.01,height)*max(.01,span))));
+ return min(1.0,.16/(.55/max(.01,height)+.002+.05/(max(.01,height)*max(.01,span))));
 }
 float houseWeatherDirt(float mud,float eaveShade,float contact,float runoff,float seam,float height,float span){
- return min(.35,max(.32*mud,.35*contact)+.18*eaveShade+.16*runoff+.012*seam)*houseWeatherBudget(height,span);
+ return min(.5,max(.45*mud,.50*contact)+.26*eaveShade+.22*runoff+.02*seam)*houseWeatherBudget(height,span);
 }
 // FH5: 25cm members, 1.2m spacing; pixel integration converges to the duty cycle.
 float houseInteriorMember(float x,float pixel){
@@ -419,11 +420,11 @@ export function houseWeatherTrack(x,seed){const cell=Math.floor(x/.8);return (ce
 export function houseWeatherWidth(x,seed){return .02+.04*houseHash(Math.floor(x/.8)+13,seed*41);}
 export function houseWeatherLength(x,seed){return .6+.9*houseHash(Math.floor(x/.8)+29,seed*41);}
 export function houseWeatherLine(x,centre,width,pixel){const fp=Math.max(.001,pixel);return Math.max(0,Math.min(x+fp*.5,centre+width*.5)-Math.max(x-fp*.5,centre-width*.5))/fp;}
-export function houseWeatherMud(x,y,seed){const top=.3+.3*houseHash(Math.floor(x/.16),seed*31);return 1-facilitySmooth(.18,top,Math.max(0,y));}
-export function houseWeatherEave(y,height,seed){const band=.6+.4*houseHash(seed*31,7);return 1-facilitySmooth(.20,band,Math.max(0,height-y));}
+export function houseWeatherMud(x,y,seed){const top=.5+.4*houseHash(Math.floor(x/.16),seed*31);return 1-facilitySmooth(.18,top,Math.max(0,y));}
+export function houseWeatherEave(y,height,seed){const band=.8+.5*houseHash(seed*31,7);return 1-facilitySmooth(.20,band,Math.max(0,height-y));}
 export function houseWeatherRun(drop,extent){return weatherStep(0,drop)*(1-facilitySmooth(0,extent,Math.max(0,drop)));}
-export function houseWeatherBudget(height,span){return Math.min(1,.08/(.28/Math.max(.01,height)+.001+.03/(Math.max(.01,height)*Math.max(.01,span))));}
-export function houseWeatherDirt(mud,eaveShade,contact,runoff,seam,height,span){return Math.min(.35,Math.max(.32*mud,.35*contact)+.18*eaveShade+.16*runoff+.012*seam)*houseWeatherBudget(height,span);}
+export function houseWeatherBudget(height,span){return Math.min(1,.16/(.55/Math.max(.01,height)+.002+.05/(Math.max(.01,height)*Math.max(.01,span))));}
+export function houseWeatherDirt(mud,eaveShade,contact,runoff,seam,height,span){return Math.min(.5,Math.max(.45*mud,.50*contact)+.26*eaveShade+.22*runoff+.02*seam)*houseWeatherBudget(height,span);}
 export function houseInteriorMember(x,pixel){const fp=Math.max(.001,pixel),a=(x-fp*.5)/1.2,b=(x+fp*.5)/1.2,duty=.25/1.2;const ia=Math.floor(a)*duty+Math.min(weatherFract(a),duty),ib=Math.floor(b)*duty+Math.min(weatherFract(b),duty);return (ib-ia)/(b-a);}
 export function houseInteriorDepth(depth,span){return 1-facilitySmooth(0,Math.max(.1,span),Math.max(0,depth));}
 export function houseInteriorLift(nearOpening,members,upper){return (.014+.018*nearOpening)*(1-.70*members*upper);}
