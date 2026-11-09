@@ -1,0 +1,12 @@
+[
+  {
+    "level": "warning",
+    "message": "[.WebGL-0x0]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels",
+    "reason": "Chrome performance hint when the page reads pixels back synchronously (tone weights); not a rendering error."
+  },
+  {
+    "level": "warning",
+    "message": "[.WebGL-0x0]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels (this message will no longer repeat)",
+    "reason": "Same hint, final occurrence."
+  }
+]

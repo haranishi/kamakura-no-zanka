@@ -22,3 +22,52 @@ jobs:
       - run: npm test
       - run: npm run check
       - run: npm run smoke
+  gl-smoke:
+    name: GL smoke
+    runs-on: ubuntu-24.04
+    # Software GL on a shared runner: the normal run may take ~3 minutes (limit 175 s inside), plus the broken-GLSL run.
+    timeout-minutes: 10
+    env:
+      NODE_OPTIONS: --max-old-space-size=1536
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+      - name: Generate synthetic world and start server
+        run: |
+          node tools/make-synthetic-world.mjs .work/ci-world
+          mkdir -p reports/gl-smoke
+          KZ_WORLD_DIR="$PWD/.work/ci-world" node tools/serve.mjs > reports/gl-smoke/server.log 2>&1 &
+          echo $! > .work/ci-server.pid
+          for attempt in {1..50}; do
+            if curl --fail --silent http://127.0.0.1:8080/world-private/meta.json > /dev/null; then exit 0; fi
+            sleep 0.1
+          done
+          echo 'Synthetic server did not become ready'
+          exit 1
+      - name: Render synthetic Kamakura
+        run: timeout 300 node tools/gl-smoke.mjs
+        env:
+          GL_SMOKE_OUT: reports/gl-smoke/normal
+      - name: Prove broken GLSL is detected
+        run: |
+          if timeout 300 node tools/gl-smoke.mjs --inject-bad-glsl; then
+            echo 'Broken shader unexpectedly passed'
+            exit 1
+          fi
+          node --input-type=module -e "import fs from 'node:fs'; const r=JSON.parse(fs.readFileSync('reports/gl-smoke/bad/result.json')); if(r.passed || !r.inject || !r.shaderFailure) process.exit(1);"
+        env:
+          GL_SMOKE_OUT: reports/gl-smoke/bad
+      - name: Stop synthetic server
+        if: always()
+        run: |
+          if test -f .work/ci-server.pid; then kill "$(cat .work/ci-server.pid)" 2>/dev/null || true; fi
+      - name: Preserve failure evidence
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: gl-smoke-failure
+          path: reports/gl-smoke/
+          if-no-files-found: warn
+          retention-days: 7
