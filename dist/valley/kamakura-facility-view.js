@@ -1,7 +1,7 @@
 // View only: self-contained GLB, one static mesh per node/material, CPU placement once.
 import * as THREE from 'three';
 import { createHouseTextures, createHouseMaterial } from './kamakura-house-materials.js';
-import { facilityMaterialRole, facilityPartRole, facilityTimberWeights, facilityInterior, houseInteriorOpeningFrame } from './kamakura-house-texture.js';
+import { facilityMaterialRole, facilityPartRole, facilityTimberWeights, facilityInterior, houseInteriorOpeningFrame, houseHallWallFrames } from './kamakura-house-texture.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { facilityPlacement, facilityFootprint, facilitySolid, facilityExcludesTrees, facilityCastsShadow, facilityVisible, FACILITY_HELD_BACK } from './kamakura-facilities.js';
 export async function buildKamakuraFacilities(facilities, terrain, scene, quality='standard', { showHeldBack = false, search = globalThis.location?.search ?? '' } = {}) {
@@ -16,6 +16,7 @@ export async function buildKamakuraFacilities(facilities, terrain, scene, qualit
   // W2c-9r1 house: anonymous facility colors -> catalog roles and node-height frames.
   const partsEnabled=new URLSearchParams(search).get('hparts')!=='0';
   const relief=new URLSearchParams(search).get('hrelief')!=='0';
+  const hallEnabled=partsEnabled && new URLSearchParams(search).get('hall7')!=='0' && new URLSearchParams(search).get('facility7')!=='0';
   // W2c-9g2: facility surfaces use the house atlas; ftex=0 retains the original PBR.
   function surface(base, hint, node, floor, top, interiorFrame) {
     if(!texture)return base;
@@ -69,7 +70,21 @@ export async function buildKamakuraFacilities(facilities, terrain, scene, qualit
       if(n.soft)floor=0; // Soil contact is at the datum, not the buried skirt bottom.
       for(const {g,material,hint} of parts) {
         // R3 classification uses original rigid component shapes, before terrain placement.
-        if(texture && partsEnabled)g.setAttribute('houseTimber',new THREE.Float32BufferAttribute(facilityTimberWeights(g.attributes.position.array,g.index?.array,floor,top),1));
+        if(texture && partsEnabled){
+          const timber=facilityTimberWeights(g.attributes.position.array,g.index?.array,floor,top);
+          g.setAttribute('houseTimber',new THREE.Float32BufferAttribute(timber,1));
+          // W2c-13 hall7: before terrain placement, preserve original metre wall bounds.
+          if(hallEnabled){
+            const role=facilityPartRole(n.part,[].concat(material)[0].name+' '+hint);
+            // Some valid GLBs omit normals and use GPU flat shading. Derive a temporary
+            // normal field for classification without changing their rendered normals.
+            const normalSource=g.attributes.normal?g:g.clone();
+            if(normalSource!==g)normalSource.computeVertexNormals();
+            const frame=houseHallWallFrames(g.attributes.position.array,normalSource.attributes.normal.array,timber,floor,top,role);
+            if(normalSource!==g)normalSource.dispose();
+            g.setAttribute('houseHallWall',new THREE.Float32BufferAttribute(frame,4));
+          }
+        }
         const count=g.getAttribute('position').array.length;
         g.setAttribute('position',new THREE.Float32BufferAttribute(placed.positions.slice(offset,offset+count),3));offset+=count;
         if(placed.rebuildNormals)g.computeVertexNormals();g.computeBoundingBox();g.computeBoundingSphere();
