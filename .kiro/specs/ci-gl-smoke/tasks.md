@@ -1,10 +1,10 @@
 # タスク：描画まで確かめる CI
 
-- ☑ **CI-1 合成の鎌倉データ**（CI1）：`tools/make-synthetic-world.mjs`・試験（決定的・サイズ・ローダーが通る・実データの値を含まない）。
-- ◐ **CI-2 GL スモーク**（CI2・CI4）：`tools/gl-smoke.mjs`（CDP・新しい依存なし）・`--inject-bad-glsl`・許可リスト。手元の実 Chrome で、合成データを使って通ること。
-- ◐ **CI-3 ジョブ**（CI3）：`.github/workflows/verify.yml` に `gl-smoke`。PR で実際に緑になること。
-- ☑ **CI-4 文書**（CI5・CI6）：`tools/README-ci.md`・`docs/` に保護の設定手順。
-- ⬜ **CI-5 保護の有効化**（CI5）：スモークが3回続けて成功したあと、親が設定する。
+- ✅ **CI-1 合成の鎌倉データ**（CI1）：`tools/make-synthetic-world.mjs`・試験（決定的・サイズ・ローダーが通る・実データの値を含まない）。17 ファイル・481KB。
+- ✅ **CI-2 GL スモーク**（CI2・CI4）：`tools/gl-smoke.mjs`（CDP・新しい依存なし）・`--inject-bad-glsl`・許可リスト。**手元の実 Chrome で、通常＝PASS（3 画角・78 秒・エラー 0）・故障注入＝FAIL（6 秒で検出・終了コード 1）を確認**。初回は、起動中のページの応答が遅いと CDP が時間切れになったため、遅い応答を許し、撮影の待ちを延ばし、Chrome の性能通知を許可リストに入れた。
+- ✅ **CI-3 ジョブ**（CI3）：PR #131 の CI で緑（`GL smoke` は 2 分・描画 99 秒・壊れた GLSL の検出 6 秒。GitHub の runner 標準の Chrome で動いた）。
+- ✅ **CI-4 文書**（CI5・CI6）：`tools/README-ci.md`・`docs/CI_BRANCH_PROTECTION_JA.md`。
+- ⏳ **CI-5 保護の有効化**（CI5）：連続成功＝①PR #131 ②main への push ③この docs PR。3 回目の成功後に親が設定する。
 
 ## 担い手
 要件・設計＝親（Fable）／実装＝Codex（個人用）／検証＝親が実 Chrome と実際の PR で確かめる。1 PR にまとめる。
@@ -22,5 +22,5 @@
 - 開始・終了とも `NODE_OPTIONS=--max-old-space-size=1536 timeout 300 sh -c 'npm test && npm run check && npm run smoke'` を実行。
 - 終了check：498構文・101 module・59純粋層、成功。git diff --check成功。
 - 日本語文書lintはsudachipy未導入で実行不可。依存は追加せず、手動チェックリストで通読した。
-- 未確認：実Chromeでの通常成功／注入失敗・固定画角PNG・描画経路の網羅・CIの5分以内・実PRの成功。listen EPERMのため親の検証へ引き渡す。
+- 親の確認（2026-11-09）：実 Chrome（手元）と実際の PR（#131）で、通常成功・注入失敗・固定画角の PNG・CI の所要時間（2 分）を確認した。描画経路の網羅（`renderer.info.programs` の直接検査）は、公開口が無いので未実装。
 - Git管理領域がworktree外の書込禁止対象のためcommitなし。push・PR・マージ・保護設定は実行していない。
