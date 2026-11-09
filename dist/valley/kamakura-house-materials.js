@@ -35,6 +35,10 @@ const paletteGLSL = Object.entries(HOUSE_PALETTE).map(([name,c]) => `const vec3 
 const photoKeys = ['wallWoodA','wallWoodB','wallPlaster','roofThatch','roofThatchOld','roofTile','stoneRubble'];
 const photoMeters = key => PHOTO_TEX_DATA[key].meters.toFixed(3);
 const vertexPars = `
+#ifdef HOUSE_HALL7
+attribute vec4 houseHallWall;
+varying vec4 vHouseHallWall;
+#endif
 #ifdef HOUSE_FACILITY7
 varying float vHouseWeatherSeed;
 #endif
@@ -57,6 +61,9 @@ varying vec2 vHouseRoofHeight;
 #endif
 float houseHash(vec2 p) { return fract(sin(dot(p, vec2(12.9898,78.233))) * 43758.5453); }`;
 const vertexBody = `
+#ifdef HOUSE_HALL7
+vHouseHallWall=houseHallWall;
+#endif
 vHouseObj = transformed;
 #if defined(HOUSE_PARTS) && !defined(HOUSE_FACILITY)
 vHouseWallSpan=houseWallSpan;
@@ -90,6 +97,9 @@ vHouseRandom = vec3(houseHash(houseOrigin), houseHash(houseOrigin+vec2(19.0,7.0)
  vHouseRandom = instanceColor;
 #endif`;
 const fragmentPars = `
+#ifdef HOUSE_HALL7
+varying vec4 vHouseHallWall;
+#endif
 varying vec3 vHouseObj; varying vec3 vHouseN; varying vec3 vHouseRandom; varying float vHouseNorth;
 varying vec3 vHouseRoofP; varying vec3 vHouseRoofN; varying vec3 vHouseScale;
 #if defined(HOUSE_PARTS) && !defined(HOUSE_FACILITY)
@@ -544,6 +554,23 @@ if (houseFade > 0.0) {
  aged*=1.0-hWeatherStain*houseWeatherQuality*hWeatherWeight;
  aged*=mix(vec3(1.0),vec3(.96,1.0,.90),hWeatherWeight*houseWeatherQuality*hWeatherMud*houseWeatherBudget(hWeatherHeight,hWeatherSpan));
  #endif
+ #ifdef HOUSE_HALL7
+ // W2c-13 HL1: retain all R6 fine/broad detail; add dirt only on eligible exterior walls.
+ float hHallWeight=hBlend*houseWeatherQuality*vHouseHallWall.w*(1.0-stone)*(1.0-roof)*(1.0-post)*(1.0-abs(hpn.y));
+ if(hHallWeight>0.0 && hpp.y>=vHouseHallWall.x){
+   float hHallY=hpp.y-vHouseHallWall.x;
+   float hHallHeight=max(.01,vHouseHallWall.y),hHallSpan=max(.01,vHouseHallWall.z);
+   float hHallMud=houseWeatherMud(hWallX,hHallY,vHouseWeatherSeed);
+   float hHallEave=houseWeatherEave(hHallY,hHallHeight,vHouseWeatherSeed);
+   float hHallLine=houseWeatherLine(hWallX,houseWeatherTrack(hWallX,vHouseWeatherSeed),houseWeatherWidth(hWallX,vHouseWeatherSeed),hWeatherPixelX);
+   float hHallRun=hHallLine*houseWeatherRun(hHallHeight-hHallY,houseWeatherLength(hWallX,vHouseWeatherSeed));
+   float hHallSeam=houseWeatherLine(fract(hWallX/.24)*.24,.12,.012,hWeatherPixelX)*(1.0-smoothstep(.35,.55,hHallY/hHallHeight))*board;
+   float hHallContact=1.0-smoothstep(0.0,.04,max(0.0,hHallY));
+   float hHallDirt=houseWeatherDirt(hHallMud,hHallEave,hHallContact,hHallRun,hHallSeam,hHallHeight,hHallSpan);
+   aged*=1.0-hHallDirt*hHallWeight;
+   aged*=mix(vec3(1.0),vec3(.92,.90,.84),hHallWeight*hHallMud*houseWeatherBudget(hHallHeight,hHallSpan));
+ }
+ #endif
  // W2c-10 facility F4: wall box -> human-scale recessed door / renji window.
  // Facilities already carry modelled openings; no extra opening is ever drawn there.
  #if defined(HOUSE_PARTS) && !defined(HOUSE_FACILITY)
@@ -586,11 +613,13 @@ export function createHouseMaterial(base, { texture, quality = 'standard', eave 
   const options=new URLSearchParams(search);
   const facility6=parts && options.get('facility6')!=='0';
   const facility7=parts && options.get('facility7')!=='0';
+  const hall7=facility7 && options.get('hall7')!=='0' && [1,2].includes(facilityRole) && !keepPigment && !facilityInterior([base.color.r,base.color.g,base.color.b],facilityRole);
   const uniforms = { houseWeatherQuality:{value:quality==='light'?.45:1}, houseInteriorFrame:{value:new THREE.Vector4(...interiorFrame)}, houseRimQuality:{value:quality==='light'?.45:1}, houseOpenings:{value:options.get('hopen')==='0'?0:1}, houseGain:{value:ambient?(options.get('hgain')!==null&&Number.isFinite(+options.get('hgain'))?+options.get('hgain'):(facilityRole===null?HOUSE_AMBIENT.gain:HOUSE_AMBIENT.facilityGain)):1}, houseFoundation:{value:foundation}, houseKind:{value:kind}, housePhoto:{value:options.get('hphoto')==='0' || options.get('photo')==='0'?0:1}, housePhotoAdapt:{value:1}, houseDebug:{value:options.get('hdebug')==='1'?1:0},
     uPhotoBlend:photoBlendUniform, ...Object.fromEntries(photoKeys.map(key=>['hPhoto_'+key,photoSampler(key)])), houseRelief: {value:parts&&relief?(quality==='light'?.7:1):0}, houseInterior: {value:facilityRole!==null && facilityInterior([base.color.r,base.color.g,base.color.b],facilityRole)?1:0}, houseKeepPigment: {value:keepPigment?1:0}, houseAtlas: { value: texture }, houseStrength: { value: quality === 'light' ? .7 : 1 },
     houseDetail: { value: 1 }, houseFrame: { value: new THREE.Vector3(floor,0,0) }, houseBump: { value: 1 }, houseDirt: { value: quality === 'light' ? 0 : 1 }, houseRole: { value: facilityRole ?? -1 }, houseRoofBand: { value: new THREE.Vector2(eave,top) } };
   material.userData.houseUniforms = uniforms;
   if(facility7)material.defines={...material.defines,HOUSE_FACILITY7:1};
+  if(hall7)material.defines={...material.defines,HOUSE_HALL7:1};
   if(facility6)material.defines={...material.defines,HOUSE_FACILITY6:1};
   if(parts)material.defines={...material.defines,HOUSE_PARTS:1};
   // W2c-10b FIX2 FX4: explicit A/B for the procedural waves, independent of photo switches.
@@ -657,7 +686,7 @@ export function createHouseMaterial(base, { texture, quality = 'standard', eave 
       .replace('#include <metalnessmap_fragment>', `#include <metalnessmap_fragment>
       metalnessFactor=mix(metalnessFactor,0.0,hBlend);`);
   };
-  material.customProgramCacheKey = () => `house-r6-facility7-${facility7}-facility6-${facility6}-${options.get('hbroad')!=='0'}-${parts}-${facilityRole}-${quality}-${ambient}-${base.customProgramCacheKey()}`;
+  material.customProgramCacheKey = () => `house-r7-hall7-${hall7}-facility7-${facility7}-facility6-${facility6}-${options.get('hbroad')!=='0'}-${parts}-${facilityRole}-${quality}-${ambient}-${base.customProgramCacheKey()}`;
   material.userData.setHouseAdapt = step => {
     uniforms.houseWeatherQuality.value=step>=3?0:(quality==='light'?.45:1)*(step>=2?.4:1);
     uniforms.houseRimQuality.value=step>=3?0:(quality==='light'?.45:1)*(step>=2?.4:1);

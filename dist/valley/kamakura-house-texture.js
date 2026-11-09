@@ -195,6 +195,40 @@ export function facilityTimberWeights(positions, indices, floor, top) {
 export function facilityInterior(rgb, role) {
   return [1,2,4,5].includes(role) && Math.max(...rgb)<.085 && Math.max(...rgb)-Math.min(...rgb)<Math.max(...rgb)*.45;
 }
+// W2c-13 hall7 HL1: actual metre bounds per facing, never placement-index dimensions.
+export function houseHallWallFrames(positions, normals, timber, floor, top, role) {
+  const count=positions.length/3, out=new Float32Array(count*4);
+  if(![1,2].includes(role))return out;
+  const eave=top-(top-floor)*.28, groups=new Map();
+  const facing=i=>{
+    const n=i*3, x=normals[n],y=normals[n+1],z=normals[n+2];
+    if(Math.abs(y)>.25 || timber[i]>.5)return null;
+    return Math.abs(z)>Math.abs(x)?(z>0?'z+':'z-'):(x>0?'x+':'x-');
+  };
+  for(let i=0;i<count;i++){
+    const face=facing(i);if(face===null)continue;
+    const x=positions[i*3+(face[0]==='z'?0:2)],y=positions[i*3+1];
+    if(!groups.has(face))groups.set(face,[Infinity,-Infinity,Infinity,-Infinity]);
+    const b=groups.get(face);b[0]=Math.min(b[0],x);b[1]=Math.max(b[1],x);b[2]=Math.min(b[2],y);b[3]=Math.max(b[3],y);
+  }
+  for(let i=0;i<count;i++){
+    const face=facing(i);if(face===null)continue;
+    const b=groups.get(face),foot=Math.max(b[2],floor+(role===2?.4:0));
+    const height=Math.min(b[3],eave)-foot,span=b[1]-b[0];
+    if(height>.01 && span>.01)out.set([foot,height,span,1],i*4);
+  }
+  return out;
+}
+// The scalar loss is identical to FH4; only the facility's wet dirt tint differs.
+export function houseHallWeather(x,y,height,span,seed,pixel=.025,board=0) {
+  const mud=houseWeatherMud(x,y,seed),budget=houseWeatherBudget(height,span);
+  const eave=houseWeatherEave(y,height,seed);
+  const line=houseWeatherLine(x,houseWeatherTrack(x,seed),houseWeatherWidth(x,seed),pixel);
+  const runoff=line*houseWeatherRun(height-y,houseWeatherLength(x,seed));
+  const seam=houseWeatherLine(weatherFract(x/.24)*.24,.12,.012,pixel)*(1-facilitySmooth(.35,.55,y/height))*board;
+  const dirt=houseWeatherDirt(mud,eave,1-facilitySmooth(0,.04,Math.max(0,y)),runoff,seam,height,span);
+  return [.92,.90,.84].map(tint=>(1-dirt)*(1-(1-tint)*mud*budget));
+}
 // Shared R3 constants are interpolated into GLSL and exercised with synthetic metre samples.
 export const HOUSE_RELIEF = Object.freeze({ straw: .105, bundle: .31, fine: .17, coarse: .085, interiorMin: .010, interiorMax: .055 });
 export function houseRoofRelief(across, along, footprint=0) {
