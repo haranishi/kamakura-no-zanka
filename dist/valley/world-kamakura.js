@@ -5,6 +5,8 @@ import { prepareKamakuraFx } from './kamakura-fx-view.js';
 import { bindFxContact } from './kamakura-fx.js';
 import { buildKamakuraGrass } from './kamakura-grass-view.js';
 import { createKamakuraAudio } from './kamakura-audio-view.js';
+import { createKamakuraLayers } from './kamakura-layers.js';
+import { createHabitat } from './kamakura-habitat.js';
 import { buildKamakuraFacilities } from './kamakura-facility-view.js';
 import { facilitiesEnabled, causewayShown } from './kamakura-facilities.js';
 // Separate Kamakura composition with a development flight camera. No chapter state, quests, or save access.
@@ -43,9 +45,11 @@ export async function bootKamakura(data, search) {
   let roster;
   let photo, post, renderer, chunks, hud, houses, trees, stands, standPrepared, treeOptions, atmosphere, sea, water, hero, input, hintTimer, flight, facilities, hiddenFacilities, audioView, grass, fx;
   const events = new AbortController(); let disposed = false;
+  let layers = null; // W2c-16: add-on layers built from the list in kamakura-layers.js
   function dispose() {
     if (disposed) return; disposed = true; events.abort(); clearTimeout(hintTimer);
     input?.setEnabled(false); input?.base.releaseLock();
+    renderer?.setAnimationLoop(null); layers?.dispose(); layers = null; // layers read the hero and the scene: close them first
     renderer?.setAnimationLoop(null); photo?.dispose(); audioView?.dispose(); fx?.dispose(); grass?.dispose(); flight?.dispose(); hero?.remove(); chunks?.dispose(); houses?.dispose(); trees?.dispose(); stands?.dispose();
     facilities?.dispose(); hiddenFacilities?.dispose(); water?.dispose(); sea?.dispose(); post?.dispose(); atmosphere?.dispose();
     const resources = new Set();
@@ -163,6 +167,7 @@ export async function bootKamakura(data, search) {
     let paused = false, skipAdaptFrame = true;
     function setPaused(on) {
       paused = on; audioView.setPaused(on); skipAdaptFrame = true; input.setEnabled(!on);
+      layers?.setPaused(on);
       // Clear the locomotive momentum on pause; release alone retains the existing smooth stop.
       g.hero.speed = g.hero.locoV = g.hero.locoA = 0;
       if (on) base.releaseLock();
@@ -171,6 +176,13 @@ export async function bootKamakura(data, search) {
     flight = createKamakuraFlight({ search, terrain: t, spawn, camera, rig, hero, chunks, houses, trees, stands, water, atmosphere, hud,
       hint: text => g.hud.hint('flight', text, 2200) });
     bindKamakuraFlight({ flight, input, hud, element: renderer.domElement, paused: () => paused, signal: events.signal });
+    // W2c-16: drift, wildlife, props, hero life and soundscape. A layer that fails is switched off inside; the walk never depends on one.
+    layers = await createKamakuraLayers({ scene, camera, renderer, search, quality, data, terrain: t, game: g, colliders: g.col, hero, rig, input, keys: base,
+      wind, sunDir: atmosphere.sunDir, atmosphere, post, audioView, houses, facilities, trees, stands, water, sea, grass, fx, flight, hud,
+      habitat: createHabitat({ terrain: t, meta, surface: data.surface, housePoints: houseExclusions }) });
+    if (disposed) { layers.dispose(); layers = null; }
+    layers?.setPaused(paused);
+    const layerFrame = { dt: 0, rawDt: 0, time: 0, wind: 1, windDir: [1, 0], flying: false, pos: null, camera, hero };
     hud.pause.addEventListener('click', () => setPaused(!paused), { signal: events.signal });
     base.onLockChange = locked => { if (!locked) setPaused(true); };
     addEventListener('keydown', e => { if ((e.code === 'KeyP' || e.code === 'Escape') && !e.repeat) setPaused(!paused); }, { signal: events.signal });
@@ -178,7 +190,7 @@ export async function bootKamakura(data, search) {
     document.addEventListener('visibilitychange', () => { if (document.hidden) setPaused(true); }, { signal: events.signal });
     let postDpr = devicePixelRatio;
     const resize = () => { postDpr = devicePixelRatio; renderer.setPixelRatio(adaptPixelRatio(devicePixelRatio, quality, adapt.step)); renderer.setSize(innerWidth, innerHeight); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); flight.resize(); post.resize(); };
-    const applyAdapt = () => { const policy = adaptPolicy(adapt.step); photo.setAdapt(adapt.step); post.setAdapt(adapt.step); atmosphere.setAdapt(policy); trees?.setAdapt(policy); stands?.setAdapt(policy); facilities?.setAdapt(policy); grass?.setAdapt(adapt.step); fx?.setAdapt(adapt.step); houses?.setAdapt(adapt.step); chunks?.setAdapt(adapt.step); sea?.setAdapt(adapt.step); water?.setAdapt(adapt.step); };
+    const applyAdapt = () => { const policy = adaptPolicy(adapt.step); photo.setAdapt(adapt.step); post.setAdapt(adapt.step); atmosphere.setAdapt(policy); trees?.setAdapt(policy); stands?.setAdapt(policy); facilities?.setAdapt(policy); grass?.setAdapt(adapt.step); fx?.setAdapt(adapt.step); houses?.setAdapt(adapt.step); chunks?.setAdapt(adapt.step); sea?.setAdapt(adapt.step); water?.setAdapt(adapt.step); layers?.setAdapt(adapt.step); };
     applyAdapt();
     addEventListener('resize', resize, { signal: events.signal }); resize(); setPaused(false);
     configureLoco(search);
@@ -202,6 +214,7 @@ export async function bootKamakura(data, search) {
         const vx = -Math.sin(yaw) * ax.forward + Math.cos(yaw) * ax.right, vz = -Math.cos(yaw) * ax.forward - Math.sin(yaw) * ax.right;
         const hero = g.hero, ch = hero.character;
         ch.splitPose = true; ch.legIk = true; ch.legTerrain = t;
+        layers?.beforeHero(dt);
         hero.updateLocomotion(dt, { input, axis: ax, moveYaw: yawOf(vx, vz) }, false);
         hero.slideTurn += (hero.slideWant - hero.slideTurn) * (1 - Math.exp(-12 * dt)); hero.slideWant = 0;
         hero.tickCharacter(dt); hero.sync(); ch.finishPose();
@@ -217,9 +230,11 @@ export async function bootKamakura(data, search) {
       wind.uTime.value = uniforms.uTime; wind.uWind.value = uniforms.uWind;
       wind.uWindDir.value.set(...uniforms.uWindDir); wind.uGuideMix.value = uniforms.uGuideMix;
       grass.updateHero(hero.pos, hero.speed, flight.active, paused ? 0 : dt);
+      layerFrame.dt = dt; layerFrame.rawDt = rawDt; layerFrame.time = uniforms.uTime; layerFrame.wind = uniforms.uWind; layerFrame.windDir = uniforms.uWindDir;
+      layerFrame.flying = flight.active; layerFrame.pos = flight.pos; layers?.update(layerFrame);
       renderer.info.reset(); // W2c-9r1 light: one reset before all frame draws.
       flight.updateViews(uniforms.uTime, paused ? 0 : dt); facilities?.update(flight.pos); grass.update(camera, flight.pos, paused); fx.update(paused ? 0 : dt, camera, hero); groundContactFor(data)?.update(camera.position, g.col.boxes, g.col.circles); groundPathFor(data)?.update(camera.position, data.patches.paths); post.render(scene, camera);
-      hud.update(flight.pos, flight.yaw, t, { ...renderer.info.render, averageMs: adapt.averageMs, step: adapt.step }, flight.state, audioView.debugText());
+      hud.update(flight.pos, flight.yaw, t, { ...renderer.info.render, averageMs: adapt.averageMs, step: adapt.step }, flight.state, audioView.debugText() + (layers?.debugText() || ''));
     });
     return { dispose };
   } catch (error) {
