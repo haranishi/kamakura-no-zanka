@@ -17,6 +17,6 @@ body.kamakura canvas { display: block; width: 100%; height: 100%; touch-action: 
 .kz-up, .kz-down { touch-action: none; user-select: none; -webkit-user-select: none; }
 @media (max-width: 600px) { .kz-flight { gap: 6px; } .kz-flight button { padding: 8px 12px; font-size: 13px; } }
 
-.kz-sound { white-space: nowrap; }
+.kz-sound, .kz-time { white-space: nowrap; }
 .kz-sound:disabled { opacity: .65; }
 @media (max-width: 600px) { .kz-top { gap: 8px; } .kz-top button { padding: 8px 10px; } }
