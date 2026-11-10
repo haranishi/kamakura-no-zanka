@@ -7,6 +7,7 @@ import { prepareKamakuraFx } from './kamakura-fx-view.js';
 import { bindFxContact } from './kamakura-fx.js';
 import { buildKamakuraGrass } from './kamakura-grass-view.js';
 import { createKamakuraAudio } from './kamakura-audio-view.js';
+import { bridgeSites, withBridgeDecks, bridgesEnabled } from './kamakura-bridges.js';
 import { createKamakuraLayers } from './kamakura-layers.js';
 import { createKamakuraHeroMoves } from './kamakura-hero-moves.js';
 import { createHabitat } from './kamakura-habitat.js';
@@ -86,7 +87,7 @@ export async function bootKamakura(data, search) {
     photo = startPhoto(THREE, { search, quality, maxAnisotropy: renderer.capabilities.getMaxAnisotropy() });
     atmosphere = createKamakuraAtmosphere({ scene, renderer, search, quality });
     // W2c-9f: isolate HDR/grade from the shared valley renderer.
-    post = createKamakuraPost({ renderer, quality, search, terrain: t, params: atmosphere.atmosphere?.params, sunDir: atmosphere.sunDir });
+    post = createKamakuraPost({ renderer, quality, search, terrain: t, params: atmosphere.atmosphere?.params, sunDir: atmosphere.sunDir, farSources: { data, houses: () => houses, facilities: () => facilities, flying: () => !!flight?.active } });
     roster = await loadRoster({ names: ['hero'] });
     // W2c-10 harmony: the hero is MeshStandardMaterial too and took ~2.5x the shade-side light of the Lambert world; a small own-envMap
     // intensity (a bit above the houses so the figure stays readable in shade) puts it on the same ambient (&henv=0 restores the old look).
@@ -138,7 +139,8 @@ export async function bootKamakura(data, search) {
     }
     hiddenFacilities?.dispose(); hiddenFacilities = null;
     const status = text => hud.status(text || [houseNotice, facilitiesEnabled(search) && facilityNotice, waterEnabled(search) && riverNotice, treesEnabled(search) && vegNotice, groundEnabled(search) && data.groundNotice, atmosphere.notice, audioNotice].filter(Boolean).join('。'));
-    const g = { scene, roster, terrain: t, col: buildColliders({ bounds: t.bounds, extraBoxes: [...(houses?.boxes || []), ...(facilities?.boxes || [])], extraCircles: trees?.circles || [] }), enemies: [], ally: null };
+    const walkingTerrain = bridgesEnabled(search) ? withBridgeDecks(t, bridgeSites(data, t)) : t;
+    const g = { scene, roster, terrain: walkingTerrain, col: buildColliders({ bounds: t.bounds, extraBoxes: [...(houses?.boxes || []), ...(facilities?.boxes || [])], extraCircles: trees?.circles || [] }), enemies: [], ally: null };
     if (standPrepared) {
       try { stands = buildKamakuraStands(standPrepared, { ...treeOptions, colliders: g.col }); scene.add(stands.group); }
       catch { vegNotice = '林分を準備できませんでした。一本ずつの木で散策を続けます'; }
@@ -148,13 +150,13 @@ export async function bootKamakura(data, search) {
     grass = buildKamakuraGrass({ data, terrain: t, colliders: g.col, extraColliders: grassExtra, facilityBoxes: (facilities || hiddenFacilities)?.records.filter(r => ['hall','buddha','stairs','sando','platform','kairo'].includes(r.node.part)).map(r => r.bounds) || [], search, wind, sunDir: atmosphere.sunDir, quality });
     if (params.get('debug') === '1') globalThis.__kzGrassStats = () => grass?.stats?.(); // W2c-15: debug-only read of the grass stream's holes30/appeared30
     scene.add(grass.group);
-    audioView = createKamakuraAudio({ search, terrain: t, button: hud.sound,
+    audioView = createKamakuraAudio({ search, terrain: walkingTerrain, button: hud.sound,
       flying: () => !!flight?.active,
       onUnavailable: text => { audioNotice = text; status(''); } });
     audioView.attach(g);
     g.hero = hero = new HeroActor(g, spawn);
     // W2c-9d: preserve the base footstep before adding local river and dust effects.
-    fx = await prepareKamakuraFx({ terrain: t, data, search, quality }, undefined, { defer: true }); scene.add(fx.group);
+    fx = await prepareKamakuraFx({ terrain: walkingTerrain, data, search, quality }, undefined, { defer: true }); scene.add(fx.group);
     g.fx = fx.api; bindFxContact(hero, fx);
     g.hud = { hint: (_id, text, ms) => {
       clearTimeout(hintTimer); status(text);
@@ -208,7 +210,7 @@ export async function bootKamakura(data, search) {
     addEventListener('resize', resize, { signal: events.signal }); resize(); setPaused(false);
     configureLoco(search);
     // W2c-9p: warm only the close grass; outer cells and fish index follow the first draw.
-    if (!flight.active) rig.update(0, hero.pos, { groundAt: t.heightAt, rayClip: (a, b) => rayClip(g.col, t, a, b, 0.3, { ignoreThin: 0.2 }) });
+    if (!flight.active) rig.update(0, hero.pos, { groundAt: walkingTerrain.heightAt, rayClip: (a, b) => rayClip(g.col, walkingTerrain, a, b, 0.3, { ignoreThin: 0.2 }) });
     grass.warm(camera, flight.pos);
     let last = performance.now();
     renderer.setAnimationLoop(now => {
@@ -236,8 +238,8 @@ export async function bootKamakura(data, search) {
           hero.tickCharacter(dt); hero.sync();
         }
         ch.finishPose(); moves?.afterPose(camera);
-        rig.update(dt, hero.pos, { lookDx: look.dx, lookDy: look.dy, zoom: input.wheel, groundAt: t.heightAt,
-          rayClip: (a, b) => rayClip(g.col, t, a, b, 0.3, { ignoreThin: 0.2 }) });
+        rig.update(dt, hero.pos, { lookDx: look.dx, lookDy: look.dy, zoom: input.wheel, groundAt: walkingTerrain.heightAt,
+          rayClip: (a, b) => rayClip(g.col, walkingTerrain, a, b, 0.3, { ignoreThin: 0.2 }) });
         input.endFrame();
       }
       audioView.update(rawDt, flight.pos);

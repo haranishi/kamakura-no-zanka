@@ -19,10 +19,27 @@ export function decodeRoads(source, count = source?.count) {
   return roads;
 }
 
+// Optional list of places where a road meets a river (newer data sets record them; older ones have none).
+// Each entry: where the road's line meets the river's centre line, the road's compass bearing there and its width.
+export const CROSSING_LIMIT = 64;
+export function decodeCrossings(source) {
+  const list = source?.crossings;
+  if (!Array.isArray(list) || !list.length || list.length > CROSSING_LIMIT) return null;
+  const out = [];
+  for (const c of list) {
+    if (typeof c?.road !== 'string' || typeof c.river !== 'string' || !Array.isArray(c.xy_m) || c.xy_m.length !== 2 || !c.xy_m.every(Number.isFinite) ||
+        !Number.isFinite(c.bearing_deg) || !Number.isFinite(c.width_m) || c.width_m < 1 || c.width_m > 40) return null;
+    out.push(Object.freeze({ road: typeof c.route_id === 'string' ? c.route_id : c.road.replace(/:\d+$/, ''), river: c.river, x: c.xy_m[0], north: c.xy_m[1],
+      bearing: c.bearing_deg, width: c.width_m, span: Number.isFinite(c.span_m) ? c.span_m : null }));
+  }
+  return Object.freeze(out);
+}
+
 const combined = new WeakMap();
 export function kamakuraPaths(data) {
-  if (!data.roads && !data.sando) return data.patches?.paths;
-  let paths = combined.get(data);
+  if (!data.roads && !data.sando && !data.lanes) return data.patches?.paths;
+  const cached = combined.get(data);
+  let paths = cached?.lanes === data.lanes ? cached?.paths : null;
   if (!paths) {
     paths = Object.assign(Object.create(null), data.patches?.paths);
     for (const [id, road] of Object.entries(data.roads || {})) {
@@ -35,8 +52,13 @@ export function kamakuraPaths(data) {
       while (Object.hasOwn(paths, key)) key = `sando:${key}`;
       paths[key] = line;
     }
+    for (const [id, lane] of Object.entries(data.lanes || {})) {
+      let key = `lane:${id}`;
+      while (Object.hasOwn(paths, key)) key = `lane:${key}`;
+      paths[key] = lane;
+    }
     Object.freeze(paths);
-    combined.set(data, paths);
+    combined.set(data, { paths, lanes: data.lanes });
   }
   return paths;
 }

@@ -3,6 +3,8 @@ import * as THREE from 'three';
 import { POST_DEFAULTS, postOptions, postRoute, bloomSizes, projectSun, bloomCap, neutralToneChunk, shadeSettings, SHADE_GLSL } from './kamakura-post.js';
 import { atmosphereOptions } from './kamakura-atmosphere.js';
 import { lightSettings, shaftVisibility, advanceCloudTime, cloudHigh, lightFinalShader, SHAFT_SHADERS } from './kamakura-sky-fx.js';
+import { farShadowEnabled } from './kamakura-far-shadow.js';
+import { createFarShadowView } from './kamakura-far-shadow-view.js';
 import { MIST, createMistField, mistStrength } from './kamakura-mist.js';
 const VERT = 'varying vec2 vUv; void main(){ vUv=position.xy*.5+.5; gl_Position=vec4(position.xy,0.,1.); }';
 export const POST_SHADERS = {
@@ -48,11 +50,15 @@ export const POST_SHADERS = {
     }`,
 };
 const TONES = { none: THREE.NoToneMapping, aces: THREE.ACESFilmicToneMapping, neutral: THREE.NeutralToneMapping, agx: THREE.AgXToneMapping };
-export function createKamakuraPost({ renderer, quality = 'standard', search = '', params = {}, sunDir, now = () => performance.now(), cloudDirection = [1, 0], terrain = null }) {
+export function createKamakuraPost({ renderer, quality = 'standard', search = '', params = {}, sunDir, now = () => performance.now(), cloudDirection = [1, 0], terrain = null, farSources = null }) {
   const options = postOptions(search), savedTone = renderer.toneMapping, savedExposure = renderer.toneMappingExposure;
+  options.farshadow = !!(terrain && farSources && sunDir) && farShadowEnabled(search);
+  const farMode=new URLSearchParams(search).get('postdebug');
+  if(farMode==='farshadow'||farMode==='farshadowmap')options.postdebug=farMode;
   options.mist = options.mist && !!terrain;
   const shade = shadeSettings(search, params), light = lightSettings(atmosphereOptions(search).time);
-  const needsDepth = options.shafts || options.cloud || options.mist;
+  const needsDepth = options.shafts || options.cloud || options.mist || options.farshadow;
+  let farShadow=null,farAdapt=0;
   let cloudTime = 0, lastTime = null, shaftStrength = 0;
   const debugLight = () => ({ shafts: { active: active && shaftStrength > 0, strength: active ? shaftStrength : 0 },
     cloud: { strength: active && options.cloud ? light.cloud*highCloud.strength : 0, time: cloudTime }, depth: !!targets?.[0].depthTexture,
@@ -90,6 +96,11 @@ export function createKamakuraPost({ renderer, quality = 'standard', search = ''
       sunColor:{value:new THREE.Color(params.sunColor ?? '#fff1d6')},aspect:{value:1},warmth:{value:params.postWarmth ?? .008},
       saturation:{value:POST_DEFAULTS.saturation},contrast:{value:POST_DEFAULTS.contrast},vignette:{value:POST_DEFAULTS.vignette},
     });
+    if(options.farshadow){
+      farShadow=createFarShadowView({THREE,renderer,terrain,sources:farSources,sunDir,params,time:atmosphereOptions(search).time,search,now});
+      farShadow.setAdapt(farAdapt);
+      Object.assign(final.uniforms,farShadow.uniforms);
+    }
     if (needsDepth) Object.assign(final.uniforms, {
       depthTex:{value:null},inverseProjection:{value:new THREE.Matrix4()},cameraWorld:{value:new THREE.Matrix4()},viewFar:{value:10000},
     });
@@ -187,8 +198,9 @@ export function createKamakuraPost({ renderer, quality = 'standard', search = ''
   function setAdapt(step) {
     if(disposed) return;
     if(step>=2) latched=true;
+    farAdapt=step;farShadow?.setAdapt(step);
     active=postRoute(quality,step,options.post,latched);
-    if(!active) { releaseTargets(); releaseMist(); lastTime=null; shaftStrength=0; air.cloud.strength=0; }
+    if(!active) { releaseTargets(); releaseMist(); farShadow?.dispose(); lastTime=null; shaftStrength=0; air.cloud.strength=0; }
     renderer.toneMapping=active?THREE.NoToneMapping:TONES[options.tone]; renderer.toneMappingExposure=exposure;
   }
   function draw(mat,target) { mesh.material=mat; renderer.setRenderTarget(target); renderer.render(scene,camera); }
@@ -199,9 +211,12 @@ export function createKamakuraPost({ renderer, quality = 'standard', search = ''
       if(disposed) return;
       if(!active){renderer.render(world,view);return;}
       resize();
-      const previous=renderer.getRenderTarget(),autoClear=renderer.autoClear;
+      const previous=renderer.getRenderTarget(),autoClear=renderer.autoClear,shadowEnabled=renderer.shadowMap?.enabled;
       try {
+        farShadow?.update(view);
+        if(farShadow?.ready && farShadow.uniforms.farFlying.value>.5 && renderer.shadowMap)renderer.shadowMap.enabled=false;
         renderer.autoClear=true; renderer.setRenderTarget(targets[0]); renderer.render(world,view);
+        if(renderer.shadowMap)renderer.shadowMap.enabled=shadowEnabled;
         if(options.bloom){
           for(let i=0;i<3;i++){
             const input=targets[i]; down.uniforms.tex.value=input.texture;
@@ -239,8 +254,9 @@ export function createKamakuraPost({ renderer, quality = 'standard', search = ''
         }
         final.uniforms.glareStrength.value=options.glare?projected.strength*(params.postGlare??.7):0;
         draw(final,previous);
-      } finally {renderer.setRenderTarget(previous);renderer.autoClear=autoClear;}
+        farShadow?.advance(world);
+      } finally {renderer.setRenderTarget(previous);renderer.autoClear=autoClear;if(renderer.shadowMap)renderer.shadowMap.enabled=shadowEnabled;}
     },
-    dispose(){if(disposed)return;disposed=true;releaseTargets();releaseMist();geometry?.dispose();down?.dispose();combine?.dispose();final?.dispose();shaftMask?.dispose();shaftBlur?.dispose();if(debug && globalThis.__kzLight===debugLight)delete globalThis.__kzLight;if(debug && !inheritedAir && globalThis.__kzAir===debugAir)delete globalThis.__kzAir;renderer.toneMapping=savedTone;THREE.ShaderChunk.tonemapping_pars_fragment=savedToneChunk;renderer.toneMappingExposure=savedExposure;},
+    dispose(){if(disposed)return;disposed=true;releaseTargets();releaseMist();farShadow?.dispose();geometry?.dispose();down?.dispose();combine?.dispose();final?.dispose();shaftMask?.dispose();shaftBlur?.dispose();if(debug && globalThis.__kzLight===debugLight)delete globalThis.__kzLight;if(debug && !inheritedAir && globalThis.__kzAir===debugAir)delete globalThis.__kzAir;renderer.toneMapping=savedTone;THREE.ShaderChunk.tonemapping_pars_fragment=savedToneChunk;renderer.toneMappingExposure=savedExposure;},
   };
 }

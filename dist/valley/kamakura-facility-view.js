@@ -3,14 +3,16 @@ import * as THREE from 'three';
 import { createHouseTextures, createHouseMaterial } from './kamakura-house-materials.js';
 import { facilityMaterialRole, facilityPartRole, facilityTimberWeights, facilityInterior, houseInteriorOpeningFrame, houseHallWallFrames } from './kamakura-house-texture.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { facilityPlacement, facilityFootprint, facilitySolid, facilityExcludesTrees, facilityCastsShadow, facilityVisible, FACILITY_HELD_BACK } from './kamakura-facilities.js';
+import { facilityPlacement, facilityFootprint, facilitySolid, facilityExcludesTrees, facilityCastsShadow, facilityVisible, FACILITY_HELD_BACK, buddhaHallMode, enclosingBuddhaHalls, prepareRuinHall, RUIN_HALL } from './kamakura-facilities.js';
 export async function buildKamakuraFacilities(facilities, terrain, scene, quality='standard', { showHeldBack = false, search = globalThis.location?.search ?? '' } = {}) {
   const dv=new DataView(facilities.kit);
   if(dv.byteLength<20 || dv.getUint32(0,true)!==0x46546c67 || dv.getUint32(4,true)!==2 || dv.getUint32(8,true)!==dv.byteLength || dv.getUint32(16,true)!==0x4e4f534a) throw new Error('施設のGLBが不正です');
   const json=JSON.parse(new TextDecoder().decode(new Uint8Array(facilities.kit,20,dv.getUint32(12,true))));
   if(json.buffers?.some(b=>b.uri) || json.images?.length || json.textures?.length || json.extensionsUsed?.length || json.extensionsRequired?.length) throw new Error('施設のGLBは単色の自己完結形式が必要です');
   const gltf=await new GLTFLoader().parseAsync(facilities.kit,'');
-  const geometries=new Set(), materials=new Set(), records=[], boxes=[], exclusionBoxes=[];
+  const geometries=new Set(), materials=new Set(), records=[], boxes=[], exclusionBoxes=[], ruinHalls=[];
+  let hallDimensions=null;
+  const hallInspect=()=>({mode:'hall',hall:hallDimensions,posts:{standing:0,leaning:0},beams:0,piles:0,triangles:0,draws:0,frontClear:null,distance:null,bearing:null});
   const farEnabled=new URLSearchParams(search).get('facfar')!=='0',stats={flying:false,shown:0};
   scene.userData.kzHouseFarFacilities=stats;
   let disposed=false,step=0,shadows=true,texture=null;
@@ -29,7 +31,7 @@ export async function buildKamakuraFacilities(facilities, terrain, scene, qualit
     return surfaceCache.get(key);
   }
   const group=new THREE.Group();group.name='kamakura-facilities';
-  function dispose() {if(disposed)return;disposed=true;if(scene.userData.kzHouseFarFacilities===stats)delete scene.userData.kzHouseFarFacilities;group.removeFromParent();texture?.dispose();for(const g of geometries)g.dispose();for(const m of materials)m.dispose();}
+  function dispose() {if(disposed)return;disposed=true;if(globalThis.__kzRuinHall===hallInspect)delete globalThis.__kzRuinHall;if(scene.userData.kzHouseFarFacilities===stats)delete scene.userData.kzHouseFarFacilities;group.removeFromParent();texture?.dispose();for(const g of geometries)g.dispose();for(const m of materials)m.dispose();}
   gltf.scene.traverse(o=>{if(o.isMesh){geometries.add(o.geometry);for(const m of [].concat(o.material))materials.add(m);}});
   try {
     // Loader may keep an unused base material when it clones one for flat normals.
@@ -40,8 +42,29 @@ export async function buildKamakuraFacilities(facilities, terrain, scene, qualit
     const meshNodes=json.nodes.filter(n=>n.mesh!==undefined);
     if(meshNodes.length!==facilities.nodes.length || meshNodes.some(n=>!facilities.nodes.some(f=>f.node===n.name))) throw new Error('施設の節の数が一致しません');
     gltf.scene.updateMatrixWorld(true);
+    const footprints=buddhaHallMode(search)?[]:facilities.nodes.map(n=>{
+      const node=byName.get(n.node);if(!node)throw new Error('施設に対応する節がありません');
+      const positions=[];let triangles=0,meshes=0;
+      node.traverse(o=>{if(!o.isMesh)return;const p=o.geometry.attributes.position,v=new THREE.Vector3();meshes++;triangles+=(o.geometry.index?.count??p.count)/3;
+        for(let i=0;i<p.count;i++){v.fromBufferAttribute(p,i).applyMatrix4(o.matrixWorld);positions.push(v.x,v.y,v.z);}});
+      return {node:n,triangles,meshes,finite:positions.every(Number.isFinite),bounds:facilityFootprint(n,positions,false),base:n.part==='hall'?facilityFootprint(n,positions):null};
+    });
+    const removed=buddhaHallMode(search)?[]:enclosingBuddhaHalls(footprints);
+    const gates=footprints.filter(r=>['gate','romon','nagayamon'].includes(r.node.part)).map(r=>r.bounds);
     for(const n of facilities.nodes) {
       if(!showHeldBack&&FACILITY_HELD_BACK.has(n.part))continue;
+      const removedHall=removed.find(r=>r.node===n);
+      if(removedHall){
+        if(removedHall.triangles!==n.triangles||!removedHall.meshes||!removedHall.finite)throw new Error('施設の部品が一致しません');
+        const b=removedHall.bounds,base={...removedHall.base,height:RUIN_HALL.baseHeight,hollow:RUIN_HALL.baseWidth};
+        base.minY=terrain.heightAt(base.x,base.z);base.maxY=base.minY+base.height;
+        // A low platform record preserves grass exclusion. Its hollow band leaves the
+        // former interior open to prop placement instead of resurrecting a hall box.
+        records.push({node:{...n,part:'platform',soft:true},bounds:base,meshes:[]});
+        exclusionBoxes.push(base);
+        const plan=prepareRuinHall({...removedHall.base,height:b.height,minY:base.minY,maxY:base.minY+b.height},terrain,gates);ruinHalls.push(plan);
+        continue;
+      }
       const node=byName.get(n.node);if(!node)throw new Error('施設に対応する節がありません');
       const parts=[],positions=[];let triangles=0;
       node.traverse(o=>{if(!o.isMesh)return;
@@ -98,8 +121,13 @@ export async function buildKamakuraFacilities(facilities, terrain, scene, qualit
       records.push({node:n,bounds,meshes});
     }
     group.updateMatrix();group.matrixAutoUpdate=false;scene.add(group);
+    if(buddhaHallMode(search)&&new URLSearchParams(search).get('debug')==='1'){
+      const enclosed=enclosingBuddhaHalls(records)[0]?.bounds;
+      hallDimensions=enclosed?{width:enclosed.w,depth:enclosed.d,height:enclosed.height}:null;
+      globalThis.__kzRuinHall=hallInspect;
+    }
   } catch(e) {dispose();throw e;}
-  return {group,records,boxes,exclusionBoxes,dispose,
+  return {group,records,boxes,exclusionBoxes,ruinHalls,dispose,
     setAdapt(policy) {step=policy.scale<=.58?3:policy.scale<=.7?2:0;for(const m of surfaceCache.values())m.userData.setHouseAdapt(step);shadows=policy.shadows;for(const r of records)for(const m of r.meshes)m.castShadow=shadows&&facilityCastsShadow(r.node);},
     update(pos, flying=false) {if(disposed)return;stats.flying=flying;stats.shown=0;for(const r of records){const visible=facilityVisible(r.node,r.bounds,pos,quality,step,flying&&farEnabled);if(visible)stats.shown++;for(const m of r.meshes)m.visible=visible;}}
   };

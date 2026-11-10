@@ -9,7 +9,7 @@ export const HOUSE_FAR = Object.freeze({
   batch: 32, // houses: maximum construction work in one update after presentation.
   sliceMs: 2, // milliseconds: construction time budget, checked after each house.
   maskBytes: 4096, // bytes: maximum single-channel chunk mask.
-  triangles: 60000, // triangles: maximum combined geometry.
+  triangles: 180000, // triangles: maximum combined geometry (one draw). Raised from 60,000 so that the town fill is not cut short: about 11,000 houses.
   epsilon: .0001, // metres: same-plane/ridge vertex tolerance.
   roofFallback: .28, // fraction: legacy mid roof depth, only for degenerate source triangles.
   midSink: 2.5, // metres: same skirt extension as the existing mid view.

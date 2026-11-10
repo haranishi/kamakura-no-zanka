@@ -10,7 +10,9 @@ jobs:
     name: Node ${{ matrix.node }}
     # ubuntu-latest is moving to Ubuntu 26 (announced for 2026-10-19 onward); stay on the image the checks were verified on.
     runs-on: ubuntu-24.04
-    timeout-minutes: 5
+    # The suite alone takes about four and a half minutes on the Node 22 runner (2026-11): at five the job was cancelled
+    # in the middle of the checks that follow it, with every test passing. Ten still catches a hang.
+    timeout-minutes: 10
     strategy:
       matrix:
         node: [22, 24]
