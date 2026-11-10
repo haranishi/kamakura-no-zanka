@@ -134,6 +134,11 @@ test('HUD gates controls, changes help/run label and finds the nearest place ben
       if(debug)assert.match(hud.root.querySelector('.kz-debug').textContent,/高度 .*速さ .*向き .*ピッチ/);
       hud.setFlight(true,true);assert.equal(hud.top.textContent,'元の飛行へ');hud.setFlight(false,false);assert.equal(hud.root.querySelector('.kz-info').innerHTML,'walking help');
       hud.update({x:500,y:1000,z:0},0,t,null,s);assert.equal(hud.root.querySelector('.kz-place').textContent,'鎌倉');
+      // The sword buttons (for fingers) show only on foot, and only when the sword moves are on.
+      const box=hud.root.querySelector('.kz-moves');assert(hud.cut&&hud.dodge);
+      hud.setMoves(true);assert.equal(box.hidden,false);hud.setFlight(true,false);assert.equal(box.hidden,true);
+      hud.setFlight(false,false);assert.equal(box.hidden,false);hud.setMoves(false);assert.equal(box.hidden,true);
+      hud.setFlight(true,false);hud.setMoves(true);assert.equal(box.hidden,true);hud.setFlight(false,false);assert.equal(box.hidden,false);
     }
     assert.equal(roots.length,3);
   }finally{globalThis.document=oldDocument;}

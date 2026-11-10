@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-10T11:05:29.812Z",
+  "generatedAt": "2026-11-10T11:13:22.874Z",
   "scope": "Source, assets and verification artifacts; excludes this manifest, Git metadata, ignored files and private runtime data",
   "files": [
     {
@@ -460,8 +460,8 @@
     },
     {
       "path": ".kiro/specs/world-map/requirements-web-polish.md",
-      "size": 13063,
-      "sha256": "e130a487ca8e59e33c67ebd8eea5ccd8cf5cbe83863ce99fc616f68908b2e734"
+      "size": 13126,
+      "sha256": "abf5a7c1c20458b258f29ef497ddc56711a0613828c3b8a9742a35ffeeef0fac"
     },
     {
       "path": ".kiro/specs/world-map/requirements-web.md",
@@ -475,8 +475,8 @@
     },
     {
       "path": ".kiro/specs/world-map/tasks-web.md",
-      "size": 58174,
-      "sha256": "07de1e7ebf00a00077eb68fafea296864372c350e54ac4069f6ed6787af0a1f1"
+      "size": 58246,
+      "sha256": "8f9aecd10e848bb75365a359f0fb115ddd319d804e29e09069ef93368d846668"
     },
     {
       "path": ".kiro/specs/world-map/tasks.md",
@@ -630,8 +630,8 @@
     },
     {
       "path": ".kiro/specs/world-map/w2c-16-moves-validation.md",
-      "size": 8005,
-      "sha256": "b7315a0023a8255f74849d121713b47bb5f6d969bc970c779379a59137c95d07"
+      "size": 8235,
+      "sha256": "7416a32c74c0aecd1af1b7eb31b48110dbf545de0e2ef11bb88f56821e7bc4ee"
     },
     {
       "path": ".kiro/specs/world-map/w2c-16-props-validation.md",
@@ -1620,8 +1620,8 @@
     },
     {
       "path": "dist/valley/hud-kamakura.js",
-      "size": 3782,
-      "sha256": "3980e1344d7f58d694faef541c399ca72f534db9674b405cbcd6400c8a1858f5"
+      "size": 4355,
+      "sha256": "209b650d5454d9d3b1a9000493cb0c2fa09e94b403815263b0ea9dd694b2c138"
     },
     {
       "path": "dist/valley/hud.js",
@@ -1935,8 +1935,8 @@
     },
     {
       "path": "dist/valley/kamakura-hero-moves.js",
-      "size": 4652,
-      "sha256": "bc7860ae9b537f87a33946644ec6c6f79b12158d3bc5634c38a3de74a1be95e5"
+      "size": 5180,
+      "sha256": "d2ab6d4141511c15ae85d94c010c462bcffda8f662e302902afdfb45fa764019"
     },
     {
       "path": "dist/valley/kamakura-house-materials.js",
@@ -2140,8 +2140,8 @@
     },
     {
       "path": "dist/valley/kamakura.css",
-      "size": 1958,
-      "sha256": "bbeebb8785249589d939f13950e843466afd5798f8c58a2b8bc3d4ba08eb1911"
+      "size": 2273,
+      "sha256": "30c456cf87a264d89acc884c78debec6c5c77962a4e25d42dc4c79abd3b7b40c"
     },
     {
       "path": "dist/valley/knockback.js",
@@ -2470,8 +2470,8 @@
     },
     {
       "path": "dist/valley/world-kamakura.js",
-      "size": 19969,
-      "sha256": "075db6e5bf023f05c08c4d35be582b802bf6132295475767fc4f3931dfe58bf8"
+      "size": 20188,
+      "sha256": "f657e47a1dd1e9b6dc83938df18e4531a4c7bc49847e0fe6fca397e60e130bbc"
     },
     {
       "path": "dist/valley/world.html",
@@ -5305,8 +5305,8 @@
     },
     {
       "path": "tests/kamakura-fly.test.mjs",
-      "size": 13259,
-      "sha256": "88ef3ccc3773fe66965c9e301237572e297640c59142f374da003308924b97d9"
+      "size": 13805,
+      "sha256": "355cf4af3c5e33e1491922da615efdb8898535dd28dff48f4819614704e413e9"
     },
     {
       "path": "tests/kamakura-fx.test.mjs",
@@ -5460,8 +5460,8 @@
     },
     {
       "path": "tests/kamakura-hero-moves.test.mjs",
-      "size": 15221,
-      "sha256": "3af7c93a7362587829aded675a0f16cb345c92dc033527fa6784a2fa3e1dcbc9"
+      "size": 16662,
+      "sha256": "bd653153a4993c3b789b62e3f83d2614233fbf8cbb7b6cf18568be17045b286b"
     },
     {
       "path": "tests/kamakura-house-ambient.test.mjs",
