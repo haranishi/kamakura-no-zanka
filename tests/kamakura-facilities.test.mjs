@@ -167,8 +167,8 @@ test('private v0.8 facility nodes, triangles, placement, grounding and overlaps'
   const report=verifyFacilities(data,input);assert.equal(report.count,input.facilities.nodes.length);assert.equal(report.triangles,input.facilities.catalog.total_triangles);
   const {buildKamakuraFacilities}=await loadFacilityView(),scene=new THREE.Scene();
   const {createKamakuraTerrain}=await import('../dist/valley/kamakura-terrain.js');
-  for(const scale of [1,1.8]){const field=await buildKamakuraFacilities(input.facilities,createKamakuraTerrain(data,scale),scene);const held=input.facilities.nodes.filter(n=>FACILITY_HELD_BACK.has(n.part)).length;assert(held>=1);
-    const plain=await buildKamakuraFacilities(input.facilities,createKamakuraTerrain(data,scale),new THREE.Scene(),'standard',{search:'?ftex=0'});
+  for(const scale of [1,1.8]){const field=await buildKamakuraFacilities(input.facilities,createKamakuraTerrain(data,scale),scene,'standard',{search:'?buddha=hall'});const held=input.facilities.nodes.filter(n=>FACILITY_HELD_BACK.has(n.part)).length;assert(held>=1);
+    const plain=await buildKamakuraFacilities(input.facilities,createKamakuraTerrain(data,scale),new THREE.Scene(),'standard',{search:'?ftex=0&buddha=hall'});
     assert.deepEqual(field.boxes,plain.boxes);assert.deepEqual(field.exclusionBoxes,plain.exclusionBoxes);
     assert.equal(field.records.length,plain.records.length);
     for(let i=0;i<field.records.length;i++){
@@ -182,7 +182,7 @@ test('private v0.8 facility nodes, triangles, placement, grounding and overlaps'
     }
     plain.dispose();
     assert.equal(field.records.length,report.count-held);assert.equal(field.boxes.length,report.colliders);field.update({x:data.meta.spawn.x,z:-data.meta.spawn.y});field.dispose();
-    const all=await buildKamakuraFacilities(input.facilities,createKamakuraTerrain(data,scale),new THREE.Scene(),'standard',{showHeldBack:true});assert.equal(all.records.length,report.count);all.dispose();assert.equal(scene.children.length,0);}
+    const all=await buildKamakuraFacilities(input.facilities,createKamakuraTerrain(data,scale),new THREE.Scene(),'standard',{showHeldBack:true,search:'?buddha=hall'});assert.equal(all.records.length,report.count);all.dispose();assert.equal(scene.children.length,0);}
   t.diagnostic(JSON.stringify({count:report.count,parts:report.parts,triangles:report.triangles,colliders:report.colliders,overlaps:Object.fromEntries(Object.entries(report.overlaps).map(([k,v])=>[k,v.length]))}));
 });
 test('9g2 facility ftex A/B preserves all geometry, placement, boxes and counts; adaptation and resources',async()=>{

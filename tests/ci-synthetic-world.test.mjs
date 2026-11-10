@@ -63,12 +63,13 @@ test('generated kits pass the shipped Three/GLTFLoader and house/facility placem
   const [{THREE,loadFacilityView},{loadHouseView}]=await Promise.all([import('./helpers/kamakura-facility-view.mjs'),import('./helpers/kamakura-house-view.mjs')]);
   const data=await load(syntheticWorld()),terrain=createKamakuraTerrain(data),scene=new THREE.Scene();
   const {buildKamakuraFacilities}=await loadFacilityView(),{buildKamakuraHouses}=await loadHouseView();
-  const facilities=await buildKamakuraFacilities(data.facilities,terrain,scene,'standard',{search:'?ftex=0'});
+  // Every hall standing (the open-air Buddha is the default since W2c-18; its enclosing hall is not built then).
+  const facilities=await buildKamakuraFacilities(data.facilities,terrain,scene,'standard',{search:'?ftex=0&buddha=hall'});
   let houses;
   try{
     houses=await buildKamakuraHouses(data.houses,terrain,scene,{search:'?htex=0'});
-    // The synthetic world has a hall and, since the paved approaches, a gate in front of it.
-    assert.equal(facilities.records.length,2);const hall=facilities.records.find(r=>r.node.part==='hall');assert(hall);assert.equal(hall.meshes.length,9);
+    // The synthetic world has a hall, a gate in front of it (paved approaches) and a Buddha inside a second hall (W2c-18).
+    assert.equal(facilities.records.length,4);const hall=facilities.records.find(r=>r.node.part==='hall');assert(hall);assert.equal(hall.meshes.length,9);
     assert.equal(houses.boxes.length,3);assert.ok(hall.meshes.some(m=>m.material.name==='interior'));
   }finally{houses?.dispose();facilities.dispose();}
 });

@@ -94,3 +94,23 @@ export function facilityGroundSamples(box, terrain, spacing=.5) {
   }
   return {low,high};
 }
+
+// Select by actual horizontal geometry, never by facility names or IDs.
+export const buddhaHallMode = search => new URLSearchParams(search).get('buddha') === 'hall';
+export function enclosingBuddhaHalls(records) {
+  const result=[];
+  for(const buddha of records) {
+    if(buddha.node.part!=='buddha')continue;
+    let smallest=null;
+    for(const hall of records) {
+      if(hall.node.part!=='hall')continue;
+      const b=hall.bounds,c=Math.cos(b.rotY),s=Math.sin(b.rotY),dx=buddha.bounds.x-b.x,dz=buddha.bounds.z-b.z;
+      if(Math.abs(c*dx-s*dz)>b.w/2 || Math.abs(s*dx+c*dz)>b.d/2)continue;
+      if(!smallest||b.w*b.d<smallest.bounds.w*smallest.bounds.d)smallest=hall;
+    }
+    if(smallest&&!result.includes(smallest))result.push(smallest);
+  }
+  return result;
+}
+// Re-export the pure layout so the facility loader and add-on layer share one plan.
+export { prepareRuinHall, RUIN_HALL } from './kamakura-ruin-hall.js';

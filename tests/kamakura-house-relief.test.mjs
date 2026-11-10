@@ -103,7 +103,8 @@ test('R3 lime joints are weak, irregular and remain in the actual shader; qualit
 test('R3 private halls contain detected timber and interiors; source vermilion stays protected', {skip:!process.env.KZ_WORLD_DIR&&'KZ_WORLD_DIR未設定：私有施設が必要'},async()=>{
   const dir=process.env.KZ_WORLD_DIR,bin=await fs.readFile(path.join(dir,'facilities.glb')),catalog=JSON.parse(await fs.readFile(path.join(dir,'facilities.json')));
   const {buildKamakuraFacilities}=await loadFacilityView();
-  const field=await buildKamakuraFacilities({nodes:catalog.nodes,kit:bin.buffer.slice(bin.byteOffset,bin.byteOffset+bin.byteLength)},{heightAt:()=>0},new THREE.Scene());
+  // Every hall standing: the default since W2c-18 leaves the Great Buddha's hall out (open-air Buddha).
+  const field=await buildKamakuraFacilities({nodes:catalog.nodes,kit:bin.buffer.slice(bin.byteOffset,bin.byteOffset+bin.byteLength)},{heightAt:()=>0},new THREE.Scene(),'standard',{search:'?buddha=hall'});
   try{
     let timber=false,interior=false,red=false;
     for(const r of field.records)for(const mesh of r.meshes){

@@ -1,7 +1,8 @@
 import { prepareAvenue } from './kamakura-avenue.js';
+import { prepareTownFill } from './kamakura-town-fill.js';
 import { sandoLines, sandoEnabled } from './kamakura-sando.js';
 import { decodeFacilities } from './kamakura-facilities.js';
-import { decodeRoads, kamakuraPaths, roadStats } from './kamakura-roads.js';
+import { decodeRoads, decodeCrossings, kamakuraPaths, roadStats } from './kamakura-roads.js';
 import { decodeRivers } from './kamakura-rivers.js';
 import { decodeVeg } from './kamakura-veg.js';
 import { decodeHouses } from './kamakura-houses.js';
@@ -91,6 +92,7 @@ export async function loadKamakura(fetcher = fetch, search = globalThis.location
       if (meta.roads.file !== 'roads.json' || meta.roads.schema !== 'kz-roads/0.1' || !Number.isInteger(meta.roads.count)) throw new Error();
       const source = await (await read('roads.json')).json();
       data.roads = decodeRoads(source, meta.roads.count);
+      data.crossings = decodeCrossings(source);
       if (new URLSearchParams(search).get('avenue') !== '0') for (const [id, road] of Object.entries(data.roads)) road.route_id = source.roads[id].route_id;
     } catch { /* Optional roads failure keeps the existing pass paths and terrain. */ }
   }
@@ -150,6 +152,13 @@ export async function loadKamakura(fetcher = fetch, search = globalThis.location
     catch { data.sando = null; data.sandoNotice = '参道を作れませんでした。散策を続けます'; }
   }
   if (!data.sandoNotice && new URLSearchParams(search).get('avenue') !== '0') { data.avenue = prepareAvenue(data); if (data.avenue) data.veg = data.avenue.veg; }
+  const town = data.sandoNotice || new URLSearchParams(search).get('townfill') === '0' ? null : prepareTownFill(data, { search });
+  if (town) { data.houses = town.houses; data.lanes = town.lanes; data.townPlots = town.townPlots; }
+  globalThis.__kzTownFill?.dispose?.();
+  if (new URLSearchParams(search).get('townfilldebug') === '1' || new URLSearchParams(search).get('debug') === '1') {
+    const debug = () => town?.stats || null;
+    debug.dispose = () => { if (globalThis.__kzTownFill === debug) delete globalThis.__kzTownFill; }; globalThis.__kzTownFill = debug;
+  }
   return data;
 }
 

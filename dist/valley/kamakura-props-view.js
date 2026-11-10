@@ -131,7 +131,10 @@ export function createKamakuraProps(context, options = {}) {
         if (s.kind === 'debug') color.set(palette[PROP_KINDS.indexOf(p.kind)]);
         else if (s.type === 'paver') {
           if (debug) color.set('#e12ae8');
-          else if (p.edge && p.age < .3) color.set('#707c57').multiplyScalar(.9 + p.age * .2);
+          // The instance colour multiplies the slab's own grey. Parent (real Chrome): a moss colour written here as a colour of
+          // its own came out near black (a grey-green times a grey), and one edge slab in six read as a hole in the paving.
+          // A tint relative to the stone instead: less red and blue, a little more green.
+          else if (p.edge && p.age < .3) color.setRGB(.75, 1.06, .65).multiplyScalar(.9 + p.age * .2);
           else color.setScalar(.8 + p.age * .34);   // each slab its own wear: a wider spread than the other stones
         }
         else if (s.type === 'cloth') color.set(p.variant ? '#a84734' : '#e0d8c5');

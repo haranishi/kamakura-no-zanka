@@ -135,3 +135,11 @@ test('explicit private world loads optional roads without copying private values
   if (data.meta.roads) assert.ok(data.roads);
   else assert.equal(data.roads, null);
 });
+
+test('town lanes merge after a cached avenue lookup, preserve legacy references and protect colliding ids',()=>{
+  const p=road(3.2),old={'lane:a':road(2)},data={patches:{paths:old},roads:{main:road()}};
+  const before=kamakuraPaths(data);assert.equal(kamakuraPaths(data),before);
+  data.lanes=Object.freeze({a:p});const after=kamakuraPaths(data);
+  assert.notEqual(after,before);assert.equal(after['lane:lane:a'],p);assert.equal(after['lane:a'],old['lane:a']);assert.equal(kamakuraPaths(data),after);
+  const disabled={patches:{paths:old}};assert.equal(kamakuraPaths(disabled),old);assert.equal(disabled.lanes,undefined);
+});

@@ -1,3 +1,4 @@
+import { FAR_SHADOW, FAR_SHADOW_GLSL } from './kamakura-far-shadow.js';
 import { MIST_GLSL } from './kamakura-mist.js';
 // R10: pure light policy and matching CPU/GLSL cloud field. No world data is retained.
 export const LIGHT_TIMES = Object.freeze({
@@ -105,11 +106,12 @@ export const SHAFT_SHADERS = {
 };
 // Keep the disabled final program byte-for-byte identical to the shipped R9 program.
 export function lightFinalShader(legacy, options) {
-  if (!options.shafts && !options.cloud && !options.mist && !options.postdebug) return legacy;
+  if (!options.shafts && !options.cloud && !options.mist && !options.farshadow && !options.postdebug) return legacy;
   if (!legacy.includes('void main(){') || !legacy.includes('if(bloomStrength>0.)')) throw Error('Post composite shader boundary missing');
-  const depth=options.shafts || options.cloud || options.mist;
+  const depth=options.shafts || options.cloud || options.mist || options.farshadow;
   const mode=options.postdebug;
   const declarations=(depth ? DEPTH_GLSL : '')+(options.cloud ? (options.cloudhigh ? CLOUD_GLSL.replace('cloudTime, cloudStrength;', 'cloudTime, cloudStrength, cloudScale;').replace('/'+CLOUD.scale.toFixed(1)+';', '/('+CLOUD.scale.toFixed(1)+'*cloudScale);') : CLOUD_GLSL) : '')+(options.mist ? MIST_GLSL : '')+
+    (options.farshadow ? FAR_SHADOW_GLSL : '')+
     (options.shafts ? '\nuniform sampler2D shaftTex; uniform float shaftStrength;\n' : '');
   let start='';
   if(depth) start+=`float depthValue=texture2D(depthTex,vUv).x; bool skyPixel=kzSky(depthValue);
@@ -117,9 +119,21 @@ export function lightFinalShader(legacy, options) {
   if(mode==='depth') start+=depth ? 'gl_FragColor=vec4(vec3(skyPixel?1.:clamp(length(pointView)/viewFar,0.,1.)),1.); return;' : 'gl_FragColor=vec4(0.,0.,0.,1.); return;';
   if(mode==='shafts') start+=options.shafts ? 'gl_FragColor=vec4(vec3(shaftStrength>0.?texture2D(shaftTex,vUv).r*shaftStrength:0.),1.); return;' : 'gl_FragColor=vec4(0.,0.,0.,1.); return;';
   if(mode==='valley') start+=options.mist ? 'gl_FragColor=vec4(vec3(skyPixel?0.:kzValley(kzWorldPosition(pointView).xz).r),1.); return;' : 'gl_FragColor=vec4(0.,0.,0.,1.); return;';
+  if(mode==='farshadowmap') start+=options.farshadow ? `
+    vec2 mapUV=(vUv-vec2(${FAR_SHADOW.mapInset}))/${FAR_SHADOW.mapPreview};
+    if(all(greaterThanEqual(mapUV,vec2(0.0)))&&all(lessThanEqual(mapUV,vec2(1.0)))){
+      gl_FragColor=vec4(vec3(farReady>.5?texture2D(farTown,mapUV).r:1.0),1.0);return;
+    }` : '';
+  const shadow=options.farshadow ? `
+    vec3 farPoint=kzWorldPosition(pointView);
+    vec3 farNormal=normalize(cross(dFdx(farPoint),dFdy(farPoint)));
+    if(dot(farNormal,cameraWorld[3].xyz-farPoint)<0.0)farNormal=-farNormal;
+    float farAmount=skyPixel?0.0:kzFarShadow(farPoint,farNormal);` : '';
+  const shadowEffect=shadow+(mode==='farshadow' ? `gl_FragColor=vec4(vec3(${options.farshadow?'farAmount':'0.0'}),1.0);return;` : '')+
+    (options.farshadow?'c=kzFarApply(c,farAmount);':'');
   const cloud=options.cloud ? 'float cloudAmount=skyPixel?0.:kzCloudAmount(kzWorldPosition(pointView),c);' : '';
   const mist=options.mist ? 'float mistAmount=skyPixel?0.:kzMistAmount(kzWorldPosition(pointView));' : '';
-  const effect=cloud+(mode==='cloud' ? `gl_FragColor=vec4(vec3(${options.cloud ? '1.-cloudAmount' : '1.'}),1.); return;` : '')+
+  const effect=shadowEffect+cloud+(mode==='cloud' ? `gl_FragColor=vec4(vec3(${options.cloud ? '1.-cloudAmount' : '1.'}),1.); return;` : '')+
     (options.cloud ? 'c*=vec3(1.-cloudAmount*1.03,1.-cloudAmount,1.-cloudAmount*.82);' : '')+
     mist+(mode==='mist' ? `gl_FragColor=vec4(vec3(${options.mist ? 'mistAmount' : '0.'}),1.); return;` : '')+
     (options.mist ? 'if(mistAmount>0.) c=mix(c,kzMistColor(kzWorldPosition(pointView)),mistAmount);' : '')+
