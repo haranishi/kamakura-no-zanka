@@ -24,7 +24,7 @@ function rendererStub(fail = false) {
 }
 test('time/atmos defaults, all presets, invalid values and comparison switch', () => {
   for (const search of ['', '?time=', '?time=night', '?time=constructor', '?time=toString']) assert.deepEqual(atmosphereOptions(search), {enabled:true,time:'noon'});
-  for (const time of ['noon','morning','evening']) assert.deepEqual(atmosphereOptions('?time='+time), {enabled:true,time});
+  for (const time of ['noon','morning','golden','evening']) assert.deepEqual(atmosphereOptions('?time='+time), {enabled:true,time});
   assert.deepEqual(atmosphereOptions('?atmos=0&time=morning'), {enabled:false,time:'morning'});
   for(const v of ['','false','off','1','00']) assert(atmosphereOptions('?atmos='+v).enabled);
   assert.equal(atmospherePolicy('light').shadowSize,2048); assert.equal(atmospherePolicy().shadowSize,4096);
@@ -32,7 +32,7 @@ test('time/atmos defaults, all presets, invalid values and comparison switch', (
 });
 test('validated normalized directions, elevation, colors, thin haze and independent evening copy', () => {
   const original = JSON.stringify(base());
-  for (const [time,elevation] of [['noon',58],['morning',25],['evening',9.78]]) {
+  for (const [time,elevation] of [['noon',58],['morning',25],['golden',21.74],['evening',9.78]]) {
     const a = kamakuraAtmosphere(time,base(),false); validateAtmosphere(a);
     assert(Math.abs(Math.hypot(...a.sunDir)-1)<1e-12);
     assert(Math.abs(Math.asin(a.sunDir[1])*180/Math.PI-elevation)<.1);
@@ -47,7 +47,7 @@ test('validated normalized directions, elevation, colors, thin haze and independ
 });
 test('actual atmosphere creation, fog once before materials, quality, follow, update and repeat disposal', () => {
   const fogBefore=chunks(), original=JSON.stringify(base());
-  for (const quality of ['standard','light']) for (const time of ['noon','morning','evening']) {
+  for (const quality of ['standard','light']) for (const time of ['noon','morning','golden','evening']) {
     const scene=new THREE.Scene(), renderer=rendererStub(), external=new THREE.Group(); scene.add(external);
     const background=scene.background=new THREE.Color('#123456');
     const controller=createKamakuraAtmosphere({scene,renderer,search:'?time='+time,quality});

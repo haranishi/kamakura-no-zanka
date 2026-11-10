@@ -15,7 +15,7 @@ function stub(){
 test('post URL routes, one-way downgrade, pyramid edge sizes and memory',()=>{
   assert.equal(postOptions('?tone=bad').tone,'neutral');
   for(const tone of ['none','aces','neutral','agx'])assert.equal(postOptions('?tone='+tone).tone,tone);
-  assert.deepEqual(postOptions('?post=0&bloom=0&glare=0&tone=none'),{post:false,bloom:false,glare:false,tone:'none',toe:null});
+  assert.deepEqual(postOptions('?post=0&bloom=0&glare=0&tone=none'),{post:false,bloom:false,glare:false,tone:'none',toe:null,shafts:true,cloud:true,postdebug:''});
   for(const step of [0,1])assert(postRoute('standard',step,true));
   for(const args of [['light',0,true],['standard',2,true],['standard',3,true],['standard',0,false],['standard',0,true,true]])assert(!postRoute(...args));
   assert.deepEqual(bloomSizes(3,1),[[1,1],[1,1],[1,1]]);
@@ -37,7 +37,7 @@ test('neutral synthetic gray ramp preserves black, is monotonic and has an uncli
   t.diagnostic(JSON.stringify({whiteRate:white/4096,blackRate:black/4096,gray18:neutralGray(.18),highlight4:neutralGray(4)}));
 });
 test('real Three HDR targets, 5 passes, resize disposal, downgrade latch, state restore',()=>{
-  const r=stub(),p=createKamakuraPost({renderer:r,sunDir:new THREE.Vector3(0,.2,-1)}),world=new THREE.Scene(),camera=new THREE.PerspectiveCamera(60,16/9,.1,1000);
+  const r=stub(),p=createKamakuraPost({renderer:r,search:'?shafts=0&cloud=0',sunDir:new THREE.Vector3(0,.2,-1)}),world=new THREE.Scene(),camera=new THREE.PerspectiveCamera(60,16/9,.1,1000);
   assert.equal(r.toneMapping,THREE.NoToneMapping); p.resize();const old=[...p.targets];
   for(const t of old){assert.equal(t.texture.type,THREE.HalfFloatType);assert.equal(t.samples,t===old[0]?4:0);}
   p.render(world,camera);assert.equal(r.draws.length,6);assert.equal(r.getRenderTarget(),null);assert.equal(r.autoClear,false);
@@ -51,7 +51,7 @@ test('real Three HDR targets, 5 passes, resize disposal, downgrade latch, state 
 test('light/post=0 allocate no post resources; bloom/glare switches and all tones',()=>{
   for(const args of [{quality:'light'},{search:'?post=0'}]){const r=stub(),p=createKamakuraPost({renderer:r,...args});p.resize();p.render(new THREE.Scene(),new THREE.Camera());assert.equal(p.targets,null);assert.equal(r.counts.size,0);p.dispose();}
   for(const tone of ['none','aces','neutral','agx']){
-    const r=stub(),p=createKamakuraPost({renderer:r,search:'?tone='+tone+'&bloom=0&glare=0',sunDir:new THREE.Vector3(0,.2,-1)});
+    const r=stub(),p=createKamakuraPost({renderer:r,search:'?tone='+tone+'&bloom=0&glare=0&shafts=0&cloud=0',sunDir:new THREE.Vector3(0,.2,-1)});
     p.render(new THREE.Scene(),new THREE.PerspectiveCamera());assert.equal(r.draws.length,2);
     assert.equal(r.draws.at(-1).material.uniforms.bloomStrength.value,0);assert.equal(r.draws.at(-1).material.uniforms.glareStrength.value,0);p.dispose();
   }
