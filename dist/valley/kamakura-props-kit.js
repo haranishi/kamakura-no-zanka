@@ -36,6 +36,22 @@ function builder() {
 }
 export function propGeometry(kind, variant = 0) {
   const b = builder();
+  if (kind === 'paver') {
+    // Eight-sided cut slab: clipped corners, not an unmodified box. Unit x/z, 6cm thick.
+    const ring = [[-.44,-.5],[.44,-.5],[.5,-.44],[.5,.44],[.44,.5],[-.44,.5],[-.5,.44],[-.5,-.44]], vertices = [];
+    const vertex = (i, y) => [ring[i][0], y, ring[i][1]];
+    for (let i = 1; i < 7; i++) {
+      vertices.push(...vertex(0,.03), ...vertex(i + 1,.03), ...vertex(i,.03));
+      vertices.push(...vertex(0,-.03), ...vertex(i,-.03), ...vertex(i + 1,-.03));
+    }
+    for (let i = 0; i < 8; i++) {
+      const j = (i + 1) % 8;
+      vertices.push(...vertex(i,-.03), ...vertex(i,.03), ...vertex(j,.03), ...vertex(i,-.03), ...vertex(j,.03), ...vertex(j,-.03));
+    }
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3)); g.computeVertexNormals();
+    // Parent (real Chrome, noon): at #a69f93 the level slabs took the full sun and read as white tiles. A darker, slightly warm grey.
+    b.add(g, 0, 0, 0, '#7f786b'); return b.finish();
+  }
   if (kind === 'lantern') {
     b.box(0, .07, 0, .66, .26, .66, STONE); b.round(0, .48, 0, .12, .11, .62);
     b.box(0, .87, 0, .52, .17, .52, STONE); b.box(0, 1.04, 0, .43, .17, .43, STONE);

@@ -36,10 +36,13 @@ export function syntheticWorld(seed=731) {
   // Four pillars, a roof, and dark inward-facing walls/floor leave an open hall interior.
   const hall=[...[-9,9].flatMap(x=>[-7,7].map(z=>({geometry:box(x,0,z,1,8,1)}))),{geometry:box(0,8,0,22,5,18,true)},
     {geometry:box(0,0,0,18,.3,14),interior:true},{geometry:box(0,0,-7,18,8,.3),interior:true},{geometry:box(-9,0,0,.3,8,14),interior:true},{geometry:box(9,0,0,.3,8,14),interior:true}];
-  files.set('facilities.glb',makeGlb([{name:'ci_hall',parts:hall}]));
+  const gate = [-5,5].map(x=>({geometry:box(x,0,0,.8,5,.8)}));
+  gate.push({geometry:box(0,5,0,12,2,4,true)});
+  files.set('facilities.glb',makeGlb([{name:'ci_hall',parts:hall},{name:'ci_gate',parts:gate}]));
   const triangles=hall.reduce((sum,p)=>sum+p.geometry.positions.length/9,0);
-  json('facilities.json',{schema:'kz-facilities/0.1',kit:'facilities.glb',count:1,total_triangles:triangles,parts:{hall:1},nodes:[{node:'ci_hall',part:'hall',soft:false,facility:'synthetic',source:'original mathematical boxes',status:null,triangles,rel_anchor:0,anchor_xz:[38,-82],bbox_min:[-11,0,-9],bbox_max:[11,13,9]}]});
-  meta.facilities={file:'facilities.json',kit:'facilities.glb',count:1,total_triangles:triangles};
+  const gateTriangles=gate.reduce((sum,p)=>sum+p.geometry.positions.length/9,0);
+  json('facilities.json',{schema:'kz-facilities/0.1',kit:'facilities.glb',count:2,total_triangles:triangles+gateTriangles,parts:{hall:1,gate:1},nodes:[{node:'ci_hall',part:'hall',soft:false,facility:'synthetic',source:'original mathematical boxes',status:null,triangles,rel_anchor:0,anchor_xz:[38,-82],bbox_min:[-11,0,-9],bbox_max:[11,13,9]},{node:'ci_gate',part:'gate',soft:false,facility:'synthetic',source:'original mathematical boxes',status:null,triangles:gateTriangles,rel_anchor:0,anchor_xz:[38,-22],bbox_min:[-6,0,-2],bbox_max:[6,7,2]}]});
+  meta.facilities={file:'facilities.json',kit:'facilities.glb',count:2,total_triangles:triangles+gateTriangles};
   const veg=[];
   for(let i=0;i<36;i++)veg.push(-130+(i%6)*48,-90-Math.floor(i/6)*42,12,0,12+(i%4),4,i%4,0,i%3,0,(i%7)/7,0,(i%11)/11,0,0,0);
   for(let i=0;i<8;i++)veg.push(-390+i*110,-370,12,0,24,24,i%4,1,0,0,.5,0,.5,0,0,0);

@@ -1,3 +1,4 @@
+import { sandoLines, sandoEnabled } from './kamakura-sando.js';
 import { decodeFacilities } from './kamakura-facilities.js';
 import { decodeRoads, kamakuraPaths, roadStats } from './kamakura-roads.js';
 import { decodeRivers } from './kamakura-rivers.js';
@@ -67,7 +68,7 @@ export function decodeData(meta, heightBuffer, walkBuffer, patchBuffers, groundB
   }
   const ground = meta.ground && groundBuffer?.byteLength === count * 3 ? new Uint8Array(groundBuffer) : null;
   const groundNotice = ground ? '' : '地面の色を読み込めませんでした。単色で散策を続けます';
-  return { meta, heights, walk, patches, ground, groundNotice, veg: null, vegNotice: '', rivers: null, riverNotice: '', roads: null };
+  return { meta, heights, walk, patches, ground, groundNotice, veg: null, vegNotice: '', rivers: null, riverNotice: '', roads: null, sando: null };
 }
 export async function loadKamakura(fetcher = fetch, search = globalThis.location?.search || '') {
   const read = async name => {
@@ -139,6 +140,11 @@ export async function loadKamakura(fetcher = fetch, search = globalThis.location
       if (data.facilities.nodes.length !== meta.facilities.count || data.facilities.catalog.total_triangles !== meta.facilities.total_triangles) throw new Error();
       data.facilities.kit = await kit.arrayBuffer();
     } catch { data.facilities = null; data.facilityNotice = '施設を読み込めませんでした。施設なしで散策を続けます'; }
+  }
+  data.sando = null;
+  if (data.facilities && sandoEnabled(search)) {
+    try { data.sando = sandoLines(data); }
+    catch { data.sando = null; data.sandoNotice = '参道を作れませんでした。散策を続けます'; }
   }
   return data;
 }

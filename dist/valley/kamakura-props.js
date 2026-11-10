@@ -1,11 +1,13 @@
 // W2c-16g: deterministic placement only. North in source paths/places is -z.
+import { SANDO, sandoLength, sandoSample, sandoStones, sandoHouses } from './kamakura-sando.js';
 import { kamakuraPaths } from './kamakura-roads.js';
 import { pathRadius } from './kamakura-ground-path.js';
-export const PROP_KINDS = Object.freeze(['lantern', 'gorinto', 'jizo', 'nobori', 'smoke', 'yard', 'boat']);
+export const SANDO_LANTERN = Object.freeze({ first: 4, every: 10 });   // metres along an approach: the first pair, then one pair every so far
+export const PROP_KINDS = Object.freeze(['lantern', 'gorinto', 'jizo', 'nobori', 'smoke', 'yard', 'boat', 'paver']);
 export const PROPS = Object.freeze({ range: 220, smokeRange: 350, boatRange: 400, refresh: 60, fade: 30, triangles: 60000, batch: 64, budget: 3 });
 export const propHash = (x, z, salt = 0) => { const n = Math.sin(x * 12.9898 + z * 78.233 + salt * 37.719) * 43758.5453; return n - Math.floor(n); };
 export const propCounts = () => Object.fromEntries(PROP_KINDS.map(k => [k, 0]));
-export const propRange = (kind, quality = 'standard', step = 0) => (kind === 'smoke' ? PROPS.smokeRange : kind === 'boat' ? PROPS.boatRange : PROPS.range) * (quality === 'light' ? .75 : 1) * (step >= 2 ? .6 : 1);
+export const propRange = (kind, quality = 'standard', step = 0) => (kind === 'smoke' ? PROPS.smokeRange : kind === 'boat' ? PROPS.boatRange : kind === 'paver' ? SANDO.range : PROPS.range) * (quality === 'light' ? .75 : 1) * (step >= 2 ? .6 : 1);
 export function propFade(distance, range) { const t = Math.max(0, Math.min(1, (distance - range + PROPS.fade) / PROPS.fade)); return 1 - t * t * (3 - 2 * t); }
 export function propBoxDistance(x, z, b) {
   const c = Math.cos(b.rotY || 0), s = Math.sin(b.rotY || 0), dx = x - b.x, dz = z - b.z;
@@ -45,23 +47,40 @@ export function propInBox(x, z, b, margin) {
 }
 export function createPropSite({ data = {}, terrain, facilities, houses } = {}) {
   const records = facilityRecords(data, facilities), boxIndex = index(), paths = [], pathIndex = index();
-  const boxes = [...(houses?.boxes || []), ...records.map(r => PROP_HOLLOW[r.node.part] ? { ...r.bounds, hollow: PROP_HOLLOW[r.node.part] } : r.bounds)];
+  const boxes = [...(houses?.boxes || (data.sando ? sandoHouses(data) : [])), ...records.map(r => PROP_HOLLOW[r.node.part] ? { ...r.bounds, hollow: PROP_HOLLOW[r.node.part] } : r.bounds)];
   for (const b of boxes) { const r = Math.hypot(b.w, b.d) / 2 + 6; boxIndex.add(b, b.x - r, b.z - r, b.x + r, b.z + r); }
   // Pass paths and, where the data has them, the roads. A road wider than a pass path keeps things that much farther from its line.
   for (const path of Object.values(kamakuraPaths(data) || {})) {
     const points = path.xyz_m || [], extra = Math.max(0, pathRadius(path) - 2.5), reach = 8 + extra;
     for (let i = 1; i < points.length; i++) {
-      const s = { ax: points[i - 1][0], az: -points[i - 1][1], bx: points[i][0], bz: -points[i][1], extra };
+      const s = { ax: points[i - 1][0], az: -points[i - 1][1], bx: points[i][0], bz: -points[i][1], extra, kind: path.kind, radius: pathRadius(path) };
       paths.push(s); pathIndex.add(s, Math.min(s.ax, s.bx) - reach, Math.min(s.az, s.bz) - reach, Math.max(s.ax, s.bx) + reach, Math.max(s.az, s.bz) + reach);
     }
   }
   function reason(p) {
-    const { x, z } = p, radius = p.kind === 'boat' ? 5.1 : p.kind === 'yard' ? .7 : p.kind === 'nobori' ? .5 : p.kind === 'lantern' ? .6 : .45;
+    const { x, z } = p;
+    if (p.kind === 'paver') {
+      const c = Math.cos(p.yaw), s = Math.sin(p.yaw);
+      const gx = (terrain.heightAt(x + .25, z) - terrain.heightAt(x - .25, z)) * 2;
+      const gz = (terrain.heightAt(x, z + .25) - terrain.heightAt(x, z - .25)) * 2;
+      for (const u of [-p.w / 2, 0, p.w / 2]) for (const v of [-p.d / 2, 0, p.d / 2]) {
+        const sx = x + c * u + s * v, sz = z - s * u + c * v;
+        if (!Number.isFinite(terrain.heightAt(sx, sz)) || !terrain.walkable(sx, sz)) return 'walk';
+        if (terrain.waterAt(sx, sz) > 0) return 'water';
+        if (terrain.slopeAt(sx, sz) > SANDO.slope) return 'slope';
+        for (const b of boxIndex.at(sx, sz)) if (propInBox(sx, sz, b, .04)) return 'box';
+        // Reject a crease that a single rigid slab could not follow within 5cm.
+        if (Math.abs(p.y + gx * (sx - x) + gz * (sz - z) - terrain.heightAt(sx, sz)) > .015) return 'slope';
+      }
+      return null;
+    }
+    if (p.sando) for (const r of records) if (['gate', 'romon', 'torii'].includes(r.node.part) && propBoxDistance(x, z, r.bounds) < 2) return 'gate';
+    const radius = p.kind === 'boat' ? 5.1 : p.kind === 'yard' ? .7 : p.kind === 'nobori' ? .5 : p.kind === 'lantern' ? .6 : .45;
     // Smoke is intentionally on a roof. Check its terrain, not the house containing its source.
     if (p.kind !== 'smoke') {
       for (const b of boxIndex.at(x, z)) if (propInBox(x, z, b, .3 + radius)) return 'box';
       const pathClearance = Math.max(2 + radius, p.kind === 'gorinto' ? 3 : p.kind === 'jizo' ? 2.5 : 0);
-      for (const s of pathIndex.at(x, z)) if (segmentDistance(x, z, s) <= pathClearance + s.extra) return 'path';
+      for (const s of pathIndex.at(x, z)) if (segmentDistance(x, z, s) <= (p.sando && s.kind === 'sando' ? s.radius + .1 : pathClearance + s.extra)) return 'path';
     }
     if (!Number.isFinite(terrain.heightAt(x, z)) || !terrain.walkable(x, z)) return 'walk';
     if (terrain.slopeAt(x, z) > 25) return 'slope';
@@ -114,7 +133,8 @@ export function* propPlacementBatches(context, { time = 'noon', only = null } = 
       }
       const edge = Math.abs(dx * Math.cos(b.rotY || 0) - dz * Math.sin(b.rotY || 0)) * b.w / 2 + Math.abs(dx * Math.sin(b.rotY || 0) + dz * Math.cos(b.rotY || 0)) * b.d / 2;
       const count = Math.max(2, Math.min(5, Math.floor((length - edge) / 9)));
-      for (let n = 0; n < count; n++) {
+      const hasSando = Object.values(data.sando || {}).some(line => line.facility === node.facility);
+      for (let n = 0; n < (hasSando ? 0 : count); n++) {
         const distance = edge + 5 + n * 9, x = b.x + dx * distance, z = b.z + dz * distance;
         if (gates.length && distance >= length - 2) { if (wanted('lantern')) { skipped.lantern += 2; blame({ kind: 'lantern' }, 2, 'gate'); } continue; }
         pair(candidate('lantern', x - dz * 3.8, z + dx * 3.8, Math.atan2(dx, dz), node.node), candidate('lantern', x + dz * 3.8, z - dx * 3.8, Math.atan2(dx, dz), node.node));
@@ -141,6 +161,18 @@ export function* propPlacementBatches(context, { time = 'noon', only = null } = 
         const p = local(b, (n % 2 ? -1 : 1) * (b.w / 2 + 3), Math.floor(n / 2) * 8);
         add(candidate('nobori', p.x, p.z, b.rotY || 0, node.node));
       }
+    }
+    yield result;
+  }
+  for (const [id, line] of Object.entries(data.sando || {})) {
+    // Parent (real Chrome): at 14 m apart the approaches had fewer lanterns than the gate-to-hall rule they replaced (12 against 40
+    // over the whole map). Ten metres apart, and at least two pairs on any approach long enough to hold them.
+    const length = sandoLength(line), count = Math.min(24, Math.max(length >= SANDO_LANTERN.first + SANDO_LANTERN.every ? 2 : 1, Math.floor((length - SANDO_LANTERN.first) / SANDO_LANTERN.every) + 1));
+    for (let n = 0; n < count; n++) {
+      const at = sandoSample(line, SANDO_LANTERN.first + n * SANDO_LANTERN.every), offset = line.width_m / 2 + .6;
+      const a = candidate('lantern', at.x - at.dz * offset, at.z + at.dx * offset, Math.atan2(at.dx, at.dz), id);
+      const b = candidate('lantern', at.x + at.dz * offset, at.z - at.dx * offset, Math.atan2(at.dx, at.dz), id);
+      a.sando = b.sando = true; pair(a, b);
     }
     yield result;
   }
@@ -198,6 +230,12 @@ export function* propPlacementBatches(context, { time = 'noon', only = null } = 
       yield result;
     }
     yield result;
+  }
+  if (wanted('paver')) for (const p of sandoStones(data.sando, terrain)) {
+    const reason = site.reason(p);
+    if (!reason) { items.push(p); placed.paver++; }
+    else { skipped.paver++; blame(p, 1, reason); }
+    if ((placed.paver + skipped.paver) % PROPS.batch === 0) yield result;
   }
   return result;
 }

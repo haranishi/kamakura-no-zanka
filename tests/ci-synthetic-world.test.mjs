@@ -67,7 +67,8 @@ test('generated kits pass the shipped Three/GLTFLoader and house/facility placem
   let houses;
   try{
     houses=await buildKamakuraHouses(data.houses,terrain,scene,{search:'?htex=0'});
-    assert.equal(facilities.records.length,1);assert.equal(facilities.records[0].meshes.length,9);
-    assert.equal(houses.boxes.length,3);assert.ok(facilities.records[0].meshes.some(m=>m.material.name==='interior'));
+    // The synthetic world has a hall and, since the paved approaches, a gate in front of it.
+    assert.equal(facilities.records.length,2);const hall=facilities.records.find(r=>r.node.part==='hall');assert(hall);assert.equal(hall.meshes.length,9);
+    assert.equal(houses.boxes.length,3);assert.ok(hall.meshes.some(m=>m.material.name==='interior'));
   }finally{houses?.dispose();facilities.dispose();}
 });
