@@ -8,6 +8,7 @@ import { bindFxContact } from './kamakura-fx.js';
 import { buildKamakuraGrass } from './kamakura-grass-view.js';
 import { createKamakuraAudio } from './kamakura-audio-view.js';
 import { createKamakuraLayers } from './kamakura-layers.js';
+import { createKamakuraHeroMoves } from './kamakura-hero-moves.js';
 import { createHabitat } from './kamakura-habitat.js';
 import { timeButtonText, timeSwitchSearch } from './kamakura-time-switch.js';
 import { buildKamakuraFacilities } from './kamakura-facility-view.js';
@@ -49,10 +50,12 @@ export async function bootKamakura(data, search) {
   let photo, post, renderer, chunks, hud, houses, trees, stands, standPrepared, treeOptions, atmosphere, sea, water, hero, input, hintTimer, flight, facilities, hiddenFacilities, audioView, grass, fx;
   const events = new AbortController(); let disposed = false;
   let layers = null; // W2c-16: add-on layers built from the list in kamakura-layers.js
+  let moves = null;
   function dispose() {
     if (disposed) return; disposed = true; events.abort(); clearTimeout(hintTimer);
     input?.setEnabled(false); input?.base.releaseLock();
     renderer?.setAnimationLoop(null); layers?.dispose(); layers = null; // layers read the hero and the scene: close them first
+    moves?.dispose(); moves = null;
     renderer?.setAnimationLoop(null); photo?.dispose(); audioView?.dispose(); fx?.dispose(); grass?.dispose(); flight?.dispose(); hero?.remove(); chunks?.dispose(); houses?.dispose(); trees?.dispose(); stands?.dispose();
     facilities?.dispose(); hiddenFacilities?.dispose(); water?.dispose(); sea?.dispose(); post?.dispose(); atmosphere?.dispose();
     const resources = new Set();
@@ -171,6 +174,7 @@ export async function bootKamakura(data, search) {
     function setPaused(on) {
       paused = on; audioView.setPaused(on); skipAdaptFrame = true; input.setEnabled(!on);
       layers?.setPaused(on);
+      moves?.setPaused(on);
       // Clear the locomotive momentum on pause; release alone retains the existing smooth stop.
       g.hero.speed = g.hero.locoV = g.hero.locoA = 0;
       if (on) base.releaseLock();
@@ -178,6 +182,7 @@ export async function bootKamakura(data, search) {
     }
     flight = createKamakuraFlight({ search, terrain: t, spawn, camera, rig, hero, chunks, houses, trees, stands, water, atmosphere, hud,
       hint: text => g.hud.hint('flight', text, 2200) });
+    moves = createKamakuraHeroMoves({ game: g, hero, input, flight, search });
     bindKamakuraFlight({ flight, input, hud, element: renderer.domElement, paused: () => paused, signal: events.signal });
     // W2c-16: drift, wildlife, props, hero life and soundscape. A layer that fails is switched off inside; the walk never depends on one.
     layers = await createKamakuraLayers({ scene, camera, renderer, search, quality, data, terrain: t, game: g, colliders: g.col, hero, rig, input, keys: base,
@@ -212,6 +217,7 @@ export async function bootKamakura(data, search) {
       if (paused || document.hidden) return; // W2c-9f: no redraw while paused.
       if (postDpr !== devicePixelRatio) resize();
       if (adapt.step !== oldStep) { applyAdapt(); resize(); }
+      moves?.setFlying(flight.active);
       if (!paused && flight.active) {
         const look = input.flightLook(dt);
         flight.step({ ...input.flightAxis(), ...look }, dt); input.endFrame();
@@ -221,9 +227,13 @@ export async function bootKamakura(data, search) {
         const hero = g.hero, ch = hero.character;
         ch.splitPose = true; ch.legIk = true; ch.legTerrain = t;
         layers?.beforeHero(dt);
-        hero.updateLocomotion(dt, { input, axis: ax, moveYaw: yawOf(vx, vz) }, false);
-        hero.slideTurn += (hero.slideWant - hero.slideTurn) * (1 - Math.exp(-12 * dt)); hero.slideWant = 0;
-        hero.tickCharacter(dt); hero.sync(); ch.finishPose();
+        if (moves) moves.update(dt, ax, yawOf(vx, vz));
+        else {
+          hero.updateLocomotion(dt, { input, axis: ax, moveYaw: yawOf(vx, vz) }, false);
+          hero.slideTurn += (hero.slideWant - hero.slideTurn) * (1 - Math.exp(-12 * dt)); hero.slideWant = 0;
+          hero.tickCharacter(dt); hero.sync();
+        }
+        ch.finishPose(); moves?.afterPose(camera);
         rig.update(dt, hero.pos, { lookDx: look.dx, lookDy: look.dy, zoom: input.wheel, groundAt: t.heightAt,
           rayClip: (a, b) => rayClip(g.col, t, a, b, 0.3, { ignoreThin: 0.2 }) });
         input.endFrame();

@@ -112,7 +112,7 @@ test('world-kamakura.js builds, drives and closes the layers at the right places
   assert(at('bindKamakuraFlight({ flight, input, hud') < at('layers = await createKamakuraLayers({'));
   assert(at('layers = await createKamakuraLayers({') < at('renderer.setAnimationLoop(now'));
   // The hook runs before the hero's locomotion and pose; the frame update runs before the draws.
-  assert(at('layers?.beforeHero(dt);') < at('hero.updateLocomotion(dt,'));
+  assert(at('layers?.beforeHero(dt);') < at('if (moves) moves.update(dt,'));
   assert(at('renderer.setAnimationLoop(now') < at('layers?.beforeHero(dt);'));
   assert(at('layers?.update(layerFrame);') < at('renderer.info.reset();'));
   // The frame carries the viewer's heading, and the audio view hears the same frame first.
