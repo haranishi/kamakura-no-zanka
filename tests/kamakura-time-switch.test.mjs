@@ -3,7 +3,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { TIME_ORDER, TIME_LABEL, currentTime, nextTime, timeButtonText, timeSwitchSearch } from '../dist/valley/kamakura-time-switch.js';
-import { KAMAKURA_TIMES } from '../dist/valley/kamakura-atmosphere.js';
+import { KAMAKURA_TIMES, DEFAULT_TIME } from '../dist/valley/kamakura-atmosphere.js';
 
 const source = name => fs.readFileSync(new URL(`../dist/valley/${name}`, import.meta.url), 'utf8');
 
@@ -16,16 +16,17 @@ test('the order covers every time preset once and each has a label', () => {
   assert.deepEqual(seen, ['golden', 'evening', 'morning', 'noon']);
 });
 
-test('an unknown or missing time counts as noon, as the atmosphere reads it', () => {
-  assert.equal(currentTime(''), 'noon'); assert.equal(currentTime('?time=bad'), 'noon'); assert.equal(currentTime('?time=evening'), 'evening');
-  assert.equal(timeButtonText('?world=kamakura'), '時刻：昼'); assert.equal(timeButtonText('?time=golden'), '時刻：夕方前');
+test('an unknown or missing time counts as the default (golden hour), as the atmosphere reads it', () => {
+  assert.equal(DEFAULT_TIME, 'golden');   // chosen by the owner after the blind comparison with noon (2026-11-10)
+  assert.equal(currentTime(''), DEFAULT_TIME); assert.equal(currentTime('?time=bad'), DEFAULT_TIME); assert.equal(currentTime('?time=evening'), 'evening');
+  assert.equal(timeButtonText('?world=kamakura'), '時刻：' + TIME_LABEL[DEFAULT_TIME]); assert.equal(timeButtonText('?time=noon'), '時刻：昼'); assert.equal(timeButtonText('?time=golden'), '時刻：夕方前');
 });
 
 test('the next query keeps every other parameter, the place and the heading', () => {
   const next = timeSwitchSearch('?world=kamakura&debug=1&drift=2', { x: -60.04, y: 10.8, z: 840.26 }, -Math.PI / 2);
   const q = new URLSearchParams(next);
   assert.equal(q.get('world'), 'kamakura'); assert.equal(q.get('debug'), '1'); assert.equal(q.get('drift'), '2');
-  assert.equal(q.get('time'), 'golden');
+  assert.equal(q.get('time'), nextTime(DEFAULT_TIME));   // no time in the address: the button moves on from the default
   assert.equal(q.get('pos'), '-60.0,-840.3');   // east, north (north is -z)
   assert.equal(q.get('yaw'), '90');             // degrees clockwise from north; the internal heading is its negative
   assert(next.startsWith('?') && next.includes('pos=-60.0,-840.3'), next);
@@ -39,7 +40,7 @@ test('the next query keeps every other parameter, the place and the heading', ()
 
 test('a missing place or heading leaves those parameters alone', () => {
   const q = new URLSearchParams(timeSwitchSearch('?world=kamakura&pos=3,4&yaw=20', null, NaN));
-  assert.equal(q.get('pos'), '3,4'); assert.equal(q.get('yaw'), '20'); assert.equal(q.get('time'), 'golden');
+  assert.equal(q.get('pos'), '3,4'); assert.equal(q.get('yaw'), '20'); assert.equal(q.get('time'), nextTime(DEFAULT_TIME));
   assert.equal(new URLSearchParams(timeSwitchSearch('', { x: 0, z: 0 }, 0)).get('pos'), '0.0,0.0', 'never a negative zero');
 });
 

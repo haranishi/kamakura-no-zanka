@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-10T11:31:27.035Z",
+  "generatedAt": "2026-11-10T13:28:50.959Z",
   "scope": "Source, assets and verification artifacts; excludes this manifest, Git metadata, ignored files and private runtime data",
   "files": [
     {
@@ -460,8 +460,8 @@
     },
     {
       "path": ".kiro/specs/world-map/requirements-web-polish.md",
-      "size": 13126,
-      "sha256": "abf5a7c1c20458b258f29ef497ddc56711a0613828c3b8a9742a35ffeeef0fac"
+      "size": 13209,
+      "sha256": "f5ad3e3af2f4dd54aa649b52dfa9f5ae44edfcca2cd161559e9cad31cc12ad30"
     },
     {
       "path": ".kiro/specs/world-map/requirements-web.md",
@@ -475,8 +475,8 @@
     },
     {
       "path": ".kiro/specs/world-map/tasks-web.md",
-      "size": 58246,
-      "sha256": "8f9aecd10e848bb75365a359f0fb115ddd319d804e29e09069ef93368d846668"
+      "size": 59397,
+      "sha256": "20247f78426609307ceb85554894ad1b12c5fc76c4b4ebd7eb25fb345bd284b9"
     },
     {
       "path": ".kiro/specs/world-map/tasks.md",
@@ -1655,8 +1655,8 @@
     },
     {
       "path": "dist/valley/kamakura-atmosphere.js",
-      "size": 6440,
-      "sha256": "e88e217832368cfd7ff178082b3902e49fe4f51a556332439bebfa1cb31ee98d"
+      "size": 6710,
+      "sha256": "1843fdbf00e379195d9ece9755e4517a06abbcb3f997e9c9ac5a82bcf9927e9e"
     },
     {
       "path": "dist/valley/kamakura-audio-view.js",
@@ -5240,8 +5240,8 @@
     },
     {
       "path": "tests/kamakura-atmosphere.test.mjs",
-      "size": 9088,
-      "sha256": "31bcbce671cbe022aecce323e3dd76eefc707cf4e5591e7fb4a2b3363a20ea6d"
+      "size": 9107,
+      "sha256": "047f32a2821584273ca5664b07277a3c52909f0ac148120951aedfbf16c9992c"
     },
     {
       "path": "tests/kamakura-audio.test.mjs",
@@ -5695,8 +5695,8 @@
     },
     {
       "path": "tests/kamakura-time-switch.test.mjs",
-      "size": 3431,
-      "sha256": "1cf444b85684d77d35d240427ed6a1f7406d0da7c52901f06ae76aea5a0ec32e"
+      "size": 3771,
+      "sha256": "aa757240bcbaedc2f51c3c36c016471680c0f838d67bbd8b9eff60e8b00d6064"
     },
     {
       "path": "tests/kamakura-touch.test.mjs",
