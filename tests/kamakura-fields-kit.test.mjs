@@ -48,10 +48,12 @@ test('GLSL is balanced, uses one shared gust and all five card branches, table-d
 });
 
 // Snapshot of the parent-reviewed card expressions/tables, not of the obsolete near-plant implementation.
-const digest=v=>createHash('sha256').update(typeof v==='string'?v:JSON.stringify(v)).digest('hex');
+// Numbers are hashed at nine decimals: the colour tables come from a power (sRGB to linear), and its last digit differs between
+// machines (the full-precision hash matched on macOS and failed on the Linux CI runner).
+const digest=v=>createHash('sha256').update(typeof v==='string'?v:JSON.stringify(v,(k,x)=>typeof x==='number'?Number(x.toFixed(9)):x)).digest('hex');
 test('parent-reviewed card, silhouette, lighting and tables retain their original values',()=>{
   const entries={card:FIELD_CARD_GLSL,silhouette:FIELD_FAR_SILHOUETTE,light:FIELD_FRAGMENT_LIGHT,tables:[FIELD_HEIGHTS,FIELD_CARD_WIDTHS,FIELD_LEAF,FIELD_BLOOMS,FIELD_DENSITIES]};
-  const expected={"card":"fc91555a8e738428b34e4f9d01341c16301f4cd5e3159c084957defe7fb02c48","silhouette":"b85307d5436ea22b7e820d2a8c95e34fffd5787f019405b374ffbf93622859a7","light":"f4cc4e4a470f20878f813ab1df282f645266771947e6f51524c6338ec2f6c6fa","tables":"16fbdb4dccc2a1f023fb9d5940c41a93f9d8042602669be8d6e6bce730e710d0"};
+  const expected={"card":"fc91555a8e738428b34e4f9d01341c16301f4cd5e3159c084957defe7fb02c48","silhouette":"b85307d5436ea22b7e820d2a8c95e34fffd5787f019405b374ffbf93622859a7","light":"f4cc4e4a470f20878f813ab1df282f645266771947e6f51524c6338ec2f6c6fa","tables":"d90e582889fb73a99284e3a063f106129b60c740cd17d0d92c94a75399b356f0"};
   for(const [name,value] of Object.entries(entries))assert.equal(digest(value),expected[name],name);
 });
 
