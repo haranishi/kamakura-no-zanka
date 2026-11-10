@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { FLY, flyOption, flySpeed, createFly, flyAction, stepFly, topPose, topFov, flyLanding } from '../dist/valley/kamakura-fly.js';
+import { FLY, flyOption, flySpeed, camOption, OVERLOOK, overlookPose, createFly, flyAction, stepFly, topPose, topFov, flyLanding } from '../dist/valley/kamakura-fly.js';
 import { createKamakuraTerrain } from '../dist/valley/kamakura-terrain.js';
 import { pointDeparture } from '../dist/valley/kamakura-spawn.js';
 import { fixture } from './helpers/kamakura-fixture.mjs';
@@ -142,4 +142,39 @@ test('HUD gates controls, changes help/run label and finds the nearest place ben
     }
     assert.equal(roots.length,3);
   }finally{globalThis.document=oldDocument;}
+});
+
+test('a fixed fly pose from the address: east, north, height, compass bearing, pitch and an optional field of view', () => {
+  const t = terrain(), spawn = { x: 20, z: 30 };
+  const c = camOption('?cam=100,-200,650,27,22,32');
+  assert.deepEqual(c.pos, { x: 100, y: 650, z: 200 }); near(c.yaw, -27 * Math.PI / 180); near(c.pitch, 22 * Math.PI / 180); assert.equal(c.fov, 32);
+  assert.equal(camOption('?cam=100,-200,650,27,22').fov, null);
+  for (const bad of ['', '?cam=', '?cam=1,2,3,4', '?cam=1,2,3,4,5,6,7', '?cam=a,2,3,4,5', '?cam=1,,3,4,5', '?cam=1,2,3,4,Infinity']) assert.equal(camOption(bad), null, bad);
+  assert.equal(camOption('?cam=0,0,99999,0,200,1').pos.y, FLY.maxHeight); near(camOption('?cam=0,0,10,0,200,1').pitch, 89 * Math.PI / 180); assert.equal(camOption('?cam=0,0,10,0,0,1').fov, 8);
+  const high = Math.round(t.heightAt(100, 200)) + 650, query = `cam=100,-200,${high},27,22,32`;
+  const s = createFly(`?fly=1&${query}`, t, spawn);
+  assert.equal(s.mode, 'fly'); assert.deepEqual(s.pose.pos, { x: 100, y: high, z: 200 }); assert.equal(s.fov, 32);
+  near(s.pose.yaw, -27 * Math.PI / 180); near(s.pose.pitch, 22 * Math.PI / 180);
+  // Never below the ground, and only in fly mode: walking and the top view ignore it.
+  near(createFly('?fly=1&cam=100,-200,-50,0,10', t, spawn).pose.pos.y, t.heightAt(100, 200) + 2);
+  assert.equal(createFly(`?${query}`, t, spawn).fov, null); near(createFly(`?${query}`, t, spawn).pose.pos.y, t.heightAt(20, 30) + 900);
+  assert.equal(createFly(`?fly=top&${query}`, t, spawn).fov, null);
+  // The pose survives steps and mode switches; the field of view rides along in the state.
+  const moved = stepFly(s, { forward: 1 }, .1, t.heightAt); assert.equal(moved.fov, 32);
+});
+
+test('the named overlook: on the line through two named places, beyond the nearer one, looking back along it', () => {
+  // Shrine at the north end, avenue point to the south-south-west: the camera sits further along that line and faces the shrine.
+  const places = [{ id: OVERLOOK.far, x: 100, y: 500 }, { id: OVERLOOK.near, x: -200, y: -100 }, { id: 'other', x: 9, y: 9 }];
+  const p = overlookPose(places), length = Math.hypot(300, 600), ux = -300 / length, un = -600 / length;
+  near(p.pos.x, -200 + ux * OVERLOOK.back); near(p.pos.z, -(-100 + un * OVERLOOK.back)); assert.equal(p.pos.y, OVERLOOK.height);
+  // The forward vector of the fly camera (-sin yaw, -cos yaw in x/z) points from the camera to the far place.
+  const fx = -Math.sin(p.yaw), fz = -Math.cos(p.yaw); near(fx, -ux); near(fz, un);
+  near(p.pitch, OVERLOOK.pitch * Math.PI / 180); assert.equal(p.fov, OVERLOOK.fov);
+  assert.deepEqual(camOption('?cam=overlook', places), p);
+  // Missing places, coincident places or no list: no pose, so the default fly pose is used.
+  for (const bad of [undefined, null, [], [places[0]], [places[0], { id: OVERLOOK.near, x: 100, y: 500 }]]) assert.equal(camOption('?cam=overlook', bad), null);
+  const t = terrain(), spawn = { x: 20, z: 30 }; near(createFly('?fly=1&cam=overlook', t, spawn).pose.pos.y, t.heightAt(20, 30) + 900);
+  const withPlaces = { ...t, meta: { ...t.meta, places }, heightAt: t.heightAt };
+  const s = createFly('?fly=1&cam=overlook', withPlaces, spawn); assert.equal(s.fov, OVERLOOK.fov); near(s.pose.yaw, p.yaw);
 });
