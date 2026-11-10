@@ -21,14 +21,19 @@ export function decodeRoads(source, count = source?.count) {
 
 const combined = new WeakMap();
 export function kamakuraPaths(data) {
-  if (!data.roads) return data.patches?.paths;
+  if (!data.roads && !data.sando) return data.patches?.paths;
   let paths = combined.get(data);
   if (!paths) {
     paths = Object.assign(Object.create(null), data.patches?.paths);
-    for (const [id, road] of Object.entries(data.roads)) {
+    for (const [id, road] of Object.entries(data.roads || {})) {
       let key = `road:${id}`;
       while (Object.hasOwn(paths, key)) key = `road:${key}`;
       paths[key] = road;
+    }
+    for (const [id, line] of Object.entries(data.sando || {})) {
+      let key = `sando:${id}`;
+      while (Object.hasOwn(paths, key)) key = `sando:${key}`;
+      paths[key] = line;
     }
     Object.freeze(paths);
     combined.set(data, paths);

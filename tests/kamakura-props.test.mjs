@@ -24,7 +24,7 @@ const total = object => Object.values(object).reduce((a, b) => a + b, 0);
 test('deterministic seven-kind placement, finite transforms, spacing, boxes and prohibited terrain', t => {
   const w = world(), a = prepareProps(w), b = prepareProps(w);
   assert.deepEqual(a.items, b.items); assert.deepEqual(a.skipped, b.skipped);
-  for (const k of PROP_KINDS) assert(a.placed[k] > 0, k);
+  for (const k of PROP_KINDS) if (k === 'paver') assert.equal(a.placed[k], 0, 'no approach in legacy fixture'); else assert(a.placed[k] > 0, k);
   for (let i = 0; i < a.items.length; i++) {
     const p = a.items[i];
     for (const k of ['x', 'y', 'z', 'yaw', 'scale', 'tiltX', 'tiltZ']) assert(Number.isFinite(p[k]), k);
@@ -104,7 +104,7 @@ test('site rejects rotated footprints, 2m path corridor, water, sea edge, slopes
   for (const override of [{ walkable: () => false }, { waterAt: () => 1 }, { slopeAt: () => 26 }, { seaDistanceAt: () => 0 }]) {
     const bad = { ...w, terrain: { ...w.terrain, ...override } }, r = prepareProps(bad);
     assert.equal(r.items.length, 0); assert(total(r.skipped) > 0);
-    for (const k of PROP_KINDS) assert(r.skipped[k] > 0, k);
+    for (const k of PROP_KINDS) if (k !== 'paver') assert(r.skipped[k] > 0, k); else assert.equal(r.skipped[k], 0);
   }
   assert.equal(site.reason({ kind: 'smoke', x: 400, z: -350 }), null, 'roof sources intentionally exempt house/path exclusion');
 });

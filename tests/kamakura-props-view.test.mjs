@@ -120,3 +120,38 @@ test('1000 steady updates retain resources/uniforms without matrix uploads; paus
   v.dispose(); v.dispose(); for (const count of resources.values()) assert.equal(count, 1); assert.equal(c.scene.children.length, 0); assert.equal(globalThis.__kzProps, undefined); assert.equal(v.debugText(), '');
   t.diagnostic(`1000 updates: ${meshes.length} resource sets retained, 0 matrix uploads; ${resources.size} resources disposed once`);
 });
+
+test('S2 paving adds one instanced draw, receives shadows, follows slope, keeps 260m fade and retains resources for 1000 frames', async t => {
+  const { sandoLines, SANDO } = await import('../dist/valley/kamakura-sando.js');
+  const c = context('?debug=1&time=evening&propsdebug=1'); c.houses.boxes=[];
+  c.terrain.heightAt=(x,z)=>10+.12*x+.04*z;c.terrain.slopeAt=()=>8;
+  c.data.sando=sandoLines(c.data,c.terrain);
+  const v=createKamakuraProps(c),f=frame();finish(v,f);
+  const meshes=c.scene.children[0].children,stone=meshes.find(m=>m.name==='kamakura-props-paver-0');assert(stone);assert(meshes.length<=13);
+  assert(!stone.castShadow&&stone.receiveShadow);assert(stone.material.isMeshLambertMaterial);assert(!stone.customDepthMaterial);
+  const g=stone.geometry;assert.equal(g.attributes.position.count/3,28);assert(Math.abs(g.boundingBox.max.y-.03)<1e-6);assert(Math.abs(g.boundingBox.min.y+.03)<1e-6);
+  // Inspect real instance transforms against analytic terrain, including rotated slab corners.
+  const m=new THREE.Matrix4(),pt=new THREE.Vector3();let maxFloat=0;
+  for(let i=0;i<stone.count;i++){stone.getMatrixAt(i,m);for(let k=0;k<g.attributes.position.count;k++)if(g.attributes.position.getY(k)>0){pt.fromBufferAttribute(g.attributes.position,k).applyMatrix4(m);const gap=pt.y-c.terrain.heightAt(pt.x,pt.z);assert(gap>0&&gap<=.05);maxFloat=Math.max(maxFloat,gap);}}
+  const s=shader(stone);assert.equal(s.uniforms.uPropRange.value,SANDO.range);balanced(expand(s.vertexShader));balanced(expand(s.fragmentShader));
+  assert(globalThis.__kzProps().placed.paver>0);const near=globalThis.__kzProps().nearestSando;assert(near&&near.distance>=0&&near.bearing>=0&&near.bearing<360);
+  const version=stone.instanceMatrix.version,buffer=stone.instanceMatrix.array,resources=new Map();
+  for(const mesh of meshes)for(const r of [mesh,mesh.geometry,mesh.material,mesh.customDepthMaterial].filter(Boolean)){resources.set(r,0);r.addEventListener('dispose',()=>resources.set(r,resources.get(r)+1));}
+  const rev=globalThis.__kzProps().revisions;
+  for(let i=0;i<1000;i++){f.pos.x=i*.001;v.update(f);}
+  assert.equal(stone.instanceMatrix.array,buffer);assert.equal(stone.instanceMatrix.version,version);assert.equal(globalThis.__kzProps().revisions,rev);
+  f.pos.x=59.999;v.update(f);assert.equal(globalThis.__kzProps().revisions,rev);f.pos.x=60;v.update(f);assert.equal(globalThis.__kzProps().revisions,rev+1);
+  const count=stone.count,triangles=stone.count*28;
+  v.dispose();v.dispose();for(const n of resources.values())assert.equal(n,1);
+  t.diagnostic(JSON.stringify({syntheticPavers:count,pavingTriangles:triangles,additionalDraws:1,maxFloat,steadyUpdates:1000,matrixUploads:0,resourcesDisposed:resources.size}));
+});
+
+test('S2 full stone pool remains capped at 9000 with a single mesh; props=0 retains the road container', async t => {
+  const { kamakuraPaths }=await import('../dist/valley/kamakura-roads.js');
+  const c=context('?debug=1&props=paver');c.data={sando:{a:{xyz_m:[[0,0,0],[0,-4000,0]],width_m:5,facility:'synthetic'}}};c.houses.boxes=[];c.terrain.walkable=()=>true;c.terrain.waterAt=()=>0;
+  const paths=kamakuraPaths(c.data), off=createKamakuraProps({...c,search:'?props=0'});assert.equal(off,null);assert.equal(kamakuraPaths(c.data),paths);
+  const v=createKamakuraProps(c),f=frame();finish(v,f);const meshes=c.scene.children[0].children;assert.equal(meshes.length,1);const stone=meshes[0],data=globalThis.__kzProps();assert.equal(data.placed.paver,9000);assert.equal(stone.instanceMatrix.count,9000);assert(stone.count<=9000);
+  const shaderData=shader(stone);assert.match(shaderData.vertexShader,/transformed \*= vPropFade/);assert.equal(shaderData.uniforms.uPropRange.value,260);
+  const counts=globalThis.__kzProps(),m=new THREE.Matrix4();for(let i=0;i<stone.count;i++){stone.getMatrixAt(i,m);assert(Math.hypot(m.elements[12],m.elements[14])<=320);}
+  t.diagnostic(JSON.stringify({pool:9000,bufferedPavers:counts.buffered.paver,visiblePavers:counts.visible.paver,bufferedTriangles:stone.count*28,draws:1}));v.dispose();
+});

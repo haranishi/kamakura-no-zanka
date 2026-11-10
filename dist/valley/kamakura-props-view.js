@@ -66,7 +66,7 @@ function material(type, uniforms, time) {
 }
 const definitions = [
   ['lantern', 'lantern', 0], ['gorinto', 'gorinto', 0], ['gorinto', 'gorinto', 1], ['jizo', 'jizo', 0],
-  ['nobori', 'pole', 0], ['nobori', 'cloth', 0], ['smoke', 'smoke', 0], ['yard', 'yard', 0], ['yard', 'yard', 1], ['boat', 'boat', 0], ['lantern', 'glow', 0],
+  ['nobori', 'pole', 0], ['nobori', 'cloth', 0], ['smoke', 'smoke', 0], ['yard', 'yard', 0], ['yard', 'yard', 1], ['boat', 'boat', 0], ['lantern', 'glow', 0], ['paver', 'paver', 0],
 ];
 export function createKamakuraProps(context, options = {}) {
   const q = new URLSearchParams(context.search), requested = q.get('props');
@@ -78,7 +78,7 @@ export function createKamakuraProps(context, options = {}) {
   const shared = { uPropViewer: { value: viewer }, uPropDir: { value: dir }, uPropTime: { value: 0 }, uPropViewport: { value: 720 }, uPropWind: { value: 1 }, uPropMotion: { value: (reduced ? .35 : 1) * (light ? .7 : 1) } };
   const group = new THREE.Group(); group.name = 'kamakura-props'; context.scene.add(group);
   const sets = [], dummy = new THREE.Object3D(), color = new THREE.Color(), visible = propCounts(), buffered = propCounts(), reported = propCounts();
-  const selected = [], palette = ['#d59948', '#69b35c', '#d04f46', '#cb674a', '#b8bcc0', '#90745a', '#4d9cbd'];
+  const selected = [], palette = ['#d59948', '#69b35c', '#d04f46', '#cb674a', '#b8bcc0', '#90745a', '#4d9cbd', '#e12ae8'];
   let result = null, ready = false, disposed = false, paused = false, step = 0, cx = Infinity, cz = Infinity, revisions = 0, text = '';
   function build() {
     const defs = debug ? [...definitions, ['debug', 'debug', 0]] : definitions;
@@ -86,12 +86,13 @@ export function createKamakuraProps(context, options = {}) {
       if (kind !== 'debug' && only && kind !== only) continue;
       if (type === 'glow' && time !== 'evening' && time !== 'golden') continue;
       let capacity = 0;
-      for (const p of result.items) if (kind === 'debug' || p.kind === kind && (!['gorinto', 'yard'].includes(kind) || p.variant === variant)) capacity++;
+      for (const p of result.items) if (kind === 'debug' && (p.kind !== 'paver' || p.row % 20 === 1 && p.col === 0) || p.kind === kind && (!['gorinto', 'yard'].includes(kind) || p.variant === variant)) capacity++;
       if (!capacity) continue;
       const g = propGeometry(type, variant), uniforms = { ...shared, uPropRange: { value: propRange(kind, context.quality, step) } }, m = material(type, uniforms, time);
+      if (type === 'paver' && debug) m.vertexColors = false;
       if (type === 'glow') { m.color.setScalar(time === 'golden' ? .42 : 1.2); }
       const mesh = new THREE.InstancedMesh(g, m, capacity); mesh.count = 0; mesh.name = `kamakura-props-${type}-${variant}`;
-      mesh.frustumCulled = false; mesh.castShadow = !['cloth', 'smoke', 'glow', 'debug'].includes(type); mesh.receiveShadow = !['smoke', 'glow', 'debug'].includes(type);
+      mesh.frustumCulled = false; mesh.castShadow = !['cloth', 'smoke', 'glow', 'debug', 'paver'].includes(type); mesh.receiveShadow = !['smoke', 'glow', 'debug'].includes(type);
       mesh.renderOrder = type === 'smoke' ? 1 : 0; mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
       // Shrinking distant silhouettes must shrink their shadows by the same amount.
       if (mesh.castShadow) {
@@ -116,14 +117,23 @@ export function createKamakuraProps(context, options = {}) {
       if (step >= 3 && (p.kind === 'smoke' || p.kind === 'yard')) continue;
       if (Math.hypot(p.x - cx, p.z - cz) > propRange(p.kind, context.quality, step) + PROPS.refresh) continue;
       let cost = 0;
-      for (const s of sets) if (s.kind === 'debug' || s.kind === p.kind && (!['gorinto', 'yard'].includes(p.kind) || s.variant === p.variant)) cost += s.triangles;
-      if (triangles + cost > PROPS.triangles) continue;
-      triangles += cost; selected.push(p); buffered[p.kind]++;
+      for (const s of sets) if (s.kind === 'debug' && (p.kind !== 'paver' || p.row % 20 === 1 && p.col === 0) || s.kind === p.kind && (!['gorinto', 'yard'].includes(p.kind) || s.variant === p.variant)) cost += s.triangles;
+      // Paving has its own 9,000-slab cap; it must not displace the existing 60k-triangle props.
+      if (p.kind !== 'paver') { if (triangles + cost > PROPS.triangles) continue; triangles += cost; }
+      selected.push(p); buffered[p.kind]++;
       for (const s of sets) {
+        if (s.kind === 'debug' && p.kind === 'paver' && !(p.row % 20 === 1 && p.col === 0)) continue;
         if (s.kind !== 'debug' && (s.kind !== p.kind || ['gorinto', 'yard'].includes(p.kind) && s.variant !== p.variant)) continue;
-        dummy.position.set(p.x, p.y, p.z); dummy.rotation.set(p.tiltX, p.yaw, p.tiltZ, 'YXZ'); dummy.scale.setScalar(p.scale); dummy.updateMatrix();
+        dummy.position.set(p.x, p.y, p.z); dummy.rotation.set(p.tiltX, p.yaw, p.tiltZ, 'YXZ'); dummy.scale.setScalar(p.scale);
+        if (s.type === 'paver') dummy.scale.set(p.w, 1, p.d);
+        dummy.updateMatrix();
         s.mesh.setMatrixAt(s.mesh.count, dummy.matrix);
         if (s.kind === 'debug') color.set(palette[PROP_KINDS.indexOf(p.kind)]);
+        else if (s.type === 'paver') {
+          if (debug) color.set('#e12ae8');
+          else if (p.edge && p.age < .3) color.set('#707c57').multiplyScalar(.9 + p.age * .2);
+          else color.setScalar(.8 + p.age * .34);   // each slab its own wear: a wider spread than the other stones
+        }
         else if (s.type === 'cloth') color.set(p.variant ? '#a84734' : '#e0d8c5');
         else color.setScalar(.9 + p.age * .2);
         s.mesh.setColorAt(s.mesh.count++, color);
@@ -145,7 +155,17 @@ export function createKamakuraProps(context, options = {}) {
     }
     return out;
   };
-  const inspect = () => ({ placed: { ...(result?.placed || propCounts()) }, skipped: { ...(result?.skipped || propCounts()) }, visible: { ...visible }, buffered: { ...buffered }, ready, revisions, nearest: nearest() });
+  const nearestSando = () => {
+    let nearest = null;
+    for (const [id, line] of Object.entries(context.data?.sando || {})) for (let i = 1; i < line.xyz_m.length; i++) {
+      const a = line.xyz_m[i - 1], b = line.xyz_m[i], dx = b[0] - a[0], dz = a[1] - b[1];
+      const t = Math.max(0, Math.min(1, ((viewer.x - a[0]) * dx + (viewer.z + a[1]) * dz) / (dx * dx + dz * dz)));
+      const x = a[0] + t * dx, z = -a[1] + t * dz, distance = Math.hypot(x - viewer.x, z - viewer.z);
+      if (!nearest || distance < nearest.distance) nearest = { id, kind: 'sando', distance, bearing: (Math.atan2(x - viewer.x, viewer.z - z) * 180 / Math.PI + 360) % 360 };
+    }
+    return nearest;
+  };
+  const inspect = () => ({ placed: { ...(result?.placed || propCounts()) }, skipped: { ...(result?.skipped || propCounts()) }, visible: { ...visible }, buffered: { ...buffered }, ready, revisions, nearestSando: nearestSando(), nearest: nearest() });
   if (q.get('debug') === '1') globalThis.__kzProps = inspect;
   return {
     update(frame) {
@@ -175,7 +195,7 @@ export function createKamakuraProps(context, options = {}) {
       if (!ready) return '物 配置中';
       let changed = !text;
       for (const k of PROP_KINDS) if (reported[k] !== visible[k]) { changed = true; reported[k] = visible[k]; }
-      if (changed) text = `物 灯${visible.lantern} 塔${visible.gorinto} 蔵${visible.jizo} 幟${visible.nobori} 煙${visible.smoke} 薪${visible.yard} 舟${visible.boat}`;
+      if (changed) text = `物 灯${visible.lantern} 塔${visible.gorinto} 蔵${visible.jizo} 幟${visible.nobori} 煙${visible.smoke} 薪${visible.yard} 舟${visible.boat} 敷石${visible.paver}`;
       return text;
     },
     dispose() {
