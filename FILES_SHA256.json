@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-10T11:13:22.874Z",
+  "generatedAt": "2026-11-10T11:31:27.035Z",
   "scope": "Source, assets and verification artifacts; excludes this manifest, Git metadata, ignored files and private runtime data",
   "files": [
     {
@@ -5290,8 +5290,8 @@
     },
     {
       "path": "tests/kamakura-fields-kit.test.mjs",
-      "size": 5051,
-      "sha256": "4c4bce649f7984c1e7cb1b8697f9047fb297c329b3db5b4054856a8fd8cdb225"
+      "size": 5320,
+      "sha256": "0e27a04379ef3894b19ab25e5cbe3a0b5e546852fd90e0a4c064321350be31b2"
     },
     {
       "path": "tests/kamakura-fields-view.test.mjs",
