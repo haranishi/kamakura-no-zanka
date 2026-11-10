@@ -80,13 +80,13 @@ test('600 poses undo exactly without accumulation; hips/legs/arms stay untouched
     if (!geometry) { geometry = mesh.geometry; position = geometry.attributes.position.array; normal = geometry.attributes.normal.array; material = mesh.material; }
     assert.equal(mesh.geometry, geometry); assert.equal(geometry.attributes.position.array, position); assert.equal(geometry.attributes.normal.array, normal); assert.equal(mesh.material, material);
   }
-  assert(maxUndo < 1e-14); assert.equal(geometry.attributes.position.count, 68); assert.equal(geometry.index.count / 3, 58);
+  assert(maxUndo < 1e-14); assert.equal(geometry.attributes.position.count, 32); assert.equal(geometry.index.count / 3, 28);
   const stats = globalThis.__kzHeroLife(); assert(!stats.cloth.nan && stats.cloth.maxStretch < .03);
   let gd = 0, md = 0; geometry.addEventListener('dispose', () => gd++); material.addEventListener('dispose', () => md++);
   layer.dispose(); layer.dispose(); assert.equal(gd, 1); assert.equal(md, 1); assert.equal(f.ch.cinePose, null); assert.equal(globalThis.__kzHeroLife, undefined);
   assert.equal(f.scene.getObjectByName('kamakura-hero-cloth'), undefined);
   for (const b of f.bones.values()) assert(b.quaternion.equals(new THREE.Quaternion()));
-  t.diagnostic(`600 frames: undo error ${maxUndo}, 68 vertices/58 triangles/1 mesh; final stretch ${(stats.cloth.maxStretch * 100).toFixed(4)}%`);
+  t.diagnostic(`600 frames: undo error ${maxUndo}, 32 vertices/28 triangles/1 mesh; final stretch ${(stats.cloth.maxStretch * 100).toFixed(4)}%`);
 });
 
 test('flags: herolife=0 returns null; cloth=0 has no mesh; band/sash use two strips; debug shapes released once', async () => {
@@ -184,5 +184,5 @@ test('hot paths do not create arrays/objects/vectors; only debugText/stats snaps
       [src.slice(src.indexOf('export function stepHeroLife'), src.indexOf('export function createClothChain')), src.slice(src.indexOf('export function resetCloth'))];
     for (const s of sections) assert(!/\bnew\s|\.map\(|\.slice\(|\.filter\(|\.toArray\(/.test(s), name);
   }
-  assert(HERO_CLOTH.band.length >= .38 && HERO_CLOTH.band.length <= .5); assert.equal(HERO_CLOTH.sash.length, .30);   // the fit is tuned on the real model
+  assert(HERO_CLOTH.band.length >= .38 && HERO_CLOTH.band.length <= .5); assert.equal(HERO_CLOTH.sash.length, .26);   // the fit is tuned on the real model
 });

@@ -285,6 +285,7 @@ export class Character {
   // 脚の姿勢と模型の根の位置を決めてから刀と握りを解く）。それ以外（演出・見本の画面・?smooth=ik）は①②を続けて行う＝M2a までと同じ順
   update(dt) {
     this.sword?.undo();   // 前のコマの抜刀・納刀の骨の後処理を戻してから、動作を当てる
+    if (this.upper?.style) this.upper.style.undo();
     this.legs?.undo();    // 脚のIK（M2b）の補正も戻す（刀の後に当てたので、刀の次に戻す）
     this.upper?.undo();   // 走りの形（M3）は脚の前に当てたので、最後に戻す
     this.time += dt;
@@ -330,6 +331,7 @@ export class Character {
     if (this.armRelax) this.relaxArms(dt);
     if (this.spreadCapDeg > 0 || this.spreadW > 0) this.spreadArms(dt);   // 被弾・弾かれ・倒れの腕の開き（8.3b）：動作の骨の後処理。握りの層の前
     if (this.cinePose) this.cinePose(this);   // 演出の身振り：動作の骨へ。見える腕の写し（握りの層）より前に当てる
+    if (this.upper?.style) this.upper.style.apply(dt);
     if (this.sword) this.sword.apply();   // 抜刀・納刀：骨の後処理なので relaxArms のあと
     if (this.hands) this.hands.apply(dt);   // 握り（8.6a）：抜刀の層が決めた刀・鞘を読み、見える腕の写しだけを動かす
     if (this.bow) this.bow.update();

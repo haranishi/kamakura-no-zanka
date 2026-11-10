@@ -1,4 +1,4 @@
-// Kamakura-only late upper-body pose and four ribbons, sharing one geometry/material/draw.
+// Kamakura-only late upper-body pose and cords, sharing one geometry/material/draw.
 import { gustLevel } from './kamakura-gust.js';
 import { createHeroLife, stepHeroLife, createClothChain, stepCloth } from './kamakura-hero-life.js';
 
@@ -9,9 +9,10 @@ export const HERO_CLOTH = Object.freeze({
   // Blind critique of stills (R10): 3 cm pale cords read as a strap across the back, even as a display fault. They are cords now:
   // half as wide, a little shorter, and a duller colour than the collar.
   band: Object.freeze({ x: 0, y: .088, z: -.066, separation: .018, length: .38, width: .016 }),
-  sash: Object.freeze({ x: .105, y: .02, z: -.077, separation: .021, length: .30, width: .022 }),
+  sash: Object.freeze({ x: 0, y: .334, z: -.0195, separation: .014, length: .26, width: .012 }),
   head: Object.freeze({ y: .042, radius: .074 }), torsoRadius: .087, knotWidth: .024, knotHeight: .016,
 });
+const LEGACY_SASH = Object.freeze({ x: .105, y: .02, z: -.077, separation: .021, length: .30, width: .022 });
 const RAD = Math.PI / 180, SHARE = [.3, .35, .35];
 
 export function createKamakuraHeroLife(context, options = {}) {
@@ -25,18 +26,35 @@ async function buildHeroLife(context, { reducedMotion = globalThis.matchMedia?.(
   const [THREE, { SPEED }] = await Promise.all([import('three'), import('./actors.js')]);
   const params = new URLSearchParams(context.search);
   const { hero, scene, terrain, keys, flight } = context, ch = hero.character, height = ch.height || 1.7;
+  let move = null;
+  if (params.get('heromove') !== '0' && ch.upper && ch.hands && ch.sword && ch.bone('headfront')) {
+    const policy = await import('./kamakura-hero-move.js');
+    move = new (await import('./upper-rig.js')).HeroMoveRig(ch, hero, policy);
+  }
+  const legacyCloth = params.get('heromove') === '0';
+  const gear = legacyCloth || params.get('gear') === '0' ? null :
+    (await import('./kamakura-hero-gear.js')).createKamakuraHeroGear(ch, { search: context.search });
+  const oldStyle = ch.upper?.style, oldRest = ch.hands?.rest;
+  if (move) { ch.upper.style = move; ch.hands.rest = move; }
+  const moveStats = move ? () => ({ ...move.measure(), cloth: clothStats(), gear: gear ? gear.stats() : { on: false, triangles: 0 } }) : null;
+  if (move && params.get('debug') === '1') globalThis.__kzHeroMove = moveStats;
   const state = createHeroLife(), bones = [ch.bone('Spine'), ch.bone('Spine01'), ch.bone('Spine02'), ch.bone('neck') || ch.bone('Neck'), ch.bone('Head')];
   const saved = bones.map(() => new THREE.Quaternion()), q = new THREE.Quaternion(), euler = new THREE.Euler();
   const head = bones[4], hips = ch.bone('Hips'), chest = bones[2] || bones[0];
   let applied = false, paused = false, disposed = false, dtPose = 0, stepped = false, adapt = 0, stroll = false, oldWalk = null;
   const debug = params.get('debug') === '1', clothMode = params.get('cloth'), cloth = [];
   for (let i = 0; i < 4; i++) {
-    const band = i < 2, cfg = band ? HERO_CLOTH.band : HERO_CLOTH.sash;
-    if (clothMode === '0' || (clothMode === 'band' && !band) || (clothMode === 'sash' && band) || !(band ? head : hips)) continue;
-    cloth.push({ chain: createClothChain(cfg.length * height / 1.7), bone: band ? head : hips, band,
-      offset: new THREE.Vector3((cfg.x + (i % 2 ? 1 : -1) * cfg.separation / 2) * height, cfg.y * height, cfg.z * height),
-      root: new Float64Array(3), width: cfg.width * height / 1.7, side: new THREE.Vector3(), rotation: new THREE.Quaternion() });
+    const band = i < 2, cfg = band ? HERO_CLOTH.band : legacyCloth ? LEGACY_SASH : HERO_CLOTH.sash;
+    if ((!legacyCloth && !clothMode && band) || clothMode === '0' || (clothMode === 'band' && !band) || (clothMode === 'sash' && band) || !(band ? head : hips)) continue;
+    const attachment = band ? head : legacyCloth ? hips : ch.weapons?.tachiHip?.holder || hips;
+    const factor = band || legacyCloth ? height : height / 1.66;
+    const chain = createClothChain(cfg.length * height / (band || legacyCloth ? 1.7 : 1.66));
+    if (!band && !legacyCloth) { chain.flutter = true; chain.flutterScale = reducedMotion ? .3 : 1; chain.tiltLimit = 20 * RAD; }
+    cloth.push({ chain, bone: attachment, band,
+      offset: new THREE.Vector3((cfg.x + (i % 2 ? 1 : -1) * cfg.separation / 2) * factor, cfg.y * factor, cfg.z * factor),
+      root: new Float64Array(3), width: cfg.width * height / (band || legacyCloth ? 1.7 : 1.66), side: new THREE.Vector3(), rotation: new THREE.Quaternion() });
   }
+  for (let i = 0; i < cloth.length; i++) if (!legacyCloth && !cloth[i].band && !ch.weapons?.tachiHip) cloth[i].offset.set(.22, .03, -.16);
   const vector = new THREE.Vector3(), position = new THREE.Vector3(), rotation = new THREE.Quaternion();
   const sphere = new Float64Array(4), capsule = new Float64Array(7);
   const ground = terrain?.heightAt ? (x, z) => terrain.heightAt(x, z) : null;
@@ -51,7 +69,8 @@ async function buildHeroLife(context, { reducedMotion = globalThis.matchMedia?.(
     geometry = new THREE.BufferGeometry();
     geometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3).setUsage(THREE.DynamicDrawUsage));
     geometry.setAttribute('normal', new THREE.BufferAttribute(normals, 3).setUsage(THREE.DynamicDrawUsage)); geometry.setIndex(indices);
-    material = new THREE.MeshLambertMaterial({ color: 0x9a8f78, side: THREE.DoubleSide });
+    material = params.get('geardebug') === '1' ? new THREE.MeshBasicMaterial({ color: 0xff2277, side: THREE.DoubleSide }) :
+      new THREE.MeshLambertMaterial({ color: legacyCloth ? 0x9a8f78 : 0x19202a, side: THREE.DoubleSide });
     mesh = new THREE.Mesh(geometry, material); mesh.name = 'kamakura-hero-cloth';
     mesh.receiveShadow = true; mesh.castShadow = false; mesh.frustumCulled = false; mesh.visible = false; scene.add(mesh);
     if (params.get('herodebug') === '1') {
@@ -170,15 +189,24 @@ async function buildHeroLife(context, { reducedMotion = globalThis.matchMedia?.(
     }
     lines.geometry.setDrawRange(0, debugIndex / 3); lines.geometry.attributes.position.needsUpdate = true;
   }
+  function clothStats() {
+    const tiltDeg = [];
+    for (let i = 0; i < cloth.length; i++) {
+      const p = cloth[i].chain.p, k = p.length - 3;
+      tiltDeg.push(Math.atan2(Math.hypot(p[k] - p[0], p[k + 2] - p[2]), p[1] - p[k + 1]) / RAD);
+    }
+    return { count: cloth.length, tiltDeg };
+  }
   const stats = () => {
     let maxStretch = 0, nan = false;
     for (let i = 0; i < cloth.length; i++) { maxStretch = Math.max(maxStretch, cloth[i].chain.maxStretch); nan ||= cloth[i].chain.nan; }
-    return { breath: state.breath, look: state.look, sway: state.sway, stroll, cloth: { maxStretch, nan } };
+    return { breath: state.breath, look: state.look, sway: state.sway, stroll, cloth: { maxStretch, nan, ...clothStats() } };
   };
   if (debug) globalThis.__kzHeroLife = stats;
   return {
     beforeHero(dt) {
       if (disposed) return;
+      if (move) { ch.sword.undo(); move.undo(); move.enabled = !flight?.active && (!currentPose || currentPose === pose); }
       undo(); dtPose = paused ? 0 : dt; stepped = false;
       if (!currentPose) currentPose = pose;
       if (!paused && !flight?.active && keys?.wasPressed('KeyC')) {
@@ -192,6 +220,7 @@ async function buildHeroLife(context, { reducedMotion = globalThis.matchMedia?.(
       if (frame.flying) { undo(); dtPose = 0; }
       if (!stepped) stepHeroLife(state, frame.dt, hero.speed || 0, allowed() && !frame.flying && currentPose === pose, reducedMotion);
       stepped = false;
+      gear?.update();
       if (!mesh) return;
       const show = !hero.scripted && hero.alive !== false && ch.root.visible !== false;
       mesh.visible = show; if (lines) lines.visible = show;
@@ -203,19 +232,31 @@ async function buildHeroLife(context, { reducedMotion = globalThis.matchMedia?.(
       for (let i = 0; i < cloth.length; i++) {
         const ribbon = cloth[i]; worldPoint(ribbon.bone, ribbon.offset, ribbon.root);
         ribbon.bone.getWorldQuaternion(ribbon.rotation); ribbon.side.set(1, 0, 0).applyQuaternion(ribbon.rotation);
-        stepCloth(ribbon.chain, frame.dt, ribbon.root, dir[0] * wind, dir[1] * wind, head ? sphere : null, hips && chest ? capsule : null, ground, iterations);
+        if (!legacyCloth && !ribbon.band) ribbon.chain.tiltLimit = (hero.speed < .3 ? 20 : 60) * RAD;
+        const strength = ribbon.band || legacyCloth ? wind : wind * .3;
+        stepCloth(ribbon.chain, frame.dt, ribbon.root, dir[0] * strength, dir[1] * strength, head ? sphere : null, hips && chest ? capsule : null, ground, iterations);
       }
       writeRibbons(); if (lines) writeDebug();
     },
     setAdapt(step) { adapt = Math.max(0, Math.min(3, step)); },
     setPaused(on) {
       if (disposed) return;
-      paused = !!on; if (paused) undo();
+      paused = !!on;
+      if (move) { move.paused = paused; if (paused) { ch.sword.undo(); move.undo(); } }
+      if (paused) undo();
       else for (let i = 0; i < cloth.length; i++) cloth[i].chain.ready = false;
     },
-    debugText() { return debug && !disposed ? `姿 息${state.breath.toFixed(1)}° 見${state.look.toFixed(0)}° 布${cloth.length} 歩:${stroll ? '遅' : '速'}` : ''; },
+    debugText() { return debug && !disposed ? `姿 息${state.breath.toFixed(1)}° 見${state.look.toFixed(0)}° 布${cloth.length} 歩:${stroll ? '遅' : '速'}${move ? ` 傾${move.leanState.x.toFixed(0)}° 鞘手${move.carry.toFixed(1)}` : ''}` : ''; },
     dispose() {
-      if (disposed) return; disposed = true; undo();
+      if (disposed) return; disposed = true;
+      if (move) {
+        ch.sword.undo(); move.undo();
+        if (ch.upper.style === move) { if (oldStyle === undefined) delete ch.upper.style; else ch.upper.style = oldStyle; }
+        if (ch.hands.rest === move) { if (oldRest === undefined) delete ch.hands.rest; else ch.hands.rest = oldRest; }
+        if (globalThis.__kzHeroMove === moveStats) delete globalThis.__kzHeroMove;
+      }
+      undo();
+      gear?.dispose();
       if (stroll) SPEED.walk = oldWalk;
       const restore = currentPose === pose ? null : currentPose;
       Object.defineProperty(ch, 'cinePose', descriptor ? { ...descriptor, value: restore } : { value: restore, writable: true, configurable: true, enumerable: true });

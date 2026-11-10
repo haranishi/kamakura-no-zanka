@@ -155,11 +155,12 @@ export class SwordRig {
     if (!onAxis) {
       const pa = V(), pf = V(), qa = new THREE.Quaternion(), qf = new THREE.Quaternion();
       wristAxis.decompose(pa, qa, V()); hand.matrixWorld.clone().decompose(pf, qf, V());
+      if (ch.upper?.style) ch.upper.style.drawEndpoint(pf, qf);
       wrist = new THREE.Matrix4().compose(pa.lerp(pf, pose.handBlend), this.swing('wrist', qa, qf, pose.handBlend), ONE);
     }
     const wp = V(), wq = new THREE.Quaternion();
     wrist.decompose(wp, wq, V());
-    this.solveArm('Right', wp, wq, pose.ikRight, !onAxis);
+    this.solveArm('Right', wp, wq, ch.upper?.style && !onAxis ? 1 : pose.ikRight, !onAxis);
 
     // 3. 左手は鞘を持つ（位置だけ。手の向きは動作のまま）。
     if (this.useLeft && pose.ikLeft > 0) this.solveArm('Left', V(...LEFT_HOLD).applyMatrix4(hip.matrixWorld), null, pose.ikLeft);
