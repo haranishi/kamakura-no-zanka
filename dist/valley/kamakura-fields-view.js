@@ -1,14 +1,13 @@
-// Five near plant pools and one shared far silhouette pool: six opaque, shadow-receiving draws.
+// One opaque crossed-card mesh for all five species, receiving the ground light and shadows.
 import * as THREE from '../vendor/three.module.min.js';
 import { GUST_GLSL } from './kamakura-gust.js';
 import { FIELDS, FIELD_KINDS, FIELD_NAMES, fieldOptions, createFieldMap, createFieldCell, stepFieldCell } from './kamakura-fields.js';
-import { fieldPlantKit, FIELD_HEIGHTS, FIELD_WIDTHS, FIELD_CARD_WIDTHS, FIELD_LEAF, FIELD_BLOOMS } from './kamakura-fields-kit.js';
+import { fieldPlantKit, FIELD_HEIGHTS, FIELD_CARD_WIDTHS, FIELD_LEAF, FIELD_BLOOMS } from './kamakura-fields-kit.js';
 
-export const FIELD_CAPACITIES = Object.freeze([600,450,450,180,420,16000]);
+export const FIELD_CAPACITY = 16000;
 // Parent (real Chrome): the modelled plants could only be given to a few hundred of the thousands near the viewer, and the
 // rest were cards in one mean colour: a field read as a wall of yellow slabs. The cards now draw the clump themselves
 // (stems, leaves and flower heads; for susuki a fan of blades with plumed stalks) and are used at every distance.
-export const FIELD_NEAR_RADIUS = 0;
 const glsl3=c=>`vec3(${c.map(v=>v.toFixed(6)).join(', ')})`;
 const aspects=FIELD_CARD_WIDTHS.map((w,i)=>(w/FIELD_HEIGHTS[i]).toFixed(6));
 export const FIELD_CARD_GLSL = `
@@ -92,22 +91,20 @@ export const FIELD_VERTEX_PARS = `
 uniform float uFieldTime, uFieldWind, uFieldMotion, uFieldRadius, uFieldViewport;
 uniform vec2 uFieldDir;
 uniform vec3 uFieldViewer, uFieldHero, uFieldSun;
-attribute vec4 aFieldShape;
+attribute vec3 aFieldShape;
 attribute vec3 aFieldTint;
-attribute float aFieldHeight, aFieldCluster, aFieldPetal;
+attribute float aFieldHeight;
 varying vec3 vFieldTint;
-varying float vFieldLight, vFieldBand, vFieldPetal, vFieldKind, vFieldPixels, vFieldSeed, vFieldCardPx;
+varying float vFieldLight, vFieldBand, vFieldKind, vFieldPixels, vFieldSeed, vFieldCardPx;
 ${GUST_GLSL}
 `;
-export function fieldVertexBody(far=false) {return `
+export function fieldVertexBody() {return `
 vec3 fieldRoot = instanceMatrix[3].xyz;
 float fieldDistance = distance(fieldRoot.xz, uFieldViewer.xz);
 float fieldOuter = 1.0 - smoothstep(uFieldRadius - 10.0, uFieldRadius, fieldDistance);
-float fieldLod = ${far?'mix(1.0, smoothstep(28.0, 32.0, fieldDistance), aFieldShape.w)':'1.0 - smoothstep(24.0, 28.0, fieldDistance)'};
-float fieldScale = fieldOuter * fieldLod * aFieldShape.z;
-${far?'bool fieldFlat = aFieldShape.x > 3.5;\nif (fieldFlat && abs(position.z) > 0.001) fieldScale = 0.0;':'bool fieldFlat = false;'}
-float fieldLimit = aFieldShape.x < 0.5 ? 3.0 + floor(aFieldShape.y * 4.0) : (aFieldShape.x < 2.5 ? 1.0 + floor(aFieldShape.y * 3.0) : 1.0 + floor(aFieldShape.y * 4.0));
-if (aFieldCluster > fieldLimit) fieldScale = 0.0;
+float fieldScale = fieldOuter * aFieldShape.z;
+bool fieldFlat = aFieldShape.x > 3.5;
+if (fieldFlat && abs(position.z) > 0.001) fieldScale = 0.0;
 vec3 transformed = position * fieldScale;
 // The bindweed mat lies on the sand: the upright card is laid flat, a few centimetres above the ground.
 if (fieldFlat) transformed = vec3(position.x, 0.35, position.y - 0.5) * fieldScale;
@@ -128,7 +125,6 @@ transformed.xz += fieldLocalPush * transformed.y * fieldBend * fieldPart * 0.75;
 transformed.y *= 1.0 - fieldPart * fieldBend * 0.35;
 vFieldTint = aFieldTint;
 vFieldBand = fieldBand * uFieldMotion;
-vFieldPetal = aFieldPetal;
 vFieldKind = aFieldShape.x;
 vec3 fieldViewRoot = (viewMatrix * vec4(fieldRoot, 1.0)).xyz;
 float fieldFeature = aFieldShape.x < 0.5 ? 0.24 : aFieldShape.x > 3.5 ? 1.0 : 0.12;
@@ -140,7 +136,7 @@ vFieldCardPx = aFieldHeight * length(instanceMatrix[1].xyz) * uFieldViewport * 0
 export const FIELD_FRAGMENT_PARS = `
 uniform float uFieldDebug;
 varying vec3 vFieldTint;
-varying float vFieldLight, vFieldBand, vFieldPetal, vFieldKind, vFieldPixels, vFieldSeed, vFieldCardPx;
+varying float vFieldLight, vFieldBand, vFieldKind, vFieldPixels, vFieldSeed, vFieldCardPx;
 `;
 export const FIELD_FRAGMENT_LIGHT = `
 // Subpixel pale features have a luminance ceiling instead of turning into white sparks.
@@ -163,37 +159,31 @@ vec3 fieldHeart = vFieldKind < 1.5 ? fieldBloom * 0.45 : vFieldKind < 3.5 ? kzFi
 diffuseColor.rgb = (fieldPartId > 2.5 ? fieldHeart : fieldPartId > 1.5 ? fieldBloom : fieldLeafTone) * vFieldTint;
 float fieldPetalMask = step(1.5, fieldPartId);
 `;
-function makePool(index,uniforms) {
-  const far=index===5,kit=fieldPlantKit(far?0:index,far),g=new THREE.BufferGeometry(),capacity=FIELD_CAPACITIES[index];
-  if(far) {
-    for(let i=0;i<kit.positions.length;i+=3){kit.positions[i]/=FIELD_WIDTHS[0];kit.positions[i+1]/=FIELD_HEIGHTS[0];kit.positions[i+2]/=FIELD_WIDTHS[0];}
-    kit.colors.fill(1);
-    // Cards take the light of the ground they stand on (an upward normal): lit by their own facing, one of the two crossed
-    // planes was always the dark one, and a field read as bars.
-    for(let i=0;i<kit.normals.length;i+=3){kit.normals[i]=0;kit.normals[i+1]=1;kit.normals[i+2]=0;}
-  }
-  if(far)g.setAttribute('uv',new THREE.Float32BufferAttribute([0,0,1,0,1,1,0,0,1,1,0,1,0,0,1,0,1,1,0,0,1,1,0,1],2));
-  g.setAttribute('position',new THREE.BufferAttribute(kit.positions,3));g.setAttribute('normal',new THREE.BufferAttribute(kit.normals,3));g.setAttribute('color',new THREE.BufferAttribute(kit.colors,3));
-  g.setAttribute('aFieldCluster',new THREE.BufferAttribute(kit.clusters,1));g.setAttribute('aFieldPetal',new THREE.BufferAttribute(kit.petals,1));
-  const shape=new THREE.InstancedBufferAttribute(new Float32Array(capacity*4),4).setUsage(THREE.DynamicDrawUsage);
+function makePool(uniforms) {
+  const kit=fieldPlantKit(),g=new THREE.BufferGeometry(),capacity=FIELD_CAPACITY;
+  g.setAttribute('uv',new THREE.BufferAttribute(kit.uvs,2));
+  g.setAttribute('position',new THREE.BufferAttribute(kit.positions,3));g.setAttribute('normal',new THREE.BufferAttribute(kit.normals,3));
+  g.setAttribute('color',new THREE.BufferAttribute(new Float32Array(kit.positions.length).fill(1),3));
+  const shape=new THREE.InstancedBufferAttribute(new Float32Array(capacity*3),3).setUsage(THREE.DynamicDrawUsage);
   const tint=new THREE.InstancedBufferAttribute(new Float32Array(capacity*3),3).setUsage(THREE.DynamicDrawUsage);
   const heights=new THREE.InstancedBufferAttribute(new Float32Array(capacity),1).setUsage(THREE.DynamicDrawUsage);
   g.setAttribute('aFieldShape',shape);g.setAttribute('aFieldTint',tint);g.setAttribute('aFieldHeight',heights);
   const m=new THREE.MeshLambertMaterial({color:0xffffff,vertexColors:true,side:THREE.DoubleSide,fog:true});
   m.onBeforeCompile=shader=>{
     Object.assign(shader.uniforms,uniforms);
-    shader.vertexShader=shader.vertexShader.replace('#include <common>','#include <common>\n'+FIELD_VERTEX_PARS+(far?'\nvarying vec2 vFieldUv;':'')).replace('#include <begin_vertex>',fieldVertexBody(far)+(far?'\nvFieldUv = uv;':''));
-    shader.fragmentShader=shader.fragmentShader.replace('#include <common>','#include <common>\n'+FIELD_FRAGMENT_PARS+(far?'\nvarying vec2 vFieldUv;\n'+FIELD_CARD_GLSL:'') )
-      .replace('#include <color_fragment>','#include <color_fragment>\n'+(far?FIELD_FAR_SILHOUETTE:'diffuseColor.rgb *= vFieldTint;\nfloat fieldPetalMask = vFieldPetal;'))
-      .replace('#include <normal_fragment_begin>','#include <normal_fragment_begin>'+(far?'\nnormal = normalize(vNormal);':''))
+    shader.vertexShader=shader.vertexShader.replace('#include <common>','#include <common>\n'+FIELD_VERTEX_PARS+'\nvarying vec2 vFieldUv;').replace('#include <begin_vertex>',fieldVertexBody()+'\nvFieldUv = uv;');
+    shader.fragmentShader=shader.fragmentShader.replace('#include <common>','#include <common>\n'+FIELD_FRAGMENT_PARS+'\nvarying vec2 vFieldUv;\n'+FIELD_CARD_GLSL)
+      .replace('#include <color_fragment>','#include <color_fragment>\n'+FIELD_FAR_SILHOUETTE)
+      .replace('#include <normal_fragment_begin>','#include <normal_fragment_begin>\nnormal = normalize(vNormal);')
       .replace('#include <opaque_fragment>',FIELD_FRAGMENT_LIGHT+'\n#include <opaque_fragment>');
   };
-  if(far)m.defines={USE_UV:''};
-  m.customProgramCacheKey=()=>`kz-fields-v2-${far?'far':'near'}`;
-  const mesh=new THREE.InstancedMesh(g,m,capacity);mesh.name=`kamakura-fields-${far?'far':FIELD_KINDS[index]}`;
+  m.defines={USE_UV:''};
+  m.customProgramCacheKey=()=>'kz-fields-v2-far';
+  const mesh=new THREE.InstancedMesh(g,m,capacity);mesh.name='kamakura-fields-far';
   mesh.count=0;mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);mesh.frustumCulled=false;mesh.receiveShadow=true;mesh.castShadow=false;
   const free=[];for(let i=capacity-1;i>=0;i--)free.push(i);
-  return {mesh,shape,tint,heights,free,triangles:kit.triangles,used:0,dirty:false,uploadLo:Infinity,uploadHi:-1};
+  const uploads=[tint,heights,mesh.instanceMatrix].map(attribute=>({attribute,range:{start:0,count:0}}));
+  return {mesh,shape,tint,heights,free,uploads,triangles:kit.triangles,used:0,dirty:false,uploadLo:Infinity,uploadHi:-1};
 }
 
 export function createKamakuraFields(context,options={}) {
@@ -204,32 +194,29 @@ export function createKamakuraFields(context,options={}) {
   const viewport=new THREE.Vector2();
   const uniforms={uFieldViewport:{value:720},uFieldTime:{value:0},uFieldWind:{value:1},uFieldMotion:{value:reduced?.4:1},uFieldRadius:{value:context.quality==='light'?45:70},
     uFieldDir:{value:new THREE.Vector2(1,0)},uFieldViewer:{value:new THREE.Vector3()},uFieldHero:{value:new THREE.Vector3()},uFieldSun:{value:context.sunDir?.clone()??new THREE.Vector3(0,1,0)},uFieldDebug:{value:config.debug?1:0}};
-  const pools=Array.from({length:6},(_,i)=>makePool(i,uniforms)),means=FIELD_KINDS.map((_,i)=>fieldPlantKit(i).meanColor);
-  for(const p of pools)context.scene.add(p.mesh);
+  const pool=makePool(uniforms);
+  context.scene.add(pool.mesh);
   const cells=new Map(),queue=[],matrix=new THREE.Matrix4(),rotation=new THREE.Quaternion(),axis=new THREE.Vector3(0,1,0),scale=new THREE.Vector3(),position=new THREE.Vector3();
-  const white=[1,1,1];
   const here={},nearest={kind:null,distance:Infinity,bearing:0},byKind={};
   let disposed=false,paused=false,step=0,planX=Infinity,planZ=Infinity,job=null,probe=0,completed=0,operations=0;
-  let maintenanceCells=null,maintenanceRecords=null,maintenanceIndex=0;
   let radius=context.quality==='light'?45:70,density=config.density*(context.quality==='light'?.6:1);
-  function release(pool,slot) {
-    if(slot<0)return;pool.free.push(slot);pool.used--;pool.shape.array[slot*4+2]=0;pool.dirty=true;
+  function release(slot) {
+    if(slot<0)return;pool.free.push(slot);pool.used--;pool.shape.array[slot*3+2]=0;pool.dirty=true;
   }
   function evict(cell) {
-    for(const r of cell.records){release(pools[5],r.far);if(r.near>=0)release(pools[r.kind],r.near);}
+    for(const r of cell.records)if(r.slot!==undefined)release(r.slot);
     cells.delete(cell.key);
   }
-  function place(pool,r,far,ready) {
+  function place(r,ready) {
     if(!pool.free.length)return -1;
     const slot=pool.free.pop();pool.used++;
     position.set(r.x,context.terrain.heightAt(r.x,r.z)+.005,r.z);
-    rotation.setFromAxisAngle(axis,r.yaw);scale.setScalar(r.scale);
-    if(far)scale.set(FIELD_CARD_WIDTHS[r.kind]*r.scale,FIELD_HEIGHTS[r.kind]*r.scale,FIELD_CARD_WIDTHS[r.kind]*r.scale);
+    rotation.setFromAxisAngle(axis,r.yaw);scale.set(FIELD_CARD_WIDTHS[r.kind]*r.scale,FIELD_HEIGHTS[r.kind]*r.scale,FIELD_CARD_WIDTHS[r.kind]*r.scale);
     matrix.compose(position,rotation,scale);pool.mesh.setMatrixAt(slot,matrix);pool.mesh.count=Math.max(pool.mesh.count,slot+1);
-    const a=pool.shape.array,o=slot*4;a[o]=r.kind;a[o+1]=r.variant;a[o+2]=ready;a[o+3]=0;
-    const color=white,t=slot*3;
-    pool.tint.array[t]=color[0]*r.tint*(1+r.hue);pool.tint.array[t+1]=color[1]*r.tint;pool.tint.array[t+2]=color[2]*r.tint*(1-r.hue);
-    pool.heights.array[slot]=far?1:FIELD_HEIGHTS[r.kind];
+    const a=pool.shape.array,o=slot*3;a[o]=r.kind;a[o+1]=r.variant;a[o+2]=ready;
+    const t=slot*3;
+    pool.tint.array[t]=r.tint*(1+r.hue);pool.tint.array[t+1]=r.tint;pool.tint.array[t+2]=r.tint*(1-r.hue);
+    pool.heights.array[slot]=1;
     pool.uploadLo=Math.min(pool.uploadLo,slot);pool.uploadHi=Math.max(pool.uploadHi,slot);
     pool.dirty=true;return slot;
   }
@@ -237,7 +224,7 @@ export function createKamakuraFields(context,options={}) {
     planX=x;planZ=z;queue.length=0;
     for(const c of cells.values())if(Math.hypot(c.cx*10+5-x,c.cz*10+5-z)>radius+15)evict(c);
     if(job&&Math.hypot(job.cx*10+5-x,job.cz*10+5-z)>radius+15) {
-      for(const r of job.records){if(r.far!==undefined)release(pools[5],r.far);if(r.near>=0)release(pools[r.kind],r.near);}job=null;
+      for(const r of job.records)if(r.slot!==undefined)release(r.slot);job=null;
     }
     const n=Math.ceil((radius+8)/10),cx=Math.floor(x/10),cz=Math.floor(z/10),fx=-Math.sin(yaw),fz=-Math.cos(yaw);
     for(let j=cz-n;j<=cz+n;j++)for(let i=cx-n;i<=cx+n;i++) {
@@ -248,8 +235,7 @@ export function createKamakuraFields(context,options={}) {
     queue.sort((a,b)=>a.priority-b.priority||a.cz-b.cz||a.cx-b.cx);
   }
   function inspect() {
-    let instances=0,triangles=0,draws=0;for(const p of pools){instances+=p.used;triangles+=p.mesh.count*p.triangles;if(p.mesh.visible&&p.mesh.count)draws++;}
-    return {kindHere:here.kind??null,strengthHere:here.strength??0,cells:{built:cells.size,pending:queue.length+(job?1:0)},instances,triangles,draws,nearest:{...nearest},byKind:{...byKind},work:{operations,completed},capacity:FIELD_CAPACITIES.reduce((a,b)=>a+b,0)};
+    return {kindHere:here.kind??null,strengthHere:here.strength??0,cells:{built:cells.size,pending:queue.length+(job?1:0)},instances:pool.used,triangles:pool.mesh.count*pool.triangles,draws:pool.mesh.visible&&pool.mesh.count?1:0,nearest:{...nearest},byKind:{...byKind},work:{operations,completed},capacity:FIELD_CAPACITY};
   }
   const debug=new URLSearchParams(context.search).get('debug')==='1';if(debug)globalThis.__kzFields=inspect;
   const sampleNearest=(x,z)=>{
@@ -271,21 +257,6 @@ export function createKamakuraFields(context,options={}) {
       if(context.renderer?.getDrawingBufferSize){context.renderer.getDrawingBufferSize(viewport);uniforms.uFieldViewport.value=viewport.y;}
       const start=now();completed=0;operations=0;
       if(Math.hypot(x-planX,z-planZ)>=5) {plan(x,z,frame.yaw);nearest.kind=null;nearest.distance=Infinity;probe=0;for(const k in byKind)delete byKind[k];}
-      // Refresh LOD ownership a little at a time. Matrices and all buffers are reused.
-      let visited=0;
-      while(pools[5].used>0&&visited<32&&operations<FIELDS.work&&now()-start<FIELDS.budgetMs) {
-        if(!maintenanceRecords||maintenanceIndex>=maintenanceRecords.records.length) {
-          maintenanceCells??=cells.values();const next=maintenanceCells.next();
-          if(next.done){maintenanceCells=null;maintenanceRecords=null;break;}
-          maintenanceRecords=next.value;maintenanceIndex=0;
-          if(cells.get(maintenanceRecords.key)!==maintenanceRecords||!maintenanceRecords.records.length)continue;
-        }
-        const r=maintenanceRecords.records[maintenanceIndex++];operations++;visited++;
-        if(cells.get(maintenanceRecords.key)!==maintenanceRecords||r.far<0)continue;
-        const d=Math.hypot(r.x-x,r.z-z);
-        if(r.near>=0&&d>FIELD_NEAR_RADIUS+4) {release(pools[r.kind],r.near);r.near=-1;pools[5].shape.array[r.far*4+3]=0;pools[5].dirty=true;}
-        else if(r.near<0&&d<FIELD_NEAR_RADIUS&&pools[r.kind].free.length) {r.near=place(pools[r.kind],r,false,1);pools[5].shape.array[r.far*4+3]=1;pools[5].dirty=true;}
-      }
       // Even a very slow frame performs at most 384 candidate/slot operations and four cell commits.
       while(operations<FIELDS.work-32&&completed<FIELDS.cellsPerFrame&&now()-start<FIELDS.budgetMs) {
         if(!job) {
@@ -298,11 +269,11 @@ export function createKamakuraFields(context,options={}) {
         if(job.publish===undefined) {
           job.publish=0;
           const distance=Math.hypot(job.cx*10+5-x,job.cz*10+5-z);
-          if(distance<40&&job.records.length>pools[5].free.length) {
+          if(distance<40&&job.records.length>pool.free.length) {
             let farthest=null,best=distance+15;
             for(const c of cells.values()) {
               const d=Math.hypot(c.cx*10+5-x,c.cz*10+5-z);
-              if(d>best&&c.records.some(r=>r.far>=0)){farthest=c;best=d;}
+              if(d>best&&c.records.some(r=>r.slot>=0)){farthest=c;best=d;}
             }
             if(farthest)evict(farthest);
           }
@@ -310,28 +281,29 @@ export function createKamakuraFields(context,options={}) {
         if(job.publish<job.records.length) {
           const end=Math.min(job.records.length,job.publish+16);
           for(;job.publish<end;job.publish++) {
-            const r=job.records[job.publish];r.far=place(pools[5],r,true,0);r.near=-1;
-            if(r.far>=0&&Math.hypot(r.x-x,r.z-z)<FIELD_NEAR_RADIUS)r.near=place(pools[r.kind],r,false,0);
+            const r=job.records[job.publish];r.slot=place(r,0);
             operations++;
           }
           continue;
         }
-        for(const r of job.records)if(r.far>=0) {
-          pools[5].shape.array[r.far*4+2]=1;pools[5].shape.array[r.far*4+3]=r.near>=0?1:0;pools[5].dirty=true;
-          if(r.near>=0){pools[r.kind].shape.array[r.near*4+2]=1;pools[r.kind].dirty=true;}
+        for(const r of job.records)if(r.slot>=0) {
+          pool.shape.array[r.slot*3+2]=1;pool.dirty=true;
         }
         cells.set(job.key,job);job=null;completed++;
       }
-      for(const p of pools) {
+      {
+        const p=pool;
         p.mesh.visible=step<3&&p.used>0;
         if(p.dirty) {
           p.shape.needsUpdate=true;
           if(p.uploadHi>=0) {
             // Include outstanding ranges until the renderer acknowledges the upload. One bounded range per attribute.
-            for(const attr of [p.tint,p.heights,p.mesh.instanceMatrix]) {
-              const size=attr.itemSize,prior=attr.updateRanges[0];
+            for(const upload of p.uploads) {
+              const attr=upload.attribute,size=attr.itemSize,prior=attr.updateRanges[0],range=upload.range;
               const lo=Math.min(p.uploadLo*size,prior?.start??Infinity),hi=Math.max((p.uploadHi+1)*size,prior?prior.start+prior.count:0);
-              attr.clearUpdateRanges();attr.addUpdateRange(lo,hi-lo);attr.needsUpdate=true;
+              range.start=lo;range.count=hi-lo;
+              if(!prior)attr.updateRanges.push(range);
+              attr.needsUpdate=true;
             }
             p.uploadLo=Infinity;p.uploadHi=-1;
           }
@@ -344,16 +316,16 @@ export function createKamakuraFields(context,options={}) {
     setAdapt(next) {
       if(disposed)return;step=next;radius=step>=2||context.quality==='light'?45:70;uniforms.uFieldRadius.value=radius;
       density=config.density*(step>=2||context.quality==='light'?.6:1);
-      for(const p of pools)p.mesh.visible=step<3;
+      pool.mesh.visible=step<3;
       for(const c of cells.values())evict(c);
-      if(job){for(const r of job.records){if(r.far!==undefined)release(pools[5],r.far);if(r.near>=0)release(pools[r.kind],r.near);}job=null;}
-      queue.length=0;planX=Infinity;maintenanceCells=null;maintenanceRecords=null;
+      if(job){for(const r of job.records)if(r.slot!==undefined)release(r.slot);job=null;}
+      queue.length=0;planX=Infinity;
     },
     setPaused(on){paused=!!on;},
-    debugText(){if(disposed)return '';const n=pools[5].used;return `野 ${FIELD_NAMES[FIELD_KINDS.indexOf(here.kind)]??'なし'} 区画${cells.size} 株${(n/1000).toFixed(1)}k${step>=3?' 停止':''}`;},
+    debugText(){if(disposed)return '';const n=pool.used;return `野 ${FIELD_NAMES[FIELD_KINDS.indexOf(here.kind)]??'なし'} 区画${cells.size} 株${(n/1000).toFixed(1)}k${step>=3?' 停止':''}`;},
     dispose() {
       if(disposed)return;disposed=true;
-      for(const p of pools){context.scene.remove(p.mesh);p.mesh.geometry.dispose();p.mesh.material.dispose();p.mesh.dispose();}
+      context.scene.remove(pool.mesh);pool.mesh.geometry.dispose();pool.mesh.material.dispose();pool.mesh.dispose();
       cells.clear();queue.length=0;job=null;
       if(globalThis.__kzFields===inspect)delete globalThis.__kzFields;
     },

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createFieldMap, createFieldCell, stepFieldCell, fieldOptions, FIELD_KINDS, FIELDS, fieldLodScale } from '../dist/valley/kamakura-fields.js';
+import { createFieldMap, createFieldCell, stepFieldCell, fieldOptions, FIELD_KINDS, FIELD_DENSITIES, FIELDS, fieldLodScale } from '../dist/valley/kamakura-fields.js';
 import { buildColliders } from '../dist/valley/collision.js';
 
 const habitat=(weights={})=>({at(x,z,out){Object.assign(out,{meadow:1,forest:0,sand:0,town:0,bare:0,temple:0},weights);return out;}});
@@ -68,9 +68,24 @@ test('cells are deterministic, half-open, have no duplicated boundary roots, and
   t.diagnostic(JSON.stringify({full:full.length,half:half.length,double:double.length}));
 });
 
-test('near/far transition never overlaps, outer ring fades continuously, and padded cell test misses no field',()=>{
-  for(let d=0;d<80;d+=.125)assert(fieldLodScale(d,true)*fieldLodScale(d,false)===0);
-  assert.equal(fieldLodScale(60,false),1);assert.equal(fieldLodScale(70,false),0);assert.equal(fieldLodScale(65,false),.5);
+test('outer ring fades continuously and padded cell test misses no field',()=>{
+  for(const radius of [FIELDS.radius,FIELDS.lightRadius]) {
+    assert.equal(fieldLodScale(radius-10,radius),1);assert.equal(fieldLodScale(radius,radius),0);assert.equal(fieldLodScale(radius-5,radius),.5);
+    let prior=1;for(let d=0;d<radius+10;d+=.125){const v=fieldLodScale(d,radius);assert(v>=0&&v<=prior);prior=v;}
+  }
   const map=createFieldMap(world());
   for(let x=-300;x<300;x+=2)for(let z=-300;z<300;z+=2)if(map.fieldAt(x,z).strength>0)assert(map.mayIntersect(Math.floor(x/10),Math.floor(z/10)));
+});
+
+test('all species scale with the clump density table, strength and requested density',t=>{
+  const counts=[];
+  for(let kind=0;kind<FIELD_KINDS.length;kind++)for(const strength of [.5,1])for(const density of [.6,1,2]) {
+    const map={mayIntersect:()=>true,fieldAt(x,z,out){out.kind=FIELD_KINDS[kind];out.strength=strength;return out;}};
+    let count=0;
+    for(let cx=-5;cx<5;cx++)for(let cz=-5;cz<5;cz++)count+=finish(map,cx,cz,{density}).length;
+    const expected=100*FIELDS.cell**2*FIELD_DENSITIES[kind]*strength*density;
+    assert(Math.abs(count/expected-1)<.07,`${FIELD_KINDS[kind]}: ${count}/${expected}`);
+    counts.push({kind:FIELD_KINDS[kind],strength,density,count});
+  }
+  t.diagnostic(JSON.stringify(counts));
 });

@@ -85,7 +85,6 @@ export function stepFieldCell(map,job,work=FIELDS.work) {
   }
   job.done=job.cursor===job.total;return job.done;
 }
-export function fieldLodScale(distance,near,hasNear=true,radius=70) {
-  const outer=1-fieldSmooth(radius-10,radius,distance);
-  return outer*(hasNear?(near?1-fieldSmooth(24,28,distance):fieldSmooth(28,32,distance)):near?0:1);
+export function fieldLodScale(distance,radius=FIELDS.radius) {
+  return 1-fieldSmooth(radius-10,radius,distance);
 }
