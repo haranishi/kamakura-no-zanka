@@ -182,7 +182,7 @@ export async function bootKamakura(data, search) {
       habitat: createHabitat({ terrain: t, meta, surface: data.surface, housePoints: houseExclusions }) });
     if (disposed) { layers.dispose(); layers = null; }
     layers?.setPaused(paused);
-    const layerFrame = { dt: 0, rawDt: 0, time: 0, wind: 1, windDir: [1, 0], flying: false, pos: null, camera, hero };
+    const layerFrame = { dt: 0, rawDt: 0, time: 0, wind: 1, windDir: [1, 0], flying: false, pos: null, yaw: 0, camera, hero };
     hud.pause.addEventListener('click', () => setPaused(!paused), { signal: events.signal });
     base.onLockChange = locked => { if (!locked) setPaused(true); };
     addEventListener('keydown', e => { if ((e.code === 'KeyP' || e.code === 'Escape') && !e.repeat) setPaused(!paused); }, { signal: events.signal });
@@ -231,7 +231,9 @@ export async function bootKamakura(data, search) {
       wind.uWindDir.value.set(...uniforms.uWindDir); wind.uGuideMix.value = uniforms.uGuideMix;
       grass.updateHero(hero.pos, hero.speed, flight.active, paused ? 0 : dt);
       layerFrame.dt = dt; layerFrame.rawDt = rawDt; layerFrame.time = uniforms.uTime; layerFrame.wind = uniforms.uWind; layerFrame.windDir = uniforms.uWindDir;
-      layerFrame.flying = flight.active; layerFrame.pos = flight.pos; layers?.update(layerFrame);
+      layerFrame.flying = flight.active; layerFrame.pos = flight.pos; layerFrame.yaw = flight.yaw;
+      audioView.listen?.(layerFrame); // the listener's place, heading and the shared wind clock, for sounds that follow the gusts or come from a side
+      layers?.update(layerFrame);
       renderer.info.reset(); // W2c-9r1 light: one reset before all frame draws.
       flight.updateViews(uniforms.uTime, paused ? 0 : dt); facilities?.update(flight.pos); grass.update(camera, flight.pos, paused); fx.update(paused ? 0 : dt, camera, hero); groundContactFor(data)?.update(camera.position, g.col.boxes, g.col.circles); groundPathFor(data)?.update(camera.position, data.patches.paths); post.render(scene, camera);
       hud.update(flight.pos, flight.yaw, t, { ...renderer.info.render, averageMs: adapt.averageMs, step: adapt.step }, flight.state, audioView.debugText() + (layers?.debugText() || ''));

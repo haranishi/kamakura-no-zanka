@@ -115,6 +115,9 @@ test('world-kamakura.js builds, drives and closes the layers at the right places
   assert(at('layers?.beforeHero(dt);') < at('hero.updateLocomotion(dt,'));
   assert(at('renderer.setAnimationLoop(now') < at('layers?.beforeHero(dt);'));
   assert(at('layers?.update(layerFrame);') < at('renderer.info.reset();'));
+  // The frame carries the viewer's heading, and the audio view hears the same frame first.
+  assert(at('layerFrame.yaw = flight.yaw;') < at('audioView.listen?.(layerFrame);'));
+  assert(at('audioView.listen?.(layerFrame);') < at('layers?.update(layerFrame);'));
   assert(at('layers?.update(layerFrame);') < at('post.render(scene, camera)'));
   // Closed before the hero and the scene resources go away; paused and adapted with the rest.
   assert(at('layers?.dispose(); layers = null;') < at('hero?.remove();'));
