@@ -2,7 +2,7 @@ export function createKamakuraHUD(meta, debug, flyControls = debug) {
   const root = document.createElement('section'); root.className = 'kamakura-ui';
   root.setAttribute('aria-label', '鎌倉散策');
   root.innerHTML = `<div class="kz-top"><span class="kz-north" aria-label="北の方向">↑ 北</span><span class="kz-place" role="status"></span><button class="kz-sound" type="button">音：入</button><button class="kz-pause">休止</button></div>
-    <p class="kz-info">WASD／矢印：歩く · Shift：走る · クリック＋マウス／IJKL：視点 · P／Esc：休止<br>指：左半分をドラッグで歩く・右半分で視点</p>
+    <p class="kz-info">WASD／矢印：歩く · Shift：走る · C：ゆっくり歩く · クリック＋マウス／IJKL：視点 · P／Esc：休止<br>指：左半分をドラッグで歩く・右半分で視点</p>
     <div class="kz-flight"><button class="kz-fly">飛ぶ</button><button class="kz-top-view">全体</button><button class="kz-land">ここへ降りる</button><button class="kz-up">上昇</button><button class="kz-down">下降</button></div><p class="kz-state" role="status"></p><p class="kz-debug"></p><button class="kz-run">走る</button>`;
   document.body.append(root);
   const north = root.querySelector('.kz-north'), place = root.querySelector('.kz-place'), coords = root.querySelector('.kz-debug');
