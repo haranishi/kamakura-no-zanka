@@ -189,7 +189,7 @@ test('private inputs: every instance receives a GLB-derived far shape within res
     const {buildKamakuraHouses}=await loadHouseView(),scene=new THREE.Scene();
     const bytes=await fs.readFile(join(process.env.KZ_WORLD_DIR,'houses_kit.glb'));
     const houses={...input.houses,kit:bytes.buffer.slice(bytes.byteOffset,bytes.byteOffset+bytes.byteLength)};
-    const view=await buildKamakuraHouses(houses,terrain,scene);
+    const view=await buildKamakuraHouses(houses,terrain,scene,{search:'?house2=0'});
     try{
       const slices=await complete(view,scene,{x:terrain.bounds.maxX+10000,y:1000,z:terrain.bounds.maxZ+10000});
       const mesh=farMesh(scene);assert.equal(mesh.geometry.attributes.position.count/3,triangles);

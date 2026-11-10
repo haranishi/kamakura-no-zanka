@@ -75,7 +75,7 @@ test('F6/FX1 private kits produce bounded structural floors above skirts; materi
  const {buildKamakuraHouses}=await loadHouseView(),fields=[],scenes=[];
  try{for(const search of ['', '?photo=0']){
   const scene=new THREE.Scene();scenes.push(scene);
-  fields.push(await buildKamakuraHouses({...houses,kit:kit.buffer.slice(kit.byteOffset,kit.byteOffset+kit.byteLength)},{heightAt:()=>0},scene,{search}));
+  fields.push(await buildKamakuraHouses({...houses,kit:kit.buffer.slice(kit.byteOffset,kit.byteOffset+kit.byteLength)},{heightAt:()=>0},scene,{search:search+'&house2=0'}));
  }
  assert.equal(JSON.stringify(fields[0].boxes),JSON.stringify(fields[1].boxes));
  }finally{fields.forEach(f=>f.dispose());}

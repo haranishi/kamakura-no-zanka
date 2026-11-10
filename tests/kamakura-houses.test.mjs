@@ -117,7 +117,7 @@ test('real GLTF nodes, instancing budget, atomic LOD replacement, distance evict
   const houses = {catalog:{count_by_kind:{'test-house':4}},kinds:new Map([[0,kind]]),instances,
     kit:kit.buffer.slice(kit.byteOffset,kit.byteOffset+kit.byteLength)};
   const scene = new THREE.Scene(), terrain = {heightAt:()=>7}, pos={x:200,z:200};
-  const field = await buildKamakuraHouses(houses,terrain,scene);
+  const field = await buildKamakuraHouses(houses,terrain,scene,{search:'?house2=0'});
   const meshes = () => {const a=[];scene.traverse(o=>{if(o.isInstancedMesh)a.push(o);});return a;};
   field.update(pos); assert.equal(meshes().length,2); assert(!field.ready(pos));
   field.update(pos); assert(field.ready(pos)); assert.equal(meshes().length,4);
