@@ -21,6 +21,13 @@ export function syntheticWorld(seed=731) {
   meta.patches={cells_file:'patch_cells_i32.bin',h_file:'patch_h_f32.bin',axes_file:'patch_axes.json',paths_file:'patch_paths.json',subdivisions:4,total_cells:1,items:[{id:'synthetic-road'}]};
   const pc=Buffer.alloc(8);pc.writeInt32LE(127,0);pc.writeInt32LE(127,4);files.set('patch_cells_i32.bin',pc);files.set('patch_h_f32.bin',f32(Array(25).fill(12)));
   json('patch_axes.json',{'synthetic-road':axis});json('patch_paths.json',{'synthetic-road':{route_id:'synthetic',xyz_m:[[-80,0,12],[80,0,12]],s_m:[0,160]}});
+  const roads={
+    'ci-avenue':{route_id:'avenue',name:'Synthetic avenue',kind:'local_road',width_m:14,xyz_m:[[0,-180,0],[0,0,0],[0,180,0]]},
+    'ci-kaido':{route_id:'kaido',name:'Synthetic kaido',kind:'kaido',width_m:4,xyz_m:[[-160,70,0],[0,70,0],[100,130,0]]},
+    'ci-trail':{route_id:'trail',name:'Synthetic trail',kind:'trail',width_m:2.8,xyz_m:[[-150,-60,0],[-80,-90,0],[-40,-180,0]]}
+  };
+  meta.roads={file:'roads.json',schema:'kz-roads/0.1',count:Object.keys(roads).length};
+  json('roads.json',{schema:'kz-roads/0.1',count:meta.roads.count,roads});
   const houseParts=[{geometry:box(0,-1,0,8,6,6)},{geometry:box(0,5,0,10,3,8,true)}];
   files.set('houses_kit.glb',makeGlb([{name:'ci_house',parts:houseParts}]));
   json('houses.json',{count:3,kinds:[{index:0,node:'ci_house',bbox_min:[-5,-4,-1],bbox_max:[5,4,8],triangles:20}],count_by_kind:{ci_house:3}});

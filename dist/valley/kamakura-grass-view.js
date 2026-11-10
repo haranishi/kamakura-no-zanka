@@ -1,3 +1,4 @@
+import { kamakuraPaths } from './kamakura-roads.js';
 import { grass9Enabled, grass9Radius, grass9Tiles, grass9Distance, grass9Queue, grass9Plan, GRASS9_CHUNKS, grass9WorkBudget } from './kamakura-grass-stream.js';
 import { grassR7Enabled } from './kamakura-grass-r7.js';
 import { grassR5Enabled } from './kamakura-grass-r5.js';
@@ -27,7 +28,7 @@ export function buildKamakuraGrass({ data, terrain, colliders, extraColliders, s
     queue(wanted,resident){return grass9Queue(wanted,resident,this.position.x,this.position.z);}
     } : undefined;
   const r7 = r5 && grassR7Enabled(search); // W2c-13: off restores the complete R6 path.
-  const paths = data.patches?.paths || {};
+  const paths = kamakuraPaths(data) || {};
   // W2c-9c3: metre surface transitions and narrow collider/bank margins replace bare rims.
   const ecology = improved ? createGrassEnvironment(terrain, {colliders, extraColliders, paths, r4, surfaceCodeAt:createSurfaceCodeAt(data.meta,data.surface)}) : null;
   const look = improved ? createGrassLook(ecology, quality, {value:new THREE.Vector4(0,0,0,0)},bands,r3,r4,r5,r7,stream) : undefined;

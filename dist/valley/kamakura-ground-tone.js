@@ -1,3 +1,4 @@
+import { kamakuraPaths } from './kamakura-roads.js';
 import { GROUND8_GLSL } from './kamakura-ground-mosaic.js';
 import { SLOPE7_GLSL } from './kamakura-ground-slope.js';
 import { createGroundDensity } from './kamakura-ground-density.js';
@@ -15,7 +16,7 @@ export function installGroundTone(THREE,material,data,owner,{quality='standard',
   const slope7=new URLSearchParams(search).get('slope7')!=='0';
   const ground6=new URLSearchParams(search).get('ground6')!=='0';
   // W2c-12: legacy exports without route data retain their original shader and resources.
-  const ground7=new URLSearchParams(search).get('ground7')!=='0' && data.patches?.paths!=null;
+  const ground7=new URLSearchParams(search).get('ground7')!=='0' && kamakuraPaths(data)!=null;
   const ground8=new URLSearchParams(search).get('ground8')!=='0' && ground7;
   const atlas=ground6||ground7;
   const r3Enabled=new URLSearchParams(search).get('gyard')!=='0';

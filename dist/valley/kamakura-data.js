@@ -1,4 +1,5 @@
 import { decodeFacilities } from './kamakura-facilities.js';
+import { decodeRoads, kamakuraPaths, roadStats } from './kamakura-roads.js';
 import { decodeRivers } from './kamakura-rivers.js';
 import { decodeVeg } from './kamakura-veg.js';
 import { decodeHouses } from './kamakura-houses.js';
@@ -66,9 +67,9 @@ export function decodeData(meta, heightBuffer, walkBuffer, patchBuffers, groundB
   }
   const ground = meta.ground && groundBuffer?.byteLength === count * 3 ? new Uint8Array(groundBuffer) : null;
   const groundNotice = ground ? '' : '地面の色を読み込めませんでした。単色で散策を続けます';
-  return { meta, heights, walk, patches, ground, groundNotice, veg: null, vegNotice: '', rivers: null, riverNotice: '' };
+  return { meta, heights, walk, patches, ground, groundNotice, veg: null, vegNotice: '', rivers: null, riverNotice: '', roads: null };
 }
-export async function loadKamakura(fetcher = fetch) {
+export async function loadKamakura(fetcher = fetch, search = globalThis.location?.search || '') {
   const read = async name => {
     const response = await fetcher('/world-private/' + name, { cache: 'no-store', redirect: 'error', signal: AbortSignal.timeout(20000) });
     if (!response.ok) throw new Error('鎌倉データを読み込めません');
@@ -83,6 +84,12 @@ export async function loadKamakura(fetcher = fetch) {
     if (meta.patches.paths_file) patchBuffers.paths = await (await read(meta.patches.paths_file)).json();
   }
   const data = decodeData(meta, await height.arrayBuffer(), await walk.arrayBuffer(), patchBuffers);
+  if (meta.roads && new URLSearchParams(search).get('roads') !== '0') {
+    try {
+      if (meta.roads.file !== 'roads.json' || meta.roads.schema !== 'kz-roads/0.1' || !Number.isInteger(meta.roads.count)) throw new Error();
+      data.roads = decodeRoads(await (await read('roads.json')).json(), meta.roads.count);
+    } catch { /* Optional roads failure keeps the existing pass paths and terrain. */ }
+  }
   data.surface = null;
   if (meta.surface) {
     try {
@@ -134,4 +141,16 @@ export async function loadKamakura(fetcher = fetch) {
     } catch { data.facilities = null; data.facilityNotice = '施設を読み込めませんでした。施設なしで散策を続けます'; }
   }
   return data;
+}
+
+const roadDebug = new WeakMap();
+export function updateKamakuraRoadPaths(data, pos, view, search) {
+  let debug = roadDebug.get(data);
+  if (!debug) {
+    debug = { pos };
+    roadDebug.set(data, debug);
+    if (new URLSearchParams(search).get('debug') === '1') globalThis.__kzRoads = () => roadStats(data, debug.pos);
+  }
+  debug.pos = pos;
+  return view?.update(pos, kamakuraPaths(data));
 }
