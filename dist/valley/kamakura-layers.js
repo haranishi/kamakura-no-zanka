@@ -13,6 +13,7 @@
 // &layers=0 skips every layer (the pre-W2c-16 world).
 import { createKamakuraDrift } from './kamakura-drift-view.js';
 import { createKamakuraFauna } from './kamakura-fauna-view.js';
+import { createKamakuraFields } from './kamakura-fields-view.js';
 import { createKamakuraProps } from './kamakura-props-view.js';
 import { createKamakuraHeroLife } from './kamakura-hero-life-view.js';
 import { createKamakuraSoundscape } from './kamakura-soundscape-view.js';
@@ -21,6 +22,7 @@ export const KAMAKURA_LAYERS = Object.freeze([
   ['drift', createKamakuraDrift],
   ['fauna', createKamakuraFauna],
   ['props', createKamakuraProps],
+  ['fields', createKamakuraFields],
   ['heroLife', createKamakuraHeroLife],
   ['soundscape', createKamakuraSoundscape],
 ]);
