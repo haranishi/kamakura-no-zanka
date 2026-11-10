@@ -23,7 +23,7 @@ const sun=()=>new THREE.Vector3(0,.2,-1).normalize();
 test('R10 URL flags, time strengths and a shaft gate that lets the sun sit a little outside the frame',()=>{
   assert(postOptions('').shafts);assert(postOptions('').cloud);assert.equal(postOptions('?postdebug=bad').postdebug,'');
   for(const mode of ['depth','shafts','cloud'])assert.equal(postOptions('?postdebug='+mode).postdebug,mode);
-  const off=postOptions('?shafts=0&cloud=0');assert(!off.shafts);assert(!off.cloud);
+  const off=postOptions('?shafts=0&cloud=0&mist=0&cloudhigh=0');assert(!off.shafts);assert(!off.cloud);
   assert.deepEqual(Object.values(LIGHT_TIMES).map(v=>[v.shafts,v.cloud]),[[.15,.3],[.5,.25],[.6,.25],[.7,.12]]);
   assert.equal(lightSettings('bad'),LIGHT_TIMES.noon);assert.equal(SHAFT_TAPS,24);
   assert.equal(shaftVisibility(.5,.5,1),1);
@@ -78,16 +78,16 @@ function checkGLSL(s) {
   const usedUniforms=new Set();
   for(const m of s.matchAll(/uniform\s+\w+\s+([^;]+);/g))for(const n of m[1].split(','))usedUniforms.add(n.trim());
   // All light-related uniform references must have an explicit declaration in this variant.
-  const known=['depthTex','inverseProjection','cameraWorld','viewFar','lightDirection','cloudDirection','cloudTime','cloudStrength','shaftTex','shaftStrength','maskTex','depthPixel'];
+  const known=['mistField','mistBounds','mistPixels','mistWind','mistReady','mistStrength','mistTime','mistHazeExp','mistCool','mistWarm','mistSun','cloudScale','depthTex','inverseProjection','cameraWorld','viewFar','lightDirection','cloudDirection','cloudTime','cloudStrength','shaftTex','shaftStrength','maskTex','depthPixel'];
   for(const n of known)if(new RegExp('\\b'+n+'\\b').test(s))assert(usedUniforms.has(n),n+' undeclared');
   return usedUniforms;
 }
 
 test('all light shader variants are balanced, uniforms supplied, no reserved identifiers (not GPU compile)',()=>{
   for(const shader of Object.values(SHAFT_SHADERS))checkGLSL(shader);
-  for(const shafts of [0,1])for(const cloud of [0,1])for(const debug of ['', 'depth','shafts','cloud']){
-    const search=`?shafts=${shafts}&cloud=${cloud}&postdebug=${debug}`;
-    const r=stub(),p=createKamakuraPost({renderer:r,search,sunDir:sun()});p.render(new THREE.Scene(),camera());
+  for(const shafts of [0,1])for(const cloud of [0,1])for(const mist of [0,1])for(const high of [0,1])for(const debug of ['', 'depth','shafts','cloud','mist','valley']){
+    const search=`?shafts=${shafts}&cloud=${cloud}&mist=${mist}&cloudhigh=${high}&postdebug=${debug}`;
+    const r=stub(),p=createKamakuraPost({renderer:r,search,sunDir:sun(),terrain:{bounds:{minX:-512,maxX:512,minZ:-512,maxZ:512},heightAt:()=>20}});p.render(new THREE.Scene(),camera());
     for(const draw of r.draws)if(draw.material){const m=draw.material;const names=checkGLSL(m.fragmentShader);checkGLSL(expand(m.fragmentShader));checkGLSL(m.vertexShader);
       for(const name of names)assert(Object.hasOwn(m.uniforms,name),name+' missing value');}
     p.dispose();
@@ -98,7 +98,7 @@ test('all light shader variants are balanced, uniforms supplied, no reserved ide
 test('disabled route retains exact R9 final shader, five targets and six draws without depth',()=>{
   // Hash from the pre-R10 final shader, including its unchanged shade chunk.
   assert.equal(digest(POST_SHADERS.final),'c20d4d608e205c31c42de31706267a8e6936ef46108b333441df3717cb242a63');
-  assert.equal(lightFinalShader(POST_SHADERS.final,postOptions('?shafts=0&cloud=0')),POST_SHADERS.final);
+  assert.equal(lightFinalShader(POST_SHADERS.final,postOptions('?shafts=0&cloud=0&mist=0&cloudhigh=0')),POST_SHADERS.final);
   const r=stub(),p=createKamakuraPost({renderer:r,search:'?shafts=0&cloud=0',sunDir:sun()});p.render(new THREE.Scene(),camera());
   assert.equal(p.targets.length,5);assert.equal(r.draws.length,6);assert.equal(p.targets[0].depthTexture,null);
   assert.equal(r.draws.at(-1).material.fragmentShader,POST_SHADERS.final);p.dispose();

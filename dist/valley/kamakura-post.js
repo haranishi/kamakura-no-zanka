@@ -8,8 +8,8 @@ export function postOptions(search = '') {
   const q = new URLSearchParams(search), tone = q.get('tone');
   return { tone: ['none', 'aces', 'neutral', 'agx'].includes(tone) ? tone : POST_DEFAULTS.tone,
     post: q.get('post') !== '0', bloom: q.get('bloom') !== '0', glare: q.get('glare') !== '0',
-    shafts: q.get('shafts') !== '0', cloud: q.get('cloud') !== '0',
-    postdebug: ['depth', 'shafts', 'cloud'].includes(q.get('postdebug')) ? q.get('postdebug') : '', toe: toeOption(q.get('ptoe')) };
+    shafts: q.get('shafts') !== '0', cloud: q.get('cloud') !== '0', mist: q.get('mist') !== '0', cloudhigh: q.get('cloudhigh') !== '0',
+    postdebug: ['depth', 'shafts', 'cloud', 'mist', 'valley'].includes(q.get('postdebug')) ? q.get('postdebug') : '', toe: toeOption(q.get('ptoe')) };
 }
 // A downgrade latches for this owner lifetime: no allocation/probe oscillation.
 export function postRoute(quality, step, enabled, latched = false) {

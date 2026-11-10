@@ -117,7 +117,8 @@ test('private A/B: complete catalog shares per-type PBR, unchanged instances/col
   const make=()=>({...decodeHouses(JSON.parse(catalog),bin.buffer.slice(bin.byteOffset,bin.byteOffset+bin.byteLength)),kit:glb.buffer.slice(glb.byteOffset,glb.byteOffset+glb.byteLength)});
   const scenes=[new THREE.Scene(),new THREE.Scene()], fields=[],terrain={heightAt:()=>3};
   const {buildKamakuraHouses}=await loadHouseView();
-  const materialCalls=new Map(),textureCalls=new Map(),md=THREE.Material.prototype.dispose,td=THREE.Texture.prototype.dispose;
+  const materialCalls=new Map(),textureCalls=new Map(),materialAllocations=new Set(),md=THREE.Material.prototype.dispose,td=THREE.Texture.prototype.dispose,mv=THREE.Material.prototype.setValues;
+  THREE.Material.prototype.setValues=function(...args){if(this.isMeshStandardMaterial)materialAllocations.add(this);return mv.apply(this,args);};
   THREE.Material.prototype.dispose=function(){materialCalls.set(this,(materialCalls.get(this)||0)+1);md.call(this);};
   THREE.Texture.prototype.dispose=function(){textureCalls.set(this,(textureCalls.get(this)||0)+1);td.call(this);};
   try {
@@ -145,21 +146,23 @@ test('private A/B: complete catalog shares per-type PBR, unchanged instances/col
     assert.equal(activeMaterials.size,placedTypes);
     for(const f of fields){f.dispose();f.dispose();}
     assert([...materialCalls.values()].every(n=>n===1));assert([...textureCalls.values()].every(n=>n===1));assert.equal(textureCalls.size,2);
-    assert.equal(materialCalls.size,sourceCount*2+placedTypes);
+    assert.equal(materialCalls.size,materialAllocations.size);
+    assert([...materialAllocations].every(m=>materialCalls.get(m)===1),'every source and clone is disposed exactly once');
     t.diagnostic(JSON.stringify({activeTexturedMaterials:activeMaterials.size,loadedSourceMaterialsPerBuild:sourceCount,textureDisposals:textureCalls.size,allMaterialDisposalsOnce:true}));
-  } finally {for(const f of fields)f.dispose();THREE.Material.prototype.dispose=md;THREE.Texture.prototype.dispose=td;}
+  } finally {for(const f of fields)f.dispose();THREE.Material.prototype.dispose=md;THREE.Texture.prototype.dispose=td;THREE.Material.prototype.setValues=mv;}
 });
 test('partial setup failure disposes all sources, clones and atlas once', async () => {
   const {buildKamakuraHouses}=await loadHouseView(), houses=synthetic(), scene=new THREE.Scene();
   houses.kinds.set(1,{...houses.kinds.get(0),index:1,node:'missing'});houses.catalog.count_by_kind.missing=1;
-  const materialCalls=new Map(),textureCalls=new Map(),md=THREE.Material.prototype.dispose,td=THREE.Texture.prototype.dispose;
+  const materialCalls=new Map(),textureCalls=new Map(),materialAllocations=new Set(),md=THREE.Material.prototype.dispose,td=THREE.Texture.prototype.dispose,mv=THREE.Material.prototype.setValues;
+  THREE.Material.prototype.setValues=function(...args){if(this.isMeshStandardMaterial)materialAllocations.add(this);return mv.apply(this,args);};
   THREE.Material.prototype.dispose=function(){materialCalls.set(this,(materialCalls.get(this)||0)+1);md.call(this);};
   THREE.Texture.prototype.dispose=function(){textureCalls.set(this,(textureCalls.get(this)||0)+1);td.call(this);};
   try {
     await assert.rejects(buildKamakuraHouses(houses,{heightAt:()=>0},scene));
-    assert.equal(materialCalls.size,2);assert([...materialCalls.values()].every(n=>n===1));
+    assert.equal(materialCalls.size,materialAllocations.size);assert([...materialAllocations].every(m=>materialCalls.get(m)===1));
     assert.equal(textureCalls.size,2);assert([...textureCalls.values()].every(n=>n===1));assert.equal(scene.children.length,0);
-  } finally {THREE.Material.prototype.dispose=md;THREE.Texture.prototype.dispose=td;}
+  } finally {THREE.Material.prototype.dispose=md;THREE.Texture.prototype.dispose=td;THREE.Material.prototype.setValues=mv;}
 });
 test('9g3: warm linear palette, painted colors preserved, bounded reflectance and revised distance band', async t=>{
   const {HOUSE_PALETTE,housePreserveColor,houseBoardBoundary,HOUSE_DIMENSIONS}=await import('../dist/valley/kamakura-house-texture.js');

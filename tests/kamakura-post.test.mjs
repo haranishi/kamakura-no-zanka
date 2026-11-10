@@ -15,7 +15,7 @@ function stub(){
 test('post URL routes, one-way downgrade, pyramid edge sizes and memory',()=>{
   assert.equal(postOptions('?tone=bad').tone,'neutral');
   for(const tone of ['none','aces','neutral','agx'])assert.equal(postOptions('?tone='+tone).tone,tone);
-  assert.deepEqual(postOptions('?post=0&bloom=0&glare=0&tone=none'),{post:false,bloom:false,glare:false,tone:'none',toe:null,shafts:true,cloud:true,postdebug:''});
+  assert.deepEqual(postOptions('?post=0&bloom=0&glare=0&tone=none'),{post:false,bloom:false,glare:false,tone:'none',toe:null,shafts:true,cloud:true,mist:true,cloudhigh:true,postdebug:''});
   for(const step of [0,1])assert(postRoute('standard',step,true));
   for(const args of [['light',0,true],['standard',2,true],['standard',3,true],['standard',0,false],['standard',0,true,true]])assert(!postRoute(...args));
   assert.deepEqual(bloomSizes(3,1),[[1,1],[1,1],[1,1]]);

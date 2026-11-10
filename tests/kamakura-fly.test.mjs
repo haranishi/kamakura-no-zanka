@@ -72,10 +72,10 @@ test('shipped Three Node adapter: scene focus, hero visibility, far, chunk range
   const calls={},record=name=>(...args)=>calls[name]=args;const notices=[];
   const c=createKamakuraFlight({search:'',terrain:t,spawn:hero.pos,camera,hero,rig,chunks,houses:{update:record('houses')},trees:{update:record('trees')},stands:{update:record('stands')},water:{update:record('water')},atmosphere:{update:record('atmos')},hud:{setFlight:record('hud')},hint:x=>notices.push(x)});
   assert(hero.character.root.visible);assert.equal(camera.far,10000);assert.equal(chunks.distance,3300);
-  c.updateViews(1,.1);assert.equal(calls.houses[0],hero.pos);assert.equal(calls.atmos[2],hero.pos);
+  c.updateViews(1,.1);assert.equal(calls.houses[0],hero.pos);assert.equal(calls.atmos[2],hero.pos);assert.equal(calls.atmos[4],false);assert.equal(calls.atmos[5],t);
   c.action('F');assert(!hero.character.root.visible);assert.equal(camera.far,30000);assert.equal(chunks.distance,14000);
   c.step({forward:1,up:1,boost:true},1);const flightPos=camera.position.clone();const oldHero={...hero.pos};
-  c.updateViews(2,.1);assert.equal(calls.houses[0],camera.position);assert.equal(calls.trees[0],camera);assert.equal(calls.stands[0],camera);assert.equal(calls.atmos[2],camera.position);assert.equal(calls.water[0],2);assert.deepEqual(hero.pos,oldHero);
+  c.updateViews(2,.1);assert.equal(calls.houses[0],camera.position);assert.equal(calls.trees[0],camera);assert.equal(calls.stands[0],camera);assert.equal(calls.atmos[2],camera.position);assert.equal(calls.atmos[4],true);assert.equal(calls.atmos[5],t);assert.equal(calls.water[0],2);assert.deepEqual(hero.pos,oldHero);
   // Count actual geometry builds via normalAt samples on a fresh, all-coarse generation.
   chunks.dispose();const fresh=buildKamakuraChunks(t,scene,hero.pos);fresh.setFlying(true);
   let builds=0;const compute=THREE.BufferGeometry.prototype.computeBoundingSphere;

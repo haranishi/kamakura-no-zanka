@@ -19,11 +19,13 @@ function triangles(g) {
 }
 test('rivers strictly reject malformed catalog, counts, arrays, IDs and nonfinite or inverted water', () => {
   assert.equal(decodeRivers(catalog()).points, 81);
-  const mutations = [d=>d.schema='bad', d=>d.rivers.pop(), d=>d.rivers[0].width_m.pop(), d=>d.rivers[0].xy_m[0][0]=Infinity,
+  const mutations = [d=>d.schema='bad', d=>d.rivers.length=0, d=>d.rivers[0].width_m.pop(), d=>d.rivers[0].xy_m[0][0]=Infinity,
     d=>d.rivers[0].width_m[0]=0, d=>d.rivers[0].water_elev_m[0]=2, d=>d.rivers[0].bed_m[0]=NaN,
     d=>d.rivers[0].depth_m[0]=-1, d=>d.rivers[0].id=d.rivers[1].id, d=>d.rivers[0].name=42,
     d=>d.rivers[0].enters_sea='yes', d=>d.rivers[0].xy_m[0]=null];
   for (const mutate of mutations) { const d=catalog(); mutate(d); assert.throws(()=>decodeRivers(d)); }
+  // The count is whatever the catalogue holds; a caller that knows the expected count (the metadata) still gets a mismatch rejected.
+  const fewer=catalog(); fewer.rivers.pop(); assert.equal(decodeRivers(fewer).rivers.length, 26); assert.throws(()=>decodeRivers(fewer, 27));
 });
 test('ribbon width, north mapping, vscale, monotone metric UV and upward triangles in both directions', () => {
   for (const xy of [[[0,0],[10,0],[20,0]], [[0,20],[0,10],[0,0]], [[20,0],[10,0],[0,0]]]) {

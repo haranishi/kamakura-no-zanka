@@ -124,3 +124,5 @@ export function houseIntersects(box, a, b = a, radius = 0) {
   }
   return true;
 }
+// Public pure house rules, also consumed by the renderer and Node geometry checks.
+export { HOUSE_FAR, houseFarEnabled, houseFarShape, houseFarBrightness, houseFarVisible, houseFarMask, houseFarDistance } from './kamakura-house-far.js';

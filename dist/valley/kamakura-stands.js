@@ -1,5 +1,6 @@
 // Pure stand planning. Private placements are never persisted.
 import { prepareVeg, nearbyVeg, vegExclusions } from './kamakura-veg.js';
+import { canopyClumps, canopyEnabled } from './kamakura-canopy.js';
 export const standsEnabled = search => new URLSearchParams(search).get('stands') !== '0' && new URLSearchParams(search).get('trees') !== '0';
 export function standPolicy(quality = 'standard') {
   const light = quality === 'light';
@@ -66,7 +67,16 @@ export function prepareStands(items, terrain, options = {}, policy = standPolicy
       if (!grid.has(k)) grid.set(k, []); grid.get(k).push(item);
     }
   }
-  return { distant, grid, expandable, terrain, exclude: vegExclusions(terrain, options), policy };
+  let canopy = null;
+  if (options.preparedVeg && canopyEnabled(options.search || '')) {
+    canopy = canopyClumps(options.preparedVeg, { quality: policy.light ? 'light' : 'standard', existing: [...distant.values()].flat() });
+    for (const item of canopy.clumps) {
+      const k = `0/${Math.floor(item.x / 1000)},${Math.floor(item.z / 1000)}`;
+      if (!distant.has(k)) distant.set(k, []);
+      distant.get(k).push(item);
+    }
+  }
+  return { distant, grid, expandable, terrain, exclude: vegExclusions(terrain, options), policy, canopy };
 }
 export function planStandChunks(prepared, resident, pos) {
   const wanted = new Map();

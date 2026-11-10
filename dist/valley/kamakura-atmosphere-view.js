@@ -2,6 +2,7 @@
 import * as THREE from 'three';
 import { ATMOS, installFog, createAtmosphere } from './atmosphere.js';
 import { atmosphereOptions, atmospherePolicy, kamakuraAtmosphere, eveningEnabled } from './kamakura-atmosphere.js';
+import { FLIGHT_SHADOW, createFlightShadowState, flightShadowBox, flightShadowEnabled } from './kamakura-flight-shadow.js';
 import { contactShadowChunk, softShadowEnabled } from './kamakura-shadow.js';
 const FOG_CHUNKS = ['fog_pars_vertex', 'fog_vertex', 'fog_pars_fragment', 'fog_fragment'];
 
@@ -53,7 +54,14 @@ export function createKamakuraAtmosphere({ scene, renderer, search = '', quality
     xr: renderer.xr.enabled, toneMapping: renderer.toneMapping, autoClear: renderer.autoClear };
   let atmosphere = null, disposed = false, installed = false, notice = '';
   let policy = atmospherePolicy(quality, options.enabled);
-  const target = new THREE.Vector3();
+  const target = new THREE.Vector3(), forward = new THREE.Vector3();
+  const flightBox = createFlightShadowState(), sunArray = [0,0,0];
+  const flightEnabled = flightShadowEnabled(search), debug = new URLSearchParams(search).get('debug') === '1';
+  let usingFlightBox = false, adaptPolicy = {};
+  const softAvailable = softShadowEnabled(search,quality);
+  const air = { flying: false, shadow: flightBox, mist: { ready:false,enabled:false,strength:0,cells:0 }, cloud: { scale:1,strength:0,height:0 } };
+  const debugAir = () => air;
+  if (debug) globalThis.__kzAir = debugAir;
   function release() {
     atmosphere?.sun.shadow.dispose();
     for (const object of [...scene.children]) if (!before.has(object)) {
@@ -100,23 +108,58 @@ export function createKamakuraAtmosphere({ scene, renderer, search = '', quality
   }
   // Only objects created here belong to this controller (later scene additions do not).
   const owned = scene.children.filter(o => !before.has(o));
+  const shadow = atmosphere?.sun.shadow, shadowCamera = shadow?.camera;
+  const walking = shadow ? { left:shadowCamera.left,right:shadowCamera.right,top:shadowCamera.top,bottom:shadowCamera.bottom,
+    near:shadowCamera.near,far:shadowCamera.far,bias:shadow.bias,normalBias:shadow.normalBias } : null;
+  function restoreWalking() {
+    if (!usingFlightBox) return;
+    shadowCamera.left=walking.left; shadowCamera.right=walking.right; shadowCamera.top=walking.top; shadowCamera.bottom=walking.bottom;
+    shadowCamera.near=walking.near; shadowCamera.far=walking.far; shadow.bias=walking.bias; shadow.normalBias=walking.normalBias;
+    shadowCamera.updateProjectionMatrix(); usingFlightBox=false; flightBox.size=0;
+  }
   return { atmosphere, policy, notice, sunDir,
     setAdapt(next) {
       if (disposed || !atmosphere) return;
+      adaptPolicy = next;
       atmosphere.sun.castShadow = next.shadows;
-      atmosphere.sun.shadow.radius = shadowPatched && softShadowEnabled(search, quality, next) ? 2 : 1;
+      atmosphere.sun.shadow.radius = shadowPatched && (!usingFlightBox || flightBox.soft) && softShadowEnabled(search, quality, next) ? 2 : 1;
     },
-    update(camera, dt, hero, yaw) {
-      if (disposed || !atmosphere) return;
+    update(camera, dt, hero, yaw, flying = false, terrain = null) {
+      if (disposed) return;
+      air.flying = flying;
+      if (!atmosphere) return;
       atmosphere.update(camera, dt);
-      target.set(hero.x - Math.sin(yaw) * 8, hero.y, hero.z - Math.cos(yaw) * 8);
-      atmosphere.follow(target);
+      if (flying && flightEnabled && terrain && quality !== 'light' && atmosphere.sun.castShadow) {
+        camera.getWorldDirection(forward);
+        sunArray[0]=sunDir.x; sunArray[1]=sunDir.y; sunArray[2]=sunDir.z;
+        flightShadowBox(camera.position,forward,terrain,sunArray,shadow.mapSize.x,flightBox);
+        shadowCamera.left=shadowCamera.bottom=-flightBox.size/2;
+        shadowCamera.right=shadowCamera.top=flightBox.size/2;
+        shadowCamera.near=flightBox.near; shadowCamera.far=flightBox.far;
+        shadow.bias=flightBox.bias; shadow.normalBias=flightBox.normalBias;
+        shadowCamera.updateProjectionMatrix();
+        atmosphere.sun.target.position.fromArray(flightBox.snapped);
+        atmosphere.sun.position.copy(atmosphere.sun.target.position).addScaledVector(sunDir,flightBox.sunDistance);
+        atmosphere.sun.target.updateMatrixWorld(); usingFlightBox=true;
+      } else {
+        restoreWalking();
+        target.set(hero.x - Math.sin(yaw) * 8, hero.y, hero.z - Math.cos(yaw) * 8);
+        atmosphere.follow(target);
+        flightBox.size=shadowCamera.right-shadowCamera.left;
+        flightBox.texel=flightBox.size/shadow.mapSize.x;
+        flightBox.centerDistance=camera.position.distanceTo(atmosphere.sun.target.position);
+        flightBox.bias=shadow.bias;
+      }
+      shadow.radius=shadowPatched && (!usingFlightBox || flightBox.soft) && softAvailable && (adaptPolicy.scale ?? 1) > .7 && adaptPolicy.shadows !== false ? 2 : 1;
+      flightBox.soft=shadow.radius>1.5;
+      renderer.shadowMap.type=usingFlightBox && flightBox.size>FLIGHT_SHADOW.softLimit ? THREE.PCFShadowMap : THREE.PCFSoftShadowMap;
     },
     dispose() {
       if (disposed) return; disposed = true;
       // Protect unrelated objects which were added after initialization.
       for (const object of scene.children) if (!owned.includes(object)) before.add(object);
       release(); atmosphere = null;
+      if (debug && globalThis.__kzAir === debugAir) delete globalThis.__kzAir;
     },
   };
 }

@@ -1,9 +1,10 @@
+import { FLIGHT_SHADOW } from './kamakura-flight-shadow.js';
 // W2c-12 light7: fixed ~2cm PCFSoft edge -> contact-hardening 1.6–14cm filter.
 // Three r180 PCFSoft ignores radius; this owned chunk uses radius=2 as its enable bit.
 // Camera span/depth are the existing Kamakura sun's 92m / (260-1)m.
-export function softShadowEnabled(search = '', quality = 'standard', policy = {}) {
+export function softShadowEnabled(search = '', quality = 'standard', policy = {}, span = 92) {
   return new URLSearchParams(search).get('light7') !== '0' && quality !== 'light' &&
-    (policy.scale ?? 1) > .7 && policy.shadows !== false;
+    span <= FLIGHT_SHADOW.softLimit && (policy.scale ?? 1) > .7 && policy.shadows !== false;
 }
 // Parent tuning (real Chrome): the first values (cap .15 m radius) blurred the leaf-gap dapple away; the sun's angular size gives ~9 cm at a 10 m caster, so cap at .07 m.
 export function shadowRadiusMeters(gap) { return Math.min(.07, .008 + Math.max(0, gap)*.0065); }

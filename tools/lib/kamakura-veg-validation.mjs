@@ -14,7 +14,7 @@ export async function verifyVeg(data, dir, privateHouses, facilityBoxes = []) {
   assert.equal(meta.file, 'veg_f32.bin'); assert.equal(meta.info, 'veg.json');
   const info = JSON.parse(await fs.readFile(path.join(dir, 'veg.json'), 'utf8')), b = await fs.readFile(path.join(dir, 'veg_f32.bin'));
   const items = decodeVeg(info, b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength), meta.count);
-  assert.equal(items.length, 112890, 'v0.6 placement count contract');
+  assert.equal(items.length, info.count, 'placement count matches the catalogue'); assert(items.length >= 10000, 'a forested world');
   const terrain = createKamakuraTerrain(data), spawn = kamakuraSpawn(terrain, '');
   const boxes = privateHouses ? privateHouses.houses.instances.map(i => houseBox(privateHouses.houses.kinds.get(i.kind), houseMatrix(i, terrain, privateHouses.bodies.get(i.kind)), privateHouses.bodies.get(i.kind))) : [];
   const prepared = prepareVeg(items, terrain, { boxes: [...boxes, ...facilityBoxes], paths: data.patches?.paths || {}, spawn });

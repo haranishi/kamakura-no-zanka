@@ -11,18 +11,24 @@
 //   dispose()        release everything it created, exactly once
 // A layer that fails to build, or throws while running, is switched off and reported once; the walk goes on without it.
 // &layers=0 skips every layer (the pre-W2c-16 world).
+import { createKamakuraBackdrop } from './kamakura-backdrop-view.js';
 import { createKamakuraDrift } from './kamakura-drift-view.js';
 import { createKamakuraFauna } from './kamakura-fauna-view.js';
+import { createKamakuraHarbor } from './kamakura-harbor-view.js';
 import { createKamakuraFields } from './kamakura-fields-view.js';
 import { createKamakuraPeople } from './kamakura-people-view.js';
+import { createKamakuraAvenue } from './kamakura-avenue-view.js';
 import { createKamakuraProps } from './kamakura-props-view.js';
 import { createKamakuraHeroLife } from './kamakura-hero-life-view.js';
 import { createKamakuraSoundscape } from './kamakura-soundscape-view.js';
 
 export const KAMAKURA_LAYERS = Object.freeze([
+  ['backdrop', createKamakuraBackdrop],
   ['drift', createKamakuraDrift],
   ['fauna', createKamakuraFauna],
   ['props', createKamakuraProps],
+  ['avenue', createKamakuraAvenue],
+  ['harbor', createKamakuraHarbor],
   ['fields', createKamakuraFields],
   ['people', createKamakuraPeople],
   ['heroLife', createKamakuraHeroLife],

@@ -1,9 +1,11 @@
 // Pure river decoding and immutable ribbon construction. Coordinates: east/up/south.
 export const waterEnabled = search => new URLSearchParams(search).get('water') !== '0';
 export const riverPolicy = (quality = 'standard') => ({ chunkLength: 512, maxDistance: quality === 'light' ? 2000 : 3500 });
-export function decodeRivers(info, expectedCount = 27) {
+// The number of rivers is whatever the catalogue holds (it was pinned to the first data set's 27; a reworked river set may differ).
+export const RIVER_LIMIT = 200;
+export function decodeRivers(info, expectedCount = info?.rivers?.length) {
   const fail = () => { throw new Error('鎌倉の川データが不正です'); };
-  if (info?.schema !== 'kz-rivers/0.1' || !Array.isArray(info.rivers) || info.rivers.length !== expectedCount) fail();
+  if (info?.schema !== 'kz-rivers/0.1' || !Array.isArray(info.rivers) || info.rivers.length !== expectedCount || info.rivers.length < 1 || info.rivers.length > RIVER_LIMIT) fail();
   const ids = new Set(); let points = 0;
   for (const r of info.rivers) {
     const n = r?.xy_m?.length;

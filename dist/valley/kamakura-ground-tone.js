@@ -1,3 +1,4 @@
+import { groundFarEnabled, groundFarToneGLSL, installGroundFar } from './kamakura-ground-far.js';
 import { kamakuraPaths } from './kamakura-roads.js';
 import { GROUND8_GLSL } from './kamakura-ground-mosaic.js';
 import { SLOPE7_GLSL } from './kamakura-ground-slope.js';
@@ -18,7 +19,7 @@ export function installGroundTone(THREE,material,data,owner,{quality='standard',
   // W2c-12: legacy exports without route data retain their original shader and resources.
   const ground7=new URLSearchParams(search).get('ground7')!=='0' && kamakuraPaths(data)!=null;
   const ground8=new URLSearchParams(search).get('ground8')!=='0' && ground7;
-  const atlas=ground6||ground7;
+  const atlas=ground6||ground7||groundFarEnabled(search);
   const r3Enabled=new URLSearchParams(search).get('gyard')!=='0';
   const {width:w,height:h}=data.meta.grid;
   const grid=toneWeightGrid(data),count=grid.width*grid.height;
@@ -160,6 +161,7 @@ vec3 slope7LegacyTone(vec3 fallback,vec3 world,float normalY,float dist){
   return slope7Forest(result,world.xz,dist);
 }`;
   }
+  if(groundFarEnabled(search))toneGLSL=groundFarToneGLSL(toneGLSL);
   material.onBeforeCompile=shader=>{
     prior(shader);Object.assign(shader.uniforms,uniforms);
     shader.vertexShader=shader.vertexShader.replace('#include <common>','#include <common>\nvarying vec3 vGroundPhotoView;')
@@ -189,7 +191,9 @@ vec3 slope7LegacyTone(vec3 fallback,vec3 world,float normalY,float dist){
         }
         #include <opaque_fragment>`);
     if(slope7&&!atlas)shader.fragmentShader=shader.fragmentShader.replace('diffuseColor.rgb=groundTone(', 'diffuseColor.rgb=slope7LegacyTone(');
-    if(slope7)shader.fragmentShader=shader.fragmentShader.replace('#include <opaque_fragment>',`
+    // W2c-18: with the far ground on, the ground no longer adds its own haze. Far houses and tree clumps stand on it now,
+    // and only the scene fog (which they share) may fade them; a ground-only haze left brown houses on a pale blue plain.
+    if(slope7&&!groundFarEnabled(search))shader.fragmentShader=shader.fragmentShader.replace('#include <opaque_fragment>',`
       #ifdef USE_FOG
       outgoingLight=slope7Haze(outgoingLight,fogColor,distance(vGroundWorld,cameraPosition));
       #endif
@@ -216,6 +220,7 @@ vec3 slope7LegacyTone(vec3 fallback,vec3 world,float normalY,float dist){
     }
     if(ground7){const path=installGroundPath(THREE,data,owner,contact,quality);Object.assign(uniforms,path.uniforms);}
   }
+  if(groundFarEnabled(search))installGroundFar(THREE,material,data,owner,{quality,search});
 }
 
 export const TONE_FADE_MS=1200;

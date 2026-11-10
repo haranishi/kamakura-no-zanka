@@ -46,7 +46,7 @@ export function createKamakuraFlight({ search, terrain, spawn, camera, rig, hero
       const pos = state.mode === 'walk' ? hero.pos : camera.position, yaw = state.mode === 'walk' ? rig.yaw : state.pose.yaw;
       chunks.update(pos); houses?.update(pos); trees?.update(camera); stands?.update(camera);
       water?.update(time); // Rivers are static ribbons; camera frustum/far handles culling.
-      atmosphere.update(camera, dt, pos, yaw);
+      atmosphere.update(camera, dt, pos, yaw, state.mode !== 'walk', terrain);
     },
     dispose() { if (disposed) return; disposed = true; state = { ...state, mode: 'walk' }; apply(); }
   };

@@ -107,7 +107,7 @@ test('optional facility loading fixes URLs, preserves old versions and handles u
   for(const version of [1,2,3,4,5,6,7]){f.meta.schema=`kz-world-web/0.${version}`;assert(!(await loadKamakura(fetcher)).facilities);}
   assert(facilitiesEnabled(''));assert(!facilitiesEnabled('?facilities=0'));assert(facilitiesEnabled('?facilities=1'));
   const world=await fs.readFile(new URL('../dist/valley/world-kamakura.js',import.meta.url),'utf8');
-  assert(world.includes('facilitiesEnabled(search) ? scene : new THREE.Scene()'));assert(world.includes('facilities?.update(flight.pos)'));
+  assert(world.includes('facilitiesEnabled(search) ? scene : new THREE.Scene()'));assert(world.includes('facilities?.update(flight.pos, flight.active)'));
 });
 test('the causeway is decoded and checked but held back from the scene unless ?causeway=1',async()=>{
   assert.equal(causewayShown(''),false);assert.equal(causewayShown('?causeway=1'),true);assert.equal(causewayShown('?causeway=0'),false);
@@ -217,4 +217,29 @@ test('9g3 facility roles use mesh hints with anonymous materials; unknown torii 
     assert.notEqual(wall,torii); // One source, distinct known/unknown roles.
     assert(wall.color.equals(torii.color));
   } finally {view.dispose();}
+});
+
+test('W2c-18 flight ranges include altitude, preserve walking exactly, and facfar=0 restores flight culling',async()=>{
+  const nodes=[node('hall'),node('gate'),node('fence')],terrain={heightAt:()=>0},scene=new THREE.Scene();
+  const {buildKamakuraFacilities}=await loadFacilityView();
+  for(const off of [false,true]){
+    const view=await buildKamakuraFacilities({...decodeFacilities(catalog(nodes)),kit:kit(nodes)},terrain,scene,'standard',{search:off?'?facfar=0':''});
+    for(const [part,range] of [['hall',8000],['romon',8000],['buddha',8000],['fence',2500],['gate',4000],['torii',4000],['kairo',4000]]){
+      near(facilityRange(node(part),'standard',0,true),range);
+      near(facilityRange(node(part),'light',3,true),range*.36);
+    }
+    // A different flying position uses each facility's expanded bound distance, including altitude.
+    view.update({x:2000,y:100,z:20},false);
+    assert.deepEqual(view.records.map(r=>r.meshes[0].visible),[true,false,false]);
+    view.update({x:2000,y:100,z:20},true);
+    assert.deepEqual(view.records.map(r=>r.meshes[0].visible),off?[true,false,false]:[true,true,true]);
+    assert.equal(scene.userData.kzHouseFarFacilities.flying,true);
+    assert.equal(scene.userData.kzHouseFarFacilities.shown,off?1:3);
+    view.update({x:10,y:9000,z:20},true);
+    assert(view.records.every(r=>r.meshes[0].visible===off),'disabled flag restores legacy horizontal-only rule');
+    view.dispose();assert.equal(scene.userData.kzHouseFarFacilities,undefined);
+  }
+  const box={x:0,z:0,w:20,d:20,rotY:0,minY:0,maxY:10};
+  assert(facilityVisible(node('hall'),box,{x:0,z:0,y:8010},'standard',0,true));
+  assert(!facilityVisible(node('hall'),box,{x:0,z:0,y:8011},'standard',0,true));
 });

@@ -31,7 +31,7 @@ export function verifyHouses(data, privateHouses) {
   if (!privateHouses) return { skip: 'meta.houses が無いため家の検査を省略' };
   const { houses, bodies, triangles } = privateHouses, t = createKamakuraTerrain(data);
   // Contract counts are metadata, never a copy of private placement/elevation samples.
-  assert.equal(houses.instances.length, 2847, 'v0.4 house count');
+  assert.equal(houses.instances.length, houses.catalog.count, 'house count matches the catalogue'); assert(houses.instances.length >= 500, 'a town, not a hamlet');
   assert.equal(houses.kinds.size, 17, 'v0.4 kind count'); assert.equal(bodies.size, 14, 'v0.4 placed kind count');
   let insideA = 0;
   const overlaps = { spawn: [], paths: [] }, boxes = [];

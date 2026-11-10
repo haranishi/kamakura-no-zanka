@@ -1,3 +1,4 @@
+import { MIST_GLSL } from './kamakura-mist.js';
 // R10: pure light policy and matching CPU/GLSL cloud field. No world data is retained.
 export const LIGHT_TIMES = Object.freeze({
   noon: Object.freeze({ shafts: .15, cloud: .30 }),
@@ -10,6 +11,13 @@ export const LIGHT_TIMES = Object.freeze({
 export const CLOUD = Object.freeze({ height: 700, scale: 520, speed: 10, low: .46, high: .80, gain: 1, octaves: Object.freeze([.62, .28, .10]) });
 // How strongly the shafts are added (linear light, before the tone map), their cap, and how wide they reach around the sun.
 export const SHAFT = Object.freeze({ gain: 1.05, cap: .6, reach: .45, sky: .4, source: .35 });
+// High-altitude multiplier: metres above local terrain, smooth transition.
+export const CLOUD_HIGH = Object.freeze({ low:250, high:750, scale:3, strength:.45 });
+export function cloudHigh(height, enabled, out) {
+  const t=enabled ? smooth(CLOUD_HIGH.low,CLOUD_HIGH.high,height) : 0;
+  out.height=height; out.scale=1+(CLOUD_HIGH.scale-1)*t; out.strength=(1-t)+CLOUD_HIGH.strength*t;
+  return out;
+}
 export const SHAFT_TAPS = 24;
 const clamp = x => Math.max(0, Math.min(1, x));
 const smooth = (a, b, x) => { const t = clamp((x-a)/(b-a)); return t*t*(3-2*t); };
@@ -97,19 +105,24 @@ export const SHAFT_SHADERS = {
 };
 // Keep the disabled final program byte-for-byte identical to the shipped R9 program.
 export function lightFinalShader(legacy, options) {
-  if (!options.shafts && !options.cloud && !options.postdebug) return legacy;
-  const depth=options.shafts || options.cloud;
+  if (!options.shafts && !options.cloud && !options.mist && !options.postdebug) return legacy;
+  if (!legacy.includes('void main(){') || !legacy.includes('if(bloomStrength>0.)')) throw Error('Post composite shader boundary missing');
+  const depth=options.shafts || options.cloud || options.mist;
   const mode=options.postdebug;
-  const declarations=(depth ? DEPTH_GLSL : '')+(options.cloud ? CLOUD_GLSL : '')+
+  const declarations=(depth ? DEPTH_GLSL : '')+(options.cloud ? (options.cloudhigh ? CLOUD_GLSL.replace('cloudTime, cloudStrength;', 'cloudTime, cloudStrength, cloudScale;').replace('/'+CLOUD.scale.toFixed(1)+';', '/('+CLOUD.scale.toFixed(1)+'*cloudScale);') : CLOUD_GLSL) : '')+(options.mist ? MIST_GLSL : '')+
     (options.shafts ? '\nuniform sampler2D shaftTex; uniform float shaftStrength;\n' : '');
   let start='';
   if(depth) start+=`float depthValue=texture2D(depthTex,vUv).x; bool skyPixel=kzSky(depthValue);
     vec3 pointView=kzViewPosition(vUv,depthValue);`;
   if(mode==='depth') start+=depth ? 'gl_FragColor=vec4(vec3(skyPixel?1.:clamp(length(pointView)/viewFar,0.,1.)),1.); return;' : 'gl_FragColor=vec4(0.,0.,0.,1.); return;';
   if(mode==='shafts') start+=options.shafts ? 'gl_FragColor=vec4(vec3(shaftStrength>0.?texture2D(shaftTex,vUv).r*shaftStrength:0.),1.); return;' : 'gl_FragColor=vec4(0.,0.,0.,1.); return;';
+  if(mode==='valley') start+=options.mist ? 'gl_FragColor=vec4(vec3(skyPixel?0.:kzValley(kzWorldPosition(pointView).xz).r),1.); return;' : 'gl_FragColor=vec4(0.,0.,0.,1.); return;';
   const cloud=options.cloud ? 'float cloudAmount=skyPixel?0.:kzCloudAmount(kzWorldPosition(pointView),c);' : '';
+  const mist=options.mist ? 'float mistAmount=skyPixel?0.:kzMistAmount(kzWorldPosition(pointView));' : '';
   const effect=cloud+(mode==='cloud' ? `gl_FragColor=vec4(vec3(${options.cloud ? '1.-cloudAmount' : '1.'}),1.); return;` : '')+
     (options.cloud ? 'c*=vec3(1.-cloudAmount*1.03,1.-cloudAmount,1.-cloudAmount*.82);' : '')+
+    mist+(mode==='mist' ? `gl_FragColor=vec4(vec3(${options.mist ? 'mistAmount' : '0.'}),1.); return;` : '')+
+    (options.mist ? 'if(mistAmount>0.) c=mix(c,kzMistColor(kzWorldPosition(pointView)),mistAmount);' : '')+
     (options.shafts ? `vec2 rayDelta=(vUv-sunUV)*vec2(aspect,1.);
       if(shaftStrength>0.) c+=sunColor*min(${SHAFT.cap.toFixed(2)},texture2D(shaftTex,vUv).r*shaftStrength*${SHAFT.gain.toFixed(2)})*exp(-dot(rayDelta,rayDelta)/${SHAFT.reach.toFixed(2)})*(skyPixel?${SHAFT.sky.toFixed(2)}:1.);` : '');
   return declarations+legacy.replace('void main(){','void main(){'+start)
