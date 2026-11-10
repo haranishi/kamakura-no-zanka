@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-10T11:03:20.883Z",
+  "generatedAt": "2026-11-10T11:05:29.812Z",
   "scope": "Source, assets and verification artifacts; excludes this manifest, Git metadata, ignored files and private runtime data",
   "files": [
     {
@@ -475,8 +475,8 @@
     },
     {
       "path": ".kiro/specs/world-map/tasks-web.md",
-      "size": 58138,
-      "sha256": "ce447c48bedf58887a3135e0a604624a68480d8e66642d5b184afdc2318e4e1c"
+      "size": 58174,
+      "sha256": "07de1e7ebf00a00077eb68fafea296864372c350e54ac4069f6ed6787af0a1f1"
     },
     {
       "path": ".kiro/specs/world-map/tasks.md",
@@ -630,8 +630,8 @@
     },
     {
       "path": ".kiro/specs/world-map/w2c-16-moves-validation.md",
-      "size": 7888,
-      "sha256": "1ca6e6041e5e856eabd500ad13f1a1d0aaf8351cc0b316b01e7f60a49e7c837d"
+      "size": 8005,
+      "sha256": "b7315a0023a8255f74849d121713b47bb5f6d969bc970c779379a59137c95d07"
     },
     {
       "path": ".kiro/specs/world-map/w2c-16-props-validation.md",
