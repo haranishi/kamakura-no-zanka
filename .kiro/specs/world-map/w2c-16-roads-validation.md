@@ -57,7 +57,7 @@ macOS、Node v24.22.1。比較元は作業開始時のcommit `0269fb4`。
 全試験は次の指定で実行した。v9・v10は読み取りのみ。
 `NODE_OPTIONS=--max-old-space-size=1536 timeout 600 npm test`
 私有世界ではこのコマンドに `KZ_WORLD_DIR` を付けた。
-対象は `world-proto/craft/export_web_w2c_v9` と `world-proto/craft/export_web_w2c_v10`。
+対象は、道のデータが無い版と、ある版の 2 つ。
 
 | 検査 | 開始時 | 変更後 |
 |---|---|---|

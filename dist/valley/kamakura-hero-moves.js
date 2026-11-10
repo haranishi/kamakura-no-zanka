@@ -21,10 +21,12 @@ export function createKamakuraHeroMoves({ game: g, hero, input, flight, search =
   install(g, 'hitStop', stub('hitStop'));
   install(g, 'rig', { kick: stub('rig.kick'), punchFov: stub('rig.punchFov') });
   let paused = false, flying = !!flight?.active, disposed = false, resetting = false, heavy = false, time = 0;
+  // On-screen buttons (fingers have no left click or space bar): each press is read once by the next update.
+  let tapCut = false, tapDodge = false;
   const filtered = {
     down: code => !paused && !flying && input.down(code),
-    wasPressed: code => !paused && !flying && ((code === 'KeyF' && (heavy || input.wasPressed(code))) || (code === 'Space' && input.wasPressed(code))),
-    mouseWasPressed: button => !paused && !flying && button === 0 && input.mouseWasPressed(button),
+    wasPressed: code => !paused && !flying && ((code === 'KeyF' && (heavy || input.wasPressed(code))) || (code === 'Space' && (tapDodge || input.wasPressed(code)))),
+    mouseWasPressed: button => !paused && !flying && button === 0 && (tapCut || input.mouseWasPressed(button)),
     mouseDown: button => !paused && !flying && button === 2 && input.mouseDown(button),
   };
   const ctl = { input: filtered, axis: null, moveYaw: 0, talking: false, frozen: false };
@@ -34,7 +36,7 @@ export function createKamakuraHeroMoves({ game: g, hero, input, flight, search =
     try {
       hero.reset(hero.pos.x, hero.pos.z, hero.yaw);
       hero.foe = null; hero.ctl = null; hero.character.locomote(0, 'relaxed');
-      trails.clear(); heavy = false;
+      trails.clear(); heavy = false; tapCut = tapDodge = false;
     } finally { resetting = false; }
   }
   const place = hero.place;
@@ -57,7 +59,13 @@ export function createKamakuraHeroMoves({ game: g, hero, input, flight, search =
       if (disposed || paused || flying) return;
       ctl.axis = axis; ctl.moveYaw = moveYaw;
       time += dt;
-      hero.update(dt, ctl); heavy = false;
+      hero.update(dt, ctl); heavy = false; tapCut = tapDodge = false;
+    },
+    // 'cut' or 'dodge' from an on-screen button. Ignored while paused or flying, like the keys.
+    press(kind) {
+      if (disposed || paused || flying || (kind !== 'cut' && kind !== 'dodge')) return false;
+      if (kind === 'cut') tapCut = true; else tapDodge = true;
+      return true;
     },
     // Called after finishPose: the sword holder must include legs, sword IK and grip.
     afterPose(camera) {

@@ -32,7 +32,8 @@ export function driftAmounts(habitat, timeOfDay, out = {}) {
   const land = 1 - Math.max(clamp(habitat.sand || 0), clamp(habitat.shore || 0));
   out.leaf = clamp(.85 * forest + .15 * (habitat.town || 0) + .2 * (habitat.temple || 0) + .22 * meadow) * land;
   out.petal = clamp(.9 * meadow + .6 * (habitat.temple || 0) + .12 * (habitat.town || 0)) * (1 - forest * .97) * land;
-  out.dust = clamp((.3 + .6 * meadow + .3 * (habitat.bare || 0)) * (1 - forest * .7)
+  // Blind critique of stills (R10): evenly spread bright motes read as snow or dust over a meadow. A third fewer.
+  out.dust = clamp((.2 + .4 * meadow + .2 * (habitat.bare || 0)) * (1 - forest * .7)
     * (timeOfDay === 'morning' || timeOfDay === 'evening' ? 1.3 : 1)) * land;
   out.firefly = timeOfDay === 'evening' ? clamp(.85 * (habitat.river || 0) + .65 * (habitat.paddy || 0)) * land : 0;
   return out;

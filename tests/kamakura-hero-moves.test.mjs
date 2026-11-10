@@ -219,3 +219,24 @@ test('world seam preserves beforeHero / split pose / legacy branch and samples t
   assert.match(s, /moves\?\.setPaused\(on\)/); assert.match(s, /moves\?\.setFlying\(flight.active\)/);
   assert(s.indexOf('moves?.dispose()') < s.indexOf('hero?.remove()'));
 });
+
+test('on-screen buttons: a press of cut or dodge is read once by the next update, and ignored while paused or flying', () => {
+  configureLoco('');
+  const f = fixture();
+  try {
+    assert.equal(f.moves.press('cut'), true); f.step();
+    assert.equal(f.hero.fighter.state, 'attack'); assert.equal(f.hero.fighter.move.id, 'light1'); assert(f.hero.drawn);
+    f.frames(200); assert.equal(f.hero.fighter.state, 'idle');             // one press, one cut: it does not repeat
+    assert.equal(f.moves.press('dodge'), true); f.step();
+    assert.notEqual(f.hero.fighter.state, 'idle'); const after = f.hero.fighter.state;
+    f.frames(200); assert.equal(f.hero.fighter.state, 'idle'); assert.notEqual(after, 'attack');
+    assert.equal(f.moves.press('heavy'), false); assert.equal(f.moves.press(''), false);   // only the two buttons exist
+    f.moves.setPaused(true); assert.equal(f.moves.press('cut'), false); f.moves.setPaused(false);
+    f.step(); assert.equal(f.hero.fighter.state, 'idle');
+    f.flight.active = true; f.step(); assert.equal(f.moves.press('cut'), false);
+    f.flight.active = false; f.step(); f.step(); assert.equal(f.hero.fighter.state, 'idle');
+    // A press made just before a pause is dropped with the pause, not played on resume.
+    assert.equal(f.moves.press('cut'), true); f.moves.setPaused(true); f.moves.setPaused(false); f.step();
+    assert.equal(f.hero.fighter.state, 'idle');
+  } finally { f.close(); }
+});

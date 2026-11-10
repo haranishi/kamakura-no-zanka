@@ -24,7 +24,9 @@ export async function runSmoke({base=process.env.GL_SMOKE_URL||'http://127.0.0.1
       child.stderr.on('data',b=>{stderr=(stderr+b).slice(-16000);});
       const work=async()=>{
         let target;
-        for(let i=0;i<100;i++){
+        // A shared CI runner can take well over ten seconds to open the debugging port (two of eight runs on 2026-11-10 failed here
+        // with nothing rendered). Wait up to a minute; a Chrome that exits, and the run deadline, still end the wait early.
+        for(let i=0;i<600;i++){
           if(launchError())throw launchError();if(child.exitCode!==null)throw Error('Chrome exited before CDP was ready');
           try{const r=await fetch(`http://127.0.0.1:${port}/json/list`,{signal:AbortSignal.timeout(1000)});target=(await r.json()).find(t=>t.type==='page');if(target)break;}catch{}
           await pause(100);

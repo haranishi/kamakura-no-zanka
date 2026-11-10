@@ -6,8 +6,10 @@ import { createHeroLife, stepHeroLife, createClothChain, stepCloth } from './kam
 // after the parent checks the animated model. No forehead band until that check.
 export const HERO_CLOTH = Object.freeze({
   // Parent (real Chrome): at y .045 the tails left the nape; raised to the tie of the topknot so they read as its cords.
-  band: Object.freeze({ x: 0, y: .088, z: -.066, separation: .018, length: .46, width: .030 }),
-  sash: Object.freeze({ x: .105, y: .02, z: -.077, separation: .021, length: .30, width: .030 }),
+  // Blind critique of stills (R10): 3 cm pale cords read as a strap across the back, even as a display fault. They are cords now:
+  // half as wide, a little shorter, and a duller colour than the collar.
+  band: Object.freeze({ x: 0, y: .088, z: -.066, separation: .018, length: .38, width: .016 }),
+  sash: Object.freeze({ x: .105, y: .02, z: -.077, separation: .021, length: .30, width: .022 }),
   head: Object.freeze({ y: .042, radius: .074 }), torsoRadius: .087, knotWidth: .024, knotHeight: .016,
 });
 const RAD = Math.PI / 180, SHARE = [.3, .35, .35];
@@ -49,7 +51,7 @@ async function buildHeroLife(context, { reducedMotion = globalThis.matchMedia?.(
     geometry = new THREE.BufferGeometry();
     geometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3).setUsage(THREE.DynamicDrawUsage));
     geometry.setAttribute('normal', new THREE.BufferAttribute(normals, 3).setUsage(THREE.DynamicDrawUsage)); geometry.setIndex(indices);
-    material = new THREE.MeshLambertMaterial({ color: 0xcfc6b0, side: THREE.DoubleSide });
+    material = new THREE.MeshLambertMaterial({ color: 0x9a8f78, side: THREE.DoubleSide });
     mesh = new THREE.Mesh(geometry, material); mesh.name = 'kamakura-hero-cloth';
     mesh.receiveShadow = true; mesh.castShadow = false; mesh.frustumCulled = false; mesh.visible = false; scene.add(mesh);
     if (params.get('herodebug') === '1') {

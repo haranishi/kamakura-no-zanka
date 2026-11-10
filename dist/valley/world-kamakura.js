@@ -183,6 +183,8 @@ export async function bootKamakura(data, search) {
     flight = createKamakuraFlight({ search, terrain: t, spawn, camera, rig, hero, chunks, houses, trees, stands, water, atmosphere, hud,
       hint: text => g.hud.hint('flight', text, 2200) });
     moves = createKamakuraHeroMoves({ game: g, hero, input, flight, search });
+    hud.setMoves(!!moves);
+    for (const [button, kind] of [[hud.cut, 'cut'], [hud.dodge, 'dodge']]) button.addEventListener('pointerdown', e => { e.preventDefault(); moves?.press(kind); }, { signal: events.signal });
     bindKamakuraFlight({ flight, input, hud, element: renderer.domElement, paused: () => paused, signal: events.signal });
     // W2c-16: drift, wildlife, props, hero life and soundscape. A layer that fails is switched off inside; the walk never depends on one.
     layers = await createKamakuraLayers({ scene, camera, renderer, search, quality, data, terrain: t, game: g, colliders: g.col, hero, rig, input, keys: base,
