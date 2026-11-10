@@ -1,3 +1,5 @@
+import { kamakuraPaths } from './kamakura-roads.js';
+import { updateKamakuraRoadPaths } from './kamakura-data.js';
 import { groundPathFor } from './kamakura-ground-path.js';
 import { groundContactFor } from './kamakura-ground-contact.js';
 import { buildKamakuraSea } from './kamakura-sea-view.js';
@@ -122,11 +124,11 @@ export async function bootKamakura(data, search) {
     if (data.veg && treesEnabled(search)) {
       try {
         // House exclusions also apply when the houses are hidden for comparison.
-        const prepared = prepareVeg(data.veg, t, { boxes: [...houseExclusions, ...facilityExclusions], paths: data.patches?.paths || {}, spawn });
+        const prepared = prepareVeg(data.veg, t, { boxes: [...houseExclusions, ...facilityExclusions], paths: kamakuraPaths(data) || {}, spawn });
         trees = buildKamakuraVeg(prepared, { wind, sunDir: atmosphere.sunDir, quality, renderer, search }); // W2c-9r1 veg: vtrunk A/B.
         scene.add(trees.group);
         if (standsEnabled(search)) {
-          standPrepared = prepareStands(data.veg, t, { boxes: [...houseExclusions, ...facilityExclusions], paths: data.patches?.paths || {}, spawn }, standPolicy(quality));
+          standPrepared = prepareStands(data.veg, t, { boxes: [...houseExclusions, ...facilityExclusions], paths: kamakuraPaths(data) || {}, spawn }, standPolicy(quality));
           treeOptions = { wind, sunDir: atmosphere.sunDir, quality, renderer, search };
         }
       } catch { vegNotice = '木を準備できませんでした。木なしで散策を続けます'; }
@@ -239,7 +241,7 @@ export async function bootKamakura(data, search) {
       audioView.listen?.(layerFrame); // the listener's place, heading and the shared wind clock, for sounds that follow the gusts or come from a side
       layers?.update(layerFrame);
       renderer.info.reset(); // W2c-9r1 light: one reset before all frame draws.
-      flight.updateViews(uniforms.uTime, paused ? 0 : dt); facilities?.update(flight.pos); grass.update(camera, flight.pos, paused); fx.update(paused ? 0 : dt, camera, hero); groundContactFor(data)?.update(camera.position, g.col.boxes, g.col.circles); groundPathFor(data)?.update(camera.position, data.patches.paths); post.render(scene, camera);
+      flight.updateViews(uniforms.uTime, paused ? 0 : dt); facilities?.update(flight.pos); grass.update(camera, flight.pos, paused); fx.update(paused ? 0 : dt, camera, hero); groundContactFor(data)?.update(camera.position, g.col.boxes, g.col.circles); updateKamakuraRoadPaths(data, camera.position, groundPathFor(data), search); post.render(scene, camera);
       hud.update(flight.pos, flight.yaw, t, { ...renderer.info.render, averageMs: adapt.averageMs, step: adapt.step }, flight.state, audioView.debugText() + (layers?.debugText() || ''));
     });
     return { dispose };

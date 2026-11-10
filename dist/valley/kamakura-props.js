@@ -1,4 +1,6 @@
 // W2c-16g: deterministic placement only. North in source paths/places is -z.
+import { kamakuraPaths } from './kamakura-roads.js';
+import { pathRadius } from './kamakura-ground-path.js';
 export const PROP_KINDS = Object.freeze(['lantern', 'gorinto', 'jizo', 'nobori', 'smoke', 'yard', 'boat']);
 export const PROPS = Object.freeze({ range: 220, smokeRange: 350, boatRange: 400, refresh: 60, fade: 30, triangles: 60000, batch: 64, budget: 3 });
 export const propHash = (x, z, salt = 0) => { const n = Math.sin(x * 12.9898 + z * 78.233 + salt * 37.719) * 43758.5453; return n - Math.floor(n); };
@@ -45,11 +47,12 @@ export function createPropSite({ data = {}, terrain, facilities, houses } = {}) 
   const records = facilityRecords(data, facilities), boxIndex = index(), paths = [], pathIndex = index();
   const boxes = [...(houses?.boxes || []), ...records.map(r => PROP_HOLLOW[r.node.part] ? { ...r.bounds, hollow: PROP_HOLLOW[r.node.part] } : r.bounds)];
   for (const b of boxes) { const r = Math.hypot(b.w, b.d) / 2 + 6; boxIndex.add(b, b.x - r, b.z - r, b.x + r, b.z + r); }
-  for (const path of Object.values(data.patches?.paths || {})) {
-    const points = path.xyz_m || [];
+  // Pass paths and, where the data has them, the roads. A road wider than a pass path keeps things that much farther from its line.
+  for (const path of Object.values(kamakuraPaths(data) || {})) {
+    const points = path.xyz_m || [], extra = Math.max(0, pathRadius(path) - 2.5), reach = 8 + extra;
     for (let i = 1; i < points.length; i++) {
-      const s = { ax: points[i - 1][0], az: -points[i - 1][1], bx: points[i][0], bz: -points[i][1] };
-      paths.push(s); pathIndex.add(s, Math.min(s.ax, s.bx) - 8, Math.min(s.az, s.bz) - 8, Math.max(s.ax, s.bx) + 8, Math.max(s.az, s.bz) + 8);
+      const s = { ax: points[i - 1][0], az: -points[i - 1][1], bx: points[i][0], bz: -points[i][1], extra };
+      paths.push(s); pathIndex.add(s, Math.min(s.ax, s.bx) - reach, Math.min(s.az, s.bz) - reach, Math.max(s.ax, s.bx) + reach, Math.max(s.az, s.bz) + reach);
     }
   }
   function reason(p) {
@@ -58,7 +61,7 @@ export function createPropSite({ data = {}, terrain, facilities, houses } = {}) 
     if (p.kind !== 'smoke') {
       for (const b of boxIndex.at(x, z)) if (propInBox(x, z, b, .3 + radius)) return 'box';
       const pathClearance = Math.max(2 + radius, p.kind === 'gorinto' ? 3 : p.kind === 'jizo' ? 2.5 : 0);
-      for (const s of pathIndex.at(x, z)) if (segmentDistance(x, z, s) <= pathClearance) return 'path';
+      for (const s of pathIndex.at(x, z)) if (segmentDistance(x, z, s) <= pathClearance + s.extra) return 'path';
     }
     if (!Number.isFinite(terrain.heightAt(x, z)) || !terrain.walkable(x, z)) return 'walk';
     if (terrain.slopeAt(x, z) > 25) return 'slope';
