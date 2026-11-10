@@ -1,6 +1,6 @@
 // W2c-9g: flat kit colors -> shared procedural house surfaces (geometry/lighting unchanged).
 import * as THREE from 'three';
-import { PHOTO_GLSL, PHOTO_TEX_DATA, photoSampler, photoBlendUniform } from './kamakura-photo-tex.js';
+import { PHOTO_GLSL, PHOTO_TEX_DATA, photoUrl, photoSampler, photoBlendUniform } from './kamakura-photo-tex.js';
 import { HOUSE_SURFACE as S, HOUSE_PALETTE, houseTextureRows, facilityPreservesPigment, facilityInterior, HOUSE_RELIEF as R, HOUSE_OPENING_GLSL, HOUSE_BROAD_GLSL, HOUSE_WOOD_MEAN, HOUSE_AMBIENT, houseAmbientEnabled, HOUSE_FACILITY6_GLSL, HOUSE_FACILITY7_GLSL } from './kamakura-house-texture.js';
 // W2c-9p: houses/facilities reuse immutable CPU pixels; each owner retains its own
 // DataTexture and disposal. Generation still yields after at most one 8ms slice.
@@ -699,3 +699,129 @@ export function createHouseMaterial(base, { texture, quality = 'standard', eave 
   };
   return material;
 }
+
+// HOUSE2: one material/draw uses the existing palette, atlas and shared photo owners.
+export function createHouse2Material(base,{texture,search='',environment=null,constants,frame,debug=false}={}) {
+  const C=constants,options=new URLSearchParams(search),ambient=!!environment&&houseAmbientEnabled(search);
+  const material=debug?new THREE.MeshBasicMaterial({vertexColors:true,fog:false,toneMapped:false}):base.clone();
+  if(!debug){material.roughness=1;material.metalness=0;material.emissive.setRGB(0,0,0);material.emissiveIntensity=0;
+    if(ambient){material.envMap=environment;material.envMapIntensity=HOUSE_AMBIENT.envIntensity;}}
+  const gain=ambient?(options.get('hgain')!==null&&Number.isFinite(+options.get('hgain'))?+options.get('hgain'):HOUSE_AMBIENT.gain):1;
+  const photoOn=!!texture&&options.get('photo')!=='0'&&options.get('hphoto')!=='0';
+  const keys=['wallWoodA','wallPlaster','roofThatch','stoneRubble','groundSoil'];
+  const uniforms={house2Atlas:{value:texture},house2Source:{value:base.color},house2Gain:{value:gain},
+    house2Floor:{value:frame.floor},house2WallHeight:{value:frame.wallHeight},house2Photo:{value:photoOn?1:0},
+    uPhotoBlend:photoBlendUniform,...Object.fromEntries(keys.map(key=>['hPhoto_'+key,photoSampler(key)]))};
+  material.userData.house2Uniforms=uniforms;
+  material.onBeforeCompile=shader=>{
+    Object.assign(shader.uniforms,uniforms);
+    shader.vertexShader=shader.vertexShader.replace('#include <common>',`#include <common>
+      attribute float house2Surface,house2Tone;
+      varying float vHouse2Surface,vHouse2Tone,vHouse2Up;
+      varying vec2 vHouse2UV;
+      varying vec3 vHouse2Local,vHouse2Seed,vHouse2Normal;`)
+      .replace('#include <begin_vertex>',`#include <begin_vertex>
+        vHouse2Surface=house2Surface;vHouse2Tone=house2Tone;vHouse2Local=position;
+        vHouse2Normal=normal;vHouse2Up=normal.y;vHouse2UV=uv;
+        #ifdef USE_INSTANCING
+        // Only scale the metre frame. Yaw must never choose a different texture plane.
+        vec3 h2scale=vec3(length(instanceMatrix[0].xyz),length(instanceMatrix[1].xyz),length(instanceMatrix[2].xyz));
+        vec3 h2p=position*h2scale,h2n=normalize(normal/h2scale);
+        vHouse2Normal=normalize(mat3(modelMatrix)*mat3(instanceMatrix)*(normal/(h2scale*h2scale)));
+        if(house2Surface==1.0&&abs(h2n.y)>0.000001&&abs(h2n.y)<0.999999){
+          vec3 h2down=normalize(h2n*h2n.y-vec3(0.0,1.0,0.0)),h2across=cross(h2down,h2n);
+          vHouse2UV=vec2(dot(h2p,h2across),dot(h2p,h2down));
+        }else if(abs(h2n.y)>0.5)vHouse2UV=h2p.xz;
+        else vHouse2UV=abs(h2n.z)>abs(h2n.x)?h2p.xy:h2p.zy;
+        #endif
+        vHouse2Seed=vec3(0.5);
+        #ifdef USE_INSTANCING_COLOR
+        vHouse2Seed=instanceColor;
+        #endif`);
+    shader.vertexShader=shader.vertexShader.replace('#include <color_vertex>',THREE.ShaderChunk.color_vertex.replace('vColor.xyz *= instanceColor.xyz;','// seed is not a tint'));
+    if(!debug){
+      shader.fragmentShader=shader.fragmentShader.replace('#include <common>',`#include <common>
+        uniform sampler2D house2Atlas;
+        uniform vec3 house2Source;
+        uniform float house2Gain,house2Floor,house2WallHeight,house2Photo;
+        uniform float uPhotoBlend;
+        ${keys.map(key=>`uniform sampler2D hPhoto_${key};`).join('\n')}
+        varying float vHouse2Surface,vHouse2Tone,vHouse2Up;
+        varying vec2 vHouse2UV;
+        varying vec3 vHouse2Local,vHouse2Seed,vHouse2Normal;
+        ${paletteGLSL}
+        ${PHOTO_GLSL}`)
+        .replace('#include <color_fragment>',`#include <color_fragment>
+          float h2role=floor(vHouse2Surface+0.5);
+          bool h2plaster=h2role==5.0;
+          vec3 h2wood=mix(house_wood,house_oldWood,vHouse2Seed.y),h2target=h2wood;
+          if(h2role==1.0)h2target=mix(house_thatch,house_oldThatch,vHouse2Seed.x);
+          if(h2role==3.0)h2target=house_post;
+          if(h2role==4.0)h2target=mix(house_stone,house_oldStone,vHouse2Seed.y);
+          if(h2plaster)h2target=mix(house_lime,house_oldLime,vHouse2Seed.x*${C.plasterAge.toFixed(4)});
+          if(h2role==6.0)h2target=mix(house_earth,house_oldEarth,vHouse2Seed.x);
+          vec2 h2uv=vHouse2UV+vHouse2Seed.yz*17.0;
+          vec2 h2dx=dFdx(h2uv),h2dy=dFdy(h2uv);
+          vec4 h2tex=${texture?`texture2D(house2Atlas,h2uv/${C.textureMeters.toFixed(4)})`:'vec4(0.5)'};
+          float h2grain=h2role==4.0?h2tex.a:h2role==6.0||h2plaster?h2tex.b:h2role==1.0&&${frame.roofThatch?'true':'false'}?h2tex.r:h2tex.g;
+          float h2fine=1.0-smoothstep(${C.photoNear.toFixed(1)},${C.photoFar.toFixed(1)},length(vViewPosition));
+          float h2brightness=1.0+(vHouse2Seed.x*2.0-1.0)*${C.brightness.toFixed(4)};
+          float h2height=vHouse2Local.y-house2Floor;
+          float h2dirtHeight=h2plaster?house2WallHeight*${C.plasterDirtFraction.toFixed(6)}:${C.footDirtHeight.toFixed(4)};
+          float h2soil=(1.0-smoothstep(0.0,h2dirtHeight,h2height))*float(h2role==6.0||h2plaster);
+          float h2blend=house2Photo*uPhotoBlend;
+          vec3 h2photo=vec3(0.0,0.0,1.0);float h2rough=1.0;
+          // Reuse packed normal + mean-one luminance and the original physical texture sizes.
+          if(h2blend>0.0){
+            if(h2role==4.0){h2photo=kzPhotoGrad(hPhoto_stoneRubble,h2uv/${photoMeters('stoneRubble')},h2dx/${photoMeters('stoneRubble')},h2dy/${photoMeters('stoneRubble')});h2rough=${PHOTO_TEX_DATA.stoneRubble.roughness};}
+            else if(h2plaster){h2photo=kzPhotoGrad(hPhoto_wallPlaster,h2uv/${photoMeters('wallPlaster')},h2dx/${photoMeters('wallPlaster')},h2dy/${photoMeters('wallPlaster')});h2rough=${PHOTO_TEX_DATA.wallPlaster.roughness};}
+            else if(h2role==6.0){h2photo=kzPhotoGrad(hPhoto_groundSoil,h2uv/${photoMeters('groundSoil')},h2dx/${photoMeters('groundSoil')},h2dy/${photoMeters('groundSoil')});h2photo.xy*=${C.soilDetail.toFixed(4)};h2photo.z=mix(1.0,h2photo.z,${C.soilDetail.toFixed(4)});h2rough=${PHOTO_TEX_DATA.groundSoil.roughness};}
+            else if(h2role==1.0&&${frame.roofThatch?'true':'false'}){h2photo=kzPhotoGrad(hPhoto_roofThatch,h2uv/${photoMeters('roofThatch')},h2dx/${photoMeters('roofThatch')},h2dy/${photoMeters('roofThatch')});h2rough=${PHOTO_TEX_DATA.roofThatch.roughness};}
+            else if(h2role!=3.0){h2photo=kzPhotoGrad(hPhoto_wallWoodA,h2uv/vec2(${(PHOTO_TEX_DATA.wallWoodA.meters*C.woodPhotoAcross).toFixed(4)},${photoMeters('wallWoodA')}),h2dx/vec2(${(PHOTO_TEX_DATA.wallWoodA.meters*C.woodPhotoAcross).toFixed(4)},${photoMeters('wallWoodA')}),h2dy/vec2(${(PHOTO_TEX_DATA.wallWoodA.meters*C.woodPhotoAcross).toFixed(4)},${photoMeters('wallWoodA')}));h2photo.z=min(h2photo.z,1.0)+.45*max(h2photo.z-1.0,0.0);h2photo.z/=${HOUSE_WOOD_MEAN.wallWoodA};h2rough=${PHOTO_TEX_DATA.wallWoodA.roughness};}
+          }
+          vec3 h2color=mix(house2Source,h2target,${C.paletteBlend.toFixed(4)})*house2Gain*h2brightness;
+          if(h2plaster){
+            // Keep the palette's warm hue: per-channel clipping had turned lime into neutral white.
+            h2color=h2target/dot(h2target,vec3(.2126,.7152,.0722))*clamp(${C.plasterReflectance.toFixed(4)}*h2brightness,${C.plasterMin.toFixed(4)},${C.plasterMax.toFixed(4)});
+          }
+          h2color*=vHouse2Tone;
+          float h2under=float(h2role==1.0&&vHouse2Up<=0.0);
+          h2color*=mix(1.0,${C.undersideTone.toFixed(4)},h2under);
+          h2color*=1.0+(h2grain-0.5)*${C.grain.toFixed(4)}*h2fine*(1.0-h2blend)-h2soil*(h2plaster?${C.plasterDirt.toFixed(4)}:${C.footDirt.toFixed(4)});
+          h2color*=mix(1.0,h2photo.z,h2blend);
+          h2color=mix(h2color,h2color*house_oldThatch/max(house_thatch,vec3(0.001)),float(h2role==1.0)*max(0.0,-vHouse2Normal.z)*${C.roofMoss.toFixed(4)}*h2tex.b);
+          float h2cap=h2plaster?1.0:${C.colorCap.toFixed(4)};
+          h2color*=min(1.0,h2cap/max(max(h2color.r,h2color.g),max(h2color.b,0.000001)));
+          diffuseColor.rgb=max(vec3(0.0),h2color);`)
+        .replace('#include <normal_fragment_maps>',`#include <normal_fragment_maps>
+          vec3 h2photoNormal=kzPerturbNormal(normal,-vViewPosition,h2uv,h2photo.xy,${C.photoNormal.toFixed(4)}*h2blend*h2fine);
+          normal=h2photoNormal;`)
+        .replace('#include <roughnessmap_fragment>',`#include <roughnessmap_fragment>
+          roughnessFactor=mix(roughnessFactor,h2rough,h2blend);`);
+    }
+  };
+  material.customProgramCacheKey=()=>`house2-photo-${debug}-${!!texture}-${ambient}-${!!frame.roofThatch}`;
+  return material;
+}
+// The same screen-space sample and instance fade are used by legacy/detail and both shadow passes.
+export function house2DitherMaterial(material,detail=false) {
+  const previous=material.onBeforeCompile.bind(material),key=material.customProgramCacheKey();
+  material.onBeforeCompile=(shader,renderer)=>{
+    previous(shader,renderer);
+    shader.vertexShader=shader.vertexShader.replace('#include <common>',`#include <common>
+      attribute float house2Fade;
+      varying float vHouse2Fade;
+      ${detail?'attribute float house2Role,house2Yard;':''}`).replace('#include <begin_vertex>',`#include <begin_vertex>
+      vHouse2Fade=house2Fade;
+      ${detail?'if(house2Role>5.5)transformed*=house2Yard;':''}`);
+    shader.fragmentShader=shader.fragmentShader.replace('#include <common>',`#include <common>
+      varying float vHouse2Fade;`).replace('#include <clipping_planes_fragment>',`#include <clipping_planes_fragment>
+      float h2screen=fract(52.9829189*fract(dot(floor(gl_FragCoord.xy),vec2(0.06711056,0.00583715))));
+      if(${detail?'h2screen>=vHouse2Fade':'h2screen<vHouse2Fade'})discard;`);
+  };
+  material.customProgramCacheKey=()=>key+`-h2-dither-${detail}`;
+  return material;
+}
+
+// Use the shipped resource resolver: this also works when a caller loads the view from a data URL.
+export const loadHouse2Module = () => import(photoUrl('../../../valley/kamakura-house-build.js'));

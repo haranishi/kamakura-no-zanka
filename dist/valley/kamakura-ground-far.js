@@ -11,6 +11,9 @@ import { toneChannel } from './kamakura-ground-tone-rules.js';
 export const GROUND_FAR = Object.freeze({
   fadeFrom: 250, // m: preserve all walking detail up to this slant distance.
   fadeTo: 700, // m: remove procedural patches completely here.
+  airFrom: 12, airTo: 70, airKeep: .3, // m / m / fraction: the 43 m relief noise was tuned at eye height (grazing views flatten it).
+  // Parent (real Chrome, 60–150 m up): seen from above it swung the plain between 15% and 185% of its colour and read as dark stains.
+  // Height of the eye above the ground point scales it down to airKeep.
   canopyBand: 100, // m: transition after vegPolicy(quality).range.
   densityFrom: .25, // fraction: no canopy tint below this coverage.
   densityTo: .6, // fraction: full canopy tint above this coverage.
@@ -114,7 +117,7 @@ vec3 groundFarColor(vec3 color,vec3 world,float ny,float dist){
 // Alter only the enabled variant: the opt-out retains the original text, resources and calls.
 export function groundFarToneGLSL(source) {
   return source
-    .replace('relief*=1.0-smoothstep(1500.0,5000.0,dist);', `if(dist>${gl(C.fadeFrom)})relief*=groundFarToneWeight(dist);`)
+    .replace('relief*=1.0-smoothstep(1500.0,5000.0,dist);', `if(dist>${gl(C.fadeFrom)})relief*=groundFarToneWeight(dist);\n  relief*=mix(1.0,${gl(C.airKeep)},smoothstep(${gl(C.airFrom)},${gl(C.airTo)},cameraPosition.y-world.y));`)
     .replace('float distantGrass=grass*grassTintAt(p.x,p.y,dist);', `float distantGrass=grass*grassTintAt(p.x,p.y,dist);\n  if(dist>${gl(C.fadeFrom)})distantGrass*=groundFarToneWeight(dist);`)
     .replace('float r3=uToneR3*(1.0-smoothstep(400.0,1500.0,noisyDist));', `float r3=uToneR3*(1.0-smoothstep(400.0,1500.0,noisyDist));\n  if(dist>${gl(C.fadeFrom)})r3*=groundFarToneWeight(dist);`)
     .replace('result*=groundGrassDetail(p,dist,weights.r*smoothstep(.45,.85,normalY));', `if(dist>${gl(C.fadeFrom)})result*=mix(vec3(1.0),groundGrassDetail(p,dist,weights.r*smoothstep(.45,.85,normalY)),groundFarToneWeight(dist));\n  else result*=groundGrassDetail(p,dist,weights.r*smoothstep(.45,.85,normalY));`)

@@ -1,7 +1,7 @@
 // View only. Reuses the bundled GLTFLoader, instancing and bounded chunk lifecycle.
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { createHouseTextures, createHouseMaterial } from './kamakura-house-materials.js';
+import { createHouseTextures, createHouseMaterial, createHouse2Material, house2DitherMaterial, loadHouse2Module } from './kamakura-house-materials.js';
 import { houseVariation, houseIndexSeed, houseWallSpans, houseFoundationTop, houseRoofSpans } from './kamakura-house-texture.js';
 import { houseNodeName, houseBounds, houseBodyBounds, houseMatrix, houseBox, houseChunks, houseChunkDistance, houseLOD, HOUSE_FAR, houseFarEnabled, houseFarShape, houseFarBrightness, houseFarVisible, houseFarMask, houseFarDistance } from './kamakura-houses.js';
 
@@ -26,6 +26,12 @@ export async function buildKamakuraHouses(houses, terrain, scene, { search = '',
   const json = JSON.parse(new TextDecoder().decode(new Uint8Array(houses.kit, 20, dv.getUint32(12, true))));
   if (json.buffers?.some(b => b.uri) || json.images?.some(b => b.uri) || json.extensionsUsed?.length) throw new Error('家のGLBは自己完結形式が必要です');
   const gltf = await new GLTFLoader().parseAsync(houses.kit, '');
+  // The new pure module is never loaded on the legacy flag path.
+  const h2options=new URLSearchParams(search);
+  const h2on=h2options.get('house2')!=='0'&&quality!=='light'&&Array.from(houses.kinds.values()).some(k=>!/塀|門|fence|gate|wall/i.test(k.node)&&/町屋|小家|蔵|屋敷|番屋|舟小屋|townhouse|cottage|storehouse|mansion|boathouse|guardhouse/i.test(k.node));
+  const h2=h2on?await loadHouse2Module():null;
+  const detail={built:[],cache:new Map(),job:null,shown:0,triangles:0,draws:0,nearest:null,selection:null,distances:null,previous:new Int32Array(h2?.HOUSE2.cap??0),previousCount:0};
+  if(h2){detail.selection=new Int32Array(h2.HOUSE2.cap);detail.distances=new Float64Array(h2.HOUSE2.cap);}
   const templates = new Map(), owned = new Set(), sourceGeometries = new Set(), materials = new Set();
   const chunks = houseChunks(houses), boxes = [];
   // W2c-9g: optional surface layer; shared resources never affect placement or LOD.
@@ -36,7 +42,7 @@ export async function buildKamakuraHouses(houses, terrain, scene, { search = '',
   let texture = null, disposed = false, far=null, step=0, revision=0, farAllowed=false, farChunkCount=0;
   let eyeX=0,eyeY=0,eyeZ=0;
   const previousAfterRender=scene.onAfterRender;
-  if(farEnabled)scene.onAfterRender=afterPresentation;
+  if(farEnabled||h2)scene.onAfterRender=afterPresentation;
   const facilityStats={flying:false,shown:0};
   const debug=() => farStats();
   function farStats() {
@@ -58,11 +64,14 @@ export async function buildKamakuraHouses(houses, terrain, scene, { search = '',
   if(options.get('debug')==='1')globalThis.__kzHouseFar=debug;
   function releaseGroup(group) {
     if (!group) return;
-    group.traverse(o => { if (o.isInstancedMesh) o.dispose(); }); group.removeFromParent();
+    group.traverse(o => { if (o.isInstancedMesh) {o.dispose();if(h2&&o.userData.house2Items){owned.delete(o.geometry);o.geometry.dispose();for(const m of [o.customDepthMaterial,o.customDistanceMaterial]){materials.delete(m);m.dispose();}}} }); group.removeFromParent();
   }
   function dispose() {
     if (disposed) return; disposed = true;
     texture?.dispose();
+    if(detail.job)for(const part of detail.job.meshes){part.mesh.dispose();part.mesh.removeFromParent();}
+    for(const entry of detail.cache.values())for(const part of entry.meshes){part.mesh.dispose();part.mesh.removeFromParent();}
+    if(globalThis.__kzHouse2===house2Stats)delete globalThis.__kzHouse2;
     if(scene.onAfterRender===afterPresentation)scene.onAfterRender=previousAfterRender;
     far?.mesh.removeFromParent();far?.mask.dispose();
     if(globalThis.__kzHouseFar===debug)delete globalThis.__kzHouseFar;
@@ -138,13 +147,14 @@ export async function buildKamakuraHouses(houses, terrain, scene, { search = '',
         }
         owned.add(p.geometry);
       }
-      templates.set(kind.index, { near, mid, body, far:shape, base:baseMain, main });
+      templates.set(kind.index, { near, mid, body, far:shape, base:baseMain, main, frame:h2&&h2.houseFamily(kind)?h2.houseFrame(kind,positions,1,near.map(p=>({positions:p.geometry.attributes.position.array,indices:p.geometry.index?.array}))):null });
     }
     for (const ch of chunks) {
       ch.level = null; ch.group = null; ch.pending = null; ch.farShown=false; ch.minY=Infinity; ch.maxY=-Infinity;
       for (const item of ch.items) {
         const body = templates.get(item.kind).body;
         item.grounded = houseMatrix(item, terrain, body);
+        if(h2){item.house2Eligible=!!templates.get(item.kind).frame;item.house2Weight=0;item.house2Variant=h2.house2Variant(item.id,templates.get(item.kind).frame?.family);item.house2Seed=houseIndexSeed(item.id);}
         if(farEnabled) {
           const shape=templates.get(item.kind).far;
           ch.minY=Math.min(ch.minY,item.grounded[13]+shape.min[1]*item.grounded[5]);
@@ -154,6 +164,17 @@ export async function buildKamakuraHouses(houses, terrain, scene, { search = '',
       }
     }
   } catch (e) { dispose(); throw e; }
+  if(h2){
+    // A material is shared by near and mid; only near instances carry nonzero fade.
+    const patched=new Set();
+    for(const t of templates.values())for(const part of t.near)if(!patched.has(part.material)){patched.add(part.material);house2DitherMaterial(part.material);}
+  }
+  function house2Stats(){
+    let nearest=null,best=Infinity;
+    if(detail.shown)for(let i=0;i<detail.previousCount;i++){const item=houses.instances[detail.previous[i]];if(!item.house2Weight)continue;const m=item.grounded,dx=m[12]-eyeX,dz=m[14]-eyeZ,d=Math.hypot(dx,m[13]-eyeY,dz);if(d<best){best=d;nearest={type:houses.kinds.get(item.kind).node,tiltDegrees:Math.atan2(Math.hypot(m[4],m[6]),m[5])*180/Math.PI,distance:d,bearing:(Math.atan2(dx,-dz)*180/Math.PI+360)%360};}}
+    return {enabled:!!h2,built:detail.built,shown:detail.shown,cap:h2?.HOUSE2.cap??90,range:{full:h2?.HOUSE2.full??60,swap:h2?.HOUSE2.swap??75},draws:detail.draws,triangles:detail.triangles,nearest};
+  }
+  if(options.get('debug')==='1')globalThis.__kzHouse2=house2Stats;
   // Extend the existing surface shader, retaining its palette, texture means, fog and illumination.
   function maskShader(material, surface=false) {
     const previous=material.onBeforeCompile.bind(material), key=material.customProgramCacheKey();
@@ -268,7 +289,8 @@ export async function buildKamakuraHouses(houses, terrain, scene, { search = '',
   }
   function update(pos) {
     if (disposed) return;
-    if(farEnabled){eyeX=pos.x;eyeY=pos.y??0;eyeZ=pos.z;if(farAllowed&&!far?.ready)buildFarSlice();}
+    if(farEnabled||h2){eyeX=pos.x;eyeY=pos.y??0;eyeZ=pos.z;}
+    if(farEnabled&&farAllowed&&!far?.ready)buildFarSlice();
     let budget = 2;
     for(const ch of sorted){const horizontal=houseChunkDistance(ch,pos);ch.distance=farEnabled?houseFarDistance(ch,pos,horizontal):horizontal;}
     sorted.sort(distanceSort);
@@ -283,6 +305,14 @@ export async function buildKamakuraHouses(houses, terrain, scene, { search = '',
       while (pending?.jobs.length && budget) {
         const { part, items } = pending.jobs.shift(), mesh = new THREE.InstancedMesh(part.geometry, part.material, items.length);
         mesh.updateMatrix(); mesh.matrixAutoUpdate = false;
+        if(h2){
+          mesh.geometry=part.geometry.clone();owned.add(mesh.geometry);
+          mesh.geometry.setAttribute('house2Fade',new THREE.InstancedBufferAttribute(new Float32Array(items.length),1));
+          mesh.userData.house2Items=items;
+          const depth=house2DitherMaterial(new THREE.MeshDepthMaterial({depthPacking:THREE.RGBADepthPacking}));
+          const distance=house2DitherMaterial(new THREE.MeshDistanceMaterial());materials.add(depth);materials.add(distance);
+          mesh.customDepthMaterial=depth;mesh.customDistanceMaterial=distance;
+        }
         mesh.name = 'house-instances'; mesh.castShadow = true; mesh.receiveShadow = true;
         items.forEach((item, i) => {
           mesh.setMatrixAt(i, instanceMatrix.fromArray(item.grounded));
@@ -295,10 +325,69 @@ export async function buildKamakuraHouses(houses, terrain, scene, { search = '',
       }
       markFar(ch);
     }
+    if(h2)updateHouse2(pos);
     if(far?.ready){
       if(houseFarMask(far.state,chunks,revision,quality,step))far.mask.needsUpdate=true;
       far.mesh.visible=farChunkCount>0;
     }
   }
+
+  // Lazy construction advances at most one kind per update; completed variants are cached until dispose.
+  function buildDetailSlice(kind) {
+    const C=h2.HOUSE2,t=templates.get(kind);
+    if(!detail.job)detail.job={kind,variant:0,generator:h2.houseBuildSteps(t.frame,0),cpu:0,maxSlice:0,meshes:[]};
+    const job=detail.job,start=performance.now();let r;
+    do{r=job.generator.next();}while(!r.done&&performance.now()-start<C.sliceMs);
+    const elapsed=performance.now()-start;job.cpu+=elapsed;job.maxSlice=Math.max(job.maxSlice,elapsed);
+    if(!r.done)return;
+    const shape=r.value;if(shape.triangles>h2.houseTriangleLimit(t.frame))throw new Error('家の型の三角形上限を超えました');
+    const geometry=new THREE.BufferGeometry();owned.add(geometry);
+    for(const [name,array,size] of [['position',shape.positions,3],['normal',shape.normals,3],['uv',shape.uvs,2],['house2Surface',shape.surfaces,1],['house2Tone',shape.tones,1],['house2Role',shape.roles,1]])geometry.setAttribute(name,new THREE.BufferAttribute(array,size));
+    if(options.get('house2debug')==='1'){
+      const colors=new Float32Array(shape.positions.length),c=new THREE.Color(),palette=h2.HOUSE_PARTS.debug;
+      for(let i=0;i<shape.roles.length;i++){c.setHex(palette[shape.roles[i]]);c.toArray(colors,i*3);}geometry.setAttribute('color',new THREE.BufferAttribute(colors,3));
+    }
+    const fades=new THREE.InstancedBufferAttribute(new Float32Array(C.cap),1);geometry.setAttribute('house2Fade',fades);geometry.setAttribute('house2Yard',new THREE.InstancedBufferAttribute(new Float32Array(C.cap),1));
+    const material=house2DitherMaterial(createHouse2Material(t.base,{texture,search,environment:scene.environment,constants:C,frame:shape.frame,debug:options.get('house2debug')==='1'}),true);materials.add(material);
+    const mesh=new THREE.InstancedMesh(geometry,material,C.cap);mesh.name='house2-instances';mesh.count=0;mesh.visible=false;mesh.frustumCulled=false;
+    mesh.castShadow=true;mesh.receiveShadow=true;mesh.matrixAutoUpdate=false;mesh.updateMatrix();
+    mesh.customDepthMaterial=house2DitherMaterial(new THREE.MeshDepthMaterial({depthPacking:THREE.RGBADepthPacking}),true);
+    mesh.customDistanceMaterial=house2DitherMaterial(new THREE.MeshDistanceMaterial(),true);materials.add(mesh.customDepthMaterial);materials.add(mesh.customDistanceMaterial);
+    // Allocate the colour/seed stream now; stable updates only write existing buffers.
+    mesh.setColorAt(0,instanceSeed.setRGB(.5,.5,.5));scene.add(mesh);
+    job.meshes.push({mesh,triangles:shape.triangles,count:0,ids:new Int32Array(C.cap).fill(-1),matrixChanged:false,fadeChanged:false});
+    const totalSlice=performance.now()-start;job.cpu+=totalSlice-elapsed;job.maxSlice=Math.max(job.maxSlice,totalSlice);
+    detail.built.push({type:houses.kinds.get(kind).node,variant:job.variant,triangles:shape.triangles,ms:job.cpu,maxSliceMs:job.maxSlice});
+    if(++job.variant<C.variants){job.generator=h2.houseBuildSteps(t.frame,job.variant);job.cpu=0;job.maxSlice=0;}
+    else {detail.cache.set(kind,{meshes:job.meshes});detail.job=null;}
+  }
+  function updateHouse2(pos) {
+    const C=h2.HOUSE2;
+    for(let i=0;i<detail.previousCount;i++)houses.instances[detail.previous[i]].house2Weight=0;
+    for(const ch of sorted)for(const item of ch.items)item.house2Eligible=!!templates.get(item.kind).frame&&ch.level===0&&!!ch.group;
+    let count=0;
+    if(step<2&&farAllowed)count=h2.house2Selection(houses.instances,pos,detail.selection,detail.distances);
+    let missing=-1;
+    for(let i=0;i<count;i++){const item=houses.instances[detail.selection[i]];if(!detail.cache.has(item.kind)){missing=item.kind;break;}}
+    if(step<2&&farAllowed&&(detail.job||missing>=0))buildDetailSlice(detail.job?.kind??missing);
+    for(const entry of detail.cache.values())for(const part of entry.meshes){part.count=0;part.matrixChanged=false;part.fadeChanged=false;}
+    detail.shown=0;detail.triangles=0;detail.draws=0;
+    for(let i=0;i<count;i++){
+      const index=detail.selection[i],item=houses.instances[index],entry=detail.cache.get(item.kind);if(!entry)continue;
+      const part=entry.meshes[item.house2Variant];if(detail.triangles+part.triangles>C.triangles)continue;
+      const at=part.count++,mesh=part.mesh,fade=h2.house2Fade(detail.distances[i]);
+      if(part.ids[at]!==index){part.ids[at]=index;mesh.setMatrixAt(at,instanceMatrix.fromArray(item.grounded));const seed=item.house2Seed;mesh.setColorAt(at,instanceSeed.setRGB(...seed));mesh.geometry.attributes.house2Yard.setX(at,seed[2]<C.yardChance?1:0);part.matrixChanged=true;}
+      const a=mesh.geometry.attributes.house2Fade;if(a.getX(at)!==Math.fround(fade)){a.setX(at,fade);part.fadeChanged=true;}
+      item.house2Weight=fade;detail.previous[detail.shown++]=index;detail.triangles+=part.triangles;
+    }
+    detail.previousCount=detail.shown;
+    for(const entry of detail.cache.values())for(const part of entry.meshes){const mesh=part.mesh;mesh.count=part.count;mesh.visible=part.count>0;
+      if(mesh.visible)detail.draws++;if(part.matrixChanged){mesh.instanceMatrix.needsUpdate=true;mesh.instanceColor.needsUpdate=true;mesh.geometry.attributes.house2Yard.needsUpdate=true;}if(part.fadeChanged)mesh.geometry.attributes.house2Fade.needsUpdate=true;}
+    if(detail.draws>C.draws)throw new Error('家の描画命令上限を超えました');
+    // Existing near meshes keep their placement, bounds, materials and chunk lifecycle.
+    for(const ch of sorted){if(ch.level!==0||!ch.group)continue;for(const mesh of ch.group.children){const a=mesh.geometry.attributes.house2Fade,items=mesh.userData.house2Items;let changed=false;
+      for(let i=0;i<items.length;i++){const value=Math.fround(items[i].house2Weight);if(a.getX(i)!==value){a.setX(i,value);changed=true;}}if(changed)a.needsUpdate=true;}}
+  }
+
   return { update, boxes, dispose, setAdapt: value => { if(step!==value){step=value;revision++;}for (const m of materials) m.userData.setHouseAdapt?.(step); }, ready: pos => chunks.filter(ch => houseChunkDistance(ch, pos) < 350).every(ch => ch.level === 0) };
 }

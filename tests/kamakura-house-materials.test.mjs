@@ -123,8 +123,8 @@ test('private A/B: complete catalog shares per-type PBR, unchanged instances/col
   THREE.Texture.prototype.dispose=function(){textureCalls.set(this,(textureCalls.get(this)||0)+1);td.call(this);};
   try {
     const houses=make();
-    fields.push(await buildKamakuraHouses(houses,terrain,scenes[0]));
-    fields.push(await buildKamakuraHouses(make(),terrain,scenes[1],{search:'?htex=0'}));
+    fields.push(await buildKamakuraHouses(houses,terrain,scenes[0],{search:'?house2=0'}));
+    fields.push(await buildKamakuraHouses(make(),terrain,scenes[1],{search:'?htex=0&house2=0'}));
     assert.deepEqual(fields[0].boxes,fields[1].boxes);
     const activeMaterials=new Set(),texturedByType=new Map();
     for(const kind of houses.kinds.keys()){
