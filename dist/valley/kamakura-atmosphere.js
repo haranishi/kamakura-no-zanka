@@ -35,9 +35,12 @@ export const KAMAKURA_TIMES = {
   // postToe 1 = three.js's Neutral as shipped: a blind A/B (11/8) kept the evening's warmth only with the full dark offset.
   evening: { postExposure: 1.12, postBloom: .18, postGlare: 1, postWarmth: .018, postToe: 1, postShade: .15, fogDensity: .0001, mist: { density: .00005, base: -4, falloff: .045 } },
 };
+// The time of day when the address names none. Golden hour was preferred to noon in 7 of 10 views by a reviewer who was not told
+// which was which, and the owner chose it (2026-11-10). `&time=noon` gives the former default.
+export const DEFAULT_TIME = 'golden';
 export function atmosphereOptions(search) {
   const q = new URLSearchParams(search), requested = q.get('time');
-  return { enabled: q.get('atmos') !== '0', time: Object.hasOwn(KAMAKURA_TIMES, requested) ? requested : 'noon' };
+  return { enabled: q.get('atmos') !== '0', time: Object.hasOwn(KAMAKURA_TIMES, requested) ? requested : DEFAULT_TIME };
 }
 export function atmospherePolicy(quality = 'standard', enabled = true) {
   return { shadows: enabled, shadowSize: enabled ? (quality === 'light' ? 2048 : 4096) : 0,

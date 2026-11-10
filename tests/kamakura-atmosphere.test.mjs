@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { atmosphereOptions, atmospherePolicy, kamakuraAtmosphere, validateAtmosphere } from '../dist/valley/kamakura-atmosphere.js';
+import { atmosphereOptions, atmospherePolicy, kamakuraAtmosphere, validateAtmosphere, DEFAULT_TIME} from '../dist/valley/kamakura-atmosphere.js';
 import { THREE, load, source } from './helpers/tree-modules.mjs';
 import { startWorld } from '../dist/valley/world-entry.js';
 import { fixture } from './helpers/kamakura-fixture.mjs';
@@ -23,7 +23,7 @@ function rendererStub(fail = false) {
   };
 }
 test('time/atmos defaults, all presets, invalid values and comparison switch', () => {
-  for (const search of ['', '?time=', '?time=night', '?time=constructor', '?time=toString']) assert.deepEqual(atmosphereOptions(search), {enabled:true,time:'noon'});
+  for (const search of ['', '?time=', '?time=night', '?time=constructor', '?time=toString']) assert.deepEqual(atmosphereOptions(search), {enabled:true,time:DEFAULT_TIME});
   for (const time of ['noon','morning','golden','evening']) assert.deepEqual(atmosphereOptions('?time='+time), {enabled:true,time});
   assert.deepEqual(atmosphereOptions('?atmos=0&time=morning'), {enabled:false,time:'morning'});
   for(const v of ['','false','off','1','00']) assert(atmosphereOptions('?atmos='+v).enabled);
