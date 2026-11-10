@@ -7,7 +7,7 @@ export function createKamakuraFlight({ search, terrain, spawn, camera, rig, hero
     const active = state.mode !== 'walk';
     hero.character.root.visible = !active; chunks.setFlying(active);
     const far = active ? 30000 : walkFar;
-    const fov = state.mode === 'top' ? topFov(terrain.bounds, camera.aspect, Math.max(0, terrain.meta.height.max_m * terrain.vscale)) : walkFov;
+    const fov = state.mode === 'top' ? topFov(terrain.bounds, camera.aspect, Math.max(0, terrain.meta.height.max_m * terrain.vscale)) : (state.mode === 'fly' && state.fov) || walkFov;
     // High up, a 0.15m near plane leaves too little depth precision (the sea plane flickers against the sea floor).
     // The near plane grows with the height above the ground: 0.4% of it, at most 60m. Walking keeps the original value.
     const near = active ? Math.min(60, Math.max(walkNear, Math.max(0, state.pose.pos.y - terrain.heightAt(state.pose.pos.x, state.pose.pos.z)) * .004)) : walkNear;
