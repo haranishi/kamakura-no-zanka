@@ -1,5 +1,6 @@
 // W2c-9c: world-keyed ecology and packing; no scene, clock or random source.
 import { fbm } from './terrain-height.js';
+import { pathRadius } from './kamakura-ground-path.js';
 export const grassLookEnabled = search => new URLSearchParams(search).get('glook') !== '0';
 const clamp = v => Math.max(0, Math.min(1, v));
 const smooth = v => { const t = clamp(v); return t*t*(3-2*t); };
@@ -85,12 +86,13 @@ export function packGrassLook(data,kind,ecology,quality='standard',r5=false) {
   const out=new Float32Array(records.length*15);for(let i=0;i<records.length;i++)out.set(records[i],i*15);return out;
 }
 // Index paths once; reuse the live eight-metre collision buckets for shade/maintenance.
-export function createGrassEnvironment(terrain,{ colliders, extraColliders, paths={}, surfaceCodeAt, r4=false }={}) {
+export function createGrassEnvironment(terrain,{ colliders, extraColliders, paths={}, surfaceCodeAt, r4=false, probe }={}) {
   const routes=new Map(), key=(x,z)=>`${x},${z}`;
   for(const path of Object.values(paths))for(let i=1;i<path.xyz_m.length;i++) {
-    const a=path.xyz_m[i-1],b=path.xyz_m[i],segment={x:a[0],z:-a[1],dx:b[0]-a[0],dz:a[1]-b[1]};
-    for(let z=Math.floor((Math.min(-a[1],-b[1])-10)/64);z<=Math.floor((Math.max(-a[1],-b[1])+10)/64);z++)
-      for(let x=Math.floor((Math.min(a[0],b[0])-10)/64);x<=Math.floor((Math.max(a[0],b[0])+10)/64);x++){
+    const offset=pathRadius(path)-2.5,reach=10+offset;
+    const a=path.xyz_m[i-1],b=path.xyz_m[i],segment={x:a[0],z:-a[1],dx:b[0]-a[0],dz:a[1]-b[1],offset};
+    for(let z=Math.floor((Math.min(-a[1],-b[1])-reach)/16);z<=Math.floor((Math.max(-a[1],-b[1])+reach)/16);z++)
+      for(let x=Math.floor((Math.min(a[0],b[0])-reach)/16);x<=Math.floor((Math.max(a[0],b[0])+reach)/16);x++){
         const k=key(x,z);if(!routes.has(k))routes.set(k,[]);routes.get(k).push(segment);
       }
   }
@@ -101,9 +103,10 @@ export function createGrassEnvironment(terrain,{ colliders, extraColliders, path
     const id=key(x,z);let e=cache.get(id);
     if(!e) {
     let path=Infinity,house=Infinity,tree=Infinity,shade=0;
-    for(const a of routes.get(key(Math.floor(x/64),Math.floor(z/64)))||[]) {
+    for(const a of routes.get(key(Math.floor(x/16),Math.floor(z/16)))||[]) {
+      if(probe)probe.segments++;
       const t=clamp(((x-a.x)*a.dx+(z-a.z)*a.dz)/(a.dx*a.dx+a.dz*a.dz||1));
-      path=Math.min(path,Math.hypot(x-a.x-t*a.dx,z-a.z-t*a.dz));
+      path=Math.min(path,Math.max(0,Math.hypot(x-a.x-t*a.dx,z-a.z-t*a.dz)-a.offset));
     }
     // A collider occupies several buckets; shade/house minima need each only once.
     const bx=Math.floor((x-12)/8),bz=Math.floor((z-12)/8),bucketKey=key(bx,bz);

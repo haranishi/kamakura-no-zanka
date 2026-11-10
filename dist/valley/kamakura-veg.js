@@ -1,6 +1,7 @@
 // Pure private-placement decoding, filtering and bounded spatial selection. No scene state.
 import { TREES } from './config.js';
 import { lodMembership } from './tree-lod.js';
+import { pathRadius } from './kamakura-ground-path.js';
 export const VEG_FIELDS = ['x_east_m', 'z_south_m', 'y_up_m', 'yaw_rad', 'height_m', 'crown_radius_m', 'species', 'tier', 'variant', 'tint', 'wind_phase', 'lean_rad', 'thin_rank', 'reserved_13', 'reserved_14', 'reserved_15'];
 export const TREE_NAMES = ['cedar', 'zelkova', 'pine', 'maple', 'sapling', 'shrub'];
 export function decodeVeg(info, buffer, count = info?.count) {
@@ -54,17 +55,22 @@ function segmentDistance(p, a, b) {
   const dx = b.x - a.x, dz = b.z - a.z, t = Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.z - a.z) * dz) / (dx * dx + dz * dz || 1)));
   return Math.hypot(p.x - a.x - t * dx, p.z - a.z - t * dz);
 }
-export function vegExclusions(terrain, { boxes = [], paths = {}, spawn, pathMargin = 2.5, spawnMargin = 3 } = {}) {
+export function vegExclusions(terrain, { boxes = [], paths = {}, spawn, pathMargin = 2.5, spawnMargin = 3, probe } = {}) {
   const obstacles = new Map(), routes = new Map();
   for (const b of boxes) { const r = Math.hypot(b.w, b.d) / 2 + 1; insert(obstacles, b, b.x - r, b.x + r, b.z - r, b.z + r); }
   for (const p of Object.values(paths)) for (let i = 1; i < p.xyz_m.length; i++) {
     const a = { x: p.xyz_m[i - 1][0], z: -p.xyz_m[i - 1][1] }, b = { x: p.xyz_m[i][0], z: -p.xyz_m[i][1] };
-    insert(routes, { a, b }, Math.min(a.x, b.x) - pathMargin, Math.max(a.x, b.x) + pathMargin, Math.min(a.z, b.z) - pathMargin, Math.max(a.z, b.z) + pathMargin);
+    // Preserve optional caller padding (grass roots), measured from each route's edge.
+    const radius = pathRadius(p), margin = radius === 2.5 ? pathMargin : radius + (pathMargin - 2.5);
+    insert(routes, { a, b, margin }, Math.min(a.x, b.x) - margin, Math.max(a.x, b.x) + margin, Math.min(a.z, b.z) - margin, Math.max(a.z, b.z) + margin, 16);
   }
   return item => {
     const k = key(Math.floor(item.x / 256), Math.floor(item.z / 256));
     return (obstacles.get(k) || []).some(b => nearHouse(b, item)) ? 'house'
-      : (routes.get(k) || []).some(({ a, b }) => segmentDistance(item, a, b) <= pathMargin) ? 'path'
+      : (routes.get(key(Math.floor(item.x / 16), Math.floor(item.z / 16))) || []).some(({ a, b, margin }) => {
+        if (probe) probe.segments++;
+        return segmentDistance(item, a, b) <= margin;
+      }) ? 'path'
       : spawn && Math.hypot(item.x - spawn.x, item.z - spawn.z) <= spawnMargin ? 'spawn'
       : terrain.waterAt(item.x, item.z) > 0 || terrain.heightAt(item.x, item.z) <= 0 ? 'water' : null;
   };

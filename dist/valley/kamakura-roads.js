@@ -30,6 +30,7 @@ export function kamakuraPaths(data) {
       while (Object.hasOwn(paths, key)) key = `road:${key}`;
       paths[key] = road;
     }
+    Object.freeze(paths);
     combined.set(data, paths);
   }
   return paths;

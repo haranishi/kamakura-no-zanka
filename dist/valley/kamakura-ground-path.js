@@ -9,20 +9,25 @@ export function segmentWeight(s,x,z) {
   if(!s.water && squared<=Math.min(1.2,s.r*.375)**2)return 1;
   const d=Math.sqrt(squared);
   if(s.water)return 1-smooth(s.r-2,s.r,d);
-  const edge=s.r*(.75+.25*soilHash(Math.floor(x/2),Math.floor(z/2)));
-  return 1-smooth(Math.min(1.2,edge*.5),edge,d);
+  const h=soilHash(Math.floor(x/2),Math.floor(z/2));
+  // Keep the old arithmetic for narrow paths: algebraic rewrites change floating-point bits.
+  const edge=s.r<=3.6?s.r*(.75+.25*h):s.r-Math.min(.25*s.r,.9)*(1-h);
+  const core=Math.max(Math.min(1.2,edge*.5),edge-3);
+  return 1-smooth(core,edge,d);
 }
 export function createPathField(water=false) {
   const {size,cell,span,move}=CONTACT,bytes=new Uint8Array(size*size);
   let cx=Infinity,cz=Infinity,revision=0,old=null,snapshot=[],segments=[];
   function update(pos,paths={}) {
     let dirty=old!==paths,k=0;
-    // Compare scalar snapshots, including in-place edits, without allocating on stable frames.
+    // Frozen route containers are immutable inputs; mutable ones still detect in-place edits.
+    if(dirty||!Object.isFrozen(paths)){
     for(const id in paths){const p=paths[id];
       const oldId=snapshot[k++],oldRadius=snapshot[k++];if(oldId!==id||oldRadius!==pathRadius(p))dirty=true;
       for(const q of p.xyz_m){const x=snapshot[k++],y=snapshot[k++];if(x!==q[0]||y!==q[1])dirty=true;}
     }
     if(k!==snapshot.length)dirty=true;
+    }
     if(!dirty&&Math.hypot(pos.x-cx,pos.z-cz)<move)return false;
     if(dirty){old=paths;snapshot=[];segments=[];
       for(const id in paths){const p=paths[id],r=pathRadius(p);snapshot.push(id,r);
