@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-10T13:28:50.959Z",
+  "generatedAt": "2026-11-10T13:48:29.560Z",
   "scope": "Source, assets and verification artifacts; excludes this manifest, Git metadata, ignored files and private runtime data",
   "files": [
     {
@@ -444,6 +444,11 @@
       "sha256": "f158928ad5763ec133d3990e1840e79c19fe1e58aff1023a1e05e86322ebf09b"
     },
     {
+      "path": ".kiro/specs/world-map/design-web-r11.md",
+      "size": 7341,
+      "sha256": "ce62f1651abcd26b57826c9a2d6fbbfe071327bc5a130e57511eede894388a26"
+    },
+    {
       "path": ".kiro/specs/world-map/design-web-r9.md",
       "size": 3939,
       "sha256": "e3a28bf4507ecb97d808fc5acc4aa72161250735c75e669a31f79d4d13dfd1b0"
@@ -460,8 +465,8 @@
     },
     {
       "path": ".kiro/specs/world-map/requirements-web-polish.md",
-      "size": 13209,
-      "sha256": "f5ad3e3af2f4dd54aa649b52dfa9f5ae44edfcca2cd161559e9cad31cc12ad30"
+      "size": 16844,
+      "sha256": "b3e2874f00e2b670ca61da2a2a72842b6b41989b8c3cb513a447cc07534e54ae"
     },
     {
       "path": ".kiro/specs/world-map/requirements-web.md",
@@ -475,8 +480,8 @@
     },
     {
       "path": ".kiro/specs/world-map/tasks-web.md",
-      "size": 59397,
-      "sha256": "20247f78426609307ceb85554894ad1b12c5fc76c4b4ebd7eb25fb345bd284b9"
+      "size": 60044,
+      "sha256": "e237c0078e89b753302181cf683acabd5e85a93d91d290acf0004e64fe1c9110"
     },
     {
       "path": ".kiro/specs/world-map/tasks.md",
