@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-10T10:59:58.791Z",
+  "generatedAt": "2026-11-10T11:03:20.883Z",
   "scope": "Source, assets and verification artifacts; excludes this manifest, Git metadata, ignored files and private runtime data",
   "files": [
     {
@@ -6215,8 +6215,8 @@
     },
     {
       "path": "tools/gl-smoke.mjs",
-      "size": 6352,
-      "sha256": "193410556515d1e48a77236e84f9a8f395e84e32517ab107b0ca4453bb7bcf2e"
+      "size": 6610,
+      "sha256": "0c9555d371432ada94f18839758aef39002bd9cecabc1f0d11ea1e03f333a262"
     },
     {
       "path": "tools/grass-row-metrics.py",
