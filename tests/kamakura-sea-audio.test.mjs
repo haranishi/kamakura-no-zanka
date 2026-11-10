@@ -49,10 +49,16 @@ test('sea distance gain, 10Hz smoothing, three synthesis layers and unchanged va
   for (let i = 0; i < 60; i++) c.update(1 / 60, { x: 0, z: 0 });
   assert.equal(targets.length - count, 10); assert.equal(envelope.at(-1)[0], .85 * waveEnvelope(4));
   assert.equal(voice.foam.gain.value, .5 * waveEnvelope(3.1) ** 3); assert.equal(voice.rumble.gain.value, .12);
-  const valley = new ValleyAudio(); valley.context = new FakeContext(); valley.context.state = 'running'; valley.paused = false;
-  valley.updateListener({ river: 14, fire: Infinity });
-  for (const kind of ['wind', 'river', 'fire']) assert.equal(c.audio.ambient.get(kind).gain.gain.value, valley.ambient.get(kind).gain.gain.value);
-  valley.stopAmbient();
+  // W2c-16d: the valley's wind, river and fire targets are now the legacy path (&mix10=0). The default mix builds its own
+  // ambience on the ambience bus (tests/kamakura-mix*.test.mjs); the surf above is the same on both paths.
+  {
+    const legacy = setup('?mix10=0'); legacy.c.update(.1, { x: 0, z: 0 });
+    legacy.target.dispatchEvent(new Event('click')); await flush(); legacy.c.update(.1, { x: 0, z: 0 });
+    const valley = new ValleyAudio(); valley.context = new FakeContext(); valley.context.state = 'running'; valley.paused = false;
+    valley.updateListener({ river: 14, fire: Infinity });
+    for (const kind of ['wind', 'river', 'fire']) assert.equal(legacy.c.audio.ambient.get(kind).gain.gain.value, valley.ambient.get(kind).gain.gain.value);
+    valley.stopAmbient(); legacy.c.dispose();
+  }
   distance(10); c.update(.1, { x: 0, z: 0 }); assert.match(c.debugText(), /海 10m・波on/);
   distance(1000); c.update(.1, { x: 0, z: 0 }); assert.match(c.debugText(), /海 −・波off/);
   const nodes = [...voice.nodes]; c.dispose(); assert(nodes.every(n => n.connections.length === 0)); assert(voice.children.length === 0);
