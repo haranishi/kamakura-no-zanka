@@ -1,6 +1,7 @@
 // W2c-15 sound: short generic water grains -> splash, weight and spatial droplets.
 import { mulberry32 } from './scatter.js';
 import { kamakuraStepLayers } from './kamakura-step-rules.js';
+import { MIX } from './kamakura-mix.js';
 const buffers = new WeakMap();
 export const STEP_PEAK_CEILING = .48; // -6.38 dBFS before master/compression; all active new steps combined.
 function noise(ctx) {
@@ -16,7 +17,7 @@ function noise(ctx) {
 export function balanceSteps(audio) {
   let bound = 0;
   for (const v of audio.sources.values()) bound += v.stepPeakBound || 0;
-  const scale = Math.min(1, STEP_PEAK_CEILING / (bound || 1));
+  const scale = Math.min(1, (audio.mix10 ? MIX.steps.ceiling : STEP_PEAK_CEILING) / (bound || 1));
   for (const v of audio.sources.values()) if (v.stepPeakBound) v.gain.gain.value = scale;
   audio.stepPeakBound = bound * scale;
 }
@@ -26,8 +27,11 @@ export function playKamakuraStep(audio, step, grassMix, { pan = 0, lowpassHz = 2
   audio.stepRejectReason = null;
   if (!ctx || audio.paused || audio.muted || ctx.state !== 'running') return false;
   if (audio.sources.size >= 28) { audio.stepRejectReason = 'limit'; return false; }
-  const layers = kamakuraStepLayers(step, grassMix), nodes = [], children = [];
+  const layers = kamakuraStepLayers(step, grassMix, { mix10: audio.mix10 }), nodes = [], children = [];
   const voice = { stepNodes: nodes, children, stepPeakBound: 0 };
+  const ceiling = step.recipe.gait === 'run' ? MIX.steps.ceiling : MIX.steps.walkCeiling;
+  const bound = layers.reduce((sum, l) => sum + l.gain * (l.filter ? 2 : 1), 0) * Math.min(1, gainScale);
+  const gaitScale = audio.mix10 ? Math.min(1, ceiling / (bound || 1)) : 1;
   try {
     const t = ctx.currentTime, bus = ctx.createGain(); nodes.push(bus); voice.gain = bus;
     const low = ctx.createBiquadFilter(); low.type = 'lowpass'; low.Q.value = -6.1; // Web Audio lowpass Q is dB: overdamped; cutoff <= .2 sampleRate keeps impulse nonnegative (L1=1)
@@ -47,9 +51,13 @@ export function playKamakuraStep(audio, step, grassMix, { pan = 0, lowpassHz = 2
         f.frequency.value = Math.min(l.freq, ctx.sampleRate * (l.filter === 'bandpass' ? .45 : .2)); nodes.push(f); source.connect(f); output = f;
       }
       const g = ctx.createGain(), p = ctx.createStereoPanner(); nodes.push(g, p);
-      const level = l.gain * Math.min(1, gainScale);
+      const level = l.gain * Math.min(1, gainScale) * gaitScale;
       g.gain.setValueAtTime(0, start); g.gain.linearRampToValueAtTime(level, start + .002);
-      g.gain.exponentialRampToValueAtTime(Math.max(1e-8, level * .0001), end);
+      if (audio.mix10 && l.filter) {
+        // A body, not just a two-millisecond peak: hold then decay across the audible tail.
+        g.gain.linearRampToValueAtTime(level * .72, start + l.durationMs * .00035);
+        g.gain.linearRampToValueAtTime(0, end);
+      } else g.gain.exponentialRampToValueAtTime(Math.max(1e-8, level * .0001), end);
       p.pan.value = Math.max(-1, Math.min(1, pan + l.pan));
       output.connect(g); g.connect(p); p.connect(low);
       voice.stepPeakBound += level * (l.filter ? 2 : 1);
