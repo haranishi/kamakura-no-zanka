@@ -7,6 +7,7 @@ import { buildKamakuraGrass } from './kamakura-grass-view.js';
 import { createKamakuraAudio } from './kamakura-audio-view.js';
 import { createKamakuraLayers } from './kamakura-layers.js';
 import { createHabitat } from './kamakura-habitat.js';
+import { timeButtonText, timeSwitchSearch } from './kamakura-time-switch.js';
 import { buildKamakuraFacilities } from './kamakura-facility-view.js';
 import { facilitiesEnabled, causewayShown } from './kamakura-facilities.js';
 // Separate Kamakura composition with a development flight camera. No chapter state, quests, or save access.
@@ -184,6 +185,9 @@ export async function bootKamakura(data, search) {
     layers?.setPaused(paused);
     const layerFrame = { dt: 0, rawDt: 0, time: 0, wind: 1, windDir: [1, 0], flying: false, pos: null, yaw: 0, camera, hero };
     hud.pause.addEventListener('click', () => setPaused(!paused), { signal: events.signal });
+    // W2c-16: the next time of day, at the same place and heading (the light is baked per time, so this reloads the page).
+    hud.time.textContent = timeButtonText(search);
+    hud.time.addEventListener('click', () => { location.search = timeSwitchSearch(search, flight.pos, flight.yaw); }, { signal: events.signal });
     base.onLockChange = locked => { if (!locked) setPaused(true); };
     addEventListener('keydown', e => { if ((e.code === 'KeyP' || e.code === 'Escape') && !e.repeat) setPaused(!paused); }, { signal: events.signal });
     addEventListener('blur', () => setPaused(true), { signal: events.signal });
