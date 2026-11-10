@@ -19,6 +19,15 @@ export const KAMAKURA_TIMES = {
     hemiSky: '#b6cfe6', hemiGround: '#707b58', hemiIntensity: 1,
     envIntensity: .7, fillColor: '#b9cfe7', fillIntensity: .35, exposure: 1,
   },
+  golden: {
+    postExposure: 1.06, postBloom: .16, postGlare: .95, postWarmth: .016, postToe: .8, postShade: .15,
+    sunDir: [-0.8008814546671346, 0.3704076727835497, 0.4705178546169415], sunColor: '#ffd9a6', sunIntensity: 3.3,
+    zenith: '#4f7fbd', mid: '#a9c0d8', horizon: '#f0dcc0', below: '#8a8f80',
+    fogColor: '#d9d6cf', hazeCool: '#bccbdc', hazeWarm: '#f3d2a2', hazeExp: 5,
+    fogDensity: .00011, mist: { density: .00006, base: -4, falloff: .045 },
+    hemiSky: '#b9cbe6', hemiGround: '#7d7c5e', hemiIntensity: 1.05,
+    envIntensity: .7, fillColor: '#b7c7e6', fillIntensity: .4, exposure: 1,
+  },
   // All evening colors/light values come from the unchanged valley ATMOS.
   // postToe 1 = three.js's Neutral as shipped: a blind A/B (11/8) kept the evening's warmth only with the full dark offset.
   evening: { postExposure: 1.12, postBloom: .18, postGlare: 1, postWarmth: .018, postToe: 1, postShade: .15, fogDensity: .0001, mist: { density: .00005, base: -4, falloff: .045 } },
