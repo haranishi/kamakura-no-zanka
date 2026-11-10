@@ -56,7 +56,7 @@ test('stand centers use the lowest of five ground samples plus .3h; scaled crown
     assert.deepEqual(calls,[[40,40],[40-r,40],[40+r,40],[40,40-r],[40,40+r]]);
     assert.equal(item.y,100+dx*40+dz*40-r*Math.max(Math.abs(dx),Math.abs(dz)));
     assert.equal(item.y,standGround(source,sloped));
-    const v=buildKamakuraStands(p,{wind,sunDir:new THREE.Vector3(1,1,1)}),mesh=v.distant[0].mesh;
+    const v=buildKamakuraStands(p,{wind,sunDir:new THREE.Vector3(1,1,1),search:'?stands2=0&canopy=0'}),mesh=v.distant[0].mesh;
     const m=new THREE.Matrix4();mesh.getMatrixAt(0,m);
     const position=new THREE.Vector3(),rotation=new THREE.Quaternion(),scale=new THREE.Vector3();m.decompose(position,rotation,scale);
     assert(Math.abs(position.y-(item.y+.3*source.height))<1e-5);
@@ -138,9 +138,9 @@ test('bundled Three view: static crowns, uniform shader, child pool, bounded fra
     let s=view.update(camera());assert(s.chunks<=2);while(s.pending)s=view.update(camera());
     assert(s.children.triangles>0);assert(col.circles.length>0);
     const matrices=view.distant.map(d=>Array.from(d.mesh.instanceMatrix.array));
-    for(const {mesh} of view.distant){
-      assert.equal(mesh.frustumCulled,true);assert(mesh.geometry.index.count/3>=20 && mesh.geometry.index.count/3<=72);
-      const shader={uniforms:{},vertexShader:THREE.ShaderLib.lambert.vertexShader};mesh.material.onBeforeCompile(shader);
+    for(const {mesh,far} of view.distant){
+      assert.equal(mesh.frustumCulled,true);assert.equal(mesh.geometry.index.count/3,far?18:56);
+      const shader={uniforms:{},vertexShader:THREE.ShaderLib.lambert.vertexShader,fragmentShader:THREE.ShaderLib.lambert.fragmentShader};mesh.material.onBeforeCompile(shader);
       assert.equal(shader.uniforms.uStandEye,view.eye);assert(shader.vertexShader.includes('smoothstep('));assert(shader.vertexShader.includes('aStandExpand'));
       const tier=mesh.name.split('/')[1];assert(shader.vertexShader.includes(tier==='1'?'smoothstep(100.0, 180.0':'smoothstep(500.0, 800.0'));
     }
@@ -187,13 +187,13 @@ test('standard crowns cast and receive; light crowns only receive while near chi
 test('runtime distance policy culls static crowns immediately and reversibly without allocation (Node, no GPU)', () => {
   const p=prepareStands([stand({x:20,z:20,tier:2}),stand({id:2,x:2500,z:2500,tier:2})],{...terrain,insideA:()=>false});
   const view=buildKamakuraStands(p,{wind,sunDir:new THREE.Vector3(1,1,1)}), scene=new THREE.Scene(); scene.add(view.group); scene.updateMatrixWorld(true);
-  const identities=view.distant.map(d=>[d.mesh,d.mesh.geometry,d.mesh.material]);
+  const identities=view.distant.map(d=>[d.mesh,d.nearGeometry,d.farGeometry,d.nearMaterial]);
   for(const {mesh} of view.distant) { assert.equal(mesh.matrixAutoUpdate,false); assert.deepEqual(mesh.matrixWorld.elements,new THREE.Matrix4().elements); }
   view.update(camera()); const full=view.distant.filter(d=>d.mesh.visible).length; assert.equal(full,2);
   for(let i=0;i<4;i++) {
     view.setAdapt({standRange:.4,impostorRange:.7});view.update(camera()); assert.equal(view.distant.filter(d=>d.mesh.visible).length,1);
     view.setAdapt({standRange:1,impostorRange:1});view.update(camera()); assert.equal(view.distant.filter(d=>d.mesh.visible).length,full);
-    assert.deepEqual(view.distant.map(d=>[d.mesh,d.mesh.geometry,d.mesh.material]),identities);
+    assert.deepEqual(view.distant.map(d=>[d.mesh,d.nearGeometry,d.farGeometry,d.nearMaterial]),identities);
   }
   view.dispose();
 });

@@ -11,6 +11,8 @@ export async function buildKamakuraFacilities(facilities, terrain, scene, qualit
   if(json.buffers?.some(b=>b.uri) || json.images?.length || json.textures?.length || json.extensionsUsed?.length || json.extensionsRequired?.length) throw new Error('施設のGLBは単色の自己完結形式が必要です');
   const gltf=await new GLTFLoader().parseAsync(facilities.kit,'');
   const geometries=new Set(), materials=new Set(), records=[], boxes=[], exclusionBoxes=[];
+  const farEnabled=new URLSearchParams(search).get('facfar')!=='0',stats={flying:false,shown:0};
+  scene.userData.kzHouseFarFacilities=stats;
   let disposed=false,step=0,shadows=true,texture=null;
   const surfaceCache=new Map();
   // W2c-9r1 house: anonymous facility colors -> catalog roles and node-height frames.
@@ -27,7 +29,7 @@ export async function buildKamakuraFacilities(facilities, terrain, scene, qualit
     return surfaceCache.get(key);
   }
   const group=new THREE.Group();group.name='kamakura-facilities';
-  function dispose() {if(disposed)return;disposed=true;group.removeFromParent();texture?.dispose();for(const g of geometries)g.dispose();for(const m of materials)m.dispose();}
+  function dispose() {if(disposed)return;disposed=true;if(scene.userData.kzHouseFarFacilities===stats)delete scene.userData.kzHouseFarFacilities;group.removeFromParent();texture?.dispose();for(const g of geometries)g.dispose();for(const m of materials)m.dispose();}
   gltf.scene.traverse(o=>{if(o.isMesh){geometries.add(o.geometry);for(const m of [].concat(o.material))materials.add(m);}});
   try {
     // Loader may keep an unused base material when it clones one for flat normals.
@@ -67,6 +69,8 @@ export async function buildKamakuraFacilities(facilities, terrain, scene, qualit
           interiors.push({positions:g.attributes.position.array,indices:g.index?.array});
       }
       const interiorFrame=n.part==='hall'?houseInteriorOpeningFrame(interiors):[0,1,0,0];
+      bounds.minY=Infinity;bounds.maxY=-Infinity;
+      for(let i=1;i<placed.positions.length;i+=3){bounds.minY=Math.min(bounds.minY,placed.position.y+placed.positions[i]);bounds.maxY=Math.max(bounds.maxY,placed.position.y+placed.positions[i]);}
       if(n.soft)floor=0; // Soil contact is at the datum, not the buried skirt bottom.
       for(const {g,material,hint} of parts) {
         // R3 classification uses original rigid component shapes, before terrain placement.
@@ -97,6 +101,6 @@ export async function buildKamakuraFacilities(facilities, terrain, scene, qualit
   } catch(e) {dispose();throw e;}
   return {group,records,boxes,exclusionBoxes,dispose,
     setAdapt(policy) {step=policy.scale<=.58?3:policy.scale<=.7?2:0;for(const m of surfaceCache.values())m.userData.setHouseAdapt(step);shadows=policy.shadows;for(const r of records)for(const m of r.meshes)m.castShadow=shadows&&facilityCastsShadow(r.node);},
-    update(pos) {if(disposed)return;for(const r of records){const visible=facilityVisible(r.node,r.bounds,pos,quality,step);for(const m of r.meshes)m.visible=visible;}}
+    update(pos, flying=false) {if(disposed)return;stats.flying=flying;stats.shown=0;for(const r of records){const visible=facilityVisible(r.node,r.bounds,pos,quality,step,flying&&farEnabled);if(visible)stats.shown++;for(const m of r.meshes)m.visible=visible;}}
   };
 }

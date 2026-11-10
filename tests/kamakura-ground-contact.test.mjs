@@ -56,7 +56,7 @@ test('GD1 resource lifetime, quality/adaptation and byte-identical old tone at g
     await h.owner.tone.ready;
   }finally{h.dispose();}
   for(const search of ['?ground6=0','?gtone=0','?gdetail=0']){
-    const old=setup(search);try{assert.equal(groundContactFor(old.d),undefined);assert(!old.shader.fragmentShader.includes('vec3 ground6Color'));
+    const old=setup(search+(search?'&':'?')+'gfar=0');try{assert.equal(groundContactFor(old.d),undefined);assert(!old.shader.fragmentShader.includes('vec3 ground6Color'));
       if(search==='?ground6=0')assert(old.shader.fragmentShader.includes(TONE_GLSL));
     }finally{old.dispose();}
   }

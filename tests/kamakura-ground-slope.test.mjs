@@ -85,7 +85,7 @@ test('SL2 deterministic canopy density uses only veg; smooth support, empty inpu
 });
 test('SL1/2 generated Three shader flags, resources, sampler budget, adaptation and one-time density bake',async()=>{
   for(const quality of ['standard','light'])for(const search of ['', '?ground7=0','?ground6=0','?ground6=0&ground7=0','?photo=0']){
-    const h=setup(search,quality);try{
+    const h=setup(search+(search?'&':'?')+'gfar=0',quality);try{
       await h.owner.tone.ready;
       const density=h.owner.tone.density,u=h.owner.uniforms,shader=h.s.fragmentShader;
       assert(density);assert.equal(density.bytes.length,16384);

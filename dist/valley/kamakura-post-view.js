@@ -2,7 +2,8 @@
 import * as THREE from 'three';
 import { POST_DEFAULTS, postOptions, postRoute, bloomSizes, projectSun, bloomCap, neutralToneChunk, shadeSettings, SHADE_GLSL } from './kamakura-post.js';
 import { atmosphereOptions } from './kamakura-atmosphere.js';
-import { lightSettings, shaftVisibility, advanceCloudTime, lightFinalShader, SHAFT_SHADERS } from './kamakura-sky-fx.js';
+import { lightSettings, shaftVisibility, advanceCloudTime, cloudHigh, lightFinalShader, SHAFT_SHADERS } from './kamakura-sky-fx.js';
+import { MIST, createMistField, mistStrength } from './kamakura-mist.js';
 const VERT = 'varying vec2 vUv; void main(){ vUv=position.xy*.5+.5; gl_Position=vec4(position.xy,0.,1.); }';
 export const POST_SHADERS = {
   down: `varying vec2 vUv; uniform sampler2D tex; uniform vec2 delta; uniform float threshold, liftCap;
@@ -47,16 +48,25 @@ export const POST_SHADERS = {
     }`,
 };
 const TONES = { none: THREE.NoToneMapping, aces: THREE.ACESFilmicToneMapping, neutral: THREE.NeutralToneMapping, agx: THREE.AgXToneMapping };
-export function createKamakuraPost({ renderer, quality = 'standard', search = '', params = {}, sunDir, now = () => performance.now(), cloudDirection = [1, 0] }) {
+export function createKamakuraPost({ renderer, quality = 'standard', search = '', params = {}, sunDir, now = () => performance.now(), cloudDirection = [1, 0], terrain = null }) {
   const options = postOptions(search), savedTone = renderer.toneMapping, savedExposure = renderer.toneMappingExposure;
+  options.mist = options.mist && !!terrain;
   const shade = shadeSettings(search, params), light = lightSettings(atmosphereOptions(search).time);
-  const needsDepth = options.shafts || options.cloud;
+  const needsDepth = options.shafts || options.cloud || options.mist;
   let cloudTime = 0, lastTime = null, shaftStrength = 0;
   const debugLight = () => ({ shafts: { active: active && shaftStrength > 0, strength: active ? shaftStrength : 0 },
-    cloud: { strength: active && options.cloud ? light.cloud : 0, time: cloudTime }, depth: !!targets?.[0].depthTexture,
+    cloud: { strength: active && options.cloud ? light.cloud*highCloud.strength : 0, time: cloudTime }, depth: !!targets?.[0].depthTexture,
     sun: { x: projected.x, y: projected.y, strength: projected.strength } });
   const debug = new URLSearchParams(search).get('debug') === '1';
-  if (debug) globalThis.__kzLight = debugLight;
+  const inheritedAir = debug ? globalThis.__kzAir : null;
+  const air = inheritedAir ? inheritedAir() : { flying:false, shadow:{size:0,texel:0,centerDistance:0,soft:false,bias:0}, mist:{}, cloud:{} };
+  const debugAir = () => air;
+  if (debug) { globalThis.__kzLight = debugLight; if (!inheritedAir) globalThis.__kzAir = debugAir; }
+  Object.assign(air.mist,{ready:false,enabled:false,strength:0,cells:0});
+  const highCloud = {scale:1,strength:1,height:0};
+  Object.assign(air.cloud,{scale:1,strength:0,height:0});
+  let valleyField=null, mistTexture=null, firstMistFrame=true;
+  const mistValue=mistStrength(atmosphereOptions(search).time);
   const exposure = params.postExposure ?? 1, bloomCapValue = bloomCap(search);
   // W2c-10 grade: Neutral's dark offset, scaled (URL > time-of-day preset > default). The chunk is global, so it is patched before any program
   // compiles (this runs before the first render) and put back on dispose; both the final pass and the no-post route include it.
@@ -87,12 +97,53 @@ export function createKamakuraPost({ renderer, quality = 'standard', search = ''
       lightDirection:{value:sunDir ? sunDir.clone().normalize() : new THREE.Vector3(0,1,0)},
       cloudDirection:{value:new THREE.Vector2(...cloudDirection).normalize()},cloudTime:{value:0},cloudStrength:{value:light.cloud},
     });
+    if(options.cloud && options.cloudhigh) final.uniforms.cloudScale={value:1};
+    if(options.mist) {
+      const horizon=new THREE.Color(params.horizon ?? params.fogColor);
+      const cool=new THREE.Color(params.hazeCool ?? params.fogColor),warm=new THREE.Color(params.hazeWarm ?? params.fogColor);
+      const luminance=c=>.2126*c.r+.7152*c.g+.0722*c.b;
+      const brightness=luminance(horizon)*MIST.brightness;
+      cool.multiplyScalar(brightness/Math.max(.000001,luminance(cool)));
+      warm.multiplyScalar(brightness/Math.max(.000001,luminance(warm)));
+      Object.assign(final.uniforms,{
+        mistField:{value:null},mistBounds:{value:new THREE.Vector4(0,0,1,1)},mistPixels:{value:new THREE.Vector2(1,1)},
+        mistWind:{value:new THREE.Vector2(...cloudDirection).normalize()},mistTime:{value:0},mistReady:{value:0},mistStrength:{value:mistValue},
+        mistCool:{value:cool},mistWarm:{value:warm},mistSun:{value:sunDir ? sunDir.clone().normalize() : new THREE.Vector3(0,1,0)},mistHazeExp:{value:params.hazeExp ?? 4},
+      });
+    }
     if (options.shafts) {
       shaftMask=material(SHAFT_SHADERS.mask,{depthTex:{value:null},sunUV:{value:final.uniforms.sunUV.value},depthPixel:{value:new THREE.Vector2()},aspect:{value:1}});
       shaftBlur=material(SHAFT_SHADERS.radial,{maskTex:{value:null},sunUV:{value:final.uniforms.sunUV.value}});
       Object.assign(final.uniforms,{shaftTex:{value:null},shaftStrength:{value:0}});
     }
     scene = new THREE.Scene(); camera = new THREE.Camera(); mesh = new THREE.Mesh(geometry,down); mesh.frustumCulled=false; scene.add(mesh);
+  }
+  function releaseMist() {
+    mistTexture?.dispose(); mistTexture=null; valleyField=null;
+    air.mist.ready=false; air.mist.enabled=false; air.mist.strength=0;
+    if(final && options.mist) { final.uniforms.mistField.value=null; final.uniforms.mistReady.value=0; }
+  }
+  function advanceMist() {
+    if(!options.mist)return;
+    // One complete scene is rendered before any terrain field work starts.
+    if(firstMistFrame){firstMistFrame=false;return;}
+    if(!valleyField){valleyField=createMistField(terrain);air.mist.cells=valleyField.cells;}
+    const start=now();
+    for(let work=0;work<MIST.cellsPerFrame && !valleyField.ready;work+=MIST.batchCells){
+      valleyField.step(MIST.batchCells);
+      if(now()-start>=MIST.budgetMs)break;
+    }
+    if(valleyField.ready && !mistTexture){
+      mistTexture=new THREE.DataTexture(valleyField.data,valleyField.width,valleyField.height,THREE.RGFormat,THREE.FloatType);
+      mistTexture.minFilter=mistTexture.magFilter=THREE.LinearFilter; mistTexture.generateMipmaps=false;
+      mistTexture.needsUpdate=true;
+      const u=final.uniforms;
+      u.mistField.value=mistTexture;u.mistReady.value=1;
+      u.mistBounds.value.set(valleyField.minX,valleyField.minZ,(valleyField.width-1)*valleyField.cell,(valleyField.height-1)*valleyField.cell);
+      u.mistPixels.value.set(1/valleyField.width,1/valleyField.height);
+      air.mist.ready=true;
+    }
+    air.mist.enabled=air.mist.ready;air.mist.strength=air.mist.ready?mistValue:0;
   }
   function releaseTargets() {
     if (targets) {
@@ -137,7 +188,7 @@ export function createKamakuraPost({ renderer, quality = 'standard', search = ''
     if(disposed) return;
     if(step>=2) latched=true;
     active=postRoute(quality,step,options.post,latched);
-    if(!active) { releaseTargets(); lastTime=null; shaftStrength=0; }
+    if(!active) { releaseTargets(); releaseMist(); lastTime=null; shaftStrength=0; air.cloud.strength=0; }
     renderer.toneMapping=active?THREE.NoToneMapping:TONES[options.tone]; renderer.toneMappingExposure=exposure;
   }
   function draw(mat,target) { mesh.material=mat; renderer.setRenderTarget(target); renderer.render(scene,camera); }
@@ -168,11 +219,19 @@ export function createKamakuraPost({ renderer, quality = 'standard', search = ''
           final.uniforms.inverseProjection.value.copy(view.projectionMatrixInverse);
           final.uniforms.cameraWorld.value.copy(view.matrixWorld); final.uniforms.viewFar.value=view.far ?? 10000;
         }
-        if(options.cloud) {
+        if(options.cloud || options.mist) {
           const stamp=now();
           if(lastTime !== null) cloudTime=advanceCloudTime(cloudTime,stamp-lastTime);
-          lastTime=stamp; final.uniforms.cloudTime.value=cloudTime;
+          lastTime=stamp;
         }
+        if(options.cloud) {
+          if(options.cloudhigh)cloudHigh(terrain ? Math.max(0,view.position.y-terrain.heightAt(view.position.x,view.position.z)) : 0,options.cloudhigh,highCloud);
+          final.uniforms.cloudTime.value=cloudTime;
+          final.uniforms.cloudStrength.value=light.cloud*highCloud.strength;
+          if(options.cloudhigh)final.uniforms.cloudScale.value=highCloud.scale;
+          air.cloud.scale=highCloud.scale;air.cloud.strength=final.uniforms.cloudStrength.value;air.cloud.height=highCloud.height;
+        }
+        if(options.mist) { advanceMist(); final.uniforms.mistTime.value=cloudTime; }
         if(options.shafts) {
           shaftStrength=light.shafts*shaftVisibility(projected.x,projected.y,projected.strength);
           final.uniforms.shaftStrength.value=shaftStrength;
@@ -182,6 +241,6 @@ export function createKamakuraPost({ renderer, quality = 'standard', search = ''
         draw(final,previous);
       } finally {renderer.setRenderTarget(previous);renderer.autoClear=autoClear;}
     },
-    dispose(){if(disposed)return;disposed=true;releaseTargets();geometry?.dispose();down?.dispose();combine?.dispose();final?.dispose();shaftMask?.dispose();shaftBlur?.dispose();if(debug && globalThis.__kzLight===debugLight)delete globalThis.__kzLight;renderer.toneMapping=savedTone;THREE.ShaderChunk.tonemapping_pars_fragment=savedToneChunk;renderer.toneMappingExposure=savedExposure;},
+    dispose(){if(disposed)return;disposed=true;releaseTargets();releaseMist();geometry?.dispose();down?.dispose();combine?.dispose();final?.dispose();shaftMask?.dispose();shaftBlur?.dispose();if(debug && globalThis.__kzLight===debugLight)delete globalThis.__kzLight;if(debug && !inheritedAir && globalThis.__kzAir===debugAir)delete globalThis.__kzAir;renderer.toneMapping=savedTone;THREE.ShaderChunk.tonemapping_pars_fragment=savedToneChunk;renderer.toneMappingExposure=savedExposure;},
   };
 }

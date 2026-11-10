@@ -1,4 +1,9 @@
 // Pure facility catalog, placement and footprint rules. No bundled geography.
+export const FACILITY_FAR = Object.freeze({
+  landmarkRange: 8000, // metres: flying hall, romon and Buddha range.
+  otherRange: 4000, // metres: flying torii, gates and other facilities.
+  wallRange: 2500 // metres: flying fence range.
+});
 export const FACILITY_PARTS = ['hall', 'romon', 'gate', 'torii', 'buddha', 'fence', 'kairo', 'causeway', 'stairs', 'jetty', 'sando', 'platform', 'nagayamon'];
 const softParts = new Set(['fence', 'kairo', 'causeway', 'stairs', 'jetty', 'sando', 'platform']);
 export const facilitiesEnabled = search => new URLSearchParams(search).get('facilities') !== '0';
@@ -25,14 +30,18 @@ export function decodeFacilities(catalog) {
 export const facilitySolid = n => n.part === 'hall' || n.part === 'buddha';
 export const facilityExcludesTrees = n => facilitySolid(n) || n.part === 'stairs';
 export const facilityCastsShadow = n => ['hall', 'romon', 'gate', 'torii', 'buddha', 'nagayamon'].includes(n.part);
-export function facilityRange(n, quality = 'standard', step = 0) {
-  const range = ['hall', 'romon', 'buddha'].includes(n.part) ? 3000 : n.part === 'fence' ? 900 : 1200;
-  return range * (quality === 'light' ? .6 : 1) * (step === 3 ? .6 : 1);
+export function facilityRange(n, quality = 'standard', step = 0, flying = false) {
+  const landmark=n.part==='hall'||n.part==='romon'||n.part==='buddha';
+  const range = landmark ? 3000 : n.part === 'fence' ? 900 : 1200;
+  const far = landmark ? FACILITY_FAR.landmarkRange : n.part === 'fence' ? FACILITY_FAR.wallRange : FACILITY_FAR.otherRange;
+  return (flying ? far : range) * (quality === 'light' ? .6 : 1) * (step === 3 ? .6 : 1);
 }
-export function facilityVisible(n, box, pos, quality, step) {
+export function facilityVisible(n, box, pos, quality, step, flying = false) {
   // Distance to horizontal bounds, not the anchor of a long wall or causeway.
   const c = Math.cos(box.rotY), s = Math.sin(box.rotY), dx = pos.x - box.x, dz = pos.z - box.z;
-  return Math.hypot(Math.max(0, Math.abs(dx*c-dz*s)-box.w/2), Math.max(0, Math.abs(dx*s+dz*c)-box.d/2)) <= facilityRange(n, quality, step);
+  const horizontal=Math.hypot(Math.max(0, Math.abs(dx*c-dz*s)-box.w/2), Math.max(0, Math.abs(dx*s+dz*c)-box.d/2));
+  const distance=flying?Math.hypot(horizontal,Math.max(0,(box.minY??0)-(pos.y??0),(pos.y??0)-(box.maxY??box.height??0))):horizontal;
+  return distance <= facilityRange(n, quality, step, flying);
 }
 // Parts the hero walks on (causeway, stairs, approach, platform). The walking height is the terrain, so their tops are
 // pressed down to a paving just above the ground; a 1m-4m embankment would swallow the hero's legs (the spawn is on the

@@ -1,3 +1,4 @@
+import { prepareAvenue } from './kamakura-avenue.js';
 import { sandoLines, sandoEnabled } from './kamakura-sando.js';
 import { decodeFacilities } from './kamakura-facilities.js';
 import { decodeRoads, kamakuraPaths, roadStats } from './kamakura-roads.js';
@@ -88,7 +89,9 @@ export async function loadKamakura(fetcher = fetch, search = globalThis.location
   if (meta.roads && new URLSearchParams(search).get('roads') !== '0') {
     try {
       if (meta.roads.file !== 'roads.json' || meta.roads.schema !== 'kz-roads/0.1' || !Number.isInteger(meta.roads.count)) throw new Error();
-      data.roads = decodeRoads(await (await read('roads.json')).json(), meta.roads.count);
+      const source = await (await read('roads.json')).json();
+      data.roads = decodeRoads(source, meta.roads.count);
+      if (new URLSearchParams(search).get('avenue') !== '0') for (const [id, road] of Object.entries(data.roads)) road.route_id = source.roads[id].route_id;
     } catch { /* Optional roads failure keeps the existing pass paths and terrain. */ }
   }
   data.surface = null;
@@ -127,8 +130,8 @@ export async function loadKamakura(fetcher = fetch, search = globalThis.location
   }
   if (meta.rivers) {
     try {
-      if (meta.rivers.file !== 'rivers.json' || meta.rivers.count !== 27 || !Number.isInteger(meta.rivers.points)) throw new Error();
-      data.rivers = decodeRivers(await (await read('rivers.json')).json());
+      if (meta.rivers.file !== 'rivers.json' || !Number.isInteger(meta.rivers.count) || meta.rivers.count < 1 || !Number.isInteger(meta.rivers.points)) throw new Error();
+      data.rivers = decodeRivers(await (await read('rivers.json')).json(), meta.rivers.count);
       if (data.rivers.points !== meta.rivers.points) throw new Error();
     } catch { data.rivers = null; data.riverNotice = '川を読み込めませんでした。川なしで散策を続けます'; }
   }
@@ -146,6 +149,7 @@ export async function loadKamakura(fetcher = fetch, search = globalThis.location
     try { data.sando = sandoLines(data); }
     catch { data.sando = null; data.sandoNotice = '参道を作れませんでした。散策を続けます'; }
   }
+  if (!data.sandoNotice && new URLSearchParams(search).get('avenue') !== '0') { data.avenue = prepareAvenue(data); if (data.avenue) data.veg = data.avenue.veg; }
   return data;
 }
 

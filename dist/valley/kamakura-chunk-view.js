@@ -40,6 +40,7 @@ export function buildKamakuraChunks(t, scene, spawn, ground = true, quality = 's
   }
   function update(pos) {
     if (disposed) return;
+    detail.far?.update(pos);
     if (shouldPlanChunks(last, pos, ++frame)) {
       flyHeight = flying ? Math.max(0, pos.y - t.heightAt(pos.x, pos.z)) : 0;
       const old = scheduler.active; scheduler.plan(pos, flying ? FLY.distance : 3300);

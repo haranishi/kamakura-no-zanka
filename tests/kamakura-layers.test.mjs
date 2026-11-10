@@ -17,7 +17,7 @@ function recorder() {
 
 test('the default list names five distinct layers, each with a factory', () => {
   const names = KAMAKURA_LAYERS.map(([name]) => name);
-  assert.deepEqual(names, ['drift', 'fauna', 'props', 'fields', 'people', 'heroLife', 'soundscape']);
+  assert.deepEqual(names, ['backdrop', 'drift', 'fauna', 'props', 'avenue', 'harbor', 'fields', 'people', 'heroLife', 'soundscape']);
   assert.equal(new Set(names).size, names.length);
   for (const [, make] of KAMAKURA_LAYERS) assert.equal(typeof make, 'function');
   assert(Object.isFrozen(KAMAKURA_LAYERS));

@@ -86,7 +86,7 @@ export async function bootKamakura(data, search) {
     photo = startPhoto(THREE, { search, quality, maxAnisotropy: renderer.capabilities.getMaxAnisotropy() });
     atmosphere = createKamakuraAtmosphere({ scene, renderer, search, quality });
     // W2c-9f: isolate HDR/grade from the shared valley renderer.
-    post = createKamakuraPost({ renderer, quality, search, params: atmosphere.atmosphere?.params, sunDir: atmosphere.sunDir });
+    post = createKamakuraPost({ renderer, quality, search, terrain: t, params: atmosphere.atmosphere?.params, sunDir: atmosphere.sunDir });
     roster = await loadRoster({ names: ['hero'] });
     // W2c-10 harmony: the hero is MeshStandardMaterial too and took ~2.5x the shade-side light of the Lambert world; a small own-envMap
     // intensity (a bit above the houses so the figure stays readable in shade) puts it on the same ambient (&henv=0 restores the old look).
@@ -131,7 +131,7 @@ export async function bootKamakura(data, search) {
         trees = buildKamakuraVeg(prepared, { wind, sunDir: atmosphere.sunDir, quality, renderer, search }); // W2c-9r1 veg: vtrunk A/B.
         scene.add(trees.group);
         if (standsEnabled(search)) {
-          standPrepared = prepareStands(data.veg, t, { boxes: [...houseExclusions, ...facilityExclusions], paths: kamakuraPaths(data) || {}, spawn }, standPolicy(quality));
+          standPrepared = prepareStands(data.veg, t, { boxes: [...houseExclusions, ...facilityExclusions], paths: kamakuraPaths(data) || {}, spawn, preparedVeg: prepared, search }, standPolicy(quality));
           treeOptions = { wind, sunDir: atmosphere.sunDir, quality, renderer, search };
         }
       } catch { vegNotice = '木を準備できませんでした。木なしで散策を続けます'; }
@@ -253,7 +253,7 @@ export async function bootKamakura(data, search) {
       audioView.listen?.(layerFrame); // the listener's place, heading and the shared wind clock, for sounds that follow the gusts or come from a side
       layers?.update(layerFrame);
       renderer.info.reset(); // W2c-9r1 light: one reset before all frame draws.
-      flight.updateViews(uniforms.uTime, paused ? 0 : dt); facilities?.update(flight.pos); grass.update(camera, flight.pos, paused); fx.update(paused ? 0 : dt, camera, hero); groundContactFor(data)?.update(camera.position, g.col.boxes, g.col.circles); updateKamakuraRoadPaths(data, camera.position, groundPathFor(data), search); post.render(scene, camera);
+      flight.updateViews(uniforms.uTime, paused ? 0 : dt); facilities?.update(flight.pos, flight.active); grass.update(camera, flight.pos, paused); fx.update(paused ? 0 : dt, camera, hero); groundContactFor(data)?.update(camera.position, g.col.boxes, g.col.circles); updateKamakuraRoadPaths(data, camera.position, groundPathFor(data), search); post.render(scene, camera);
       hud.update(flight.pos, flight.yaw, t, { ...renderer.info.render, averageMs: adapt.averageMs, step: adapt.step }, flight.state, audioView.debugText() + (layers?.debugText() || ''));
     });
     return { dispose };

@@ -1,3 +1,4 @@
+import { SEA_FAR, sea2Enabled, seaGrazing, seaSwellGain, seaLineCount, seaFarFragment } from './kamakura-sea-far.js';
 import { shore6Enabled, SHORE_R6_GLSL } from './kamakura-shore-r6.js';
 import { shore4Enabled, SHORE_R4_GLSL } from './kamakura-shore-r4.js';
 import * as THREE from 'three';
@@ -11,6 +12,9 @@ import { buildShoreProps } from './kamakura-shore-props.js';
 const SHORE_FRAME_BUDGET_MS=3;
 // W2c-9e2: coarse unsigned coast -> sub-cell signed surf and atmosphere-derived sea.
 export function buildKamakuraSea(terrain, data, {search='',quality='standard',sunDir=new THREE.Vector3(.5,.17,.85)}={}) {
+  const sea2=sea2Enabled(search)&&new URLSearchParams(search).get('seav')!=='0';
+  const debugSea2=new URLSearchParams(search).get('debug')==='1',sea2Colors=new URLSearchParams(search).get('sea2debug')==='1';
+  let lastCamera=null;
   const shore6=shore6Enabled(search),shore2=shore2Enabled(search),shore3=shore3Enabled(search),shore4=shore4Enabled(search);
   const enabled=new URLSearchParams(search).get('seav')!=='0', b=terrain.bounds;
   const geometry=new THREE.PlaneGeometry(enabled?200000:(b.maxX-b.minX)*1.2,enabled?200000:(b.maxZ-b.minZ)*1.2);geometry.rotateX(-Math.PI/2);
@@ -20,10 +24,26 @@ export function buildKamakuraSea(terrain, data, {search='',quality='standard',su
   const textures=[],jobs=enabled?[createSignedShoreJob(terrain)]:[];
   const sky=kamakuraAtmosphere(atmosphereOptions(search).time,{...ATMOS,sunDir:ATMOS.sunDir.toArray()},shore4?eveningEnabled(search):true,shore4&&quality==='light'?.55:1);
   const daylight=Math.max(.28,Math.min(1,sky.sunDir[1]/.7));
+  // Add beach/cliff gain to the existing distance texture; every shared sampler still reads .r.
+  function beachGain(field,i) {
+    const d=field.data[i];
+    if(Math.abs(d)>SEA_FAR.linePositionsM.at(-1)+SEA_FAR.cliffProbeM)return 0;
+    const col=i%field.w,row=Math.floor(i/field.w),cell=field.cell;
+    const dx=field.data[row*field.w+Math.min(field.w-1,col+1)]-field.data[row*field.w+Math.max(0,col-1)];
+    const dz=field.data[Math.min(field.h-1,row+1)*field.w+col]-field.data[Math.max(0,row-1)*field.w+col];
+    const length=Math.hypot(dx,dz);if(length<1e-6)return 0;
+    const nx=dx/length,nz=dz/length,x=field.x0+col*cell-nx*d,z=field.z0+row*cell-nz*d;
+    const slope=Math.max(0,terrain.heightAt(x-nx*SEA_FAR.cliffProbeM,z-nz*SEA_FAR.cliffProbeM))/SEA_FAR.cliffProbeM;
+    const t=Math.max(0,Math.min(1,(slope-SEA_FAR.cliffSlopeStart)/(SEA_FAR.cliffSlopeEnd-SEA_FAR.cliffSlopeStart)));
+    return 1-(1-SEA_FAR.cliffGain)*t*t*(3-2*t);
+  }
   function textureFor(field, packed = null) {
-    if(!packed){packed=new Uint16Array(field.data.length);
-      for(let i=0;i<packed.length;i++)packed[i]=THREE.DataUtils.toHalfFloat(Math.min(3000,field.data[i]));}
-    const texture=new THREE.DataTexture(packed,field.w,field.h,THREE.RedFormat,THREE.HalfFloatType);
+    if(!packed){packed=new Uint16Array(field.data.length*(sea2?2:1));
+      for(let i=0;i<field.data.length;i++){
+        packed[i*(sea2?2:1)]=THREE.DataUtils.toHalfFloat(Math.min(3000,field.data[i]));
+        if(sea2)packed[i*2+1]=THREE.DataUtils.toHalfFloat(beachGain(field,i));
+      }}
+    const texture=new THREE.DataTexture(packed,field.w,field.h,sea2?THREE.RGFormat:THREE.RedFormat,THREE.HalfFloatType);
     texture.minFilter=texture.magFilter=THREE.LinearFilter;texture.generateMipmaps=false;texture.unpackAlignment=1;texture.needsUpdate=true;textures.push(texture);return texture;
   }
   // W2c-9r3 shore: blank startup sea -> bounded coarse signed preview (<=65x65).
@@ -34,6 +54,16 @@ export function buildKamakuraSea(terrain, data, {search='',quality='standard',su
   const palette=SEA_PALETTE.map(([distance,color])=>{const c=new THREE.Color(color),l=.2126*c.r+.7152*c.g+.0722*c.b;return [distance,c.lerp(new THREE.Color(l,l,l),1-SEA_CHROMA)];});
   const colorGLSL=palette.map(([d,c])=>`vec3(${c.r.toFixed(6)},${c.g.toFixed(6)},${c.b.toFixed(6)})`);
   const u={uShore6:{value:shore6?(quality==='light'?.5:1):0},uShoreWet5:{value:+shore4},uShore4:{value:+shore4},uShore4Detail:{value:quality==='light'?0:1},uWaterSkyMid:{value:new THREE.Color(sky.mid)},uWaterSkyHorizon:{value:new THREE.Color(sky.horizon)},uShore3:{value:+shore3},uShore2:{value:+shore2},uShoreBands:{value:quality==='light'?1:3},uShoreWetReach:{value:0},uShoreWaves:{value:new THREE.Vector3()},uSeaSky:{value:new THREE.Color(sky.mid)},uSeaSun:{value:new THREE.Color(sky.sunColor)},uSeaDay:{value:daylight},uShoreSea:{value:fallback},uShoreLand:{value:fallback},uShoreGrid:{value:new THREE.Vector4()},uShoreTime:{value:0},uShoreWave:{value:0},uShoreOldWave:{value:0},uShoreReady:{value:preview?1:0},uShoreDetail:{value:quality==='light'?0:1},uShoreAnimate:{value:1},SUN_DIR_W:{value:sunDir.clone().normalize()}};
+  if(sea2){
+    u.uSea2={value:1};u.uSea2Swell={value:quality==='light'?SEA_FAR.reducedSwell:1};
+    u.uSea2Lines={value:seaLineCount(quality)};u.uSea2Debug={value:+sea2Colors};
+  }
+  const debugReader=()=>{
+    const cosine=lastCamera?Math.abs(lastCamera.matrixWorld.elements[9]):0;
+    const range=lastCamera?Math.abs(lastCamera.position.y)/Math.max(cosine,1e-6):0;
+    return {enabled:sea2&&step<3,grazing:seaGrazing(cosine),swell:sea2&&step<3?seaSwellGain(range)*u.uSea2Swell.value:0,lines:sea2?u.uSea2Lines.value:0,step,triangles:enabled?2:0,draws:enabled?1:0,nearest:{distance:lastCamera?Math.abs(lastCamera.position.y):null,bearing:null}};
+  };
+  if(debugSea2){globalThis.__kzSea2=debugReader;mesh.onBeforeRender=(_renderer,_scene,camera)=>{lastCamera=camera;};}
   // W2c-9e3: fine terrain-conforming bank geometry passed Node acceptance;
   // nearby-only split preparation replaces the disabled 4m ribbon.
   const bank=enabled&&waterEnabled(search)&&new URLSearchParams(search).get('bankwet')!=='0'?buildBankWet(THREE,prepareRivers(data.rivers,terrain.vscale??1,quality),terrain,{search,defer:true,sunDir}):null;if(bank){group.add(bank.group);bank.setAdapt(quality==='light'?2:0);}
@@ -165,7 +195,11 @@ export function buildKamakuraSea(terrain, data, {search='',quality='standard',su
         if(uShore3>.5&&seaFoam>.04)gl_FragColor.rgb=min(gl_FragColor.rgb,vec3(.85));
         #include <premultiplied_alpha_fragment>`);
     };
-    material.customProgramCacheKey=()=> 'kamakura-sea-11-shore6';
+    if(sea2){
+      const legacyCompile=material.onBeforeCompile;
+      material.onBeforeCompile=shader=>{legacyCompile(shader);shader.fragmentShader=seaFarFragment(shader.fragmentShader);};
+    }
+    material.customProgramCacheKey=()=> sea2?'kamakura-sea-18-far':'kamakura-sea-11-shore6';
   }
   return {group,mesh,uniforms:u,textures,jobs,props,bank,get preparedShore(){return jobIndex>=jobs.length;},
     update(dt,pos,audioTime) {
@@ -180,14 +214,17 @@ export function buildKamakuraSea(terrain, data, {search='',quality='standard',su
       while(jobIndex<jobs.length&&performance.now()-start<SHORE_FRAME_BUDGET_MS) {
         const job=jobs[jobIndex];if(!job.step(2048))continue;
         const f=job.field;
-        if(!packed){packed=new Uint16Array(f.data.length);packCursor=0;}
-        const end=Math.min(packCursor+8192,packed.length);
-        for(;packCursor<end;packCursor++)packed[packCursor]=THREE.DataUtils.toHalfFloat(f.data[packCursor]);
-        if(packCursor<packed.length)continue;
+        if(!packed){packed=new Uint16Array(f.data.length*(sea2?2:1));packCursor=0;}
+        const end=Math.min(packCursor+8192,f.data.length);
+        for(;packCursor<end;packCursor++){
+          packed[packCursor*(sea2?2:1)]=THREE.DataUtils.toHalfFloat(f.data[packCursor]);
+          if(sea2)packed[packCursor*2+1]=THREE.DataUtils.toHalfFloat(beachGain(f,packCursor));
+        }
+        if(packCursor<f.data.length)continue;
         // W2c-9 parent fix: swapping the image of the 1x1 placeholder does not resize its GPU storage (WebGL2 texStorage2D is immutable),
         // so the shader kept sampling the placeholder (landDistance = 3000 everywhere: deep colour, no foam, no wet sand). Make a NEW texture;
-        // sea and sand share this R16F.
-        const done=new THREE.DataTexture(packed,f.w,f.h,THREE.RedFormat,THREE.HalfFloatType);
+        // Sea and sand share its red distance channel (RG16F with sea2; legacy R16F otherwise).
+        const done=new THREE.DataTexture(packed,f.w,f.h,sea2?THREE.RGFormat:THREE.RedFormat,THREE.HalfFloatType);
         done.minFilter=done.magFilter=THREE.LinearFilter;done.generateMipmaps=false;done.unpackAlignment=1;done.needsUpdate=true;textures.push(done);
         u.uShoreSea.value=done;u.uShoreLand.value=done;packed=null;
         u.uShoreGrid.value.set(f.x0,f.z0,f.cell*f.w,f.cell*f.h);
@@ -196,7 +233,7 @@ export function buildKamakuraSea(terrain, data, {search='',quality='standard',su
       }
       props.update(pos);bank?.update(pos);
     },
-    setAdapt(value){step=typeof value==='number'?value:value.step;u.uShore6.value=shore6&&step<3?(quality==='light'||step>=2?.5:1):0;u.uShore4.value=shore4&&step<3?(step>=2?.45:1):0;u.uShoreWet5.value=u.uShore4.value;u.uShore4Detail.value=quality==='light'||step>=2?0:1;u.uShore3.value=shore3&&step<3?1:0;u.uShoreBands.value=step>=3?0:quality==='light'||step>=2?1:3;u.uShoreDetail.value=quality==='light'||step>=2?0:1;u.uShoreAnimate.value=step>=3?0:1;if(enabled)material.envMapIntensity=step>=3?0:.5;props?.setAdapt(step);bank?.setAdapt(quality==='light'?Math.max(2,step):step);},
-    dispose(){if(disposed)return;disposed=true;if(enabled){unregisterShoreView(data);if(terrain.shoreSigned===jobs[0].field||terrain.shoreSigned===preview?.field)delete terrain.shoreSigned;}props?.dispose();bank?.dispose();group.removeFromParent();geometry.dispose();material.dispose();for(const texture of textures)texture.dispose();}
+    setAdapt(value){step=typeof value==='number'?value:value.step;if(sea2){u.uSea2.value=step<3?1:0;u.uSea2Swell.value=quality==='light'||step>=2?SEA_FAR.reducedSwell:1;u.uSea2Lines.value=seaLineCount(quality,step);}u.uShore6.value=shore6&&step<3?(quality==='light'||step>=2?.5:1):0;u.uShore4.value=shore4&&step<3?(step>=2?.45:1):0;u.uShoreWet5.value=u.uShore4.value;u.uShore4Detail.value=quality==='light'||step>=2?0:1;u.uShore3.value=shore3&&step<3?1:0;u.uShoreBands.value=step>=3?0:quality==='light'||step>=2?1:3;u.uShoreDetail.value=quality==='light'||step>=2?0:1;u.uShoreAnimate.value=step>=3?0:1;if(enabled)material.envMapIntensity=step>=3?0:.5;props?.setAdapt(step);bank?.setAdapt(quality==='light'?Math.max(2,step):step);},
+    dispose(){if(disposed)return;disposed=true;if(globalThis.__kzSea2===debugReader)delete globalThis.__kzSea2;if(enabled){unregisterShoreView(data);if(terrain.shoreSigned===jobs[0].field||terrain.shoreSigned===preview?.field)delete terrain.shoreSigned;}props?.dispose();bank?.dispose();group.removeFromParent();geometry.dispose();material.dispose();for(const texture of textures)texture.dispose();}
   };
 }
