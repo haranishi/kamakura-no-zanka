@@ -20,13 +20,16 @@ export const KAMAKURA_TIMES = {
     envIntensity: .7, fillColor: '#b9cfe7', fillIntensity: .35, exposure: 1,
   },
   golden: {
-    postExposure: 1.06, postBloom: .16, postGlare: .95, postWarmth: .016, postToe: .8, postShade: .15,
+    // Tuned after a blind comparison with noon (10 fixed views, 2026-11-10): golden won 7, and lost where the far hills turned ochre
+    // and the shade sank to olive black. So the distant haze stays a cool blue-grey and only the haze near the sun is warm (hazeExp 9),
+    // and the shade takes more of the sky's blue (hemi/fill up, the dark offset of the tone map down).
+    postExposure: 1.06, postBloom: .16, postGlare: .95, postWarmth: .016, postToe: .6, postShade: .22,
     sunDir: [-0.8008814546671346, 0.3704076727835497, 0.4705178546169415], sunColor: '#ffd9a6', sunIntensity: 3.3,
-    zenith: '#4f7fbd', mid: '#a9c0d8', horizon: '#f0dcc0', below: '#8a8f80',
-    fogColor: '#d9d6cf', hazeCool: '#bccbdc', hazeWarm: '#f3d2a2', hazeExp: 5,
+    zenith: '#4f7fbd', mid: '#a9c0d8', horizon: '#ecdcc8', below: '#868f88',
+    fogColor: '#b7c6d8', hazeCool: '#a9bcd6', hazeWarm: '#f3d2a2', hazeExp: 9,
     fogDensity: .00011, mist: { density: .00006, base: -4, falloff: .045 },
-    hemiSky: '#b9cbe6', hemiGround: '#7d7c5e', hemiIntensity: 1.05,
-    envIntensity: .7, fillColor: '#b7c7e6', fillIntensity: .4, exposure: 1,
+    hemiSky: '#b2c7ee', hemiGround: '#7d7c5e', hemiIntensity: 1.28,
+    envIntensity: .7, fillColor: '#b3c5ea', fillIntensity: .52, exposure: 1,
   },
   // All evening colors/light values come from the unchanged valley ATMOS.
   // postToe 1 = three.js's Neutral as shipped: a blind A/B (11/8) kept the evening's warmth only with the full dark offset.
