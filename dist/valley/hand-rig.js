@@ -263,6 +263,7 @@ export class HandRig {
     // ---- 左手：抜刀・納刀の間、鞘を持つ（抜刀の層の左手の重みと同じ）
     const hip = ch.weapons.tachiHip;
     L.gSaya = live && hip ? frame.pose.ikLeft : 0;
+    if (this.rest && hip) L.gSaya = Math.max(L.gSaya, this.rest.carry);
     if (L.gSaya > 1e-4) {
       MS.copy(hip.holder.matrixWorld);
       const y = GRIP_SLIDE.saya, z = sayaCenter(y);
@@ -277,6 +278,10 @@ export class HandRig {
       L.real[2].getWorldPosition(VB).applyMatrix4(MS);
       const r = Math.hypot(VB.x, VB.z), T = TWO_HAND;
       raw = (1 - smooth01((r - T.near) / (T.far - T.near))) * smooth01((VB.y - T.yLo) / T.yEdge) * (1 - smooth01((VB.y - T.yHi) / T.yEdge));
+    }
+    if (this.rest && !live) {
+      if (this.rest.guardWeight > 0) raw += (1 - raw) * this.rest.guardWeight;
+      if (this.rest.carryOn || this.rest.carryWeight > 0) raw *= 1 - this.rest.carryWeight;
     }
     // 最初のコマ（g2 が null）は raw のまま。時間が進まないコマ（dt=0）は動かさない
     if (L.g2 == null) { L.g2 = raw; L.v2 = 0; }
@@ -305,15 +310,24 @@ export class HandRig {
       const ft = s.fit.tsuka || NO_FIT, fs = s.fit.saya || NO_FIT;
       for (let k = 0; k < FINGERS; k++) for (let j = 0; j < 3; j++) {
         const n = k * 3 + j;
-        s.curl[n] = HAND.relaxed[j] * HAND.cascade[k] * (1 - g) + gT * ft.fingers[k][j] + gS * fs.fingers[k][j];
+        if (this.rest) {
+          const rest = this.rest.mix(this.rest.cfg.rest[j], this.rest.cfg.fist[j], this.rest.curlWeight);
+          const target = rest * (1 - g) + gT * ft.fingers[k][j] + gS * fs.fingers[k][j];
+          s.curl[n] += (target - s.curl[n]) * (dt > 0 ? 1 - Math.exp(-18 * dt) : 0);
+        } else s.curl[n] = HAND.relaxed[j] * HAND.cascade[k] * (1 - g) + gT * ft.fingers[k][j] + gS * fs.fingers[k][j];
         s.dig[n].quaternion.setFromAxisAngle(s.curlAxis, s.curl[n]);
       }
       for (let k = 0; k < 2; k++) {
-        s.thumb[k] = HAND.relaxedThumb[k] * (1 - g) + gT * ft.thumb[k] + gS * fs.thumb[k];
+        if (this.rest) {
+          const rest = this.rest.mix(this.rest.cfg.thumbRest[k], this.rest.cfg.thumbFist[k], this.rest.curlWeight);
+          const target = rest * (1 - g) + gT * ft.thumb[k] + gS * fs.thumb[k];
+          s.thumb[k] += (target - s.thumb[k]) * (dt > 0 ? 1 - Math.exp(-18 * dt) : 0);
+        } else s.thumb[k] = HAND.relaxedThumb[k] * (1 - g) + gT * ft.thumb[k] + gS * fs.thumb[k];
         s.dig[12 + k].quaternion.setFromAxisAngle(s.thumbAxis, s.thumb[k]);
       }
       s.last.g = side === 'Right' ? (s.g || 0) : 0; s.last.gSaya = gS; s.last.g2 = side === 'Left' ? gT : 0;
     }
+    if (this.rest) this.rest.finishHands(dt);
   }
 
   // 回りの変化を毎秒 rate rad までに抑える（近いほうへ回す。±πをまたいでも遠回りしない）。dt が0のコマ（止めた絵）は want のまま
@@ -334,6 +348,7 @@ export class HandRig {
     VE.copy(s.curlAxis);
     DQ.setFromUnitVectors(VD.normalize(), VE);                          // 手の局所で、円筒の軸 → 溝の軸
     TQ.copy(HQ).multiply(DQ.invert());                                  // 握る手の向き
+    if (this.rest) this.rest.sayaOrientation(s, point, axisWorld, chan, TQ);
     TP.copy(chan).applyQuaternion(TQ).negate().add(point);              // 溝の点が円筒の軸の点に来る手首の位置
     this.reach(s, TP, TQ, w);
   }
@@ -349,6 +364,9 @@ export class HandRig {
     s.real[0].getWorldPosition(SP); s.real[2].getWorldPosition(AXIS); s.real[1].getWorldPosition(HP);
     SP.add(AXIS).multiplyScalar(0.5); AXIS.copy(HP).sub(SP);
     if (AXIS.lengthSq() > 1e-4) HP.addScaledVector(AXIS.normalize(), POLE); else HP.copy(VB);
+    if (this.rest && ((s === this.sides.Left && s.gSaya > 0) || this.rest.guardWeight > 0 || this.rest.carryWeight > 0)) {
+      HP.copy(VA).addScaledVector(this.rest.right, s === this.sides.Left ? (this.rest.guardWeight > 0 ? -.18 : -.04) : .02); HP.y -= .4;
+    }
     solveTwoBoneInto(OUT, arr3(VA, ROOT), arr3(VB, MID), arr3(VC, END), arr3(s.target.pos, TGT), arr3(HP, HINT));
     s.last.reached = OUT.reached; s.last.error = OUT.error;
     VD.copy(VB).sub(VA).normalize(); VE.set(OUT.mid[0] - VA.x, OUT.mid[1] - VA.y, OUT.mid[2] - VA.z).normalize();

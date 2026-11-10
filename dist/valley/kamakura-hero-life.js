@@ -90,10 +90,12 @@ function pushOut(p, k, x, y, z, radius) {
 }
 
 export function clothSubstep(c, h, root, windX, windZ, sphere, capsule, groundAt, iterations = 16) {
+  if (c.flutter) c.time = (c.time || 0) + h;
   const p = c.p, prev = c.previous, damp = Math.exp(-7 * h), hh = h * h;
   for (let k = 3; k < p.length; k += 3) {
     for (let j = 0; j < 3; j++) {
-      const a = j === 1 ? -9.81 : j === 0 ? windX : windZ;
+      let a = j === 1 ? -9.81 : j === 0 ? windX : windZ;
+      if (c.flutter && j !== 1) a = a * (.35 + .65 * k / (p.length - 3)) + .9 * (c.flutterScale ?? 1) * Math.sin(c.time * (j ? 3.7 : 4.3) + k * .37) * k / (p.length - 3);
       const old = p[k + j];
       p[k + j] += (old - prev[k + j]) * damp + a * hh;
       prev[k + j] = old;
@@ -106,6 +108,14 @@ export function clothSubstep(c, h, root, windX, windZ, sphere, capsule, groundAt
       const d = Math.hypot(dx, dy, dz), correction = d > 1e-12 ? (d - c.segment) / d : 0, w = i === 1 ? 1 : .5;
       p[k] -= dx * correction * w; p[k + 1] -= dy * correction * w; p[k + 2] -= dz * correction * w;
       if (i > 1) { p[a] += dx * correction * .5; p[a + 1] += dy * correction * .5; p[a + 2] += dz * correction * .5; }
+    }
+    if (c.tiltLimit) for (let k = 3; k < p.length; k += 3) {
+      const dx = p[k] - p[k - 3], dy = p[k + 1] - p[k - 2], dz = p[k + 2] - p[k - 1], d = Math.hypot(dx, dy, dz);
+      const horizontal = Math.hypot(dx, dz), max = Math.sin(c.tiltLimit) * d;
+      if (horizontal > max || dy > 0) {
+        const ratio = horizontal > 1e-12 ? max / horizontal : 0;
+        p[k] = p[k - 3] + dx * ratio; p[k + 1] = p[k - 2] - Math.cos(c.tiltLimit) * d; p[k + 2] = p[k - 1] + dz * ratio;
+      }
     }
     for (let k = 3; k < p.length; k += 3) projectClothPoint(p, k, sphere, capsule, groundAt);
   }
