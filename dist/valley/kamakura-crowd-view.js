@@ -2,7 +2,7 @@
 import * as THREE from '../vendor/three.module.min.js';
 import { PEOPLE, PEOPLE_ROLES, peopleAmount, prepareFlight, sampleFlight, selectFlightPeople, FLIGHT } from './kamakura-people.js';
 import { CROWD, crowdEnabled, crowdRange, crowdNear, crowdScale, crowdMotion, crowdPlacementBatches,
-  crowdShape, crowdTraits, createCrowdSelection, selectCrowd } from './kamakura-crowd.js';
+  crowdShape, crowdTraits, travellerTraits, TRAVELLER, createCrowdSelection, selectCrowd } from './kamakura-crowd.js';
 
 const gl = n => Number(n).toFixed(8);
 export const CROWD_VERTEX_PARS = `
@@ -22,7 +22,12 @@ uniform vec4 uCrowdBands;
 uniform vec3 uCrowdSkin;
 uniform vec3 uCrowdHair;
 uniform vec3 uCrowdStraw;
+uniform vec3 uCrowdTravellerStraw;
 uniform vec3 uCrowdCloth;
+uniform vec3 uCrowdPack0;
+uniform vec3 uCrowdPack1;
+uniform vec3 uCrowdPack2;
+uniform vec3 uCrowdWood;
 vec3 crowdPose(vec3 p) {
   if (uCrowdTraveller < 0.5 && crowdPart > 1.5) {
     float crowdRadius = crowdPerson.z < 0.5 ? ${gl(CROWD.cover[0])} : crowdPerson.z < 1.5 ? ${gl(CROWD.cover[1])} : ${gl(CROWD.cover[2])};
@@ -53,7 +58,9 @@ float crowdSize = mix(1.0, clamp((distance(crowdOrigin.xz, uCrowdCentre) - uCrow
   * mix(1.0, ${gl(CROWD.farScale)}, smoothstep(${gl(CROWD.farFrom)}, ${gl(CROWD.farTo)}, crowdAway));
 if (uCrowdDebug < 0.5) {
   if (crowdPart > 0.5 && crowdPart < 1.5) vColor = uCrowdSkin;
-  if (crowdPart > 1.5 && crowdPart < 2.5) vColor = crowdPerson.z < 0.5 ? uCrowdHair : crowdPerson.z < 1.5 ? uCrowdStraw : uCrowdCloth;
+  if (crowdPart > 1.5 && crowdPart < 2.5) vColor = uCrowdTraveller > 0.5 ? uCrowdTravellerStraw : crowdPerson.z < 0.5 ? uCrowdHair : crowdPerson.z < 1.5 ? uCrowdStraw : uCrowdCloth;
+  if (uCrowdTraveller > 0.5 && crowdPart > 2.5 && crowdPart < 3.5) vColor = crowdPerson.z < 0.5 ? uCrowdPack0 : crowdPerson.z < 1.5 ? uCrowdPack1 : uCrowdPack2;
+  if (uCrowdTraveller > 0.5 && crowdPart > 3.5) vColor = uCrowdWood;
 }
 `;
 export const CROWD_VERTEX_NORMAL = `
@@ -110,7 +117,8 @@ export function createKamakuraCrowd(context, travellers = false) {
   const uniforms = { uCrowdTraveller: {value:travellers?1:0}, uCrowdTime: { value: 0 }, uCrowdDebug:{value:paint?1:0}, uCrowdCentre: { value: new THREE.Vector2() },
     uCrowdCamera: { value: new THREE.Vector3() }, uCrowdBands: { value: new THREE.Vector4(crowdNear(context.quality), PEOPLE.fade, crowdRange(context.quality,0), CROWD.fade) },
     uCrowdSkin:{value:new THREE.Color(CROWD.skin)},uCrowdHair:{value:new THREE.Color(CROWD.hair)},
-    uCrowdStraw:{value:clothes[4]},uCrowdCloth:{value:clothes[2]} };
+    uCrowdStraw:{value:clothes[4]},uCrowdTravellerStraw:{value:new THREE.Color().fromArray(TRAVELLER.straw)},uCrowdCloth:{value:clothes[2]},
+    uCrowdPack0:{value:clothes[0]},uCrowdPack1:{value:clothes[1]},uCrowdPack2:{value:clothes[2]},uCrowdWood:{value:new THREE.Color().fromArray(TRAVELLER.wood)} };
   const material = paint ? new THREE.MeshBasicMaterial({ vertexColors:true, fog:false, toneMapped:false })
     : new THREE.MeshLambertMaterial({ vertexColors:true, fog:true });
   material.onBeforeCompile = shader => {
@@ -120,7 +128,7 @@ export function createKamakuraCrowd(context, travellers = false) {
       .replace('#include <beginnormal_vertex>', '#include <beginnormal_vertex>\n' + CROWD_VERTEX_NORMAL)
       .replace('#include <begin_vertex>', '#include <begin_vertex>\n' + CROWD_VERTEX_POSITION);
   };
-  material.customProgramCacheKey = () => 'kamakura-crowd-2';
+  material.customProgramCacheKey = () => 'kamakura-crowd-3';
   const mesh = new THREE.Mesh(geometry, material); mesh.name = travellers ? 'kamakura-travellers' : 'kamakura-crowd'; mesh.frustumCulled = false;
   mesh.castShadow = mesh.receiveShadow = false; mesh.visible = false; context.scene.add(mesh);
   // The same instances once more, flattened: no shadow map reaches this far, and without a shadow a figure does not stand on the ground.
@@ -134,12 +142,12 @@ export function createKamakuraCrowd(context, travellers = false) {
         .replace('#include <batching_vertex>', '#include <batching_vertex>\n' + CROWD_VERTEX_STATE)
         .replace('#include <begin_vertex>', '#include <begin_vertex>\n' + CROWD_VERTEX_POSITION + CROWD_SHADOW_POSITION);
     };
-    shadowMaterial.customProgramCacheKey = () => 'kamakura-crowd-shadow-2';
+    shadowMaterial.customProgramCacheKey = () => 'kamakura-crowd-shadow-3';
   }
   const shadowMesh = shadowMaterial ? new THREE.Mesh(geometry, shadowMaterial) : null;
   if (shadowMesh) { shadowMesh.name = travellers ? 'kamakura-travellers-shadow' : 'kamakura-crowd-shadow'; shadowMesh.frustumCulled = false; shadowMesh.castShadow = shadowMesh.receiveShadow = false; shadowMesh.visible = false; shadowMesh.renderOrder = 1; context.scene.add(shadowMesh); }
   const centre = {x:0,z:0}, camera = {x:0,y:0,z:0}, motion = {travel:0,bob:0,direction:1};
-  let bodies = travellers ? flightSpots.map(spot => ({spot, ...crowdTraits(spot), y:spot.y,slope:0,near:false})) : [], ready = travellers, disposed = false, paused = false, step = 0, refresh = true, time = 0;
+  let bodies = travellers ? flightSpots.map(spot => ({spot, ...crowdTraits(spot), packCloth:travellerTraits(spot).packCloth, y:spot.y,slope:0,near:false})) : [], ready = travellers, disposed = false, paused = false, step = 0, refresh = true, time = 0;
   let cx = Infinity, cz = Infinity, vx = Infinity, vy = Infinity, vz = Infinity, preparations = 0, selections = 0, uploads = 0;
   function pack() {
     for (let k=0;k<selection.count;k++) {
@@ -147,7 +155,7 @@ export function createKamakuraCrowd(context, travellers = false) {
       color.array[j3]=c.r;color.array[j3+1]=c.g;color.array[j3+2]=c.b;
       anchor.array[j4]=p.x;anchor.array[j4+1]=b.y+(p.flight?Math.sin(p.travel*CROWD.bobRate)*CROWD.bob:0);anchor.array[j4+2]=p.z;anchor.array[j4+3]=b.height*(p.role==='child'?CROWD.child:1)*(p.flight?p.alpha:1);
       walk.array[j4]=b.dx;walk.array[j4+1]=b.dz;walk.array[j4+2]=b.slope;walk.array[j4+3]=b.phase;
-      person.array[j3]=p.flight?(b.near?-1:-2):p.role==='walker'?1:0;person.array[j3+1]=p.flight?(p.staff?1:0):p.role==='sitter'?1:p.role==='farmer'?2:0;person.array[j3+2]=b.head;
+      person.array[j3]=p.flight?(b.near?-1:-2):p.role==='walker'?1:0;person.array[j3+1]=p.flight?(p.staff?1:0):p.role==='sitter'?1:p.role==='farmer'?2:0;person.array[j3+2]=p.flight?b.packCloth:b.head;
     }
     for (const attribute of attributes) attribute.needsUpdate=true;
     geometry.instanceCount=selection.count;mesh.visible=selection.count>0;if(shadowMesh)shadowMesh.visible=mesh.visible;uploads+=selection.count;

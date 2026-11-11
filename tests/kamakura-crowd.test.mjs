@@ -6,9 +6,9 @@ import os from 'node:os';
 import { spawnSync } from 'node:child_process';
 import { performance } from 'node:perf_hooks';
 import * as THREE from '../dist/vendor/three.module.min.js';
-import { PEOPLE, PEOPLE_ROLES, preparePeople, peopleAmount } from '../dist/valley/kamakura-people.js';
+import { PEOPLE, PEOPLE_ROLES, preparePeople, peopleAmount, prepareFlight, sampleFlight } from '../dist/valley/kamakura-people.js';
 import { CROWD, crowdEnabled, crowdTraits, crowdShape, crowdPlacementBatches, createCrowdSelection, selectCrowd,
-  crowdScale, crowdRange, crowdLimit, crowdNear, crowdMotion } from '../dist/valley/kamakura-crowd.js';
+  crowdScale, crowdRange, crowdLimit, crowdNear, crowdMotion, travellerTraits, TRAVELLER } from '../dist/valley/kamakura-crowd.js';
 import { createKamakuraCrowd, CROWD_VERTEX_PARS, CROWD_VERTEX_STATE, CROWD_VERTEX_NORMAL, CROWD_VERTEX_POSITION, CROWD_SHADOW_PARS, CROWD_SHADOW_POSITION } from '../dist/valley/kamakura-crowd-view.js';
 import { readPrivateData } from '../tools/lib/kamakura-validation.mjs';
 import { readPrivateHouses } from '../tools/lib/kamakura-house-validation.mjs';
@@ -185,6 +185,32 @@ test('synthetic crowded town reaches 600 bodies in one instance draw with small 
   const dynamicBytes=Object.values(g.attributes).filter(a=>a.isInstancedBufferAttribute).reduce((n,a)=>n+a.array.byteLength,0);
   assert(dynamicBytes<=CROWD.max*14*4);assert(staticBytes<20000);
   t.diagnostic(`600 bodies: ${s.triangles} triangles, ${s.draws} draw, static ${staticBytes}B, dynamic ${dynamicBytes}B`);f.layer.dispose();
+});
+
+test('traveller instances retain their identity pack colour through motion and near handover; straw, pack and staff have distinct shader colours',()=>{
+  const w={...world(),scene:new THREE.Scene(),sunDir:new THREE.Vector3(-.8,.37,.47)};
+  w.data.meta={flight:{road:'main',groups:6,size:[2,4],speed:.8}};
+  const layer=createKamakuraCrowd(w,true),spots=prepareFlight(w),frame={time:30,dt:1/60,pos:{x:0,y:55,z:0},flying:true};
+  const mesh=w.scene.children.find(o=>o.name==='kamakura-travellers'),g=mesh.geometry;
+  const shader={uniforms:{},vertexShader:THREE.ShaderLib.lambert.vertexShader};mesh.material.onBeforeCompile(shader);
+  const u=shader.uniforms;
+  assert.deepEqual(u.uCrowdTravellerStraw.value.toArray(),TRAVELLER.straw);assert.deepEqual(u.uCrowdWood.value.toArray(),TRAVELLER.wood);
+  assert(shader.vertexShader.includes('crowdPart > 2.5 && crowdPart < 3.5'));assert(shader.vertexShader.includes('crowdPart > 3.5) vColor = uCrowdWood'));
+  for(const time of [30,45,60])for(const flying of [true,false]) {
+    frame.time=time;frame.flying=flying;layer.update(frame);
+    for(const p of spots)sampleFlight(p,time,w.terrain,p);
+    for(let i=0;i<g.instanceCount;i++) {
+      const x=g.attributes.crowdAnchor.getX(i),z=g.attributes.crowdAnchor.getZ(i);
+      const p=spots.find(p=>Math.hypot(p.x-x,p.z-z)<.001);assert(p);
+      const packIndex=g.attributes.crowdPerson.getZ(i);assert.equal(packIndex,travellerTraits(p).packCloth);
+      const color=u['uCrowdPack'+packIndex].value;
+      assert.equal(color.getHex(),CROWD.clothes[travellerTraits(p).packCloth]);assert.notEqual(color.getHex(),CROWD.clothes[p.variant]);
+      assert(!color.equals(u.uCrowdTravellerStraw.value)&&!color.equals(u.uCrowdWood.value));
+      assert(!u.uCrowdTravellerStraw.value.equals(u.uCrowdWood.value));
+    }
+  }
+  // Unrelated town hats keep the pre-existing ochre colour when the road layer is disabled.
+  assert.equal(u.uCrowdStraw.value.getHex(),CROWD.clothes[4]);layer.dispose();assert.equal(w.scene.children.length,0);
 });
 
 function safety(code) {

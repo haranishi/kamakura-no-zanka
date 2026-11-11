@@ -1,5 +1,22 @@
 // W2c-19e-2: renderer-free crowd silhouettes, selection and shader equations.
 import { PEOPLE, peopleAmount, peopleHash, peoplePlacementBatches, sampleFlight } from './kamakura-people.js';
+import { HOUSE_PALETTE } from './kamakura-house-texture.js';
+
+// Shared near/far belongings. Palette entries are linear RGB from existing thatch/timber and clothes.
+export const TRAVELLER = Object.freeze({
+  straw: Object.freeze([...HOUSE_PALETTE.thatch]), // linear RGB, dry sedge from the thatched roofs.
+  wood: Object.freeze([...HOUSE_PALETTE.post]), // linear RGB, dark wooden staff.
+  hatRadius: .26, hatHeight: .105, hatCrown: .028, // m, brim radius / rise / rounded crown radius.
+  hatSides: 12, hatRound: .94, // segments / ratio, shoulder of the rounded crown.
+  hatRim: .72, hatRib: .12, // colour multipliers, dark rim / alternating radial ribs.
+  headRise: .20, // m above Head, brim sits over the crown of the shipped heads.
+  packSize: .36, packHeight: .30, packDepth: .23, // m, flattened cloth bundle / basket envelope.
+  packBack: .20, packDrop: .03, // m behind / below Spine; character models face +z.
+  packGap: .006, packFitWidth: .12, packFitHeight: .10, // m, back clearance / torso sampling half-width and half-height.
+  packFold: .12, basketTaper: .78, basketWall: .018, // shade variation / bottom-to-top ratio / m wall thickness.
+  staffLength: 1.28, staffRadius: .01, staffGrip: .20, // m, length / radius / distance of grip below the top.
+  staffSides: 6, palm: .035, walkReference: .3, // segments / m along hand / seconds, relaxed walking reference pose.
+});
 
 // All art/distance controls live here. Dimensions below are fractions of adult height.
 export const CROWD = Object.freeze({
@@ -38,13 +55,18 @@ export const CROWD = Object.freeze({
   neck: Object.freeze([.045, .045, .04, .04, .76, .83]), // frustum widths/depths and heights.
   head: Object.freeze([.09, .09, .82, .92]), // half-width/depth and bottom/top height.
   cover: Object.freeze([.108, .23, .115, .91, 1]), // hair/hat/cloth radii, brim/top heights.
-  pack: Object.freeze([.14, .14, .09, .09, .48, .76]), // adult-height fractions, backpack box.
+  travellerHatRadius: .16, travellerBrim: .935, // adult-height fractions, small shallow hat leaving shoulders visible.
+  pack: Object.freeze([.10, .11, .065, .075, .50, .72]), // adult-height fractions, tapered pack inside the back width.
   packBack: .17, // adult-height fraction, backpack centre behind the shoulders.
   staffWidth: .014, staffSide: .34, staffHeight: .8, // adult-height fractions, square staff.
   travellerLight: .75, // ratio, lightweight moving-figure count.
   travellerDebug: 0xff701c, // existing orange role colour for road groups.
   sides: 8, // segments, headwear cone.
 });
+export function travellerTraits(p) {
+  const variant = p.variant || 0;
+  return { packCloth: variant < 3 ? (variant + 1) % 3 : variant % 3, basket: variant % 2 === 1 };
+}
 const clamp = v => Math.max(0, Math.min(1, v));
 export const crowdEnabled = (search = '') => new URLSearchParams(search).get('crowd') !== '0' && peopleAmount(search) > 0;
 export const crowdRange = (quality, step) => step >= 3 ? 0 : (quality === 'light' ? CROWD.lightRange : CROWD.range) * (step >= 2 ? CROWD.adaptRange : 1);
@@ -157,7 +179,7 @@ export function crowdShape(role = 'chat', head = 0, staff = false) {
   const top=[0,face[3],0], bottom=[0,face[2],0], y=(face[2]+face[3])/2;
   const ring=[[face[0],y,0],[0,y,-face[1]],[-face[0],y,0],[0,y,face[1]]];
   for (let i=0;i<4;i++) { tri(top,ring[i],ring[(i+1)%4],1); tri(bottom,ring[(i+1)%4],ring[i],1); }
-  const cover=CROWD.cover, r=cover[head], brim=cover[3], peak=cover[4];
+  const cover=CROWD.cover, r=role==='traveller'?CROWD.travellerHatRadius:cover[head], brim=role==='traveller'?CROWD.travellerBrim:cover[3], peak=cover[4];
   for (let i=0;i<CROWD.sides;i++) {
     const a=i/CROWD.sides*Math.PI*2, b=(i+1)/CROWD.sides*Math.PI*2;
     const p=[Math.cos(a)*r,brim,Math.sin(a)*r], q=[Math.cos(b)*r,brim,Math.sin(b)*r];
