@@ -1,5 +1,5 @@
 import { PLAN as P } from '../worlds/kamakura-return.mjs';
-import { gameZ, northOffset, shoreAt, noise, mix, clamp, inRect, hash } from './designed-terrain.mjs';
+import { gameZ, northOffset, shoreAt, noise, mix, clamp, inRect, hash, quayAt, outcropAt } from './designed-terrain.mjs';
 export const designedFurrow=(across)=>Math.floor(across/P.ground.stripeWidth)%2===0?P.ground.soil:P.ground.crop;
 export function designedGround(surface,width,height,heights,field,data=null) {
   const c=P.ground,cell=P.grid.cell,n=width*height,palette=[c.sand,c.wet,c.grass,c.forest,c.soil,c.rock,c.gravel,c.riverbed],raw=new Float32Array(n*3),out=Buffer.alloc(n*3),use=new Int32Array(n),stripe=new Uint8Array(n);
@@ -20,7 +20,9 @@ export function designedGround(surface,width,height,heights,field,data=null) {
     if(surface[k]===4&&Math.abs(x)<=P.roads[0].width/2&&y>=P.roads[0].points[0][1]&&y<=P.roads[0].points[1][1])colour=c.avenue;
     const buddha=P.terraces[0].rect;
     if(surface[k]===5&&(x<buddha[0]+P.buddha.cliffInset&&y>buddha[2]-P.buddha.cliffHeight&&y<buddha[3]||y<buddha[2]&&x>buddha[0]&&x<buddha[1]||Math.hypot(x-P.cape.x,y-P.cape.y)<P.cape.radius&&y<P.cape.y+P.cape.cliff))colour=c.cliff;
-    if(inRect(x,y,P.harbor.quay))colour=c.sand.map((v,q)=>mix(v,c.gravel[q],.35));
+    if(surface[k]===5&&outcropAt(x,y))colour=c.cliff;
+    if(P.terraces.some(t=>inRect(x,y,t.rect)))colour=c.terrace;
+    if(quayAt(x,y))colour=c.wet.map((v,q)=>mix(v,c.gravel[q],.35));
     if(P.burns.plots.some(r=>inRect(x,y,r))&&surface[k]===2)colour=hash(i,j,155)<c.burntCover?(hash(i,j,156)<.5?c.ash:c.charcoal):c.soil;
     use[k]=surface[k];for(let q=0;q<3;q++)raw[k*3+q]=colour[q];
   }
@@ -59,7 +61,7 @@ export function designedGround(surface,width,height,heights,field,data=null) {
         const kk=Math.max(0,Math.min(height-1,j+dj))*width+Math.max(0,Math.min(width-1,i+di));sum+=use[kk]===use[k]?raw[k*3+q]:raw[kk*3+q];count++;
       }
       const verge=surface[k]===2&&Math.abs(Math.abs(x)-(P.roads[0].width/2-c.vergeInset))<=c.vergeWidth/2;
-      const value=verge?c.grass[q]:laneAt[k]?raw[k*3+q]:surface[k]===7?mix(raw[k*3+q],sum/count,c.riverBlend):sum/count;
+      const value=(surface[k]===1||surface[k]===6)?raw[k*3+q]:verge?c.grass[q]:laneAt[k]?raw[k*3+q]:surface[k]===7?mix(raw[k*3+q],sum/count,c.riverBlend):sum/count;
       out[k*3+q]=Math.round(value*gain);
     }
   }

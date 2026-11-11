@@ -1,6 +1,6 @@
 import { PLAN as P } from '../worlds/kamakura-return.mjs';
 import { designedCamera, designedFrameHits } from './designed-perspective.mjs';
-import { northOffset, townWestAt, townEastAt, inRect, shoreAt } from './designed-terrain.mjs';
+import { northOffset, townWestAt, townEastAt, inRect, shoreAt, harborAt } from './designed-terrain.mjs';
 import { houseBox } from '../../dist/valley/kamakura-houses.js';
 // All measurements use emitted geometry or the same perspective as the runtime's authored camera.
 export function designedComposition(world) {
@@ -16,7 +16,7 @@ export function designedComposition(world) {
   const h=P.harbor;let right=0,left=1,bottom=0;
   for(let deg=0;deg<360;deg+=.5){
     if(Math.abs((deg-h.mouth+540)%360-180)<h.opening/2)continue;
-    const angle=deg*Math.PI/180,r=h.radius+h.width/2+h.slope+P.works.ringSize[1]/2,p=project(h.x+r*Math.sin(angle),h.y+r*Math.cos(angle),h.height);
+    const angle=deg*Math.PI/180,r=P.works.ringSize[1]/2;if(h.northOpen&&Math.cos(angle)>0)continue;const p=project(h.x+(h.radius+r)*Math.sin(angle),h.y+(h.radiusY+r)*Math.cos(angle),h.height);
     left=Math.min(left,p[0]);right=Math.max(right,p[0]);bottom=Math.max(bottom,p[1]);
   }
   const gate=world.nodes.find(n=>n.part==='romon'&&n.facility==='tsurugaoka');
@@ -30,5 +30,5 @@ export function designedComposition(world) {
   };
   const treeSpecies=[0,0,0,0];for(const v of world.veg)treeSpecies[v[6]]++;
   const l=P.shrine.lower;let gravel=0,lower=0;for(let y=l[2]+1;y<l[3];y+=2)for(let x=l[0]+1;x<l[1];x+=2){lower++;if(world.field.sample(x,y).code===6)gravel++;}
-  return {topHits:designedFrameHits(world.field).slice(0,9).filter(p=>p.hit).length,shoreY:project(0,shoreAt(0),0)[1],gateY:project(gate.anchor_xz[0],northOffset-gate.anchor_xz[1],world.field.upper)[1],townWidth:project(P.town.east,shoreAt(0),0)[0]-project(P.town.west,shoreAt(0),0)[0],harborFrame:{left,right,bottom},townCoverage:covered/cells,treeSpecies:treeSpecies.map(v=>v/world.veg.length),grove:world.field.sanctuaryTrees,gravelFraction:gravel/lower,buddhaHead:project(...head),buddhaHeadOcclusion:occluded(head),buddhaChestOcclusion:occluded([x,y,P.terraces[0].rect[4]+buddha.bbox_max[1]*.7]),mouthHouses:world.placed.mouthHouses};
+  return {topHits:designedFrameHits(world.field).slice(0,9).filter(p=>p.hit).length,shoreY:project(0,shoreAt(0),0)[1],beachY:project(0,shoreAt(0)+P.shore.beach,P.shore.beachTop)[1],stairY:project(0,P.shrine.stairSouth,P.shrine.lower[4])[1],bridge:project(world.field.crossings[0].x,world.field.crossings[0].y,world.field.crossings[0].level),gateY:project(gate.anchor_xz[0],northOffset-gate.anchor_xz[1],world.field.upper+gate.bbox_max[1])[1],townWidth:project(townEastAt(P.town.south),P.town.south,P.town.base)[0]-project(townWestAt(P.town.south),P.town.south,P.town.base)[0],harborFrame:{left,right,bottom},townCoverage:covered/cells,treeSpecies:treeSpecies.map(v=>v/world.veg.length),grove:world.field.sanctuaryTrees,gravelFraction:gravel/lower,buddhaHead:project(...head),buddhaHeadOcclusion:occluded(head),buddhaChestOcclusion:occluded([x,y,P.terraces[0].rect[4]+buddha.bbox_max[1]*.7]),mouthHouses:world.placed.mouthHouses};
 }

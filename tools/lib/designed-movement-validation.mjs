@@ -4,16 +4,23 @@ import { createKamakuraTerrain } from '../../dist/valley/kamakura-terrain.js';
 import { bridgeSites, withBridgeDecks, bridgeRailBoxes } from '../../dist/valley/kamakura-bridges.js';
 import { prepareVeg, vegCircles } from '../../dist/valley/kamakura-veg.js';
 import { kamakuraPaths } from '../../dist/valley/kamakura-roads.js';
+import { enclosingBuddhaHalls } from '../../dist/valley/kamakura-facilities.js';
+import { prepareRuinHall, prepareBurntHall } from '../../dist/valley/kamakura-ruin-hall.js';
+import { withStairRamps } from '../../dist/valley/kamakura-stairs.js';
 import { PLAN as P } from '../worlds/kamakura-return.mjs';
 import { northOffset, gameZ } from './designed-terrain.mjs';
 import { facilityBoxes } from './designed-placement.mjs';
 // Directed physical edges: moveActor must arrive and must be able to return. No teleport or relaxed slope/step rule.
 export function designedMovement(data,beforeCount,{step=2,includeTrees=true}={}) {
-  const base=createKamakuraTerrain(data),sites=bridgeSites(data,base),terrain=withBridgeDecks(base,sites),houses=data.houses.instances.map(p=>houseBox(data.houses.kinds.get(p.kind),p.matrix));
-  const facilities=facilityBoxes(data.facilities.nodes.filter(n=>['hall','buddha'].includes(n.part))),rails=bridgeRailBoxes(sites,terrain);
+  const base=createKamakuraTerrain(data),sites=bridgeSites(data,base),terrain=withStairRamps(withBridgeDecks(base,sites),data.facilities.nodes),houses=data.houses.instances.map(p=>houseBox(data.houses.kinds.get(p.kind),p.matrix));
+  const footprints=data.facilities.nodes.map(node=>({node,bounds:facilityBoxes([node])[0]})),removed=enclosingBuddhaHalls(footprints);
+  for(const p of footprints)if(p.node.part==='hall'&&p.node.ruin==='burnt'&&!removed.includes(p))removed.push(p);
+  const gates=footprints.filter(p=>['gate','romon','nagayamon'].includes(p.node.part)).map(p=>p.bounds),ruinBoxes=[],ruinCircles=[];
+  for(const p of removed){const plan=(p.node.ruin==='burnt'?prepareBurntHall:prepareRuinHall)(p.bounds,terrain,gates);ruinBoxes.push(...plan.boxes);ruinCircles.push(...plan.circles);}
+  const facilities=[...footprints.filter(p=>['hall','buddha'].includes(p.node.part)&&!removed.includes(p)).map(p=>p.bounds),...ruinBoxes],rails=bridgeRailBoxes(sites,terrain);
   const trees=includeTrees?vegCircles(prepareVeg(data.veg,terrain,{boxes:[...houses,...facilities],paths:kamakuraPaths(data),spawn:{x:data.meta.spawn.x,z:-data.meta.spawn.y}}),sp=>[20,12,13,8,3,1.2][sp]):[];
-  const col=buildColliders({bounds:terrain.bounds,extraBoxes:[...houses,...facilities,...rails],extraCircles:trees}),old=buildColliders({bounds:terrain.bounds,extraBoxes:[...houses.slice(0,beforeCount),...facilities,...rails],extraCircles:trees});
-  const minX=-340,maxX=370,minY=-24,maxY=744,w=Math.floor((maxX-minX)/step)+1,h=Math.floor((maxY-minY)/step)+1,n=w*h;
+  const col=buildColliders({bounds:terrain.bounds,extraBoxes:[...houses,...facilities,...rails],extraCircles:[...trees,...ruinCircles]}),old=buildColliders({bounds:terrain.bounds,extraBoxes:[...houses.slice(0,beforeCount),...facilities,...rails],extraCircles:[...trees,...ruinCircles]});
+  const minX=Math.min(...P.terraces.map(t=>t.rect[0]))-P.grid.cell*4,maxX=Math.max(...P.terraces.map(t=>t.rect[1]))+P.grid.cell*4,minY=P.grid.walk[2],maxY=P.shrine.upper[3]+P.grid.cell*4,w=Math.floor((maxX-minX)/step)+1,h=Math.floor((maxY-minY)/step)+1,n=w*h;
   const x=k=>minX+(k%w)*step,z=k=>gameZ(minY+Math.floor(k/w)*step),heights=new Float32Array(n),open=new Uint8Array(n),oldOpen=new Uint8Array(n),edges=new Uint8Array(n),oldEdges=new Uint8Array(n);
   let source=-1,distance=Infinity,moves=0;
   const occupied=(c,x,z)=>{for(let i=Math.floor((x-.3)/8);i<=Math.floor((x+.3)/8);i++)for(let j=Math.floor((z-.3)/8);j<=Math.floor((z+.3)/8);j++)for(const b of c.grid.get(i+','+j)||[]){if(b.type==='box'?houseIntersects(b,{x,z},undefined,.3):Math.hypot(x-b.x,z-b.z)<b.r+.3)return true;}return false;};
@@ -47,7 +54,8 @@ export function designedMovement(data,beforeCount,{step=2,includeTrees=true}={})
   function reach(graph,reverse=false) {const seen=new Uint8Array(n),queue=new Int32Array(n);let head=0,tail=0;if(source>=0){seen[source]=1;queue[tail++]=source;}while(head<tail){const k=queue[head++];for(const q of (graph===edges?connections:oldConnections).get(k)||[])if(!seen[q]){seen[q]=1;queue[tail++]=q;}for(let dir=0;dir<4;dir++){const i=k%w+dx[dir],j=Math.floor(k/w)+dy[dir],q=j*w+i;if(i<0||i>=w||j<0||j>=h||seen[q])continue;if(reverse?graph[q]&(1<<opposite[dir]):graph[k]&(1<<dir)){seen[q]=1;queue[tail++]=q;}}}return seen;}
   const forward=reach(edges),back=reach(edges,true),oldForward=reach(oldEdges),oldBack=reach(oldEdges,true);let newTraps=0,enclosed=0,reached=0;
   for(let k=0;k<n;k++){if(forward[k])reached++;if(forward[k]&&!back[k]&&!(oldForward[k]&&!oldBack[k]))newTraps++;if(oldForward[k]&&oldBack[k]&&open[k]&&!forward[k])enclosed++;}
-  const destinations=[['社殿の上の段',24,700],['大仏の前',-235,120],['港の岸',(P.harbor.quay[0]+P.harbor.quay[1])/2,(P.harbor.quay[2]+P.harbor.quay[3])/2],['浜の西端',-250,40],['浜の東端',110,40],['建長寺の段',-198,630],['浄智寺の段',-270,460]];
+  const shrine=P.shrine.upper,buddha=P.terraces[0].rect,ken=P.terraces.find(t=>t.id==='kenchoji').rect,jo=P.terraces.find(t=>t.id==='jochiji').rect;
+  const destinations=[['社殿の上の段',shrine[0]+4,(shrine[2]+shrine[3])/2],['大仏の前',(buddha[0]+buddha[1])/2,buddha[2]+12],['港の岸',(P.harbor.quay[0]+P.harbor.quay[1])/2,(P.harbor.quay[2]+P.harbor.quay[3])/2],['浜の西端',P.shore.centre-P.shore.halfWidth+P.grid.cell*2,P.shore.beach/2],['浜の東端',P.shore.centre+P.shore.halfWidth-P.grid.cell*2,P.shore.beach/2],['建長寺の段',ken[0]+4,ken[2]+8],['浄智寺の段',jo[0]+4,jo[2]+8]];
   for(const [i,s] of sites.entries())for(const [side,u] of [['西岸',s.start-2],['東岸',s.end+2]])destinations.push([`橋${i+1}${side}`,s.x+s.ux*u,northOffset-s.z-s.uz*u]);
   const goals=destinations.map(([name,px,py])=>{let best=-1,d=Infinity;for(let k=0;k<n;k++)if(open[k]){const q=Math.hypot(x(k)-px,northOffset-z(k)-py);if(q<d){d=q;best=k;}}return {name,distance:d,forward:best>=0&&!!forward[best],back:best>=0&&!!back[best]};});
   return {cells:n,reached,moves,newTraps,enclosed,goals,routeChecks};

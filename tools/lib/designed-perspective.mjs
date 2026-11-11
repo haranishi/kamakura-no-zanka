@@ -30,7 +30,8 @@ export async function writeDesignedPerspective(directory,world) {
   }
   const stride=c.meshStride;
   for(let j=0;j<h-stride;j+=stride)for(let i=0;i<w-stride;i+=stride){const k=j*w+i,dx=(world.heights[k+stride]-world.heights[k])/(cell*stride),dy=(world.heights[k]-world.heights[k+stride*w])/(cell*stride),light=Math.max(0,(-dx*c.light[0]-dy*c.light[1]+c.light[2])/Math.hypot(dx,dy,1)),gain=c.shadeAmbient+c.shadeGain*light;
-    const colour=world.heights[k]<=0?[28,96,107]:[0,1,2].map(q=>Math.round(rgb[k*3+q]*gain));const a=point(i,j),b=point(i+stride,j),d=point(i,j+stride),e=point(i+stride,j+stride);tri(a,b,d,colour);tri(b,e,d,colour);}
+    const sea=[28,96,107],transmission=Math.exp(world.heights[k]*c.seaAbsorption);
+    const colour=world.heights[k]<=0?sea.map((v,q)=>Math.round(v+(rgb[k*3+q]-v)*transmission)):[0,1,2].map(q=>Math.round(rgb[k*3+q]*gain));const a=point(i,j),b=point(i+stride,j),d=point(i,j+stride),e=point(i+stride,j+stride);tri(a,b,d,colour);tri(b,e,d,colour);}
   const quad=(a,b,c,d,colour)=>{tri(a,b,c,colour);tri(a,c,d,colour);};
   // The river water is intentionally distinguished from the authored dark bed below it.
   for(let i=1;i<world.field.river.length;i++){const a=world.field.river[i-1],b=world.field.river[i];quad(project(a.x-a.width/2,a.y,a.water+.05),project(a.x+a.width/2,a.y,a.water+.05),project(b.x+b.width/2,b.y,b.water+.05),project(b.x-b.width/2,b.y,b.water+.05),[39,103,96]);}

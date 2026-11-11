@@ -3,7 +3,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { PLAN as P } from './worlds/kamakura-return.mjs';
 import { loadDesignedKits } from './lib/designed-kits.mjs';
-import { createDesignedTerrain, gameNorth, gameZ, northOffset, noise, mix } from './lib/designed-terrain.mjs';
+import { createDesignedTerrain, gameNorth, gameZ, northOffset, noise, mix, harborAt } from './lib/designed-terrain.mjs';
 import { placeDesignedFacilities, placeDesignedHouses, placeDesignedVeg, facilityBoxes } from './lib/designed-placement.mjs';
 import { designedLanduse } from './lib/designed-landuse.mjs';
 import { gradeDesignedTerrain } from './lib/designed-grade.mjs';
@@ -48,6 +48,7 @@ export async function designedWorld({kits:kitDirectory,emit=P.emit}={}) {
   files.set('height_u16.bin',heights);files.set('walk_u8.bin',walk);files.set('surface_class_u8.bin',surface);files.set('ground_rgb.bin',designedGround(surface,width,height,floats,field).rgb);
   const meta={schema:'kz-world-web/0.9',world:P.id,design_origin:{north_offset_m:northOffset},grid:{width,height,cell_m:g.cell,row0:'north',col0:'west',sample_position:'cell_center',x_axis:'east',y_axis:'north',z_axis:'up'},height:{file:'height_u16.bin',encoding:'uint16-le',min_m:g.minHeight,max_m:g.maxHeight},walk:{file:'walk_u8.bin',polygon_m:[[g.walk[0],gameNorth(g.walk[2])],[g.walk[1],gameNorth(g.walk[2])],[g.walk[1],gameNorth(g.walk[3])],[g.walk[0],gameNorth(g.walk[3])]]},ground:{file:'ground_rgb.bin'},surface:{file:'surface_class_u8.bin',encoding:'uint8'},spawn:{x:P.spawn[0],y:gameNorth(P.spawn[1]),z:field.sample(...P.spawn).h,yaw_deg_clockwise_from_north:0},places:P.places.map(([id,name,x,y])=>({id,name,x,y:gameNorth(y)})),town_fill:P.townFill,overlook:P.overlook,veg_policy:{range:P.veg.range,far:P.veg.far}};
   meta.mist=P.atmosphere.mist;meta.backdrop=P.atmosphere.backdrop;if(emit.sea)meta.sea={swell_from_deg:P.atmosphere.swellFrom,surf_scale:P.atmosphere.surfScale};
+  if(emit.light){meta.sun=P.atmosphere.sun;meta.air=P.atmosphere.air;}
   json('works.json',designedWorks());meta.works={file:'works.json'};
   const roadSource=makeRoads(field);json('roads.json',roadSource);meta.roads={file:'roads.json',schema:roadSource.schema,count:roadSource.count};
   const river={id:P.river.id,name:'滑川',enters_sea:true,xy_m:field.river.map(p=>[p.x,gameNorth(p.y)]),width_m:field.river.map(p=>p.width),depth_m:field.river.map(p=>p.water-p.bed),bed_m:field.river.map(p=>p.bed),water_elev_m:field.river.map(p=>p.water)};
@@ -58,19 +59,19 @@ export async function designedWorld({kits:kitDirectory,emit=P.emit}={}) {
   json('houses.json',{count:placed.houses.length,kinds:kits.kinds,count_by_kind});files.set('houses_f32.bin',f32(placed.houses.flatMap(p=>[p.kind,...p.matrix])));files.set('houses_kit.glb',kits.houseGlb);meta.houses={file:'houses.json',instances:'houses_f32.bin',kit:'houses_kit.glb'};
   // Half-metre harbour samples preserve the narrow eight-metre crest beside the carved basin.
   // Without them, bilinear sampling pulls its inner stone row down into the adjacent water cell.
-  const row=Math.floor((g.north-300)/g.cell),col=width/2,patchCells=[[row,col]],values=[];
+  const row=Math.floor((g.north-(P.patch.south+P.patch.north)/2)/g.cell),col=width/2,patchCells=[[row,col]],values=[];
   for(let j=0;j<height-1;j++)for(let i=0;i<width-1;i++){
-    const x=g.west+(i+1)*g.cell,y=g.north-(j+1)*g.cell,r=Math.hypot(x-P.harbor.x,y-P.harbor.y);
-    if(Math.abs(r-P.harbor.radius)<=P.harbor.width/2+g.cell*2)patchCells.push([j,i]);
+    const x=g.west+(i+1)*g.cell,y=g.north-(j+1)*g.cell,r=harborAt(x,y);
+    if(r.ring&&Math.abs(r.distance)<=P.harbor.width/2+g.cell*2)patchCells.push([j,i]);
   }
   const pc=Buffer.alloc(patchCells.length*8);
   patchCells.forEach(([r,c],k)=>{pc.writeInt32LE(r,k*8);pc.writeInt32LE(c,k*8+4);for(let j=0;j<5;j++)for(let i=0;i<5;i++){
     const x=g.west+(c+.5)*g.cell+i*g.cell/4,y=g.north-(r+.5)*g.cell-j*g.cell/4;
     values.push(k===0?field.sample(x,y).h:authoredSample(x,y).h);
   }});
-  files.set('patch_cells_i32.bin',pc);files.set('patch_h_f32.bin',f32(values));const id='avenue-detail',xy=[[0,gameNorth(280)],[0,gameNorth(320)]];
-  json('patch_axes.json',{[id]:{xy_m:xy,floor_m:[field.sample(0,280).h,field.sample(0,320).h],s_m:[0,40],floor_width_m:18}});
-  json('patch_paths.json',{[id]:{route_id:'avenue-detail',xyz_m:xy.map(([x,y])=>[x,y,field.sample(x,y+northOffset).h]),s_m:[0,40]}});
+  files.set('patch_cells_i32.bin',pc);files.set('patch_h_f32.bin',f32(values));const id='avenue-detail',xy=[[0,gameNorth(P.patch.south)],[0,gameNorth(P.patch.north)]];
+  json('patch_axes.json',{[id]:{xy_m:xy,floor_m:[field.sample(0,P.patch.south).h,field.sample(0,P.patch.north).h],s_m:[0,P.patch.north-P.patch.south],floor_width_m:P.roads[0].width}});
+  json('patch_paths.json',{[id]:{route_id:'avenue-detail',xyz_m:xy.map(([x,y])=>[x,y,field.sample(x,y+northOffset).h]),s_m:[0,P.patch.north-P.patch.south]}});
   meta.patches={cells_file:'patch_cells_i32.bin',h_file:'patch_h_f32.bin',axes_file:'patch_axes.json',paths_file:'patch_paths.json',subdivisions:4,total_cells:patchCells.length,items:[{id}]};
   json('meta.json',meta);
   // Plan lanes and houses once to keep authored trees off the runtime fill as well.
@@ -93,7 +94,7 @@ export async function designedWorld({kits:kitDirectory,emit=P.emit}={}) {
   const veg=placeDesignedVeg(sampledField,placed.boxes,nodes,lanes,filledBoxes,data.townPlots,exclude,townReserve).filter(v=>!exclude({x:v[0],z:v[1]}));
   field.sanctuaryTrees=sampledField.sanctuaryTrees;field.beltTrees=sampledField.beltTrees;
   files.set('veg_f32.bin',f32(veg.flat()));json('veg.json',{schema:'kz-veg-web/0.1',file:'veg_f32.bin',encoding:'float32-le (N,16)',fields:VEG_FIELDS,count:veg.length});meta.veg={file:'veg_f32.bin',info:'veg.json',count:veg.length};json('meta.json',meta);
-  return {files,field,stairs:kits.stair,meta,heights:floats,surface,placed,nodes,veg,filled:data,ground,stats:{grading,beltHouses:placed.beltHouses,beltTrees:field.beltTrees,farms:field.farms.length,gravelBars:field.bars.length,riffles:field.riffles.length,grid:[width,height],cell:g.cell,landmarks:placed.houses.length,treeIndividuals:veg.filter(v=>v[7]===0).length,stands:veg.filter(v=>v[7]>0).length,riverPoints:river.xy_m.length,addedHouses:data.houses.instances.length-placed.houses.length,bytes:[...files.values()].reduce((n,b)=>n+b.length,0),files:files.size,generationMs:Math.round(performance.now()-started),townTrees:townReserve+veg.filter(v=>v[0]>=P.town.west&&v[0]<=P.town.east&&northOffset-v[1]>=P.town.south&&northOffset-v[1]<=P.town.north).length,stairTriangles:kits.stair.triangles}};
+  return {files,field,stairs:kits.stair,meta,heights:floats,surface,placed,nodes,veg,filled:data,ground,stats:{grading,beachHouses:placed.beachHouses,portHouses:placed.portHouses,showcaseSmallHouses:placed.showcaseSmallHouses,beltHouses:placed.beltHouses,beltTrees:field.beltTrees,farms:field.farms.length,gravelBars:field.bars.length,riffles:field.riffles.length,grid:[width,height],cell:g.cell,landmarks:placed.houses.length,treeIndividuals:veg.filter(v=>v[7]===0).length,stands:veg.filter(v=>v[7]>0).length,riverPoints:river.xy_m.length,addedHouses:data.houses.instances.length-placed.houses.length,bytes:[...files.values()].reduce((n,b)=>n+b.length,0),files:files.size,generationMs:Math.round(performance.now()-started),townTrees:townReserve+veg.filter(v=>v[0]>=P.town.west&&v[0]<=P.town.east&&northOffset-v[1]>=P.town.south&&northOffset-v[1]<=P.town.north).length,stairTriangles:kits.stair.triangles}};
 }
 export async function writeDesignedWorld(directory,options={}) {
   const world=await designedWorld(options);await fs.mkdir(directory,{recursive:true});

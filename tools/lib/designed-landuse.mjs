@@ -7,7 +7,7 @@ export function designedBelt(field,x,y) {
   if(y>=P.town.south+c.townFade&&y<=P.town.north+c.width+c.variation){d=townWestAt(y)-x;side='west';along=y;}
   if(x>=townWestAt(y)&&x<=P.town.east&&Math.abs(x)>P.shrine.lower[1]+P.shrine.edgeRun){const n=y-townNorthAt(x);if(Math.abs(n)<Math.abs(d)){d=n;side='north';along=x;}}
   if(x<field.riverX(y)&&y>=P.town.south&&y<=P.town.north){const n=x-townEastAt(y);if(Math.abs(n)<Math.abs(d)){d=n;side='east';along=y;}}
-  if(x>P.town.east){const n=x-field.riverX(y)-riverWidth(y)/2;if(y>P.town.south&&n>=-P.river.valleyWidth&&n<Math.abs(d)){d=n;side='river';along=y;}}
+  if(x>field.riverX(y)+riverWidth(y)/2){const n=x-field.riverX(y)-riverWidth(y)/2;if(y>P.town.south&&n>=-P.river.valleyWidth&&n<Math.abs(d)){d=n;side='river';along=y;}}
   const width=Math.min(side==='river'?50:P.targets.beltWidth[1],Math.max(side==='river'?30:P.targets.beltWidth[0],c.width+c.variation*(Math.sin(along*Math.PI*2/c.waves[0])+Math.sin(along*Math.PI*2/c.waves[1]))/2));
   if(d < -c.townFade||d>width||y<shoreAt(x)+P.shore.beach)return null;
   return {d,width,side,along};
@@ -45,7 +45,7 @@ export function designedLanduse(field) {
     if(!b&&q.code===4&&y>townNorthAt(x)&&y>P.town.north){const road=field.roadNear(x,y);if(!road||road.distance>road.road.width/2+P.road.pavedShoulder/4)q.code=3;}
     if(b&&q.h>0&&q.code!==6&&q.code!==7){const road=field.roadNear(x,y),r=field.riverNear(x,y);if((!road||road.distance>road.road.width/2+P.road.pavedShoulder/4)&&r.distance>r.width/2+P.river.gravel){
       if(b.d>=0)q.code=b.d>=c.forestGap&&field.woodAt(x,y)?3:2;
-      else if(hash(Math.floor(x/c.townFade),Math.floor(y/c.townFade),122)<smooth(-c.townFade,0,b.d))q.code=2;
+      // The interior remains buildable; taper tree clusters outside the town edge.
       if(farmAt(x,y))q.code=4;
     }}
     if(y>=P.town.south&&y<=P.town.north&&(x<townWestAt(y)||x>townEastAt(y))&&q.code===4){const road=field.roadNear(x,y);if(!road||road.distance>road.road.width/2+P.road.pavedShoulder/4)q.code=b?2:3;}
