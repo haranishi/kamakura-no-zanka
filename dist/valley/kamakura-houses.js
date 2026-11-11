@@ -1,4 +1,25 @@
 // Pure private-house decoding, placement and horizontal footprints. No bundled geography.
+export const HOUSE_POLICY = Object.freeze({
+  full:60, swap:75, cap:90, // metres (3D), metres (3D), houses: legacy defaults.
+  minFull:30, maxFull:2000, maxSwap:2500, minCap:30, maxCap:600, // accepted map/query bounds.
+});
+export function housePolicy(value, search='') {
+  const C=HOUSE_POLICY;
+  if(value!==undefined && (!value || typeof value!=='object' || Array.isArray(value) ||
+    !Number.isFinite(value.full_m) || value.full_m<C.minFull || value.full_m>C.maxFull ||
+    !Number.isFinite(value.swap_m) || value.swap_m<value.full_m || value.swap_m>C.maxSwap ||
+    !Number.isInteger(value.cap) || value.cap<C.minCap || value.cap>C.maxCap))throw new Error('家の描画方針が不正です');
+  const q=new URLSearchParams(search), full=value?.full_m??C.full, swap=value?.swap_m??C.swap, cap=value?.cap??C.cap;
+  const out={full,swap,cap,extended:value!==undefined};
+  for(const [name,key,lo,hi,integer] of [['housefull','full',C.minFull,C.maxFull,false],['houseswap','swap',C.minFull,C.maxSwap,false],['housecap','cap',C.minCap,C.maxCap,true]]){
+    if(!q.has(name))continue;
+    const raw=q.get(name),n=Number(raw);
+    if(!raw?.trim() || !Number.isFinite(n) || n<lo || n>hi || integer&&!Number.isInteger(n))throw new Error('家の描画方針の番地が不正です');
+    out[key]=n;out.extended=true;
+  }
+  if(out.swap<out.full)throw new Error('家の入れ替え距離が不正です');
+  return Object.freeze(out);
+}
 export const HOUSE_CHUNK = 256;
 export const houseNodeName = name => name.replace(/\.\d+$/, '');
 export function decodeHouses(catalog, buffer) {

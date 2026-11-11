@@ -88,9 +88,9 @@ test('H3 lazy one-kind-per-frame cache, shared instancing, cap, altitude, adapta
   assert.equal(detailMeshes(scene).length,4);assert(detailMeshes(scene).every(m=>m.castShadow&&m.receiveShadow));
   const resources=new Set();scene.traverse(o=>{if(o.geometry)resources.add(o.geometry);if(o.material)resources.add(o.material);if(o.customDepthMaterial)resources.add(o.customDepthMaterial);if(o.customDistanceMaterial)resources.add(o.customDistanceMaterial);});
   const releases=new Map();for(const r of resources)r.addEventListener('dispose',()=>releases.set(r,(releases.get(r)??0)+1));
-  const version=detailMeshes(scene).map(m=>[m.instanceMatrix.version,m.instanceColor.version,m.geometry.attributes.house2Fade.version]);
+  const version=detailMeshes(scene).map(m=>[m.instanceMatrix.version,m.instanceColor.version,m.geometry.attributes.house2State.version]);
   const before=performance.now();await warm(view,pos,10000);const ms=performance.now()-before;
-  assert.deepEqual(detailMeshes(scene).map(m=>[m.instanceMatrix.version,m.instanceColor.version,m.geometry.attributes.house2Fade.version]),version);
+  assert.deepEqual(detailMeshes(scene).map(m=>[m.instanceMatrix.version,m.instanceColor.version,m.geometry.attributes.house2State.version]),version);
   view.update({x:0,y:76,z:0});assert.equal(globalThis.__kzHouse2().shown,0);
   view.update(pos);assert.equal(globalThis.__kzHouse2().built.length,4);
   view.setAdapt(2);view.update(pos);assert.equal(globalThis.__kzHouse2().shown,0);view.setAdapt(0);view.update(pos);assert(globalThis.__kzHouse2().shown>0);
@@ -112,7 +112,7 @@ function safety(source){
 }
 test('H3/H5 shipped shader anchors, complementary colour/depth/distance discard, debug colors, seed and yard mask',async()=>{
   const {buildKamakuraHouses}=await loadHouse2View();
-  for(const search of ['?housefar=0','?housefar=0&house2debug=1','?housefar=0&htex=0']){
+  for(const search of ['?housefar=0','?housefar=0&house2debug=1','?housefar=0&htex=0','?housefar=0&housefull=700&houseswap=760&housecap=200','?housefar=0&housefull=700&houseswap=760&housecap=200&house2debug=1','?housefar=0&housefull=700&houseswap=760&housecap=200&htex=0']){
     const scene=new THREE.Scene(),view=await buildKamakuraHouses(fieldInput(),{heightAt:()=>0},scene,{search});scene.onAfterRender();await warm(view,{x:0,y:0,z:0});
     scene.traverse(o=>{if(!o.isInstancedMesh)return;
       const isDetail=o.name==='house2-instances';
@@ -120,7 +120,7 @@ test('H3/H5 shipped shader anchors, complementary colour/depth/distance discard,
         assert(m);const lib=THREE.ShaderLib[key];for(const mark of ['common','begin_vertex'])assert(lib.vertexShader.includes('#include <'+mark+'>'));assert(lib.fragmentShader.includes('#include <clipping_planes_fragment>'));
         const shader={uniforms:{},vertexShader:lib.vertexShader,fragmentShader:lib.fragmentShader};m.onBeforeCompile(shader);safety(shader.vertexShader);safety(shader.fragmentShader);assert(!/attribute\s/.test(shader.fragmentShader),'attributes belong only to the vertex shader');
         assert(shader.fragmentShader.includes(isDetail?'h2screen>=vHouse2Fade':'h2screen<vHouse2Fade'));assert(!m.transparent);
-        if(isDetail)assert(shader.vertexShader.includes('if(house2Role>5.5)transformed*=house2Yard'));
+        if(isDetail)assert(shader.vertexShader.includes('if(house2SurfaceData.z>5.5)transformed*=house2State.y'));
       }
       if(isDetail&&search.includes('debug')){assert(o.material.isMeshBasicMaterial);assert(o.geometry.attributes.color);assert.equal(o.material.fog,false);}
     });view.dispose();
@@ -164,11 +164,11 @@ test('GLSL compiler checks detail and legacy standard/basic/depth/distance with 
   `;
   const {buildKamakuraHouses}=await loadHouse2View();let stages=0;
   try{
-    for(const search of ['?housefar=0','?housefar=0&house2debug=1','?housefar=0&htex=0']){
+    for(const search of ['?housefar=0','?housefar=0&house2debug=1','?housefar=0&htex=0','?housefar=0&housefull=700&houseswap=760&housecap=200','?housefar=0&housefull=700&houseswap=760&housecap=200&house2debug=1','?housefar=0&housefull=700&houseswap=760&housecap=200&htex=0']){
       const scene=new THREE.Scene(),view=await buildKamakuraHouses(fieldInput(),{heightAt:()=>0},scene,{search});scene.onAfterRender();await warm(view,{x:0,y:0,z:0});
       try{
         const legacy=[];scene.traverse(o=>{if(o.name==='house-instances')legacy.push(o);});
-        const meshes=[legacy[0],detailMeshes(scene)[0]];assert(meshes.every(Boolean));
+        const meshes=[legacy[0],detailMeshes(scene)[0],...detailMeshes(scene).filter(m=>m.geometry.attributes.house2Part)];assert(meshes.every(Boolean));
         for(const mesh of meshes)for(const [material,kind] of [[mesh.material,mesh.material.isMeshBasicMaterial?'basic':'standard'],[mesh.customDepthMaterial,'depth'],[mesh.customDistanceMaterial,'distanceRGBA']]){
           const lib=THREE.ShaderLib[kind],shader={uniforms:{},vertexShader:lib.vertexShader,fragmentShader:lib.fragmentShader};material.onBeforeCompile(shader);
           for(const lit of [false,true])for(const [property,stage] of [['vertexShader','vert'],['fragmentShader','frag']]){

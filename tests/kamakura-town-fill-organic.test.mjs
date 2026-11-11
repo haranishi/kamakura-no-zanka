@@ -5,6 +5,7 @@ import path from 'node:path';
 import { TOWN_FILL as C, TOWN_FILL_FIELDS, townFillConfig, prepareTownFill, townBoxesOverlap } from '../dist/valley/kamakura-town-fill.js';
 import { houseBox, houseIntersects } from '../dist/valley/kamakura-houses.js';
 import { prepareTownDress } from '../dist/valley/kamakura-town-dress.js';
+import { HOUSE_FAR } from '../dist/valley/kamakura-house-far.js';
 import { loadKamakura } from '../dist/valley/kamakura-data.js';
 import { createKamakuraTerrain } from '../dist/valley/kamakura-terrain.js';
 import { buildColliders, moveActor } from '../dist/valley/collision.js';
@@ -151,4 +152,127 @@ test('authored town with requested values retains 95 percent of houses, avenue f
   assert(r.stats.work.turnAttempts<=r.stats.work.candidates*(C.kindAttempts+1)*(2*C.turnHalves+2));
   const report=value=>({houses:value.houses.instances.length,added:value.stats.houses.added,yawSD:sd(angles(value)),edgeSD:outline(value),annexes:value.stats.annexes,yards:value.yards.length,edge:value.stats.edge,avenue:avenue(value),work:value.stats.work});
   t.diagnostic(JSON.stringify({authoredBefore:report(before),authoredAfter:report(r),movement:graph,farDraws:1,newDraws:0}));
+});
+
+function streets(config = {}) {
+  const f = town({ span: 360, reach: 140, config: { reach: 140, outerStart: 130, start: 4, shoreGap: 2, coastSmall: 0,
+    frontageMin: 10, frontageMax: 11, laneFirst: 25, laneEvery: 43.2, crossEvery: 300,
+    yaw: 9, groupYaw: 8, shift: 1.4, setbackMin: 1, setbackMax: 4.5, bend: 3, bendWave: 70,
+    annexRate: .55, edgeFray: .8, yardRate: .6, ...config } });
+  f.data.roads.east = { kind: 'local_road', route_id: 'east', width_m: 5, xyz_m: [[0,-25,12],[132,-25,12]] };
+  f.data.roads.west = { kind: 'trail', route_id: 'west', width_m: 4, xyz_m: [[0,-85,12],[-132,-85,12]] };
+  f.data.roads.north = { kind: 'kaido', route_id: 'north', width_m: 4, xyz_m: [[0,60,12],[132,60,12]] };
+  f.terrain.bounds={minX:-140,maxX:140,minZ:-180,maxZ:180};
+  return f;
+}
+function closest(p, paths) {
+  let best = null;
+  for (const path of paths) for (let i=1;i<path.xyz_m.length;i++) {
+    const a=path.xyz_m[i-1], b=path.xyz_m[i], dx=b[0]-a[0], dz=a[1]-b[1], t=Math.max(0,Math.min(1,((p.x-a[0])*dx+(p.z+a[1])*dz)/(dx*dx+dz*dz)));
+    const x=a[0]+dx*t,z=-a[1]+dz*t,d=Math.hypot(p.x-x,p.z-z);
+    if (!best || d<best.d) best={x,z,d,path};
+  }
+  return best;
+}
+function frontageSafety(f, r, start) {
+  const b=boxes(r), paths=[...Object.values(f.data.roads),...Object.values(r.lanes)];
+  for(let i=start;i<b.length;i++) {
+    const house=b[i],item=r.houses.instances[i],face=r.stats.front.axis[item.kind],local=face==='+x'?[1,0]:face==='-x'?[-1,0]:face==='+z'?[0,1]:[0,-1];
+    const fx=item.matrix[0]*local[0]+item.matrix[8]*local[1],fz=item.matrix[2]*local[0]+item.matrix[10]*local[1],plot=r.townPlots.find(p=>p.house===item.id), source=plot.lane==='avenue'?Object.values(f.data.roads).filter(p=>p.kind==='local_road'&&p.width_m===r.stats.axis.width):plot.lane.startsWith('road:')?Object.entries(f.data.roads).filter(([id])=>id.replace(/:\d+$/,'')===plot.lane.slice(5).replace(/:\d+$/,'')).map(([,p])=>p):[r.lanes[plot.lane]],near=closest(house,source);
+    assert((fx*(near.x-house.x)+fz*(near.z-house.z))/(Math.hypot(fx,fz)*near.d)>Math.cos((C.yaw+20)*Math.PI/180),'door faces its street');
+    // A swept line from the frontage to the house must be free: rear-only scraps are not frontages.
+    for(let j=0;j<b.length;j++) if(j!==i) {
+      assert(!townBoxesOverlap(house,b[j],C.houseGap-1e-7),'house clearance');
+      assert(!houseIntersects(b[j],{x:near.x,z:near.z},{x:house.x,z:house.z},.3),'blocked door path');
+    }
+    for(const p of paths) for(let j=1;j<p.xyz_m.length;j++) assert(!houseIntersects(house,{x:p.xyz_m[j-1][0],z:-p.xyz_m[j-1][1]},{x:p.xyz_m[j][0],z:-p.xyz_m[j][1]},p.width_m/2),'house crosses a street');
+  }
+}
+test('road and infill fields are opt-in, validated, and preserve every prior transform', () => {
+  const f=streets(), before=fill(f); f.data.meta.town_fill.roadPlots=0; f.data.meta.town_fill.infillRate=0;
+  assert.deepEqual(fill(f),before);
+  for(const name of ['roadPlots','infillRate']) {
+    for(const value of [0,1]) assert.equal(townFillConfig({[name]:value})[name],value);
+    for(const value of [-.1,1.1,NaN,Infinity,null,'1']) assert.throws(()=>townFillConfig({[name]:value}));
+  }
+  assert.throws(()=>townFillConfig({roadPlots:.5}));
+  const after=fill(streets({roadPlots:1,infillRate:.8}));
+  assert.deepEqual(after.houses.instances.slice(0,before.houses.instances.length),before.houses.instances);
+});
+test('existing local roads, trails and highways gain deterministic safe frontages on both banks', () => {
+  const f=streets({roadPlots:1}),r=fill(f),before=fill(streets());
+  assert(r.stats.supplemental.roadHouses>0); noOverlap(r);
+  for(const id of ['east','west','north']) {
+    const plots=r.townPlots.filter(p=>p.lane==='road:'+id); assert(plots.length>0,id+' has houses');
+    assert(plots.some(p=>p.z<-f.data.roads[id].xyz_m[0][1])); assert(plots.some(p=>p.z>-f.data.roads[id].xyz_m[0][1]));
+  }
+  frontageSafety(f,r,before.houses.instances.length); assert.deepEqual(fill(f),r);
+});
+test('gap houses increase roof coverage and street density while retaining avenues and return paths', t => {
+  const f=streets({roadPlots:1,infillRate:.8}),r=fill(f),before=fill(streets());
+  const roof=value=>boxes(value).reduce((n,b)=>n+b.w*b.d,0),avenue=value=>value.townPlots.filter(p=>p.lane==='avenue'&&p.state==='house'&&!p.source);
+  assert(r.stats.supplemental.infill>0); assert(r.houses.instances.length>=before.houses.instances.length*1.25);
+  assert(roof(r)>=roof(before)*1.25);assert.deepEqual(avenue(r),avenue(before));
+  const sideStreets=Object.values(f.data.roads).slice(1,3);
+  assert(boxes(r).filter(b=>{const n=closest(b,sideStreets);return n.d<=15+n.path.width_m/2;}).length>=14);
+  frontageSafety(f,r,before.houses.instances.length);noOverlap(r);
+  assert.deepEqual(fill(f),r);const graph=movement(f.terrain,[],boxes(r),r.stats.axis,{x:0,z:0});
+  assert(graph.reached>1);assert.equal(graph.newTraps,0);
+  assert(r.stats.lanes.length+r.stats.supplemental.scanned<=C.laneLengthMax);assert(r.stats.houses.added<=C.houseMax);
+  t.diagnostic(JSON.stringify({before:before.houses.instances.length,after:r.houses.instances.length,roofRatio:roof(r)/roof(before),supplemental:r.stats.supplemental,movement:graph,work:r.stats.work}));
+});
+
+test('supplemental frontages leave rivers, facilities and the full bridge approach clear', () => {
+  const f=streets({roadPlots:1,infillRate:1}), inside=f.terrain.insideA;
+  f.data.rivers={rivers:[{id:'invented-river',xy_m:[[100,180],[100,-180]],width_m:[6,6],water_elev_m:[9,9]}]};
+  f.terrain.groundAt=(x,z)=>!inside(x,z)||Math.abs(x-100)<=11?'water':null;
+  f.terrain.heightAt=x=>Math.abs(x-100)<13?9:12;
+  f.data.facilities.nodes=[{part:'hall',anchor_xz:[-65,70],bbox_min:[-6,0,-5],bbox_max:[6,8,5]}];
+  const without=prepareTownFill({...f.data,meta:{...f.data.meta,town_fill:{...f.data.meta.town_fill,roadPlots:0,infillRate:0}}},{terrain:f.terrain}),r=fill(f);
+  const added=boxes(r).slice(without.houses.instances.length);
+  assert(added.length>0);assert(r.stats.supplemental.rejected.bridge>0);assert(r.stats.supplemental.rejected.water>0);
+  for(const b of added) {
+    assert(!townBoxesOverlap(b,{x:-65,z:70,w:12,d:10,rotY:0},C.facilityGap-1e-7));
+    for(const z of [25,-60]) assert(!townBoxesOverlap(b,{x:100,z,w:42,d:19,rotY:0}),'bridge and approaches');
+    const c=Math.cos(b.rotY),s=Math.sin(b.rotY);
+    for(let u=-b.w/2;u<=b.w/2;u+=1) for(let v=-b.d/2;v<=b.d/2;v+=1) assert.equal(f.terrain.groundAt(b.x+c*u+s*v,b.z-s*u+c*v),null);
+  }
+});
+
+test('light quality and large supplemental scans retain the existing hard work and geometry budgets', () => {
+  const f=streets({roadPlots:1,infillRate:1}),r=fill(f),light=prepareTownFill(f.data,{terrain:f.terrain,search:'?q=light'});
+  assert(light.houses.instances.length<r.houses.instances.length);
+  f.data.roads.remote={kind:'trail',width_m:3,xyz_m:[[5000,0,0],[5000,200000,0]]};
+  const huge=fill(f);
+  assert(huge.stats.supplemental.rejected.budget>0);
+  assert(huge.stats.supplemental.scanned+huge.stats.lanes.length<=C.laneLengthMax);
+  assert(huge.stats.supplemental.axisChecks<=C.laneLengthMax/C.step);
+  assert(huge.stats.houses.added<=C.houseMax);assert(huge.stats.work.farTriangles<=HOUSE_FAR.triangles);
+});
+
+test('authored street additions retain old transforms, roof coverage and bidirectional movement', {skip:!process.env.KZ_DESIGNED_WORLD_DIR&&'KZ_DESIGNED_WORLD_DIR未設定'}, async t => {
+  const bare=await loadKamakura(async url=>{const b=await fs.readFile(path.join(process.env.KZ_DESIGNED_WORLD_DIR,path.basename(url)));return {ok:true,json:async()=>JSON.parse(b),arrayBuffer:async()=>b.buffer.slice(b.byteOffset,b.byteOffset+b.byteLength)};},'?townfill=0');
+  const values={yaw:9,groupYaw:8,shift:1.4,setbackMin:1,setbackMax:4.5,bend:3,bendWave:70,annexRate:.55,edgeFray:.8,yardRate:.6};
+  const data={...bare,meta:{...bare.meta,town_fill:{...bare.meta.town_fill,...values}}},before=prepareTownFill(data);
+  const r=prepareTownFill({...data,meta:{...data.meta,town_fill:{...data.meta.town_fill,roadPlots:1,infillRate:.8}}});
+  assert.deepEqual(r.houses.instances.slice(0,before.houses.instances.length),before.houses.instances);noOverlap(r,bare.houses.instances.length);
+  frontageSafety({data:bare},r,before.houses.instances.length);
+  const terrain=createKamakuraTerrain(bare), old=boxes({houses:bare.houses});
+  for(const node of bare.facilities?.nodes||[]) if(node.part==='hall'||node.part==='buddha'){const a=node.bbox_min,b=node.bbox_max;old.push({x:node.anchor_xz[0]+(a[0]+b[0])/2,z:node.anchor_xz[1]+(a[2]+b[2])/2,w:b[0]-a[0],d:b[2]-a[2],rotY:0});}
+  const graph=movement(terrain,old,boxes(r).slice(bare.houses.instances.length),r.stats.axis,{x:bare.meta.spawn.x,z:-bare.meta.spawn.y});
+  assert(graph.reached>1);assert.equal(graph.newTraps,0);
+  const c=data.meta.town_fill,axis=r.stats.axis,roof=value=>{const b=boxes(value);let covered=0,total=0;for(let u=-c.reach+.5;u<c.reach;u++)for(let v=.5;v<axis.length;v++){const a=axis.points[0],end=axis.points.at(-1),dx=(end.x-a.x)/axis.length,dz=(end.z-a.z)/axis.length,p={x:a.x+dx*v-dz*u,z:a.z+dz*v+dx*u};total++;if(b.some(h=>houseIntersects(h,p)))covered++;}return {covered,total,share:covered/total};};
+  const a=roof(before),b=roof(r);assert(b.share/a.share>=1.25);
+  const streets=Object.entries(bare.roads).filter(([id])=>/^(east-upper|west):/.test(id)).map(([,p])=>p);
+  const along=boxes(r).filter(h=>{const p=closest(h,streets);return p.d<=15+p.path.width_m/2;}).length;
+  t.diagnostic(JSON.stringify({authoredStreetBefore:{houses:before.houses.instances.length,roof:a},authoredStreetAfter:{houses:r.houses.instances.length,roof:b,streetHouses:along,avenue:r.townPlots.filter(p=>p.lane==='avenue'&&p.state==='house'&&!p.source).length,supplemental:r.stats.supplemental,work:r.stats.work},movement:graph,farDraws:1,addedDraws:0}));
+});
+
+test('a tiny model cannot turn a scrap smaller than the minimum empty plot into infill', () => {
+  const f=streets({roadPlots:0,infillRate:1,houseRate:0,gardenRate:1,burntRate:0,repairRate:0});
+  f.data.roads={main:f.data.roads.main};
+  for(const k of f.data.houses.kinds.values()) { k.bbox_min=[-.5,-.5,0]; k.bbox_max=[.5,.5,1]; }
+  const ground=(edge,length)=>(x,z)=>Math.abs(x)<=8 || x>=8&&x<=edge&&z>=20&&z<=20+length?null:'water';
+  f.terrain.groundAt=ground(14,6);assert.equal(fill(f).stats.supplemental.infill,0);
+  f.terrain.groundAt=ground(25,30);assert(fill(f).stats.supplemental.infill>0);
 });

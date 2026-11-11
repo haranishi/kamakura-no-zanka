@@ -14,7 +14,7 @@ import { decodeFacilities, buddhaSearch } from './kamakura-facilities.js';
 import { decodeRoads, decodeCrossings, kamakuraPaths, roadStats } from './kamakura-roads.js';
 import { decodeRivers } from './kamakura-rivers.js';
 import { decodeVeg } from './kamakura-veg.js';
-import { decodeHouses } from './kamakura-houses.js';
+import { decodeHouses, housePolicy } from './kamakura-houses.js';
 // Runtime world files only: no bundled geography or remote service.
 export function validateMeta(m) {
   const g = m?.grid, h = m?.height;
@@ -38,6 +38,7 @@ export function validateMeta(m) {
   }
   validateFlight(m.flight);
   validateLights(m.lights);
+  housePolicy(m.house_policy);
   validateSea(m.sea);
   validateMist(m.mist);
   validateFires(m.fires, m);

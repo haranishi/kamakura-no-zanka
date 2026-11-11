@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { createHouseTextures, createHouseMaterial, createHouse2Material, house2DitherMaterial, loadHouse2Module } from './kamakura-house-materials.js';
 import { houseVariation, houseIndexSeed, houseWallSpans, houseFoundationTop, houseRoofSpans } from './kamakura-house-texture.js';
-import { houseNodeName, houseBounds, houseBodyBounds, houseMatrix, houseBox, houseChunks, houseChunkDistance, houseLOD, HOUSE_FAR, houseFarEnabled, houseFarShape, houseFarBrightness, houseFarVisible, houseFarMask, houseFarDistance } from './kamakura-houses.js';
+import { housePolicy, houseNodeName, houseBounds, houseBodyBounds, houseMatrix, houseBox, houseChunks, houseChunkDistance, houseLOD, HOUSE_FAR, houseFarEnabled, houseFarShape, houseFarBrightness, houseFarVisible, houseFarMask, houseFarDistance } from './kamakura-houses.js';
 
 // The mid view stands on a coarser terrain mesh (LOD2+), so its box sinks deeper than the detailed skirt to stay hidden.
 const MID_EXTRA_SINK = HOUSE_FAR.midSink;
@@ -21,6 +21,7 @@ function simplified(kind, material) {
   return [{ geometry, material }, { geometry: roof, material }];
 }
 export async function buildKamakuraHouses(houses, terrain, scene, { search = '', quality = 'standard' } = {}) {
+  const policy=housePolicy(terrain.meta?.house_policy,search);
   // Reject external resource links before handing the private, self-contained GLB to the loader.
   const dv = new DataView(houses.kit);
   const json = JSON.parse(new TextDecoder().decode(new Uint8Array(houses.kit, 20, dv.getUint32(12, true))));
@@ -30,8 +31,12 @@ export async function buildKamakuraHouses(houses, terrain, scene, { search = '',
   const h2options=new URLSearchParams(search);
   const h2on=h2options.get('house2')!=='0'&&quality!=='light'&&Array.from(houses.kinds.values()).some(k=>!/塀|門|fence|gate|wall/i.test(k.node)&&/町屋|小家|蔵|屋敷|番屋|舟小屋|townhouse|cottage|storehouse|mansion|boathouse|guardhouse/i.test(k.node));
   const h2=h2on?await loadHouse2Module():null;
-  const detail={built:[],cache:new Map(),job:null,shown:0,triangles:0,draws:0,nearest:null,selection:null,distances:null,previous:new Int32Array(h2?.HOUSE2.cap??0),previousCount:0};
-  if(h2){detail.selection=new Int32Array(h2.HOUSE2.cap);detail.distances=new Float64Array(h2.HOUSE2.cap);}
+  const detail={built:[],cache:new Map(),job:null,shown:0,triangles:0,draws:0,selection:null,distances:null,previous:new Int32Array(h2?policy.cap:0),previousCount:0,buildFrames:0,stages:0,maxStages:0};
+  if(h2){detail.selection=new Int32Array(policy.cap);detail.distances=new Float64Array(policy.cap);}
+  const limits=h2&&policy.extended?h2.HOUSE_DETAIL:h2?.HOUSE2;
+  const finePixels={value:h2? h2.HOUSE_DETAIL.referenceHeight/(2*Math.tan(h2.HOUSE_DETAIL.referenceFov*Math.PI/360)):0};
+  const drawingSize=new THREE.Vector2();
+  function projection(renderer,camera){if(renderer?.getDrawingBufferSize&&camera?.isPerspectiveCamera)finePixels.value=renderer.getDrawingBufferSize(drawingSize).y*camera.projectionMatrix.elements[5]/2;}
   const templates = new Map(), owned = new Set(), sourceGeometries = new Set(), materials = new Set();
   const chunks = houseChunks(houses), boxes = [];
   // W2c-9g: optional surface layer; shared resources never affect placement or LOD.
@@ -118,6 +123,7 @@ export async function buildKamakuraHouses(houses, terrain, scene, { search = '',
       const body=houseBodyBounds(positions);
       const shape=farEnabled?houseFarShape(positions,body,kind.node,near.map(p=>({positions:p.geometry.attributes.position.array,indices:p.geometry.index?.array}))):null;
       const baseMain=[...near].sort((a,b)=>(b.geometry.index?.count??b.geometry.attributes.position.count)-(a.geometry.index?.count??a.geometry.attributes.position.count))[0].material;
+      const sourceMeans=h2?h2.house2SourceMeans(near.map(p=>({positions:p.geometry.attributes.position.array,indices:p.geometry.index?.array,start:p.geometry.drawRange.start,count:p.geometry.drawRange.count,rgb:p.material.color.toArray()}))):null;
       if (texture) {
         const shared = new Map(), { min, max } = houseBounds(kind);
         for (const part of near) {
@@ -147,7 +153,7 @@ export async function buildKamakuraHouses(houses, terrain, scene, { search = '',
         }
         owned.add(p.geometry);
       }
-      templates.set(kind.index, { near, mid, body, far:shape, base:baseMain, main, frame:h2&&h2.houseFamily(kind)?h2.houseFrame(kind,positions,1,near.map(p=>({positions:p.geometry.attributes.position.array,indices:p.geometry.index?.array}))):null });
+      templates.set(kind.index, { near, mid, body, far:shape, base:baseMain, main, sourceMeans, frame:h2&&h2.houseFamily(kind)?h2.houseFrame(kind,positions,1,near.map(p=>({positions:p.geometry.attributes.position.array,indices:p.geometry.index?.array}))):null });
     }
     for (const ch of chunks) {
       ch.level = null; ch.group = null; ch.pending = null; ch.farShown=false; ch.minY=Infinity; ch.maxY=-Infinity;
@@ -172,7 +178,7 @@ export async function buildKamakuraHouses(houses, terrain, scene, { search = '',
   function house2Stats(){
     let nearest=null,best=Infinity;
     if(detail.shown)for(let i=0;i<detail.previousCount;i++){const item=houses.instances[detail.previous[i]];if(!item.house2Weight)continue;const m=item.grounded,dx=m[12]-eyeX,dz=m[14]-eyeZ,d=Math.hypot(dx,m[13]-eyeY,dz);if(d<best){best=d;nearest={type:houses.kinds.get(item.kind).node,tiltDegrees:Math.atan2(Math.hypot(m[4],m[6]),m[5])*180/Math.PI,distance:d,bearing:(Math.atan2(dx,-dz)*180/Math.PI+360)%360};}}
-    return {enabled:!!h2,built:detail.built,shown:detail.shown,cap:h2?.HOUSE2.cap??90,range:{full:h2?.HOUSE2.full??60,swap:h2?.HOUSE2.swap??75},draws:detail.draws,triangles:detail.triangles,nearest};
+    return {enabled:!!h2,active:!!h2&&step<2,quality,adapt:step,built:detail.built,shown:detail.shown,cap:policy.cap,range:{full:policy.full,swap:policy.swap},policy,buildFrames:detail.buildFrames,buildStages:detail.stages,maxBuildStages:detail.maxStages,building:!!detail.job,limits:limits?{triangles:limits.triangles,draws:limits.draws}:null,partLimits:h2&&policy.extended?h2.HOUSE_DETAIL.parts:null,draws:detail.draws,triangles:detail.triangles,nearest};
   }
   if(options.get('debug')==='1')globalThis.__kzHouse2=house2Stats;
   // Extend the existing surface shader, retaining its palette, texture means, fog and illumination.
@@ -271,7 +277,8 @@ export async function buildKamakuraHouses(houses, terrain, scene, { search = '',
   function afterPresentation(renderer,renderScene,camera){
     previousAfterRender.call(scene,renderer,renderScene,camera);
     if(!disposed)farAllowed=true;
-    if(scene.onAfterRender===afterPresentation)scene.onAfterRender=previousAfterRender;
+    projection(renderer,camera);
+    if(!policy.extended&&scene.onAfterRender===afterPresentation)scene.onAfterRender=previousAfterRender;
   }
   function prepare(ch, level) {
     const group = new THREE.Group(); group.name = `houses-${ch.key}-${level}`; group.visible = false; scene.add(group);
@@ -296,7 +303,7 @@ export async function buildKamakuraHouses(houses, terrain, scene, { search = '',
     sorted.sort(distanceSort);
     for (const ch of sorted) {
       const distance=ch.distance;
-      const want = houseLOD(distance, ch.level);
+      const want = h2&&policy.extended&&step<2&&distance<policy.swap?0:houseLOD(distance, ch.level);
       if (ch.pending && want !== ch.pending.level) { releaseGroup(ch.pending.group); ch.pending = null; }
       if (want === 2) { releaseGroup(ch.group); ch.group = null; if(ch.level!==2)revision++;ch.level = 2; markFar(ch); continue; }
       if (want === ch.level) {markFar(ch);continue;}
@@ -332,32 +339,48 @@ export async function buildKamakuraHouses(houses, terrain, scene, { search = '',
     }
   }
 
-  // Lazy construction advances at most one kind per update; completed variants are cached until dispose.
+  // One kind is under construction; generator work and GPU allocations have separate hard budgets.
   function buildDetailSlice(kind) {
     const C=h2.HOUSE2,t=templates.get(kind);
-    if(!detail.job)detail.job={kind,variant:0,generator:h2.houseBuildSteps(t.frame,0),cpu:0,maxSlice:0,meshes:[]};
-    const job=detail.job,start=performance.now();let r;
-    do{r=job.generator.next();}while(!r.done&&performance.now()-start<C.sliceMs);
-    const elapsed=performance.now()-start;job.cpu+=elapsed;job.maxSlice=Math.max(job.maxSlice,elapsed);
-    if(!r.done)return;
-    const shape=r.value;if(shape.triangles>h2.houseTriangleLimit(t.frame))throw new Error('家の型の三角形上限を超えました');
+    if(!detail.job)detail.job={kind,variant:0,generator:h2.houseBuildSteps(t.frame,0),cpu:0,maxSlice:0,meshes:[],shape:null,band:0};
+    const job=detail.job,start=performance.now();let r,stages=0;
+    if(!job.shape){
+      do{r=job.generator.next();stages++;}while(!r.done&&stages<h2.HOUSE_DETAIL.stages&&performance.now()-start<C.sliceMs);
+      if(r.done){job.shape=r.value;if(job.shape.triangles>h2.houseTriangleLimit(t.frame))throw new Error('家の型の三角形上限を超えました');}
+    }
+    detail.stages+=stages;detail.maxStages=Math.max(detail.maxStages,stages);
+    if(!job.shape){const elapsed=performance.now()-start;job.cpu+=elapsed;job.maxSlice=Math.max(job.maxSlice,elapsed);return;}
+    const shape=policy.extended?h2.houseDetailBand(job.shape,job.band===1):job.shape;
     const geometry=new THREE.BufferGeometry();owned.add(geometry);
-    for(const [name,array,size] of [['position',shape.positions,3],['normal',shape.normals,3],['uv',shape.uvs,2],['house2Surface',shape.surfaces,1],['house2Tone',shape.tones,1],['house2Role',shape.roles,1]])geometry.setAttribute(name,new THREE.BufferAttribute(array,size));
+    for(const [name,array,size] of [['position',shape.positions,3],['normal',shape.normals,3],['uv',shape.uvs,2]])geometry.setAttribute(name,new THREE.BufferAttribute(array,size));
+    // One vertex record: surface, tone, architectural role (all retained losslessly).
+    const surface=new Float32Array(shape.roles.length*3);
+    for(let i=0;i<shape.roles.length;i++)surface.set([shape.surfaces[i],shape.tones[i],shape.roles[i]],i*3);
+    geometry.setAttribute('house2SurfaceData',new THREE.BufferAttribute(surface,3));
+    if(shape.fine){
+      const part=new Float32Array(shape.roles.length*2);
+      for(let i=0;i<shape.roles.length;i++)part.set([shape.partWidth[i],shape.partEnd[i]],i*2);
+      geometry.setAttribute('house2Part',new THREE.BufferAttribute(part,2));
+    }
     if(options.get('house2debug')==='1'){
       const colors=new Float32Array(shape.positions.length),c=new THREE.Color(),palette=h2.HOUSE_PARTS.debug;
       for(let i=0;i<shape.roles.length;i++){c.setHex(palette[shape.roles[i]]);c.toArray(colors,i*3);}geometry.setAttribute('color',new THREE.BufferAttribute(colors,3));
     }
-    const fades=new THREE.InstancedBufferAttribute(new Float32Array(C.cap),1);geometry.setAttribute('house2Fade',fades);geometry.setAttribute('house2Yard',new THREE.InstancedBufferAttribute(new Float32Array(C.cap),1));
-    const material=house2DitherMaterial(createHouse2Material(t.base,{texture,search,environment:scene.environment,constants:C,frame:shape.frame,debug:options.get('house2debug')==='1'}),true);materials.add(material);
-    const mesh=new THREE.InstancedMesh(geometry,material,C.cap);mesh.name='house2-instances';mesh.count=0;mesh.visible=false;mesh.frustumCulled=false;
+    // One instance record: complementary fade, yard visibility, 3D distance, minimum scale.
+    geometry.setAttribute('house2State',new THREE.InstancedBufferAttribute(new Float32Array(policy.cap*4),4));
+    const fine=shape.fine?{pixels:finePixels,constants:h2.HOUSE_DETAIL}:null;
+    const material=house2DitherMaterial(createHouse2Material(t.base,{texture,search,environment:scene.environment,constants:C,frame:shape.frame,sourceMeans:t.sourceMeans,toneMeans:h2.house2ToneMeans(job.shape),debug:options.get('house2debug')==='1'}),true,fine);materials.add(material);
+    const mesh=new THREE.InstancedMesh(geometry,material,policy.cap);mesh.name='house2-instances';mesh.count=0;mesh.visible=false;mesh.frustumCulled=false;
     mesh.castShadow=true;mesh.receiveShadow=true;mesh.matrixAutoUpdate=false;mesh.updateMatrix();
-    mesh.customDepthMaterial=house2DitherMaterial(new THREE.MeshDepthMaterial({depthPacking:THREE.RGBADepthPacking}),true);
-    mesh.customDistanceMaterial=house2DitherMaterial(new THREE.MeshDistanceMaterial(),true);materials.add(mesh.customDepthMaterial);materials.add(mesh.customDistanceMaterial);
-    // Allocate the colour/seed stream now; stable updates only write existing buffers.
+    if(shape.fine)mesh.onBeforeRender=(renderer,renderScene,camera)=>projection(renderer,camera);
+    mesh.customDepthMaterial=house2DitherMaterial(new THREE.MeshDepthMaterial({depthPacking:THREE.RGBADepthPacking}),true,fine);
+    mesh.customDistanceMaterial=house2DitherMaterial(new THREE.MeshDistanceMaterial(),true,fine);materials.add(mesh.customDepthMaterial);materials.add(mesh.customDistanceMaterial);
     mesh.setColorAt(0,instanceSeed.setRGB(.5,.5,.5));scene.add(mesh);
-    job.meshes.push({mesh,triangles:shape.triangles,count:0,ids:new Int32Array(C.cap).fill(-1),matrixChanged:false,fadeChanged:false});
-    const totalSlice=performance.now()-start;job.cpu+=totalSlice-elapsed;job.maxSlice=Math.max(job.maxSlice,totalSlice);
-    detail.built.push({type:houses.kinds.get(kind).node,variant:job.variant,triangles:shape.triangles,ms:job.cpu,maxSliceMs:job.maxSlice});
+    job.meshes.push({mesh,variant:job.variant,fine:!!shape.fine,triangles:shape.triangles,count:0,ids:new Int32Array(policy.cap).fill(-1),matrixChanged:false,fadeChanged:false});
+    const elapsed=performance.now()-start;job.cpu+=elapsed;job.maxSlice=Math.max(job.maxSlice,elapsed);
+    detail.built.push({type:houses.kinds.get(kind).node,variant:job.variant,fine:!!shape.fine,triangles:shape.triangles,ms:job.cpu,maxSliceMs:job.maxSlice});
+    if(policy.extended&&job.band++===0)return;
+    job.band=0;job.shape=null;
     if(++job.variant<C.variants){job.generator=h2.houseBuildSteps(t.frame,job.variant);job.cpu=0;job.maxSlice=0;}
     else {detail.cache.set(kind,{meshes:job.meshes});detail.job=null;}
   }
@@ -366,24 +389,33 @@ export async function buildKamakuraHouses(houses, terrain, scene, { search = '',
     for(let i=0;i<detail.previousCount;i++)houses.instances[detail.previous[i]].house2Weight=0;
     for(const ch of sorted)for(const item of ch.items)item.house2Eligible=!!templates.get(item.kind).frame&&ch.level===0&&!!ch.group;
     let count=0;
-    if(step<2&&farAllowed)count=h2.house2Selection(houses.instances,pos,detail.selection,detail.distances);
+    if(step<2&&farAllowed)count=h2.house2Selection(houses.instances,pos,detail.selection,detail.distances,policy.cap,policy.swap);
     let missing=-1;
     for(let i=0;i<count;i++){const item=houses.instances[detail.selection[i]];if(!detail.cache.has(item.kind)){missing=item.kind;break;}}
-    if(step<2&&farAllowed&&(detail.job||missing>=0))buildDetailSlice(detail.job?.kind??missing);
+    if(step<2&&farAllowed&&(detail.job||missing>=0)){detail.buildFrames++;buildDetailSlice(detail.job?.kind??missing);}
     for(const entry of detail.cache.values())for(const part of entry.meshes){part.count=0;part.matrixChanged=false;part.fadeChanged=false;}
     detail.shown=0;detail.triangles=0;detail.draws=0;
     for(let i=0;i<count;i++){
       const index=detail.selection[i],item=houses.instances[index],entry=detail.cache.get(item.kind);if(!entry)continue;
-      const part=entry.meshes[item.house2Variant];if(detail.triangles+part.triangles>C.triangles)continue;
-      const at=part.count++,mesh=part.mesh,fade=h2.house2Fade(detail.distances[i]);
-      if(part.ids[at]!==index){part.ids[at]=index;mesh.setMatrixAt(at,instanceMatrix.fromArray(item.grounded));const seed=item.house2Seed;mesh.setColorAt(at,instanceSeed.setRGB(...seed));mesh.geometry.attributes.house2Yard.setX(at,seed[2]<C.yardChance?1:0);part.matrixChanged=true;}
-      const a=mesh.geometry.attributes.house2Fade;if(a.getX(at)!==Math.fround(fade)){a.setX(at,fade);part.fadeChanged=true;}
-      item.house2Weight=fade;detail.previous[detail.shown++]=index;detail.triangles+=part.triangles;
+      const distance=detail.distances[i],fade=h2.house2Fade(distance,policy),m=item.grounded;
+      const scale=Math.min(Math.hypot(m[0],m[2]),m[5],Math.hypot(m[8],m[10]));
+      let cost=0;
+      for(const part of entry.meshes)if(part.variant===item.house2Variant&&(!part.fine||distance<h2.HOUSE_DETAIL.end))cost+=part.triangles;
+      if(detail.triangles+cost>limits.triangles)continue;
+      for(const part of entry.meshes){
+        if(part.variant!==item.house2Variant||part.fine&&distance>=h2.HOUSE_DETAIL.end)continue;
+        const at=part.count++,mesh=part.mesh;
+        if(part.ids[at]!==index){part.ids[at]=index;mesh.setMatrixAt(at,instanceMatrix.fromArray(m));const seed=item.house2Seed;mesh.setColorAt(at,instanceSeed.setRGB(...seed));mesh.geometry.attributes.house2State.setY(at,seed[2]<C.yardChance?1:0);part.matrixChanged=true;}
+        const a=mesh.geometry.attributes.house2State,nextDistance=part.fine?distance:0,nextScale=part.fine?scale:0;
+        if(a.getX(at)!==Math.fround(fade)||a.getZ(at)!==Math.fround(nextDistance)||a.getW(at)!==Math.fround(nextScale)){a.setX(at,fade);a.setZ(at,nextDistance);a.setW(at,nextScale);part.fadeChanged=true;}
+        detail.triangles+=part.triangles;
+      }
+      item.house2Weight=fade;detail.previous[detail.shown++]=index;
     }
     detail.previousCount=detail.shown;
     for(const entry of detail.cache.values())for(const part of entry.meshes){const mesh=part.mesh;mesh.count=part.count;mesh.visible=part.count>0;
-      if(mesh.visible)detail.draws++;if(part.matrixChanged){mesh.instanceMatrix.needsUpdate=true;mesh.instanceColor.needsUpdate=true;mesh.geometry.attributes.house2Yard.needsUpdate=true;}if(part.fadeChanged)mesh.geometry.attributes.house2Fade.needsUpdate=true;}
-    if(detail.draws>C.draws)throw new Error('家の描画命令上限を超えました');
+      if(mesh.visible)detail.draws++;if(part.matrixChanged){mesh.instanceMatrix.needsUpdate=true;mesh.instanceColor.needsUpdate=true;}if(part.matrixChanged||part.fadeChanged)mesh.geometry.attributes.house2State.needsUpdate=true;}
+    if(detail.draws>limits.draws)throw new Error('家の描画命令上限を超えました');
     // Existing near meshes keep their placement, bounds, materials and chunk lifecycle.
     for(const ch of sorted){if(ch.level!==0||!ch.group)continue;for(const mesh of ch.group.children){const a=mesh.geometry.attributes.house2Fade,items=mesh.userData.house2Items;let changed=false;
       for(let i=0;i<items.length;i++){const value=Math.fround(items[i].house2Weight);if(a.getX(i)!==value){a.setX(i,value);changed=true;}}if(changed)a.needsUpdate=true;}}

@@ -1,5 +1,5 @@
 // Pure kit measurement, deterministic construction and caller-owned selection buffers.
-import { houseBodyBounds } from './kamakura-houses.js';
+import { houseBodyBounds,HOUSE_POLICY } from './kamakura-houses.js';
 import { houseIndexSeed,HOUSE_PALETTE as P } from './kamakura-house-texture.js';
 export { HOUSE_PARTS } from './kamakura-house-parts.js';
 import { houseParts,box,beam,stone,roofCourse,solid,finishHouse } from './kamakura-house-parts.js';
@@ -12,9 +12,9 @@ export const HOUSE2 = Object.freeze({
   porchPosts:2, // posts: support the outside edge of each source entrance roof.
   rearRafters:6, // tails per slope: reduced detail on secondary wings.
   rearStones:4, // stones per slope: reduced secondary roof decoration.
-  full:60, // metres, 3D: fully modelled near houses.
-  swap:75, // metres, 3D: end of complementary dither.
-  cap:90, // houses: closest eligible houses only.
+  full:HOUSE_POLICY.full, // metres, 3D: fully modelled near houses.
+  swap:HOUSE_POLICY.swap, // metres, 3D: end of complementary dither.
+  cap:HOUSE_POLICY.cap, // houses: closest eligible houses only.
   triangles:160000, // triangles: total submitted detail geometry.
   draws:40, // commands: maximum detail batches.
   sliceMs:2, // milliseconds: yield between construction stages.
@@ -53,6 +53,7 @@ export const HOUSE2 = Object.freeze({
   roofStones:10, // stones per slope on a plank roof.
   stoneRadius:.13, // metres: head-sized roof stone.
   yardChance:.3, // fraction: deterministic households with 1–2 small yard objects.
+  farMeanMatch:1, // fraction 0–1: match legacy roof/wall mean RGB beyond the original 75m swap.
   paletteBlend:.92, // fraction: same palette/source blend as the existing part material.
   textureMeters:8, // metres: shared procedural atlas repeat.
   woodPhotoAcross:1.5, // multiplier of original 2m tile width: photographed boards read as 20–30cm.
@@ -80,6 +81,51 @@ export const HOUSE2 = Object.freeze({
   recessTone:.16, // multiplier: dark brown interior behind openings.
   dirtTone:.72, // multiplier: wall foot/bare bamboo backing.
 });
+// Thin decoration is culled independently of the structural roof, posts and openings.
+export const HOUSE_DETAIL = Object.freeze({
+  end:75, // metres: never submit fine decoration beyond the old swap distance.
+  fade:10, // metres: dither decoration out before its distance/pixel limit.
+  pixels:1.5, // physical screen pixels: minimum projected thickness.
+  referenceHeight:720, referenceFov:50, // pixels, degrees: conservative projection until first presentation.
+  triangles:600000, draws:120, // submitted detail budgets for maps opting into a policy.
+  stages:2, // generator steps: hard per-update construction work limit.
+  parts:Object.freeze({
+    rafter:Object.freeze({end:75,width:.1}), // metres: rafter tails, including porch tails.
+    lattice:Object.freeze({end:75,width:.022}), // metres: window lattice / bamboo backing.
+    stone:Object.freeze({end:75,width:.06}), // metres: conservative short axis of roof and post foot stones.
+    batten:Object.freeze({end:75,width:.05}), // metres: roof battens, ridge bamboo, barge boards.
+    yard:Object.freeze({end:75,width:.022}), // metres: buckets, ladders and drying ropes.
+  }),
+});
+export function houseDetailPart(solid) {
+  const p=HOUSE_DETAIL.parts,label=solid.label;
+  if(solid.role===6)return p.yard;
+  if(label.includes('rafter'))return p.rafter;
+  if(label==='lattice'||label==='bamboo'||label==='eroded plaster')return p.lattice;
+  if(label==='roof stone'||label==='post stone')return p.stone;
+  if(label==='roof batten'||label==='ridge bamboo'||label.includes('bargeboard'))return p.batten;
+  return null;
+}
+export function houseDetailLimit(part, pixelsPerMetre,scale=1) {
+  return Math.min(part.end,part.width*scale*pixelsPerMetre/HOUSE_DETAIL.pixels);
+}
+export function houseDetailFade(distance,end) {
+  return Math.max(0,Math.min(1,(end-distance)/Math.min(end,HOUSE_DETAIL.fade)));
+}
+// Both bands retain the exact source attributes and palette; no recolouring at the boundary.
+export function houseDetailBand(shape,fine) {
+  const keys=['positions','normals','uvs','roles','surfaces','tones'],sizes=[3,3,2,1,1,1],out={...shape,solids:[]};
+  let count=0;for(const s of shape.solids)if(!!houseDetailPart(s)===fine)count+=s.count;
+  keys.forEach((key,i)=>out[key]=new Float32Array(count*sizes[i]));
+  out.partWidth=new Float32Array(count);out.partEnd=new Float32Array(count);
+  let at=0;
+  for(const s of shape.solids){const part=houseDetailPart(s);if(!!part!==fine)continue;
+    keys.forEach((key,i)=>out[key].set(shape[key].subarray(s.start*sizes[i],(s.start+s.count)*sizes[i]),at*sizes[i]));
+    if(part){out.partWidth.fill(part.width,at,at+s.count);out.partEnd.fill(part.end,at,at+s.count);}
+    out.solids.push({...s,start:at});at+=s.count;
+  }
+  out.triangles=count/3;out.fine=fine;return out;
+}
 export function houseFamily(kind) {
   const name=typeof kind==='string'?kind:kind.node??kind.house_type??'';
   if(/塀|門|fence|gate|wall/i.test(name))return null;
@@ -268,13 +314,14 @@ export function houseSilhouette(input) {
     let top=-Infinity;for(let i=s.start*3+1;i<(s.start+s.count)*3;i+=3)top=Math.max(top,input.positions[i]);return {top};
   })};
 }
-export const house2Fade = d => d<=HOUSE2.full?1:d>=HOUSE2.swap?0:(HOUSE2.swap-d)/(HOUSE2.swap-HOUSE2.full);
+export const house2Fade = (d,policy=HOUSE2) => d<=policy.full?1:d>=policy.swap?0:(policy.swap-d)/(policy.swap-policy.full);
 export const house2Variant = (id,family) => houseIndexSeed(id)[1]<(family==='small'?HOUSE2.smallThatchShare:.5)?0:1;
-export function house2Selection(items,pos,indices,distances,limit=HOUSE2.cap) {
+export function house2Selection(items,pos,indices,distances,limit=HOUSE2.cap,swap=HOUSE2.swap) {
   let count=0;const cap=Math.min(limit,indices.length),y=pos.y??0;
+  if(cap<=0)return 0;
   for(let i=0;i<items.length;i++){
     const item=items[i];if(!item.house2Eligible)continue;
-    const m=item.grounded,d=Math.hypot(m[12]-pos.x,m[13]-y,m[14]-pos.z);if(d>=HOUSE2.swap)continue;
+    const m=item.grounded,d=Math.hypot(m[12]-pos.x,m[13]-y,m[14]-pos.z);if(d>=swap)continue;
     let at=Math.min(count,cap-1);if(count===cap&&d>=distances[at])continue;
     while(at>0&&d<distances[at-1]){if(at<cap){indices[at]=indices[at-1];distances[at]=distances[at-1];}at--;}
     indices[at]=i;distances[at]=d;if(count<cap)count++;
@@ -497,4 +544,30 @@ export function house2SurfaceColor(surface,seed=.5,{source=P.wood,gain=1,tone=1,
   const t=Math.max(0,Math.min(1,height/(surface===5?wallHeight*C.plasterDirtFraction:C.footDirtHeight))),dirt=1-t*t*(3-2*t);
   const factor=tone*(surface===1&&up<=0?C.undersideTone:1)*(1-([5,6].includes(surface)?dirt*(surface===5?C.plasterDirt:C.footDirt):0));
   color=color.map(v=>v*factor);const cap=surface===5?1:C.colorCap,scale=Math.min(1,cap/Math.max(...color));return color.map(v=>v*scale);
+}
+
+// Area weighting avoids counting tessellation as extra brightness. Only roof/wall faces participate.
+export function house2SourceMeans(parts,floor=0) {
+  const sums=[[0,0,0],[0,0,0]],areas=[0,0];
+  for(const {positions:p,indices,rgb,start=0,count=Infinity} of parts)for(let i=start,end=Math.min(indices?.length??p.length/3,start+count);i<end;i+=3){
+    const a=(indices?.[i]??i)*3,b=(indices?.[i+1]??i+1)*3,c=(indices?.[i+2]??i+2)*3;
+    const u=[p[b]-p[a],p[b+1]-p[a+1],p[b+2]-p[a+2]],v=[p[c]-p[a],p[c+1]-p[a+1],p[c+2]-p[a+2]];
+    const n=[u[1]*v[2]-u[2]*v[1],u[2]*v[0]-u[0]*v[2],u[0]*v[1]-u[1]*v[0]],area=Math.hypot(...n)/2;
+    if(!area||(p[a+1]+p[b+1]+p[c+1])/3<=floor)continue;
+    const roof=n[1]/(area*2)>HOUSE2.slopeMin;
+    if(!roof&&Math.abs(n[1])/(area*2)>HOUSE2.slopeMin)continue;
+    const k=roof?0:1;areas[k]+=area;for(let j=0;j<3;j++)sums[k][j]+=rgb[j]*area;
+  }
+  return sums.map((sum,k)=>sum.map((v,j)=>areas[k]?v/areas[k]:parts[0].rgb[j]));
+}
+export function house2ToneMeans(shape) {
+  const sums=[0,0],areas=[0,0];
+  for(let i=0;i<shape.positions.length;i+=9){
+    const role=shape.surfaces[i/3],up=shape.normals[i+1];
+    const k=role===1&&up>0?0:shape.roles[i/3]===0&&[0,5,6].includes(role)?1:-1;if(k<0)continue;
+    const p=shape.positions,u=[p[i+3]-p[i],p[i+4]-p[i+1],p[i+5]-p[i+2]],v=[p[i+6]-p[i],p[i+7]-p[i+1],p[i+8]-p[i+2]];
+    const area=Math.hypot(u[1]*v[2]-u[2]*v[1],u[2]*v[0]-u[0]*v[2],u[0]*v[1]-u[1]*v[0]);
+    sums[k]+=area*shape.tones[i/3];areas[k]+=area;
+  }
+  return sums.map((s,k)=>areas[k]?s/areas[k]:1);
 }
