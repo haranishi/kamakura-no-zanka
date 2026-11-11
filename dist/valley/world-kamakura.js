@@ -28,7 +28,7 @@ import { HeroActor, configureLoco, yawOf } from './actors.js';
 import { loadRoster } from './characters.js';
 import { kamakuraSpawn } from './kamakura-spawn.js';
 import { buildKamakuraHouses } from './kamakura-house-view.js';
-import { prepareVeg, treesEnabled, configureVegPolicy } from './kamakura-veg.js';
+import { prepareVeg, treesEnabled, configureVegPolicy, vegSlopeEnabled, vegSlopeShade } from './kamakura-veg.js';
 import { buildKamakuraVeg } from './kamakura-veg-view.js';
 import { prepareStands, standsEnabled, standPolicy } from './kamakura-stands.js';
 import { buildKamakuraStands } from './kamakura-stand-view.js';
@@ -134,11 +134,11 @@ export async function bootKamakura(data, search) {
       try {
         // House exclusions also apply when the houses are hidden for comparison.
         const prepared = prepareVeg(data.veg, t, { boxes: [...houseExclusions, ...facilityExclusions], paths: kamakuraPaths(data) || {}, spawn });
-        trees = buildKamakuraVeg(prepared, { wind, sunDir: atmosphere.sunDir, quality, renderer, search, foliage: atmosphere.atmosphere?.params.foliage }); // W2c-9r1 veg: vtrunk A/B.
+        trees = buildKamakuraVeg(prepared, { wind, sunDir: atmosphere.sunDir, quality, renderer, search, foliage: atmosphere.atmosphere?.params.foliage, shadeAt: vegSlopeEnabled(search) ? (x, z) => vegSlopeShade(t.heightAt, x, z, atmosphere.sunDir) : null }); // W2c-9r1 veg: vtrunk A/B.
         scene.add(trees.group);
         if (standsEnabled(search)) {
           standPrepared = prepareStands(data.veg, t, { boxes: [...houseExclusions, ...facilityExclusions], paths: kamakuraPaths(data) || {}, spawn, preparedVeg: prepared, search }, standPolicy(quality));
-          treeOptions = { wind, sunDir: atmosphere.sunDir, quality, renderer, search, foliage: atmosphere.atmosphere?.params.foliage };
+          treeOptions = { wind, sunDir: atmosphere.sunDir, quality, renderer, search, foliage: atmosphere.atmosphere?.params.foliage, shadeAt: vegSlopeEnabled(search) ? (x, z) => vegSlopeShade(t.heightAt, x, z, atmosphere.sunDir) : null };
         }
       } catch { vegNotice = '木を準備できませんでした。木なしで散策を続けます'; }
     }
