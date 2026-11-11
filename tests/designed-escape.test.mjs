@@ -9,6 +9,7 @@ import { ESCAPE as R, sceneMetadata } from '../tools/worlds/kamakura-escape.mjs'
 import { PLAN as P } from '../tools/worlds/kamakura-return.mjs';
 import { escapeReport, escapeDetails } from '../tools/lib/designed-escape-validation.mjs';
 import { routeDefinitions, clearRouteTree, routeTargets, nearLine } from '../tools/lib/designed-route.mjs';
+import { cutAxis } from '../tools/lib/designed-works.mjs';
 import { designedCamera } from '../tools/lib/designed-perspective.mjs';
 import { gameZ, northOffset } from '../tools/lib/designed-terrain.mjs';
 import { loadKamakura, validateMeta } from '../dist/valley/kamakura-data.js';
@@ -27,6 +28,7 @@ test('scenes: shared geography, vegetation, authored houses and works are byte i
 test('scenes: dusk metadata, coordinate conversion and standing temples load with the current decoder',async()=>{
   const m=escape.meta,d=await loadKamakura(designedFetcher(escape.files));assert.equal(m.world,'kamakura-escape');assert.equal(m.time,'dusk');assert.equal(m.buddha,'hall');assert.deepEqual(m.overlook,{...R.camera,north:140});
   assert.deepEqual(m.sun,{...R.sun,disc_deg:R.disc});assert.deepEqual(m.air,R.air);assert.deepEqual(m.lights,R.lights);assert.deepEqual(m.flight,R.flight);assert.deepEqual(m.fields,R.fields);
+  assert.deepEqual(m.wisps,R.wisps.map(([x,y,radius_m,height_m,strength])=>({x,y:y-northOffset,radius_m,height_m,lift_m:R.wispLift,strength})));assert(m.wisps.every(p=>p.strength<=.4&&p.height_m<=3));assert.equal(home.meta.wisps,undefined);
   assert.deepEqual(m.fires,R.fires.map(([x,y,radius_m,strength])=>({x,y:y-northOffset,radius_m,strength})));
   assert.equal(m.spawn.x,R.spawn[0]);assert.equal(m.spawn.y,R.spawn[1]-northOffset);assert(Math.abs(m.spawn.z-50)<.1);assert.equal(m.spawn.yaw_deg_clockwise_from_north,156);
   assert.equal(m.town_fill.burntRate,0);assert.equal(m.town_fill.repairRate,0);assert(Math.abs(m.town_fill.houseRate-.97)<1e-12);
@@ -53,7 +55,20 @@ test('retreat: meadow has at least 250 square metres below six degrees and summi
 });
 test('retreat: both rock faces retain their specified height, run and exposed surfaces',t=>{
   assert(report.walls.ne.every(p=>p.rise>=8),JSON.stringify(report.walls));assert(report.walls.sw.every(p=>p.rise>=5),JSON.stringify(report.walls));
-  const rock=JSON.parse(escape.files.get('works.json')).rocks.filter(r=>r.id.startsWith('pass-'));const toes=rock.filter(p=>p.id.includes('toe')||p.id.includes('large')).reduce((n,p)=>n+p.count,0);assert(toes>=90&&toes<=120);assert.equal(rock.filter(p=>p.id.includes('large')).reduce((n,p)=>n+p.count,0),10);assert(rock.every(p=>p.size_m[0]>=.6&&p.size_m[1]<=3));assert(report.wallProfiles.ne.length>=18);assert(report.wallProfiles.sw.length>=12);t.diagnostic(JSON.stringify({walls:report.walls,profiles:report.wallProfiles}));
+  // Stones no longer sit on the walls (rock masses are drawn there): heaps lie round the wall ends, clear of the road.
+  const works=JSON.parse(escape.files.get('works.json')),rock=works.rocks.filter(r=>r.id.startsWith('pass-')),axis=cutAxis();
+  assert(rock.length>=3&&rock.length<=4);assert(rock.every(p=>p.id.startsWith('pass-talus-')&&p.count===R.talus.count&&p.size_m[0]>=.6&&p.size_m[1]<=3));
+  for(const p of rock)for(const [x,y]of p.xy_m)assert(nearLine(R.pass,x,y+northOffset).distance>=R.width/2+p.width/2+p.size_m[1]/2+R.talus.clear,p.id);
+  assert.deepEqual(works.crags.map(c=>c.id),['cut-ne','cut-sw']);
+  for(const c of works.crags){
+    const local=c.xy_m.map(([x,y])=>axis.of(x,y+northOffset)),name=c.id.slice(4),plan=R.crags[name],sign=name==='ne'?1:-1;
+    assert.equal(local.length,4);assert(Math.abs(Math.min(...local.map(p=>p.side*sign))-R.crags.inner)<1e-9);assert(Math.abs(Math.max(...local.map(p=>p.side*sign))-R.crags.inner-plan.depth)<1e-9);
+    assert(Math.abs(Math.min(...local.map(p=>p.along))-plan.along[0])<1e-9&&Math.abs(Math.max(...local.map(p=>p.along))-plan.along[1])<1e-9);
+    // The road-side edge stands at the edge of the trodden width, and the mass covers the whole height-field wall behind it.
+    assert(R.crags.inner>=R.width/2-.1&&R.crags.inner<R.cutWidth/2);assert(plan.depth>=Math.max(...R.wallBlocks[name].map(b=>b[3]))+2);
+    assert.equal(c.cell_m,R.crags.cell);assert.equal(c.step_m,R.crags.step);assert.equal(c.lift_m,R.crags.lift);assert(Math.abs(c.grain_deg-axis.bearing)<1e-9);
+  }
+  assert(report.wallProfiles.ne.length>=18);assert(report.wallProfiles.sw.length>=12);t.diagnostic(JSON.stringify({walls:report.walls,profiles:report.wallProfiles}));
 });
 test('retreat: four hamlet homes and two huts face roads with the required trees and fence lengths',()=>{
   assert.equal(escape.placed.routeHouses.length,6);assert.equal(escape.placed.routeHouses.filter(b=>b.hamlet).length,4);
@@ -69,6 +84,8 @@ test('retreat: protected terrain and canopy sightlines stay clear while near woo
   for(const ray of report.rays.filter(p=>!p.roof)){assert.equal(ray.hit,null,JSON.stringify(ray));assert(ray.clearance>=ray.required,JSON.stringify(ray));assert.equal(ray.trees,0,JSON.stringify(ray));}
   assert(report.rays.filter(p=>p.roof&&!p.hit&&p.clearance>=p.required&&!p.trees).length>=3);
   assert(details.forest.fraction>=R.survey.forestMin,JSON.stringify(details.forest));
+  // The road between the meadow and the cut stays in view between the trees.
+  assert(details.roadView.total>=20&&details.roadView.fraction>=R.roadView.min,JSON.stringify(details.roadView));
   for(const v of escape.veg)if(!R.trees.some(p=>p[0]===v[0]&&p[1]===northOffset-v[1]))assert(Math.hypot(v[0]-R.camera.east,northOffset-v[1]-R.camera.north)>=14);
   t.diagnostic(JSON.stringify({forest:details.forest,rays:report.rays}));
 });

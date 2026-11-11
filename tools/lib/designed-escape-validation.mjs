@@ -4,7 +4,7 @@ import { prepareWorks, worksCircles } from '../../dist/valley/kamakura-works.js'
 import { PLAN as P } from '../worlds/kamakura-return.mjs';
 import { ESCAPE as R } from '../worlds/kamakura-escape.mjs';
 import { designedCamera } from './designed-perspective.mjs';
-import { routeDefinitions, nearLine, routeTargets, townTargets, crownFrame, crownPoint, canopyIntersects, canopyHit } from './designed-route.mjs';
+import { routeDefinitions, nearLine, routeTargets, roadSightTargets, townTargets, crownFrame, crownPoint, canopyIntersects, canopyHit } from './designed-route.mjs';
 import { gameZ, northOffset } from './designed-terrain.mjs';
 import { createKamakuraTerrain } from '../../dist/valley/kamakura-terrain.js';
 import { buildColliders, moveActor } from '../../dist/valley/collision.js';
@@ -79,7 +79,8 @@ export function escapeDetails(world){
   const hut=world.placed.routeHouses[R.homes.length],hv=[];
   for(const u of [-1,1])for(const v of [-1,1])for(const lift of [0,1]){const co=Math.cos(hut.rotY),si=Math.sin(hut.rotY);hv.push(camera.project(hut.x+co*u*hut.w/2+si*v*hut.d/2,northOffset-hut.z+si*u*hut.w/2-co*v*hut.d/2,at(hut.x,northOffset-hut.z)+lift*hut.height));}
   const left=Math.min(...hv.map(p=>p[0]))/P.preview.perspectiveWidth,right=Math.max(...hv.map(p=>p[0]))/P.preview.perspectiveWidth;
-  return {cut:escapeCutGeometry(world),forest:{hits,total,fraction:hits/total,terrain,buildings,work},hamlet,hut:{left,right,width:right-left},templeGrove:world.field.templeGrove,routeForest:world.field.routeForest};
+  const road=roadSightTargets({sample:(x,y)=>({h:at(x,y)})}),roadClear=road.filter(p=>!world.veg.some(v=>canopyIntersects(o,p,v))).length;
+  return {cut:escapeCutGeometry(world),roadView:{clear:roadClear,total:road.length,fraction:roadClear/road.length},forest:{hits,total,fraction:hits/total,terrain,buildings,work},hamlet,hut:{left,right,width:right-left},templeGrove:world.field.templeGrove,routeForest:world.field.routeForest};
 }
 export function escapeReport(world,{movement=true}={}) {
   const terrain=createKamakuraTerrain(world.filled),at=(x,y)=>terrain.heightAt(x,gameZ(y)),camera=designedCamera('escape');

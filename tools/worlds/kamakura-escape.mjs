@@ -6,8 +6,11 @@ export const ESCAPE=freeze({
   camera:{east:-112,north:410,height:55,bearing:156,pitch:21.4,fov:50},
   spawn:[-113.2202,412.7406],sun:{turn_deg:-68,lift_deg:0},disc:1.5,air:{haze:4,mist:7},
   fires:[[24,152,14,1],[-20,122,10,.75],[58,96,8,.5],[-52,82,6,.35]],
-  lights:{rate:.7},flight:{road:'pass',groups:12,size:[2,4],speed:.9},
-  fields:{density:.4}, // multiplier: wild flowers along the verges, thinned so that white lilies do not read as noise at dusk
+  lights:{rate:.7},flight:{road:'pass',groups:18,size:[2,4],speed:.9},
+  fields:{density:.28}, // multiplier: wild flowers along the verges, thinned so that white lilies do not read as noise at dusk
+  // East / design north / radius / thickness / strength: thin mist pooled in hollows off the road (never on the meadow or the path:
+  // there it read as a white lake). wispLift = metres from the ground at the centre to the underside.
+  wisps:[[-40,318,30,3,.35],[-68,322,28,3,.3],[-100,297,30,3,.35],[0,215,40,2.5,.3]],wispLift:1,
   pass:[[-40,227,8.2],[-46,255,12.5],[-44,285,16.5],[-36,306,15.5],[-38,326,19],[-48,340,22.5],[-56,347,24],[-66,355,25.5],[-80,364,28.8],[-92,370,31.5],[-100,379,34],[-106,383,35.4],[-113,387,37],[-119,391,38.5],[-139,399,42.3],[-155,409,45.5],[-156,422,48],[-143,430,50.5],[-127,434,53.5],[-112,441,56.3],[-111,451,58.2],[-126,459,61.4]],
   lookout:[[-156,422,48],[-146,414,49.4],[-130,413,50],[-112,410,50]],
   branch:[[-106,383,35.4],[-112,368,32.5],[-114,353,29.5],[-110,342,27],[-98,330,25],[-99,314,26.5],[-100,297,27]],
@@ -39,15 +42,27 @@ export const ESCAPE=freeze({
   // Degrees / metres: near clear fan and the clearance around tested sightlines.
   rayClearance:2,crownClearance:1,rayStep:.5,rayStart:9,hutLifts:[2,6],fireLift:6,
   // Degrees / metres / counts: dense broadleaf slope, protected path verge and camera foot.
-  forest:{bearing:[165,215],distance:[14,140],height:[7,13],crown:[2.6,3.4],attempts:16000,pathGap:2.5},
+  // Seen beside the picture, equal round crowns of one green read as rows of broccoli, and crowns over the verges hid the road.
+  // Heights / crown as a share of height / rates: most trees are middling broadleaves; some stand tall, some stay small; cedars and
+  // a few pines and evergreens break the outline; tint = extra brightness difference from tree to tree. pathGap = bare verge (m).
+  forest:{bearing:[165,215],distance:[14,140],height:[7.5,12],crownRatio:[.24,.34],tall:[13,17],tallRate:.18,small:[5,7],smallRate:.2,
+    cedar:.1,cedarHeight:[11,18],cedarCrown:.15,pine:.05,evergreen:.15,tint:.16,attempts:16000,pathGap:5.5},
+  // Road samples the overlook must see: pass points from..to, every step metres, lift metres above the road (a walker's chest);
+  // min = share of them with no crown in the way. colour / edge = pale dry earth of the retreat roads at dusk, and its overlap (m).
+  roadView:{from:7,to:12,step:2,lift:1.3,min:.85},pathPaint:{colour:[226,208,172],edge:.4},verge:9, // verge = metres of grass on each side of a retreat road
   // Counts / metres: woodland on the camera-facing sides of the temple, above the lower white walls.
   templeGrove:{count:14,attempts:2500,height:[9,14],crown:2.5,gap:3,spread:24},
   // Degrees: distant silhouettes drawn by the scene renderer (emit.horizon).
   horizon:[{bearing_deg:112,width_deg:30,height_deg:2.4,kind:'range'},{bearing_deg:140,width_deg:22,height_deg:1.5,kind:'range'},{bearing_deg:171,width_deg:8,height_deg:.9,kind:'headland'},{bearing_deg:190,width_deg:2.2,height_deg:.5,kind:'island'},{bearing_deg:197,width_deg:1.2,height_deg:.35,kind:'island'},{bearing_deg:212,width_deg:26,height_deg:2,kind:'range'}],
   // Fractions / counts / metres: first-hit canopy survey and house facade samples.
-  survey:{left:.55,right:1,top:.34,bottom:1,columns:48,rows:48,step:.5,far:700,forestMin:.5,facadeLift:.5,padding:.003,hutMax:.06,hutInset:.96},
+  survey:{left:.55,right:1,top:.34,bottom:1,columns:48,rows:48,step:.5,far:700,forestMin:.35,facadeLift:.5,padding:.003,hutMax:.06,hutInset:.96},
   foreground:{trees:12,rocks:20,bearing:[201,215],distance:[14,45],height:[1.5,3],crown:.6,size:[.5,1.6],attempts:3000}, // degrees/metres/counts: low near-right slope dressing
-  rocks:{count:132,largeCount:10,largeSize:[2,3],size:[.6,2.4],width:.6,topSize:[.6,1.2],topRate:1/6,toeOffset:4.3,topOffset:6.5},fenceHeight:1.1,
+  // Metres: rock masses drawn over both cut walls. inner = distance of their road-side edge from the cut axis (close enough to
+  // cover the saw-toothed foot of the height-field wall); along = range along the axis; depth = reach away from the road.
+  crags:{inner:1.45,ne:{along:[-2,24],depth:9.55},sw:{along:[-2.5,16],depth:7.05},cell:1.9,step:1.1,lift:.45},
+  // Counts / metres: fallen stones round the ends of the two walls (none on the walls: the rock masses stand there). start/reach =
+  // run of each heap beyond a wall end; base/spread = its distance from the road-side edge; push = step outwards until clear of the road.
+  talus:{count:9,size:[.6,2.2],width:2.2,start:.6,reach:3.6,base:1,spread:3.4,push:.5,pushMax:6,clear:.3},fenceHeight:1.1,
   fences:[
     [[-90.8,371.6],[-98.8,380.6],[-104.9,384.6],[-111.9,388.6]],
     [[-64.5,357.2],[-78.9,365.6]],
@@ -67,5 +82,6 @@ export function sceneMetadata(scene,plan,northOffset,emit=ESCAPE.emit) {
     ...(emit.vista?{overlook:{...c.camera,north:c.camera.north-northOffset}}:{}),
     ...(emit.horizon?{horizon:c.horizon}:{}),
     fires:c.fires.map(([x,y,radius_m,strength])=>({x,y:y-northOffset,radius_m,strength})),lights:c.lights,flight:c.flight,fields:{...c.fields},
+    wisps:c.wisps.map(([x,y,radius_m,height_m,strength])=>({x,y:y-northOffset,radius_m,height_m,lift_m:c.wispLift,strength})),
     town_fill:{...plan.townFill,houseRate:plan.townFill.houseRate+plan.townFill.burntRate+plan.townFill.repairRate,burntRate:0,repairRate:0}};
 }

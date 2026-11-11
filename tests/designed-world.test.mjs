@@ -204,7 +204,7 @@ test('designed fix2 F6/F7: grounded stair edges, exact endpoints, triangle cap a
 });
 test('designed fix2 F8: works pass runtime construction and boats remain inside the ring on water',async t=>{
   const {decodeWorks,prepareWorks}=await import('../dist/valley/kamakura-works.js');const source=decodeWorks(JSON.parse(w.files.get('works.json'))),works=prepareWorks(source,terrain);
-  assert.deepEqual(w.meta.works,{file:'works.json'});assert.equal(source.rocks.length,12+20);assert.equal(source.moorings.length,4);assert.equal(works.piers.length,1);assert.equal(works.moorings.filter(p=>p.kind==='boat').length,3);
+  assert.deepEqual(w.meta.works,{file:'works.json'});const talus=source.rocks.filter(r=>r.id.startsWith('pass-talus-')).length;assert(talus>=3&&talus<=4);assert.equal(source.rocks.length,6+talus+20);assert.equal(source.crags.length,2);assert.equal(source.moorings.length,4);assert.equal(works.piers.length,1);assert.equal(works.moorings.filter(p=>p.kind==='boat').length,3);
   const ring=works.rocks.filter(r=>r.group===0);assert(ring.length>0);for(const r of ring)assert(r.ground+r.size*Math.max(r.sx,r.sy,r.sz)>0,'wall stones reach above water');
   for(const m of works.moorings){assert(terrain.heightAt(m.x,m.z)<0);const h=P.harbor;assert(((m.x-h.x)/h.radius)**2+((northOffset-m.z-h.y)/h.radiusY)**2<1);}
 

@@ -1,5 +1,5 @@
 import { ESCAPE as R } from '../worlds/kamakura-escape.mjs';
-import { routeCliff } from './designed-route.mjs';
+import { routeCliff, routeNear } from './designed-route.mjs';
 import { PLAN as P } from '../worlds/kamakura-return.mjs';
 import { gameZ, northOffset, shoreAt, noise, mix, clamp, inRect, smooth, hash, quayAt, outcropAt } from './designed-terrain.mjs';
 export const designedFurrow=(across)=>Math.floor(across/P.ground.stripeWidth)%2===0?P.ground.soil:P.ground.crop;
@@ -27,6 +27,7 @@ export function designedGround(surface,width,height,heights,field,data=null,{sce
       const gain=mix(R.cliffDark,R.cliffLight,(1+noise(x/R.cliffWave,y/R.cliffWave))/2);
       colour=c.cliff.map(v=>v*gain);
     }
+    if(scene==='escape'&&surface[k]===4){const near=routeNear(x,y);if(near.distance<=near.road.width/2+R.pathPaint.edge)colour=R.pathPaint.colour;}
     if(P.terraces.some(t=>inRect(x,y,t.rect)))colour=c.terrace;
     if(P.emit.polish&&inRect(x,y,buddha)){
       const edge=Math.min(x-buddha[0],buddha[1]-x,y-buddha[2],buddha[3]-y),bc=P.buddha;

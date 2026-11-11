@@ -69,6 +69,8 @@ export function routeTerrain(x,y,original) {
   for(const t of P.terraces){const r=t.rect,distance=Math.hypot(Math.max(r[0]-x,0,x-r[1]),Math.max(r[2]-y,0,y-r[3]));h=clamp(h,r[4]-slope*distance,r[4]+slope*distance);}
   if(near.distance<=near.road.width/2)code=4;
   else if(md<R.meadowRadius+R.meadowBlend||v.distance<R.valleyWidth)code=2;
+  // Grass verges: with the trees set back from the road, the bare forest floor beside it read as one wide dirt clearing.
+  else if(code!==5&&near.distance<=near.road.width/2+R.verge)code=2;
   return {h:mix(original.h,h,weight),code};
 }
 // Fade fine samples back to the already graded grid before the outer patch boundary.
@@ -125,6 +127,13 @@ export function routeTreeHeight(x,y,h,r,base,targets,named=false) {
 export function clearRouteTree(x,y,h,r,base,targets,named=false){return routeTreeHeight(x,y,h,r,base,targets,named)>=h;}
 export function townTargets(field){
   const out=[],g=R.townGrid;for(let y=g.south;y<=g.north;y+=g.step)for(let x=g.west;x<=g.east;x+=g.step)out.push([x,y,field.sample(x,y).h+R.fireLift]);return out;
+}
+// Points on the retreat road that the overlook should see between the trees: a walker's chest above the road, every few metres.
+export function roadSightTargets(field) {
+  const v=R.roadView,out=[];
+  for(let i=v.from;i<v.to;i++){const a=R.pass[i],b=R.pass[i+1],len=Math.hypot(b[0]-a[0],b[1]-a[1]),n=Math.max(1,Math.round(len/v.step));
+    for(let k=0;k<n;k++){const t=k/n,x=a[0]+(b[0]-a[0])*t,y=a[1]+(b[1]-a[1])*t;out.push([x,y,field.sample(x,y).h+v.lift]);}}
+  return out;
 }
 export function routeTargets(field,roofTargets=[]) {
   const ground=([x,y])=>[x,y,field.sample(x,y).h];
