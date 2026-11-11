@@ -43,16 +43,15 @@ void main(){`)
     .replace(end,`float cloudHeight=degrees(asin(clamp(d.y,-1.0,1.0)));
       if(cloudHeight>${C.minDeg.toFixed(8)}&&cloudHeight<${C.maxDeg.toFixed(8)}){
       float cloudBearing=degrees(atan(d.x,-d.z));
-      float cloudMask=cloudCoverage2(cloudBearing,cloudHeight,uTime,uCloudLayers);
-      float cloudLower=cloudCoverage2(cloudBearing,cloudHeight-${C.featherDeg.toFixed(8)},uTime,uCloudLayers);
-      float cloudRim=max(0.0,cloudMask-cloudLower)*${C.rimGain.toFixed(8)};
+      float cloudMask=cloudCoverage2(cloudBearing,cloudHeight,uTime,uCloudLayers,0.0);
+      float cloudRim=cloudCoverage2(cloudBearing,cloudHeight,uTime,uCloudLayers,1.0)*${C.rimGain.toFixed(8)};
       float cloudSunward=max(0.0,dot(normalize(d.xz),normalize(sunDir.xz)));
       float cloudWarm=1.0-smoothstep(0.0,radians(${C.sunWidthDeg.toFixed(8)}),acos(clamp(cloudSunward,-1.0,1.0)));
       vec3 cloudShade=mix(mid,fogColor,${C.shadeMix.toFixed(8)})*${C.shadeGain.toFixed(8)};
       vec3 cloudLit=mix(horizon,sunColor,cloudWarm)*${C.warmGain.toFixed(8)};
       vec3 cloudColour=mix(cloudShade,cloudLit,clamp(cloudRim*cloudWarm,0.0,1.0));
       col=mix(col,cloudColour,cloudMask*${C.opacity.toFixed(8)}*uClouds2);
-      if(uClouds2Debug>.5)col=mix(col,mix(vec3(0.0,0.3,1.0),vec3(1.0,0.3,0.0),cloudWarm),cloudMask*uClouds2);
+      if(uClouds2Debug>.5)col=mix(col,vec3(0.0,0.3,1.0),cloudMask*uClouds2);
       }
       ${end}`);
   return m;

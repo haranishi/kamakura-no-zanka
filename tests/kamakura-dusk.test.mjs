@@ -1,5 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { spawnSync } from 'node:child_process';
+import { shoreNoise } from '../dist/valley/kamakura-shore.js';
 import { sceneSearch, atmosphereOptions, KAMAKURA_TIMES, DUSK, SUN_DISC, isEveningLike, kamakuraAtmosphere, validateAtmosphere, sunPlace, visualSun } from '../dist/valley/kamakura-atmosphere.js';
 import { validateMeta } from '../dist/valley/kamakura-data.js';
 import { buddhaSearch, buddhaHallMode } from '../dist/valley/kamakura-facilities.js';
@@ -167,20 +172,24 @@ test('river highlights read the visible sun and zero removes even the older whit
   }
 });
 
-import { CLOUDS2, cloudCoverage, cloudWarmth, clouds2Enabled, DUSK_AIR, DUSK_LEGACY } from '../dist/valley/kamakura-atmosphere.js';
+import { CLOUDS2, CLOUDS2_GLSL, cloudLayerProfile, cloudCoverage, cloudWarmth, clouds2Enabled, DUSK_AIR, DUSK_LEGACY } from '../dist/valley/kamakura-atmosphere.js';
 import { SEA_PATH, seaPathWidth, seaPathEnvelope } from '../dist/valley/kamakura-sea-far.js';
 import { MIST_GLSL } from '../dist/valley/kamakura-mist.js';
 import { shadeColor } from '../dist/valley/kamakura-post.js';
 const {duskMistShader}=await load('kamakura-post-view.js');
-test('low cloud altitude, 40–50% coverage, two separate low bands, slow drift and warm sunward rims',()=>{
+test('low cloud altitude, 40–50% coverage, overlapping low masses, slow drift and warm sunward rims',t=>{
   assert(Object.isFrozen(CLOUDS2)&&Object.isFrozen(CLOUDS2.heightsDeg));
   let covered=0,total=0;
   for(let b=0;b<360;b+=2)for(let h=.3;h<9;h+=.05){total++;const mask=cloudCoverage(b,h);assert(mask>=0&&mask<=1);covered+=mask>.5;}
   assert(covered/total>=.4&&covered/total<=.5,covered/total);
   for(let b=0;b<360;b+=3){assert.equal(cloudCoverage(b,.29),0);assert.equal(cloudCoverage(b,9.01),0);near(cloudCoverage(b,2,60),cloudCoverage(b-CLOUDS2.driftDegS*60,2,0),1e-6);}
-  // Average over azimuth so holes in one particular cloud do not hide the altitude bands.
-  const mean=h=>Array.from({length:180},(_,i)=>cloudCoverage(i*2,h)).reduce((a,b)=>a+b,0)/180;
-  assert(mean(.95)>.5&&mean(2.65)>.5);assert(mean(1.8)<.05);assert(mean(3.6)<.1);
+  // Thick masses can overlap: the previous fixed empty rows at 1.8/3.6 degrees no longer apply.
+  let lowOverlap=0;
+  for(let b=0;b<360;b++){
+    const a=cloudLayerProfile(b,0,0),c=cloudLayerProfile(b,0,1);
+    lowOverlap+=a.gate>.5&&c.gate>.5&&a.top>c.bottom;
+  }
+  assert(lowOverlap>0);t.diagnostic(JSON.stringify({coverage:covered/total,lowOverlapAzimuths:lowOverlap,samples:total}));
   const horizontalFov=2*Math.atan(Math.tan(50*Math.PI/360)*16/9)*180/Math.PI;
   assert(CLOUDS2.driftDegS*60/horizontalFov>=.01&&CLOUDS2.driftDegS*60/horizontalFov<=.02);
   assert.equal(cloudWarmth(0),1);assert.equal(cloudWarmth(90),0);assert(cloudWarmth(12)>cloudWarmth(24));
@@ -199,6 +208,76 @@ test('clouds preserve legacy sky bytes when off and at daylight times; added sha
     for(const m of [off,legacy,on])m.dispose();
   }
 });
+test('each cloud layer has bounded thickness, multiple full gaps in 180 degrees, a protected horizon and a bumpy upper face',t=>{
+  const measurements=[];
+  for(let layer=0;layer<4;layer++){
+    let minimum=Infinity,maximum=0,gaps=0,inGap=false,edgeVariation=0,previous=null;
+    // Each layer gets a half-turn including several separate gaps, rather than a complete horizontal line.
+    const start=layer===1?120:0;
+    for(let b=start;b<=start+180;b+=.25){
+      const p=cloudLayerProfile(b,0,layer),gap=p.gate===0;
+      assert(p.thickness>=.25&&p.thickness<=1.9);minimum=Math.min(minimum,p.thickness);maximum=Math.max(maximum,p.thickness);
+      assert(p.bottom>=.55&&p.top>p.bottom);assert(Math.abs(p.centre-CLOUDS2.heightsDeg[layer])<=.7);
+      if(gap){if(!inGap)gaps++;for(let h=.55;h<9;h+=.13)assert.equal(layerGpu(b,h,0,layer,1,0),0);}
+      inGap=gap;
+      if(previous)edgeVariation+=Math.abs((p.top-previous.top)-(p.bottom-previous.bottom));previous=p;
+    }
+    assert(gaps>=2);assert(minimum<.3&&maximum>1.8);assert(edgeVariation>1);
+    measurements.push({layer,start,gaps,minimum,maximum});
+  }
+  for(let b=0;b<360;b+=.5)for(const h of [-1,0,.3,.549,.55])assert.equal(cloudCoverage(b,h),0);
+  t.diagnostic(JSON.stringify(measurements));
+});
+
+const smoothCloud=(a,b,x)=>{const t=Math.max(0,Math.min(1,(x-a)/(b-a)));return t*t*(3-2*t);};
+const layerBody=CLOUDS2_GLSL.slice(CLOUDS2_GLSL.indexOf('{',CLOUDS2_GLSL.indexOf('float cloudLayer2'))+1,CLOUDS2_GLSL.indexOf('}\nfloat cloudCoverage2')).replace(/float /g,'let ');
+const layerEval=new Function('bearing','height','time','layer','centre','width','rimOnly','cloudNoise2','smoothstep','max','cos','sin','radians',layerBody);
+const layerGpu=(bearing,height,time,layer,widthScale=1,rimOnly=0)=>layerEval(bearing,height,time,layer,CLOUDS2.heightsDeg[layer],CLOUDS2.widthsDeg[layer]*widthScale,rimOnly,shoreNoise,smoothCloud,Math.max,Math.cos,Math.sin,x=>x*Math.PI/180);
+const coverBody=CLOUDS2_GLSL.slice(CLOUDS2_GLSL.indexOf('{',CLOUDS2_GLSL.indexOf('float cloudCoverage2'))+1,CLOUDS2_GLSL.lastIndexOf('}')).replace(/float /g,'let ');
+const coverEval=new Function('bearing','height','time','cloudLayers','rimOnly','cloudLayer2','smoothstep',coverBody);
+const cloudGpu=(b,h,t,l,r)=>coverEval(b,h,t,l,r,(b,h,t,i,c,w,r)=>layerEval(b,h,t,i,c,w,r,shoreNoise,smoothCloud,Math.max,Math.cos,Math.sin,x=>x*Math.PI/180),smoothCloud);
+
+test('cloud scalar GLSL agrees with CPU at every tier and north seam; only lower sunward edges are warm',()=>{
+  for(const layers of [1,2,4])for(const time of [0,60,320])for(let b=-10;b<370;b+=11)for(let h=.4;h<9.1;h+=.19)for(const rim of [0,1]){
+    near(cloudCoverage(b,h,time,layers,rim),cloudGpu(b,h,time,layers,rim),1e-12);
+    near(cloudCoverage(b,h,time,layers,rim),cloudCoverage(b+360,h,time,layers,rim),1e-10);
+    near(cloudCoverage(-.00001,h,time,layers,rim),cloudCoverage(.00001,h,time,layers,rim),1e-4);
+  }
+  let lit=0;
+  for(let layer=0;layer<4;layer++)for(let b=0;b<360;b++){
+    const p=cloudLayerProfile(b,0,layer);if(p.gate<.9||p.top-p.bottom<.6)continue;
+    const lower=layerGpu(b,p.bottom+.1,0,layer,1,1),upper=layerGpu(b,p.top-.05,0,layer,1,1);
+    assert(lower>.5);assert.equal(upper,0);assert.equal(lower*cloudWarmth(41),0);assert(lower*cloudWarmth(0)>0);lit++;
+  }
+  assert(lit>0);assert.equal(cloudWarmth(40),0);
+  const a=kamakuraAtmosphere('dusk',base());a.sunDir=new THREE.Vector3(...a.sunDir);
+  const m=kamakuraSkyMaterial(a,{value:0},null,true,false,{gain:1,debug:true});
+  assert(m.fragmentShader.includes('uCloudLayers,1.0)*'+CLOUDS2.rimGain.toFixed(8)));
+  assert(m.fragmentShader.includes('col=mix(col,vec3(0.0,0.3,1.0),cloudMask*uClouds2)'));
+  const warmExpression=m.fragmentShader.match(/float cloudWarm=([^;]+);/)[1];
+  const warm=new Function('cloudSunward','smoothstep','radians','acos','clamp','return '+warmExpression);
+  for(const angle of [0,12,24,39,40,41,90,180])near(cloudWarmth(angle),warm(Math.max(0,Math.cos(angle*Math.PI/180)),smoothCloud,x=>x*Math.PI/180,Math.acos,(x,a,b)=>Math.max(a,Math.min(b,x))),1e-8);
+  m.dispose();
+});
+
+test('low-cloud shader compiles with real sky anchors and rejects missing names and mixed numeric types',t=>{
+  const version=spawnSync('glslc',['--version'],{encoding:'utf8'});if(version.error?.code==='ENOENT')return t.skip('glslc unavailable');assert.equal(version.status,0);
+  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'cloud-glsl-'));
+  const a=kamakuraAtmosphere('dusk',base());a.sunDir=new THREE.Vector3(...a.sunDir);
+  const material=kamakuraSkyMaterial(a,{value:0},visualSun('dusk',a.sunDir.toArray()),true,false,{gain:1,debug:true});
+  try{
+    const compile=shader=>{
+      const file=path.join(dir,'cloud.frag');fs.writeFileSync(file,'#version 310 es\nprecision highp float;\n#define varying in\nout vec4 skyOut;\n#define gl_FragColor skyOut\n'+shader);
+      return spawnSync('glslc',['--target-env=opengl','-fauto-bind-uniforms','-fauto-map-locations',file,'-o',path.join(dir,'out.spv')],{encoding:'utf8'});
+    };
+    const shader=material.fragmentShader;shaderCheck(shader);const result=compile(shader);assert.equal(result.status,0,result.stderr);
+    assert(!shader.includes('#include'));assert(!shader.includes('undefined'));
+    assert.notEqual(compile(shader.replace('cloudAngle=radians(bearing-', 'cloudAngle=radians(missingBearing-')).status,0);
+    assert.notEqual(compile(shader.replace('cloudCover=0.0','cloudCover=ivec2(1,2)')).status,0);
+    t.diagnostic('1 sky fragment stage compiled; missing-name and numeric-type mutations rejected');
+  }finally{material.dispose();fs.rmSync(dir,{recursive:true,force:true});}
+});
+
 test('sun path is narrow at horizon, widens downward, thins toward camera and cannot form a round lobe',()=>{
   near(seaPathWidth(0)/SUN_DISC.diameterDeg,1.25);assert(seaPathWidth(15)>seaPathWidth(5));
   assert(SEA_PATH.lengthDeg/seaPathWidth(0)>12);

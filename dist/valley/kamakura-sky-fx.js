@@ -6,6 +6,9 @@ export const LIGHT_TIMES = Object.freeze({
   morning: Object.freeze({ shafts: .5, cloud: .25 }),
   golden: Object.freeze({ shafts: .6, cloud: .25 }),
   evening: Object.freeze({ shafts: .7, cloud: .12 }),
+  // Real Chrome, the opening scene: over the darkened dusk sea the shafts read as rays hanging in the air instead of the sun's
+  // path on the water. At dusk the sun is on the horizon and the shafts stay faint.
+  dusk: Object.freeze({ shafts: .2, cloud: .12 }),
 });
 // gain 1: a cloud core takes the time-of-day strength off sunlit ground (noon .30). At .18 no cloud could be seen (real Chrome).
 // low/high are wide apart so an edge takes a few hundred metres to fade; the third octave is weak or the edge turns into specks.

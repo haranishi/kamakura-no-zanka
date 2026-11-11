@@ -3,33 +3,53 @@ import { shoreNoise } from './kamakura-shore.js';
 export const CLOUDS2 = Object.freeze({
   heightsDeg: Object.freeze([.95, 2.65, 4.9, 7.7]), // degrees: irregular centres; two remain inside the lowest four degrees.
   widthsDeg: Object.freeze([.63, .8, 1.05, 1.3]), // degrees: each layer's half thickness.
-  minDeg: .3, maxDeg: 9, featherDeg: .18, // degrees: altitude envelope and its feather.
-  bendDeg: .32, bendScale: .43, coreShare: .45, // degrees of wandering / low-frequency scale / solid-core share.
+  minDeg: .55, maxDeg: 9, featherDeg: .18, // degrees: altitude envelope and its feather.
+  bendDeg: .7, bendScale: .43, coreShare: .45, // degrees of wandering / low-frequency scale / solid-core share.
   noiseOffset: Object.freeze([19.3,7.1]), // noise-cell offsets: independent shapes per cloud layer.
-  alongDeg: 11, driftDegS: .018, // degrees: vertical wandering / along-band noise scale / drift (1.08° per minute).
-  coverLow: .24, coverHigh: .55, opacity: .92, // noise gates and optical coverage.
+  alongDeg: 20, driftDegS: .018, // degrees/cell; degrees/s: thickness noise scale and drift (1.08° per minute).
+  thicknessMin: .25, thicknessMax: 1.9, thicknessLow: .25, thicknessHigh: .75, // thickness ratios and noise remapping endpoints.
+  gapLow: .4, gapHigh: .54, // noise thresholds: complete gaps, then solid masses.
+  topNoiseDeg: 3.2, topBumpDeg: .28, bottomShare: .45, topShare: 1.55, bottomFeatherDeg: .09, // degrees/cell; upper relief; half-width shares; sharp lower edge.
+  opacity: .92, // optical coverage.
   shadeMix: .64, shadeGain: .6, warmGain: .9, rimGain: .85, // existing mid/fog/sun colour shares and gains.
   reducedLayers: 2, minimumLayers: 1, // layer count in light/adapt 2, then adapt 3.
-  sunWidthDeg: 32, eveningGain: .42, reducedGain: .7, // degrees of warm rim / evening and reduced-quality strength.
+  sunWidthDeg: 40, eveningGain: .42, reducedGain: .7, // degrees of warm rim / evening and reduced-quality strength.
 });
 export const clouds2Enabled = (search='', time=atmosphereOptions(search).time) => isEveningLike(time) && new URLSearchParams(search).get('clouds2') !== '0';
 const cloudClamp = x => Math.max(0, Math.min(1, x));
 const cloudSmooth = (a,b,x) => { const t=cloudClamp((x-a)/(b-a)); return t*t*(3-2*t); };
 const cf = n => Number(n).toFixed(8);
-// One scalar body for both CPU sampling and the sky shader, with periodic azimuth noise at the north seam.
-const cloudBody = CLOUDS2.heightsDeg.map((h,i) => `if(cloudLayers>${cf(i+.5)}){
-  float cloudX=cos(radians(bearing-time*${cf(CLOUDS2.driftDegS)}))*${cf(180/Math.PI/CLOUDS2.alongDeg)}+${cf(i*CLOUDS2.noiseOffset[0])};
-  float cloudZ=sin(radians(bearing-time*${cf(CLOUDS2.driftDegS)}))*${cf(180/Math.PI/CLOUDS2.alongDeg)}+${cf(i*CLOUDS2.noiseOffset[1])};
+// Shared scalar shape and coverage bodies: CPU and GLSL differ only in their numeric type spelling.
+const cloudShape = `
+  float cloudAngle=radians(bearing-time*${cf(CLOUDS2.driftDegS)});
+  float cloudX=cos(cloudAngle)*${cf(180/Math.PI/CLOUDS2.alongDeg)}+layer*${cf(CLOUDS2.noiseOffset[0])};
+  float cloudZ=sin(cloudAngle)*${cf(180/Math.PI/CLOUDS2.alongDeg)}+layer*${cf(CLOUDS2.noiseOffset[1])};
   float cloudNoise=cloudNoise2(cloudX,cloudZ);
-  float cloudCentre=${cf(h)}+(cloudNoise2(cloudX*${cf(CLOUDS2.bendScale)},cloudZ*${cf(CLOUDS2.bendScale)})*2.0-1.0)*${cf(CLOUDS2.bendDeg)};
-  float cloudBand=1.0-smoothstep(${cf(CLOUDS2.widthsDeg[i]*CLOUDS2.coreShare)},${cf(CLOUDS2.widthsDeg[i])},abs(height-cloudCentre));
-  cloudCover=max(cloudCover,cloudBand*smoothstep(${cf(CLOUDS2.coverLow)},${cf(CLOUDS2.coverHigh)},cloudNoise));
+  float cloudThickness=${cf(CLOUDS2.thicknessMin)}+${cf(CLOUDS2.thicknessMax-CLOUDS2.thicknessMin)}*smoothstep(${cf(CLOUDS2.thicknessLow)},${cf(CLOUDS2.thicknessHigh)},cloudNoise);
+  float cloudCentre=centre+(cloudNoise2(cloudX*${cf(CLOUDS2.bendScale)},cloudZ*${cf(CLOUDS2.bendScale)})*2.0-1.0)*${cf(CLOUDS2.bendDeg)};
+  float cloudFine=cloudNoise2(cos(cloudAngle)*${cf(180/Math.PI/CLOUDS2.topNoiseDeg)}+layer*${cf(CLOUDS2.noiseOffset[1])},sin(cloudAngle)*${cf(180/Math.PI/CLOUDS2.topNoiseDeg)}+layer*${cf(CLOUDS2.noiseOffset[0])});
+  float cloudBottom=max(${cf(CLOUDS2.minDeg)},cloudCentre-width*cloudThickness*${cf(CLOUDS2.bottomShare)});
+  float cloudTop=max(cloudBottom+${cf(CLOUDS2.bottomFeatherDeg)},cloudCentre+width*cloudThickness*${cf(CLOUDS2.topShare)}+cloudFine*${cf(CLOUDS2.topBumpDeg)});
+  float cloudGate=smoothstep(${cf(CLOUDS2.gapLow)},${cf(CLOUDS2.gapHigh)},cloudNoise);
+`;
+const cloudLayerBody = `${cloudShape}
+  float cloudBand=smoothstep(cloudBottom,cloudBottom+${cf(CLOUDS2.bottomFeatherDeg)},height)*(1.0-smoothstep(cloudTop-width*cloudThickness*${cf(1-CLOUDS2.coreShare)},cloudTop,height))*cloudGate;
+  float cloudEdge=cloudBand*(1.0-smoothstep(cloudBottom+${cf(CLOUDS2.bottomFeatherDeg)},cloudBottom+${cf(CLOUDS2.featherDeg*2)},height));
+  return rimOnly>0.5?cloudEdge:cloudBand;`;
+const cloudBody = CLOUDS2.heightsDeg.map((h,i) => `if(cloudLayers>${cf(i+.5)}){
+  float cloudBand=cloudLayer2(bearing,height,time,${cf(i)},${cf(h)},${cf(CLOUDS2.widthsDeg[i])},0.0);
+  if(cloudBand>cloudCover){cloudCover=cloudBand;cloudEdge=cloudLayer2(bearing,height,time,${cf(i)},${cf(h)},${cf(CLOUDS2.widthsDeg[i])},1.0);}
 }`).join('\n');
-const cloudEnvelope = `cloudCover*=smoothstep(${cf(CLOUDS2.minDeg)},${cf(CLOUDS2.minDeg+CLOUDS2.featherDeg)},height)*(1.0-smoothstep(${cf(CLOUDS2.maxDeg-CLOUDS2.featherDeg)},${cf(CLOUDS2.maxDeg)},height));return cloudCover;`;
-export const cloudCoverage = Function('cloudNoise2','smoothstep','abs','max','cos','sin','radians',`return function(bearing,height,time=0,cloudLayers=${CLOUDS2.heightsDeg.length}){let cloudCover=0;if(height<=${cf(CLOUDS2.minDeg)}||height>=${cf(CLOUDS2.maxDeg)})return 0;${(cloudBody+cloudEnvelope).replace(/float /g,'let ')}}`)(shoreNoise,cloudSmooth,Math.abs,Math.max,Math.cos,Math.sin,x=>x*Math.PI/180);
+const cloudEnvelope = `float cloudEnvelope=smoothstep(${cf(CLOUDS2.minDeg)},${cf(CLOUDS2.minDeg+CLOUDS2.bottomFeatherDeg)},height)*(1.0-smoothstep(${cf(CLOUDS2.maxDeg-CLOUDS2.featherDeg)},${cf(CLOUDS2.maxDeg)},height));return (rimOnly>0.5?cloudEdge:cloudCover)*cloudEnvelope;`;
+const cloudMath = ['cloudNoise2','smoothstep','max','cos','sin','radians'];
+const cloudArgs = [shoreNoise,cloudSmooth,Math.max,Math.cos,Math.sin,x=>x*Math.PI/180];
+const layerSample=Function(...cloudMath,`return function(bearing,height,time,layer,centre,width,rimOnly){${cloudLayerBody.replace(/float /g,'let ')}}`)(...cloudArgs);
+export const cloudLayerProfile=Function(...cloudMath,`return function(bearing,time,layer){let centre=${JSON.stringify(CLOUDS2.heightsDeg)}[layer],width=${JSON.stringify(CLOUDS2.widthsDeg)}[layer];${cloudShape.replace(/float /g,'let ')}return {thickness:cloudThickness,bottom:cloudBottom,top:cloudTop,gate:cloudGate,centre:cloudCentre};}`)(...cloudArgs);
+export const cloudCoverage=Function('cloudLayer2','smoothstep',`return function(bearing,height,time=0,cloudLayers=${CLOUDS2.heightsDeg.length},rimOnly=0){let cloudCover=0,cloudEdge=0;if(height<=${cf(CLOUDS2.minDeg)}||height>=${cf(CLOUDS2.maxDeg)})return 0;${(cloudBody+cloudEnvelope).replace(/float /g,'let ')}}`)(layerSample,cloudSmooth);
 export const CLOUDS2_GLSL = `
 float cloudNoise2(float x,float z){return noise(vec2(x,z));}
-float cloudCoverage2(float bearing,float height,float time,float cloudLayers){float cloudCover=0.0;if(height<=${cf(CLOUDS2.minDeg)}||height>=${cf(CLOUDS2.maxDeg)})return 0.0;${cloudBody}${cloudEnvelope}}
+float cloudLayer2(float bearing,float height,float time,float layer,float centre,float width,float rimOnly){${cloudLayerBody}}
+float cloudCoverage2(float bearing,float height,float time,float cloudLayers,float rimOnly){float cloudCover=0.0,cloudEdge=0.0;if(height<=${cf(CLOUDS2.minDeg)}||height>=${cf(CLOUDS2.maxDeg)})return 0.0;${cloudBody}${cloudEnvelope}}
 `;
 export const cloudWarmth = separationDeg => 1-cloudSmooth(0,CLOUDS2.sunWidthDeg,Math.abs(separationDeg));
 export const DUSK_LEGACY = Object.freeze({postMist:.75,postShade:.22,mist:Object.freeze({density:.00007,base:-4,falloff:.045})});

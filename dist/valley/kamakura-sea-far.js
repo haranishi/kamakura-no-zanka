@@ -1,6 +1,6 @@
 import { SUN_DISC, duskAirEnabled } from './kamakura-atmosphere.js';
 export const DUSK_SEA=Object.freeze({
-  luminanceRatio:.65, blueShare:.72, // base radiance / low-sky radiance; zenith share in the fog/zenith blue-violet mix.
+  luminanceRatio:.5, blueShare:.72, // base radiance / low-sky radiance; zenith share in the fog/zenith blue-violet mix.
   startM:60, fullM:200, // offshore metres: reveal the dusk base outside coastal foam.
 });
 // Inputs are linear RGB from the active atmosphere, never a separate water palette.

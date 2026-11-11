@@ -24,7 +24,7 @@ test('R10 URL flags, time strengths and a shaft gate that lets the sun sit a lit
   assert(postOptions('').shafts);assert(postOptions('').cloud);assert.equal(postOptions('?postdebug=bad').postdebug,'');
   for(const mode of ['depth','shafts','cloud'])assert.equal(postOptions('?postdebug='+mode).postdebug,mode);
   const off=postOptions('?shafts=0&cloud=0&mist=0&cloudhigh=0');assert(!off.shafts);assert(!off.cloud);
-  assert.deepEqual(Object.values(LIGHT_TIMES).map(v=>[v.shafts,v.cloud]),[[.15,.3],[.5,.25],[.6,.25],[.7,.12]]);
+  assert.deepEqual(Object.values(LIGHT_TIMES).map(v=>[v.shafts,v.cloud]),[[.15,.3],[.5,.25],[.6,.25],[.7,.12],[.2,.12]]);assert.equal(lightSettings('dusk'),LIGHT_TIMES.dusk);assert(LIGHT_TIMES.dusk.shafts<LIGHT_TIMES.evening.shafts);
   assert.equal(lightSettings('bad'),LIGHT_TIMES.noon);assert.equal(SHAFT_TAPS,24);
   assert.equal(shaftVisibility(.5,.5,1),1);
   // Rays still enter from the edge when the sun is just outside: full to 5 % outside, gone at 25 % outside.
