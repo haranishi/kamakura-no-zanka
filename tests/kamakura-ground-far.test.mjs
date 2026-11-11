@@ -70,7 +70,7 @@ test('G1 gfar=0 shaders match pre-change HEAD byte for byte; no far resources, h
   const expected=['0897399f735433eec58f69ac860fc00ef9403736f23e3b2c389dafa2bb90ff15','edbf8ef9bcfae48fe36b81565358c58db532b94029325ed521bbaeb54e1caa36','8c28e006d6fa6aae069e3a548f19589e9b450b63875ce5fe06b997da620f43bc'];
   for(const [i,flags] of ['', '&ground6=0&ground7=0','&slope7=0'].entries()){
     const d=fixture({width:9,height:9,cell:2});d.meta.surface={};d.ground=new Uint8Array(243).fill(140);d.surface=new Uint8Array(81).fill(4);
-    const h=setup('?gfar=0'+flags,'standard',d);try{
+    const h=setup('?gfar=0&cliff=0'+flags,'standard',d);try{
       assert.equal(createHash('sha256').update(h.shader.vertexShader+'\n'+h.shader.fragmentShader).digest('hex'),expected[i]);
       assert.equal(h.owner.far,undefined);assert(!h.shader.fragmentShader.includes('groundFar'));
       assert(!h.material.customProgramCacheKey().includes('ground-far'));
