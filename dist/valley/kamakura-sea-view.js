@@ -1,4 +1,4 @@
-import { seaShelterFragment, SEA3, sea3Enabled, sea3Count, sea3Fragment, SEA_FAR, sea2Enabled, seaGrazing, seaSwellGain, seaLineCount, seaFarFragment } from './kamakura-sea-far.js';
+import { sea4Fragment, seaSurfScaleFragment, sea4GlitterEnabled, seaShelterFragment, SEA3, sea3Enabled, sea3Count, sea3Fragment, SEA_FAR, sea2Enabled, seaGrazing, seaSwellGain, seaLineCount, seaFarFragment } from './kamakura-sea-far.js';
 import { shore6Enabled, SHORE_R6_GLSL } from './kamakura-shore-r6.js';
 import { shore4Enabled, SHORE_R4_GLSL } from './kamakura-shore-r4.js';
 import * as THREE from 'three';
@@ -12,10 +12,12 @@ import { buildShoreProps } from './kamakura-shore-props.js';
 const SHORE_FRAME_BUDGET_MS=3; // original budget when shelter=0
 // W2c-9e2: coarse unsigned coast -> sub-cell signed surf and atmosphere-derived sea.
 export function buildKamakuraSea(terrain, data, {search='',quality='standard',sunDir=new THREE.Vector3(.5,.17,.85)}={}) {
-  const shelter=shelterEnabled(search),swell=data.meta?.sea!==undefined&&swellEnabled(search),withOpen=shelter||swell;
+  const shelter=shelterEnabled(search),swell=data.meta?.sea?.swell_from_deg!==undefined&&swellEnabled(search),withOpen=shelter||swell;
   const sea2=sea2Enabled(search)&&new URLSearchParams(search).get('seav')!=='0';
   const sea3=sea2&&sea3Enabled(search),sea3Colors=new URLSearchParams(search).get('sea3debug')==='1';
   const debugSea2=new URLSearchParams(search).get('debug')==='1',sea2Colors=new URLSearchParams(search).get('sea2debug')==='1';
+  const surfScale=data.meta?.sea?.surf_scale??1,sea4=sea3&&data.meta?.sea?.surf_scale!==undefined;
+  const glitter=sea4GlitterEnabled(search,quality);
   let lastCamera=null;
   const shore6=shore6Enabled(search),shore2=shore2Enabled(search),shore3=shore3Enabled(search),shore4=shore4Enabled(search);
   const enabled=new URLSearchParams(search).get('seav')!=='0', b=terrain.bounds;
@@ -30,7 +32,7 @@ export function buildKamakuraSea(terrain, data, {search='',quality='standard',su
   // Add beach/cliff gain to the existing distance texture; every shared sampler still reads .r.
   function beachGain(field,i) {
     const d=field.data[i];
-    if(Math.abs(d)>SEA_FAR.linePositionsM.at(-1)+SEA_FAR.cliffProbeM)return 0;
+    if(Math.abs(d)>SEA_FAR.linePositionsM.at(-1)*surfScale+SEA_FAR.cliffProbeM)return 0;
     const col=i%field.w,row=Math.floor(i/field.w),cell=field.cell;
     const dx=field.data[row*field.w+Math.min(field.w-1,col+1)]-field.data[row*field.w+Math.max(0,col-1)];
     const dz=field.data[Math.min(field.h-1,row+1)*field.w+col]-field.data[Math.max(0,row-1)*field.w+col];
@@ -63,6 +65,8 @@ export function buildKamakuraSea(terrain, data, {search='',quality='standard',su
     u.uSea2={value:1};u.uSea2Swell={value:quality==='light'?SEA_FAR.reducedSwell:1};
     u.uSea2Lines={value:seaLineCount(quality)};u.uSea2Debug={value:+sea2Colors};
   }
+  if(sea2&&data.meta?.sea?.surf_scale!==undefined)u.uSurfScale={value:surfScale};
+  if(sea4)u.uSea4Glitter={value:+glitter};
   if(sea3){u.uSea3={value:1};u.uSea3Lines={value:sea3Count(quality)};u.uSea3Detail={value:quality==='light'?0:1};u.uSea3Debug={value:+sea3Colors};}
   const sea3Reader=()=>{
     const field=terrain.shoreSigned;let distance=Infinity,bearing=null;
@@ -74,7 +78,7 @@ export function buildKamakuraSea(terrain, data, {search='',quality='standard',su
         if(r<distance){distance=r;bearing=(Math.atan2(dx,-dz)*180/Math.PI+360)%360;}
       }
     }
-    return {...(swell?{swellReducedFraction:jobs[0]?.swellReducedFraction??0,swellFromDeg:data.meta.sea.swell_from_deg}:{}),shelteredFraction:shelter?jobs[0]?.shelteredFraction??0:0,shelterReady:jobIndex>=jobs.length,preparationWork:jobs[0]?.work??0,lines:u.uSea3Lines?.value??0,fieldCell:field?.cell??jobs[0]?.field.cell??null,range:{from:SEA3.fromM,to:SEA3.toM},nearest:{distance:Number.isFinite(distance)?distance:null,bearing},triangles:enabled?2:0,draws:enabled?1:0};
+    return {surfScale,glitter:sea4&&!!u.uSea4Glitter.value,...(swell?{swellReducedFraction:jobs[0]?.swellReducedFraction??0,swellFromDeg:data.meta.sea.swell_from_deg}:{}),shelteredFraction:shelter?jobs[0]?.shelteredFraction??0:0,shelterReady:jobIndex>=jobs.length,preparationWork:jobs[0]?.work??0,lines:u.uSea3Lines?.value??0,fieldCell:field?.cell??jobs[0]?.field.cell??null,range:{from:SEA3.fromM,to:SEA3.toM},nearest:{distance:Number.isFinite(distance)?distance:null,bearing},triangles:enabled?2:0,draws:enabled?1:0};
   };
   const debugReader=()=>{
     const cosine=lastCamera?Math.abs(lastCamera.matrixWorld.elements[9]):0;
@@ -216,10 +220,11 @@ export function buildKamakuraSea(terrain, data, {search='',quality='standard',su
     };
     if(sea2){
       const legacyCompile=material.onBeforeCompile;
-      material.onBeforeCompile=shader=>{legacyCompile(shader);shader.fragmentShader=seaFarFragment(shader.fragmentShader);if(sea3)shader.fragmentShader=sea3Fragment(shader.fragmentShader);};
+      material.onBeforeCompile=shader=>{legacyCompile(shader);shader.fragmentShader=seaFarFragment(shader.fragmentShader);if(sea3)shader.fragmentShader=sea3Fragment(shader.fragmentShader);if(sea4)shader.fragmentShader=sea4Fragment(shader.fragmentShader);if(data.meta?.sea?.surf_scale!==undefined)shader.fragmentShader=seaSurfScaleFragment(shader.fragmentShader,{sea3});};
     }
     if(withOpen){const compile=material.onBeforeCompile;material.onBeforeCompile=shader=>{compile(shader);shader.fragmentShader=seaShelterFragment(shader.fragmentShader,{sea2,sea3,...(swell?{swell:true}:{})});};}
-    material.customProgramCacheKey=()=> swell?'kamakura-sea-19-swell-'+(+shelter)+(+sea2)+(+sea3):shelter?'kamakura-sea-19-shelter-'+(+sea2)+(+sea3):sea3?'kamakura-sea-19-foam':sea2?'kamakura-sea-18-far':'kamakura-sea-11-shore6';
+    const legacyCacheKey=()=> swell?'kamakura-sea-19-swell-'+(+shelter)+(+sea2)+(+sea3):shelter?'kamakura-sea-19-shelter-'+(+sea2)+(+sea3):sea3?'kamakura-sea-19-foam':sea2?'kamakura-sea-18-far':'kamakura-sea-11-shore6';
+    material.customProgramCacheKey=()=>legacyCacheKey()+(sea2&&data.meta?.sea?.surf_scale!==undefined?'-surf-scale':'');
   }
   return {group,mesh,uniforms:u,textures,jobs,props,bank,get preparedShore(){return jobIndex>=jobs.length;},
     update(dt,pos,audioTime) {
@@ -264,7 +269,7 @@ export function buildKamakuraSea(terrain, data, {search='',quality='standard',su
       }
       props.update(pos);bank?.update(pos);
     },
-    setAdapt(value){step=typeof value==='number'?value:value.step;if(sea3){u.uSea3.value=step<3?1:0;u.uSea3Lines.value=sea3Count(quality,step);u.uSea3Detail.value=quality==='light'||step>=2?0:1;}if(sea2){u.uSea2.value=sea3||step<3?1:0;u.uSea2Swell.value=quality==='light'||step>=2?SEA_FAR.reducedSwell:1;u.uSea2Lines.value=seaLineCount(quality,sea3&&step>=3?2:step);}u.uShore6.value=shore6&&step<3?(quality==='light'||step>=2?.5:1):0;u.uShore4.value=shore4&&step<3?(step>=2?.45:1):0;u.uShoreWet5.value=u.uShore4.value;u.uShore4Detail.value=quality==='light'||step>=2?0:1;u.uShore3.value=shore3&&step<3?1:0;u.uShoreBands.value=step>=3?0:quality==='light'||step>=2?1:3;u.uShoreDetail.value=quality==='light'||step>=2?0:1;u.uShoreAnimate.value=step>=3?0:1;if(enabled)material.envMapIntensity=step>=3?0:.5;props?.setAdapt(step);bank?.setAdapt(quality==='light'?Math.max(2,step):step);},
+    setAdapt(value){step=typeof value==='number'?value:value.step;if(sea4)u.uSea4Glitter.value=+sea4GlitterEnabled(search,quality,step);if(sea3){u.uSea3.value=step<3?1:0;u.uSea3Lines.value=sea3Count(quality,step);u.uSea3Detail.value=quality==='light'||step>=2?0:1;}if(sea2){u.uSea2.value=sea3||step<3?1:0;u.uSea2Swell.value=quality==='light'||step>=2?SEA_FAR.reducedSwell:1;u.uSea2Lines.value=seaLineCount(quality,sea3&&step>=3?2:step);}u.uShore6.value=shore6&&step<3?(quality==='light'||step>=2?.5:1):0;u.uShore4.value=shore4&&step<3?(step>=2?.45:1):0;u.uShoreWet5.value=u.uShore4.value;u.uShore4Detail.value=quality==='light'||step>=2?0:1;u.uShore3.value=shore3&&step<3?1:0;u.uShoreBands.value=step>=3?0:quality==='light'||step>=2?1:3;u.uShoreDetail.value=quality==='light'||step>=2?0:1;u.uShoreAnimate.value=step>=3?0:1;if(enabled)material.envMapIntensity=step>=3?0:.5;props?.setAdapt(step);bank?.setAdapt(quality==='light'?Math.max(2,step):step);},
     dispose(){if(disposed)return;disposed=true;if(globalThis.__kzSea3===sea3Reader)delete globalThis.__kzSea3;if(globalThis.__kzSea2===debugReader)delete globalThis.__kzSea2;if(enabled){unregisterShoreView(data);if(terrain.shoreSigned===jobs[0].field||terrain.shoreSigned===preview?.field)delete terrain.shoreSigned;}props?.dispose();bank?.dispose();group.removeFromParent();geometry.dispose();material.dispose();for(const texture of textures)texture.dispose();}
   };
 }

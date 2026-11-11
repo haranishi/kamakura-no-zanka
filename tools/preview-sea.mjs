@@ -3,13 +3,14 @@ import {mkdir,writeFile} from 'node:fs/promises';
 import path from 'node:path';
 import {pathToFileURL} from 'node:url';
 import {encodePNG} from './lib/png.mjs';
+import {kamakuraAtmosphere} from '../dist/valley/kamakura-atmosphere.js';
 import {BACKDROP,backdropPoint} from '../dist/valley/kamakura-backdrop.js';
 import {createSignedShoreJob} from '../dist/valley/kamakura-shore.js';
 import {seaColor4} from '../dist/valley/kamakura-shore-r4.js';
 import * as THREE from '../dist/vendor/three.module.min.js';
 import {facilityPlacement} from '../dist/valley/kamakura-facilities.js';
 import {withStairRamps} from '../dist/valley/kamakura-stairs.js';
-import {sea3Sample,sea3Color} from '../dist/valley/kamakura-sea-far.js';
+import {SEA4,SEA3,SEA_FAR,sea4Sample,sea4Color,sea4Glitter,sea3Sample,sea3Color} from '../dist/valley/kamakura-sea-far.js';
 export const PREVIEW_SEA=Object.freeze({widthM:600,heightM:300,pixelM:.5,minX:-300,minZ:-90,terrainCellM:2,islandRadiusM:15,ringRadiusM:70,ringWidthM:9,openingRad:.28,centreZ:60,slope:.2,rangeM:300,times:Object.freeze([0,2,4])});
 export function previewTerrain(scene) {
   if(!['beach','island','ring'].includes(scene))throw new RangeError('Unknown sea scene');
@@ -177,7 +178,49 @@ export async function renderDetailPreview(outDir,{time=2,zoom=false}={}){
   await writeFile(path.join(outDir,'detail-preview.json'),JSON.stringify(info,null,2)+'\n');ramp.disposeStairs();return info;
 }
 
+// Same physical surface from above and through a pinhole camera. No scene lighting/tonemapping approximation is claimed as a GL render.
+export const PREVIEW_SEA4=Object.freeze({width:1100,height:700,spanX:700,spanZ:420,minX:-350,minZ:-80,ringX:120,ringZ:85,radiusM:50,wallM:8,heightM:360,offsetM:500,fovDeg:40});
+export function sea4Terrain(){
+  const c=PREVIEW_SEA4;
+  const heightAt=(x,z)=>Math.max(-z*.2,(c.wallM/2-Math.abs(Math.hypot(x-c.ringX,z-c.ringZ)-c.radiusM))*.2);
+  return {cell:2,bounds:{minX:-900,maxX:900,minZ:-400,maxZ:1200},heightAt,isSea:(x,z)=>heightAt(x,z)<=0};
+}
+export async function renderSea4Preview(outDir,{time=2}={}){
+  await mkdir(outDir,{recursive:true});const c=PREVIEW_SEA4,t=sea4Terrain(),job=createSignedShoreJob(t,{sea:{swell_from_deg:180}});while(!job.step(4096));
+  const w=c.width,h=c.height,sky=kamakuraAtmosphere('golden'),sun=new THREE.Color(sky.sunColor).toArray(),horizon=new THREE.Color(sky.horizon).toArray();
+  const camera=new THREE.PerspectiveCamera(c.fovDeg,w/h,1,5000);camera.position.set(0,c.heightM,c.offsetM);camera.lookAt(0,0,0);camera.updateMatrixWorld();
+  const ray=new THREE.Vector3(),hit=new THREE.Vector3(),next=new THREE.Vector3(),rgb=[0,0,0],sample={},stats=[];
+  function point(col,row,out){
+    ray.set((col+.5)/w*2-1,1-(row+.5)/h*2,.5).unproject(camera).sub(camera.position).normalize();
+    return out.copy(camera.position).addScaledVector(ray,-camera.position.y/ray.y);
+  }
+  const smooth=(a,b,x)=>{const v=Math.max(0,Math.min(1,(x-a)/(b-a)));return v*v*(3-2*v);};
+  for(const view of ['top','perspective'])for(const scale of [1,.4])for(const glitter of [false,true]){
+    const pixels=new Uint8Array(w*h*4);let covered=0,gleam=0,wet=0,maxFoamDistance=0;
+    for(let row=0;row<h;row++)for(let col=0;col<w;col++){
+      let x,z,fp,range,cosine,facing;
+      if(view==='top'){x=c.minX+(col+.5)/w*c.spanX;z=c.minZ+(row+.5)/h*c.spanZ;fp=Math.max(c.spanX/w,c.spanZ/h);range=c.heightM;cosine=1;facing=sky.sunDir[1];}
+      else{point(col,row,hit);point(col+1,row,next);fp=hit.distanceTo(next);point(col,row+1,next);fp=Math.max(fp,hit.distanceTo(next));x=hit.x;z=hit.z;range=hit.distanceTo(camera.position);cosine=c.heightM/range;facing=Math.max(0,(-(camera.position.x-x)*sky.sunDir[0]+c.heightM*sky.sunDir[1]-(camera.position.z-z)*sky.sunDir[2])/range);}
+      const d=job.field.signedDistanceAt(x,z),land=t.heightAt(x,z)>0,open=job.field.opennessAt(x,z),k=(row*w+col)*4;
+      sea4Sample(d,x,z,time,fp,range,'standard',0,sample,open,scale);sea4Color(d,rgb,scale);
+      const reflection=SEA_FAR.reflectionMin+(1-SEA_FAR.reflectionMin)*(1-cosine)**5;
+      const shine=glitter?sea4Glitter(x,z,time,fp,facing,c.heightM)*smooth(SEA3.middleEndM*scale,SEA3.deepEndM*scale,d):0;
+      if(!land){covered+=sample.foam;gleam+=shine;wet++;if(sample.foam>.1)maxFoamDistance=Math.max(maxFoamDistance,d);}
+      for(let i=0;i<3;i++){
+        const water=rgb[i]+(horizon[i]-rgb[i])*reflection+sun[i]*shine;
+        pixels[k+i]=srgb(land?sand[i]:water+(film[i]-water)*sample.foam);
+      }
+      pixels[k+3]=255;
+    }
+    const file=`sea4-${view}-scale${scale}-glitter${+glitter}.png`;
+    await writeFile(path.join(outDir,file),encodePNG({width:w,height:h,data:pixels}));
+    stats.push({file,foamMean:covered/wet,glitterMean:gleam/wet,maxFoamDistanceM:maxFoamDistance});
+  }
+  const info={time,triangles:2,draws:1,addedTextures:0,addedPasses:0,preparationWork:job.work,scenes:stats};
+  await writeFile(path.join(outDir,'sea4-preview.json'),JSON.stringify(info,null,2)+'\n');return info;
+}
+
 if(process.argv[1]&&import.meta.url===pathToFileURL(process.argv[1]).href){
   const index=process.argv.indexOf('--out');if(index<0||!process.argv[index+1])throw new Error('Usage: node tools/preview-sea.mjs --out <directory>');
-  console.log(JSON.stringify(process.argv.includes('--detail')?await renderDetailPreview(process.argv[index+1],{time:process.argv.includes('--time')?Number(process.argv[process.argv.indexOf('--time')+1]):2,zoom:process.argv.includes('--lower')?'lower':process.argv.includes('--zoom')}):process.argv.includes('--edges')?await renderEdgesPreview(process.argv[index+1],{time:process.argv.includes('--time')?Number(process.argv[process.argv.indexOf('--time')+1]):PREVIEW_EDGES.timeS}):await renderSeaPreview(process.argv[index+1])));
+  console.log(JSON.stringify(process.argv.includes('--sea4')?await renderSea4Preview(process.argv[index+1],{time:process.argv.includes('--time')?Number(process.argv[process.argv.indexOf('--time')+1]):2}):process.argv.includes('--detail')?await renderDetailPreview(process.argv[index+1],{time:process.argv.includes('--time')?Number(process.argv[process.argv.indexOf('--time')+1]):2,zoom:process.argv.includes('--lower')?'lower':process.argv.includes('--zoom')}):process.argv.includes('--edges')?await renderEdgesPreview(process.argv[index+1],{time:process.argv.includes('--time')?Number(process.argv[process.argv.indexOf('--time')+1]):PREVIEW_EDGES.timeS}):await renderSeaPreview(process.argv[index+1])));
 }
