@@ -18,6 +18,7 @@ import { createKamakuraFauna } from './kamakura-fauna-view.js';
 import { createKamakuraHarbor } from './kamakura-harbor-view.js';
 import { createKamakuraFields } from './kamakura-fields-view.js';
 import { createKamakuraPeople } from './kamakura-people-view.js';
+import { createKamakuraCrowd } from './kamakura-crowd-view.js';
 import { createKamakuraAvenue } from './kamakura-avenue-view.js';
 import { createKamakuraRuinHall } from './kamakura-ruin-hall-view.js';
 import { createKamakuraRiverlife } from './kamakura-riverlife-view.js';
@@ -39,6 +40,7 @@ export const KAMAKURA_LAYERS = Object.freeze([
   ['harbor', createKamakuraHarbor],
   ['fields', createKamakuraFields],
   ['people', createKamakuraPeople],
+  ['crowd', createKamakuraCrowd],
   ['heroLife', createKamakuraHeroLife],
   ['soundscape', createKamakuraSoundscape],
 ]);
