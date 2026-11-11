@@ -8,8 +8,13 @@ export const TOWN_DRESS = Object.freeze({
   minPixels: 1.5, viewport: 941, blend: 12, // px / px / m: minimum silhouette and LOD transition band
   nearTriangles: 90000, farTriangles: 30000, draws: 16, // hard submission budgets, excluding shadows
   cell: 256, batch: 24, // m / plots: spatial index and startup work per yielded batch
+  refresh: 4, // m: the eye must move this far (in any axis) before the selection is rebuilt. Parent (real Chrome): with the enclosures
+  // (four times the fence segments) the per-frame rebuild — a heap over 8,000 segments and megabytes of instance data re-sent —
+  // cost 2.4 ms a frame. The distance bands blend over 12 m, so a selection up to 4 m stale cannot be told apart.
   inset: .6, gate: 1.4, fenceDepth: .12, sideLength: 6, sideRate: .3, laneWidth: 3.2, // m / fraction: fences stay inside plots
-  houseFence: .45, gardenFence: .7, otherFence: .2, bambooRate: .6, boardRate: .25, // deterministic proportions
+  fenceSpan: 5, // m: maximum repeated fence section, keeping slat spacing at its authored scale.
+  houseClearance: .6, sharedGap: .3, parallelTolerance: .001, clipEpsilon: 1e-9, minSegment: .05, // m / radians: conservative clipping and shared plot edges
+  houseFence: .8, enclosed: .55, half: .25, gardenEnclosed: .4, gardenFence: .7, otherFence: .2, bambooRate: .6, boardRate: .25, // deterministic proportions
   avenueTent: .12, coastTent: .15, coastReach: 250, tentCap: 90, tentMin: 40, // fractions / m / counts
   burntWidthMin: 5, burntWidthMax: 7, burntDepthMin: 7, burntDepthMax: 11, // m: ruin footprint
   repairWidth: 6.5, repairDepth: 8.5, gardenWidth: 6, gardenDepth: 9, // m: complete near-kit footprints
@@ -58,8 +63,8 @@ function pathIndex(data) {
 }
 export function* townDressBatches({ data = {}, terrain } = {}) {
   if (!data.townPlots?.length) return null;
-  const result = { items: [], boxes: [], index: new Map(), plots: { burnt: 0, repair: 0, garden: 0 }, fences: { plots: 0, segments: 0, byKind: { bamboo: 0, board: 0, log: 0 } }, tents: 0, skipped: { small: 0, terrain: 0, lane: 0, tentCap: 0, tentShortfall: 0, house: 0 }, work: { plots: 0, probes: 0, segments: 0 } };
-  const paths = pathIndex(data), tentCandidates = [], houseIndex = new Map();
+  const result = { items: [], boxes: [], index: new Map(), plots: { burnt: 0, repair: 0, garden: 0 }, fences: { plots: 0, enclosed: 0, half: 0, segments: 0, byKind: { bamboo: 0, board: 0, log: 0 } }, tents: 0, skipped: { small: 0, terrain: 0, lane: 0, tentCap: 0, tentShortfall: 0, house: 0, shared: 0 }, work: { plots: 0, probes: 0, segments: 0 } };
+  const paths = pathIndex(data), tentCandidates = [], houseIndex = new Map(), edgeIndex = new Map();
   const houses = data.houses?.instances?.map(p => houseBox(data.houses.kinds.get(p.kind), p.matrix)) || [];
   for (const box of houses) {
     const r = Math.hypot(box.w, box.d) / 2;
@@ -121,21 +126,79 @@ export function* townDressBatches({ data = {}, terrain } = {}) {
     }
     if (!closest) continue;
     const sign = ((closest.x - plot.x) * Math.sin(plot.yaw) + (closest.z - plot.z) * Math.cos(plot.yaw)) < 0 ? -1 : 1;
-    const rate = plot.state === 'house' ? C.houseFence : plot.state === 'garden' ? C.gardenFence : C.otherFence;
-    if (hash(10) < rate) {
+    const choice = hash(10), mode = plot.state === 'house' ? (choice < C.enclosed ? 'enclosed' : choice < C.enclosed + C.half ? 'half' : 'none')
+      : plot.state === 'garden' ? (choice < C.gardenFence ? (choice < C.gardenFence*C.gardenEnclosed ? 'enclosed' : 'front') : 'none')
+      : choice < C.otherFence ? 'front' : 'none';
+    if (mode !== 'none') {
       const rank = hash(11), kind = rank < C.bambooRate ? 'bamboo' : rank < C.bambooRate + C.boardRate ? 'board' : 'log';
-      const gate = (hash(12) - .5) * (width - C.gate) / 2, left = -width / 2, right = width / 2;
-      let accepted = 0;
-      const segment = (u, v, w, yaw) => {
-        const at = local(plot, u, v), f = { ...at, kind, yaw, w, d: C.fenceDepth, plot: i, rank: hash(4) };
-        if (!add(f)) return;
-        result.boxes.push({ x: f.x, z: f.z, w, d: f.d, rotY: yaw, height: C.fenceHeights[kind], base: f.y });
-        accepted++; result.fences.segments++;
+      // The model's +z is the door side. Prefer the house in this plot; the lane is the legacy fallback.
+      let facing = plot.yaw + (sign < 0 ? Math.PI : 0), owner = null, ownerDistance = Infinity;
+      for (const b of houseIndex.get(dressKey(Math.floor(plot.x/C.cell),Math.floor(plot.z/C.cell))) || []) {
+        const at = local(plot,0,0), dx=b.x-at.x,dz=b.z-at.z,c=Math.cos(plot.yaw),s=Math.sin(plot.yaw);
+        if (Math.abs(c*dx-s*dz)>plot.width/2 || Math.abs(s*dx+c*dz)>plot.depth/2) continue;
+        const distance=Math.hypot(dx,dz); if(distance<ownerDistance){owner=b;ownerDistance=distance;facing=b.rotY;}
+      }
+      const delta = facing-plot.yaw;
+      const axis = Math.abs(Math.sin(delta)) > Math.abs(Math.cos(delta));
+      const frontSign = (axis ? Math.sin(delta) : Math.cos(delta)) < 0 ? -1 : 1;
+      const turn = axis ? Math.PI/2 : 0, frame = {...plot,yaw:plot.yaw+turn};
+      const fw = axis ? depth : width, fd = axis ? width : depth, hx=(fw-C.fenceDepth)/2,hz=(fd-C.fenceDepth)/2;
+      let gate = (hash(12)-.5)*(fw-C.gate)/2;
+      if(owner)gate=Math.max(-hx+C.gate/2,Math.min(hx-C.gate/2,(owner.x-plot.x)*Math.cos(frame.yaw)-(owner.z-plot.z)*Math.sin(frame.yaw)));
+      let accepted=0;
+      const segment = (u,v,length,yaw,edge) => {
+        if(length<C.minSegment)return;
+        const at=local(frame,u,v), dx=Math.cos(yaw),dz=-Math.sin(yaw);
+        const a={x:at.x-dx*length/2,z:at.z-dz*length/2},b={x:at.x+dx*length/2,z:at.z+dz*length/2};
+        let intervals=[[0,length]];
+        const cut=(lo,hi)=>{const next=[];for(const [l,r] of intervals){if(hi<=l||lo>=r)next.push([l,r]);else{if(lo-l>C.minSegment)next.push([l,lo]);if(r-hi>C.minSegment)next.push([hi,r]);}}intervals=next;};
+        // Ray / inflated oriented box: retain the safe parts rather than dropping a whole side.
+        const radius=length/2+C.houseClearance+C.fenceDepth;
+        const checked=new Set();
+        for(let ix=Math.floor((at.x-radius)/C.cell);ix<=Math.floor((at.x+radius)/C.cell);ix++)for(let iz=Math.floor((at.z-radius)/C.cell);iz<=Math.floor((at.z+radius)/C.cell);iz++){
+          for(const house of houseIndex.get(dressKey(ix,iz))||[]){
+            if(checked.has(house))continue;checked.add(house);
+            const c=Math.cos(house.rotY),s=Math.sin(house.rotY),x=c*(a.x-house.x)-s*(a.z-house.z),z=s*(a.x-house.x)+c*(a.z-house.z),vx=c*dx-s*dz,vz=s*dx+c*dz;
+            let lo=0,hi=length;
+            for(const [origin,velocity,extent]of [[x,vx,house.w/2+C.houseClearance+C.fenceDepth/2],[z,vz,house.d/2+C.houseClearance+C.fenceDepth/2]]){
+              if(Math.abs(velocity)<C.clipEpsilon){if(Math.abs(origin)>extent){hi=-1;break;}}
+              else{const t0=(-extent-origin)/velocity,t1=(extent-origin)/velocity;lo=Math.max(lo,Math.min(t0,t1));hi=Math.min(hi,Math.max(t0,t1));}
+            }
+            if(hi>lo){cut(lo,hi);result.skipped.house++;}
+          }
+        }
+        // Compare true plot boundaries (the drawn lines are inset on opposite sides of that boundary).
+        const boundary=local(frame,u+edge[0]*(C.inset+C.fenceDepth/2),v+edge[1]*(C.inset+C.fenceDepth/2));
+        const nearby=new Set(),reach=length/2+C.sharedGap;
+        for(let ix=Math.floor((boundary.x-reach)/C.cell);ix<=Math.floor((boundary.x+reach)/C.cell);ix++)for(let iz=Math.floor((boundary.z-reach)/C.cell);iz<=Math.floor((boundary.z+reach)/C.cell);iz++)for(const old of edgeIndex.get(dressKey(ix,iz))||[])nearby.add(old);
+        for(const old of nearby){
+          if(old.plot===i||old.lane!==plot.lane||Math.abs(dx*old.dz-dz*old.dx)>C.parallelTolerance)continue;
+          if(old.nx*(boundary.x-at.x)+old.nz*(boundary.z-at.z)>=0)continue;
+          const ex=old.x-boundary.x,ez=old.z-boundary.z;
+          if(Math.abs(ex*dz-ez*dx)>C.sharedGap)continue;
+          const centre=length/2+ex*dx+ez*dz;cut(centre-old.length/2,centre+old.length/2);result.skipped.shared++;
+        }
+        for(const [start,end] of intervals){
+          const pieces=Math.ceil((end-start)/C.fenceSpan);
+          for(let piece=0;piece<pieces;piece++){
+          const lo=start+(end-start)*piece/pieces,hi=start+(end-start)*(piece+1)/pieces;
+          const f={x:a.x+dx*(lo+hi)/2,z:a.z+dz*(lo+hi)/2,kind,yaw,w:hi-lo,d:C.fenceDepth,plot:i,rank:hash(4),edge:edge[2],mode,gate};
+          if(!add(f))continue;
+          result.boxes.push({x:f.x,z:f.z,w:f.w,d:f.d,rotY:yaw,height:C.fenceHeights[kind],base:f.y});accepted++;result.fences.segments++;
+          const offset=(lo+hi-length)/2,record={x:boundary.x+dx*offset,z:boundary.z+dz*offset,dx,dz,length:f.w,plot:i,lane:plot.lane,nx:boundary.x-at.x,nz:boundary.z-at.z};
+          const key=dressKey(Math.floor(record.x/C.cell),Math.floor(record.z/C.cell));if(!edgeIndex.has(key))edgeIndex.set(key,[]);edgeIndex.get(key).push(record);
+          }
+        }
       };
-      segment((left + gate - C.gate / 2) / 2, sign * (depth / 2 - C.fenceDepth / 2), gate - C.gate / 2 - left, plot.yaw);
-      segment((right + gate + C.gate / 2) / 2, sign * (depth / 2 - C.fenceDepth / 2), right - gate - C.gate / 2, plot.yaw);
-      if (hash(13) < C.sideRate) segment(hash(14) < .5 ? left + C.fenceDepth / 2 : right - C.fenceDepth / 2, sign * (depth / 2 - C.sideLength / 2), C.sideLength, plot.yaw + Math.PI / 2);
-      if (accepted) { result.fences.plots++; result.fences.byKind[kind]++; }
+      const outer=fw/2;
+      segment((-outer+gate-C.gate/2)/2,frontSign*hz,gate-C.gate/2+outer,frame.yaw,[0,frontSign,'front']);
+      segment((outer+gate+C.gate/2)/2,frontSign*hz,outer-gate-C.gate/2,frame.yaw,[0,frontSign,'front']);
+      if(mode==='enclosed'||mode==='half'){
+        const side=mode==='enclosed'?2*hz:hz;
+        for(const sideSign of [-1,1])segment(sideSign*hx,mode==='half'?frontSign*hz/2:0,side,frame.yaw+Math.PI/2,[sideSign,0,'side']);
+        if(mode==='enclosed')segment(0,-frontSign*hz,fw,frame.yaw,[0,-frontSign,'back']);
+      }else if(hash(13)<C.sideRate)segment(hash(14)<.5?-hx:hx,frontSign*(fd/2-C.sideLength/2),C.sideLength,frame.yaw+Math.PI/2,[hash(14)<.5?-1:1,0,'side']);
+      if(accepted){result.fences.plots++;result.fences.byKind[kind]++;if(mode==='enclosed')result.fences.enclosed++;if(mode==='half')result.fences.half++;}
     }
     {
       const coast = terrain.seaDistanceAt?.(plot.x, plot.z);

@@ -1,5 +1,12 @@
 // Original deterministic joinery and rubble, in metres. No geography or renderer state.
 export const RUIN_HALL = Object.freeze({
+  burntFraction: .3, burntDiameter: .45, burntMinHeight: .3, burntMaxHeight: .9, // ratio / m / ratios: charred survivors.
+  burntLeaning: 3, burntLean: 8, burntBeamsMin: 4, burntBeamsMax: 8, // counts / degrees / counts: fallen beams only.
+  burntBeamLength: 6, burntBeamWidth: .35, burntBeamYaw: .65, // m / m / radians: ground timber and overlap.
+  burntAshSides: 12, burntAshInner: .86, burntAshOuter: .96, burntAshGain: .45, // count / footprint ratios / gain: irregular dark ash.
+  burntGrass: 7, burntGrassSize: .8, burntGrassGain: .65, // count / m / gain: sparse old regrowth, existing crop colour.
+  burntEdge: .8, burntLift: .02, burntGrassLift: .03, // m: footprint margin and terrain-following surface offsets.
+  burntDraws: 6, // hard draw limit shared by open and burnt halls.
   spacing: 4.5, // m: intended pillar bay, capped to keep the silhouette within budget.
   minPosts: 12, maxPosts: 20, fraction: .4, // count / ratio: surviving perimeter and inner-row columns.
   diameter: .55, // m: old column diameter.
@@ -127,15 +134,62 @@ export function prepareRuinHall(input, terrain, gates=[]) {
   }
   return {box,items,posts,beams,piles,boxes,circles,sites,frontClear:C.frontClear};
 }
+// A separate plan keeps unmarked halls and the open-air Buddha byte-for-byte on their existing path.
+export function prepareBurntHall(input, terrain, gates=[]) {
+  const C=RUIN_HALL, box={...input}, items=[],sites=[],posts=[],beams=[],circles=[];
+  // Reuse only the orientation rule, without producing scaffolds or repair stock.
+  let gate=null,distance=Infinity;
+  for(const g of gates){const d=Math.hypot(g.x-box.x,g.z-box.z);if(d<distance){distance=d;gate=g;}}
+  if(gate){const [u,v]=ruinLocal(box,gate.x,gate.z);if(Math.abs(u)>Math.abs(v)){box.rotY+=u>0?Math.PI/2:-Math.PI/2;[box.w,box.d]=[box.d,box.w];}else if(v<0)box.rotY+=Math.PI;}
+  let seed=1977;const random=()=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/4294967296;};
+  const yAt=(u,v)=>{const at=ruinWorld(box,u,v);return terrain.heightAt(at.x,at.z);};
+  const nx=Math.max(C.minBays,Math.min(C.maxBays,Math.round(box.w/C.spacing))),nz=Math.max(C.minBays,Math.min(C.maxBays,Math.round(box.d/C.spacing)));
+  const hx=Math.max(0,box.w/2-C.burntEdge),hz=Math.max(0,box.d/2-C.burntEdge);
+  for(let i=0;i<=nx;i++)for(let j=0;j<=nz;j++)if(i===0||j===0||i===nx||j===nz||j===Math.floor(nz/2)){
+    const u=(i/nx*2-1)*hx,v=(j/nz*2-1)*hz;sites.push({u,v,rank:random()});
+    items.push({kind:'base',shape:'round',u,v,y:yAt(u,v),w:C.stoneRadius*2,h:C.stoneHeight,d:C.stoneRadius*2});
+  }
+  const candidates=sites.filter(p=>Math.abs(p.u)>=C.frontClear/2+C.burntDiameter),count=Math.min(candidates.length,Math.round(sites.length*C.burntFraction));
+  candidates.sort((a,b)=>a.rank-b.rank);
+  for(const site of candidates.slice(0,count)){
+    const h=box.height*C.eaveRatio*(C.burntMinHeight+(C.burntMaxHeight-C.burntMinHeight)*random());
+    const lean=posts.length<C.burntLeaning?C.burntLean*Math.PI/180:0;
+    // Tilt along z, towards the centre, so even a narrow hall retains its full approach strip.
+    const dv=-Math.sign(site.v)*Math.min(Math.tan(lean)*h,hz+Math.abs(site.v));
+    const p={kind:'post',shape:'round',u:site.u,v:site.v,y:yAt(site.u,site.v)+C.stoneHeight,w:C.burntDiameter,h,d:C.burntDiameter,dv,lean,broken:true};
+    posts.push(p);items.push(p);const at=ruinWorld(box,p.u,p.v+dv/2);
+    circles.push({...at,r:C.burntDiameter/2+Math.abs(dv)/2,height:h,id:'burnt-hall-post'});
+    // Inflate the route guard by the conservative circle used by the movement engine.
+    if(Math.abs(p.u)-circles.at(-1).r<C.frontClear/2){circles.at(-1).x=ruinWorld(box,p.u,p.v).x;circles.at(-1).z=ruinWorld(box,p.u,p.v).z;circles.at(-1).r=C.burntDiameter/2;p.dv=0;p.lean=0;}
+  }
+  const beamCount=C.burntBeamsMin+Math.floor(random()*(C.burntBeamsMax-C.burntBeamsMin+1));
+  for(let i=0;i<beamCount;i++){
+    const side=i%2?1:-1,u=side*(C.frontClear/2+Math.max(C.burntBeamWidth,(hx-C.frontClear/2)/2)),v=(random()-.5)*hz;
+    const length=Math.max(C.burntBeamWidth,Math.min(C.burntBeamLength,2*(hz-Math.abs(v))));
+    const yaw=(random()-.5)*C.burntBeamYaw,reach=Math.abs(Math.sin(yaw))*length/2+C.burntBeamWidth/2;
+    const safeU=side*Math.max(C.frontClear/2+reach,Math.min(hx-reach,Math.abs(u)));
+    const du=Math.sin(yaw)*length/2,dv=Math.cos(yaw)*length/2,lift=C.burntBeamWidth/2;
+    const p={kind:'beam',shape:'beam',u:safeU-du,v:v-dv,y:yAt(safeU-du,v-dv)+lift,h:0,w:C.burntBeamWidth,d:0,end:[safeU+du,yAt(safeU+du,v+dv)+lift,v+dv]};items.push(p);beams.push(p);
+  }
+  const patch=(kind,u,v,w,d,lift,scale=1)=>{
+    const vertices=[],sides=kind==='ash'?C.burntAshSides:4;
+    for(let i=0;i<sides;i++){const t=i*Math.PI*2/sides,r=kind==='ash'?(i%2?C.burntAshInner:C.burntAshOuter):1;const x=u+Math.cos(t)*w/2*r,z=v+Math.sin(t)*d/2*r;vertices.push([x,yAt(x,z)+lift,z]);}
+    items.push({kind,shape:'patch',vertices,centre:[u,yAt(u,v)+lift,v],shade:scale});
+  };
+  patch('ash',0,0,box.w,box.d,C.burntLift,C.burntAshGain);
+  for(let i=0;i<C.burntGrass;i++)patch('grass',(random()-.5)*hx,(random()-.5)*hz,C.burntGrassSize,C.burntGrassSize,C.burntGrassLift,C.burntGrassGain);
+  return {burnt:true,box,items,sites,posts,beams,piles:[],boxes:[],circles,frontClear:C.frontClear};
+}
 // Flat triangles with category and age weights. Far LOD has only box posts and head ties.
 export function ruinHallGeometry(plan, far=false) {
   const positions=[],kinds=[],shades=[];
   const triangle=(a,b,c,kind,shade)=>{positions.push(...a,...b,...c);kinds.push(kind,kind,kind);shades.push(shade,shade,shade);};
   const C=RUIN_HALL;
   for(const p of plan.items){
-    if(far&&p.kind!=='post'&&p.kind!=='beam')continue;
+    if(far&&p.kind!=='post'&&p.kind!=='beam'&&!(plan.burnt&&p.kind==='ash'))continue;
+    if(p.shape==='patch'){for(let i=0;i<p.vertices.length;i++)triangle(p.centre,p.vertices[(i+1)%p.vertices.length],p.vertices[i],p.kind,p.shade);continue;}
     const log=p.kind==='pile'&&p.shape==='round';
-    const start=log?[p.u-Math.sin(p.yaw||0)*p.d/2,p.y+p.h/2,p.v-Math.cos(p.yaw||0)*p.d/2]:[p.u,p.y,p.v], end=log?[p.u+Math.sin(p.yaw||0)*p.d/2,p.y+p.h/2,p.v+Math.cos(p.yaw||0)*p.d/2]:p.end||[p.u+(p.du||0),p.y+p.h,p.v];
+    const start=log?[p.u-Math.sin(p.yaw||0)*p.d/2,p.y+p.h/2,p.v-Math.cos(p.yaw||0)*p.d/2]:[p.u,p.y,p.v], end=log?[p.u+Math.sin(p.yaw||0)*p.d/2,p.y+p.h/2,p.v+Math.cos(p.yaw||0)*p.d/2]:p.end||[p.u+(p.du||0),p.y+p.h,p.v+(p.dv||0)];
     const axial=log||p.shape==='beam'||p.shape==='round'&&p.kind==='post';
     const centre=[p.u,p.y+p.h/2,p.v], n=far||p.shape==='block'||p.shape==='beam'?4:C.segments;
     const vertices=[];
