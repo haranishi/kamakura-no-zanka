@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
 import {validateMeta} from '../dist/valley/kamakura-data.js';
 import {fixture} from './helpers/kamakura-fixture.mjs';
-import {shoreNoise,createSignedShoreJob} from '../dist/valley/kamakura-shore.js';
+import {shoreNoise,createSignedShoreJob,SURF_SCALE_MIN,SURF_SCALE_MAX} from '../dist/valley/kamakura-shore.js';
 import {SEA3 as S,SEA4 as V,SEA_FAR as C,SEA4_GLSL,SEA4_SCALAR_GLSL,sea3Centre,sea4Centre,sea3Texture,sea4Texture,sea4Edge,sea4Glitter,sea4GlitterEnabled,sea3Color,sea4Color,sea4Sample,seaLineCentre} from '../dist/valley/kamakura-sea-far.js';
 import {THREE,load} from './helpers/tree-modules.mjs';
 const {buildKamakuraSea}=await load('kamakura-sea-view.js');
@@ -15,8 +15,9 @@ const finish=j=>{while(!j.step(4096));return j;};
 const smoothstep=(a,b,x)=>{const t=Math.max(0,Math.min(1,(x-a)/(b-a)));return t*t*(3-2*t);};
 
 test('A1 optional independent sea entries use a strict whitelist and finite ranges',()=>{
-  for(const sea of [{},{surf_scale:.25},{surf_scale:1.5},{swell_from_deg:0},{surf_scale:.4,swell_from_deg:360}]){const f=fixture();f.meta.sea=sea;assert.equal(validateMeta(f.meta),f.meta);}
-  for(const sea of [{surf_scale:.249},{surf_scale:1.501},{surf_scale:'1'},{surf_scale:NaN},{surf_scale:Infinity},{surf_scale:null},{surf_scale:1,unknown:0},{swell_from_deg:null}]){const f=fixture();f.meta.sea=sea;assert.throws(()=>validateMeta(f.meta));}
+  assert.equal(SURF_SCALE_MIN,.08);assert.equal(SURF_SCALE_MAX,1.5);
+  for(const sea of [{},{surf_scale:SURF_SCALE_MIN},{surf_scale:.1},{surf_scale:.25},{surf_scale:SURF_SCALE_MAX},{swell_from_deg:0},{surf_scale:.4,swell_from_deg:360}]){const f=fixture();f.meta.sea=sea;assert.equal(validateMeta(f.meta),f.meta);}
+  for(const sea of [{surf_scale:SURF_SCALE_MIN-.001},{surf_scale:0},{surf_scale:1.501},{surf_scale:'1'},{surf_scale:NaN},{surf_scale:Infinity},{surf_scale:null},{surf_scale:1,unknown:0},{swell_from_deg:null}]){const f=fixture();f.meta.sea=sea;assert.throws(()=>validateMeta(f.meta));}
   const a=finish(createSignedShoreJob(terrain())),b=finish(createSignedShoreJob(terrain(),{sea:{surf_scale:.4}}));
   assert.deepEqual(a.field.data,b.field.data);assert.deepEqual(a.field.openness,b.field.openness);assert.equal(a.work,b.work);assert(!b.field.swellGain);
 });
@@ -71,7 +72,7 @@ test('A3 glitter flecks follow the pixel: fine ones where a pixel can show them,
   // The mean length of a lit run along a line: the fine flecks are a fraction of the coarse ones.
   const run = fn => { let lit = 0, runs = 0, on = false; for (let i = 0; i < 40000; i++) { const v = fn(i * .02, 7.3) > V.glitterStrength * .5; if (v) lit++; if (v && !on) runs++; on = v; } return lit * .02 / Math.max(1, runs); };
   const fineRun = run(fine), coarseRun = run(coarse);
-  assert(fineRun > 0 && coarseRun > 0 && fineRun < coarseRun * .5, `${fineRun} vs ${coarseRun}`);
+  assert(fineRun > 0 && coarseRun > 0 && fineRun < coarseRun * .7, `${fineRun} vs ${coarseRun}`);
   let differ = 0, n = 0;
   for (let x = -40; x <= 40; x += 3.7) for (let z = -40; z <= 40; z += 4.1, n++) {
     const a = fine(x, z), b = coarse(x, z), m = between(x, z);

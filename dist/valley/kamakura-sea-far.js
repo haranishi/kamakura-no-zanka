@@ -12,9 +12,11 @@ export const SEA4=Object.freeze({
   glitterCellM:.9,glitterDrift:.06, // metres / cells per second: slow, fine moving sun flecks.
   // Seen from a camera 100 m up (a small designed map), a 0.9 m fleck is six pixels across and the sea looked strewn with
   // confetti. Where a pixel is small enough to show them, finer flecks take over; higher up the coarse ones stay as they were.
-  glitterFineM:.3, // metres: the cell of the flecks a close camera sees.
+  glitterFineM:.45, // metres: the cell of the flecks a close camera sees (at .3 the hand-over to the coarse flecks came at 100 m up already).
   glitterLow:.76,glitterHigh:.88,glitterMean:.072, // smooth threshold and unresolved mean of the same noise.
-  glitterStrength:1.5,glitterPower:3,glitterWhite:.6, // gain on the fleck colour / reflection lobe exponent / share of white in that colour.
+  // The lobe was wide (exponent 3): with the sun to one side, flecks covered the whole sea in view and read as white specks all over.
+  // At 6 they gather towards the sun and thin out across the frame.
+  glitterStrength:1.5,glitterPower:6,glitterWhite:.6, // gain on the fleck colour / reflection lobe exponent / share of white in that colour.
   filterStart:.5,filterEnd:1, // footprint / cell size: average subpixel holes and flecks.
 });
 export const SEA3 = Object.freeze({
