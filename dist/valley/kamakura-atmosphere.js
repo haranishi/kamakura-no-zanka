@@ -1,15 +1,57 @@
+import { shoreNoise } from './kamakura-shore.js';
+// Low-cloud controls: degrees, seconds and linear colour shares; no new colour palette.
+export const CLOUDS2 = Object.freeze({
+  heightsDeg: Object.freeze([.95, 2.65, 4.9, 7.7]), // degrees: irregular centres; two remain inside the lowest four degrees.
+  widthsDeg: Object.freeze([.63, .8, 1.05, 1.3]), // degrees: each layer's half thickness.
+  minDeg: .3, maxDeg: 9, featherDeg: .18, // degrees: altitude envelope and its feather.
+  bendDeg: .32, bendScale: .43, coreShare: .45, // degrees of wandering / low-frequency scale / solid-core share.
+  noiseOffset: Object.freeze([19.3,7.1]), // noise-cell offsets: independent shapes per cloud layer.
+  alongDeg: 11, driftDegS: .018, // degrees: vertical wandering / along-band noise scale / drift (1.08° per minute).
+  coverLow: .24, coverHigh: .55, opacity: .92, // noise gates and optical coverage.
+  shadeMix: .64, shadeGain: .6, warmGain: .9, rimGain: .85, // existing mid/fog/sun colour shares and gains.
+  reducedLayers: 2, minimumLayers: 1, // layer count in light/adapt 2, then adapt 3.
+  sunWidthDeg: 32, eveningGain: .42, reducedGain: .7, // degrees of warm rim / evening and reduced-quality strength.
+});
+export const clouds2Enabled = (search='', time=atmosphereOptions(search).time) => isEveningLike(time) && new URLSearchParams(search).get('clouds2') !== '0';
+const cloudClamp = x => Math.max(0, Math.min(1, x));
+const cloudSmooth = (a,b,x) => { const t=cloudClamp((x-a)/(b-a)); return t*t*(3-2*t); };
+const cf = n => Number(n).toFixed(8);
+// One scalar body for both CPU sampling and the sky shader, with periodic azimuth noise at the north seam.
+const cloudBody = CLOUDS2.heightsDeg.map((h,i) => `if(cloudLayers>${cf(i+.5)}){
+  float cloudX=cos(radians(bearing-time*${cf(CLOUDS2.driftDegS)}))*${cf(180/Math.PI/CLOUDS2.alongDeg)}+${cf(i*CLOUDS2.noiseOffset[0])};
+  float cloudZ=sin(radians(bearing-time*${cf(CLOUDS2.driftDegS)}))*${cf(180/Math.PI/CLOUDS2.alongDeg)}+${cf(i*CLOUDS2.noiseOffset[1])};
+  float cloudNoise=cloudNoise2(cloudX,cloudZ);
+  float cloudCentre=${cf(h)}+(cloudNoise2(cloudX*${cf(CLOUDS2.bendScale)},cloudZ*${cf(CLOUDS2.bendScale)})*2.0-1.0)*${cf(CLOUDS2.bendDeg)};
+  float cloudBand=1.0-smoothstep(${cf(CLOUDS2.widthsDeg[i]*CLOUDS2.coreShare)},${cf(CLOUDS2.widthsDeg[i])},abs(height-cloudCentre));
+  cloudCover=max(cloudCover,cloudBand*smoothstep(${cf(CLOUDS2.coverLow)},${cf(CLOUDS2.coverHigh)},cloudNoise));
+}`).join('\n');
+const cloudEnvelope = `cloudCover*=smoothstep(${cf(CLOUDS2.minDeg)},${cf(CLOUDS2.minDeg+CLOUDS2.featherDeg)},height)*(1.0-smoothstep(${cf(CLOUDS2.maxDeg-CLOUDS2.featherDeg)},${cf(CLOUDS2.maxDeg)},height));return cloudCover;`;
+export const cloudCoverage = Function('cloudNoise2','smoothstep','abs','max','cos','sin','radians',`return function(bearing,height,time=0,cloudLayers=${CLOUDS2.heightsDeg.length}){let cloudCover=0;if(height<=${cf(CLOUDS2.minDeg)}||height>=${cf(CLOUDS2.maxDeg)})return 0;${(cloudBody+cloudEnvelope).replace(/float /g,'let ')}}`)(shoreNoise,cloudSmooth,Math.abs,Math.max,Math.cos,Math.sin,x=>x*Math.PI/180);
+export const CLOUDS2_GLSL = `
+float cloudNoise2(float x,float z){return noise(vec2(x,z));}
+float cloudCoverage2(float bearing,float height,float time,float cloudLayers){float cloudCover=0.0;if(height<=${cf(CLOUDS2.minDeg)}||height>=${cf(CLOUDS2.maxDeg)})return 0.0;${cloudBody}${cloudEnvelope}}
+`;
+export const cloudWarmth = separationDeg => 1-cloudSmooth(0,CLOUDS2.sunWidthDeg,Math.abs(separationDeg));
+export const DUSK_LEGACY = Object.freeze({postMist:.75,postShade:.22,mist:Object.freeze({density:.00007,base:-4,falloff:.045})});
+// Only the new dusk air is reversible; all other presets retain their original values.
+export const DUSK_AIR = Object.freeze({
+  shadeFloor: .013, // linear RGB: blue-violet floor for almost black surfaces.
+  mistNearM: 35, mistFullM: 220, mistScaleM: 125, mistWarmBase: .04, // metres of distance ramp / wisp size / warm share away from sun.
+});
+export function duskAirEnabled(search='') { const q=new URLSearchParams(search);return q.get('time')==='dusk'&&q.get('duskair')!=='0'; }
+
 // W2c-12 light7: no shade grade -> restrained .15 cooling (URL can sweep 0–1).
 // Pure settings. Directions are [east, up, south]; colors stay sRGB hex strings.
 // Dusk tuning: colors are sRGB; intensities/exposure are multipliers, mist heights are metres.
 export const DUSK = Object.freeze({
-  postMist: .75, postExposure: 1.24, postBloom: .18, postGlare: 1, postWarmth: .006, postToe: .35, postShade: .22,
+  postMist: 1.15, postExposure: 1.24, postBloom: .18, postGlare: 1, postWarmth: .006, postToe: .35, postShade: .38,
   sunDir: Object.freeze([-0.9345448863, 0.1045284633, 0.3401465212]), // bearing 250°, elevation 6°.
   sunColor: '#ff8f4a', sunIntensity: 1.25,
   // The camera of the opening scene sees only the lowest four degrees of sky: with an orange horizon the whole strip was orange.
   // The horizon is a dusty rose, and the orange stays near the sun (its halo and the warm haze towards it).
   zenith: '#262b52', mid: '#75628a', horizon: '#c7867f', below: '#484c65',
   fogColor: '#8f9bc0', hazeCool: '#8f9bc0', hazeWarm: '#f0a070', hazeExp: 7,
-  fogDensity: .000115, mist: Object.freeze({ density: .00007, base: -4, falloff: .045 }),
+  fogDensity: .000115, mist: Object.freeze({ density: .0001, base: 5, falloff: .075 }),
   // The low sun gives level ground almost nothing: with a dim sky light the road under the walker was black (real Chrome, the
   // real-size town). The sky light stays near the evening's; the trees are darkened on their own (foliage).
   hemiSky: '#929bc9', hemiGround: '#6a6f93', hemiIntensity: 1.2,
@@ -188,6 +230,7 @@ export function kamakuraAtmosphere(time, evening, enhanced = true, strength = 1,
   const preset = Object.hasOwn(KAMAKURA_TIMES, time) ? KAMAKURA_TIMES[time] : KAMAKURA_TIMES.noon;
   const a = { ...evening, ...preset, sunDir: [...(preset.sunDir || evening.sunDir)], mist: { ...preset.mist } };
   if (time === 'evening' && enhanced) Object.assign(a, eveningLight(a, strength));
+  if (time === 'dusk' && air?.legacyDusk) { Object.assign(a,DUSK_LEGACY,{mist:{...DUSK_LEGACY.mist}}); }
   validateAtmosphere(a);
   const length = Math.hypot(...a.sunDir); a.sunDir = placeSun(a.sunDir.map(v => v / length), place);
   // The map's air comes after the check: the presets keep their own narrow range.

@@ -1,7 +1,7 @@
 // W2c-9f: direct render -> HDR scene + five fullscreen passes, Kamakura only.
 import * as THREE from 'three';
 import { POST_DEFAULTS, postOptions, postRoute, bloomSizes, projectSun, bloomCap, neutralToneChunk, shadeSettings, SHADE_GLSL } from './kamakura-post.js';
-import { atmosphereOptions, isEveningLike, DUSK } from './kamakura-atmosphere.js';
+import { atmosphereOptions, isEveningLike, DUSK, DUSK_LEGACY, DUSK_AIR, duskAirEnabled } from './kamakura-atmosphere.js';
 import { lightSettings, shaftVisibility, advanceCloudTime, cloudHigh, lightFinalShader, SHAFT_SHADERS } from './kamakura-sky-fx.js';
 import { farShadowEnabled } from './kamakura-far-shadow.js';
 import { createFarShadowView } from './kamakura-far-shadow-view.js';
@@ -49,6 +49,14 @@ export const POST_SHADERS = {
       #include <colorspace_fragment>
     }`,
 };
+// Dusk-only changes to the existing mist; other times return byte-identical shaders.
+export function duskMistShader(shader,search='') {
+  if(!duskAirEnabled(search))return shader;
+  const f=n=>n.toFixed(6),C=DUSK_AIR;
+  for(const [from,to] of [[MIST.near,C.mistNearM],[MIST.full,C.mistFullM],[MIST.scale*MIST.stretch,C.mistScaleM*MIST.stretch],[MIST.scale,C.mistScaleM],[MIST.warmBase,C.mistWarmBase]])
+    shader=shader.replaceAll(f(from),f(to));
+  return shader;
+}
 const TONES = { none: THREE.NoToneMapping, aces: THREE.ACESFilmicToneMapping, neutral: THREE.NeutralToneMapping, agx: THREE.AgXToneMapping };
 export function createKamakuraPost({ renderer, quality = 'standard', search = '', params = {}, sunDir, disc = null, now = () => performance.now(), cloudDirection = [1, 0], terrain = null, farSources = null }) {
   const options = postOptions(search), savedTone = renderer.toneMapping, savedExposure = renderer.toneMappingExposure;
@@ -73,7 +81,7 @@ export function createKamakuraPost({ renderer, quality = 'standard', search = ''
   const highCloud = {scale:1,strength:1,height:0};
   Object.assign(air.cloud,{scale:1,strength:0,height:0});
   let valleyField=null, mistTexture=null, firstMistFrame=true;
-  const mistValue=(atmosphereOptions(search).time === 'dusk' ? DUSK.postMist : mistStrength(atmosphereOptions(search).time));
+  const mistValue=(atmosphereOptions(search).time==='dusk' ? (duskAirEnabled(search)?DUSK.postMist:DUSK_LEGACY.postMist) : mistStrength(atmosphereOptions(search).time));
   const exposure = params.postExposure ?? 1, bloomCapValue = bloomCap(search);
   // W2c-10 grade: Neutral's dark offset, scaled (URL > time-of-day preset > default). The chunk is global, so it is patched before any program
   // compiles (this runs before the first render) and put back on dispose; both the final pass and the no-post route include it.
@@ -90,7 +98,7 @@ export function createKamakuraPost({ renderer, quality = 'standard', search = ''
     geometry = new THREE.BufferGeometry(); geometry.setAttribute('position',new THREE.Float32BufferAttribute([-1,-1,0,3,-1,0,-1,3,0],3));
     down = material(POST_SHADERS.down,{ tex:{value:null},delta:{value:new THREE.Vector2()},threshold:{value:0},liftCap:{value:0} });
     combine = material(POST_SHADERS.combine,{ tex0:{value:null},tex1:{value:null},tex2:{value:null},dy:{value:new THREE.Vector3()} });
-    final = material(lightFinalShader(POST_SHADERS.final, options).replace(MIST_GLSL,mistShader(terrain?.meta?.mist)),{
+    final = material(lightFinalShader(POST_SHADERS.final, options).replace(MIST_GLSL,duskMistShader(mistShader(terrain?.meta?.mist),search)),{
       shadeStrength:{value:shade.strength},shadeFloor:{value:shade.floor},shadeDusk:{value:shade.evening?1:0},
       sceneTex:{value:null},bloomTex:{value:null},toneMappingExposure:{value:exposure},toneMode:{value:['none','aces','neutral','agx'].indexOf(options.tone)},
       bloomStrength:{value:options.bloom ? (params.postBloom ?? .12) : 0},glareStrength:{value:0},sunUV:{value:new THREE.Vector2()},

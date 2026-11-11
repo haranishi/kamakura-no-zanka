@@ -2,6 +2,13 @@ import { SUN_DISC } from './kamakura-atmosphere.js';
 // W2c-18 seaedge: pure mirrors and shader additions; colours come from shore4's deep band.
 import { seaColor4, seaBand4, SEA_BANDS4 } from './kamakura-shore-r4.js';
 import { SEA_PALETTE, shoreNoise, SHELTER, SWELL, shelteredEdgeFoam } from './kamakura-shore.js';
+// Angular reflection controls: degrees below the horizon, radiance and grain density.
+export const SEA_PATH = Object.freeze({
+  horizonWidths: 1.25, nearWidthDeg: 12, lengthDeg: 24, // full width in sun diameters / full near width / downward angular length.
+  edgeShare: .65, strength: 1, nearGain: .12, fallPower: 1.3, // soft edge fraction / radiance / near radiance / falloff exponent.
+  grainLow: .64, grainHigh: .94, nearThreshold: .16, mean: .23, // noise thresholds, extra near sparsity and filtered mean.
+  cellM: .45, drift: .06, // metres / noise cells per second: small moving flecks, averaged when subpixel.
+});
 export const SEA4=Object.freeze({
   foamMean:.78, // measured mean coverage of each smoothed hole scale before pixel filtering.
   rotationDeg:30, // degrees: rotate the small foam cells against the coarse cells.
@@ -448,15 +455,26 @@ export function seaSurfScaleFragment(fragment,{sea3=true}={}){
 
 // The visible sun's vertical water path: same azimuth at every depth, softened moving flecks.
 // Only installed for an explicit disc height or the new dusk preset; no new geometry/draw.
-export function seaDiscPath(sunward, fleck = 1) {
-  return Math.max(0, sunward) ** SUN_DISC.seaPower * SUN_DISC.seaStrength *
-    (SUN_DISC.seaFloor + (1 - SUN_DISC.seaFloor) * Math.max(0, Math.min(1, fleck)));
+export const seaPathWidth = depressionDeg => SUN_DISC.diameterDeg*SEA_PATH.horizonWidths +
+  (SEA_PATH.nearWidthDeg-SUN_DISC.diameterDeg*SEA_PATH.horizonWidths)*clamp(Math.abs(depressionDeg)/SEA_PATH.lengthDeg);
+export const seaPathEnvelope = depressionDeg => (1-clamp(Math.abs(depressionDeg)/SEA_PATH.lengthDeg))**SEA_PATH.fallPower;
+const P=SEA_PATH;
+const path2=scalar3('angle,depression,fleck',`
+  float progress=clamp(abs(depression)/${f(P.lengthDeg)},0.0,1.0);
+  float halfWidth=mix(${f(SUN_DISC.diameterDeg*P.horizonWidths/2)},${f(P.nearWidthDeg/2)},progress);
+  float across=1.0-smoothstep(halfWidth*${f(P.edgeShare)},halfWidth,abs(angle));
+  float along=pow(1.0-progress,${f(P.fallPower)});
+  float density=mix(${f(SUN_DISC.seaFloor)},${f(P.nearGain)},progress);
+  return across*along*density*clamp(fleck,0.0,1.0)*${f(P.strength)}/${f(SUN_DISC.seaFloor)};
+`);
+export function seaDiscPath(sunward, fleck=1, depressionDeg=0) {
+  return path2.js(Math.acos(Math.max(-1,Math.min(1,sunward)))*180/Math.PI,depressionDeg,fleck);
 }
-export function seaDiscFragment(fragment) {
+export function seaDiscFragment(fragment, {path=true}={}) {
   const anchor = '#include <opaque_fragment>';
   if (fragment.split(anchor).length !== 2) throw new Error('Sea sun path anchor missing');
   const C = SUN_DISC;
-  return fragment.replace(anchor, `
+  if(!path)return fragment.replace(anchor, `
     if(uDiscPath>0.0){
       vec3 discRay=normalize(vSeaWorld-cameraPosition);
       float discFacing=max(0.0,dot(normalize(discRay.xz),normalize(SUN_DIR_W.xz)));
@@ -468,6 +486,31 @@ export function seaDiscFragment(fragment) {
         discFleck=mix(smoothstep(${f(C.seaLow)},${f(C.seaHigh)},discNoise),0.5,1.0-1.0/discFilter);
       }
       float discPath=pow(discFacing,${f(C.seaPower)})*${f(C.seaStrength)}*mix(${f(C.seaFloor)},1.0,discFleck)*uDiscPath;
+      outgoingLight+=uSeaSun*discPath;
+      if(uDiscPathDebug>.5)outgoingLight=mix(outgoingLight,vec3(0.0,1.0,1.0),clamp(discPath,0.0,1.0));
+    }
+    ${anchor}`);
+  // These older reflection lobes made a second round sun beneath the disc. Remove all of them only on the new route.
+  fragment=fragment.replace('vec3 outgoingLight = totalDiffuse + totalSpecular + totalEmissiveRadiance;', 'vec3 outgoingLight = totalDiffuse + totalEmissiveRadiance;').replace('if(uShore6<=0.0)outgoingLight+=', 'if(false)outgoingLight+=')
+    .replace('outgoingLight+=clamp(uSeaSun,vec3(0.0),vec3(1.0))*seaGlint6', 'if(false)outgoingLight+=clamp(uSeaSun,vec3(0.0),vec3(1.0))*seaGlint6')
+    .replace('outgoingLight+=clamp(uSeaSun,vec3(0.0),vec3(1.0))*'+f(SEA_FAR.glintStrength), 'if(false)outgoingLight+=clamp(uSeaSun,vec3(0.0),vec3(1.0))*'+f(SEA_FAR.glintStrength))
+    .replace('outgoingLight+=mix(clamp(uSeaSun,vec3(0.0),vec3(1.0)),vec3(1.0),', 'if(false)outgoingLight+=mix(clamp(uSeaSun,vec3(0.0),vec3(1.0)),vec3(1.0),');
+  return fragment.replace('#include <common>',`#include <common>
+${path2.glsl('seaPath2')}`)
+    .replace(anchor, `
+    if(uDiscPath>0.0){
+      vec3 discRay=normalize(vSeaWorld-cameraPosition);
+      float discFacing=clamp(dot(discRay.xz,SUN_DIR_W.xz)/max(.000001,length(discRay.xz)*length(SUN_DIR_W.xz)),-1.0,1.0);
+      float discDepression=degrees(asin(clamp(abs(discRay.y),0.0,1.0)));
+      float discProgress=clamp(discDepression/${f(P.lengthDeg)},0.0,1.0);
+      float discFleck=${f(P.mean)};
+      if(uDiscPathDetail>.5){
+        vec2 discCell=vSeaWorld.xz/${f(P.cellM)}+vec2(uShoreTime*${f(P.drift)},0.0);
+        float discNoise=shoreNoise(discCell);
+        float discFilter=clamp(length(fwidth(discCell)),0.0,1.0);
+        discFleck=mix(smoothstep(${f(P.grainLow)}+discProgress*${f(P.nearThreshold)},${f(P.grainHigh)},discNoise),${f(P.mean)}*(1.0-discProgress),discFilter);
+      }
+      float discPath=seaPath2(degrees(acos(discFacing)),discDepression,discFleck)*uDiscPath;
       outgoingLight+=uSeaSun*discPath;
       if(uDiscPathDebug>.5)outgoingLight=mix(outgoingLight,vec3(0.0,1.0,1.0),clamp(discPath,0.0,1.0));
     }

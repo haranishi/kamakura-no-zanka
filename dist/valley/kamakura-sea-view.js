@@ -12,6 +12,7 @@ import { buildShoreProps } from './kamakura-shore-props.js';
 const SHORE_FRAME_BUDGET_MS=3; // original budget when shelter=0
 // W2c-9e2: coarse unsigned coast -> sub-cell signed surf and atmosphere-derived sea.
 export function buildKamakuraSea(terrain, data, {search='',quality='standard',sunDir=new THREE.Vector3(.5,.17,.85),disc=undefined}={}) {
+  const sunPath=new URLSearchParams(search).get('sunpath2')!=='0';
   const shelter=shelterEnabled(search),swell=data.meta?.sea?.swell_from_deg!==undefined&&swellEnabled(search),withOpen=shelter||swell;
   const sea2=sea2Enabled(search)&&new URLSearchParams(search).get('seav')!=='0';
   const sea3=sea2&&sea3Enabled(search),sea3Colors=new URLSearchParams(search).get('sea3debug')==='1';
@@ -76,7 +77,7 @@ export function buildKamakuraSea(terrain, data, {search='',quality='standard',su
   if(sea2&&data.meta?.sea?.surf_scale!==undefined)u.uSurfScale={value:surfScale};
   if(sea4)u.uSea4Glitter={value:+(glitter&&disc?.enabled!==false)};
   if(sea3){u.uSea3={value:1};u.uSea3Lines={value:sea3Count(quality)};u.uSea3Detail={value:quality==='light'?0:1};u.uSea3Debug={value:+sea3Colors};}
-  const sunReader=()=>({enabled:enabled&&!!u.uDiscPath?.value,count:enabled&&u.uDiscPath?.value?1:0,triangles:enabled?2:0,draws:enabled?1:0,addedDraws:0,preparationWork:0,step,
+  const sunReader=()=>({enabled:enabled&&!!u.uDiscPath?.value,count:enabled&&u.uDiscPath?.value?1:0,triangles:enabled?2:0,draws:enabled?1:0,addedDraws:0,preparationWork:0,step,path2:sunPath,
     nearest:{distance:lastCamera?Math.abs(lastCamera.position.y):null,bearing:disc?(Math.atan2(disc.dir[0],-disc.dir[2])*180/Math.PI+360)%360:null},
     direction:u.SUN_DIR_W.value.toArray(),strength:u.uDiscPath?.value??0});
   if(debugSea2&&disc)globalThis.__kzSunPath=sunReader;
@@ -235,9 +236,9 @@ export function buildKamakuraSea(terrain, data, {search='',quality='standard',su
       material.onBeforeCompile=shader=>{legacyCompile(shader);shader.fragmentShader=seaFarFragment(shader.fragmentShader);if(sea3)shader.fragmentShader=sea3Fragment(shader.fragmentShader);if(sea4)shader.fragmentShader=sea4Fragment(shader.fragmentShader);if(data.meta?.sea?.surf_scale!==undefined)shader.fragmentShader=seaSurfScaleFragment(shader.fragmentShader,{sea3});};
     }
     if(withOpen){const compile=material.onBeforeCompile;material.onBeforeCompile=shader=>{compile(shader);shader.fragmentShader=seaShelterFragment(shader.fragmentShader,{sea2,sea3,...(swell?{swell:true}:{})});};}
-    if(disc){const compile=material.onBeforeCompile;material.onBeforeCompile=shader=>{compile(shader);shader.fragmentShader=seaDiscFragment(shader.fragmentShader.replace('#include <common>','#include <common>\nuniform float uDiscPath; uniform float uDiscPathDebug; uniform float uDiscPathDetail;'));};}
+    if(disc){const compile=material.onBeforeCompile;material.onBeforeCompile=shader=>{compile(shader);shader.fragmentShader=seaDiscFragment(shader.fragmentShader.replace('#include <common>','#include <common>\nuniform float uDiscPath; uniform float uDiscPathDebug; uniform float uDiscPathDetail;'),{path:sunPath});};}
     const legacyCacheKey=()=> swell?'kamakura-sea-19-swell-'+(+shelter)+(+sea2)+(+sea3):shelter?'kamakura-sea-19-shelter-'+(+sea2)+(+sea3):sea3?'kamakura-sea-19-foam':sea2?'kamakura-sea-18-far':'kamakura-sea-11-shore6';
-    material.customProgramCacheKey=()=>legacyCacheKey()+(sea2&&data.meta?.sea?.surf_scale!==undefined?'-surf-scale':'')+(disc?'-disc':'');
+    material.customProgramCacheKey=()=>legacyCacheKey()+(sea2&&data.meta?.sea?.surf_scale!==undefined?'-surf-scale':'')+(disc?'-disc'+(sunPath?'-path2':''):'');
   }
   return {group,mesh,uniforms:u,textures,jobs,props,bank,get preparedShore(){return jobIndex>=jobs.length;},
     update(dt,pos,audioTime) {
