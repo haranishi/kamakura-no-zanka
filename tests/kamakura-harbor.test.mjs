@@ -34,6 +34,23 @@ const fixture=world(), placed=prepareHarbor(fixture);
 const beach=placed.items.filter(p=>p.kind==='beach'), racks=placed.items.filter(p=>p.kind==='rack'), sails=placed.items.filter(p=>p.kind==='sail'), harbour=placed.items.filter(p=>p.kind==='harbour');
 const sample = p => ({ ...p, kind:'beach', x:-1100,y:.44,z:-22,yaw:0,w:1.6,d:7 });
 
+test('B1 narrow strand: where the usual line has no sand the boats lie nearer the water, and a wide beach keeps every group on its line', ()=>{
+  assert(placed.groups.length>0 && placed.groups.every(g=>Math.abs(-g.z-HARBOR.groupLand)<1e-6), 'the wide beach: every group 22 m from the sea, as before');
+  const narrow=world({port:false}), depth=16; narrow.habitat={at(x,z,out){out.sand=z<0&&z>-depth?1:0;return out;}};
+  const result=prepareHarbor(narrow), boats=result.items.filter(p=>p.kind==='beach');
+  assert(boats.length>=HARBOR.groupMin*3, `only ${boats.length} boats on the narrow strand`);
+  assert(result.groups.every(g=>HARBOR.narrowLand.some(land=>Math.abs(-g.z-land)<1e-6)), 'groups stand on one of the nearer lines');
+  for (const p of boats) {
+    const c=Math.cos(p.yaw), q=Math.sin(p.yaw);
+    for (const [u,v] of [[-p.w/2,-p.d/2],[p.w/2,-p.d/2],[-p.w/2,p.d/2],[p.w/2,p.d/2]]) {
+      const z=p.z-q*u+c*v, sea=-z; assert(sea>=HARBOR.narrowMin-1e-6 && sea<depth, `a hull corner ${sea.toFixed(2)} m from the sea`);
+    }
+  }
+  assert.deepEqual(result.items,prepareHarbor(narrow).items);
+  // Nothing at all without the nearer lines: the strand used to stand empty.
+  const none=world({port:false}); none.habitat={at(x,z,out){out.sand=z<0&&z>-HARBOR.narrowMin?1:0;return out;}};
+  assert.equal(prepareHarbor(none).items.filter(p=>p.kind==='beach').length,0);
+});
 test('B1/B2: complete deterministic groups, bounds, tilt, alignment and rack totals', t=>{
   assert.deepEqual(placed.items,prepareHarbor(world()).items);
   assert(beach.length>=45 && beach.length<=80 && beach.length<=HARBOR.beachCap);
