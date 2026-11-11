@@ -141,7 +141,7 @@ export function* townDressBatches({ data = {}, terrain } = {}) {
       const delta = facing-plot.yaw;
       const axis = Math.abs(Math.sin(delta)) > Math.abs(Math.cos(delta));
       const frontSign = (axis ? Math.sin(delta) : Math.cos(delta)) < 0 ? -1 : 1;
-      const turn = axis ? Math.PI/2 : 0, frame = {...plot,yaw:plot.yaw+turn};
+      const turn = axis ? Math.PI/2 : 0, frame = {...plot,yaw:plot.yaw+turn+(plot.houseTurn || 0)};
       const fw = axis ? depth : width, fd = axis ? width : depth, hx=(fw-C.fenceDepth)/2,hz=(fd-C.fenceDepth)/2;
       let gate = (hash(12)-.5)*(fw-C.gate)/2;
       if(owner)gate=Math.max(-hx+C.gate/2,Math.min(hx-C.gate/2,(owner.x-plot.x)*Math.cos(frame.yaw)-(owner.z-plot.z)*Math.sin(frame.yaw)));

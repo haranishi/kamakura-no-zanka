@@ -22,6 +22,12 @@ export const TOWN_FILL = Object.freeze({
   houseMax: 6500, lightRate: .6, densityMin: .5, densityMax: 1.5, // count / ratios: load-time quality and density limits
   indexCell: 32, probe: 2.5, // m: spatial bucket and footprint/perimeter sampling interval
   axisGap: 300, axisSide: 30, axisAngle: 10, // m / m / degrees: joining unlabelled, aligned avenue fragments
+  groupYaw: 0, edgeFray: 0, yardRate: 0, // degrees / shares: opt-in grouped facades, ragged edge and rear tree markers
+  groupMin: 3, groupMax: 6, groupSetback: .85, // houses / share: group size and shared setback weight
+  kindAttempts: 2, turnHalves: 4, // attempts: smaller-model fallback; halve unsafe variation, then align to the road
+  frayMax: .12, frayHouseMax: .03, frayWaveMin: 40, frayWaveMax: 90, // shares / m: plot/house removal ceilings (keep roof density) and broad edge waves
+  frayBand: 20, frayNeighbour: 1.8, // m / ratio: exposed end band and same-row neighbour reach in plot widths
+  yardGap: 2, yardSize: 2, // m: marker clearance and marker diameter
   frontReach: 25, // m: original houses eligible to vote for a model's front face
 });
 // Only layout/rate fields are data-driven; safety budgets and obstacle margins stay fixed.
@@ -29,6 +35,9 @@ export const TOWN_FILL_FIELDS = Object.freeze({
   frontageMin: [6, 40], frontageMax: [6, 60], depth: [8, 60], laneFirst: [8, 100],
   laneEvery: [20, 160], crossEvery: [30, 300], reach: [60, 1500], start: [0, 500],
   shoreGap: [0, 200], coastSmall: [0, 500], outerStart: [0, 1400],
+  yaw: [0, 25], shift: [0, 3], setbackMin: [.5, 8], setbackMax: [.5, 8],
+  bend: [0, 8], bendWave: [40, 400], annexRate: [0, 1],
+  groupYaw: [0, 20], edgeFray: [0, 1], yardRate: [0, 1],
   houseRate: [0, 1], gardenRate: [0, 1], burntRate: [0, 1], repairRate: [0, 1],
 });
 export function townFillConfig(value) {
@@ -39,7 +48,7 @@ export function townFillConfig(value) {
     if (!range || !Number.isFinite(v) || v < range[0] || v > range[1]) throw new RangeError('Invalid town_fill field: ' + name);
   }
   const c = { ...TOWN_FILL, ...value };
-  if (c.frontageMax < c.frontageMin || c.outerStart >= c.reach ||
+  if (c.setbackMax < c.setbackMin || c.frontageMax < c.frontageMin || c.outerStart >= c.reach ||
       Math.abs(c.houseRate + c.gardenRate + c.burntRate + c.repairRate - 1) > 1e-8) throw new RangeError('Inconsistent town_fill');
   return Object.freeze(c);
 }
@@ -202,11 +211,12 @@ export function townState(rank, offset, density = 1, light = false, C = TOWN_FIL
 }
 export function prepareTownFill(data, { search = '', terrain = null } = {}) {
   const C = townFillConfig(data.meta?.town_fill);
+  const flexible = C.groupYaw > 0 || ['yaw', 'shift', 'setbackMin', 'setbackMax'].some(name => data.meta?.town_fill?.[name] !== undefined);
   const amount = townFillAmount(search); if (!amount) return null;
   const axis = townAxis(data); if (!axis || !data.houses) return null;
   terrain ||= townTerrain(data);
   const codeAt = terrain.codeAt || createSurfaceCodeAt(data.meta, data.surface), old = spatial(), facilities = spatial(), roads = spatial(C.step), laneIndex = spatial(C.step), placed = spatial();
-  const work = { ground: 0, boxChecks: 0, roadChecks: 0, candidates: 0, segments: 0, kindSkipped: 0 };
+  const work = { ground: 0, boxChecks: 0, roadChecks: 0, candidates: 0, segments: 0, kindSkipped: 0, turnAttempts: 0, edgeChecks: 0, yardChecks: 0 };
   const skipped = { existing: 0, facility: 0, road: 0, water: 0, slope: 0, cap: 0 };
   const paths = Object.assign(Object.create(null), data.patches?.paths);
   for (const [id, p] of Object.entries(data.roads || {})) paths['road:' + id] = p;
@@ -298,7 +308,7 @@ export function prepareTownFill(data, { search = '', terrain = null } = {}) {
   function rectReason(box, laneId, checkNew = true) {
     for (const b of old.at(box.x, box.z)) { work.boxChecks++; if (townBoxesOverlap(box, b, C.existingGap)) return 'existing'; }
     for (const b of facilities.at(box.x, box.z)) { work.boxChecks++; if (townBoxesOverlap(box, b, C.facilityGap)) return 'facility'; }
-    if (checkNew) for (const b of placed.at(box.x, box.z)) { work.boxChecks++; if (townBoxesOverlap(box, b, C.houseGap)) return 'existing'; }
+    if (checkNew) for (const b of placed.at(box.x, box.z)) { work.boxChecks++; if (b !== rotating && townBoxesOverlap(box, b, C.houseGap)) return 'existing'; }
     const c = Math.cos(box.rotY), s = Math.sin(box.rotY), nx = Math.ceil(box.w / C.probe), nz = Math.ceil(box.d / C.probe);
     for (let i = 0; i <= nx; i++) for (let j = 0; j <= nz; j++) {
       const u = (i / nx - .5) * box.w, v = (j / nz - .5) * box.d, x = box.x + c * u + s * v, z = box.z - s * u + c * v;
@@ -307,44 +317,66 @@ export function prepareTownFill(data, { search = '', terrain = null } = {}) {
     }
     return null;
   }
-  function choose(kindGroup, frontage, faceKey, seed, salt) {
+  const records = [], yardCandidates = [], rotations = [];
+  let rotating = null;
+  function choose(kindGroup, frontage, faceKey, seed, salt, compact = false) {
     const list = kinds[kindGroup].filter(k => {
       const bounds = houseBounds(k), face = front.axis[k.index], width = face.endsWith('x') ? bounds.max[2] - bounds.min[2] : bounds.max[0] - bounds.min[0];
       const depth = face.endsWith('x') ? bounds.max[0] - bounds.min[0] : bounds.max[2] - bounds.min[2];
       const scale = C.scaleMin + (C.scaleMax - C.scaleMin) * townHash(seed, faceKey, 31);
-      const angle = (townHash(seed, faceKey, 32) * 2 - 1) * C.yaw * Math.PI / 180;
+      const angle = flexible ? 0 : (townHash(seed, faceKey, 32) * 2 - 1) * C.yaw * Math.PI / 180;
       return (Math.abs(Math.cos(angle)) * width + Math.abs(Math.sin(angle)) * depth) * scale <= frontage - C.houseGap &&
-        (Math.abs(Math.sin(angle)) * width + Math.abs(Math.cos(angle)) * depth) * scale <= C.depth - C.setbackMax;
+        (Math.abs(Math.sin(angle)) * width + Math.abs(Math.cos(angle)) * depth) * scale <= C.depth - (flexible ? C.setbackMin : C.setbackMax);
     });
-    return list.length ? list[Math.floor(townHash(seed, faceKey, salt) * list.length)] : null;
+    if (compact) list.sort((a, b) => { const u = houseBounds(a), v = houseBounds(b); return (u.max[0] - u.min[0]) * (u.max[2] - u.min[2]) - (v.max[0] - v.min[0]) * (v.max[2] - v.min[2]) || a.index - b.index; });
+    return list.length ? list[compact ? 0 : Math.floor(townHash(seed, faceKey, salt) * list.length)] : null;
   }
-  function place(k, p, side, width, depth, laneId, seed, salt, rear = 0) {
+  function place(k, p, side, width, depth, laneId, seed, salt, rear = 0, group = null) {
     const scale = C.scaleMin + (C.scaleMax - C.scaleMin) * townHash(seed, salt, 31), face = front.axis[k.index];
     const desired = Math.atan2(-p.dx * side, p.dz * side), local = face === '+x' ? 0 : face === '-x' ? Math.PI : face === '+z' ? Math.PI / 2 : -Math.PI / 2;
-    const yaw = local - desired + (townHash(seed, salt, 32) * 2 - 1) * C.yaw * Math.PI / 180, c = Math.cos(yaw), s = Math.sin(yaw), body = houseBounds(k);
-    const w = (body.max[0] - body.min[0]) * scale, d = (body.max[2] - body.min[2]) * scale;
+    const variation = (townHash(seed, salt, 32) * 2 - 1) * C.yaw * Math.PI / 180;
+    const body = houseBounds(k), w = (body.max[0] - body.min[0]) * scale, d = (body.max[2] - body.min[2]) * scale;
     const nx = -p.dz * side, nz = p.dx * side, tx = p.dx, tz = p.dz;
-    const half = Math.abs(nx * c - nz * s) * w / 2 + Math.abs(nx * s + nz * c) * d / 2;
-    const alongHalf = Math.abs(tx * c - tz * s) * w / 2 + Math.abs(tx * s + tz * c) * d / 2;
-    if (alongHalf * 2 > width - C.houseGap || half * 2 + rear > depth - C.setbackMax) return null;
-    const setback = C.setbackMin + (C.setbackMax - C.setbackMin) * townHash(seed, salt, 33), shift = (townHash(seed, salt, 34) * 2 - 1) * Math.min(C.shift, width / 2 - alongHalf);
-    const box = decorateBox({ x: p.x + nx * (p.r + setback + half + rear) + tx * shift, z: p.z + nz * (p.r + setback + half + rear) + tz * shift, w, d, rotY: yaw });
-    // A free perimeter prevents an isolated new rectangle from closing an existing narrow passage.
-    const safety = { ...box, w: w + 2 * C.houseGap, d: d + 2 * C.houseGap };
-    const why = rectReason(safety, laneId); if (why) { skipped[why]++; return null; }
-    if (additions.length >= C.houseMax || farEnabled && farTriangles + C.farHouseTriangles > HOUSE_FAR.triangles) { skipped.cap++; return null; }
-    const u = (body.min[0] + body.max[0]) / 2 * scale, v = (body.min[2] + body.max[2]) / 2 * scale;
-    const matrix = [c * scale, 0, -s * scale, 0, 0, scale, 0, 0, s * scale, 0, c * scale, 0, box.x - c * u - s * v, 0, box.z + s * u - c * v, 1];
-    additions.push({ id: nextId++, kind: k.index, matrix }); if (farEnabled) farTriangles += C.farHouseTriangles; insertBox(placed, box, C.depth + C.houseGap);
-    return { box, used: setback + half * 2 + rear };
+    const individual = townHash(seed, salt, 33), rank = group ? group.setback * C.groupSetback + individual * (1 - C.groupSetback) : individual;
+    const desiredSetback = C.setbackMin + (C.setbackMax - C.setbackMin) * rank;
+    let why = null;
+    for (let attempt = 0; attempt <= (flexible ? C.turnHalves + 1 : 0); attempt++) {
+      work.turnAttempts++;
+      const keep = attempt > C.turnHalves ? 0 : 1 / 2 ** attempt, turn = variation * keep;
+      const yaw = local - desired + turn, c = Math.cos(yaw), s = Math.sin(yaw);
+      const half = Math.abs(nx * c - nz * s) * w / 2 + Math.abs(nx * s + nz * c) * d / 2;
+      const alongHalf = Math.abs(tx * c - tz * s) * w / 2 + Math.abs(tx * s + tz * c) * d / 2;
+      if (alongHalf * 2 > width - C.houseGap || half * 2 + rear > depth - (flexible ? C.setbackMin : C.setbackMax)) continue;
+      const setback = flexible ? Math.min(C.setbackMin + (desiredSetback - C.setbackMin) * keep, depth - half * 2 - rear) : desiredSetback;
+      const shift = (townHash(seed, salt, 34) * 2 - 1) * Math.min(C.shift, width / 2 - alongHalf) * keep;
+      const box = decorateBox({ x: p.x + nx * (p.r + setback + half + rear) + tx * shift, z: p.z + nz * (p.r + setback + half + rear) + tz * shift, w, d, rotY: yaw });
+      // Check the rotated footprint and a free perimeter; rotation must not seal a narrow passage.
+      why = rectReason({ ...box, w: w + 2 * C.houseGap, d: d + 2 * C.houseGap }, laneId);
+      if (why) continue;
+      if (additions.length >= C.houseMax || farEnabled && farTriangles + C.farHouseTriangles > HOUSE_FAR.triangles) { skipped.cap++; return null; }
+      const u = (body.min[0] + body.max[0]) / 2 * scale, v = (body.min[2] + body.max[2]) / 2 * scale;
+      const matrix = [c * scale, 0, -s * scale, 0, 0, scale, 0, 0, s * scale, 0, c * scale, 0, box.x - c * u - s * v, 0, box.z + s * u - c * v, 1];
+      const item = { id: nextId++, kind: k.index, matrix };
+      additions.push(item); if (farEnabled) farTriangles += C.farHouseTriangles; insertBox(placed, box, C.depth + C.houseGap);
+      const result = { box, item, turn, used: setback + half * 2 + rear };
+      if (group) rotations.push({ result, base: local - desired, desired: variation + group.turn * Math.PI / 180, width, depth, p, nx, nz, tx, tz, laneId, u, v, scale });
+      return result;
+    }
+    if (why) skipped[why]++;
+    return null;
   }
   function plotsAlong(path, laneId, row) {
     const points = path.xyz_m, lengths = [0]; for (let i = 1; i < points.length; i++) lengths.push(lengths.at(-1) + Math.hypot(points[i][0] - points[i - 1][0], points[i][1] - points[i - 1][1]));
     const mini = { points: points.map(p => ({ x: p[0], z: -p[1] })), lengths };
     for (let side = -1; side <= 1; side += 2) {
-      let slot = 0;
+      let slot = 0, groupEnd = 0, groupIndex = -1, cluster = null;
       for (let start = 0; start < lengths.at(-1); slot++) {
         const seed = Math.imul(row + 1, 73856093) ^ Math.imul(slot + 1, 19349663), salt = side + 2;
+        if (C.groupYaw && slot >= groupEnd) {
+          groupIndex++;
+          groupEnd = slot + C.groupMin + Math.floor(townHash(row, side, groupIndex + 101) * (C.groupMax - C.groupMin + 1));
+          cluster = { turn: (townHash(row, side, groupIndex + 201) * 2 - 1) * C.groupYaw, setback: townHash(row, side, groupIndex + 301) };
+        }
         const width = C.frontageMin + (C.frontageMax - C.frontageMin) * townHash(seed, salt, 1), along = start + width / 2; start += width;
         if (along + width / 2 > lengths.at(-1)) break;
         const p = townSample(mini, along); p.r = (path.width_m || axis.width) / 2;
@@ -361,16 +393,30 @@ export function prepareTownFill(data, { search = '', terrain = null } = {}) {
         if (axisAlong - C.depth / 2 < C.start || axisAlong + C.depth / 2 > stripEnd(signedOffset).end || axisDistance + C.depth > C.reach) continue;
         const yaw = Math.atan2(-p.dz, p.dx), box = { x: p.x - p.dz * side * (p.r + (C.depth + C.setbackMin) / 2), z: p.z + p.dx * side * (p.r + (C.depth + C.setbackMin) / 2), w: width - C.houseGap, d: C.depth - C.setbackMin, rotY: yaw };
         work.candidates++;
-        const why = rectReason(box, laneId, false); if (why) { skipped[why]++; continue; }
         const rank = townHash(seed, salt, 3), state = townState(rank, axisDistance, amount, light, C);
+        // Opt-in facade variation may use a partly obstructed plot if the actual house and
+        // its free perimeter fit. Empty plots still reserve their complete ground rectangle.
+        if (!flexible || state !== 'house') {
+          const why = rectReason(box, laneId, false); if (why) { skipped[why]++; continue; }
+        }
+        const first = additions.length; let main = null;
         if (state === 'house') {
           const coastal = stripEnd(signedOffset).beach - axisAlong <= C.coastSmall, type = townHash(seed, salt, 4), group = coastal ? 'koya' : type < C.machiyaRate ? 'machiya' : type < C.machiyaRate + C.koyaRate ? 'koya' : 'kura';
           const k = choose(group, width, salt, seed, 5); if (!k) { work.kindSkipped++; continue; }
-          const main = place(k, p, side, width, C.depth, laneId, seed, salt); if (!main) continue;
+          main = place(k, p, side, width, C.depth, laneId, seed, salt, 0, cluster);
+          if (!main && flexible && C.kindAttempts > 1) {
+            const compact = choose(group, width, salt, seed, 5, true);
+            if (compact && compact !== k) main = place(compact, p, side, width, C.depth, laneId, seed, salt, 0, cluster);
+          }
+          if (!main) continue;
           const free = C.depth - main.used;
           if (free >= C.annexSpace && townHash(seed, salt, 6) < C.annexRate) {
             const annex = choose(coastal || townHash(seed, salt, 7) < .5 ? 'koya' : 'kura', width, salt, seed, 8);
-            if (annex) place(annex, p, side, width, C.depth, laneId, seed, salt + 100, main.used + C.houseGap);
+            if (annex) place(annex, p, side, width, C.depth, laneId, seed, salt + 100, main.used + C.houseGap, cluster);
+          }
+          if (C.yardRate && additions.length === first + 1 && townHash(seed, salt, 9) < C.yardRate) {
+            const distance = main.used + C.yardGap + C.yardSize / 2;
+            if (distance + C.yardSize / 2 <= C.depth) yardCandidates.push({ record: records.length, x: p.x - p.dz * side * (p.r + distance), z: p.z + p.dx * side * (p.r + distance), size: C.yardSize });
           }
         } else {
           // A garden, a burnt plot or a house under repair holds its ground. Lanes cross, so the plots of two lanes cover the same
@@ -381,18 +427,104 @@ export function prepareTownFill(data, { search = '', terrain = null } = {}) {
           if (taken) { skipped.existing++; continue; }
           insertBox(placed, { ...box, w: box.w - 2 * C.plotHold, d: box.d - 2 * C.plotHold }, C.depth + C.houseGap);
         }
-        states[state]++; plots.push(Object.freeze({ x: box.x, z: box.z, yaw, width, depth: C.depth, state, lane: laneId }));
+        states[state]++; plots.push(Object.freeze({ x: box.x, z: box.z, yaw, width, depth: C.depth, state, lane: laneId, ...(flexible && main ? { houseTurn: main.turn } : {}) }));
+        records.push({ first, end: additions.length, along: axisAlong, offset: signedOffset, lane: laneId, state, main });
       }
     }
   }
   plotsAlong({ xyz_m: axis.points.map(p => [p.x, -p.z, 0]), width_m: axis.width }, 'avenue', 0);
   let row = 1; for (const [id, p] of Object.entries(lanes)) plotsAlong(p, id, row++);
+  // Reserve every house first. Rotating an early facade must not consume a later
+  // neighbour's space and silently lower the house count. Unsafe turns fall back to
+  // the already allocated transform, so this pass never deletes a house.
+  for (const r of rotations) {
+    const { result, base, desired, width, depth, p, nx, nz, tx, tz, laneId, u, v, scale } = r;
+    const b = result.box; rotating = b;
+    for (let attempt = 0; attempt <= C.turnHalves; attempt++) {
+      work.turnAttempts++;
+      const turn = desired / 2 ** attempt, yaw = base + turn, c = Math.cos(yaw), s = Math.sin(yaw);
+      const half = Math.abs(nx * c - nz * s) * b.w / 2 + Math.abs(nx * s + nz * c) * b.d / 2;
+      const alongHalf = Math.abs(tx * c - tz * s) * b.w / 2 + Math.abs(tx * s + tz * c) * b.d / 2;
+      const oldHalf = Math.abs(nx * b.c - nz * b.s) * b.w / 2 + Math.abs(nx * b.s + nz * b.c) * b.d / 2;
+      const fromLane = (b.x - p.x) * nx + (b.z - p.z) * nz - p.r + half - oldHalf;
+      const x = b.x + nx * (half - oldHalf), z = b.z + nz * (half - oldHalf);
+      if (2 * alongHalf > width - C.houseGap || fromLane + half > depth) continue;
+      if (rectReason({ ...b, x, z, rotY: yaw, w: b.w + 2 * C.houseGap, d: b.d + 2 * C.houseGap }, laneId)) continue;
+      b.x = x; b.z = z; b.rotY = yaw; b.c = c; b.s = s; result.turn = turn;
+      const m = result.item.matrix; m[0] = m[10] = c * scale; m[2] = -s * scale; m[8] = s * scale;
+      m[12] = b.x - c * u - s * v; m[14] = b.z + s * u - c * v;
+      break;
+    }
+    rotating = null;
+  }
+  for (let i = 0; i < records.length; i++) if (C.groupYaw && records[i].main) plots[i] = Object.freeze({ ...plots[i], houseTurn: records[i].main.turn });
+  // Remove complete plots only after allocation. Earlier reservations remain conservative, so
+  // removing a plot never causes a neighbouring frontage or an avenue house to move.
+  const edge = { total: plots.length, eligible: 0, dropped: 0, fraction: 0 }, removed = new Set();
+  if (C.edgeFray && plots.length) {
+    const bands = new Map(), neighbours = plots.map(() => []), index = spatial();
+    const reach = Math.max(C.frontageMax * C.frayNeighbour, C.depth + C.laneWidth);
+    let first = Infinity, last = -Infinity;
+    records.forEach((r, i) => {
+      first = Math.min(first, r.along); last = Math.max(last, r.along);
+      const key = Math.floor(r.along / C.frayWaveMin) * 2 + +(r.offset > 0);
+      if (!r.lane.startsWith('cross')) bands.set(key, Math.max(bands.get(key) || 0, Math.abs(r.offset)));
+      const p = plots[i]; index.add(i, p.x - reach, p.z - reach, p.x + reach, p.z + reach);
+    });
+    const candidates = [];
+    records.forEach((r, i) => {
+      const p = plots[i];
+      if (r.state === 'house') for (const j of index.at(p.x, p.z)) {
+        work.edgeChecks++;
+        if (j !== i && records[j].state === 'house' && Math.hypot(p.x - plots[j].x, p.z - plots[j].z) <= reach) neighbours[i].push(j);
+      }
+      const band = bands.get(Math.floor(r.along / C.frayWaveMin) * 2 + +(r.offset > 0));
+      const exposed = Math.abs(r.offset) >= C.outerStart || Math.abs(r.offset) >= band - C.frontageMax || r.along < first + C.frayBand || r.along > last - C.frayBand;
+      const isolated = r.state === 'house' && neighbours[i].length === 0;
+      if (r.lane === 'avenue' || Math.abs(r.offset) < C.laneFirst || !exposed && !isolated) return;
+      // Two continuous waves, not per-house coin flips: contiguous bites in an exposed edge.
+      const wave = Math.sin(r.along * 2 * Math.PI / C.frayWaveMax + r.offset * 2 * Math.PI / C.frayWaveMax) + Math.sin(r.along * 2 * Math.PI / C.frayWaveMin) / 2;
+      candidates.push({ i, wave, isolated: +isolated, outer: +(r.lane.startsWith('parallel') && Math.abs(r.offset) >= band - C.frontageMax) });
+    });
+    edge.eligible = candidates.length;
+    candidates.sort((a, b) => b.isolated - a.isolated || b.outer - a.outer || a.wave - b.wave || a.i - b.i);
+    const limit = Math.floor(edge.total * C.frayMax * C.edgeFray);
+    let removedHouses = 0;
+    const houseLimit = Math.floor(additions.length * C.frayHouseMax * C.edgeFray);
+    for (const { i } of candidates) {
+      if (removed.size >= limit) break;
+      const houseCount = records[i].end - records[i].first;
+      if (removedHouses + houseCount > houseLimit) continue;
+      // A remaining house must keep at least one remaining house beside it.
+      if (neighbours[i].some(j => !removed.has(j) && !neighbours[j].some(k => k !== i && !removed.has(k)))) continue;
+      removed.add(i); removedHouses += houseCount;
+    }
+    const removedItems = new Set();
+    for (const i of removed) { const r = records[i]; states[r.state]--; for (let j = r.first; j < r.end; j++) removedItems.add(additions[j]); }
+    for (let i = additions.length - 1; i >= 0; i--) if (removedItems.has(additions[i])) { additions.splice(i, 1); if (farEnabled) farTriangles -= C.farHouseTriangles; }
+    edge.dropped = removed.size; edge.fraction = edge.dropped / edge.total;
+  }
+  const yards = [];
+  if (C.yardRate) {
+    const boxes = spatial(), markers = spatial(), yardPaths = spatial();
+    for (const b of oldBoxes) insertBox(boxes, b, C.yardGap + C.yardSize);
+    for (const p of additions) insertBox(boxes, decorateBox(houseBox(data.houses.kinds.get(p.kind), p.matrix)), C.yardGap + C.yardSize);
+    for (const [id, p] of Object.entries({ ...paths, ...lanes })) addPath(yardPaths, p, id, C.yardGap + C.yardSize);
+    for (const candidate of yardCandidates) {
+      if (removed.has(candidate.record)) continue;
+      const { x, z, size } = candidate, gap = C.yardGap + size / 2; work.yardChecks++;
+      if (ground(x, z) || blockedBox(boxes, x, z, gap) || blockedBox(facilities, x, z, gap) || blockedRoad(yardPaths, x, z, gap)) continue;
+      if (markers.at(x, z).some(p => Math.hypot(x - p.x, z - p.z) < C.yardGap + size / 2 + p.size / 2)) continue;
+      const marker = Object.freeze({ x, z, size }); yards.push(marker);
+      markers.add(marker, x - C.yardGap - size, z - C.yardGap - size, x + C.yardGap + size, z + C.yardGap + size);
+    }
+  }
   let houses = data.houses;
   if (additions.length) {
     const countByKind = { ...houses.catalog.count_by_kind };
     for (const p of additions) { const name = houses.kinds.get(p.kind).node; countByKind[name] = (countByKind[name] || 0) + 1; }
     houses = { ...houses, instances: [...houses.instances, ...additions], catalog: { ...houses.catalog, count: houses.instances.length + additions.length, count_by_kind: countByKind } };
   }
-  return { houses, lanes: Object.freeze(lanes), townPlots: Object.freeze(plots), stats: { axis, lanes: { count: Object.keys(lanes).length, length: laneLength }, plots: states,
-    houses: { before: data.houses.instances.length, added: additions.length, skipped }, front, work: { ...work, farTriangles } } };
+  return { houses, lanes: Object.freeze(lanes), townPlots: Object.freeze(plots.filter((_, i) => !removed.has(i))), yards: Object.freeze(yards), stats: { axis, lanes: { count: Object.keys(lanes).length, length: laneLength }, plots: states,
+    houses: { before: data.houses.instances.length, added: additions.length, skipped }, front, edge, yards: yards.length, annexes: records.reduce((n, r, i) => n + (removed.has(i) ? 0 : Math.max(0, r.end - r.first - 1)), 0), work: { ...work, farTriangles } } };
 }
