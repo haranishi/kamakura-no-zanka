@@ -133,8 +133,9 @@ export function createKamakuraProps(context, options = {}) {
           if (debug) color.set('#e12ae8');
           // The instance colour multiplies the slab's own grey. Parent (real Chrome): a moss colour written here as a colour of
           // its own came out near black (a grey-green times a grey), and one edge slab in six read as a hole in the paving.
-          // A tint relative to the stone instead: less red and blue, a little more green.
-          else if (p.edge && p.age < .3) color.setRGB(.75, 1.06, .65).multiplyScalar(.9 + p.age * .2);
+          // A tint relative to the stone instead: less red and blue, a little more green. The first tint (.75, 1.06, .65)
+          // then read as whole slabs painted green, in a checker with the grey ones; moss is a cast on the stone, so it is weaker.
+          else if (p.edge && p.age < .3) color.setRGB(.88, 1, .76).multiplyScalar(.9 + p.age * .2);
           else color.setScalar(.8 + p.age * .34);   // each slab its own wear: a wider spread than the other stones
         }
         else if (s.type === 'cloth') color.set(p.variant ? '#a84734' : '#e0d8c5');

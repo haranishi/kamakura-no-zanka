@@ -134,11 +134,11 @@ export async function bootKamakura(data, search) {
       try {
         // House exclusions also apply when the houses are hidden for comparison.
         const prepared = prepareVeg(data.veg, t, { boxes: [...houseExclusions, ...facilityExclusions], paths: kamakuraPaths(data) || {}, spawn });
-        trees = buildKamakuraVeg(prepared, { wind, sunDir: atmosphere.sunDir, quality, renderer, search }); // W2c-9r1 veg: vtrunk A/B.
+        trees = buildKamakuraVeg(prepared, { wind, sunDir: atmosphere.sunDir, quality, renderer, search, foliage: atmosphere.atmosphere?.params.foliage }); // W2c-9r1 veg: vtrunk A/B.
         scene.add(trees.group);
         if (standsEnabled(search)) {
           standPrepared = prepareStands(data.veg, t, { boxes: [...houseExclusions, ...facilityExclusions], paths: kamakuraPaths(data) || {}, spawn, preparedVeg: prepared, search }, standPolicy(quality));
-          treeOptions = { wind, sunDir: atmosphere.sunDir, quality, renderer, search };
+          treeOptions = { wind, sunDir: atmosphere.sunDir, quality, renderer, search, foliage: atmosphere.atmosphere?.params.foliage };
         }
       } catch { vegNotice = '木を準備できませんでした。木なしで散策を続けます'; }
     }

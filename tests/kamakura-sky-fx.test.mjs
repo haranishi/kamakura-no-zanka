@@ -39,7 +39,8 @@ test('golden is complete, normalized WSW at 21.74 degrees; R9 presets are unchan
   for(const t of Object.keys(old))assert.equal(digest(JSON.stringify(KAMAKURA_TIMES[t])),old[t]);
   assert.equal(atmosphereOptions('?time=golden').time,'golden');
   const g=validateAtmosphere(KAMAKURA_TIMES.golden);
-  assert.deepEqual(Object.keys(g).sort(),Object.keys(KAMAKURA_TIMES.noon).sort());
+  // The low sun alone carries a gain for leaf colours (kamakura-atmosphere.js); every other key is shared with noon.
+  assert.deepEqual(Object.keys(g).filter(k=>k!=='foliage').sort(),Object.keys(KAMAKURA_TIMES.noon).sort());assert.equal(g.foliage.length,3);assert(!('foliage' in KAMAKURA_TIMES.noon));
   assert(Math.abs(Math.hypot(...g.sunDir)-1)<1e-12);assert(Math.abs(Math.asin(g.sunDir[1])*180/Math.PI-21.74)<.1);
   assert(g.sunDir[0]<0 && g.sunDir[2]>0);assert(Math.abs(g.sunDir[0])>g.sunDir[2]);
   const copied=kamakuraAtmosphere('golden',{});assert.equal(copied.hemiSky,g.hemiSky);

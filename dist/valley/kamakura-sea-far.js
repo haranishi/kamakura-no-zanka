@@ -24,6 +24,8 @@ export const SEA3 = Object.freeze({
   // Seen in real Chrome: with 12/45/120 the whole visible sea (300 m offshore from a near overlook) stayed a milky pale green.
   sandMix:.16, middleDeepMix:.68, // existing sand contribution / deep absorption contribution, no new colour table.
   colorAngleStartDeg:9, colorAngleFullDeg:17, // degrees: preserve low-angle reflection, then reveal sand/depth.
+  skyCool:Object.freeze([.38,.54,.78]), // share of the horizon colour mirrored by far water facing away from the sun. Seen in real Chrome
+  // (a beach in the late afternoon): with sea2's .5/.64/.82 the far water was a pale cream that ran into the sky with no horizon line.
   debugGain:3, // diagnostic coverage amplification (no effect on normal rendering).
   debugShallow:Object.freeze([0,.8,.15]), debugDeep:Object.freeze([0,.12,.03]), // diagnostic shallow/deep green.
   debugTail:Object.freeze([0,.8,1]), debugWash:Object.freeze([1,1,0]), // diagnostic cyan tail / yellow shoreline.
@@ -67,9 +69,10 @@ const smooth = (a,b,x) => { const t=clamp((x-a)/(b-a)); return t*t*(3-2*t); };
 export const sea2Enabled = search => new URLSearchParams(search).get('sea2') !== '0';
 export const seaGrazing = cosine => 1-smooth(Math.sin(C.grazingFullDeg*Math.PI/180),Math.sin(C.grazingEndDeg*Math.PI/180),Math.abs(cosine));
 // The low sky the far water mirrors: the warm horizon towards the sun, a cooler and darker sky away from it.
-export function seaSkyTint(sunward,out=[0,0,0]) {
-  const w=clamp(sunward)**C.skySunPower;for(let i=0;i<3;i++)out[i]=C.skyCool[i]+(1-C.skyCool[i])*w;return out;
+export function seaSkyTint(sunward,out=[0,0,0],cool=C.skyCool) {
+  const w=clamp(sunward)**C.skySunPower;for(let i=0;i<3;i++)out[i]=cool[i]+(1-cool[i])*w;return out;
 }
+export const sea3SkyTint=(sunward,out=[0,0,0])=>seaSkyTint(sunward,out,S.skyCool);
 export const seaSwellGain = range => smooth(C.swellStartM,C.swellFullM,range);
 export const seaLineGain = range => smooth(C.linesStartM,C.linesFullM,range);
 export const seaLineCount = (quality='standard',step=0) => step>=3?0:quality==='light'||step>=2?C.reducedLines:C.linePositionsM.length;
@@ -278,7 +281,10 @@ vec3 sea3Color(float d){
 }
 `;
 export function sea3Fragment(fragment) {
-  return fragment.replace(SHADER_ANCHORS.pars,`${SHADER_ANCHORS.pars}\n${SEA3_GLSL}`)
+  const cool=`vec3(${C.skyCool.map(f).join(',')})`;
+  if(fragment.split(cool).length!==2)throw new Error('Sea sky anchor missing');
+  // The far water's sky away from the sun is cooler and darker with these fronts (sea3=0 keeps sea2's share).
+  return fragment.replace(cool,`vec3(${S.skyCool.map(f).join(',')})`).replace(SHADER_ANCHORS.pars,`${SHADER_ANCHORS.pars}\n${SEA3_GLSL}`)
     .replace('bool sea2Inside=', 'vec3 sea3Foam=vec3(0.0);\n      bool sea2Inside=')
     // Crossfade the complete legacy surf, not just surf6. No double exposure.
     .replace(`if(seaRange>${f(C.linesStartM)}&&sea2Inside`, `if(uSea3<.5&&seaRange>${f(C.linesStartM)}&&sea2Inside`)
