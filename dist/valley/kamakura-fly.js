@@ -7,9 +7,10 @@ export const flySpeed = (speed, steps) => clamp(speed * 1.25 ** clamp(steps, -10
 // &cam=east,north,height,bearing,pitch[,fov]: a fixed fly pose for repeatable wide shots (with &fly=1).
 // Metres and degrees. Height is above sea level, bearing is a compass bearing, positive pitch looks down.
 // &cam=overlook needs no numbers: it looks back up the avenue from above the sea, on the line through two named places.
-// Low and shallow with a long lens: the hills rise behind the town, the shrine sits a fifth from the top and the beach
-// two thirds down (tuned against the concept composition once the far field was in).
-export const OVERLOOK = Object.freeze({ far: 'tsurugaoka', near: 'wakamiya_oji', back: 2130, height: 460, pitch: 17, fov: 30 });
+// Low, close and with a long lens: the sea fills the bottom quarter, the beach houses stand in front, the avenue runs up to
+// the shrine near the top and the hills close the frame (no sky). The first version stood twice as high and half a kilometre
+// further out: it showed the whole plain like a map, with houses as dots (parent, real Chrome, against the concept composition).
+export const OVERLOOK = Object.freeze({ far: 'tsurugaoka', near: 'wakamiya_oji', back: 1680, height: 220, pitch: 14, fov: 24 });
 export function overlookPose(places, view = OVERLOOK) {
   const a = places?.find?.(p => p.id === view.far), b = places?.find?.(p => p.id === view.near);
   if (!a || !b) return null;
