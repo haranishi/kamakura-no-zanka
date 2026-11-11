@@ -1,4 +1,34 @@
-import { SUN_DISC } from './kamakura-atmosphere.js';
+import { SUN_DISC, duskAirEnabled } from './kamakura-atmosphere.js';
+export const DUSK_SEA=Object.freeze({
+  luminanceRatio:.65, blueShare:.72, // base radiance / low-sky radiance; zenith share in the fog/zenith blue-violet mix.
+  startM:60, fullM:200, // offshore metres: reveal the dusk base outside coastal foam.
+});
+// Inputs are linear RGB from the active atmosphere, never a separate water palette.
+export function duskSeaColor(zenith,fog,lowSky,out=[0,0,0]){
+  const luma=c=>.2126*c[0]+.7152*c[1]+.0722*c[2];
+  for(let i=0;i<3;i++)out[i]=fog[i]+(zenith[i]-fog[i])*DUSK_SEA.blueShare;
+  const gain=luma(lowSky)*DUSK_SEA.luminanceRatio/Math.max(.000001,luma(out));
+  for(let i=0;i<3;i++)out[i]*=gain;
+  return out;
+}
+// Run before the existing sun-path insertion: only the base is replaced, then the unchanged path is added.
+export function seaDuskFragment(fragment,search=''){
+  if(!duskAirEnabled(search))return fragment;
+  const anchor='#include <opaque_fragment>',common='#include <common>',fog='#include <fog_fragment>';
+  for(const mark of [anchor,common,fog])if(fragment.split(mark).length!==2)throw new Error('Dusk sea anchor missing: '+mark);
+  return fragment.replace(common,common+'\nuniform vec3 uDuskSea,uDuskSkyCool,uDuskSkyWarm; uniform float uDuskSkyPower;')
+    .replace(anchor,`float duskOffshore=smoothstep(${DUSK_SEA.startM.toFixed(8)},${DUSK_SEA.fullM.toFixed(8)},landDistance)*(1.0-clamp(seaFoam,0.0,1.0));
+      vec3 duskRay=normalize(vSeaWorld-cameraPosition);
+      float duskFacing=dot(normalize(duskRay.xz+vec2(0.00001)),normalize(SUN_DIR_W.xz))*0.5+0.5;
+      vec3 duskSky=mix(uDuskSkyCool,uDuskSkyWarm,pow(max(0.0,duskFacing),uDuskSkyPower));
+      float duskSkyGain=dot(duskSky,vec3(.2126,.7152,.0722))/max(.000001,dot(uDuskSkyCool,vec3(.2126,.7152,.0722)));
+      outgoingLight=mix(outgoingLight,uDuskSea*duskSkyGain,duskOffshore);
+      ${anchor}`)
+    // Infinite offshore water must not fog back to the pale low sky; retain the already-added reflection.
+    .replace(fog,`vec3 duskBeforeFog=gl_FragColor.rgb;
+      ${fog}
+      gl_FragColor.rgb=mix(gl_FragColor.rgb,duskBeforeFog,duskOffshore);`);
+}
 // W2c-18 seaedge: pure mirrors and shader additions; colours come from shore4's deep band.
 import { seaColor4, seaBand4, SEA_BANDS4 } from './kamakura-shore-r4.js';
 import { SEA_PALETTE, shoreNoise, SHELTER, SWELL, shelteredEdgeFoam } from './kamakura-shore.js';

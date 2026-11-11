@@ -155,7 +155,7 @@ function postRenderer(){
 }
 function renderMist(data){
   const terrain=createKamakuraTerrain(data),renderer=postRenderer();
-  const post=createKamakuraPost({renderer,terrain,search:'?shafts=0&cloud=0',params:KAMAKURA_TIMES.golden,now:()=>0});
+  const post=createKamakuraPost({renderer,terrain,search:'?shafts=0&cloud=0&mistsky=1',params:KAMAKURA_TIMES.golden,now:()=>0});
   try{
     const scene=new H.THREE.Scene(),camera=new H.THREE.PerspectiveCamera();
     post.render(scene,camera);assert.equal(renderer.final.uniforms.mistReady.value,0);

@@ -5,6 +5,7 @@ import { validateLights } from './kamakura-lamps.js';
 import { validateSea } from './kamakura-shore.js';
 import { decodeWorks, worksEnabled } from './kamakura-works.js';
 import { validateMist } from './kamakura-mist.js';
+import { validateWisps } from './kamakura-wisp.js';
 import { validateBackdrop } from './kamakura-backdrop.js';
 import { prepareAvenue } from './kamakura-avenue.js';
 import { overlookConfig } from './kamakura-fly.js';
@@ -42,6 +43,7 @@ export function validateMeta(m) {
   housePolicy(m.house_policy);
   validateSea(m.sea);
   validateMist(m.mist);
+  validateWisps(m.wisps);
   validateFires(m.fires, m);
   validateBackdrop(m.backdrop);
   validateHorizon(m.horizon);

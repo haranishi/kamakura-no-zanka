@@ -1,10 +1,10 @@
-import { seaDiscFragment, sea4Fragment, seaSurfScaleFragment, sea4GlitterEnabled, seaShelterFragment, SEA3, sea3Enabled, sea3Count, sea3Fragment, SEA_FAR, sea2Enabled, seaGrazing, seaSwellGain, seaLineCount, seaFarFragment } from './kamakura-sea-far.js';
+import { duskSeaColor, seaDuskFragment, seaDiscFragment, sea4Fragment, seaSurfScaleFragment, sea4GlitterEnabled, seaShelterFragment, SEA3, sea3Enabled, sea3Count, sea3Fragment, SEA_FAR, sea2Enabled, seaGrazing, seaSwellGain, seaLineCount, seaFarFragment } from './kamakura-sea-far.js';
 import { shore6Enabled, SHORE_R6_GLSL } from './kamakura-shore-r6.js';
 import { shore4Enabled, SHORE_R4_GLSL } from './kamakura-shore-r4.js';
 import * as THREE from 'three';
 import { SHELTER, shelterEnabled, swellEnabled, createSignedShoreJob, registerShoreView, unregisterShoreView, SHORE_GLSL, SEA_PALETTE, SEA_CHROMA, BREAKERS, wetReachAt, shore2Enabled, shore3Enabled } from './kamakura-shore.js';
 import { ATMOS } from './atmosphere.js';
-import { atmosphereOptions, kamakuraAtmosphere, eveningEnabled, visualSun, sunPlace, SUN_DISC } from './kamakura-atmosphere.js';
+import { atmosphereOptions, kamakuraAtmosphere, eveningEnabled, visualSun, sunPlace, SUN_DISC, duskAirEnabled } from './kamakura-atmosphere.js';
 import { waveEnvelope } from './kamakura-sea-audio.js';
 import { buildBankWet } from './kamakura-bank-wet.js';
 import { prepareRivers, waterEnabled } from './kamakura-rivers.js';
@@ -12,7 +12,7 @@ import { buildShoreProps } from './kamakura-shore-props.js';
 const SHORE_FRAME_BUDGET_MS=3; // original budget when shelter=0
 // W2c-9e2: coarse unsigned coast -> sub-cell signed surf and atmosphere-derived sea.
 export function buildKamakuraSea(terrain, data, {search='',quality='standard',sunDir=new THREE.Vector3(.5,.17,.85),disc=undefined}={}) {
-  const sunPath=new URLSearchParams(search).get('sunpath2')!=='0';
+  const sunPath=new URLSearchParams(search).get('sunpath2')!=='0',duskSea=duskAirEnabled(search);
   const shelter=shelterEnabled(search),swell=data.meta?.sea?.swell_from_deg!==undefined&&swellEnabled(search),withOpen=shelter||swell;
   const sea2=sea2Enabled(search)&&new URLSearchParams(search).get('seav')!=='0';
   const sea3=sea2&&sea3Enabled(search),sea3Colors=new URLSearchParams(search).get('sea3debug')==='1';
@@ -236,9 +236,18 @@ export function buildKamakuraSea(terrain, data, {search='',quality='standard',su
       material.onBeforeCompile=shader=>{legacyCompile(shader);shader.fragmentShader=seaFarFragment(shader.fragmentShader);if(sea3)shader.fragmentShader=sea3Fragment(shader.fragmentShader);if(sea4)shader.fragmentShader=sea4Fragment(shader.fragmentShader);if(data.meta?.sea?.surf_scale!==undefined)shader.fragmentShader=seaSurfScaleFragment(shader.fragmentShader,{sea3});};
     }
     if(withOpen){const compile=material.onBeforeCompile;material.onBeforeCompile=shader=>{compile(shader);shader.fragmentShader=seaShelterFragment(shader.fragmentShader,{sea2,sea3,...(swell?{swell:true}:{})});};}
+    if(duskSea){
+      const color=duskSeaColor(new THREE.Color(sky.zenith).toArray(),new THREE.Color(sky.fogColor).toArray(),new THREE.Color(sky.hazeCool??sky.fogColor).toArray());
+      u.uDuskSea={value:new THREE.Color().fromArray(color)};
+      u.uDuskSkyCool={value:new THREE.Color(sky.hazeCool??sky.fogColor)};
+      u.uDuskSkyWarm={value:new THREE.Color(sky.hazeWarm??sky.fogColor)};
+      u.uDuskSkyPower={value:sky.hazeExp};
+      const compile=material.onBeforeCompile;
+      material.onBeforeCompile=shader=>{compile(shader);Object.assign(shader.uniforms,{uDuskSea:u.uDuskSea,uDuskSkyCool:u.uDuskSkyCool,uDuskSkyWarm:u.uDuskSkyWarm,uDuskSkyPower:u.uDuskSkyPower});shader.fragmentShader=seaDuskFragment(shader.fragmentShader,search);};
+    }
     if(disc){const compile=material.onBeforeCompile;material.onBeforeCompile=shader=>{compile(shader);shader.fragmentShader=seaDiscFragment(shader.fragmentShader.replace('#include <common>','#include <common>\nuniform float uDiscPath; uniform float uDiscPathDebug; uniform float uDiscPathDetail;'),{path:sunPath});};}
     const legacyCacheKey=()=> swell?'kamakura-sea-19-swell-'+(+shelter)+(+sea2)+(+sea3):shelter?'kamakura-sea-19-shelter-'+(+sea2)+(+sea3):sea3?'kamakura-sea-19-foam':sea2?'kamakura-sea-18-far':'kamakura-sea-11-shore6';
-    material.customProgramCacheKey=()=>legacyCacheKey()+(sea2&&data.meta?.sea?.surf_scale!==undefined?'-surf-scale':'')+(disc?'-disc'+(sunPath?'-path2':''):'');
+    material.customProgramCacheKey=()=>legacyCacheKey()+(sea2&&data.meta?.sea?.surf_scale!==undefined?'-surf-scale':'')+(disc?'-disc'+(sunPath?'-path2':''):'')+(duskSea?'-dusk-sea':'');
   }
   return {group,mesh,uniforms:u,textures,jobs,props,bank,get preparedShore(){return jobIndex>=jobs.length;},
     update(dt,pos,audioTime) {
