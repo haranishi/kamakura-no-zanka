@@ -12,7 +12,10 @@ export function createKamakuraAvenue(context) {
   const toriiData = avenueToriiGeometry(plan, pigment), bermData = avenueBerm(plan, context.terrain);
   function mesh(buffers, name, color, shadow) {
     const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(buffers.positions, 3));
-    g.setAttribute('color', new THREE.BufferAttribute(buffers.colors, 3)); g.computeVertexNormals(); g.computeBoundingBox(); g.computeBoundingSphere();
+    g.setAttribute('color', new THREE.BufferAttribute(buffers.colors, 3));
+    // The bank brings its own normals (shared along its section, so it shades as a rounded bank); the torii is faceted.
+    if (buffers.normals) g.setAttribute('normal', new THREE.BufferAttribute(buffers.normals, 3)); else g.computeVertexNormals();
+    g.computeBoundingBox(); g.computeBoundingSphere();
     const settings = { vertexColors: !debug, side: THREE.DoubleSide, fog: !debug };
     const m = debug ? new THREE.MeshBasicMaterial({ ...settings, color, toneMapped: false }) : new THREE.MeshLambertMaterial(settings);
     m.forceSinglePass = true;
