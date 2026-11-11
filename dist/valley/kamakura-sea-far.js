@@ -17,7 +17,7 @@ export const SEA4=Object.freeze({
   glitterLow:.76,glitterHigh:.88,glitterMean:.072, // smooth threshold and unresolved mean of the same noise.
   // The lobe was wide (exponent 3): with the sun to one side, flecks covered the whole sea in view and read as white specks all over.
   // At 6 they gather towards the sun and thin out across the frame.
-  glitterStrength:1.5,glitterPower:6,glitterWhite:.6, // gain on the fleck colour / reflection lobe exponent / share of white in that colour.
+  glitterStrength:1.15,glitterPower:13,glitterWhite:.6, // gain on the fleck colour / reflection lobe exponent / share of white in that colour.
   filterStart:.5,filterEnd:1, // footprint / cell size: average subpixel holes and flecks.
 });
 export const SEA3 = Object.freeze({
