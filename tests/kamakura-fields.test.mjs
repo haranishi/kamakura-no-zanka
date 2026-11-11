@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createFieldMap, createFieldCell, stepFieldCell, fieldOptions, FIELD_KINDS, FIELD_DENSITIES, FIELDS, fieldLodScale } from '../dist/valley/kamakura-fields.js';
+import { createFieldMap, createFieldCell, stepFieldCell, fieldOptions, fieldMapDensity, FIELD_MAP_DENSITY, FIELD_KINDS, FIELD_DENSITIES, FIELDS, fieldLodScale } from '../dist/valley/kamakura-fields.js';
 import { buildColliders } from '../dist/valley/collision.js';
 
 const habitat=(weights={})=>({at(x,z,out){Object.assign(out,{meadow:1,forest:0,sand:0,town:0,bare:0,temple:0},weights);return out;}});
@@ -88,4 +88,11 @@ test('all species scale with the clump density table, strength and requested den
     counts.push({kind:FIELD_KINDS[kind],strength,density,count});
   }
   t.diagnostic(JSON.stringify(counts));
+});
+
+test('fields: a map may set its own wild-flower density; the address wins; bad values are rejected',()=>{
+  assert.equal(fieldMapDensity(undefined),1);assert.equal(fieldMapDensity({}),1);assert.equal(fieldMapDensity({fields:{density:.4}}),.4);
+  assert.equal(fieldMapDensity({fields:{density:.4}},'?fields=2'),1);assert.equal(fieldMapDensity({fields:{density:.4}},'?fields='),.4);
+  assert.equal(fieldMapDensity({fields:{density:FIELD_MAP_DENSITY.min}}),FIELD_MAP_DENSITY.min);assert.equal(fieldMapDensity({fields:{density:FIELD_MAP_DENSITY.max}}),FIELD_MAP_DENSITY.max);
+  for(const bad of [null,[],{},{density:0},{density:4},{density:'1'},{density:NaN},{density:.5,other:1}])assert.throws(()=>fieldMapDensity({fields:bad}),RangeError);
 });

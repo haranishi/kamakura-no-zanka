@@ -1,7 +1,7 @@
 // One opaque crossed-card mesh for all five species, receiving the ground light and shadows.
 import * as THREE from '../vendor/three.module.min.js';
 import { GUST_GLSL } from './kamakura-gust.js';
-import { FIELDS, FIELD_KINDS, FIELD_NAMES, fieldOptions, createFieldMap, createFieldCell, stepFieldCell } from './kamakura-fields.js';
+import { FIELDS, FIELD_KINDS, FIELD_NAMES, fieldOptions, fieldMapDensity, createFieldMap, createFieldCell, stepFieldCell } from './kamakura-fields.js';
 import { fieldPlantKit, FIELD_HEIGHTS, FIELD_CARD_WIDTHS, FIELD_LEAF, FIELD_BLOOMS } from './kamakura-fields-kit.js';
 
 export const FIELD_CAPACITY = 16000;
@@ -188,6 +188,7 @@ function makePool(uniforms) {
 
 export function createKamakuraFields(context,options={}) {
   const config=fieldOptions(context.search);if(!config.enabled)return null;
+  config.density*=fieldMapDensity(context.data?.meta,context.search);
   const reduced=options.reducedMotion??globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches??false;
   const now=options.now??(()=>performance.now());
   const map=options.map??createFieldMap({...context,seed:config.seed});

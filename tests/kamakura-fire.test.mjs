@@ -229,7 +229,8 @@ test('smoke broadens 3–5 times, leans downwind 0.3–0.6 heights and agrees wi
   assert(FIRE_FRAGMENT.includes('alpha*=vData.w*'));
   assert.equal(fade({w:smokeProfile(1,160).opacity}),0);
   assert.equal(fade({w:smokeProfile(0,160).opacity}),0);
-  assert.equal(fade({w:smokeProfile(.5,160).opacity}),1);
+  // The column is whole up to the height where it begins to thin; that height stays between a quarter and three fifths of the way up.
+  assert(FIRE.smokeFadeStart>=.25&&FIRE.smokeFadeStart<=.6);assert.equal(fade({w:smokeProfile(FIRE.smokeFadeStart,160).opacity}),1);assert(fade({w:smokeProfile((1+FIRE.smokeFadeStart)/2,160).opacity})<1);
   assert(FIRE_VERTEX.indexOf('vec3 toward=uCam-origin')>FIRE_VERTEX.indexOf('origin.y+=rise'),'all sprites face the eye at their animated position');
 });
 
