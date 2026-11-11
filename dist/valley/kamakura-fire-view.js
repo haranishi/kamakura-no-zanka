@@ -1,6 +1,6 @@
 import * as THREE from '../vendor/three.module.min.js';
 import { atmosphereOptions } from './kamakura-atmosphere.js';
-import { FIRE as C, prepareFires, fireCounts, fireDayGain, FIRE_SMOKE_GLSL } from './kamakura-fire.js';
+import { FIRE as C, prepareFires, fireCounts, fireDayGain, fireRandom, emberOrigin, FIRE_SMOKE_GLSL } from './kamakura-fire.js';
 const gl=n=>Number(n).toFixed(8), rgb=a=>'vec3('+a.map(gl).join(',')+')';
 // Value noise follows opening-fire; no textures, geometry animation, clocks or random state on the CPU.
 export const FIRE_NOISE_GLSL=`
@@ -26,15 +26,18 @@ void main(){
   float vertical=kind<0.5?uv.y:uv.y-0.5;
   float width=fireSize.x,height=fireSize.y;
   if(kind>1.5&&kind<2.5){
-    vec4 plume=fireSmokeProfile(fireSize.w,fireAnchor.w,uWind);
-    origin+=vec3(plume.y,fireSize.w*fireAnchor.w,plume.z);
-    width=plume.x*2.0;height=max(width*${gl(C.smokeAspect)},fireSize.y);
+    float t=fireSize.w<0.0?-fireSize.w:fract(fireSize.w+uTime*${gl(C.smokeRise)});
+    vec4 plume=fireSmokeProfile(t,fireAnchor.w,uWind,fireSize.x,uTime,fireSeed.y);
+    vData.w=plume.w/${gl(C.smokeDensity)};
+    origin+=vec3(plume.y,t*fireAnchor.w,plume.z);
+    width=plume.x*2.0*(1.0+${gl(C.smokePuffVariation)}*sin(fireSeed.x*31.7));height=max(width*${gl(C.smokeAspect)},fireSize.y);
   }
   if(kind>2.5){
-    float life=fract(uTime*${gl(C.emberSpeed)}+fireSeed.x);
-    origin.y+=life*${gl(C.emberHeightM)};
-    origin.xz+=uWind*life*${gl(C.emberHeightM*C.emberWind)};
-    origin.xz+=vec2(sin(life*8.0+fireSeed.x*31.0),cos(life*6.0+fireSeed.x*17.0))*life*2.0;
+    float life=fract(uTime*${gl(C.emberSpeed)}*(1.0+${gl(C.emberSpeedVariation)}*fireSize.w)+fireSeed.x);
+    float rise=life*${gl(C.emberHeightM)}*(1.0+${gl(C.emberHeightVariation)}*fireSize.w);
+    float phase=fireSeed.x*${gl(Math.PI*2)},turn=life*${gl(C.emberTurns*Math.PI*2)};
+    origin.y+=rise;origin.xz+=uWind*rise*${gl(C.emberWind)};
+    origin.xz+=vec2(sin(turn+phase)-sin(phase),cos(turn+phase)-cos(phase))*life*${gl(C.emberSwirlM)};
     vData.w=sin(life*3.14159265);width*=vData.w;height*=vData.w;
   }
   vec3 toward=uCam-origin;
@@ -49,7 +52,7 @@ void main(){
 export const FIRE_FRAGMENT=`
 uniform float uTime,uDay,uPaint;
 uniform vec2 uFog;
-uniform vec3 uFogColor,uSmoke,uSmokeLit;
+uniform vec3 uFogColor,uSmoke,uSmokeLit,uSmokeTop;
 varying vec2 vUv;
 varying vec4 vData;
 varying float vDepth,vPlume;
@@ -62,15 +65,17 @@ void main(){
   vec2 q=(vUv-0.5)*2.0;
   if(kind>1.5&&kind<2.5){
     float n=fireFbm(q*${gl(C.smokeNoiseScale)}+vec2(seed,seed*0.71-uTime*${gl(C.smokeRise)}));
-    float edge=1.0-length(q)+(n-0.5)*${gl(C.smokeEdge)};
-    float alpha=smoothstep(0.0,0.4,edge)*fireSmokeProfile(vPlume,1.0,vec2(0.0)).w;
-    alpha*=smoothstep(0.0,0.035,vPlume)*mix(0.65,1.0,n)*fog;
-    vec3 color=mix(uSmokeLit,uSmoke,smoothstep(0.0,0.23,vPlume));
-    if(uPaint>0.5){color=${rgb(new THREE.Color(C.debugSmoke).toArray())};alpha=smoothstep(0.0,0.25,edge)*0.75;}
+    float edge=1.0-length(q)-n*${gl(C.smokeEdge)};
+    float alpha=smoothstep(0.0,${gl(C.smokeEdgeSoft)},edge)*fireSmokeProfile(vPlume,1.0,vec2(0.0),0.0,uTime,vData.y).w;
+    alpha*=vData.w*mix(${gl(C.smokeDetailKeep)},1.0,n)*fog;
+    vec3 color=mix(uSmokeLit,uSmoke,smoothstep(0.0,${gl(C.smokeLitEnd)},vPlume));
+    color=mix(color,uSmokeTop,smoothstep(${gl(C.smokeTopStart)},1.0,vPlume));
+    if(uPaint>0.5)color=${rgb(new THREE.Color(C.debugSmoke).toArray())};
     gl_FragColor=vec4(mix(uFogColor,color,fog),alpha);return;
   }
   vec3 color;float amount;
   if(kind>2.5){color=${rgb(C.flameCore)};amount=(1.0-smoothstep(0.1,1.0,length(q)))*vData.w;
+    amount*=1.0-${gl(C.emberTwinkleAmount)}+${gl(C.emberTwinkleAmount)}*sin(uTime*${gl(C.emberTwinkleHz*2*Math.PI)}*(1.0+vData.x)+seed);
     if(uPaint>0.5)color=${rgb(new THREE.Color(C.debugEmber).toArray())};
   }else if(kind>0.5){float r=length(q);amount=exp(-r*r*3.2)*(1.0-smoothstep(0.75,1.0,r))*${gl(C.glowGain)};
     color=${rgb(C.glowColor)};if(uPaint>0.5)color=${rgb(new THREE.Color(C.debugGlow).toArray())};
@@ -92,12 +97,29 @@ void main(){
 export const FIRE_POOL_VERTEX=`
 attribute vec2 fireUv;
 attribute float firePower;
-varying vec2 vUv;varying float vPower,vDepth;
-void main(){vUv=fireUv;vPower=firePower;vec4 mv=modelViewMatrix*vec4(position,1.0);vDepth=-mv.z;gl_Position=projectionMatrix*mv;}`;
+attribute float fireSource;
+varying vec2 vUv;varying float vPower,vDepth,vSource;
+void main(){vUv=fireUv;vPower=firePower;vSource=fireSource;vec4 mv=modelViewMatrix*vec4(position,1.0);vDepth=-mv.z;gl_Position=projectionMatrix*mv;}`;
 export const FIRE_POOL_FRAGMENT=`
-uniform float uDay,uPaint;uniform vec2 uFog;
-varying vec2 vUv;varying float vPower,vDepth;
-void main(){float r=length(vUv);float a=exp(-r*r*2.4)*(1.0-smoothstep(0.7,1.0,r));
+uniform float uDay,uPaint,uTime;uniform vec2 uFog;
+uniform vec4 uPoolBlocks[${C.maxSources*C.housesMax}];
+uniform vec2 uPoolTurns[${C.maxSources*C.housesMax}];
+uniform float uPoolPhases[${C.maxSources}];
+varying vec2 vUv;varying float vPower,vDepth,vSource;
+void main(){float r=length(vUv);float a=exp(-r*r*${gl(C.poolFalloff)})*(1.0-smoothstep(${gl(C.poolEdgeStart)},1.0,r));
+float occlusion=1.0;
+for(float j=0.0;j<${gl(C.housesMax)};j+=1.0){
+  int slot=int(vSource+0.5)*int(${gl(C.housesMax)})+int(j);vec4 b=uPoolBlocks[slot];vec2 rot=uPoolTurns[slot];
+  vec2 c=vec2(rot.x*b.x-rot.y*b.y,rot.y*b.x+rot.x*b.y);
+  vec2 ray=vec2(rot.x*vUv.x-rot.y*vUv.y,rot.y*vUv.x+rot.x*vUv.y);
+  if(b.z<=0.0||(abs(c.x)<=b.z&&abs(c.y)<=b.w))continue;
+  ray=vec2(abs(ray.x)<${gl(C.poolRayEpsilon)}?${gl(C.poolRayEpsilon)}:ray.x,abs(ray.y)<${gl(C.poolRayEpsilon)}?${gl(C.poolRayEpsilon)}:ray.y);
+  vec2 t0=(c-b.zw)/ray,t1=(c+b.zw)/ray;
+  vec2 lo=min(t0,t1),hi=max(t0,t1);
+  float enter=max(max(lo.x,lo.y),0.0),exit=min(hi.x,hi.y);
+  occlusion=min(occlusion,1.0-${gl(1-C.poolShadowKeep)}*smoothstep(0.0,${gl(C.poolShadowSoft)},min(1.0,exit)-enter));
+}
+a*=occlusion*(1.0+${gl(C.poolFlickerAmount)}*sin(uTime*${gl(C.poolFlickerHz*2*Math.PI)}+uPoolPhases[int(vSource+0.5)]));
 vec3 color=${rgb(C.flameLow)};if(uPaint>0.5)color=${rgb(new THREE.Color(C.debugPool).toArray())};
 float fog=max(${gl(C.fogKeep)},exp(-max(0.0,vDepth-uFog.x)/max(uFog.y,1.0)));
 gl_FragColor=vec4(color*a*vPower*${gl(C.poolGain)}*uDay*fog,1.0);}`;
@@ -124,17 +146,25 @@ export function createKamakuraFire(context) {
   const uniforms={uTime:{value:0},uCam:{value:new THREE.Vector3().copy(context.camera.position)},uWind:{value:new THREE.Vector2()},
     uDay:{value:fireDayGain(atmosphereOptions(context.search).time)},uPaint:{value:paint?1:0},
     uFog:{value:new THREE.Vector2(fog?.near||0,fog?.far||(fog?.density?1/fog.density:C.fogReachM))},
-    uFogColor:{value:new THREE.Color(sky)},uSmoke:{value:new THREE.Color(C.smokeDark).lerp(sky,C.smokeSkyMix)},
-    uSmokeLit:{value:new THREE.Color(C.smokeDark).lerp(new THREE.Color().fromArray(C.glowColor),C.smokeLitMix)}};
+    uFogColor:{value:new THREE.Color(sky)},uSmoke:{value:new THREE.Color(C.smokeDark).lerp(sky,C.smokeMidMix)},
+    uSmokeTop:{value:new THREE.Color(C.smokeDark).lerp(sky,C.smokeSkyMix)},
+    uSmokeLit:{value:new THREE.Color(C.smokeDark).lerp(new THREE.Color().fromArray(C.glowColor),C.smokeLitMix)},
+    uPoolBlocks:{value:Array.from({length:C.maxSources*C.housesMax},()=>new THREE.Vector4())},
+    uPoolTurns:{value:Array.from({length:C.maxSources*C.housesMax},()=>new THREE.Vector2())},
+    uPoolPhases:{value:new Float32Array(C.maxSources)}};
   const flame=spriteBatch(C.maxBoards,uniforms,false,'kamakura-fire-flame-glow'),smoke=spriteBatch(C.maxSources*C.smokeCounts[0],uniforms,true,'kamakura-fire-smoke'),
     ember=spriteBatch(C.maxSources*C.emberMax,uniforms,false,'kamakura-fire-ember');
   // A small grid follows actual ground height, so the glow is not a flat disc floating on slopes.
-  const positions=[],uvs=[],powers=[],indices=[],segments=C.poolSegments;
+  const positions=[],uvs=[],powers=[],sourceIds=[],indices=[],segments=C.poolSegments;
   for(const s of prepared.sources){
     const radius=C.poolMinM+(C.poolMaxM-C.poolMinM)*s.strength,base=positions.length/3;
+    uniforms.uPoolPhases.value[s.index]=s.seed*Math.PI*2;
+    s.houses.forEach((h,j)=>{if(h.ground)return;const slot=s.index*C.housesMax+j;
+      uniforms.uPoolBlocks.value[slot].set((h.x-s.x)/radius,(h.z-s.z)/radius,h.w/2/radius,h.d/2/radius);
+      uniforms.uPoolTurns.value[slot].set(Math.cos(h.rotY),Math.sin(h.rotY));});
     for(let row=0;row<=segments;row++)for(let col=0;col<=segments;col++){
       const u=col/segments*2-1,v=row/segments*2-1,x=s.x+u*radius,z=s.z+v*radius;
-      positions.push(x,context.terrain.heightAt(x,z)+C.poolLiftM,z);prepared.work.terrainSamples++;uvs.push(u,v);powers.push(s.strength);
+      positions.push(x,context.terrain.heightAt(x,z)+C.poolLiftM,z);prepared.work.terrainSamples++;uvs.push(u,v);powers.push(s.strength);sourceIds.push(s.index);
     }
     for(let row=0;row<segments;row++)for(let col=0;col<segments;col++){
       const a=base+row*(segments+1)+col,b=a+segments+1;indices.push(a,b,a+1,a+1,b,b+1);
@@ -142,6 +172,7 @@ export function createKamakuraFire(context) {
   }
   const poolGeometry=new THREE.BufferGeometry();poolGeometry.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));
   poolGeometry.setAttribute('fireUv',new THREE.Float32BufferAttribute(uvs,2));poolGeometry.setAttribute('firePower',new THREE.Float32BufferAttribute(powers,1));poolGeometry.setIndex(indices);
+  poolGeometry.setAttribute('fireSource',new THREE.Float32BufferAttribute(sourceIds,1));
   const pool=new THREE.Mesh(poolGeometry,new THREE.ShaderMaterial({uniforms,vertexShader:FIRE_POOL_VERTEX,fragmentShader:FIRE_POOL_FRAGMENT,
     transparent:true,depthWrite:false,side:THREE.DoubleSide,blending:THREE.AdditiveBlending,toneMapped:false}));pool.name='kamakura-fire-pool';pool.renderOrder=4;pool.frustumCulled=false;
   const light=new THREE.PointLight(new THREE.Color().fromArray(C.glowColor),0,C.pointRangeM,2);light.name='kamakura-fire-light';light.castShadow=false;light.visible=false;
@@ -165,10 +196,15 @@ export function createKamakuraFire(context) {
       }
       const r=s.radius*(C.glowRadiusMin+(C.glowRadiusMax-C.glowRadiusMin)*s.strength);
       put(flame,s.x,s.y+C.flameMinM,s.z,0,r*2,r*2,1,0,(i+1)*.17,s.strength);
-      for(let k=0;k<n.smoke;k++)put(smoke,s.x,s.y,s.z,s.smokeHeight,0,s.smokeHeight/n.smoke*C.smokeOverlap,2,k/(n.smoke-1),(i*17+k+1)*.193,s.strength);
+      for(let k=0;k<n.smoke;k++){
+        // A root puff stays over the roofs while the other puffs rise and recycle invisibly.
+        const phase=k===0?-C.smokeRootHeight:(k-1+fireRandom((i+1)*4099+k,5)*C.smokeSpacingJitter)/(n.smoke-1);
+        put(smoke,s.x,s.y,s.z,s.smokeHeight,s.seed,s.smokeHeight/n.smoke*C.smokeOverlap,2,phase,fireRandom((i+1)*4099+k,6),s.strength);
+      }
+      const origin={};
       for(let k=0;k<n.embers;k++){
-        const angle=k*2.39996323,radius=s.radius*Math.sqrt((k+.5)/n.embers);
-        put(ember,s.x+Math.cos(angle)*radius,s.y+C.flameMinM,s.z+Math.sin(angle)*radius,0,C.emberSizeM,C.emberSizeM,3,0,(k*.61803399+i*.37)%1,s.strength);
+        emberOrigin(s,k,origin);
+        put(ember,origin.x,origin.y,origin.z,0,C.emberSizeM,C.emberSizeM,3,origin.variation,origin.phase,s.strength);
       }
     }
     for(const mesh of [flame,smoke,ember]){for(const a of Object.values(mesh.geometry.attributes))if(a.isInstancedBufferAttribute)a.needsUpdate=true;uploads+=mesh.geometry.instanceCount;}
@@ -179,6 +215,7 @@ export function createKamakuraFire(context) {
     frames++;time+=Math.max(0,frame.dt);uniforms.uTime.value=time;
     const eye=frame.camera?.position||context.camera.position;viewer.copy(eye);uniforms.uCam.value.copy(eye);
     const wind=context.wind;
+    uniforms.uWind.value.set(0,0);
     if(wind?.uWindDir){uniforms.uWind.value.copy(wind.uWindDir.value).multiplyScalar(wind.uWind?.value??1);}
     else if(frame.windDir)uniforms.uWind.value.set(frame.windDir[0],frame.windDir[1]).multiplyScalar(frame.wind??1);
     let nearest=-1,distance=C.pointNearM;

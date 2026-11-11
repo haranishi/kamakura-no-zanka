@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import * as THREE from '../dist/vendor/three.module.min.js';
-import { FIRE, FIRE_SMOKE_GLSL, fireEnabled, fireDayGain, validateFires, selectFireHouses, prepareFires, fireCounts, smokeProfile } from '../dist/valley/kamakura-fire.js';
+import { FIRE, FIRE_SMOKE_GLSL, fireEnabled, fireDayGain, validateFires, selectFireHouses, prepareFires, fireCounts, smokeProfile, emberOrigin, poolOcclusion } from '../dist/valley/kamakura-fire.js';
 import { createKamakuraFire, FIRE_VERTEX, FIRE_FRAGMENT, FIRE_POOL_VERTEX, FIRE_POOL_FRAGMENT } from '../dist/valley/kamakura-fire-view.js';
 import { createKamakuraTerrain } from '../dist/valley/kamakura-terrain.js';
 import { validateMeta } from '../dist/valley/kamakura-data.js';
@@ -63,29 +63,110 @@ test('all counts fit 700 boards; light and adaptation reduce costs without losin
     for(let step=0;step<=3;step++){
       const count=fireCounts(p,quality,step);assert(count.boards<=700);assert(count.boards<=previous);previous=count.boards;
       assert(count.sources.every(s=>s.flames>=3&&s.glows>=2&&s.smoke>=4&&s.embers>0));
-      if(quality==='standard'&&step===0)assert(count.sources.every(s=>s.embers>=20&&s.embers<=60));
+      if(quality==='standard'&&step===0)assert(count.sources.every(s=>s.embers>=20&&s.embers<=60&&s.smoke>=24&&s.smoke<=40));
       measure.push({quality,step,boards:count.boards});
     }
   }
   t.diagnostic(JSON.stringify(measure));f.layer.dispose();
 });
 
-test('smoke broadens and drifts with wind; CPU agrees with executable GLSL arithmetic and vanishes at the top',()=>{
-  const body=FIRE_SMOKE_GLSL.match(/\{([\s\S]*)\}/)[1].replace(/vec2 drift=wind/g,'let drift=wind').replace(/float (\w+)=/g,'let $1=')
-    .replace('let drift=wind*height*','let drift=windX*height*').replace('return vec4(radius,drift,','return [radius,drift,windZ*height*'+FIRE.smokeWind+'*t*t,').replace(/\);\s*$/,'];');
-  const shader=new Function('t','height','windX','windZ','clamp',body),clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
-  let last=-1;
-  for(const height of [90,160])for(const wx of [-1,0,1])for(const wz of [-.3,0,.5]){
-    last=-1;
+test('smoke broadens 3–5 times, leans downwind 0.3–0.6 heights and agrees with executable GLSL',()=>{
+  const body=FIRE_SMOKE_GLSL.match(/\{([\s\S]*)\}/)[1].replace(/float /g,'let ')
+    .replace('return vec4(', 'return [').replace(/\);\s*$/,'];');
+  const run=new Function('t','height','wind','seed','time','strength','clamp','max','length','sin',body);
+  const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+  for(const height of [90,160])for(const wx of [-1,0,1])for(const wz of [-.3,0,.5])for(const seed of [0,.38,1])for(const time of [0,7,51])for(const strength of [.2,.6,1]){
+    let last=0;
     for(const t of [0,.1,.5,.8,1]){
-      const cpu=smokeProfile(t,height,wx,wz),gpu=shader(t,height,wx,wz,clamp);
-      for(const [i,key] of ['radius','x','z','opacity'].entries())assert(Math.abs(cpu[key]-gpu[i])<1e-6);
+      const cpu=smokeProfile(t,height,wx,wz,{},seed,time,strength);
+      const gpu=run(t,height,{x:wx,y:wz},seed,time,strength,clamp,Math.max,v=>Math.hypot(v.x,v.y),Math.sin);
+      for(const [i,key] of ['radius','x','z','opacity'].entries())assert(Math.abs(cpu[key]-gpu[i])<1e-5,key);
       assert(cpu.radius>=last);last=cpu.radius;
-      assert(cpu.x*wx>=0&&cpu.z*wz>=0);if(t===1)assert.equal(cpu.opacity,0);
+      assert(cpu.opacity>=0&&cpu.opacity<=1);
+      const windLength=Math.hypot(wx,wz);
+      if(t===1){
+        assert.equal(cpu.opacity,0);
+        if(windLength){const lean=(cpu.x*wx+cpu.z*wz)/windLength/height;assert(lean>=.3&&lean<=.6);}
+      }
     }
+    const base=smokeProfile(0,height,wx,wz,{},seed,time,strength),top=smokeProfile(1,height,wx,wz,{},seed,time,strength);
+    assert(top.radius/base.radius>=3&&top.radius/base.radius<=5);
   }
   assert(FIRE_VERTEX.includes(FIRE_SMOKE_GLSL));assert(FIRE_FRAGMENT.includes(FIRE_SMOKE_GLSL));
-  assert(FIRE_VERTEX.indexOf('vec3 toward=uCam-origin')>FIRE_VERTEX.indexOf('origin.y+=life'),'puffs face the eye from their raised/drifting position, including close views');
+  // Fade the entire moving puff as well as clipping its world-height envelope.
+  // Otherwise the still-dark lower half pops out when its centre recycles at the top.
+  const lifeFade=FIRE_VERTEX.match(/vData.w=plume.w\/([^;]+);/)[1];
+  const fade=new Function('plume','return plume.w/'+lifeFade);
+  assert(FIRE_FRAGMENT.includes('alpha*=vData.w*'));
+  assert.equal(fade({w:smokeProfile(1,160).opacity}),0);
+  assert.equal(fade({w:smokeProfile(0,160).opacity}),0);
+  assert.equal(fade({w:smokeProfile(.5,160).opacity}),1);
+  assert(FIRE_VERTEX.indexOf('vec3 toward=uCam-origin')>FIRE_VERTEX.indexOf('origin.y+=rise'),'all sprites face the eye at their animated position');
+});
+
+test('source size and phase vary deterministically; stronger fires are broader and taller',()=>{
+  const f=fixture({fires:[fire(),fire(80),fire(-80)]}),a=prepareFires(f.context),b=prepareFires(f.context);
+  assert.deepEqual(a,b);assert.equal(new Set(a.sources.map(s=>s.seed)).size,3);
+  assert.equal(new Set(a.sources.map(s=>s.smokeHeight)).size,3);
+  for(const s of a.sources){
+    assert(s.smokeHeight>=90&&s.smokeHeight<=160);
+    const radius=smokeProfile(.5,s.smokeHeight,1,0,{},s.seed).radius;
+    const widthPx=radius*2*941/(2*300*Math.tan(50*Math.PI/360));assert(widthPx>=25);
+    const start=smokeProfile(.5,s.smokeHeight,1,0,{},s.seed,0),moved=smokeProfile(.5,s.smokeHeight,1,0,{},s.seed,4);
+    assert.notEqual(start.z,moved.z);
+  }
+  const low=fixture({fires:[fire(0,0,.2)]}),lp=prepareFires(low.context).sources[0];
+  assert(lp.smokeHeight<a.sources[0].smokeHeight);
+  assert(smokeProfile(.5,lp.smokeHeight,1,0,{},lp.seed,0,.2).radius<smokeProfile(.5,a.sources[0].smokeHeight,1,0,{},a.sources[0].seed,0,1).radius);
+  low.layer.dispose();f.layer.dispose();
+});
+
+test('smoke noise only erodes inward, so all four board borders stay transparent',()=>{
+  const expr=FIRE_FRAGMENT.match(/float edge=([^;]+);/)[1];
+  const edge=new Function('q','n','length','return '+expr),length=q=>Math.hypot(...q);
+  for(const n of [0,.25,.5,.75,1])for(let t=-1;t<=1;t+=.1)for(const q of [[-1,t],[1,t],[t,-1],[t,1]])assert(edge(q,n,length)<=0);
+  assert(edge([0,0],.5,length)>FIRE.smokeEdgeSoft,'the interior must retain dense soot');
+});
+
+test('embers scatter across a rotated synthetic roof without collinear triples and reproduce their anchors',()=>{
+  const roof={id:'roof',x:13,y:3,z:-8,w:10,d:6,height:7,rotY:.7,ground:false};
+  const s={index:2,houses:[roof]},points=Array.from({length:60},(_,i)=>emberOrigin(s,i));
+  assert.deepEqual(points,Array.from({length:60},(_,i)=>emberOrigin(s,i)));
+  assert.equal(new Set(points.map(p=>p.phase)).size,60);assert.equal(new Set(points.map(p=>p.variation)).size,60);
+  for(const p of points){
+    const x=p.x-roof.x,z=p.z-roof.z,dx=Math.cos(roof.rotY)*x-Math.sin(roof.rotY)*z,dz=Math.sin(roof.rotY)*x+Math.cos(roof.rotY)*z;
+    assert(Math.abs(dx)<=roof.w*FIRE.emberRoofInset&&Math.abs(dz)<=roof.d*FIRE.emberRoofInset);
+    assert(Math.abs(p.y-(roof.y+roof.height-FIRE.emberRoofSlope*Math.abs(dz)+FIRE.emberRoofLiftM))<1e-10);
+  }
+  for(let i=0;i<points.length;i++)for(let j=i+1;j<points.length;j++)for(let k=j+1;k<points.length;k++){
+    const a=points[i],b=points[j],c=points[k],area=(b.x-a.x)*(c.z-a.z)-(b.z-a.z)*(c.x-a.x);
+    assert(Math.abs(area)>1e-7,'three roof anchors must not form a line');
+  }
+  const f=fixture(),prepared=prepareFires(f.context),g=f.context.scene.children.find(m=>m.name==='kamakura-fire-ember').geometry;
+  for(let i=0;i<g.instanceCount;i++){
+    const p=emberOrigin(prepared.sources[0],i),a=g.attributes.fireAnchor;
+    assert(Math.abs(a.getX(i)-p.x)<1e-5&&Math.abs(a.getY(i)-p.y)<1e-5&&Math.abs(a.getZ(i)-p.z)<1e-5);
+    assert(Math.abs(g.attributes.fireSeed.getX(i)-p.phase)<1e-7);
+  }
+  assert(FIRE_VERTEX.includes('fireSize.w'));assert(FIRE_FRAGMENT.includes('sin(uTime*'+(FIRE.emberTwinkleHz*2*Math.PI).toFixed(8)));
+  f.layer.dispose();
+});
+
+test('ground glow fades smoothly and loses light behind rotated houses with independent slow phases',()=>{
+  const block={x:.3,z:0,w:.08,d:.08,cos:1,sin:0};
+  assert(Math.abs(poolOcclusion(.8,0,[block])-FIRE.poolShadowKeep)<1e-12);
+  assert.equal(poolOcclusion(.1,0,[block]),1);assert.equal(poolOcclusion(0,.8,[block]),1);
+  assert.equal(poolOcclusion(-.8,0,[block]),1);assert.equal(poolOcclusion(.8,0,[{...block,x:0}]),1);
+  const a=.7,c=Math.cos(a),s=Math.sin(a),rotated={...block,x:c*block.x,z:-s*block.x,cos:c,sin:s};
+  assert(Math.abs(poolOcclusion(c*.8,-s*.8,[rotated])-FIRE.poolShadowKeep)<1e-12);
+  for(let v=-1;v<=1;v+=.01)assert(Math.abs(poolOcclusion(.8,v,[block])-poolOcclusion(.8,v+1e-6,[block]))<.001);
+  assert(FIRE.poolFlickerHz<=1.2&&FIRE.flickerHz<=1.2);
+  const f=fixture({fires:[fire(),fire(80)]}),p=f.context.scene.children.find(m=>m.name==='kamakura-fire-pool'),u=p.material.uniforms;
+  assert.notEqual(u.uPoolPhases.value[0],u.uPoolPhases.value[1]);
+  const d=r=>Math.exp(-r*r*FIRE.poolFalloff)*(1-((x)=>x*x*(3-2*x))(Math.max(0,Math.min(1,(r-FIRE.poolEdgeStart)/(1-FIRE.poolEdgeStart)))));
+  assert.equal(d(0),1);assert.equal(d(1),0);assert(d(.99)<.001);assert(d(.4)>d(.8));
+  assert(FIRE_POOL_FRAGMENT.includes(FIRE.poolFalloff.toFixed(8)));assert(FIRE_POOL_FRAGMENT.includes('uPoolBlocks[slot]'));
+  assert(u.uPoolBlocks.value.some(b=>b.z>0));f.layer.dispose();
 });
 
 test('real scene batches, ground conformity, flame placement and quality counts agree with reported geometry',t=>{
@@ -108,16 +189,28 @@ test('real scene batches, ground conformity, flame placement and quality counts 
   f.layer.dispose();
 });
 
-test('every smoke quality overlaps vertically from ground to top, including the cheapest column',()=>{
-  const f=fixture();for(let step=0;step<=3;step++){
-    f.layer.setAdapt(step);const m=f.context.scene.children.find(o=>o.name==='kamakura-fire-smoke'),g=m.geometry;
-    let lastTop=0;
-    for(let i=0;i<g.instanceCount;i++){
-      const t=g.attributes.fireSize.getW(i),height=g.attributes.fireAnchor.getW(i),p=smokeProfile(t,height),half=Math.max(p.radius*2*FIRE.smokeAspect,g.attributes.fireSize.getY(i))/2;
-      const bottom=t*height-half,top=t*height+half;assert(bottom<=lastTop);lastTop=top;
-    }
-    assert(lastTop>=160);
-  }f.layer.dispose();
+test('moving smoke puffs overlap from roofs to the fading top in every quality, with normal alpha and no depth holes',()=>{
+  for(const strength of [.2,.6,1]){
+    const f=fixture({fires:[fire(0,0,strength)]});
+    for(let step=0;step<=3;step++){
+      f.layer.setAdapt(step);const m=f.context.scene.children.find(o=>o.name==='kamakura-fire-smoke'),g=m.geometry;
+      assert.equal(m.material.blending,THREE.NormalBlending);assert.equal(m.material.depthWrite,false);
+      for(const time of [0,2,8,17,34,53]){
+        const spans=[];let height;
+        for(let i=0;i<g.instanceCount;i++){
+          const phase=g.attributes.fireSize.getW(i),t=phase<0?-phase:(phase+time*FIRE.smokeRise)%1;
+          height=g.attributes.fireAnchor.getW(i);
+          const p=smokeProfile(t,height,1,0,{},g.attributes.fireSize.getX(i),time,strength);
+          const width=p.radius*2*(1+FIRE.smokePuffVariation*Math.sin(g.attributes.fireSeed.getX(i)*31.7));
+          const half=Math.max(width*FIRE.smokeAspect,g.attributes.fireSize.getY(i))/2;
+          spans.push([t*height-half,t*height+half]);
+        }
+        spans.sort((a,b)=>a[0]-b[0]);let lastTop=0;
+        for(const [bottom,top]of spans){assert(bottom<=lastTop+1e-5);lastTop=Math.max(lastTop,top);}
+        assert(lastTop>=height);
+      }
+    }f.layer.dispose();
+  }
 });
 
 test('point light selects only the nearest walking fire inside 80m; flight and distant views never add lights',()=>{
@@ -176,7 +269,7 @@ function syntax(code){
   assert.equal(stack.length,0);assert.doesNotMatch(stripped,/--\s*\d|\b(?:float|vec[234]|int)\s+(?:sample|input|output|filter|active|common|resource)\b/);
 }
 test('all emitted shaders have balanced delimiters, safe identifiers and float arithmetic',()=>{
-  for(const shader of [FIRE_VERTEX,FIRE_FRAGMENT,FIRE_POOL_VERTEX,FIRE_POOL_FRAGMENT]){syntax(shader);assert.doesNotMatch(shader,/(?<![\w.])\d+(?![\w.])/);}
+  for(const shader of [FIRE_VERTEX,FIRE_FRAGMENT,FIRE_POOL_VERTEX,FIRE_POOL_FRAGMENT]){syntax(shader);assert.doesNotMatch(shader.replace(/uniform (?:float|vec[234]) \w+\[\d+\];/g,''),/(?<![\w.])\d+(?![\w.])/);}
   // Standalone shaders have no replacement hooks that could silently fail after a Three.js update.
   assert(![FIRE_VERTEX,FIRE_FRAGMENT,FIRE_POOL_VERTEX,FIRE_POOL_FRAGMENT].some(s=>s.includes('#include')));
   assert.throws(()=>syntax('float sample=1.0;'));assert.throws(()=>syntax('float n=1.--2.0;'));
