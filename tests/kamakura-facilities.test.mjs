@@ -243,3 +243,14 @@ test('W2c-18 flight ranges include altitude, preserve walking exactly, and facfa
   assert(facilityVisible(node('hall'),box,{x:0,z:0,y:8010},'standard',0,true));
   assert(!facilityVisible(node('hall'),box,{x:0,z:0,y:8011},'standard',0,true));
 });
+test('D1 facility view passes steps flag to rigid placement, preserves draw counts and releases resources',async()=>{
+  const {buildKamakuraFacilities}=await loadFacilityView(),n={...node('stairs'),steps:{from_xz:[10,20],to_xz:[10,40],rise_m:7.5,width_m:10}},terrain={heightAt:(x,z)=>x+z},scene=new THREE.Scene();
+  const data={...decodeFacilities(catalog([n])),kit:kit([n])};
+  for(const search of ['?ftex=0','?ftex=0&steps=0']){
+    const view=await buildKamakuraFacilities(data,terrain,scene,'standard',{search}),mesh=view.records[0].meshes[0];
+    assert.equal(view.records.length,1);assert.equal(mesh.geometry.index.count/3,n.triangles);
+    const expected=facilityPlacement(n,positions,terrain,{search});near(mesh.position.y,expected.position.y);
+    assert.deepEqual([...mesh.geometry.attributes.position.array],[...expected.positions]);
+    view.dispose();view.dispose();assert.equal(scene.children.length,0);
+  }
+});

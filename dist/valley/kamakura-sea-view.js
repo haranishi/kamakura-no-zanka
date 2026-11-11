@@ -2,7 +2,7 @@ import { seaShelterFragment, SEA3, sea3Enabled, sea3Count, sea3Fragment, SEA_FAR
 import { shore6Enabled, SHORE_R6_GLSL } from './kamakura-shore-r6.js';
 import { shore4Enabled, SHORE_R4_GLSL } from './kamakura-shore-r4.js';
 import * as THREE from 'three';
-import { SHELTER, shelterEnabled, createSignedShoreJob, registerShoreView, unregisterShoreView, SHORE_GLSL, SEA_PALETTE, SEA_CHROMA, BREAKERS, wetReachAt, shore2Enabled, shore3Enabled } from './kamakura-shore.js';
+import { SHELTER, shelterEnabled, swellEnabled, createSignedShoreJob, registerShoreView, unregisterShoreView, SHORE_GLSL, SEA_PALETTE, SEA_CHROMA, BREAKERS, wetReachAt, shore2Enabled, shore3Enabled } from './kamakura-shore.js';
 import { ATMOS } from './atmosphere.js';
 import { atmosphereOptions, kamakuraAtmosphere, eveningEnabled } from './kamakura-atmosphere.js';
 import { waveEnvelope } from './kamakura-sea-audio.js';
@@ -12,7 +12,7 @@ import { buildShoreProps } from './kamakura-shore-props.js';
 const SHORE_FRAME_BUDGET_MS=3; // original budget when shelter=0
 // W2c-9e2: coarse unsigned coast -> sub-cell signed surf and atmosphere-derived sea.
 export function buildKamakuraSea(terrain, data, {search='',quality='standard',sunDir=new THREE.Vector3(.5,.17,.85)}={}) {
-  const shelter=shelterEnabled(search);
+  const shelter=shelterEnabled(search),swell=data.meta?.sea!==undefined&&swellEnabled(search),withOpen=shelter||swell;
   const sea2=sea2Enabled(search)&&new URLSearchParams(search).get('seav')!=='0';
   const sea3=sea2&&sea3Enabled(search),sea3Colors=new URLSearchParams(search).get('sea3debug')==='1';
   const debugSea2=new URLSearchParams(search).get('debug')==='1',sea2Colors=new URLSearchParams(search).get('sea2debug')==='1';
@@ -23,8 +23,8 @@ export function buildKamakuraSea(terrain, data, {search='',quality='standard',su
   const material=enabled?new THREE.MeshStandardMaterial({color:0xffffff,roughness:.22,envMapIntensity:.5}):new THREE.MeshLambertMaterial({color:0x426f83});material.fog=true;
   const group=new THREE.Group(),mesh=new THREE.Mesh(geometry,material);mesh.updateMatrix();mesh.matrixAutoUpdate=false;group.add(mesh);
   let disposed=false,elapsed=0,jobIndex=0,step=0,packed=null,packCursor=0,distanceShown=false,interim=null;
-  const channels=shelter?(sea2?4:2):(sea2?2:1),format=shelter?(sea2?THREE.RGBAFormat:THREE.RGFormat):(sea2?THREE.RGFormat:THREE.RedFormat);
-  const textures=[],jobs=enabled?[createSignedShoreJob(terrain,{...(sea3?{}:{cell:8}),shelter})]:[];
+  const channels=swell?4:shelter?(sea2?4:2):(sea2?2:1),format=swell?THREE.RGBAFormat:shelter?(sea2?THREE.RGBAFormat:THREE.RGFormat):(sea2?THREE.RGFormat:THREE.RedFormat);
+  const textures=[],jobs=enabled?[createSignedShoreJob(terrain,{...(sea3?{}:{cell:8}),shelter,...(swell?{sea:data.meta.sea}:{})})]:[];
   const sky=kamakuraAtmosphere(atmosphereOptions(search).time,{...ATMOS,sunDir:ATMOS.sunDir.toArray()},shore4?eveningEnabled(search):true,shore4&&quality==='light'?.55:1);
   const daylight=Math.max(.28,Math.min(1,sky.sunDir[1]/.7));
   // Add beach/cliff gain to the existing distance texture; every shared sampler still reads .r.
@@ -45,14 +45,15 @@ export function buildKamakuraSea(terrain, data, {search='',quality='standard',su
       for(let i=0;i<field.data.length;i++){
         packed[i*channels]=THREE.DataUtils.toHalfFloat(Math.min(3000,field.data[i]));
         if(sea2)packed[i*channels+1]=THREE.DataUtils.toHalfFloat(beachGain(field,i));
-        if(shelter)packed[i*channels+(sea2?2:1)]=THREE.DataUtils.toHalfFloat(1); // the start-up field has no openness yet: open everywhere
+        if(withOpen)packed[i*channels+(sea2?2:1)]=THREE.DataUtils.toHalfFloat(1); // the start-up field has no openness yet: open everywhere
+        if(swell)packed[i*channels+3]=THREE.DataUtils.toHalfFloat(1);
       }}
     const texture=new THREE.DataTexture(packed,field.w,field.h,format,THREE.HalfFloatType);
     texture.minFilter=texture.magFilter=THREE.LinearFilter;texture.generateMipmaps=false;texture.unpackAlignment=1;texture.needsUpdate=true;textures.push(texture);return texture;
   }
   // W2c-9r3 shore: blank startup sea -> bounded coarse signed preview (<=65x65).
   // Textures keep their original dimensions throughout their lifetime.
-  const preview=enabled&&shore3?createSignedShoreJob(terrain,{cell:Math.max(16,Math.ceil(Math.max(b.maxX-b.minX,b.maxZ-b.minZ)/64)),shelter:false}):null;
+  const preview=enabled&&shore3?createSignedShoreJob(terrain,{cell:Math.max(16,Math.ceil(Math.max(b.maxX-b.minX,b.maxZ-b.minZ)/64)),shelter:false,...(swell?{sea:data.meta.sea}:{})}):null;
   if(preview)while(!preview.done)preview.step(4096);
   const fallback=enabled?textureFor(preview?.field??{data:new Float32Array([3000]),w:1,h:1}):null;
   const palette=SEA_PALETTE.map(([distance,color])=>{const c=new THREE.Color(color),l=.2126*c.r+.7152*c.g+.0722*c.b;return [distance,c.lerp(new THREE.Color(l,l,l),1-SEA_CHROMA)];});
@@ -73,7 +74,7 @@ export function buildKamakuraSea(terrain, data, {search='',quality='standard',su
         if(r<distance){distance=r;bearing=(Math.atan2(dx,-dz)*180/Math.PI+360)%360;}
       }
     }
-    return {shelteredFraction:shelter?jobs[0]?.shelteredFraction??0:0,shelterReady:jobIndex>=jobs.length,preparationWork:jobs[0]?.work??0,lines:u.uSea3Lines?.value??0,fieldCell:field?.cell??jobs[0]?.field.cell??null,range:{from:SEA3.fromM,to:SEA3.toM},nearest:{distance:Number.isFinite(distance)?distance:null,bearing},triangles:enabled?2:0,draws:enabled?1:0};
+    return {...(swell?{swellReducedFraction:jobs[0]?.swellReducedFraction??0,swellFromDeg:data.meta.sea.swell_from_deg}:{}),shelteredFraction:shelter?jobs[0]?.shelteredFraction??0:0,shelterReady:jobIndex>=jobs.length,preparationWork:jobs[0]?.work??0,lines:u.uSea3Lines?.value??0,fieldCell:field?.cell??jobs[0]?.field.cell??null,range:{from:SEA3.fromM,to:SEA3.toM},nearest:{distance:Number.isFinite(distance)?distance:null,bearing},triangles:enabled?2:0,draws:enabled?1:0};
   };
   const debugReader=()=>{
     const cosine=lastCamera?Math.abs(lastCamera.matrixWorld.elements[9]):0;
@@ -217,8 +218,8 @@ export function buildKamakuraSea(terrain, data, {search='',quality='standard',su
       const legacyCompile=material.onBeforeCompile;
       material.onBeforeCompile=shader=>{legacyCompile(shader);shader.fragmentShader=seaFarFragment(shader.fragmentShader);if(sea3)shader.fragmentShader=sea3Fragment(shader.fragmentShader);};
     }
-    if(shelter){const compile=material.onBeforeCompile;material.onBeforeCompile=shader=>{compile(shader);shader.fragmentShader=seaShelterFragment(shader.fragmentShader,{sea2,sea3});};}
-    material.customProgramCacheKey=()=> shelter?'kamakura-sea-19-shelter-'+(+sea2)+(+sea3):sea3?'kamakura-sea-19-foam':sea2?'kamakura-sea-18-far':'kamakura-sea-11-shore6';
+    if(withOpen){const compile=material.onBeforeCompile;material.onBeforeCompile=shader=>{compile(shader);shader.fragmentShader=seaShelterFragment(shader.fragmentShader,{sea2,sea3,...(swell?{swell:true}:{})});};}
+    material.customProgramCacheKey=()=> swell?'kamakura-sea-19-swell-'+(+shelter)+(+sea2)+(+sea3):shelter?'kamakura-sea-19-shelter-'+(+sea2)+(+sea3):sea3?'kamakura-sea-19-foam':sea2?'kamakura-sea-18-far':'kamakura-sea-11-shore6';
   }
   return {group,mesh,uniforms:u,textures,jobs,props,bank,get preparedShore(){return jobIndex>=jobs.length;},
     update(dt,pos,audioTime) {
@@ -234,17 +235,19 @@ export function buildKamakuraSea(terrain, data, {search='',quality='standard',su
       // The distance keeps its original pace and is shown first, open everywhere; the openness follows at its own slow pace.
       const start=performance.now();let frameWork=0;
       while(jobIndex<jobs.length) {
-        const job=jobs[jobIndex],slow=shelter&&distanceShown;
+        // withOpen: the job has a slow part after the distance (openness, and the facing to the swell).
+        const job=jobs[jobIndex],slow=withOpen&&distanceShown;
         if(performance.now()-start>=(slow?SHELTER.budgetMs:SHORE_FRAME_BUDGET_MS)||(slow&&frameWork>=SHELTER.maxFrameWork))break;
         const batch=slow?SHELTER.batchCells:2048;frameWork+=batch;
-        if(!(slow||!shelter?job.step(batch):job.step(batch,5)))continue;
+        if(!(slow||!withOpen?job.step(batch):job.step(batch,5)))continue;
         const f=job.field;
         if(!packed){packed=new Uint16Array(f.data.length*channels);packCursor=0;}
         const end=Math.min(packCursor+(slow?SHELTER.packCells:8192),f.data.length);
         for(;packCursor<end;packCursor++){
           packed[packCursor*channels]=THREE.DataUtils.toHalfFloat(f.data[packCursor]);
           if(sea2)packed[packCursor*channels+1]=THREE.DataUtils.toHalfFloat(beachGain(f,packCursor));
-          if(shelter)packed[packCursor*channels+(sea2?2:1)]=THREE.DataUtils.toHalfFloat(slow?f.openness[packCursor]:1);
+          if(withOpen)packed[packCursor*channels+(sea2?2:1)]=THREE.DataUtils.toHalfFloat(slow?f.openness[packCursor]:1);
+          if(swell)packed[packCursor*channels+3]=THREE.DataUtils.toHalfFloat(slow?f.swellGain[packCursor]:1);
         }
         if(packCursor<f.data.length)continue;
         // W2c-9 parent fix: swapping the image of the 1x1 placeholder does not resize its GPU storage (WebGL2 texStorage2D is immutable),
@@ -257,7 +260,7 @@ export function buildKamakuraSea(terrain, data, {search='',quality='standard',su
         u.uShoreReady.value=1;terrain.shoreSigned=f;props?.setAdapt(step);
         // The texture that showed the distance alone is released once the one with the openness has taken its place.
         if(interim){textures.splice(textures.indexOf(interim),1);interim.dispose();interim=null;}
-        if(shelter&&!distanceShown){distanceShown=true;interim=done;}else jobIndex++;
+        if(withOpen&&!distanceShown){distanceShown=true;interim=done;}else jobIndex++;
       }
       props.update(pos);bank?.update(pos);
     },

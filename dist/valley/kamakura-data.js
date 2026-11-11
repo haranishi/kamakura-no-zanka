@@ -1,3 +1,4 @@
+import { validateSea } from './kamakura-shore.js';
 import { decodeWorks, worksEnabled } from './kamakura-works.js';
 import { validateMist } from './kamakura-mist.js';
 import { validateBackdrop } from './kamakura-backdrop.js';
@@ -30,6 +31,7 @@ export function validateMeta(m) {
       !Number.isInteger(m.patches.total_cells) || m.patches.total_cells < 1 || m.patches.total_cells > g.width * g.height)) {
     throw new Error('鎌倉パッチの形式が対応していません');
   }
+  validateSea(m.sea);
   validateMist(m.mist);
   validateBackdrop(m.backdrop);
   return m;

@@ -1,6 +1,6 @@
 // W2c-18 seaedge: pure mirrors and shader additions; colours come from shore4's deep band.
 import { seaColor4, seaBand4, SEA_BANDS4 } from './kamakura-shore-r4.js';
-import { SEA_PALETTE, shoreNoise, SHELTER, shelteredEdgeFoam } from './kamakura-shore.js';
+import { SEA_PALETTE, shoreNoise, SHELTER, SWELL, shelteredEdgeFoam } from './kamakura-shore.js';
 export const SEA3 = Object.freeze({
   fromM:40, toM:90, // 3D camera metres: near/far surf exchange.
   positionsM:Object.freeze([5,16,30,50,80]), // metres offshore at birth, shared inward phase with sea2.
@@ -304,10 +304,10 @@ export function sea3Fragment(fragment) {
 }
 
 // Applied last: all surf generations, including the walking wash, share a single packed read.
-// No patch at all is applied for shelter=0, retaining the original complete shader string.
-export function seaShelterFragment(fragment,{sea2=true,sea3=true}={}){
+// No patch when both shelter and directional swell are off; original shader bytes remain.
+export function seaShelterFragment(fragment,{sea2=true,sea3=true,swell=false}={}){
   const sample=sea2?'vec2 sea2Shore=texture2D(uShoreLand,seaUV).rg;float landDistance=sea2Shore.r;':'float landDistance=texture2D(uShoreLand,seaUV).r;';
-  const replacement=sea2?'vec4 sea2Shore=texture2D(uShoreLand,seaUV);float landDistance=sea2Shore.r;':'vec2 shelterShore=texture2D(uShoreLand,seaUV).rg;float landDistance=shelterShore.r;';
+  const replacement=sea2?'vec4 sea2Shore=texture2D(uShoreLand,seaUV);float landDistance=sea2Shore.r;':swell?'vec4 shelterShore=texture2D(uShoreLand,seaUV);float landDistance=shelterShore.r;':'vec2 shelterShore=texture2D(uShoreLand,seaUV).rg;float landDistance=shelterShore.r;';
   if(!fragment.includes(sample))throw new Error('Shelter shore sample missing');
   const channel=sea2?'sea2Shore.b':'shelterShore.g';
   fragment=fragment.replace(sample,replacement+`
@@ -321,6 +321,8 @@ export function seaShelterFragment(fragment,{sea2=true,sea3=true}={}){
     ${sea3?'sea3Foam*=seaOpen;':''}
     // Foam is a white surface film`);
   if(sea3)fragment=fragment.replace('gl_FragColor=vec4(debug3,1.0);',`if(shelterInside&&landDistance>=0.0)debug3=mix(debug3,vec3(${SHELTER.debug.map(f).join(',')}),1.0-seaOpen);
+        gl_FragColor=vec4(debug3,1.0);`);
+  if(swell&&sea3)fragment=fragment.replace('gl_FragColor=vec4(debug3,1.0);',`if(shelterInside&&landDistance>=0.0)debug3=mix(debug3,vec3(${SWELL.debug.map(f).join(',')}),1.0-${sea2?'sea2Shore':'shelterShore'}.a);
         gl_FragColor=vec4(debug3,1.0);`);
   return fragment;
 }
