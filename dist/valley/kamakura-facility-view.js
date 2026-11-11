@@ -84,7 +84,7 @@ export async function buildKamakuraFacilities(facilities, terrain, scene, qualit
         if(facilitySolid(n))boxes.push(box);if(facilityExcludesTrees(n))exclusionBoxes.push(box);
       }
       // One anchor sample for each rigid node, even if it contains several material primitives.
-      const placed=facilityPlacement(n,positions,terrain); let offset=0;
+      const placed=facilityPlacement(n,positions,terrain,{search}); let offset=0;
       let floor=Infinity,top=-Infinity;
       for(let i=1;i<positions.length;i+=3){floor=Math.min(floor,positions[i]);top=Math.max(top,positions[i]);}
       // W2c-12 facility7 FH5: infer opening from existing dark interior surfaces only.

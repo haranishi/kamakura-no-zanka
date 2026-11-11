@@ -1,3 +1,4 @@
+import { withStairRamps } from './kamakura-stairs.js';
 import { kamakuraPaths } from './kamakura-roads.js';
 import { updateKamakuraRoadPaths } from './kamakura-data.js';
 import { groundPathFor } from './kamakura-ground-path.js';
@@ -52,10 +53,12 @@ export async function bootKamakura(data, search) {
   let photo, post, renderer, chunks, hud, houses, trees, stands, standPrepared, treeOptions, atmosphere, sea, water, hero, input, hintTimer, flight, facilities, hiddenFacilities, audioView, grass, fx;
   const events = new AbortController(); let disposed = false;
   let layers = null; // W2c-16: add-on layers built from the list in kamakura-layers.js
-  let moves = null;
+  let moves = null, stairTerrain = null, stairReader = null;
   function dispose() {
     if (disposed) return; disposed = true; events.abort(); clearTimeout(hintTimer);
     configureVegPolicy(null);
+    if(stairReader && globalThis.__kzStairs===stairReader)delete globalThis.__kzStairs;
+    stairTerrain?.disposeStairs?.();
     input?.setEnabled(false); input?.base.releaseLock();
     renderer?.setAnimationLoop(null); layers?.dispose(); layers = null; // layers read the hero and the scene: close them first
     moves?.dispose(); moves = null;
@@ -141,7 +144,9 @@ export async function bootKamakura(data, search) {
     }
     hiddenFacilities?.dispose(); hiddenFacilities = null;
     const status = text => hud.status(text || [houseNotice, facilitiesEnabled(search) && facilityNotice, waterEnabled(search) && riverNotice, treesEnabled(search) && vegNotice, groundEnabled(search) && data.groundNotice, atmosphere.notice, audioNotice].filter(Boolean).join('。'));
-    const walkingTerrain = bridgesEnabled(search) ? withBridgeDecks(t, bridgeSites(data, t)) : t;
+    const bridgeTerrain = bridgesEnabled(search) ? withBridgeDecks(t, bridgeSites(data, t)) : t;
+    const walkingTerrain = stairTerrain = withStairRamps(bridgeTerrain, data.facilities?.nodes, {search});
+    if(params.get('debug')==='1' && walkingTerrain.inspectStairs)globalThis.__kzStairs = stairReader = () => walkingTerrain.inspectStairs(hero?.pos ?? spawn);
     const g = { scene, roster, terrain: walkingTerrain, col: buildColliders({ bounds: t.bounds, extraBoxes: [...(houses?.boxes || []), ...(facilities?.boxes || [])], extraCircles: trees?.circles || [] }), enemies: [], ally: null };
     if (standPrepared) {
       try { stands = buildKamakuraStands(standPrepared, { ...treeOptions, colliders: g.col }); scene.add(stands.group); }
@@ -232,6 +237,7 @@ export async function bootKamakura(data, search) {
         const vx = -Math.sin(yaw) * ax.forward + Math.cos(yaw) * ax.right, vz = -Math.cos(yaw) * ax.forward - Math.sin(yaw) * ax.right;
         const hero = g.hero, ch = hero.character;
         ch.splitPose = true; ch.legIk = true; ch.legTerrain = t;
+        if(walkingTerrain.inspectStairs)ch.legTerrain = walkingTerrain;
         layers?.beforeHero(dt);
         if (moves) moves.update(dt, ax, yawOf(vx, vz));
         else {

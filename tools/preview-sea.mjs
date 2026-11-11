@@ -6,6 +6,9 @@ import {encodePNG} from './lib/png.mjs';
 import {BACKDROP,backdropPoint} from '../dist/valley/kamakura-backdrop.js';
 import {createSignedShoreJob} from '../dist/valley/kamakura-shore.js';
 import {seaColor4} from '../dist/valley/kamakura-shore-r4.js';
+import * as THREE from '../dist/vendor/three.module.min.js';
+import {facilityPlacement} from '../dist/valley/kamakura-facilities.js';
+import {withStairRamps} from '../dist/valley/kamakura-stairs.js';
 import {sea3Sample,sea3Color} from '../dist/valley/kamakura-sea-far.js';
 export const PREVIEW_SEA=Object.freeze({widthM:600,heightM:300,pixelM:.5,minX:-300,minZ:-90,terrainCellM:2,islandRadiusM:15,ringRadiusM:70,ringWidthM:9,openingRad:.28,centreZ:60,slope:.2,rangeM:300,times:Object.freeze([0,2,4])});
 export function previewTerrain(scene) {
@@ -99,7 +102,82 @@ export async function renderEdgesPreview(outDir,{time=PREVIEW_EDGES.timeS}={}){
   return {scenes:stats,coastRiseM:BACKDROP.coastRiseM};
 }
 
+// Detail review: synthetic stair mesh/terrain cross-sections and directional ring surf.
+export const PREVIEW_DETAIL=Object.freeze({
+  lowM:13.5,riseM:7.5,lengthM:20,widthM:10,riserM:.18,earM:.22,skirtM:.3,humanM:1.66,
+  sectionWidth:1600,sectionHeight:420,fromDeg:180
+});
+export function detailStairFixture(){
+  const c=PREVIEW_DETAIL,steps=Math.ceil(c.riseM/c.riserM),positions=[],indices=[];
+  function box(x,y,z,w,h,d,shear=0){
+    const g=new THREE.BoxGeometry(w,h,d),a=g.attributes.position.array;
+    for(let i=0;i<a.length;i+=3)a[i+1]+=shear*a[i+2];
+    const offset=positions.length/3;for(let i=0;i<a.length;i+=3)positions.push(a[i]+x,a[i+1]+y,a[i+2]+z);
+    for(const id of g.index.array)indices.push(offset+id);g.dispose();
+  }
+  for(let i=0;i<steps;i++){
+    const top=(i+1)/steps*c.riseM,run=c.lengthM/steps;
+    box(0,(top-c.skirtM)/2,(i+.5)*run,c.widthM,top+c.skirtM,run);
+  }
+  for(const side of [-1,1])box(side*(c.widthM+c.earM)/2,c.riseM/2+c.earM/2,c.lengthM/2,c.earM,c.earM,c.lengthM,c.riseM/c.lengthM);
+  const node={node:'synthetic-stair',part:'stairs',soft:true,anchor_xz:[0,0],rel_anchor:0,steps:{from_xz:[0,0],to_xz:[0,c.lengthM],rise_m:c.riseM,width_m:c.widthM}};
+  const terrain={heightAt:(_x,z)=>c.lowM+c.riseM*Math.max(0,Math.min(1,z/c.lengthM)),slopeAt:()=>Math.atan(c.riseM/c.lengthM)*180/Math.PI,walkable:()=>true};
+  return {node,terrain,positions:new Float32Array(positions),indices,steps};
+}
+export async function renderDetailPreview(outDir,{time=2,zoom=false}={}){
+  await mkdir(outDir,{recursive:true});const c=PREVIEW_DETAIL,f=detailStairFixture(),ramp=withStairRamps(f.terrain,[f.node]);
+  let clipMin=0,clipMax=c.sectionWidth;
+  const sw=c.sectionWidth,sh=c.sectionHeight,pixels=new Uint8Array(sw*sh*4);pixels.fill(255);
+  const dot=(x,y,color,size=1)=>{for(let a=-size;a<=size;a++)for(let b=-size;b<=size;b++){const px=Math.round(x+a),py=Math.round(y+b);if(px>=clipMin&&px<clipMax&&py>=0&&py<sh){const k=(py*sw+px)*4;pixels.set([...color,255],k);}}};
+  const line=(x,y,xx,yy,color,size=1)=>{const n=Math.max(1,Math.ceil(Math.hypot(xx-x,yy-y)));for(let i=0;i<=n;i++)dot(x+(xx-x)*i/n,y+(yy-y)*i/n,color,size);};
+  const colors={terrain:[158,112,57],model:[48,58,75],walk:[20,173,75],ear:[150,150,165],human:[170,45,170]};
+  for(const [panel,on] of [false,true].entries()){
+    clipMin=panel*sw/2;clipMax=(panel+1)*sw/2;
+    const placed=facilityPlacement(f.node,f.positions,f.terrain,{search:on?'':'?steps=0'}),walk=on?ramp:f.terrain;
+    const x0=panel*sw/2+35,y0=sh-45,scale=zoom?96:28,from=zoom==='lower'?-1:zoom?c.lengthM-5:-2,base=zoom==='lower'?c.lowM-1:zoom?c.lowM+c.riseM-2:c.lowM-1;
+    const project=(z,y)=>[x0+(z-from)*scale,y0-(y-base)*scale];
+    // Terrain and the centre cut through actual, placed box triangles.
+    for(let k=0;k<f.indices.length;k+=3){
+      const ids=f.indices.slice(k,k+3),hits=[];
+      for(let e=0;e<3;e++){
+        const a=ids[e]*3,b=ids[(e+1)%3]*3,ax=placed.positions[a],bx=placed.positions[b];
+        if((ax<=0&&bx>0)||(ax>0&&bx<=0)){const t=-ax/(bx-ax);hits.push([placed.positions[a+2]+t*(placed.positions[b+2]-placed.positions[a+2]),placed.position.y+placed.positions[a+1]+t*(placed.positions[b+1]-placed.positions[a+1])]);}
+      }
+      if(hits.length===2){const a=project(...hits[0]),b=project(...hits[1]);line(...a,...b,colors.model,0);}
+    }
+    // Ear stones in side projection, dashed to keep the centre cut readable.
+    for(let z=0;z<c.lengthM;z+=.03)if(Math.floor(z/.25)%2===0){const p=project(z,c.lowM+c.riseM*z/c.lengthM+c.earM);dot(...p,colors.ear,0);}
+    for(let x=0;x<sw/2-70;x++){
+      const z=from+x/scale,ground=f.terrain.heightAt(0,z),h=walk.heightAt(0,z);
+      dot(...project(z,ground),colors.terrain,0);dot(...project(z,h),colors.walk,0);
+    }
+    for(const z of zoom==='lower'?[0,3]:zoom?[c.lengthM-3,c.lengthM]:[0,10,c.lengthM]){
+      const h=walk.heightAt(0,z),foot=project(z,h),head=project(z,h+c.humanM);line(...foot,...head,colors.human,1);
+      line(head[0]-4,head[1],head[0]+4,head[1],colors.human,1);
+    }
+    // Fixed colour key: terrain, model, walking height, ear stone, 1.66m human.
+    Object.values(colors).forEach((color,i)=>line(panel*sw/2+30+i*130,24,panel*sw/2+100+i*130,24,color,2));
+  }
+  await writeFile(path.join(outDir,'stairs-section.png'),encodePNG({width:sw,height:sh,data:pixels}));
+  const terrain=previewEdgesTerrain(),plain=createSignedShoreJob(terrain),directional=createSignedShoreJob(terrain,{sea:{swell_from_deg:c.fromDeg}});
+  while(!plain.step(4096));while(!directional.step(4096));
+  const e=PREVIEW_EDGES,w=(e.maxX-e.minX)/e.pixelM,h=(e.maxZ-e.minZ)/e.pixelM,panels=new Uint8Array(w*3*h*4),sample={},rgb=[0,0,0];
+  for(let row=0;row<h;row++)for(let col=0;col<w;col++){
+    const x=e.minX+(col+.5)*e.pixelM,z=e.minZ+(row+.5)*e.pixelM,land=terrain.heightAt(x,z)>0,d=directional.field.signedDistanceAt(x,z);
+    sea3Color(d,rgb);
+    for(let p=0;p<3;p++){
+      const gain=(p?directional:plain).field.opennessAt(x,z),k=(row*w*3+p*w+col)*4;
+      sea3Sample(d,x,z,time,e.pixelM,300,'standard',0,sample,gain);
+      for(let i=0;i<3;i++)panels[k+i]=srgb(land?sand[i]:p===2?rgb[i]+([1,.5,0][i]-rgb[i])*(plain.field.opennessAt(x,z)-gain):rgb[i]+(film[i]-rgb[i])*sample.foam);
+      panels[k+3]=255;
+    }
+  }
+  await writeFile(path.join(outDir,'swell-compare.png'),encodePNG({width:w*3,height:h,data:panels}));
+  const info={time,zoom,section:{columns:['steps=0','steps=1'],key:colors,stairTriangles:f.indices.length/3,steps:f.steps,humanM:c.humanM},swell:{columns:['swell=0, shelter=1','south swell, shelter=1','orange = directional reduction'],fromDeg:c.fromDeg,reducedFraction:directional.swellReducedFraction,work:directional.work,addedWork:directional.work-plain.work,triangles:2,draws:1}};
+  await writeFile(path.join(outDir,'detail-preview.json'),JSON.stringify(info,null,2)+'\n');ramp.disposeStairs();return info;
+}
+
 if(process.argv[1]&&import.meta.url===pathToFileURL(process.argv[1]).href){
   const index=process.argv.indexOf('--out');if(index<0||!process.argv[index+1])throw new Error('Usage: node tools/preview-sea.mjs --out <directory>');
-  console.log(JSON.stringify(process.argv.includes('--edges')?await renderEdgesPreview(process.argv[index+1],{time:process.argv.includes('--time')?Number(process.argv[process.argv.indexOf('--time')+1]):PREVIEW_EDGES.timeS}):await renderSeaPreview(process.argv[index+1])));
+  console.log(JSON.stringify(process.argv.includes('--detail')?await renderDetailPreview(process.argv[index+1],{time:process.argv.includes('--time')?Number(process.argv[process.argv.indexOf('--time')+1]):2,zoom:process.argv.includes('--lower')?'lower':process.argv.includes('--zoom')}):process.argv.includes('--edges')?await renderEdgesPreview(process.argv[index+1],{time:process.argv.includes('--time')?Number(process.argv[process.argv.indexOf('--time')+1]):PREVIEW_EDGES.timeS}):await renderSeaPreview(process.argv[index+1])));
 }

@@ -10,6 +10,24 @@ export const SHELTER=Object.freeze({
   budgetMs:1.5, batchCells:64, packCells:64, maxFrameWork:8192, // leave headroom under the 2ms preparation target.
   debug:Object.freeze([1,0,1]), // purple: water without open-sea surf.
 });
+// Directional surf: facing comes from the signed-distance gradient, not world position.
+export const SWELL=Object.freeze({
+  facingStart:-.3, facingEnd:.4, // dot product: lee is zero, seaward shore is one.
+  gradientEpsilon:1e-6, // metres: undefined gradients retain the existing surf.
+  debug:Object.freeze([1,.5,0]) // orange: direction reduced the surf (debug only).
+});
+export const swellEnabled=search=>new URLSearchParams(search).get('swell')!=='0';
+export function validateSea(sea){
+  if(sea===undefined)return;
+  if(!sea||Array.isArray(sea)||typeof sea!=='object'||Object.keys(sea).some(k=>k!=='swell_from_deg')||
+    !Number.isFinite(sea.swell_from_deg)||sea.swell_from_deg<0||sea.swell_from_deg>360)throw new Error('海の波向きの指定が不正です');
+}
+export function swellFacing(dx,dz,fromDeg){
+  const length=Math.hypot(dx,dz);if(length<SWELL.gradientEpsilon)return 1;
+  const a=fromDeg*Math.PI/180,f=(dx*Math.sin(a)-dz*Math.cos(a))/length;
+  const t=Math.max(0,Math.min(1,(f-SWELL.facingStart)/(SWELL.facingEnd-SWELL.facingStart)));
+  return t*t*(3-2*t);
+}
 export const shelterEnabled=search=>new URLSearchParams(search).get('shelter')!=='0';
 const clamp = (v, hi) => Math.max(0, Math.min(hi, v));
 export function createShoreField(terrain, { cell = 16 } = {}) {
@@ -197,18 +215,20 @@ export function shoreFieldCell(terrain) {
   const b=terrain.bounds,span=Math.max(b.maxX-b.minX,b.maxZ-b.minZ),c=SHORE_GRID;
   return span<=c.smallMapM?Math.max(c.minCellM,(terrain.cell??c.minCellM)*c.terrainCellGain,span/(c.maxSide-1)):c.legacyCellM;
 }
-export function createSignedShoreJob(terrain, {cell=shoreFieldCell(terrain),limit=240,shelter=true}={}) {
+export function createSignedShoreJob(terrain, {cell=shoreFieldCell(terrain),limit=240,shelter=true,sea:seaOptions,swell=true}={}) {
   if(!(cell>0)||!Number.isFinite(cell)||!(limit>0)||!Number.isFinite(limit))throw new RangeError('Invalid signed grid');
+  validateSea(seaOptions);const directional=swell&&seaOptions!==undefined,withOpen=shelter||directional;
   const b=terrain.bounds,x0=b.minX,z0=b.minZ,w=Math.ceil((b.maxX-x0)/cell)+1,h=Math.ceil((b.maxZ-z0)/cell)+1;
   const data=new Float32Array(w*h),heights=new Float32Array(w*h),sea=new Uint8Array(w*h);
   const field={cell,x0,z0,w,h,data,maxX:b.maxX,maxZ:b.maxZ,signedDistanceAt:(x,z)=>sampleDistance(field,x,z)};
-  const openness=shelter?new Float32Array(w*h):null,openDistance=shelter?new Float32Array(w*h):null;
+  const openness=withOpen?new Float32Array(w*h):null,openDistance=shelter?new Float32Array(w*h):null;
   const queue=shelter?new Uint32Array(w*h):null,visited=shelter?new Uint8Array(w*h):null;
-  let head=0,tail=0,phase=0,cursor=0,work=0,sheltered=0,water=0;
-  const phases=shelter?10:5;
+  let head=0,tail=0,phase=0,cursor=0,work=0,sheltered=0,water=0,reduced=0;
+  const directionPhase=shelter?10:5,phases=directionPhase+(directional?1:0);
   // Until the openness exists every water cell counts as open (the surf of the version before it), on the CPU as in the texture.
-  if(shelter){field.openness=openness;field.opennessAt=(x,z)=>phase===phases?sampleDistance(openField,x,z):1;}
-  const openField=shelter?{...field,data:openness}:null;
+  if(withOpen){field.openness=openness;field.opennessAt=(x,z)=>phase===phases?sampleDistance(openField,x,z):1;}
+  const openField=withOpen?{...field,data:openness}:null;
+  if(directional)field.swellGain=new Float32Array(w*h).fill(1);
   function enqueue(k){if(!visited[k]&&sea[k]&&data[k]>=SHELTER.openM){visited[k]=1;queue[tail++]=k;}}
   // stop: the phase to halt before. 5 ends after the signed distance (the part the sea and the sand wait for).
   function step(budget=256,stop=phases){
@@ -237,7 +257,7 @@ export function createSignedShoreJob(terrain, {cell=shoreFieldCell(terrain),limi
         if(i+1<w)data[k]=Math.min(data[k],data[k+1]+cell);
         if(j+1<h)data[k]=Math.min(data[k],data[k+w]+cell,i?data[k+w-1]+cell*4/3:limit,i+1<w?data[k+w+1]+cell*4/3:limit);
       }else if(phase===4)data[k]*=sea[k]?1:-1;
-      else if(phase===5){
+      else if(phase===5&&shelter){
         if(sea[k]&&data[k]>=SHELTER.openM&&(data[k]>=SHELTER.seaM||i===0||j===0||i===w-1||j===h-1))enqueue(k);
       }else if(phase===7){
         openDistance[k]=visited[k]?0:SHORE_LIMIT_M;
@@ -251,11 +271,22 @@ export function createSignedShoreJob(terrain, {cell=shoreFieldCell(terrain),limi
         openness[k]=1-t*t*(3-2*t);
         if(sea[k]){water++;if(openness[k]<1)sheltered++;}
       }
+      if(directional&&phase===directionPhase){
+        let gain=1;
+        if(sea[k]&&i>0&&i+1<w&&j>0&&j+1<h&&data[k]<limit){
+          gain=swellFacing(data[k+1]-data[k-1],data[k+w]-data[k-w],seaOptions.swell_from_deg);
+        }
+        const before=shelter?openness[k]:1;
+        openness[k]=before*gain;
+        // Already sheltered water did not lose any surf: keep it purple in debug.
+        field.swellGain[k]=before>openness[k]?gain:1;
+        if(sea[k]){if(!shelter)water++;if(before>openness[k])reduced++;}
+      }
       if(++cursor===data.length){cursor=0;phase++;}
     }
     return phase>=stop;
   }
-  return {field,step,get done(){return phase===phases;},get distanceReady(){return phase>=5;},get work(){return work;},get shelteredFraction(){return water?sheltered/water:0;}};
+  return {field,step,get done(){return phase===phases;},get distanceReady(){return phase>=5;},get work(){return work;},get shelteredFraction(){return water?sheltered/water:0;},get swellReducedFraction(){return water?reduced/water:0;}};
 }
 
 // W2c-9r1 shore: allocation-free CPU counterparts for distance acceptance.

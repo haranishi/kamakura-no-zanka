@@ -37,10 +37,16 @@ export function verifyFacilities(data,input) {
     if(facilityExcludesTrees(n))exclusions.push(facilityFootprint(n,p,n.part!=='stairs'));
   }
   for(const scale of [1,1.8]) {
-    const terrain=createKamakuraTerrain(data,scale),s={hard:0,soft:0,softVertices:0,maxSoftError:0,floating:0,maxFloat:0,buried:0,maxBury:0,buriedOver:{'.5':0,'1':0,'1.5':0,'3':0},warnings:[]};
+    const terrain=createKamakuraTerrain(data,scale),s={hard:0,soft:0,built:0,softVertices:0,maxSoftError:0,floating:0,maxFloat:0,buried:0,maxBury:0,buriedOver:{'.5':0,'1':0,'1.5':0,'3':0},warnings:[]};
     for(const n of facilities.nodes) {
       const p=positions.get(n.node),placed=facilityPlacement(n,p,terrain);
-      if(n.soft) {
+      if(n.steps) {
+        // Built stairs keep the shape they were modelled in (the hero walks a ramp over them, kamakura-stairs.js):
+        // set down whole at the anchor, like a hall. Their seating on the slope is the business of whoever authors them.
+        s.built++;
+        for(let i=0;i<p.length;i++)assert.equal(placed.positions[i],Math.fround(p[i]));
+        assert.equal(placed.position.y,terrain.heightAt(n.anchor_xz[0],n.anchor_xz[1])+n.rel_anchor);
+      } else if(n.soft) {
         s.soft++;
         for(let i=0;i<p.length;i+=3) {
           const expected=facilityVertexY(n,terrain.heightAt(n.anchor_xz[0]+p[i],n.anchor_xz[1]+p[i+2]),p[i+1]),error=Math.abs(placed.positions[i+1]-expected);

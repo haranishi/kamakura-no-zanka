@@ -1,3 +1,4 @@
+import { validateSteps, stepsEnabled } from './kamakura-stairs.js';
 // Pure facility catalog, placement and footprint rules. No bundled geography.
 export const FACILITY_FAR = Object.freeze({
   landmarkRange: 8000, // metres: flying hall, romon and Buddha range.
@@ -24,6 +25,7 @@ export function decodeFacilities(catalog) {
         ![n.anchor_xz, n.bbox_min, n.bbox_max].every((a,i) => Array.isArray(a) && a.length === (i ? 3 : 2) && a.every(Number.isFinite)) ||
         n.bbox_min.some((v,i) => v > n.bbox_max[i]) ||
         (n.ruin !== undefined && (n.part !== 'hall' || !FACILITY_RUINS.includes(n.ruin)))) fail();
+    validateSteps(n);
     names.add(n.node); counts[n.part] = (counts[n.part] || 0) + 1; triangles += n.triangles;
   }
   if (triangles !== catalog.total_triangles || Object.keys(catalog.parts).some(k => !FACILITY_PARTS.includes(k)) ||
@@ -57,11 +59,12 @@ export const FACILITY_WALK_TOP = 0.12;
 export const FACILITY_HELD_BACK = new Set(['causeway']);
 export const causewayShown = search => new URLSearchParams(search).get('causeway') === '1';
 export const facilityVertexY = (n, ground, rel) => ground + (FACILITY_WALK_SURFACE.has(n.part) ? Math.min(rel, FACILITY_WALK_TOP) : rel);
-export function facilityPlacement(n, positions, terrain) {
-  const [x,z] = n.anchor_xz, y = n.soft ? 0 : terrain.heightAt(x,z) + n.rel_anchor;
+export function facilityPlacement(n, positions, terrain, {search=''}={}) {
+  const soft=n.soft && !(n.steps && stepsEnabled(search));
+  const [x,z] = n.anchor_xz, y = soft ? 0 : terrain.heightAt(x,z) + n.rel_anchor;
   const result = Float32Array.from(positions);
-  if (n.soft) for (let i=0; i<result.length; i+=3) result[i+1] = facilityVertexY(n, terrain.heightAt(x+positions[i], z+positions[i+2]), positions[i+1]);
-  return { positions: result, position: { x,y,z }, rebuildNormals: n.soft };
+  if (soft) for (let i=0; i<result.length; i+=3) result[i+1] = facilityVertexY(n, terrain.heightAt(x+positions[i], z+positions[i+2]), positions[i+1]);
+  return { positions: result, position: { x,y,z }, rebuildNormals: soft };
 }
 // Convex hull followed by the minimum-area rectangle over hull edge orientations.
 export function minimumRectangle(points) {
