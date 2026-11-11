@@ -153,8 +153,13 @@ test('moving groups occupy six priority slots, share the absolute scene clock wi
     assert.equal(a.clip,'Casual_Walk');}
   assert(f.characters.some(c=>c.ikCalls>0),'road travellers use the existing foot IK on terrain');
   assert(f.characters.some(c=>c.root.children.length>1),'near travellers carry the shared hat, backpack and staff geometry');
+  const activeGear=f.characters.flatMap(c=>c.root.children.filter(o=>o.name==='traveller-equipment'));assert.equal(activeGear.length,6);
+  const saved=globalThis.Float32Array;globalThis.Float32Array=class extends saved{constructor(){super();assert.fail('steady equipped near frame allocated a buffer');}};
+  try{f.step(100);}finally{globalThis.Float32Array=saved;}
   f.frame.flying=true;f.frame.pos={x:0,y:55,z:0};f.step();crowd.update(f.frame);
   assert.equal(f.snapshot().byRole.traveller,0);assert(globalThis.__kzFlight().drawn>=10);
+  for(const gear of activeGear){assert(!gear.parent);assert(gear.skeleton.bones.every(b=>!b.parent));}
+  for(const ch of f.characters)assert(!ch.model.getObjectByName('traveller-hat'),'evicted slots detach bone children');
   const ArrayBefore=globalThis.Float32Array;globalThis.Float32Array=class extends ArrayBefore{constructor(){super();assert.fail('steady near frame allocated a buffer');}};
   try{f.step(100);}finally{globalThis.Float32Array=ArrayBefore;}
   t.diagnostic(`near priority ${travellers.length}/${snap.active}; flying uses no near traveller slots`);

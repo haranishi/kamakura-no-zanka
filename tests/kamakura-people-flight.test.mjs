@@ -76,7 +76,9 @@ test('traveller silhouette contains a hat, backpack and optional staff with fini
     for(let i=0;i<shape.parts.length;i++) {const y=shape.positions[i*3+1];min=Math.min(min,y);max=Math.max(max,y);
       if(shape.parts[i]===2)hat=Math.max(hat,Math.abs(shape.positions[i*3]));if(shape.parts[i]===3)pack=Math.max(pack,shape.positions[i*3+2]);
       assert(Math.abs(Math.hypot(...shape.normals.subarray(i*3,i*3+3))-1)<1e-6);}
-    assert.equal(min,0);assert.equal(max,1);assert(hat>.2&&pack>.2);
+    assert.equal(min,0);assert.equal(max,1);assert(hat>.1&&hat<=CROWD.torso[1]*1.1);
+    assert(hat<=CROWD.travellerHatRadius+1e-6&&pack>.2);
+    for(let i=0;i<shape.parts.length;i++)if(shape.parts[i]===3)assert(Math.abs(shape.positions[i*3])<=CROWD.torso[0]+1e-6,'pack fits the back width');
   }
   t.diagnostic('traveller: 96 triangles; with staff: 108; instanced pass uses 108 per figure');
 });

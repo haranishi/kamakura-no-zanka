@@ -1,13 +1,132 @@
 // W2c-17a: a bounded pool of scenery people. Character/GLBs are loaded only after drawn frames.
 import * as THREE from '../vendor/three.module.min.js';
 import { PEOPLE, PEOPLE_ROLES, PEOPLE_CLIPS, peopleAmount, peopleLimit, peopleStride,
-  peoplePlacementBatches, createPersonState, resetPerson, stepPerson, avoidPerson, FLIGHT, sampleFlight, selectFlightPeople } from './kamakura-people.js';
+  peoplePlacementBatches, createPersonState, resetPerson, stepPerson, avoidPerson, FLIGHT, sampleFlight, selectFlightPeople, flightEnabled } from './kamakura-people.js';
 
-import { CROWD, crowdShape } from './kamakura-crowd.js';
+import { CROWD, TRAVELLER, travellerTraits } from './kamakura-crowd.js';
 
 const WHO = ['villager_m', 'villager_f', 'child'];
 const COLOURS = [0x18d9ff, 0xff38a0, 0xffe02b, 0x65ff25, 0xac54ff, 0xff701c, 0xeeeeee];
 const DEPS = () => import('./characters.js');
+
+// Capture rig axes once, before this pool slot has played any other person's animation.
+export function travellerBindings(ch) {
+  const C = TRAVELLER, bindings = [];
+  ch.root.updateMatrixWorld(true);
+  const rootInverse = ch.root.matrixWorld.clone().invert();
+  function bind(name, offset, part) {
+    const bone = ch.bone(name); if (!bone) return;
+    const rest = rootInverse.clone().multiply(bone.matrixWorld);
+    const position = new THREE.Vector3().setFromMatrixPosition(rest).add(offset);
+    if (part === 'pack') {
+      // Fit the inner face to this rig's clothing in its bind pose, once per pool slot.
+      let back = Infinity;
+      const point = new THREE.Vector3(), matrix = new THREE.Matrix4();
+      ch.model.traverse(o => {
+        if (!o.isMesh || !o.geometry?.attributes.position) return;
+        matrix.multiplyMatrices(rootInverse, o.matrixWorld);
+        const vertices = o.geometry.attributes.position;
+        for (let i = 0; i < vertices.count; i++) {
+          point.fromBufferAttribute(vertices, i).applyMatrix4(matrix);
+          if (Math.abs(point.x - position.x) < C.packFitWidth && Math.abs(point.y - position.y) < C.packFitHeight) back = Math.min(back, point.z);
+        }
+      });
+      if (Number.isFinite(back)) position.z = back - C.packGap - C.packDepth / 2;
+    }
+    const anchor = new THREE.Matrix4().makeTranslation(position.x, position.y, position.z);
+    bindings.push({ bone, part, anchor, local: rest.invert().multiply(anchor) });
+  }
+  bind('Head', new THREE.Vector3(0, C.headRise, 0), 'hat');
+  bind('Spine', new THREE.Vector3(0, -C.packDrop, -C.packBack), 'pack');
+  // A T-pose hand is sideways. Calibrate the stick upright in the shipped relaxed walk,
+  // then let RightHand carry its sway; using the T-pose axes would make a horizontal staff.
+  if (ch.bone('RightHand')) {
+    const action = ch.action('Casual_Walk'); action.reset().play(); action.time = C.walkReference;
+    ch.mixer.update(0); ch.root.updateMatrixWorld(true);
+    const bone = ch.bone('RightHand'), rest = rootInverse.clone().multiply(bone.matrixWorld);
+    const position = new THREE.Vector3(0, C.palm, 0).applyMatrix4(rest);
+    const anchor = new THREE.Matrix4().makeTranslation(position.x, position.y, position.z);
+    bindings.push({ bone, part: 'staff', anchor, local: rest.invert().multiply(anchor) });
+    ch.mixer.stopAllAction(); ch.mixer.update(0); ch.root.updateMatrixWorld(true);
+  }
+  return bindings;
+}
+
+// Each piece has a rigid weight on a mount under its real bone. One ordinary skinned draw
+// preserves head/torso/hand motion and the standard Three.js shadow pass without custom GLSL.
+export function createTravellerEquipment(ch, p, bindings = travellerBindings(ch)) {
+  const C = TRAVELLER, traits = travellerTraits(p), positions = [], colors = [], skin = [], weights = [], mounts = [], inverses = [], parts = [];
+  const straw = new THREE.Color().fromArray(C.straw), wood = new THREE.Color().fromArray(C.wood);
+  const cloth = new THREE.Color(CROWD.clothes[traits.packCloth]);
+  function append(geometry, binding, color, shade) {
+    const flat = geometry.index ? geometry.toNonIndexed() : geometry;
+    const a = flat.attributes.position, point = new THREE.Vector3(), index = mounts.length;
+    const mount = new THREE.Bone(); mount.name = 'traveller-' + binding.part;
+    const anchor = binding.anchor.clone(), local = binding.local.clone();
+    if (binding.part === 'pack') {
+      flat.computeBoundingBox();
+      const shift = new THREE.Matrix4().makeTranslation(0, 0, C.packDepth / 2 - flat.boundingBox.max.z);
+      anchor.multiply(shift); local.multiply(shift);
+    }
+    local.decompose(mount.position, mount.quaternion, mount.scale); binding.bone.add(mount);
+    mounts.push(mount); inverses.push(anchor.clone().invert());
+    const start = positions.length / 3;
+    for (let i = 0; i < a.count; i++) {
+      point.fromBufferAttribute(a, i).applyMatrix4(anchor); positions.push(point.x, point.y, point.z);
+      const gain = shade ? shade(a, i) : 1;
+      colors.push(color.r * gain, color.g * gain, color.b * gain); skin.push(index, 0, 0, 0); weights.push(1, 0, 0, 0);
+    }
+    parts.push({ name: binding.part, start, count: a.count });
+    if (flat !== geometry) flat.dispose(); geometry.dispose();
+  }
+  for (const binding of bindings) {
+    if (binding.part === 'hat') {
+      const vertices = [];
+      for (let i = 0; i < C.hatSides; i++) {
+        const a = i / C.hatSides * Math.PI * 2, b = (i + 1) / C.hatSides * Math.PI * 2;
+        const rimA = [Math.cos(a) * C.hatRadius, 0, Math.sin(a) * C.hatRadius], rimB = [Math.cos(b) * C.hatRadius, 0, Math.sin(b) * C.hatRadius];
+        const topA = [Math.cos(a) * C.hatCrown, C.hatHeight * C.hatRound, Math.sin(a) * C.hatCrown], topB = [Math.cos(b) * C.hatCrown, C.hatHeight * C.hatRound, Math.sin(b) * C.hatCrown];
+        vertices.push(...rimA, ...topA, ...rimB, ...rimB, ...topA, ...topB, ...topA, 0, C.hatHeight, 0, ...topB, ...rimA, ...rimB, 0, 0, 0);
+      }
+      const geometry = new THREE.BufferGeometry(); geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+      append(geometry, binding, straw, (a, i) => (a.getY(i) === 0 ? C.hatRim : 1) * (1 - (Math.floor(i / 12) % 2) * C.hatRib));
+    } else if (binding.part === 'pack') {
+      let geometry;
+      if (traits.basket) {
+        const v = [], w = C.packSize / 2, d = C.packDepth / 2, h = C.packHeight / 2, t = C.basketTaper, wall = C.basketWall;
+        const outer = [[-w,-h,-d],[w,-h,-d],[w,-h,d],[-w,-h,d]].map(a => [a[0] * t,a[1],a[2] * t]);
+        const top = [[-w,h,-d],[w,h,-d],[w,h,d],[-w,h,d]], inner = top.map(a => [a[0] - Math.sign(a[0]) * wall,a[1],a[2] - Math.sign(a[2]) * wall]);
+        const bottom = outer.map(a => [a[0] - Math.sign(a[0]) * wall,a[1] + wall,a[2] - Math.sign(a[2]) * wall]);
+        const quad = (a,b,c,d) => v.push(...a,...c,...b,...a,...d,...c);
+        for (let i = 0; i < 4; i++) { const j = (i + 1) % 4; quad(outer[i],outer[j],top[j],top[i]); quad(bottom[j],bottom[i],inner[i],inner[j]); quad(top[i],top[j],inner[j],inner[i]); }
+        quad(...bottom); quad(...[...outer].reverse());
+        geometry = new THREE.BufferGeometry(); geometry.setAttribute('position', new THREE.Float32BufferAttribute(v, 3));
+      } else {
+        geometry = new THREE.IcosahedronGeometry(1, 0); geometry.scale(C.packSize / 2, C.packHeight / 2, C.packDepth / 2);
+      }
+      append(geometry, binding, cloth, (a, i) => 1 - C.packFold * (Math.floor(i / 3) % 3) / 2);
+    } else if (p.staff) {
+      const geometry = new THREE.CylinderGeometry(C.staffRadius, C.staffRadius, C.staffLength, C.staffSides);
+      geometry.translate(0, C.staffGrip - C.staffLength / 2, 0); append(geometry, binding, wood);
+    }
+  }
+  if (!mounts.length) return null;
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+  geometry.setAttribute('skinIndex', new THREE.Uint16BufferAttribute(skin, 4));
+  geometry.setAttribute('skinWeight', new THREE.Float32BufferAttribute(weights, 4)); geometry.computeVertexNormals();
+  const mesh = new THREE.SkinnedMesh(geometry, new THREE.MeshLambertMaterial({ vertexColors: true }));
+  mesh.name = 'traveller-equipment'; mesh.frustumCulled = false; mesh.castShadow = true; mesh.receiveShadow = true;
+  mesh.userData.parts = parts; mesh.userData.traits = traits;
+  mesh.bind(new THREE.Skeleton(mounts, inverses), new THREE.Matrix4()); ch.root.add(mesh);
+  return mesh;
+}
+export function releaseTravellerEquipment(mesh) {
+  if (!mesh) return;
+  for (const mount of mesh.skeleton.bones) mount.removeFromParent();
+  mesh.skeleton.dispose(); mesh.geometry.dispose(); mesh.material.dispose(); mesh.removeFromParent();
+}
 function releaseRoster(roster) {
   if (!roster) return;
   const geometries = new Set(), materials = new Set(), textures = new Set(), skeletons = new Set();
@@ -58,10 +177,10 @@ export function createKamakuraPeople(context, dependencies = {}) {
   function hide(slot) {
     if (!slot.live) return;
     slot.state.spot.lastBow = slot.state.lastBow;
-    slot.live = false; slot.ch.root.visible = false; count--; removals++;
+    slot.live = false; slot.ch.root.visible = false; releaseTravellerEquipment(slot.equipment); slot.equipment = null; count--; removals++;
   }
   function closeSlot(slot) {
-    hide(slot); if(slot.equipment){slot.equipment.geometry.dispose();slot.equipment.material.dispose();slot.equipment.removeFromParent();slot.equipment=null;} slot.ch.dispose(); slot.pillar?.removeFromParent();
+    hide(slot); slot.ch.dispose(); slot.pillar?.removeFromParent();
   }
   function close() {
     for (const slot of slots) closeSlot(slot); slots.length = 0;
@@ -112,7 +231,7 @@ export function createKamakuraPeople(context, dependencies = {}) {
       }
       pillar = new THREE.Mesh(pillarGeometry, pillarMaterials[0]); pillar.position.y = ch.height + 1.5; pillar.renderOrder = 20; ch.root.add(pillar);
     }
-    const slot = { ch, who, meshes, pillar, equipment:null, state: createPersonState(), live: false, index: -1,
+    const slot = { ch, who, meshes, pillar, equipment:null, bindings: context.data?.meta?.flight && flightEnabled(context.search) ? travellerBindings(ch) : null, state: createPersonState(), live: false, index: -1,
       head: ch.bone('Head'), headQ: new THREE.Quaternion(), headApplied: false, age: 0, bornFar: false, enteredDistance: 0, enteredOffscreen: false };
     ch.root.visible = false; context.scene.add(ch.root); return slot;
   }
@@ -137,25 +256,8 @@ export function createKamakuraPeople(context, dependencies = {}) {
     centerX = lastX; centerZ = lastZ; refresh = false;
   }
   function equip(slot, p) {
-    if(!p.flight) {if(slot.equipment)slot.equipment.visible=false;return;}
-    if(!slot.equipment) {
-      const shape=crowdShape('traveller',1,true),positions=[],normals=[];
-      for(let i=0;i<shape.parts.length;i++) if(shape.parts[i]>=2) {
-        positions.push(shape.positions[i*3],shape.positions[i*3+1],shape.positions[i*3+2]);
-        normals.push(shape.normals[i*3],shape.normals[i*3+1],shape.normals[i*3+2]);
-      }
-      const geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));geometry.setAttribute('normal',new THREE.Float32BufferAttribute(normals,3));
-      const material=new THREE.MeshLambertMaterial({color:CROWD.clothes[4]}),mesh=new THREE.Mesh(geometry,material);
-      mesh.scale.setScalar(slot.ch.height);mesh.rotation.y=Math.PI;slot.ch.root.add(mesh);slot.equipment=mesh;
-    }
-    slot.equipment.visible=true;
-    // All pieces share one mesh; collapse the staff's vertices for the two people without one.
-    const positions=slot.equipment.geometry.attributes.position,shape=crowdShape('traveller',1,true);let k=0;
-    for(let i=0;i<shape.parts.length;i++)if(shape.parts[i]>=2){
-      const gain=shape.parts[i]===4&&!p.staff?0:1;
-      positions.setXYZ(k++,shape.positions[i*3]*gain,shape.positions[i*3+1]*gain,shape.positions[i*3+2]*gain);
-    }
-    positions.needsUpdate=true;
+    releaseTravellerEquipment(slot.equipment);
+    slot.equipment = p.flight ? createTravellerEquipment(slot.ch, p, slot.bindings) : null;
   }
   function populate() {
     const limit = peopleLimit(context.quality, step); if (count >= limit) return;
