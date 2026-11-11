@@ -27,7 +27,7 @@ import { HeroActor, configureLoco, yawOf } from './actors.js';
 import { loadRoster } from './characters.js';
 import { kamakuraSpawn } from './kamakura-spawn.js';
 import { buildKamakuraHouses } from './kamakura-house-view.js';
-import { prepareVeg, treesEnabled } from './kamakura-veg.js';
+import { prepareVeg, treesEnabled, configureVegPolicy } from './kamakura-veg.js';
 import { buildKamakuraVeg } from './kamakura-veg-view.js';
 import { prepareStands, standsEnabled, standPolicy } from './kamakura-stands.js';
 import { buildKamakuraStands } from './kamakura-stand-view.js';
@@ -44,6 +44,7 @@ import { startPhoto } from './kamakura-photo-tex.js';
 import { HOUSE_AMBIENT, houseAmbientEnabled } from './kamakura-house-texture.js';
 export async function bootKamakura(data, search) {
   const t = createKamakuraTerrain(data, verticalScale(search), maxWalkSlope(search)), meta = data.meta;
+  configureVegPolicy(meta.veg_policy ?? null);   // per-map tree range (absent: the defaults). Cleared in dispose.
   const spawn = kamakuraSpawn(t, search);
   if (!t.walkable(spawn.x, spawn.z)) throw new Error('出発点を歩けません');
   // Load the existing hero only. Do not load the chapter's enemies or scenery.
@@ -54,6 +55,7 @@ export async function bootKamakura(data, search) {
   let moves = null;
   function dispose() {
     if (disposed) return; disposed = true; events.abort(); clearTimeout(hintTimer);
+    configureVegPolicy(null);
     input?.setEnabled(false); input?.base.releaseLock();
     renderer?.setAnimationLoop(null); layers?.dispose(); layers = null; // layers read the hero and the scene: close them first
     moves?.dispose(); moves = null;

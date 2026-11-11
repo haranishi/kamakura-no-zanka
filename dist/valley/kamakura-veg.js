@@ -98,10 +98,26 @@ export function nearbyVeg(grid, pos, radius) {
   }
   return { items, cells };
 }
+// A map may ask for single trees further out (meta.veg_policy). On a compact designed map the hills stand 700–1,400 m from the
+// overlook: at the default 450 m every hill tree is a rounded clump, and the forest reads as gumdrops. The far level is one
+// baked board per tree, so tens of thousands are cheap; the two near levels keep their limits.
+// One world is open at a time: the world sets this before it builds its layers and clears it when it closes.
+export const VEG_POLICY_LIMITS = Object.freeze({ range: Object.freeze([450, 2400]), far: Object.freeze([6000, 60000]), light: Object.freeze({ range: 2 / 3, far: .4 }) });
+let vegOverride = null;
+export function configureVegPolicy(value = null) {
+  if (value === null || value === undefined) { vegOverride = null; return null; }
+  const L = VEG_POLICY_LIMITS, { range, far } = value;
+  if (typeof value !== 'object' || Array.isArray(value) || !Number.isFinite(range) || range < L.range[0] || range > L.range[1] ||
+      !Number.isInteger(far) || far < L.far[0] || far > L.far[1]) throw new Error('木の範囲の指定が不正です');
+  vegOverride = Object.freeze({ range, far }); return vegOverride;
+}
 export function vegPolicy(quality = 'standard') {
-  const light = quality === 'light';
+  const light = quality === 'light', L = VEG_POLICY_LIMITS;
   // TREES.budget is triangles per geometry, not an instance capacity. Separate global instance caps.
-  return { lod: TREES.lod[light ? 'light' : 'standard'], blend: TREES.lod.blend[light ? 'light' : 'standard'], range: light ? 300 : 450, capacities: light ? [64, 600, 2500] : [128, 1800, 6000] };
+  const base = { lod: TREES.lod[light ? 'light' : 'standard'], blend: TREES.lod.blend[light ? 'light' : 'standard'], range: light ? 300 : 450, capacities: light ? [64, 600, 2500] : [128, 1800, 6000] };
+  if (!vegOverride) return base;
+  return { ...base, range: Math.max(base.range, vegOverride.range * (light ? L.light.range : 1)),
+    capacities: [base.capacities[0], base.capacities[1], Math.max(base.capacities[2], Math.round(vegOverride.far * (light ? L.light.far : 1)))] };
 }
 export function selectVeg(grid, pos, policy = vegPolicy()) {
   const found = nearbyVeg(grid, pos, policy.range + 6), levels = [[], [], []], dropped = [0, 0, 0];
