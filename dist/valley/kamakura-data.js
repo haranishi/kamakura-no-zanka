@@ -1,3 +1,4 @@
+import { validateHorizon } from './kamakura-horizon.js';
 import { validateFlight } from './kamakura-people.js';
 import { validateFires } from './kamakura-fire.js';
 import { validateLights } from './kamakura-lamps.js';
@@ -43,6 +44,7 @@ export function validateMeta(m) {
   validateMist(m.mist);
   validateFires(m.fires, m);
   validateBackdrop(m.backdrop);
+  validateHorizon(m.horizon);
   townFillConfig(m.town_fill);
   overlookConfig(m.overlook);
   sunPlace(m);

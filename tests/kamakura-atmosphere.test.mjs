@@ -198,6 +198,8 @@ test('dusk visible sun uses the same renderer and disposes diagnostics and shade
   const camera=new THREE.PerspectiveCamera();c.update(camera,.01,{x:0,y:0,z:0},0);
   const stats=globalThis.__kzSun();assert.equal(stats.count,1);assert.equal(stats.addedDraws,0);assert.equal(stats.preparationWork,2);
   assert.equal(stats.triangles,c.atmosphere.sky.geometry.index.count/3);assert(stats.nearest.distance>0);
-  c.setAdapt({shadows:false,scale:.6});assert(u.uDiscHaloGain.value<.65);assert.deepEqual(c.sunDir.toArray(),actual);
-  c.dispose();assert.equal(globalThis.__kzSun,undefined);assert.equal(renderer.live.size,0);assert.deepEqual(chunks(),before);
+  assert.equal(globalThis.__kzClouds2().count,4);
+  c.setAdapt({shadows:false,scale:.58});assert.equal(globalThis.__kzClouds2().count,1);
+  c.setAdapt({shadows:false,scale:.6});assert.equal(globalThis.__kzClouds2().count,2);assert(u.uDiscHaloGain.value<.65);assert.deepEqual(c.sunDir.toArray(),actual);
+  c.dispose();assert.equal(globalThis.__kzSun,undefined);assert.equal(globalThis.__kzClouds2,undefined);assert.equal(renderer.live.size,0);assert.deepEqual(chunks(),before);
 });

@@ -73,7 +73,7 @@ test('dusk reuses evening insects, fireflies, bells and grading while golden beh
   assert.deepEqual(faunaAmounts(h,'dusk'),faunaAmounts(h,'evening'));
   assert.deepEqual(voiceLikelihood(h,'dusk',30),voiceLikelihood(h,'evening',30));
   assert.equal(voiceInterval('kane',1,'dusk',()=>.5),voiceInterval('kane',1,'evening',()=>.5));
-  assert.deepEqual(shadeSettings('?time=dusk'),shadeSettings('?time=evening'));assert.equal(bloomCap('?time=dusk'),bloomCap('?time=evening'));
+  assert(shadeSettings('?time=dusk').floor>shadeSettings('?time=evening').floor);assert(shadeSettings('?time=dusk').strength>shadeSettings('?time=evening').strength);assert.deepEqual(shadeSettings('?time=dusk&duskair=0'),shadeSettings('?time=evening'));assert.equal(bloomCap('?time=dusk'),bloomCap('?time=evening'));
   assert(driftAmounts(h,'dusk').firefly>0);assert.equal(driftAmounts(h,'golden').firefly,0);
 });
 
@@ -165,4 +165,67 @@ test('river highlights read the visible sun and zero removes even the older whit
     s.uniforms.SUN_DIR_W.value.toArray().forEach((n,i)=>near(n,disc.dir[i]));
     assert.equal(s.fragmentShader.includes('vec3(0.0) * glint'),height===0);v.dispose();
   }
+});
+
+import { CLOUDS2, cloudCoverage, cloudWarmth, clouds2Enabled, DUSK_AIR, DUSK_LEGACY } from '../dist/valley/kamakura-atmosphere.js';
+import { SEA_PATH, seaPathWidth, seaPathEnvelope } from '../dist/valley/kamakura-sea-far.js';
+import { MIST_GLSL } from '../dist/valley/kamakura-mist.js';
+import { shadeColor } from '../dist/valley/kamakura-post.js';
+const {duskMistShader}=await load('kamakura-post-view.js');
+test('low cloud altitude, 40–50% coverage, two separate low bands, slow drift and warm sunward rims',()=>{
+  assert(Object.isFrozen(CLOUDS2)&&Object.isFrozen(CLOUDS2.heightsDeg));
+  let covered=0,total=0;
+  for(let b=0;b<360;b+=2)for(let h=.3;h<9;h+=.05){total++;const mask=cloudCoverage(b,h);assert(mask>=0&&mask<=1);covered+=mask>.5;}
+  assert(covered/total>=.4&&covered/total<=.5,covered/total);
+  for(let b=0;b<360;b+=3){assert.equal(cloudCoverage(b,.29),0);assert.equal(cloudCoverage(b,9.01),0);near(cloudCoverage(b,2,60),cloudCoverage(b-CLOUDS2.driftDegS*60,2,0),1e-6);}
+  // Average over azimuth so holes in one particular cloud do not hide the altitude bands.
+  const mean=h=>Array.from({length:180},(_,i)=>cloudCoverage(i*2,h)).reduce((a,b)=>a+b,0)/180;
+  assert(mean(.95)>.5&&mean(2.65)>.5);assert(mean(1.8)<.05);assert(mean(3.6)<.1);
+  const horizontalFov=2*Math.atan(Math.tan(50*Math.PI/360)*16/9)*180/Math.PI;
+  assert(CLOUDS2.driftDegS*60/horizontalFov>=.01&&CLOUDS2.driftDegS*60/horizontalFov<=.02);
+  assert.equal(cloudWarmth(0),1);assert.equal(cloudWarmth(90),0);assert(cloudWarmth(12)>cloudWarmth(24));
+  near(cloudCoverage(0,2),cloudCoverage(360,2),1e-6);assert.equal(cloudCoverage(20,7.7,0,2),0);
+});
+test('clouds preserve legacy sky bytes when off and at daylight times; added shader identifiers and anchors are valid',()=>{
+  for(const time of ['morning','noon','golden','evening','dusk']){
+    const a=kamakuraAtmosphere(time,base());a.sunDir=new THREE.Vector3(...a.sunDir);
+    const disc=visualSun(time,a.sunDir.toArray()),make=query=>kamakuraSkyMaterial(a,{value:0},disc,time==='dusk',false,clouds2Enabled(query,time)?{gain:1,debug:false}:null);
+    const off=make('?time='+time+'&clouds2=0'),legacy=kamakuraSkyMaterial(a,{value:0},disc,time==='dusk');assert.equal(off.fragmentShader,legacy.fragmentShader);
+    const on=make('?time='+time);if(['morning','noon','golden'].includes(time))assert.equal(on.fragmentShader,off.fragmentShader);
+    else {assert(on.fragmentShader.includes('float cloudCoverage2'));assert.equal(on.uniforms.uCloudLayers.value,4);shaderCheck(on.fragmentShader);
+      const declared=new Set([...on.fragmentShader.matchAll(/\b(?:float|vec[234])\s+((?:cloud|uCloud)\w+)/g)].map(m=>m[1]));
+      for(const m of on.fragmentShader.matchAll(/\b(?:cloud|uCloud)\w+/g))assert(declared.has(m[0])||['cloudCoverage2','cloudNoise2'].includes(m[0]),m[0]);
+    }
+    for(const m of [off,legacy,on])m.dispose();
+  }
+});
+test('sun path is narrow at horizon, widens downward, thins toward camera and cannot form a round lobe',()=>{
+  near(seaPathWidth(0)/SUN_DISC.diameterDeg,1.25);assert(seaPathWidth(15)>seaPathWidth(5));
+  assert(SEA_PATH.lengthDeg/seaPathWidth(0)>12);
+  for(const height of [1.7,55]){
+    let previous=Infinity;
+    for(const depression of [0,1,3,7,12,20,24]){
+      const amount=seaDiscPath(1,1,depression);assert(amount<=previous);previous=amount;
+      const offset=seaPathWidth(depression)/2+.01;assert.equal(seaDiscPath(Math.cos(offset*Math.PI/180),1,depression),0);
+      if(depression>0&&depression<20){const distance=height/Math.tan(depression*Math.PI/180);assert(distance>0);near(Math.atan2(height,distance)*180/Math.PI,depression);}
+    }
+  }
+  assert.equal(seaDiscPath(1,0),0);assert.equal(seaPathEnvelope(24),0);assert.equal(seaDiscPath(-1,1,3),0);
+  const dir=new THREE.Vector3(...kamakuraAtmosphere('dusk',base()).sunDir);
+  for(const query of ['', '&sea2=0','&sea3=0','&glitter=0']){
+    const v=buildKamakuraSea(seaTerrain(),seaData(),{search:'?time=dusk&bankwet=0'+query,sunDir:dir}),s=compile(v);
+    assert.match(s.fragmentShader,/vec3 outgoingLight = totalDiffuse \+ totalEmissiveRadiance;/);
+    assert(!s.fragmentShader.includes('if(uShore6<=0.0)outgoingLight+='));assert(s.fragmentShader.includes('float seaPath2'));shaderCheck(s.fragmentShader);v.dispose();
+  }
+  const old=buildKamakuraSea(seaTerrain(),seaData(),{search:'?time=dusk&sunpath2=0&bankwet=0',sunDir:dir}),s=compile(old);
+  assert(!s.fragmentShader.includes('float seaPath2'));assert(s.fragmentShader.includes('totalDiffuse + totalSpecular'));old.dispose();
+});
+test('dusk mist and shadow floor change only at dusk and revert with the air flag',()=>{
+  for(const time of ['morning','noon','golden','evening'])assert.equal(duskMistShader(MIST_GLSL,'?time='+time),MIST_GLSL);
+  assert.equal(duskMistShader(MIST_GLSL,'?time=dusk&duskair=0'),MIST_GLSL);
+  const mist=duskMistShader(MIST_GLSL,'?time=dusk');assert.notEqual(mist,MIST_GLSL);shaderCheck(mist);
+  assert(mist.includes('smoothstep(35.000000,220.000000,distanceValue)'));
+  const old=kamakuraAtmosphere('dusk',base(),true,1,undefined,{legacyDusk:true});assert.deepEqual(old.mist,DUSK_LEGACY.mist);assert.equal(old.postMist,.75);
+  assert(DUSK.mist.base>old.mist.base&&DUSK.mist.falloff>old.mist.falloff);
+  const shaded=shadeColor(0,0,0,shadeSettings('?time=dusk'),[0,0,0]);assert(shaded[2]>shaded[1]&&shaded[1]>shaded[0]);near(shaded[2],DUSK_AIR.shadeFloor);
 });

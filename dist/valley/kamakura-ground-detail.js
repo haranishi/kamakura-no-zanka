@@ -1,6 +1,7 @@
 import { installGroundTone } from './kamakura-ground-tone.js';
 import { shoreViewFor, SHORE_GLSL } from './kamakura-shore.js';
 import { groundPattern } from './kamakura-ground-pattern.js';
+import { installGroundCliff } from './kamakura-ground-cliff.js';
 // W2c-9b: flat vertex color -> distance-filtered grass/soil, preserving Lambert/fog/shadows.
 export function installGroundDetail(THREE, material, data, {quality='standard',search=''}={}) {
   const grid=data?.meta?.grid;
@@ -93,5 +94,6 @@ export function installGroundDetail(THREE, material, data, {quality='standard',s
   const owner = {uniforms,textures:[surface,texture],setAdapt(policy){const step=typeof policy==='number'?policy:policy.step;uniforms.uGroundStrength.value=step>=3?0:quality==='light'?.7:1;uniforms.uGroundSecond.value=quality==='light'||step>=2?0:1;},dispose(){if(disposed)return;disposed=true;surface.dispose();texture.dispose();}};
   // W2c-9r1 ground: separate vertex/class bands -> continuous tone owner, gtone=0 keeps legacy.
   installGroundTone(THREE,material,data,owner,{quality,search});
+  installGroundCliff(THREE,material,owner,{quality,search});
   return owner;
 }

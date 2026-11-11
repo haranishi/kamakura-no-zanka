@@ -1,14 +1,14 @@
 // Own the existing atmosphere without changing the valley implementation.
 import * as THREE from 'three';
 import { ATMOS, installFog, createAtmosphere, skyMaterial } from './atmosphere.js';
-import { atmosphereOptions, atmospherePolicy, kamakuraAtmosphere, eveningEnabled, isEveningLike, visualSun, SUN_DISC } from './kamakura-atmosphere.js';
+import { atmosphereOptions, atmospherePolicy, kamakuraAtmosphere, eveningEnabled, isEveningLike, visualSun, SUN_DISC, CLOUDS2, CLOUDS2_GLSL, clouds2Enabled, duskAirEnabled } from './kamakura-atmosphere.js';
 import { SCALES } from './kamakura-adapt.js';
 import { FLIGHT_SHADOW, createFlightShadowState, flightShadowBox, flightShadowEnabled } from './kamakura-flight-shadow.js';
 import { contactShadowChunk, softShadowEnabled } from './kamakura-shadow.js';
 // An optional sky factory keeps the shared valley sky byte-identical when omitted.
-export function kamakuraSkyMaterial(a, time, disc, dusk = false, debug = false) {
+export function kamakuraSkyMaterial(a, time, disc, dusk = false, debug = false, clouds = null) {
   const m = skyMaterial(a, time);
-  if (!disc) return m;
+  if (!disc) return lowCloudMaterial(m, clouds);
   const C = SUN_DISC, radius = C.diameterDeg * Math.PI / 360;
   Object.assign(m.uniforms, {
     uDiscDir: { value: new THREE.Vector3(...disc.dir) }, uDiscRadius: { value: radius },
@@ -30,6 +30,31 @@ export function kamakuraSkyMaterial(a, time, disc, dusk = false, debug = false) 
       if(uDiscDebug>.5 && uDiscGain>0.0) col = mix(col, discCore>.5 ? vec3(1.0,1.0,0.0) : vec3(1.0,0.0,1.0), max(discCore,discHalo));
       ${end}`);
   if (dusk) m.fragmentShader = m.fragmentShader.replace('mix(vec3(0.78, 0.74, 0.74), sunColor * 1.15,', 'mix(mid, horizon,');
+  return lowCloudMaterial(m, clouds);
+}
+function lowCloudMaterial(m, clouds) {
+  if (!clouds) return m;
+  const C=CLOUDS2, end='col += (hash(gl_FragCoord.xy) - 0.5) / 255.0;';
+  if(!m.fragmentShader.includes(end))throw new Error('Sky cloud anchor missing');
+  Object.assign(m.uniforms,{uClouds2:{value:clouds.gain},uClouds2Debug:{value:+clouds.debug},uCloudLayers:{value:clouds.layers??C.heightsDeg.length}});
+  m.fragmentShader=m.fragmentShader.replace('void main(){',`uniform float uClouds2;uniform float uClouds2Debug;uniform float uCloudLayers;
+${CLOUDS2_GLSL}
+void main(){`)
+    .replace(end,`float cloudHeight=degrees(asin(clamp(d.y,-1.0,1.0)));
+      if(cloudHeight>${C.minDeg.toFixed(8)}&&cloudHeight<${C.maxDeg.toFixed(8)}){
+      float cloudBearing=degrees(atan(d.x,-d.z));
+      float cloudMask=cloudCoverage2(cloudBearing,cloudHeight,uTime,uCloudLayers);
+      float cloudLower=cloudCoverage2(cloudBearing,cloudHeight-${C.featherDeg.toFixed(8)},uTime,uCloudLayers);
+      float cloudRim=max(0.0,cloudMask-cloudLower)*${C.rimGain.toFixed(8)};
+      float cloudSunward=max(0.0,dot(normalize(d.xz),normalize(sunDir.xz)));
+      float cloudWarm=1.0-smoothstep(0.0,radians(${C.sunWidthDeg.toFixed(8)}),acos(clamp(cloudSunward,-1.0,1.0)));
+      vec3 cloudShade=mix(mid,fogColor,${C.shadeMix.toFixed(8)})*${C.shadeGain.toFixed(8)};
+      vec3 cloudLit=mix(horizon,sunColor,cloudWarm)*${C.warmGain.toFixed(8)};
+      vec3 cloudColour=mix(cloudShade,cloudLit,clamp(cloudRim*cloudWarm,0.0,1.0));
+      col=mix(col,cloudColour,cloudMask*${C.opacity.toFixed(8)}*uClouds2);
+      if(uClouds2Debug>.5)col=mix(col,mix(vec3(0.0,0.3,1.0),vec3(1.0,0.3,0.0),cloudWarm),cloudMask*uClouds2);
+      }
+      ${end}`);
   return m;
 }
 const FOG_CHUNKS = ['fog_pars_vertex', 'fog_vertex', 'fog_pars_fragment', 'fog_fragment'];
@@ -73,6 +98,7 @@ export function installKamakuraFog(a, enhanced = true, evening = false) {
 }
 // sunPlace: where the map moves the sun to ({ turn, lift } in degrees); mapAir: how much it thickens the air ({ haze, mist }). Both from kamakura-atmosphere.js.
 export function createKamakuraAtmosphere({ scene, renderer, search = '', quality = 'standard', sunPlace = undefined, mapAir = undefined }) {
+  const cloudOn=clouds2Enabled(search), cloudDebug=new URLSearchParams(search).get('clouds2debug')==='1';
   const options = atmosphereOptions(search), resources = new Set(), before = new Set(scene.children);
   const previous = { background: scene.background, fog: scene.fog, environment: scene.environment, environmentIntensity: scene.environmentIntensity,
     shadowEnabled: renderer.shadowMap.enabled, shadowType: renderer.shadowMap.type };
@@ -90,6 +116,10 @@ export function createKamakuraAtmosphere({ scene, renderer, search = '', quality
   let usingFlightBox = false, adaptPolicy = {};
   const softAvailable = softShadowEnabled(search,quality);
   const air = { flying: false, shadow: flightBox, mist: { ready:false,enabled:false,strength:0,cells:0 }, cloud: { scale:1,strength:0,height:0 } };
+  const debugClouds = () => ({enabled:cloudOn&&!!atmosphere,count:atmosphere?.sky.material.uniforms.uCloudLayers?.value??0,
+    triangles:atmosphere?.sky.geometry.index.count/3||0,draws:atmosphere?1:0,addedDraws:0,preparationWork:0,
+    nearest:{distance:atmosphere?.sky.geometry.parameters.radius??null,bearing:lastCamera?(Math.atan2(-lastCamera.matrixWorld.elements[8],lastCamera.matrixWorld.elements[10])*180/Math.PI+360)%360:null},strength:atmosphere?.sky.material.uniforms.uClouds2?.value??0});
+  if(debug&&cloudOn)globalThis.__kzClouds2=debugClouds;
   const debugAir = () => air;
   const debugSun = () => {
     const u = atmosphere?.sky.material.uniforms, dir = u?.uDiscDir?.value;
@@ -116,15 +146,15 @@ export function createKamakuraAtmosphere({ scene, renderer, search = '', quality
   }
   try {
     if (options.enabled) {
-      const a = kamakuraAtmosphere(options.time, { ...ATMOS, sunDir: ATMOS.sunDir.toArray() }, eveningEnabled(search), quality === 'light' ? .55 : 1, sunPlace, mapAir);
+      const a = kamakuraAtmosphere(options.time, { ...ATMOS, sunDir: ATMOS.sunDir.toArray() }, eveningEnabled(search), quality === 'light' ? .55 : 1, sunPlace, { ...mapAir, legacyDusk: !duskAirEnabled(search) });
       a.sunDir = new THREE.Vector3(...a.sunDir);
       installed = true; installKamakuraFog(a, eveningEnabled(search), isEveningLike(options.time)); // Before terrain, sea, houses and vegetation materials.
       scene.background = null;
       renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
       const disc = visualSun(options.time, a.sunDir.toArray(), sunPlace);
       atmosphere = createAtmosphere({ scene, renderer: captureRenderer(renderer, resources), quality, a,
-        ...(disc ? { makeSky: (params, time) => {
-          const material = kamakuraSkyMaterial(params, time, disc, options.time === 'dusk', new URLSearchParams(search).get('sundebug') === '1');
+        ...(disc || cloudOn ? { makeSky: (params, time) => {
+          const material = kamakuraSkyMaterial(params, time, disc, options.time === 'dusk', new URLSearchParams(search).get('sundebug') === '1', cloudOn ? { gain: (options.time==='dusk'?1:CLOUDS2.eveningGain)*(quality==='light'?CLOUDS2.reducedGain:1), debug:cloudDebug, layers:quality==='light'?CLOUDS2.reducedLayers:CLOUDS2.heightsDeg.length } : null);
           sunPreparationWork++; return material;
         } } : {}) });
       if (softShadowEnabled(search, quality)) {
@@ -165,6 +195,8 @@ export function createKamakuraAtmosphere({ scene, renderer, search = '', quality
       if (disposed || !atmosphere) return;
       adaptPolicy = next;
       const u = atmosphere.sky.material.uniforms;
+      if(u.uCloudLayers)u.uCloudLayers.value=next.scale<=SCALES[3]?CLOUDS2.minimumLayers:quality==='light'||next.scale<=SCALES[2]?CLOUDS2.reducedLayers:CLOUDS2.heightsDeg.length;
+      if(u.uClouds2)u.uClouds2.value=(options.time==='dusk'?1:CLOUDS2.eveningGain)*(quality==='light'||next.scale<=.7?CLOUDS2.reducedGain:1);
       if (u.uDiscHaloGain) u.uDiscHaloGain.value = u.uDiscGain.value ? SUN_DISC.haloGain * (quality === 'light' || next.scale <= .7 ? SUN_DISC.seaReduced : 1) : 0;
       atmosphere.sun.castShadow = next.shadows;
       atmosphere.sun.shadow.radius = shadowPatched && (!usingFlightBox || flightBox.soft) && softShadowEnabled(search, quality, next) ? 2 : 1;
@@ -204,6 +236,7 @@ export function createKamakuraAtmosphere({ scene, renderer, search = '', quality
       // Protect unrelated objects which were added after initialization.
       for (const object of scene.children) if (!owned.includes(object)) before.add(object);
       release(); atmosphere = null;
+      if(globalThis.__kzClouds2===debugClouds)delete globalThis.__kzClouds2;
       if (debug && globalThis.__kzAir === debugAir) delete globalThis.__kzAir;
       if (debug && globalThis.__kzSun === debugSun) delete globalThis.__kzSun;
     },
