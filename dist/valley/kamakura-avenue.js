@@ -24,6 +24,9 @@ export const AVENUE = Object.freeze({
   bermWidth: 2.6, bermTop: 1, bermHeight: .7, bermInset: .6, // m: trapezoid section and inset from road edge
   bermStep: 6, entranceEvery: 70, entranceWidth: 5, crossingExtra: 6, // m: sampling and openings
   soilBand: .16, groundLift: .015, grassStrength: .7, // m / m / ratio: exposed soil toe, surface lift, existing tone strength
+  // Seen in real Chrome and in a review against the concept: banks of one grass colour read as painted prisms. The slopes are
+  // faced with stone now (the ground's own lightness, without its hue), the top stays grass, and each stretch has its own tone.
+  stoneGain: 1.5, stoneHue: Object.freeze([1, .92, .78]), bermTone: .09, // gain on the ground's luminance / warm grey share per channel / +-fraction per stretch
   bermTriangles: 6000, totalTriangles: 7000, // hard geometry budgets
   range: 5000, lightRange: 3000, adaptRange: 2000, adapt1Range: 4000, adapt2Range: 3000, // m: 3D visibility
   markerHeight: 20, markerWidth: 1, // m: debug pine columns
@@ -150,7 +153,14 @@ export function prepareAvenue(data, { terrain, search = '' } = {}) {
   }
   return { axis, pines, skipped, torii, veg: [...(data.veg || []), ...pines], work: site.work, site };
 }
-// Vertex buffers remain pure data; colours use the exact existing ground grass tone operation.
+// Stone facing: a warm grey from the ground's own luminance (lighter than the ground: at the ground's lightness the shaded face
+// sank to navy under the blue sky light). No palette of its own.
+export function bermStone(ground, tone = 1) {
+  const l = .2126 * ground[0] + .7152 * ground[1] + .0722 * ground[2];
+  return AVENUE.stoneHue.map(c => l * c * AVENUE.stoneGain * tone);
+}
+export function bermHash(i, side) { const n = Math.sin(i * 12.9898 + side * 78.233) * 43758.5453; return n - Math.floor(n); }
+// Vertex buffers remain pure data; the top uses the exact existing ground grass tone operation.
 export function avenueBerm(plan, terrain) {
   const positions = [], colors = [], segments = [], { axis, site } = plan; let length = 0, gaps = 0, inGap = false;
   const from = axis.length * AVENUE.fractions[0], to = axis.length * AVENUE.fractions[1];
@@ -186,13 +196,15 @@ export function avenueBerm(plan, terrain) {
       const center = avenueSample(axis, mid, side * (axis.width / 2 - AVENUE.bermInset));
       const base = terrain.groundColorAt?.(center.x, center.z) || null;
       const soil = base || [1, 3, 5].map(k => { const v = parseInt(AVENUE.fallbackGround.slice(k, k + 2), 16) / 255; return v <= .04045 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4; });
-      const grass = soil.map((v, k) => toneChannel(v, k, 0, 0, 1, 0, AVENUE.grassStrength, 0, 0));
+      const tone = 1 + AVENUE.bermTone * (2 * bermHash(i, side) - 1);
+      const grass = soil.map((v, k) => toneChannel(v, k, 0, 0, 1, 0, AVENUE.grassStrength, 0, 0) * tone), stone = bermStone(soil, tone);
       for (let k = 0; k < rows[0].length - 1; k++) {
-        const a = rows[0][k], b = rows[1][k], c = rows[1][k + 1], d = rows[0][k + 1], color = k === 0 ? soil : grass;
+        // toe: bare soil; both slopes: stone facing; top: grass
+        const a = rows[0][k], b = rows[1][k], c = rows[1][k + 1], d = rows[0][k + 1], color = k === 0 ? soil : k === 2 ? grass : stone;
         if (side > 0) { triangle(a, c, b, color); triangle(a, d, c, color); } else { triangle(a, b, c, color); triangle(a, c, d, color); }
       }
       // Close only the exposed section ends, without a hidden bottom face.
-      for (const row of rows) for (let k = 1; k < row.length - 1; k++) triangle(row[0], row[k], row[k + 1], grass);
+      for (const row of rows) for (let k = 1; k < row.length - 1; k++) triangle(row[0], row[k], row[k + 1], stone);
       segments.push({ from: s, to: end, side, rows }); length += end - s;
     }
   }

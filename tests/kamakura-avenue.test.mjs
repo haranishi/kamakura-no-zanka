@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { AVENUE, avenueAxis, avenueSample, avenueRange, prepareAvenue, avenueBerm, avenueToriiGeometry, avenueToriiColor } from '../dist/valley/kamakura-avenue.js';
+import { AVENUE, avenueAxis, avenueSample, avenueRange, prepareAvenue, avenueBerm, bermStone, bermHash, avenueToriiGeometry, avenueToriiColor } from '../dist/valley/kamakura-avenue.js';
 import { prepareVeg } from '../dist/valley/kamakura-veg.js';
 import { createKamakuraTerrain } from '../dist/valley/kamakura-terrain.js';
 import { loadKamakura } from '../dist/valley/kamakura-data.js';
@@ -90,6 +90,24 @@ test('A3 3D range follows quality and each automatic step', () => {
   assert.equal(avenueRange('standard', 3), 2000); assert.equal(avenueRange('light', 3), 2000);
 });
 
+test('A4 berm faces: stone slopes without the hue of the ground, a grass top, a soil toe, and a tone of its own for each stretch', () => {
+  const ground = [.1, .2, .08], ter = terrain({ groundColorAt: () => ground }), b = avenueBerm(plan(world(), ter), ter), c = b.colors;
+  const stone = bermStone(ground), lum = .2126 * ground[0] + .7152 * ground[1] + .0722 * ground[2];
+  for (let k = 0; k < 3; k++) close(stone[k], lum * AVENUE.stoneHue[k] * AVENUE.stoneGain);
+  assert(stone[0] > stone[1] && stone[1] > stone[2] && stone[0] - stone[2] < stone[0] * .25, 'a warm grey, not the green of the ground');
+  // Each stretch: 8 face triangles (toe 2, slope 2, top 2, slope 2) and then the end caps, 9 colour values per triangle.
+  const tones = new Set(); let stretches = 0;
+  for (let at = 0; at < c.length; at += (8 + 6) * 9, stretches++) {
+    const face = n => [c[at + n * 18], c[at + n * 18 + 1], c[at + n * 18 + 2]], toe = face(0), outer = face(1), top = face(2), inner = face(3);
+    for (let k = 0; k < 3; k++) close(toe[k], ground[k]);
+    const tone = outer[0] / stone[0]; tones.add(tone.toFixed(4)); assert(tone >= 1 - AVENUE.bermTone - 1e-6 && tone <= 1 + AVENUE.bermTone + 1e-6);
+    for (let k = 0; k < 3; k++) { close(outer[k], stone[k] * tone); close(inner[k], stone[k] * tone); }
+    assert(top[1] > top[0] && top[1] > top[2], 'the top stays green'); assert(top[1] / top[0] > outer[1] / outer[0] * 1.2, 'the top is clearly greener in hue than the stone');
+    for (let n = 8; n < 14; n++) for (let k = 0; k < 3; k++) close(c[at + n * 9 + k], stone[k] * tone);
+  }
+  assert.equal(stretches, b.segments.length); assert(tones.size > b.segments.length / 3, 'stretches differ in tone');
+  for (const [i, side] of [[1, 1], [1, -1], [2, 1]]) assert(bermHash(i, side) >= 0 && bermHash(i, side) < 1);
+});
 test('A4 berm cross section and ground contact follow a synthetic slope; entrances and crossing widths stay open', t => {
   const d = world(); d.roads.cross = road([[-100, 300], [100, 300]], 'cross', 8, 'kaido');
   const ter = terrain({ heightAt: (x, z) => 10 + x * .12 + z * .06, groundColorAt: () => [.1, .2, .08] }), p = plan(d, ter), b = avenueBerm(p, ter);
