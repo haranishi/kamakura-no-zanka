@@ -100,11 +100,35 @@ export function sunBacklight(dir, sunDir, strength = 1) {
   const facing = Math.max(0, -(dir[0]*sunDir[0]+dir[1]*sunDir[1]+dir[2]*sunDir[2])/length);
   return facing ** 4 * Math.max(0, Math.min(1, strength));
 }
-export function kamakuraAtmosphere(time, evening, enhanced = true, strength = 1) {
+// A designed map is laid out after a picture, and the picture decides where its light comes from. Such a map may move the sun
+// of every time of day: meta.sun.turn_deg turns it about the vertical (clockwise seen from above) and meta.sun.lift_deg raises
+// or lowers it. `&sunturn=` and `&sunlift=` in the address override them (for tuning and captures).
+export const SUN_PLACE = Object.freeze({ turnMax: 180, liftMax: 45, low: 4, high: 80 }); // degrees: limits of the two fields / of the resulting height
+export function sunPlace(meta, search = '') {
+  const sun = meta?.sun;
+  if (sun !== undefined && (!sun || typeof sun !== 'object' || Array.isArray(sun) || Object.keys(sun).some(key => key !== 'turn_deg' && key !== 'lift_deg'))) throw new RangeError('Invalid sun');
+  const q = new URLSearchParams(search), place = {};
+  for (const [field, name, max] of [['turn', 'turn_deg', SUN_PLACE.turnMax], ['lift', 'lift_deg', SUN_PLACE.liftMax]]) {
+    const stored = sun && Object.hasOwn(sun, name) ? sun[name] : 0;
+    if (!Number.isFinite(stored) || Math.abs(stored) > max) throw new RangeError('Invalid sun');
+    const raw = q.get('sun' + field), asked = Number(raw);
+    place[field] = raw !== null && raw !== '' && Number.isFinite(asked) && Math.abs(asked) <= max ? asked : stored;
+  }
+  return place;
+}
+// dir is a unit [east, up, south]. A new unit array; no turn and no lift return the same numbers.
+export function placeSun(dir, { turn = 0, lift = 0 } = {}) {
+  if (!turn && !lift) return [dir[0], dir[1], dir[2]];
+  const t = turn * Math.PI / 180, c = Math.cos(t), s = Math.sin(t), flat = Math.hypot(dir[0], dir[2]);
+  const height = Math.max(SUN_PLACE.low, Math.min(SUN_PLACE.high, Math.asin(Math.max(-1, Math.min(1, dir[1]))) * 180 / Math.PI + lift)) * Math.PI / 180;
+  const k = Math.cos(height) / flat;
+  return [(dir[0] * c - dir[2] * s) * k, Math.sin(height), (dir[2] * c + dir[0] * s) * k];
+}
+export function kamakuraAtmosphere(time, evening, enhanced = true, strength = 1, place = undefined) {
   const preset = Object.hasOwn(KAMAKURA_TIMES, time) ? KAMAKURA_TIMES[time] : KAMAKURA_TIMES.noon;
   const a = { ...evening, ...preset, sunDir: [...(preset.sunDir || evening.sunDir)], mist: { ...preset.mist } };
   if (time === 'evening' && enhanced) Object.assign(a, eveningLight(a, strength));
   validateAtmosphere(a);
-  const length = Math.hypot(...a.sunDir); a.sunDir = a.sunDir.map(v => v / length);
+  const length = Math.hypot(...a.sunDir); a.sunDir = placeSun(a.sunDir.map(v => v / length), place);
   return a;
 }
