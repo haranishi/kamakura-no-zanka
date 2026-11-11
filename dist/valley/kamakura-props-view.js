@@ -1,3 +1,4 @@
+import { isEveningLike } from './kamakura-atmosphere.js';
 // W2c-16g: spatial selection on 60m movement, shader-only smoke/cloth/fade.
 import * as THREE from '../vendor/three.module.min.js';
 import { atmosphereOptions } from './kamakura-atmosphere.js';
@@ -51,7 +52,7 @@ vPropSmoke = smoothstep(0.0, 0.10, propLife) * (1.0 - smoothstep(0.55, 1.0, prop
 `;
 function material(type, uniforms, time) {
   const smoke = type === 'smoke', cloth = type === 'cloth', basic = smoke || type === 'glow' || type === 'debug';
-  const settings = { color: smoke ? (time === 'evening' || time === 'golden' ? '#cdb79a' : '#c4c1b8') : 0xffffff, vertexColors: !smoke, fog: true, side: THREE.DoubleSide };
+  const settings = { color: smoke ? (isEveningLike(time) || time === 'golden' ? '#cdb79a' : '#c4c1b8') : 0xffffff, vertexColors: !smoke, fog: true, side: THREE.DoubleSide };
   const m = basic ? new THREE.MeshBasicMaterial({ ...settings, transparent: smoke, opacity: smoke ? .26 : 1, depthWrite: !smoke }) : new THREE.MeshLambertMaterial(settings);
   m.forceSinglePass = true;
   m.onBeforeCompile = shader => {
@@ -84,7 +85,7 @@ export function createKamakuraProps(context, options = {}) {
     const defs = debug ? [...definitions, ['debug', 'debug', 0]] : definitions;
     for (const [kind, type, variant] of defs) {
       if (kind !== 'debug' && only && kind !== only) continue;
-      if (type === 'glow' && time !== 'evening' && time !== 'golden') continue;
+      if (type === 'glow' && !isEveningLike(time) && time !== 'golden') continue;
       let capacity = 0;
       for (const p of result.items) if (kind === 'debug' && (p.kind !== 'paver' || p.row % 20 === 1 && p.col === 0) || p.kind === kind && (!['gorinto', 'yard'].includes(kind) || p.variant === variant)) capacity++;
       if (!capacity) continue;

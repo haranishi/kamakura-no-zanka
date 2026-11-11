@@ -1,3 +1,4 @@
+import { isEveningLike } from './kamakura-atmosphere.js';
 // W2c-16f: three one-pass instanced meshes, no textures or external assets.
 import * as THREE from '../vendor/three.module.min.js';
 import { atmosphereOptions } from './kamakura-atmosphere.js';
@@ -142,7 +143,7 @@ export function createKamakuraFauna(context, options = {}) {
   const light = context.quality === 'light' ? .6 : 1;
   if (!context.lifeEvents) context.lifeEvents = [];
   const events = context.lifeEvents, terrain = context.terrain;
-  const uniforms = { uFaunaTime: { value: 0 }, uFaunaHeight: { value: 720 }, uFaunaDebug: { value: debug ? 1 : 0 }, uFaunaEvening: { value: day === 'evening' ? 1 : 0 }, uFaunaSun: { value: new THREE.Vector3(0, 1, 0) } };
+  const uniforms = { uFaunaTime: { value: 0 }, uFaunaHeight: { value: 720 }, uFaunaDebug: { value: debug ? 1 : 0 }, uFaunaEvening: { value: isEveningLike(day) ? 1 : 0 }, uFaunaSun: { value: new THREE.Vector3(0, 1, 0) } };
   const birdCapacity = FAUNA.kiteSlots + FAUNA.flockSlots * (FAUNA.flockBirds + 1) + FAUNA.crowCapacity;
   const birds = makeMesh(birdCapacity, 0, uniforms);
   const butterflies = makeMesh(FAUNA.butterflySlots, 2, uniforms), dragonflies = makeMesh(FAUNA.dragonflySlots, 3, uniforms);

@@ -1,3 +1,4 @@
+import { HOUSE_PALETTE } from './kamakura-house-texture.js';
 // Existing river stones and harbour hulls, with original timber construction; no additional palette or assets.
 import * as THREE from '../vendor/three.module.min.js';
 import { rockGeometry, RIVERLIFE_ART } from './kamakura-riverlife-kit.js';
@@ -5,6 +6,9 @@ import { harborGeometry, HARBOR_ART } from './kamakura-harbor-kit.js';
 import { WORKS } from './kamakura-works.js';
 import { riverlifeHash as hash } from './kamakura-river-rocks.js';
 export const WORKS_ART = Object.freeze({
+  fenceCoarseSides: 3, // sides: post-only fallback when maximum fences share the budget with piers and boats.
+  fenceSides: 4, // sides: low-poly round logs, preserving the combined works triangle budget.
+  fenceColor: HOUSE_PALETTE.oldWood, fenceDebug: 0x00ffff, // linear RGB / mask: aged house timber and cyan rail inspection.
   rockDebug: RIVERLIFE_ART.rockDebug, deckDebug: RIVERLIFE_ART.deckDebug, pileDebug: RIVERLIFE_ART.pierDebug, boatDebug: RIVERLIFE_ART.foamDebug, // unlit masks, inherited.
   wetHeight: .6, wetRatio: RIVERLIFE_ART.wetGain/RIVERLIFE_ART.dryGain, // m / gain: sea-wetted stone below the splash line.
   mastHeight: HARBOR_ART.mastHeight, yardHeight: HARBOR_ART.sailBottom, yardWidth: HARBOR_ART.sailWidth, // m: existing rig lowered and furled at the yard.
@@ -43,7 +47,7 @@ function builder() {
     const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));g.setAttribute('color',new THREE.Float32BufferAttribute(colors,3));
     g.setAttribute('aWorksCenter',new THREE.Float32BufferAttribute(centers,3));g.setAttribute('aWorksSailPart',new THREE.Float32BufferAttribute(sails,1));g.computeVertexNormals();g.computeBoundingSphere();return g;
   }
-  return {tri,quad,add,box,pole,finish};
+  return {tri,quad,add,box,pole,finish,count:()=>positions.length/3};
 }
 // Original low-poly boulder. All four variants keep the sphere's vertex order, so an instance may take any of them.
 export function boulderGeometry(variant=0) {
@@ -140,4 +144,33 @@ export function worksBoatGeometry(far=false,debug=false) {
     g.rotateZ(Math.PI/2);g.translate(0,A.yardHeight+A.furledDiameter/2,0);g.scale(1/W.sailWidth,1,1/W.sailLength);b.add(g,debug?cyan:mat,[0,0,0],1);
   }
   return b.finish();
+}
+
+// Four-sided round timber; 10 triangles per post, 8 per rail (open rail ends are inside/just beyond posts).
+export function worksFenceGeometry(fences,debug=false,postSides=A.fenceSides) {
+  const ranks=[];const b=builder(),color=debug?new THREE.Color(A.fenceDebug):new THREE.Color(...A.fenceColor);
+  function timber(a,c,diameter,center,top=false,sides=A.fenceSides) {
+    const length=Math.hypot(c.x-a.x,c.y-a.y,c.z-a.z),g=new THREE.CylinderGeometry(diameter/2,diameter/2,length,sides,1,true);
+    const q=new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0,1,0),new THREE.Vector3(c.x-a.x,c.y-a.y,c.z-a.z).normalize());
+    g.applyQuaternion(q);g.translate((a.x+c.x)/2,(a.y+c.y)/2,(a.z+c.z)/2);b.add(g,color,center);
+    if(top) {
+      const radius=diameter/2,points=Array.from({length:sides},(_,i)=>[Math.cos(i*Math.PI*2/sides)*radius,0,Math.sin(i*Math.PI*2/sides)*radius]).map(p=>new THREE.Vector3(...p).applyQuaternion(q).add(new THREE.Vector3(c.x,c.y,c.z)).toArray());
+      for(let i=1;i<sides-1;i++)b.tri(points[0],points[i],points[i+1],color,center);
+    }
+  }
+  for(const f of fences) {
+    const first=b.count();
+    for(const p of f.posts) {
+      const dx=Math.tan(p.tiltZ)*p.height,dz=-Math.tan(p.tiltX)*p.height;
+      timber({x:p.x,y:p.y-W.fenceEmbed,z:p.z},{x:p.x+dx,y:p.y+p.height,z:p.z+dz},p.diameter,[p.x,p.y,p.z],true,postSides);
+    }
+    for(const r of f.rails) {
+      const d=Math.hypot(r.b.x-r.a.x,r.b.y-r.a.y,r.b.z-r.a.z),t=W.railOverhang/d;
+      const a={x:r.a.x-(r.b.x-r.a.x)*t,y:r.a.y-(r.b.y-r.a.y)*t,z:r.a.z-(r.b.z-r.a.z)*t};
+      const c={x:r.b.x+(r.b.x-r.a.x)*t,y:r.b.y+(r.b.y-r.a.y)*t,z:r.b.z+(r.b.z-r.a.z)*t};
+      timber(a,c,r.diameter,[(r.a.x+r.b.x)/2,(r.a.y+r.b.y)/2,(r.a.z+r.b.z)/2]);
+    }
+    const end=b.count();for(let i=first;i<end;i++)ranks.push(f.rank??0);
+  }
+  const g=b.finish();g.setAttribute('aWorksFenceRank',new THREE.Float32BufferAttribute(ranks,1));return g;
 }

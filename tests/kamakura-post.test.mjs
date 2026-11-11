@@ -103,3 +103,15 @@ test('post owner patches the global tone chunk (preset or URL) before any progra
     p.dispose();p.dispose();assert.equal(THREE.ShaderChunk.tonemapping_pars_fragment,before);
   }
 });
+
+test('visible sun moves screen glare separately from shadow light and zero disc removes glare', () => {
+  const sunDir=new THREE.Vector3(0,.3,-1).normalize(),discDir=new THREE.Vector3(.1,.02,-1).normalize();
+  for(const enabled of [true,false]) {
+    const r=stub(),p=createKamakuraPost({renderer:r,search:'?time=dusk&shafts=0&cloud=0',sunDir,disc:{enabled,dir:discDir.toArray()}});
+    const camera=new THREE.PerspectiveCamera(50,16/9,.1,1000);p.resize();p.render(new THREE.Scene(),camera);
+    const u=r.draws.at(-1).material.uniforms,projection=discDir.clone().project(camera);
+    assert(Math.abs(u.sunUV.value.y-(enabled?projection.y*.5+.5:.5))<1e-9);
+    assert.equal(u.glareStrength.value>0,enabled);assert.equal(sunDir.y,new THREE.Vector3(0,.3,-1).normalize().y);
+    p.dispose();for(const count of r.counts.values())assert.equal(count,1);
+  }
+});

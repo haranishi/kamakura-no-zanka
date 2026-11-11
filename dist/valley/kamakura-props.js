@@ -1,3 +1,4 @@
+import { isEveningLike } from './kamakura-atmosphere.js';
 // W2c-16g: deterministic placement only. North in source paths/places is -z.
 import { SANDO, sandoLength, sandoSample, sandoStones, sandoHouses } from './kamakura-sando.js';
 import { kamakuraPaths } from './kamakura-roads.js';
@@ -189,7 +190,7 @@ export function* propPlacementBatches(context, { time = 'noon', only = null } = 
     }
     yield result;
   }
-  const houses = context.houses?.boxes || [], smokeChance = ['morning', 'evening'].includes(time) ? .14 : .08;
+  const houses = context.houses?.boxes || [], smokeChance = (time === 'morning' || isEveningLike(time)) ? .14 : .08;
   for (let i = 0; i < houses.length; i++) {
     const b = houses[i];
     if (propHash(b.x, b.z, 21) < smokeChance) { const p = candidate('smoke', b.x, b.z, 0); p.y += b.height; p.yaw = 0; p.scale = 1; add(p); }

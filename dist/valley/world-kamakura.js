@@ -14,7 +14,7 @@ import { createKamakuraHeroMoves } from './kamakura-hero-moves.js';
 import { createHabitat } from './kamakura-habitat.js';
 import { timeButtonText, timeSwitchSearch } from './kamakura-time-switch.js';
 import { buildKamakuraFacilities } from './kamakura-facility-view.js';
-import { facilitiesEnabled, causewayShown } from './kamakura-facilities.js';
+import { facilitiesEnabled, causewayShown, buddhaSearch } from './kamakura-facilities.js';
 // Separate Kamakura composition with a development flight camera. No chapter state, quests, or save access.
 import * as THREE from 'three';
 import { createKamakuraTerrain, maxWalkSlope, groundEnabled } from './kamakura-terrain.js';
@@ -36,7 +36,7 @@ import { windUniforms } from './vegetation.js';
 import { createWind, stepWind, toUniforms } from './wind.js';
 import { createKamakuraPost } from './kamakura-post-view.js';
 import { createKamakuraAtmosphere } from './kamakura-atmosphere-view.js';
-import { sunPlace, airOf } from './kamakura-atmosphere.js';
+import { sunPlace, airOf, sceneSearch, visualSun, atmosphereOptions } from './kamakura-atmosphere.js';
 import { waterEnabled, prepareRivers } from './kamakura-rivers.js';
 import { buildKamakuraWater } from './kamakura-water-view.js';
 import { adaptOptions, createAdapt, stepAdapt, adaptPolicy, adaptPixelRatio } from './kamakura-adapt.js';
@@ -45,6 +45,7 @@ import { verticalScale } from './world-entry.js';
 import { startPhoto } from './kamakura-photo-tex.js';
 import { HOUSE_AMBIENT, houseAmbientEnabled } from './kamakura-house-texture.js';
 export async function bootKamakura(data, search) {
+  search = buddhaSearch(data.meta, sceneSearch(data.meta, search));
   const t = createKamakuraTerrain(data, verticalScale(search), maxWalkSlope(search)), meta = data.meta;
   configureVegPolicy(meta.veg_policy ?? null);   // per-map tree range (absent: the defaults). Cleared in dispose.
   const spawn = kamakuraSpawn(t, search);
@@ -92,8 +93,9 @@ export async function bootKamakura(data, search) {
     // W2c-10 r4 photo: CC0 detail textures start loading now and swap in together; failure keeps the procedural look.
     photo = startPhoto(THREE, { search, quality, maxAnisotropy: renderer.capabilities.getMaxAnisotropy() });
     atmosphere = createKamakuraAtmosphere({ scene, renderer, search, quality, sunPlace: sunPlace(data.meta, search), mapAir: airOf(data.meta, search) });
+    const disc = visualSun(atmosphereOptions(search).time, atmosphere.sunDir.toArray(), sunPlace(data.meta, search));
     // W2c-9f: isolate HDR/grade from the shared valley renderer.
-    post = createKamakuraPost({ renderer, quality, search, terrain: t, params: atmosphere.atmosphere?.params, sunDir: atmosphere.sunDir, farSources: { data, houses: () => houses, facilities: () => facilities, flying: () => !!flight?.active } });
+    post = createKamakuraPost({ renderer, quality, search, terrain: t, params: atmosphere.atmosphere?.params, sunDir: atmosphere.sunDir, disc, farSources: { data, houses: () => houses, facilities: () => facilities, flying: () => !!flight?.active } });
     roster = await loadRoster({ names: ['hero'] });
     // W2c-10 harmony: the hero is MeshStandardMaterial too and took ~2.5x the shade-side light of the Lambert world; a small own-envMap
     // intensity (a bit above the houses so the figure stays readable in shade) puts it on the same ambient (&henv=0 restores the old look).
@@ -104,10 +106,10 @@ export async function bootKamakura(data, search) {
     }
     const camera = new THREE.PerspectiveCamera(58, 1, 0.15, standsEnabled(search) ? 10000 : 7000);
     // W2c-9e: register shared shoreline uniforms before installing ground detail.
-    sea = buildKamakuraSea(t, data, { search, quality, sunDir: atmosphere.sunDir }); scene.add(sea.group);
+    sea = buildKamakuraSea(t, data, { search, quality, sunDir: atmosphere.sunDir, disc }); scene.add(sea.group);
     chunks = buildKamakuraChunks(t, scene, spawn, groundEnabled(search), quality, { data, search });
     if (data.rivers && waterEnabled(search)) {
-      try { water = buildKamakuraWater(prepareRivers(data.rivers, t.vscale, quality), { sunDir: atmosphere.sunDir, terrain: t, search, quality }); scene.add(water.group); }
+      try { water = buildKamakuraWater(prepareRivers(data.rivers, t.vscale, quality), { sunDir: atmosphere.sunDir, terrain: t, search, quality, disc }); scene.add(water.group); }
       catch { riverNotice = '川を準備できませんでした。川なしで散策を続けます'; }
     }
     const params = new URLSearchParams(search);

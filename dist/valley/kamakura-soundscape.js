@@ -1,3 +1,4 @@
+import { isEveningLike } from './kamakura-atmosphere.js';
 // Habitat/time scheduling and world-space sources; no rendering or live audio objects.
 import { mulberry32 } from './scatter.js';
 import { VOICE_NAMES, voicePlan, voiceDuration } from './kamakura-voices.js';
@@ -23,7 +24,7 @@ export function bellNear(distance) {
   return distance <= 60 ? 1 : ((900 - distance) / 840) ** 2;
 }
 export function voiceLikelihood(weights, time, templeDistance = Infinity, out = {}) {
-  const w = weights, morning = time === 'morning', noon = time === 'noon', golden = time === 'golden', evening = time === 'evening';
+  const w = weights, morning = time === 'morning', noon = time === 'noon', golden = time === 'golden', evening = isEveningLike(time);
   const trees = habitatGate(Math.max(w.forest || 0, (w.town || 0) * .6, (w.temple || 0) * .8));
   out.higurashi = habitatGate(w.forest) * (evening || morning ? 1 : noon ? .12 : .4);
   out.aburazemi = trees * (noon || golden ? 1 : 0);
@@ -40,7 +41,7 @@ export function voiceLikelihood(weights, time, templeDistance = Infinity, out = 
 }
 export function voiceInterval(name, likelihood, time, rng) {
   if (!(likelihood > 0)) return Infinity;
-  const bounds = name === 'kane' && time === 'evening' ? [45, 80] : VOICE_INTERVALS[name];
+  const bounds = name === 'kane' && isEveningLike(time) ? [45, 80] : VOICE_INTERVALS[name];
   return range(rng, bounds[0], bounds[1]) / Math.sqrt(likelihood);
 }
 export function sourceSpatial(source, listener, gust = 0, high = false, out = {}) {

@@ -1,5 +1,27 @@
 // W2c-12 light7: no shade grade -> restrained .15 cooling (URL can sweep 0–1).
 // Pure settings. Directions are [east, up, south]; colors stay sRGB hex strings.
+// Dusk tuning: colors are sRGB; intensities/exposure are multipliers, mist heights are metres.
+export const DUSK = Object.freeze({
+  postMist: .75, postExposure: 1.04, postBloom: .18, postGlare: 1, postWarmth: .006, postToe: .7, postShade: .22,
+  sunDir: Object.freeze([-0.9345448863, 0.1045284633, 0.3401465212]), // bearing 250°, elevation 6°.
+  sunColor: '#ff8f4a', sunIntensity: 1.25,
+  // The camera of the opening scene sees only the lowest four degrees of sky: with an orange horizon the whole strip was orange.
+  // The horizon is a dusty rose, and the orange stays near the sun (its halo and the warm haze towards it).
+  zenith: '#262b52', mid: '#75628a', horizon: '#c7867f', below: '#484c65',
+  fogColor: '#8f9bc0', hazeCool: '#8f9bc0', hazeWarm: '#f0a070', hazeExp: 7,
+  fogDensity: .000115, mist: Object.freeze({ density: .00007, base: -4, falloff: .045 }),
+  // The low sun gives level ground almost nothing: with a dim sky light the road under the walker was black (real Chrome, the
+  // real-size town). The sky light stays near the evening's; the trees are darkened on their own (foliage).
+  hemiSky: '#929bc9', hemiGround: '#575b7b', hemiIntensity: 1.02,
+  envIntensity: .42, fillColor: '#929fcf', fillIntensity: .3, exposure: 1,
+  // Leaves at dusk: darker and bluer than their daylight green (seen against the sun they stayed a bright olive).
+  foliage: Object.freeze([.62, .7, .88]),
+});
+// Visible sun only: degrees, radiance multipliers, and radius ratio. No shadow-light changes.
+export const SUN_DISC = Object.freeze({ diameterDeg: 1.15, haloRadius: 11, radiance: 3.2, haloGain: .85,
+  edgeRad: .00015, seaStrength: .85, seaPower: 180, seaFloor: .3, seaDrift: .23, seaCellsM: .8,
+  seaLow: .3, seaHigh: .85, seaReduced: .6 });
+export const isEveningLike = time => time === 'evening' || time === 'dusk';
 export const KAMAKURA_TIMES = {
   noon: {
     postExposure: 1, postBloom: .12, postGlare: .7, postWarmth: .008, postToe: .6, postShade: .15,
@@ -40,6 +62,7 @@ export const KAMAKURA_TIMES = {
   },
   // All evening colors/light values come from the unchanged valley ATMOS.
   // postToe 1 = three.js's Neutral as shipped: a blind A/B (11/8) kept the evening's warmth only with the full dark offset.
+  dusk: DUSK,
   evening: { postExposure: 1.12, postBloom: .18, postGlare: 1, postWarmth: .018, postToe: 1, postShade: .15, fogDensity: .0001, mist: { density: .00005, base: -4, falloff: .045 } },
 };
 // The time of day when the address names none. Golden hour was preferred to noon in 7 of 10 views by a reviewer who was not told
@@ -48,6 +71,14 @@ export const DEFAULT_TIME = 'golden';
 export function atmosphereOptions(search) {
   const q = new URLSearchParams(search), requested = q.get('time');
   return { enabled: q.get('atmos') !== '0', time: Object.hasOwn(KAMAKURA_TIMES, requested) ? requested : DEFAULT_TIME };
+}
+// Resolve once before booting view/audio/layers; explicit URL values (even empty/unknown) retain precedence.
+export function sceneSearch(meta, search = '') {
+  if (meta?.time !== undefined && (typeof meta.time !== 'string' || !Object.hasOwn(KAMAKURA_TIMES, meta.time))) throw new RangeError('Invalid map time');
+  const q = new URLSearchParams(search);
+  if (q.has('time') || meta?.time === undefined) return search;
+  q.set('time', meta.time);
+  return '?' + q.toString();
 }
 export function atmospherePolicy(quality = 'standard', enabled = true) {
   return { shadows: enabled, shadowSize: enabled ? (quality === 'light' ? 2048 : 4096) : 0,
@@ -106,7 +137,7 @@ export function sunBacklight(dir, sunDir, strength = 1) {
 export const SUN_PLACE = Object.freeze({ turnMax: 180, liftMax: 45, low: 4, high: 80 }); // degrees: limits of the two fields / of the resulting height
 export function sunPlace(meta, search = '') {
   const sun = meta?.sun;
-  if (sun !== undefined && (!sun || typeof sun !== 'object' || Array.isArray(sun) || Object.keys(sun).some(key => key !== 'turn_deg' && key !== 'lift_deg'))) throw new RangeError('Invalid sun');
+  if (sun !== undefined && (!sun || typeof sun !== 'object' || Array.isArray(sun) || Object.keys(sun).some(key => !['turn_deg', 'lift_deg', 'disc_deg'].includes(key)))) throw new RangeError('Invalid sun');
   const q = new URLSearchParams(search), place = {};
   for (const [field, name, max] of [['turn', 'turn_deg', SUN_PLACE.turnMax], ['lift', 'lift_deg', SUN_PLACE.liftMax]]) {
     const stored = sun && Object.hasOwn(sun, name) ? sun[name] : 0;
@@ -114,7 +145,20 @@ export function sunPlace(meta, search = '') {
     const raw = q.get('sun' + field), asked = Number(raw);
     place[field] = raw !== null && raw !== '' && Number.isFinite(asked) && Math.abs(asked) <= max ? asked : stored;
   }
+  if (sun && Object.hasOwn(sun, 'disc_deg')) {
+    if (!Number.isFinite(sun.disc_deg) || sun.disc_deg < .5 || sun.disc_deg > 10) throw new RangeError('Invalid sun disc');
+    place.disc = sun.disc_deg;
+  }
+  const rawDisc = q.get('sundisc'), disc = Number(rawDisc);
+  if (rawDisc !== null && rawDisc !== '' && Number.isFinite(disc) && (disc === 0 || disc >= .5 && disc <= 10)) place.disc = disc;
   return place;
+}
+// Null keeps every former sky/water shader and direction intact. Zero explicitly hides disc/halo/path.
+export function visualSun(time, dir, place = {}) {
+  if (place.disc === undefined && time !== 'dusk') return null;
+  const flat = Math.hypot(dir[0], dir[2]);
+  const lift = (place.disc ?? Math.asin(dir[1]) * 180 / Math.PI) * Math.PI / 180;
+  return { enabled: place.disc !== 0, dir: [dir[0] / flat * Math.cos(lift), Math.sin(lift), dir[2] / flat * Math.cos(lift)] };
 }
 // The presets' air is made for a map kilometres across: a hill 500 m away is as clear as one at arm's length. A small designed
 // map may thicken it: meta.air.haze multiplies the haze that grows with distance, meta.air.mist the low mist near the ground

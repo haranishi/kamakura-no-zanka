@@ -102,6 +102,12 @@ export function facilityGroundSamples(box, terrain, spacing=.5) {
 }
 
 // Select by actual horizontal geometry, never by facility names or IDs.
+export function buddhaSearch(meta, search = '') {
+  if (meta?.buddha !== undefined && meta.buddha !== 'hall') throw new RangeError('Invalid map Buddha');
+  const q = new URLSearchParams(search);
+  if (q.has('buddha') || meta?.buddha === undefined) return search;
+  q.set('buddha', meta.buddha); return '?' + q.toString();
+}
 export const buddhaHallMode = search => new URLSearchParams(search).get('buddha') === 'hall';
 export function enclosingBuddhaHalls(records) {
   const result=[];

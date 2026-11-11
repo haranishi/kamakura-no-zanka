@@ -1,3 +1,4 @@
+import { isEveningLike } from './kamakura-atmosphere.js';
 // W2c-16f: deterministic wildlife rules. All hot-path outputs are caller-owned.
 import { gustBand, gustPhase } from './kamakura-gust.js';
 
@@ -35,7 +36,7 @@ export function faunaAmounts(h, time, out = {}) {
   out.flocks = .5 * clamp((h.meadow || 0) + (h.town || 0) + (h.temple || 0)) * land;
   const flower = clamp((h.meadow || 0) + (h.temple || 0)) * land;
   const wet = clamp((h.river || 0) + (h.paddy || 0)) * (1 - forest);
-  out.butterflies = time === 'evening' ? 0 : FAUNA.butterflies * flower;
+  out.butterflies = isEveningLike(time) ? 0 : FAUNA.butterflies * flower;
   out.dragonflies = time === 'morning' ? 0 : FAUNA.dragonflies * wet;
   return out;
 }

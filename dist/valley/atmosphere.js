@@ -94,7 +94,7 @@ export function installFog(a = ATMOS) {
 #endif`;
 }
 
-function skyMaterial(a, time) {
+export function skyMaterial(a, time) {
   return new THREE.ShaderMaterial({
     side: THREE.BackSide, depthWrite: false, depthTest: false, fog: false,
     uniforms: {
@@ -137,15 +137,15 @@ function skyMaterial(a, time) {
   });
 }
 
-export function createAtmosphere({ scene, renderer, quality = 'standard', a = ATMOS }) {
+export function createAtmosphere({ scene, renderer, quality = 'standard', a = ATMOS, makeSky = skyMaterial }) {
   const time = { value: 0 };
-  const sky = new THREE.Mesh(new THREE.SphereGeometry(900, 48, 24), skyMaterial(a, time));
+  const sky = new THREE.Mesh(new THREE.SphereGeometry(900, 48, 24), makeSky(a, time));
   sky.name = 'sky'; sky.renderOrder = -10; sky.frustumCulled = false;
   scene.add(sky);
 
   // 環境マップ（金属・水・つやの反射）。空だけを描いたものから一度作る。
   const envScene = new THREE.Scene();
-  const envSky = new THREE.Mesh(new THREE.SphereGeometry(100, 32, 16), skyMaterial(a, { value: 0 }));
+  const envSky = new THREE.Mesh(new THREE.SphereGeometry(100, 32, 16), makeSky(a, { value: 0 }));
   envScene.add(envSky);
   const pmrem = new THREE.PMREMGenerator(renderer);
   const envTarget = pmrem.fromScene(envScene, 0.0, 1, 500);

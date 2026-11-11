@@ -1,3 +1,4 @@
+import { SUN_DISC } from './kamakura-atmosphere.js';
 // W2c-18 seaedge: pure mirrors and shader additions; colours come from shore4's deep band.
 import { seaColor4, seaBand4, SEA_BANDS4 } from './kamakura-shore-r4.js';
 import { SEA_PALETTE, shoreNoise, SHELTER, SWELL, shelteredEdgeFoam } from './kamakura-shore.js';
@@ -443,4 +444,32 @@ export function seaSurfScaleFragment(fragment,{sea3=true}={}){
     `smoothstep(${f(S.middleEndM)},${f(S.deepEndM)},sea2Distance)`
   ])fragment=fragment.replaceAll(expression,expression.replace(/,landDistance\)|,sea2Distance\)/,m=>m.replace(')', '/uSurfScale)')));
   return fragment;
+}
+
+// The visible sun's vertical water path: same azimuth at every depth, softened moving flecks.
+// Only installed for an explicit disc height or the new dusk preset; no new geometry/draw.
+export function seaDiscPath(sunward, fleck = 1) {
+  return Math.max(0, sunward) ** SUN_DISC.seaPower * SUN_DISC.seaStrength *
+    (SUN_DISC.seaFloor + (1 - SUN_DISC.seaFloor) * Math.max(0, Math.min(1, fleck)));
+}
+export function seaDiscFragment(fragment) {
+  const anchor = '#include <opaque_fragment>';
+  if (fragment.split(anchor).length !== 2) throw new Error('Sea sun path anchor missing');
+  const C = SUN_DISC;
+  return fragment.replace(anchor, `
+    if(uDiscPath>0.0){
+      vec3 discRay=normalize(vSeaWorld-cameraPosition);
+      float discFacing=max(0.0,dot(normalize(discRay.xz),normalize(SUN_DIR_W.xz)));
+      float discFleck=0.5;
+      if(uDiscPathDetail>.5){
+        vec2 discCell=vSeaWorld.xz/${f(C.seaCellsM)}+vec2(uShoreTime*${f(C.seaDrift)},0.0);
+        float discNoise=shoreNoise(discCell);
+        float discFilter=max(length(fwidth(discCell)),1.0);
+        discFleck=mix(smoothstep(${f(C.seaLow)},${f(C.seaHigh)},discNoise),0.5,1.0-1.0/discFilter);
+      }
+      float discPath=pow(discFacing,${f(C.seaPower)})*${f(C.seaStrength)}*mix(${f(C.seaFloor)},1.0,discFleck)*uDiscPath;
+      outgoingLight+=uSeaSun*discPath;
+      if(uDiscPathDebug>.5)outgoingLight=mix(outgoingLight,vec3(0.0,1.0,1.0),clamp(discPath,0.0,1.0));
+    }
+    ${anchor}`);
 }

@@ -1,5 +1,5 @@
 // W2c-19e-2: renderer-free crowd silhouettes, selection and shader equations.
-import { PEOPLE, peopleAmount, peopleHash, peoplePlacementBatches } from './kamakura-people.js';
+import { PEOPLE, peopleAmount, peopleHash, peoplePlacementBatches, sampleFlight } from './kamakura-people.js';
 
 // All art/distance controls live here. Dimensions below are fractions of adult height.
 export const CROWD = Object.freeze({
@@ -38,6 +38,11 @@ export const CROWD = Object.freeze({
   neck: Object.freeze([.045, .045, .04, .04, .76, .83]), // frustum widths/depths and heights.
   head: Object.freeze([.09, .09, .82, .92]), // half-width/depth and bottom/top height.
   cover: Object.freeze([.108, .23, .115, .91, 1]), // hair/hat/cloth radii, brim/top heights.
+  pack: Object.freeze([.14, .14, .09, .09, .48, .76]), // adult-height fractions, backpack box.
+  packBack: .17, // adult-height fraction, backpack centre behind the shoulders.
+  staffWidth: .014, staffSide: .34, staffHeight: .8, // adult-height fractions, square staff.
+  travellerLight: .75, // ratio, lightweight moving-figure count.
+  travellerDebug: 0xff701c, // existing orange role colour for road groups.
   sides: 8, // segments, headwear cone.
 });
 const clamp = v => Math.max(0, Math.min(1, v));
@@ -55,7 +60,7 @@ export function crowdTraits(p) {
     yaw = Math.atan2(a.x - b.x, a.z - b.z);
   }
   return { height: CROWD.heightMin + (CROWD.heightMax - CROWD.heightMin) * peopleHash(p.x, p.z, 102),
-    cloth: Math.floor(peopleHash(p.x, p.z, 103) * CROWD.clothes.length), head: roll < CROWD.headHair ? 0 : roll < CROWD.headHat ? 1 : 2,
+    cloth: p.flight ? p.variant : Math.floor(peopleHash(p.x, p.z, 103) * CROWD.clothes.length), head: p.flight ? 1 : roll < CROWD.headHair ? 0 : roll < CROWD.headHat ? 1 : 2,
     phase: peopleHash(p.x, p.z, 104) * CROWD.walk * 4, dx: -Math.sin(yaw), dz: -Math.cos(yaw) };
 }
 // The same generator is consumed by the near layer. Each added silhouette yields before the next one.
@@ -70,7 +75,7 @@ export function* crowdPlacementBatches(context, amount = peopleAmount(context.se
         const x = spot.x, z = spot.z, y = terrain.heightAt(x, z);
         const front = terrain.heightAt(x + traits.dx * CROWD.walk, z + traits.dz * CROWD.walk);
         const back = terrain.heightAt(x - traits.dx * CROWD.walk, z - traits.dz * CROWD.walk);
-        bodies.push({ spot, ...traits, y, slope: spot.role === 'walker' && Number.isFinite(front) && Number.isFinite(back) ? (front - back) / (2 * CROWD.walk) : 0 });
+        bodies.push({ spot, ...traits, y, terrain: spot.flight ? terrain : null, slope: spot.role === 'walker' && Number.isFinite(front) && Number.isFinite(back) ? (front - back) / (2 * CROWD.walk) : 0 });
         yield bodies;
       }
       yield bodies;
@@ -94,13 +99,14 @@ function down(s, root, end) {
     swap(s, root, k); root = k;
   }
 }
-export function selectCrowd(bodies, centre, camera, quality, step, s) {
-  const near = crowdNear(quality), range = crowdRange(quality, step), limit = Math.min(s.chosen.length, crowdLimit(quality, step));
+export function selectCrowd(bodies, centre, camera, quality, step, s, travellers = false, reserved = 0, cap = Infinity) {
+  const near = crowdNear(quality), range = crowdRange(quality, step), limit = Math.min(s.chosen.length, cap, Math.max(0, crowdLimit(quality, step) - reserved));
   s.count = s.scans = s.comparisons = 0;
   if (!limit) return s;
   for (let i = 0; i < bodies.length; i++) {
     s.scans++; const b = bodies[i], p = b.spot;
-    if (Math.hypot(p.x - centre.x, p.z - centre.z) <= near) continue;
+    if (!travellers && p.flight) continue;
+    if (!travellers && Math.hypot(p.x - centre.x, p.z - centre.z) <= near) continue;
     const d = Math.hypot(p.x - camera.x, b.y - camera.y, p.z - camera.z);
     if (d >= range) continue;
     if (s.count < limit) {
@@ -113,6 +119,7 @@ export function selectCrowd(bodies, centre, camera, quality, step, s) {
 }
 // CPU mirror for diagnostics/tests. Shader performs this each frame, without geometry uploads.
 export function crowdMotion(body, time, out) {
+  if (body.spot.flight) return sampleFlight(body.spot, time, body.terrain, out);
   if (body.spot.role !== 'walker') { out.travel = out.bob = 0; out.direction = 1; return out; }
   const cycle = (time * CROWD.speed + body.phase) % (CROWD.walk * 4);
   out.travel = CROWD.walk - Math.abs(cycle - CROWD.walk * 2);
@@ -122,7 +129,8 @@ export function crowdMotion(body, time, out) {
 }
 
 // Flat-shaded geometry; material codes: 0 garment, 1 skin, 2 headwear.
-export function crowdShape(role = 'chat', head = 0) {
+export function crowdShape(role = 'chat', head = 0, staff = false) {
+  if (role === 'traveller') head = 1;
   const positions = [], normals = [], parts = [];
   function pose(v) {
     let [x, y, z] = v;
@@ -137,9 +145,9 @@ export function crowdShape(role = 'chat', head = 0) {
     for (const p of [a,b,c]) { positions.push(...p); normals.push(nx/length,ny/length,nz/length); parts.push(part); }
   }
   function quad(a,b,c,d,part) { tri(a,c,b,part); tri(a,d,c,part); }
-  function box(w0,w1,d0,d1,y0,y1,part,x=0) {
-    const a=[x-w0,y0,-d0], b=[x+w0,y0,-d0], c=[x+w0,y0,d0], d=[x-w0,y0,d0];
-    const e=[x-w1,y1,-d1], f=[x+w1,y1,-d1], g=[x+w1,y1,d1], h=[x-w1,y1,d1];
+  function box(w0,w1,d0,d1,y0,y1,part,x=0,z=0) {
+    const a=[x-w0,y0,z-d0], b=[x+w0,y0,z-d0], c=[x+w0,y0,z+d0], d=[x-w0,y0,z+d0];
+    const e=[x-w1,y1,z-d1], f=[x+w1,y1,z-d1], g=[x+w1,y1,z+d1], h=[x-w1,y1,z+d1];
     quad(a,b,f,e,part); quad(b,c,g,f,part); quad(c,d,h,g,part); quad(d,a,e,h,part); quad(e,f,g,h,part); quad(d,c,b,a,part);
   }
   const hem=CROWD.hem, torso=CROWD.torso, sleeve=CROWD.sleeve, neck=CROWD.neck, face=CROWD.head;
@@ -154,6 +162,11 @@ export function crowdShape(role = 'chat', head = 0) {
     const a=i/CROWD.sides*Math.PI*2, b=(i+1)/CROWD.sides*Math.PI*2;
     const p=[Math.cos(a)*r,brim,Math.sin(a)*r], q=[Math.cos(b)*r,brim,Math.sin(b)*r];
     tri(p,[0,peak,0],q,2); tri(p,q,[0,brim,0],2);
+  }
+  if (role === 'traveller') {
+    box(...CROWD.pack, 3, 0, CROWD.packBack);
+    // Same topology for the two variants; the no-staff instance hides this part in the shader.
+    if (staff) box(CROWD.staffWidth, CROWD.staffWidth, CROWD.staffWidth, CROWD.staffWidth, 0, CROWD.staffHeight, 4, CROWD.staffSide);
   }
   return { positions: new Float32Array(positions), normals: new Float32Array(normals), parts: new Uint8Array(parts), triangles: parts.length/3 };
 }

@@ -9,11 +9,11 @@ const source = name => fs.readFileSync(new URL(`../dist/valley/${name}`, import.
 
 test('the order covers every time preset once and each has a label', () => {
   assert.deepEqual([...TIME_ORDER].sort(), Object.keys(KAMAKURA_TIMES).sort());
-  assert.deepEqual([...TIME_ORDER], ['morning', 'noon', 'golden', 'evening']);
+  assert.deepEqual([...TIME_ORDER], ['morning', 'noon', 'golden', 'evening', 'dusk']);
   for (const name of TIME_ORDER) assert.equal(typeof TIME_LABEL[name], 'string');
   let time = 'noon'; const seen = [];
   for (let i = 0; i < TIME_ORDER.length; i++) { time = nextTime(time); seen.push(time); }
-  assert.deepEqual(seen, ['golden', 'evening', 'morning', 'noon']);
+  assert.deepEqual(seen, ['golden', 'evening', 'dusk', 'morning', 'noon']);
 });
 
 test('an unknown or missing time counts as the default (golden hour), as the atmosphere reads it', () => {
@@ -31,7 +31,7 @@ test('the next query keeps every other parameter, the place and the heading', ()
   assert.equal(q.get('yaw'), '90');             // degrees clockwise from north; the internal heading is its negative
   assert(next.startsWith('?') && next.includes('pos=-60.0,-840.3'), next);
   // Going round returns to the first time, and an old pos/yaw is replaced, not repeated.
-  let search = '?world=kamakura&time=evening&pos=1,2&yaw=10';
+  let search = '?world=kamakura&time=dusk&pos=1,2&yaw=10';
   search = timeSwitchSearch(search, { x: 5, z: -7 }, Math.PI);
   assert.equal(new URLSearchParams(search).get('time'), 'morning');
   assert.equal(new URLSearchParams(search).getAll('pos').length, 1); assert.equal(new URLSearchParams(search).get('pos'), '5.0,7.0');

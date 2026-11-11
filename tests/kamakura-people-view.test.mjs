@@ -16,6 +16,7 @@ function fixture({search='?debug=1', quality='standard', town=true, camera=null,
   class Person {
     constructor(roster,who) {
       created++;characters.push(this);this.tpl=roster.templates.get(who);this.model=this.tpl.scene.clone(true);this.root=new THREE.Group();this.root.add(this.model);
+      this.ikCalls=0;this.legs={undo(){},apply:()=>{this.ikCalls++;},reset:false};
       this.height=meta.characters[who].height;this.mixer=new THREE.AnimationMixer(this.model);this.current=null;this.currentName=null;this.actions=new Map();
       const update=this.mixer.update.bind(this.mixer);this.mixer.update=dt=>{updates++;return update(dt);};
     }
@@ -134,4 +135,35 @@ test('disposing while a GLB request is pending releases its late geometry and ma
   const api={Character:class {},loadRoster:()=>new Promise(r=>resolve=r)};
   const f=fixture({api});f.step(2);await new Promise(r=>setImmediate(r));f.close();
   resolve({meta,templates:new Map([['villager_m',{scene}]])});await new Promise(r=>setImmediate(r));assert.equal(closed,2);assert.equal(globalThis.__kzPeople,undefined);
+});
+
+test('moving groups occupy six priority slots, share the absolute scene clock with the crowd and use silhouettes while flying',async t=>{
+  const {createKamakuraCrowd}=await import('../dist/valley/kamakura-crowd-view.js');
+  const {prepareFlight,sampleFlight}=await import('../dist/valley/kamakura-people.js');
+  const f=fixture();
+  f.context.data={meta:{flight:{road:'pass',groups:12,size:[5,5],speed:.8}},roads:{pass:{kind:'trail',width_m:4,xyz_m:[[0,-150,0],[0,150,0]]}}};
+  // Context is supplied before the lazy placement runs on the first frame.
+  f.frame.time=30;const crowd=createKamakuraCrowd(f.context);await f.settle();
+  for(let i=0;i<200;i++){f.step();crowd.update(f.frame);}
+  let snap=f.snapshot();const travellers=snap.actors.filter(a=>a.role==='traveller');
+  assert.equal(travellers.length,6);assert(snap.active<=PEOPLE.max);assert.equal(snap.time,30);assert.equal(globalThis.__kzFlight().time,30);
+  const spots=prepareFlight(f.context),expected={};
+  for(const a of travellers){const p=spots.find(p=>p.id===a.id);sampleFlight(p,30,f.context.terrain,expected);
+    if(Math.hypot(expected.x-f.hero.pos.x,expected.z-f.hero.pos.z)>2)assert(Math.hypot(a.x-expected.x,a.z-expected.z)<.05);
+    assert.equal(a.clip,'Casual_Walk');}
+  assert(f.characters.some(c=>c.ikCalls>0),'road travellers use the existing foot IK on terrain');
+  assert(f.characters.some(c=>c.root.children.length>1),'near travellers carry the shared hat, backpack and staff geometry');
+  f.frame.flying=true;f.frame.pos={x:0,y:55,z:0};f.step();crowd.update(f.frame);
+  assert.equal(f.snapshot().byRole.traveller,0);assert(globalThis.__kzFlight().drawn>=10);
+  const ArrayBefore=globalThis.Float32Array;globalThis.Float32Array=class extends ArrayBefore{constructor(){super();assert.fail('steady near frame allocated a buffer');}};
+  try{f.step(100);}finally{globalThis.Float32Array=ArrayBefore;}
+  t.diagnostic(`near priority ${travellers.length}/${snap.active}; flying uses no near traveller slots`);
+  crowd.dispose();f.close();assert.equal(f.scene.children.length,0);
+});
+
+test('ordinary people retain their local animation clock when the flight feature is disabled',async()=>{
+  const a=fixture({search:'?debug=1&flight=0&shorepeople=0'});a.frame.time=10000;await a.settle();
+  const before=a.snapshot().actors.map(({id,clip,yaw,head})=>({id,clip,yaw,head}));a.close();
+  const b=fixture({search:'?debug=1&flight=0&shorepeople=0'});await b.settle();
+  assert.deepEqual(b.snapshot().actors.map(({id,clip,yaw,head})=>({id,clip,yaw,head})),before);b.close();
 });

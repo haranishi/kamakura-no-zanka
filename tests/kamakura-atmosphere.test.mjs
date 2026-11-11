@@ -25,7 +25,7 @@ function rendererStub(fail = false) {
 }
 test('time/atmos defaults, all presets, invalid values and comparison switch', () => {
   for (const search of ['', '?time=', '?time=night', '?time=constructor', '?time=toString']) assert.deepEqual(atmosphereOptions(search), {enabled:true,time:DEFAULT_TIME});
-  for (const time of ['noon','morning','golden','evening']) assert.deepEqual(atmosphereOptions('?time='+time), {enabled:true,time});
+  for (const time of ['noon','morning','golden','evening','dusk']) assert.deepEqual(atmosphereOptions('?time='+time), {enabled:true,time});
   assert.deepEqual(atmosphereOptions('?atmos=0&time=morning'), {enabled:false,time:'morning'});
   for(const v of ['','false','off','1','00']) assert(atmosphereOptions('?atmos='+v).enabled);
   assert.equal(atmospherePolicy('light').shadowSize,2048); assert.equal(atmospherePolicy().shadowSize,4096);
@@ -57,7 +57,7 @@ test('foliage gain: only the low sun carries one; three bounded numbers or nothi
 });
 test('actual atmosphere creation, fog once before materials, quality, follow, update and repeat disposal', () => {
   const fogBefore=chunks(), original=JSON.stringify(base());
-  for (const quality of ['standard','light']) for (const time of ['noon','morning','golden','evening']) {
+  for (const quality of ['standard','light']) for (const time of ['noon','morning','golden','evening','dusk']) {
     const scene=new THREE.Scene(), renderer=rendererStub(), external=new THREE.Group(); scene.add(external);
     const background=scene.background=new THREE.Color('#123456');
     const controller=createKamakuraAtmosphere({scene,renderer,search:'?time='+time,quality});
@@ -187,4 +187,17 @@ test('map air: the scene fog and the fog chunk of the map carry the thickened va
 });
 test('world absent never initializes Kamakura even with time and atmosphere query parameters', async()=>{
   let valley=0; await startWorld('?time=morning&atmos=0',{valley:()=>valley++,kamakura:()=>assert.fail(),fallback:()=>assert.fail()}); assert.equal(valley,1);
+});
+
+test('dusk visible sun uses the same renderer and disposes diagnostics and shader resources', () => {
+  const scene=new THREE.Scene(), renderer=rendererStub(), before=chunks();
+  const c=createKamakuraAtmosphere({scene,renderer,search:'?time=dusk&debug=1&sundebug=1',sunPlace:{disc:1}});
+  assert(c.atmosphere,'the dusk factory must not fall back');assert.equal(c.notice,'');
+  const actual=c.sunDir.toArray(),u=c.atmosphere.sky.material.uniforms;
+  near(Math.asin(actual[1])*180/Math.PI,6,1e-6);near(Math.asin(u.uDiscDir.value.y)*180/Math.PI,1);
+  const camera=new THREE.PerspectiveCamera();c.update(camera,.01,{x:0,y:0,z:0},0);
+  const stats=globalThis.__kzSun();assert.equal(stats.count,1);assert.equal(stats.addedDraws,0);assert.equal(stats.preparationWork,2);
+  assert.equal(stats.triangles,c.atmosphere.sky.geometry.index.count/3);assert(stats.nearest.distance>0);
+  c.setAdapt({shadows:false,scale:.6});assert(u.uDiscHaloGain.value<.65);assert.deepEqual(c.sunDir.toArray(),actual);
+  c.dispose();assert.equal(globalThis.__kzSun,undefined);assert.equal(renderer.live.size,0);assert.deepEqual(chunks(),before);
 });
