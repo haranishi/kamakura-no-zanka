@@ -3,6 +3,14 @@ import { SHORE_R3_GLSL } from './kamakura-shore-r3.js';
 // W2c-9a: silent sea → shared, pure shore-distance field (metres, 3–4 chamfer).
 export const SHORE_LIMIT_M = 3000;
 export const SHORE_GRID = Object.freeze({ smallMapM:2500, minCellM:4, terrainCellGain:2, maxSide:512, legacyCellM:8 });
+// W2c-19 edges: metre controls and preparation costs for sheltered water.
+export const SHELTER=Object.freeze({
+  openM:25, seaM:120, edgeM:2, fadeM:12, // erosion clearance / offshore seed / shore restoration / soft falloff, metres.
+  foamGain:.25, foamEdgeM:.8, // fractional coverage / metres: stationary thin foam survives on sheltered edges.
+  budgetMs:1.5, batchCells:64, packCells:64, maxFrameWork:8192, // leave headroom under the 2ms preparation target.
+  debug:Object.freeze([1,0,1]), // purple: water without open-sea surf.
+});
+export const shelterEnabled=search=>new URLSearchParams(search).get('shelter')!=='0';
 const clamp = (v, hi) => Math.max(0, Math.min(hi, v));
 export function createShoreField(terrain, { cell = 16 } = {}) {
   if (!Number.isFinite(cell) || cell <= 0) throw new RangeError('Invalid shore cell');
@@ -189,15 +197,27 @@ export function shoreFieldCell(terrain) {
   const b=terrain.bounds,span=Math.max(b.maxX-b.minX,b.maxZ-b.minZ),c=SHORE_GRID;
   return span<=c.smallMapM?Math.max(c.minCellM,(terrain.cell??c.minCellM)*c.terrainCellGain,span/(c.maxSide-1)):c.legacyCellM;
 }
-export function createSignedShoreJob(terrain, {cell=shoreFieldCell(terrain),limit=240}={}) {
+export function createSignedShoreJob(terrain, {cell=shoreFieldCell(terrain),limit=240,shelter=true}={}) {
   if(!(cell>0)||!Number.isFinite(cell)||!(limit>0)||!Number.isFinite(limit))throw new RangeError('Invalid signed grid');
   const b=terrain.bounds,x0=b.minX,z0=b.minZ,w=Math.ceil((b.maxX-x0)/cell)+1,h=Math.ceil((b.maxZ-z0)/cell)+1;
   const data=new Float32Array(w*h),heights=new Float32Array(w*h),sea=new Uint8Array(w*h);
   const field={cell,x0,z0,w,h,data,maxX:b.maxX,maxZ:b.maxZ,signedDistanceAt:(x,z)=>sampleDistance(field,x,z)};
-  let phase=0,cursor=0;
+  const openness=shelter?new Float32Array(w*h):null,openDistance=shelter?new Float32Array(w*h):null;
+  const queue=shelter?new Uint32Array(w*h):null,visited=shelter?new Uint8Array(w*h):null;
+  let head=0,tail=0,phase=0,cursor=0,work=0,sheltered=0,water=0;
+  const phases=shelter?10:5;
+  if(shelter){field.openness=openness;field.opennessAt=(x,z)=>sampleDistance(openField,x,z);}
+  const openField=shelter?{...field,data:openness}:null;
+  function enqueue(k){if(!visited[k]&&sea[k]&&data[k]>=SHELTER.openM){visited[k]=1;queue[tail++]=k;}}
   function step(budget=256){
-    for(let n=0;n<budget&&phase<5;n++){
-      const k=phase===3?data.length-1-cursor:cursor,i=k%w,j=Math.floor(k/w);
+    for(let n=0;n<budget&&phase<phases;n++,work++){
+      if(phase===6){
+        if(head===tail){phase++;cursor=0;continue;}
+        const k=queue[head++],i=k%w,j=Math.floor(k/w);
+        if(i)enqueue(k-1);if(i+1<w)enqueue(k+1);if(j)enqueue(k-w);if(j+1<h)enqueue(k+w);
+        continue;
+      }
+      const k=phase===3||phase===8?data.length-1-cursor:cursor,i=k%w,j=Math.floor(k/w);
       if(phase===0){const x=Math.min(b.maxX,x0+i*cell),z=Math.min(b.maxZ,z0+j*cell);heights[k]=terrain.heightAt(x,z);sea[k]=heights[k]<=0&&terrain.isSea(x,z)?1:0;data[k]=limit;}
       else if(phase===1){
         // Seed each centre with the distance to the interpolated zero
@@ -214,12 +234,26 @@ export function createSignedShoreJob(terrain, {cell=shoreFieldCell(terrain),limi
       }else if(phase===3){
         if(i+1<w)data[k]=Math.min(data[k],data[k+1]+cell);
         if(j+1<h)data[k]=Math.min(data[k],data[k+w]+cell,i?data[k+w-1]+cell*4/3:limit,i+1<w?data[k+w+1]+cell*4/3:limit);
-      }else data[k]*=sea[k]?1:-1;
+      }else if(phase===4)data[k]*=sea[k]?1:-1;
+      else if(phase===5){
+        if(sea[k]&&data[k]>=SHELTER.openM&&(data[k]>=SHELTER.seaM||i===0||j===0||i===w-1||j===h-1))enqueue(k);
+      }else if(phase===7){
+        openDistance[k]=visited[k]?0:SHORE_LIMIT_M;
+        if(i)openDistance[k]=Math.min(openDistance[k],openDistance[k-1]+cell);
+        if(j)openDistance[k]=Math.min(openDistance[k],openDistance[k-w]+cell,i?openDistance[k-w-1]+cell*4/3:SHORE_LIMIT_M,i+1<w?openDistance[k-w+1]+cell*4/3:SHORE_LIMIT_M);
+      }else if(phase===8){
+        if(i+1<w)openDistance[k]=Math.min(openDistance[k],openDistance[k+1]+cell);
+        if(j+1<h)openDistance[k]=Math.min(openDistance[k],openDistance[k+w]+cell,i?openDistance[k+w-1]+cell*4/3:SHORE_LIMIT_M,i+1<w?openDistance[k+w+1]+cell*4/3:SHORE_LIMIT_M);
+      }else if(phase===9){
+        const t=clamp((openDistance[k]-SHELTER.openM-SHELTER.edgeM)/SHELTER.fadeM,1);
+        openness[k]=1-t*t*(3-2*t);
+        if(sea[k]){water++;if(openness[k]<1)sheltered++;}
+      }
       if(++cursor===data.length){cursor=0;phase++;}
     }
-    return phase===5;
+    return phase===phases;
   }
-  return {field,step,get done(){return phase===5;}};
+  return {field,step,get done(){return phase===phases;},get work(){return work;},get shelteredFraction(){return water?sheltered/water:0;}};
 }
 
 // W2c-9r1 shore: allocation-free CPU counterparts for distance acceptance.
@@ -260,4 +294,9 @@ export function bankCrossingDistance(terrain,x,z,level,nx,nz,half){
   if(terrain.heightAt(x+nx*hi,z+nz*hi)<level)return half;
   for(let n=0;n<10;n++){const mid=(lo+hi)/2;if(terrain.heightAt(x+nx*mid,z+nz*mid)<level)lo=mid;else hi=mid;}
   return hi;
+}
+
+export function shelteredEdgeFoam(distance,footprint=0){
+  const width=Math.max(SHELTER.foamEdgeM,footprint),t=clamp(Math.abs(distance)/width,1);
+  return SHELTER.foamGain*(1-t*t*(3-2*t))*SHELTER.foamEdgeM/width;
 }

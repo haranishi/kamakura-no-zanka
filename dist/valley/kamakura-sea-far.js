@@ -1,6 +1,6 @@
 // W2c-18 seaedge: pure mirrors and shader additions; colours come from shore4's deep band.
 import { seaColor4, seaBand4, SEA_BANDS4 } from './kamakura-shore-r4.js';
-import { SEA_PALETTE, shoreNoise } from './kamakura-shore.js';
+import { SEA_PALETTE, shoreNoise, SHELTER, shelteredEdgeFoam } from './kamakura-shore.js';
 export const SEA3 = Object.freeze({
   fromM:40, toM:90, // 3D camera metres: near/far surf exchange.
   positionsM:Object.freeze([5,16,30,50,80]), // metres offshore at birth, shared inward phase with sea2.
@@ -220,7 +220,7 @@ export function sea3Centre(i,x,z,time) {
   return mix3(p[i],previous,phase)+sea3Shift(x,z,i*C.gapOffset,gap);
 }
 // Caller-owned output keeps the preview and diagnostic sampling allocation-free.
-export function sea3Sample(d,x,z,time,footprint=0,range=300,quality='standard',step=0,out={}) {
+export function sea3Sample(d,x,z,time,footprint=0,range=300,quality='standard',step=0,out={},openness=1) {
   let crest=0,tail=0,wash=0;const gain=sea3Gain(range),detail=quality==='light'||step>=2?0:1;
   if(gain>0&&step<3&&d>=-S.washLimitM&&d<S.limitM+footprint*C.linePixels){
     const phase=sea3Phase(time),birth=smooth(0,C.lineFadePhase,phase)*(1-smooth(1-C.lineFadePhase,1,phase));
@@ -234,8 +234,8 @@ export function sea3Sample(d,x,z,time,footprint=0,range=300,quality='standard',s
     }
     wash=sea3WashProfile(d,x,z,time,footprint)*sea3Texture(x,z,time,footprint,detail)*S.washStrength;
   }
-  out.crest=clamp(crest)*gain*S.strength;out.tail=clamp(tail)*gain*S.strength;out.wash=wash*gain;
-  out.foam=clamp(out.crest+out.tail+out.wash);return out;
+  out.crest=clamp(crest)*gain*S.strength*openness;out.tail=clamp(tail)*gain*S.strength*openness;out.wash=wash*gain*openness;
+  out.edge=shelteredEdgeFoam(d,footprint)*(1-openness)*gain;out.foam=clamp(out.crest+out.tail+out.wash+out.edge);return out;
 }
 // Derive all three absorption colours from the existing sand, coastal palette and sea2 deep source.
 const linear3=n=>n<=.04045?n/12.92:((n+.055)/1.055)**2.4;
@@ -301,4 +301,26 @@ export function sea3Fragment(fragment) {
         debug3=mix(debug3,vec3(${S.debugWash.map(f).join(',')}),clamp(sea3Foam.z*${f(S.debugGain)},0.0,1.0));
         gl_FragColor=vec4(debug3,1.0);
       }`);
+}
+
+// Applied last: all surf generations, including the walking wash, share a single packed read.
+// No patch at all is applied for shelter=0, retaining the original complete shader string.
+export function seaShelterFragment(fragment,{sea2=true,sea3=true}={}){
+  const sample=sea2?'vec2 sea2Shore=texture2D(uShoreLand,seaUV).rg;float landDistance=sea2Shore.r;':'float landDistance=texture2D(uShoreLand,seaUV).r;';
+  const replacement=sea2?'vec4 sea2Shore=texture2D(uShoreLand,seaUV);float landDistance=sea2Shore.r;':'vec2 shelterShore=texture2D(uShoreLand,seaUV).rg;float landDistance=shelterShore.r;';
+  if(!fragment.includes(sample))throw new Error('Shelter shore sample missing');
+  const channel=sea2?'sea2Shore.b':'shelterShore.g';
+  fragment=fragment.replace(sample,replacement+`
+    bool shelterInside=all(greaterThanEqual(seaUV,vec2(0.0)))&&all(lessThanEqual(seaUV,vec2(1.0)));
+    float seaOpen=shelterInside?${channel}:1.0;`)
+    .replace('// Foam is a white surface film',`
+    float shelterWidth=max(${f(SHELTER.foamEdgeM)},shoreFootprint);
+    float shelterEdge=${f(SHELTER.foamGain)}*(1.0-smoothstep(0.0,shelterWidth,abs(landDistance)))*${f(SHELTER.foamEdgeM)}/shelterWidth;
+    seaFoam=seaFoam*seaOpen+shelterEdge*(1.0-seaOpen);
+    ${sea2?'sea2Lines*=seaOpen;':''}
+    ${sea3?'sea3Foam*=seaOpen;':''}
+    // Foam is a white surface film`);
+  if(sea3)fragment=fragment.replace('gl_FragColor=vec4(debug3,1.0);',`if(shelterInside&&landDistance>=0.0)debug3=mix(debug3,vec3(${SHELTER.debug.map(f).join(',')}),1.0-seaOpen);
+        gl_FragColor=vec4(debug3,1.0);`);
+  return fragment;
 }

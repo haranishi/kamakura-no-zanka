@@ -1,4 +1,6 @@
 import { decodeWorks, worksEnabled } from './kamakura-works.js';
+import { validateMist } from './kamakura-mist.js';
+import { validateBackdrop } from './kamakura-backdrop.js';
 import { prepareAvenue } from './kamakura-avenue.js';
 import { prepareTownFill } from './kamakura-town-fill.js';
 import { sandoLines, sandoEnabled } from './kamakura-sando.js';
@@ -28,6 +30,8 @@ export function validateMeta(m) {
       !Number.isInteger(m.patches.total_cells) || m.patches.total_cells < 1 || m.patches.total_cells > g.width * g.height)) {
     throw new Error('鎌倉パッチの形式が対応していません');
   }
+  validateMist(m.mist);
+  validateBackdrop(m.backdrop);
   return m;
 }
 export function decodeData(meta, heightBuffer, walkBuffer, patchBuffers, groundBuffer) {

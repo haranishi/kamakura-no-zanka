@@ -1,5 +1,7 @@
 // Terrain-derived valley field and CPU/GLSL mist mirror. No private data is persisted.
 export const MIST = Object.freeze({
+  floorFadeM: 10, // m: restore the original valley weight above the map's optional floor cutoff.
+  gainMin: 0, gainMax: 2, floorMinM: -50, floorMaxM: 500, // allowed map settings, fractional gain / metres.
   cell: 32, // m: desired field sampling interval.
   maxSide: 512, // cells: maximum texture width/height.
   meanRadius: 350, // m: surrounding terrain average (circular neighbourhood).
@@ -38,7 +40,17 @@ const smooth = (a,b,x) => { const t=clamp((x-a)/(b-a)); return t*t*(3-2*t); };
 export function mistStrength(time) { return MIST_TIMES[time] ?? MIST_TIMES.golden; }
 // Four bounded phases: sample height, derive circular mean/min/coast, smooth floor,
 // publish. One unit is a cell (at most a bounded disk of neighbours in phase 1).
+export function validateMist(value){
+  if(value===undefined)return value;
+  if(!value||typeof value!=='object'||Array.isArray(value))throw new RangeError('meta.mist must be an object');
+  for(const key of Object.keys(value)){
+    const v=value[key],lo=key==='gain'?MIST.gainMin:key==='floor_m'?MIST.floorMinM:Infinity,hi=key==='gain'?MIST.gainMax:MIST.floorMaxM;
+    if(!Number.isFinite(v)||v<lo||v>hi)throw new RangeError('Invalid meta.mist.'+key);
+  }
+  return value;
+}
 export function createMistField(terrain) {
+  const settings=validateMist(terrain.meta?.mist),floorCutoff=settings?.floor_m;
   const b=terrain.bounds, spanX=b.maxX-b.minX, spanZ=b.maxZ-b.minZ;
   const cell=Math.max(MIST.cell,spanX/(MIST.maxSide-1),spanZ/(MIST.maxSide-1));
   const width=Math.min(MIST.maxSide,Math.ceil(spanX/cell)+1),height=Math.min(MIST.maxSide,Math.ceil(spanZ/cell)+1),cells=width*height;
@@ -50,7 +62,7 @@ export function createMistField(terrain) {
     if(d2<=MIST.meanRadius*MIST.meanRadius)offsets.push(dx,dz,d2);
   }
   let phase=0,cursor=0,work=0;
-  const field={ width,height,cells,cell,minX:b.minX,minZ:b.minZ,data,ready:false,
+  const field={ gain:settings?.gain??1,width,height,cells,cell,minX:b.minX,minZ:b.minZ,data,ready:false,
     get phase(){return phase;},get work(){return work;},
     step(budget=MIST.cellsPerFrame){
       if(field.ready)return true;
@@ -74,6 +86,7 @@ export function createMistField(terrain) {
             sum+=floor[sz*width+sx];count++;
           }
           data[i*2+1]=sum/count;
+          if(floorCutoff!==undefined)data[i*2]*=smooth(floorCutoff,floorCutoff+MIST.floorFadeM,data[i*2+1]);
         }
         if(++cursor===cells){cursor=0;phase++;}
       }
@@ -99,8 +112,8 @@ export function mistNoise(x,z) {
 }
 export const mistWisp = n => smooth(MIST.wispFrom,MIST.wispTo,n);
 export const mistDownward = rayY => 1-(1-MIST.downThin)*smooth(MIST.downFrom,MIST.downTo,Math.abs(rayY));
-export function mistAmount(valley,floor,y,distance,noise,strength) {
-  return Math.min(MIST.cap,valley*Math.exp(-Math.max(0,y-floor)/MIST.falloff)*(MIST.noiseBase+MIST.noiseGain*noise)*strength*
+export function mistAmount(valley,floor,y,distance,noise,strength,gain=1) {
+  return Math.min(MIST.cap*gain,valley*Math.exp(-Math.max(0,y-floor)/MIST.falloff)*(MIST.noiseBase+MIST.noiseGain*noise)*strength*
     smooth(MIST.near,MIST.full,distance)*(1-smooth(MIST.farStart,MIST.far,distance)));
 }
 // scratch=[valley,floor] is caller-owned; all three samples evaluate their actual altitude.
@@ -111,9 +124,9 @@ export function mistAlongRay(field,eye,point,time,dirX,dirZ,strength,scratch) {
     const t=i/3,x=eye.x+dx*t,y=eye.y+dy*t,z=eye.z+dz*t;
     sampleMistField(field,x,z,scratch);
     const n=mistWisp(mistNoise((x-dirX*MIST.speed*time)/(MIST.scale*MIST.stretch),(z-dirZ*MIST.speed*time)/MIST.scale));
-    amount+=mistAmount(scratch[0],scratch[1],y,distance*t,n,strength)*(i===3?1:MIST.pathWeight);
+    amount+=mistAmount(scratch[0],scratch[1],y,distance*t,n,strength,field.gain??1)*(i===3?1:MIST.pathWeight);
   }
-  return Math.min(MIST.totalCap,amount)*(1-smooth(MIST.farStart,MIST.far,distance))*mistDownward(distance>0?dy/distance:0);
+  return Math.min(MIST.totalCap*(field.gain??1),amount)*(1-smooth(MIST.farStart,MIST.far,distance))*mistDownward(distance>0?dy/distance:0);
 }
 const f=x=>Number(x).toFixed(6);
 export const MIST_GLSL = `
@@ -153,3 +166,13 @@ vec3 kzMistColor(vec3 p){
   return mix(mistCool,mistWarm,clamp(warm+${f(MIST.warmBase)},0.,1.));
 }
 `;
+
+// Absent map settings return the exact original shader, including whitespace.
+// Floor masking is baked into the existing R channel; only the two cap literals change.
+export function mistShader(settings){
+  validateMist(settings);
+  const gain=settings?.gain??1;
+  if(gain===1)return MIST_GLSL;
+  return MIST_GLSL.replace('min('+f(MIST.cap)+',amount','min('+f(MIST.cap*gain)+',amount')
+    .replace('min('+f(MIST.totalCap)+',amount','min('+f(MIST.totalCap*gain)+',amount');
+}
