@@ -64,7 +64,7 @@ export function createKamakuraPost({ renderer, quality = 'standard', search = ''
   const farMode=new URLSearchParams(search).get('postdebug');
   if(farMode==='farshadow'||farMode==='farshadowmap')options.postdebug=farMode;
   options.mist = options.mist && !!terrain;
-  const shade = shadeSettings(search, params), light = lightSettings(isEveningLike(atmosphereOptions(search).time) ? 'evening' : atmosphereOptions(search).time);
+  const shade = shadeSettings(search, params), light = lightSettings(atmosphereOptions(search).time === 'dusk' ? 'dusk' : isEveningLike(atmosphereOptions(search).time) ? 'evening' : atmosphereOptions(search).time);
   const glareDir = disc ? new THREE.Vector3(...disc.dir) : sunDir;
   const needsDepth = options.shafts || options.cloud || options.mist || options.farshadow;
   let farShadow=null,farAdapt=0;

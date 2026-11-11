@@ -127,17 +127,18 @@ test('S1 far water mirrors the warm horizon towards the sun and a cooler, darker
   assert(SEA_FAR_GLSL.includes('vec3 sea2Sky(vec3 ray)'));
 });
 
-test('dusk offshore base derives a blue-violet sea from the existing atmosphere at 65 percent of the low-sky luminance',t=>{
+test('dusk offshore base derives a blue-violet sea from the existing atmosphere at a fixed share of the low-sky luminance',t=>{
   const a=kamakuraAtmosphere('dusk',{...ATMOS,sunDir:ATMOS.sunDir.toArray()}),linear=s=>new THREE.Color(s).toArray();
   const zenith=linear(a.zenith),fog=linear(a.fogColor),low=linear(a.hazeCool),color=duskSeaColor(zenith,fog,low),ratio=luminance(color)/luminance(low);
-  assert(Object.isFrozen(DUSK_SEA));assert(ratio>=.55&&ratio<=.75);assert(Math.abs(ratio-.65)<1e-12);assert(color[2]>color[1]&&color[1]>color[0]);
+  assert(Object.isFrozen(DUSK_SEA));// Beside the picture the sea still read as a pale sheet at .65: it now sits clearly below the low sky, yet above black.
+  assert(ratio>=.4&&ratio<=.6);assert(Math.abs(ratio-DUSK_SEA.luminanceRatio)<1e-12);assert(color[2]>color[1]&&color[1]>color[0]);
   const same=[];assert.equal(duskSeaColor(zenith,fog,low,same),same);assert.deepEqual(same,color);
   const v=buildKamakuraSea(terrain(),data(),{search:'?time=dusk&bankwet=0'}),s=shader(v);
   assert.deepEqual(s.uniforms.uDuskSea.value.toArray(),color);
   for(const facing of [0,.25,.5,.75,.95,1]){
     const warm=linear(a.hazeWarm),share=facing**a.hazeExp,sky=low.map((v,i)=>v+(warm[i]-v)*share);
     const gain=luminance(sky)/luminance(low),sea=color.map(v=>v*gain);
-    assert(Math.abs(luminance(sea)/luminance(sky)-.65)<1e-12);assert(sea[2]>sea[0],'sun-side brightness must not spread pink into the blue-violet base');
+    assert(Math.abs(luminance(sea)/luminance(sky)-DUSK_SEA.luminanceRatio)<1e-12);assert(sea[2]>sea[0],'sun-side brightness must not spread pink into the blue-violet base');
   }
   t.diagnostic(JSON.stringify({duskBaseRGB:color,lowSkyLuminance:luminance(low),seaBaseLuminance:luminance(color),ratio,addedDraws:0,addedTriangles:0}));v.dispose();
 });
