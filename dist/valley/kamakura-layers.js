@@ -1,5 +1,6 @@
 import { createKamakuraLamps } from './kamakura-lamps-view.js';
 import { createKamakuraWorks } from './kamakura-works-view.js';
+import { createKamakuraCrag } from './kamakura-crag-view.js';
 // kamakura-layers.js — W2c-16: one seam for the Kamakura-only add-on layers (things carried by the wind, wildlife, props, the hero's small
 // motions, the soundscape). Each layer lives in its own file and is built here from a fixed list, so parallel work never has to edit
 // world-kamakura.js. Why a list instead of calls in the boot file: five rounds of polish all touched the same boot lines and collided.
@@ -55,6 +56,9 @@ export function layersEnabled(search = '') { return new URLSearchParams(search).
 
 // factories is injectable for tests. report(name, error) is called once per failed layer.
 export async function createKamakuraLayers(context, { factories = KAMAKURA_LAYERS, report = defaultReport } = {}) {
+  // Keep the base registry stable for worlds without optional outcrops and for injected factories.
+  const activeFactories = factories === KAMAKURA_LAYERS && context?.data?.works?.crags?.length
+    ? factories.flatMap(entry => entry[0] === 'works' ? [entry, ['crag', createKamakuraCrag]] : [entry]) : factories;
   const layers = [];
   let disposed = false;
   const fail = (entry, error) => {
@@ -64,7 +68,7 @@ export async function createKamakuraLayers(context, { factories = KAMAKURA_LAYER
     report(entry.name, error);
   };
   if (layersEnabled(context?.search)) {
-    for (const [name, make] of factories) {
+    for (const [name, make] of activeFactories) {
       try {
         const layer = await make(context);
         if (layer) layers.push({ name, layer, dead: false });

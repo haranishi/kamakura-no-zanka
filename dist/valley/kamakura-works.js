@@ -1,4 +1,5 @@
 // Optional, invented harbour works. Coordinates are east/north in data, east/up/south in placement.
+import { decodeCrags } from './kamakura-crag.js';
 import { riverlifeHash as hash } from './kamakura-river-rocks.js';
 export const WORKS = Object.freeze({
   fences: 24, fencePoints: 64, fenceLength: 800, // counts / m: complete rail input limits.
@@ -68,7 +69,8 @@ export function decodeWorks(source) {
     fenceLength+=line(f.xy_m,W.fencePoints);ids.add(f.id);
   }
   if(fenceLength>W.fenceLength)fail();
-  return { schema: source.schema, rocks, piers, moorings, fences };
+  const crags=decodeCrags(source.crags,ids,fail);
+  return { schema: source.schema, rocks, piers, moorings, fences, ...(crags.length?{crags}: {}) };
 }
 export function worksEnabled(search = '') { const q = new URLSearchParams(search); return q.get('works') !== '0' && q.get('layers') !== '0'; }
 export function worksPolicy(quality = 'standard', step = 0) {
