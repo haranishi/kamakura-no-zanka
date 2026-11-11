@@ -75,13 +75,13 @@ test('extended view builds over multiple frames, keeps placeholders until ready 
       if(s.shown===200){completed=frame;break;}
     }
     assert(completed>1);assert.equal(stats().shown,200);assert.equal(stats().policy.full,700);
-    assert(meshes(scene).filter(m=>m.visible).every(m=>!m.geometry.attributes.house2PartEnd));
+    assert(meshes(scene).filter(m=>m.visible).every(m=>!m.geometry.attributes.house2Part));
     const selected=data.instances.filter(i=>i.house2Weight>0).map(i=>i.id).sort((a,b)=>a-b);assert.deepEqual(selected,Array.from({length:200},(_,i)=>i+40));
     const far=stats().triangles;
     const near={x:data.instances[239].grounded[12],y:1,z:0};warm(view,near);
-    assert(meshes(scene).some(m=>m.visible&&m.geometry.attributes.house2PartEnd));
-    const snapshot=meshes(scene).map(m=>[m.instanceMatrix.version,m.instanceColor.version,m.geometry.attributes.house2Fade.version,m.geometry.attributes.house2Distance?.version]);
-    warm(view,near,20);assert.deepEqual(meshes(scene).map(m=>[m.instanceMatrix.version,m.instanceColor.version,m.geometry.attributes.house2Fade.version,m.geometry.attributes.house2Distance?.version]),snapshot);
+    assert(meshes(scene).some(m=>m.visible&&m.geometry.attributes.house2Part));
+    const snapshot=meshes(scene).map(m=>[m.instanceMatrix.version,m.instanceColor.version,m.geometry.attributes.house2State.version]);
+    warm(view,near,20);assert.deepEqual(meshes(scene).map(m=>[m.instanceMatrix.version,m.instanceColor.version,m.geometry.attributes.house2State.version]),snapshot);
     view.update({...pos,y:800});assert.equal(stats().shown,0);view.setAdapt(2);view.update(near);assert.equal(stats().shown,0);view.setAdapt(0);view.update(near);assert(stats().shown>0);
     t.diagnostic(JSON.stringify({syntheticShown:200,farTriangles:far,completionFrames:completed,maxGeneratorStages:stats().maxBuildStages}));
   }finally{view.dispose();}assert.equal(globalThis.__kzHouse2,undefined);assert.equal(scene.children.length,0);

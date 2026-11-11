@@ -53,6 +53,7 @@ export const HOUSE2 = Object.freeze({
   roofStones:10, // stones per slope on a plank roof.
   stoneRadius:.13, // metres: head-sized roof stone.
   yardChance:.3, // fraction: deterministic households with 1–2 small yard objects.
+  farMeanMatch:1, // fraction 0–1: match legacy roof/wall mean RGB beyond the original 75m swap.
   paletteBlend:.92, // fraction: same palette/source blend as the existing part material.
   textureMeters:8, // metres: shared procedural atlas repeat.
   woodPhotoAcross:1.5, // multiplier of original 2m tile width: photographed boards read as 20–30cm.
@@ -543,4 +544,30 @@ export function house2SurfaceColor(surface,seed=.5,{source=P.wood,gain=1,tone=1,
   const t=Math.max(0,Math.min(1,height/(surface===5?wallHeight*C.plasterDirtFraction:C.footDirtHeight))),dirt=1-t*t*(3-2*t);
   const factor=tone*(surface===1&&up<=0?C.undersideTone:1)*(1-([5,6].includes(surface)?dirt*(surface===5?C.plasterDirt:C.footDirt):0));
   color=color.map(v=>v*factor);const cap=surface===5?1:C.colorCap,scale=Math.min(1,cap/Math.max(...color));return color.map(v=>v*scale);
+}
+
+// Area weighting avoids counting tessellation as extra brightness. Only roof/wall faces participate.
+export function house2SourceMeans(parts,floor=0) {
+  const sums=[[0,0,0],[0,0,0]],areas=[0,0];
+  for(const {positions:p,indices,rgb,start=0,count=Infinity} of parts)for(let i=start,end=Math.min(indices?.length??p.length/3,start+count);i<end;i+=3){
+    const a=(indices?.[i]??i)*3,b=(indices?.[i+1]??i+1)*3,c=(indices?.[i+2]??i+2)*3;
+    const u=[p[b]-p[a],p[b+1]-p[a+1],p[b+2]-p[a+2]],v=[p[c]-p[a],p[c+1]-p[a+1],p[c+2]-p[a+2]];
+    const n=[u[1]*v[2]-u[2]*v[1],u[2]*v[0]-u[0]*v[2],u[0]*v[1]-u[1]*v[0]],area=Math.hypot(...n)/2;
+    if(!area||(p[a+1]+p[b+1]+p[c+1])/3<=floor)continue;
+    const roof=n[1]/(area*2)>HOUSE2.slopeMin;
+    if(!roof&&Math.abs(n[1])/(area*2)>HOUSE2.slopeMin)continue;
+    const k=roof?0:1;areas[k]+=area;for(let j=0;j<3;j++)sums[k][j]+=rgb[j]*area;
+  }
+  return sums.map((sum,k)=>sum.map((v,j)=>areas[k]?v/areas[k]:parts[0].rgb[j]));
+}
+export function house2ToneMeans(shape) {
+  const sums=[0,0],areas=[0,0];
+  for(let i=0;i<shape.positions.length;i+=9){
+    const role=shape.surfaces[i/3],up=shape.normals[i+1];
+    const k=role===1&&up>0?0:shape.roles[i/3]===0&&[0,5,6].includes(role)?1:-1;if(k<0)continue;
+    const p=shape.positions,u=[p[i+3]-p[i],p[i+4]-p[i+1],p[i+5]-p[i+2]],v=[p[i+6]-p[i],p[i+7]-p[i+1],p[i+8]-p[i+2]];
+    const area=Math.hypot(u[1]*v[2]-u[2]*v[1],u[2]*v[0]-u[0]*v[2],u[0]*v[1]-u[1]*v[0]);
+    sums[k]+=area*shape.tones[i/3];areas[k]+=area;
+  }
+  return sums.map((s,k)=>areas[k]?s/areas[k]:1);
 }

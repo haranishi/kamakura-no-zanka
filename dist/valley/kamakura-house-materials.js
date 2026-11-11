@@ -701,7 +701,7 @@ export function createHouseMaterial(base, { texture, quality = 'standard', eave 
 }
 
 // HOUSE2: one material/draw uses the existing palette, atlas and shared photo owners.
-export function createHouse2Material(base,{texture,search='',environment=null,constants,frame,debug=false}={}) {
+export function createHouse2Material(base,{texture,search='',environment=null,constants,frame,sourceMeans=[base.color.toArray(),base.color.toArray()],toneMeans=[1,1],debug=false}={}) {
   const C=constants,options=new URLSearchParams(search),ambient=!!environment&&houseAmbientEnabled(search);
   const material=debug?new THREE.MeshBasicMaterial({vertexColors:true,fog:false,toneMapped:false}):base.clone();
   if(!debug){material.roughness=1;material.metalness=0;material.emissive.setRGB(0,0,0);material.emissiveIntensity=0;
@@ -710,25 +710,26 @@ export function createHouse2Material(base,{texture,search='',environment=null,co
   const photoOn=!!texture&&options.get('photo')!=='0'&&options.get('hphoto')!=='0';
   const keys=['wallWoodA','wallPlaster','roofThatch','stoneRubble','groundSoil'];
   const uniforms={house2Atlas:{value:texture},house2Source:{value:base.color},house2Gain:{value:gain},
+    house2RoofSource:{value:new THREE.Vector3(...sourceMeans[0])},house2WallSource:{value:new THREE.Vector3(...sourceMeans[1])},house2Tones:{value:new THREE.Vector2(...toneMeans)},
     house2Floor:{value:frame.floor},house2WallHeight:{value:frame.wallHeight},house2Photo:{value:photoOn?1:0},
     uPhotoBlend:photoBlendUniform,...Object.fromEntries(keys.map(key=>['hPhoto_'+key,photoSampler(key)]))};
   material.userData.house2Uniforms=uniforms;
   material.onBeforeCompile=shader=>{
     Object.assign(shader.uniforms,uniforms);
     shader.vertexShader=shader.vertexShader.replace('#include <common>',`#include <common>
-      attribute float house2Surface,house2Tone;
-      varying float vHouse2Surface,vHouse2Tone,vHouse2Up;
+      attribute vec3 house2SurfaceData;
+      varying float vHouse2Surface,vHouse2Tone,vHouse2Up,vHouse2Role;
       varying vec2 vHouse2UV;
       varying vec3 vHouse2Local,vHouse2Seed,vHouse2Normal;`)
       .replace('#include <begin_vertex>',`#include <begin_vertex>
-        vHouse2Surface=house2Surface;vHouse2Tone=house2Tone;vHouse2Local=position;
+        vHouse2Surface=house2SurfaceData.x;vHouse2Tone=house2SurfaceData.y;vHouse2Role=house2SurfaceData.z;vHouse2Local=position;
         vHouse2Normal=normal;vHouse2Up=normal.y;vHouse2UV=uv;
         #ifdef USE_INSTANCING
         // Only scale the metre frame. Yaw must never choose a different texture plane.
         vec3 h2scale=vec3(length(instanceMatrix[0].xyz),length(instanceMatrix[1].xyz),length(instanceMatrix[2].xyz));
         vec3 h2p=position*h2scale,h2n=normalize(normal/h2scale);
         vHouse2Normal=normalize(mat3(modelMatrix)*mat3(instanceMatrix)*(normal/(h2scale*h2scale)));
-        if(house2Surface==1.0&&abs(h2n.y)>0.000001&&abs(h2n.y)<0.999999){
+        if(house2SurfaceData.x==1.0&&abs(h2n.y)>0.000001&&abs(h2n.y)<0.999999){
           vec3 h2down=normalize(h2n*h2n.y-vec3(0.0,1.0,0.0)),h2across=cross(h2down,h2n);
           vHouse2UV=vec2(dot(h2p,h2across),dot(h2p,h2down));
         }else if(abs(h2n.y)>0.5)vHouse2UV=h2p.xz;
@@ -742,11 +743,12 @@ export function createHouse2Material(base,{texture,search='',environment=null,co
     if(!debug){
       shader.fragmentShader=shader.fragmentShader.replace('#include <common>',`#include <common>
         uniform sampler2D house2Atlas;
-        uniform vec3 house2Source;
+        uniform vec3 house2Source,house2RoofSource,house2WallSource;
+        uniform vec2 house2Tones;
         uniform float house2Gain,house2Floor,house2WallHeight,house2Photo;
         uniform float uPhotoBlend;
         ${keys.map(key=>`uniform sampler2D hPhoto_${key};`).join('\n')}
-        varying float vHouse2Surface,vHouse2Tone,vHouse2Up;
+        varying float vHouse2Surface,vHouse2Tone,vHouse2Up,vHouse2Role;
         varying vec2 vHouse2UV;
         varying vec3 vHouse2Local,vHouse2Seed,vHouse2Normal;
         ${paletteGLSL}
@@ -792,6 +794,25 @@ export function createHouse2Material(base,{texture,search='',environment=null,co
           h2color=mix(h2color,h2color*house_oldThatch/max(house_thatch,vec3(0.001)),float(h2role==1.0)*max(0.0,-vHouse2Normal.z)*${C.roofMoss.toFixed(4)}*h2tex.b);
           float h2cap=h2plaster?1.0:${C.colorCap.toFixed(4)};
           h2color*=min(1.0,h2cap/max(max(h2color.r,h2color.g),max(h2color.b,0.000001)));
+          // Match the original mean in linear RGB; keep multiplicative grain and tonal variation.
+          // The original house chooses earth/wood by seed.z; detailed plaster is a near-view treatment.
+          float h2match=${C.farMeanMatch.toFixed(4)}*smoothstep(${C.full.toFixed(1)},${C.swap.toFixed(1)},length(vViewPosition));
+          bool h2roof=h2role==1.0&&vHouse2Up>0.0,h2wall=vHouse2Role==0.0;
+          if(h2match>0.0&&(h2roof||h2wall)){
+            vec3 h2legacyTarget=h2roof?mix(house_thatch,house_oldThatch,vHouse2Seed.x):
+              mix(mix(house_earth,house_oldEarth,vHouse2Seed.x),h2wood,1.0-step(${S.wood.toFixed(2)},vHouse2Seed.z));
+            vec3 h2legacy=mix(h2roof?house2RoofSource:house2WallSource,h2legacyTarget,${C.paletteBlend.toFixed(4)})*house2Gain;
+            float h2angle=(vHouse2Seed.y*2.0-1.0)*${S.hue.toFixed(6)};
+            vec3 h2axis=normalize(vec3(1.0));
+            h2legacy=h2legacy*cos(h2angle)+cross(h2axis,h2legacy)*sin(h2angle)+h2axis*dot(h2axis,h2legacy)*(1.0-cos(h2angle));
+            h2legacy*=1.0+(vHouse2Seed.x*2.0-1.0)*${S.brightness.toFixed(4)};
+            h2legacy=min(vec3(${C.colorCap.toFixed(4)}),max(vec3(0.0),h2legacy));
+            vec3 h2mean=mix(house2Source,h2target,${C.paletteBlend.toFixed(4)})*house2Gain*h2brightness;
+            if(h2plaster)h2mean=h2target/dot(h2target,vec3(.2126,.7152,.0722))*clamp(${C.plasterReflectance.toFixed(4)}*h2brightness,${C.plasterMin.toFixed(4)},${C.plasterMax.toFixed(4)});
+            h2mean*=h2roof?house2Tones.x:house2Tones.y;
+            h2mean*=min(1.0,h2cap/max(max(h2mean.r,h2mean.g),max(h2mean.b,0.000001)));
+            h2color*=mix(vec3(1.0),h2legacy/max(h2mean,vec3(0.000001)),h2match);
+          }
           diffuseColor.rgb=max(vec3(0.0),h2color);`)
         .replace('#include <normal_fragment_maps>',`#include <normal_fragment_maps>
           vec3 h2photoNormal=kzPerturbNormal(normal,-vViewPosition,h2uv,h2photo.xy,${C.photoNormal.toFixed(4)}*h2blend*h2fine);
@@ -809,11 +830,10 @@ export function house2DitherMaterial(material,detail=false,fine=null) {
   material.onBeforeCompile=(shader,renderer)=>{
     previous(shader,renderer);
     shader.vertexShader=shader.vertexShader.replace('#include <common>',`#include <common>
-      attribute float house2Fade;
-      varying float vHouse2Fade;
-      ${detail?'attribute float house2Role,house2Yard;':''}`).replace('#include <begin_vertex>',`#include <begin_vertex>
-      vHouse2Fade=house2Fade;
-      ${detail?'if(house2Role>5.5)transformed*=house2Yard;':''}`);
+      ${detail?(shader.vertexShader.includes('attribute vec3 house2SurfaceData;')?'':'attribute vec3 house2SurfaceData;')+' attribute vec4 house2State;':'attribute float house2Fade;'}
+      varying float vHouse2Fade;`).replace('#include <begin_vertex>',`#include <begin_vertex>
+      vHouse2Fade=${detail?'house2State.x':'house2Fade'};
+      ${detail?'if(house2SurfaceData.z>5.5)transformed*=house2State.y;':''}`);
     shader.fragmentShader=shader.fragmentShader.replace('#include <common>',`#include <common>
       varying float vHouse2Fade;`).replace('#include <clipping_planes_fragment>',`#include <clipping_planes_fragment>
       float h2screen=fract(52.9829189*fract(dot(floor(gl_FragCoord.xy),vec2(0.06711056,0.00583715))));
@@ -821,10 +841,10 @@ export function house2DitherMaterial(material,detail=false,fine=null) {
     if(fine){
       shader.uniforms.house2Pixels=fine.pixels;
       shader.vertexShader=shader.vertexShader.replace('#include <common>',`#include <common>
-        attribute float house2PartWidth,house2PartEnd,house2Distance,house2Scale;
-        uniform float house2Pixels;`).replace('vHouse2Fade=house2Fade;',`vHouse2Fade=house2Fade;
-        float h2end=min(house2PartEnd,house2PartWidth*house2Scale*house2Pixels/${fine.constants.pixels.toFixed(4)});
-        vHouse2Fade=min(vHouse2Fade,clamp((h2end-house2Distance)/min(h2end,${fine.constants.fade.toFixed(4)}),0.0,1.0));`);
+        attribute vec2 house2Part;
+        uniform float house2Pixels;`).replace('vHouse2Fade=house2State.x;',`vHouse2Fade=house2State.x;
+        float h2end=min(house2Part.y,house2Part.x*house2State.w*house2Pixels/${fine.constants.pixels.toFixed(4)});
+        vHouse2Fade=min(vHouse2Fade,clamp((h2end-house2State.z)/min(h2end,${fine.constants.fade.toFixed(4)}),0.0,1.0));`);
     }
   };
   material.customProgramCacheKey=()=>key+`-h2-dither-${detail}`+(fine?'-fine':'');

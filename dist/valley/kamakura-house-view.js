@@ -123,6 +123,7 @@ export async function buildKamakuraHouses(houses, terrain, scene, { search = '',
       const body=houseBodyBounds(positions);
       const shape=farEnabled?houseFarShape(positions,body,kind.node,near.map(p=>({positions:p.geometry.attributes.position.array,indices:p.geometry.index?.array}))):null;
       const baseMain=[...near].sort((a,b)=>(b.geometry.index?.count??b.geometry.attributes.position.count)-(a.geometry.index?.count??a.geometry.attributes.position.count))[0].material;
+      const sourceMeans=h2?h2.house2SourceMeans(near.map(p=>({positions:p.geometry.attributes.position.array,indices:p.geometry.index?.array,start:p.geometry.drawRange.start,count:p.geometry.drawRange.count,rgb:p.material.color.toArray()}))):null;
       if (texture) {
         const shared = new Map(), { min, max } = houseBounds(kind);
         for (const part of near) {
@@ -152,7 +153,7 @@ export async function buildKamakuraHouses(houses, terrain, scene, { search = '',
         }
         owned.add(p.geometry);
       }
-      templates.set(kind.index, { near, mid, body, far:shape, base:baseMain, main, frame:h2&&h2.houseFamily(kind)?h2.houseFrame(kind,positions,1,near.map(p=>({positions:p.geometry.attributes.position.array,indices:p.geometry.index?.array}))):null });
+      templates.set(kind.index, { near, mid, body, far:shape, base:baseMain, main, sourceMeans, frame:h2&&h2.houseFamily(kind)?h2.houseFrame(kind,positions,1,near.map(p=>({positions:p.geometry.attributes.position.array,indices:p.geometry.index?.array}))):null });
     }
     for (const ch of chunks) {
       ch.level = null; ch.group = null; ch.pending = null; ch.farShown=false; ch.minY=Infinity; ch.maxY=-Infinity;
@@ -351,19 +352,24 @@ export async function buildKamakuraHouses(houses, terrain, scene, { search = '',
     if(!job.shape){const elapsed=performance.now()-start;job.cpu+=elapsed;job.maxSlice=Math.max(job.maxSlice,elapsed);return;}
     const shape=policy.extended?h2.houseDetailBand(job.shape,job.band===1):job.shape;
     const geometry=new THREE.BufferGeometry();owned.add(geometry);
-    for(const [name,array,size] of [['position',shape.positions,3],['normal',shape.normals,3],['uv',shape.uvs,2],['house2Surface',shape.surfaces,1],['house2Tone',shape.tones,1],['house2Role',shape.roles,1]])geometry.setAttribute(name,new THREE.BufferAttribute(array,size));
+    for(const [name,array,size] of [['position',shape.positions,3],['normal',shape.normals,3],['uv',shape.uvs,2]])geometry.setAttribute(name,new THREE.BufferAttribute(array,size));
+    // One vertex record: surface, tone, architectural role (all retained losslessly).
+    const surface=new Float32Array(shape.roles.length*3);
+    for(let i=0;i<shape.roles.length;i++)surface.set([shape.surfaces[i],shape.tones[i],shape.roles[i]],i*3);
+    geometry.setAttribute('house2SurfaceData',new THREE.BufferAttribute(surface,3));
     if(shape.fine){
-      geometry.setAttribute('house2PartWidth',new THREE.BufferAttribute(shape.partWidth,1));geometry.setAttribute('house2PartEnd',new THREE.BufferAttribute(shape.partEnd,1));
-      geometry.setAttribute('house2Distance',new THREE.InstancedBufferAttribute(new Float32Array(policy.cap),1));
-      geometry.setAttribute('house2Scale',new THREE.InstancedBufferAttribute(new Float32Array(policy.cap),1));
+      const part=new Float32Array(shape.roles.length*2);
+      for(let i=0;i<shape.roles.length;i++)part.set([shape.partWidth[i],shape.partEnd[i]],i*2);
+      geometry.setAttribute('house2Part',new THREE.BufferAttribute(part,2));
     }
     if(options.get('house2debug')==='1'){
       const colors=new Float32Array(shape.positions.length),c=new THREE.Color(),palette=h2.HOUSE_PARTS.debug;
       for(let i=0;i<shape.roles.length;i++){c.setHex(palette[shape.roles[i]]);c.toArray(colors,i*3);}geometry.setAttribute('color',new THREE.BufferAttribute(colors,3));
     }
-    geometry.setAttribute('house2Fade',new THREE.InstancedBufferAttribute(new Float32Array(policy.cap),1));geometry.setAttribute('house2Yard',new THREE.InstancedBufferAttribute(new Float32Array(policy.cap),1));
+    // One instance record: complementary fade, yard visibility, 3D distance, minimum scale.
+    geometry.setAttribute('house2State',new THREE.InstancedBufferAttribute(new Float32Array(policy.cap*4),4));
     const fine=shape.fine?{pixels:finePixels,constants:h2.HOUSE_DETAIL}:null;
-    const material=house2DitherMaterial(createHouse2Material(t.base,{texture,search,environment:scene.environment,constants:C,frame:shape.frame,debug:options.get('house2debug')==='1'}),true,fine);materials.add(material);
+    const material=house2DitherMaterial(createHouse2Material(t.base,{texture,search,environment:scene.environment,constants:C,frame:shape.frame,sourceMeans:t.sourceMeans,toneMeans:h2.house2ToneMeans(job.shape),debug:options.get('house2debug')==='1'}),true,fine);materials.add(material);
     const mesh=new THREE.InstancedMesh(geometry,material,policy.cap);mesh.name='house2-instances';mesh.count=0;mesh.visible=false;mesh.frustumCulled=false;
     mesh.castShadow=true;mesh.receiveShadow=true;mesh.matrixAutoUpdate=false;mesh.updateMatrix();
     if(shape.fine)mesh.onBeforeRender=(renderer,renderScene,camera)=>projection(renderer,camera);
@@ -378,7 +384,6 @@ export async function buildKamakuraHouses(houses, terrain, scene, { search = '',
     if(++job.variant<C.variants){job.generator=h2.houseBuildSteps(t.frame,job.variant);job.cpu=0;job.maxSlice=0;}
     else {detail.cache.set(kind,{meshes:job.meshes});detail.job=null;}
   }
-  function writeFine(attribute,index,value){if(attribute.getX(index)!==Math.fround(value)){attribute.setX(index,value);attribute.needsUpdate=true;}}
   function updateHouse2(pos) {
     const C=h2.HOUSE2;
     for(let i=0;i<detail.previousCount;i++)houses.instances[detail.previous[i]].house2Weight=0;
@@ -400,16 +405,16 @@ export async function buildKamakuraHouses(houses, terrain, scene, { search = '',
       for(const part of entry.meshes){
         if(part.variant!==item.house2Variant||part.fine&&distance>=h2.HOUSE_DETAIL.end)continue;
         const at=part.count++,mesh=part.mesh;
-        if(part.ids[at]!==index){part.ids[at]=index;mesh.setMatrixAt(at,instanceMatrix.fromArray(m));const seed=item.house2Seed;mesh.setColorAt(at,instanceSeed.setRGB(...seed));mesh.geometry.attributes.house2Yard.setX(at,seed[2]<C.yardChance?1:0);part.matrixChanged=true;}
-        const a=mesh.geometry.attributes.house2Fade;if(a.getX(at)!==Math.fround(fade)){a.setX(at,fade);part.fadeChanged=true;}
-        if(part.fine){writeFine(mesh.geometry.attributes.house2Distance,at,distance);writeFine(mesh.geometry.attributes.house2Scale,at,scale);}
+        if(part.ids[at]!==index){part.ids[at]=index;mesh.setMatrixAt(at,instanceMatrix.fromArray(m));const seed=item.house2Seed;mesh.setColorAt(at,instanceSeed.setRGB(...seed));mesh.geometry.attributes.house2State.setY(at,seed[2]<C.yardChance?1:0);part.matrixChanged=true;}
+        const a=mesh.geometry.attributes.house2State,nextDistance=part.fine?distance:0,nextScale=part.fine?scale:0;
+        if(a.getX(at)!==Math.fround(fade)||a.getZ(at)!==Math.fround(nextDistance)||a.getW(at)!==Math.fround(nextScale)){a.setX(at,fade);a.setZ(at,nextDistance);a.setW(at,nextScale);part.fadeChanged=true;}
         detail.triangles+=part.triangles;
       }
       item.house2Weight=fade;detail.previous[detail.shown++]=index;
     }
     detail.previousCount=detail.shown;
     for(const entry of detail.cache.values())for(const part of entry.meshes){const mesh=part.mesh;mesh.count=part.count;mesh.visible=part.count>0;
-      if(mesh.visible)detail.draws++;if(part.matrixChanged){mesh.instanceMatrix.needsUpdate=true;mesh.instanceColor.needsUpdate=true;mesh.geometry.attributes.house2Yard.needsUpdate=true;}if(part.fadeChanged)mesh.geometry.attributes.house2Fade.needsUpdate=true;}
+      if(mesh.visible)detail.draws++;if(part.matrixChanged){mesh.instanceMatrix.needsUpdate=true;mesh.instanceColor.needsUpdate=true;}if(part.matrixChanged||part.fadeChanged)mesh.geometry.attributes.house2State.needsUpdate=true;}
     if(detail.draws>limits.draws)throw new Error('家の描画命令上限を超えました');
     // Existing near meshes keep their placement, bounds, materials and chunk lifecycle.
     for(const ch of sorted){if(ch.level!==0||!ch.group)continue;for(const mesh of ch.group.children){const a=mesh.geometry.attributes.house2Fade,items=mesh.userData.house2Items;let changed=false;
