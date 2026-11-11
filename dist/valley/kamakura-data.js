@@ -1,3 +1,4 @@
+import { decodeWorks, worksEnabled } from './kamakura-works.js';
 import { prepareAvenue } from './kamakura-avenue.js';
 import { prepareTownFill } from './kamakura-town-fill.js';
 import { sandoLines, sandoEnabled } from './kamakura-sando.js';
@@ -95,6 +96,10 @@ export async function loadKamakura(fetcher = fetch, search = globalThis.location
       data.crossings = decodeCrossings(source);
       if (new URLSearchParams(search).get('avenue') !== '0') for (const [id, road] of Object.entries(data.roads)) road.route_id = source.roads[id].route_id;
     } catch { /* Optional roads failure keeps the existing pass paths and terrain. */ }
+  }
+  if (meta.works && worksEnabled(search)) {
+    if (meta.works.file !== 'works.json') throw new Error('港の作り物のファイルが不正です');
+    data.works = decodeWorks(await (await read('works.json')).json());
   }
   data.surface = null;
   if (meta.surface) {

@@ -1,3 +1,4 @@
+import { createKamakuraWorks } from './kamakura-works-view.js';
 // kamakura-layers.js — W2c-16: one seam for the Kamakura-only add-on layers (things carried by the wind, wildlife, props, the hero's small
 // motions, the soundscape). Each layer lives in its own file and is built here from a fixed list, so parallel work never has to edit
 // world-kamakura.js. Why a list instead of calls in the boot file: five rounds of polish all touched the same boot lines and collided.
@@ -31,6 +32,7 @@ export const KAMAKURA_LAYERS = Object.freeze([
   ['fauna', createKamakuraFauna],
   ['riverlife', createKamakuraRiverlife],
   ['props', createKamakuraProps],
+  ['works', createKamakuraWorks],
   ['townDress', createKamakuraTownDress],
   ['ruinHall', createKamakuraRuinHall],
   ['avenue', createKamakuraAvenue],
