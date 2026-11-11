@@ -176,6 +176,8 @@ export function createKamakuraDrift(context, options = {}) {
         sinceSample %= DRIFT.sampleSeconds;
         context.habitat.at(frame.pos.x, frame.pos.z, habitat);
         driftAmounts(habitat, timeOfDay, target);
+        // From the flying camera a leaf two metres away is a hand-sized card across the view (confetti over the overlook).
+        if (frame.flying) { target.leaf *= DRIFT.flyKeep; target.petal *= DRIFT.flyKeep; }
       }
       const blend = 1 - Math.exp(-frame.dt / DRIFT.smoothSeconds);
       amounts.leaf += (target.leaf - amounts.leaf) * blend;
