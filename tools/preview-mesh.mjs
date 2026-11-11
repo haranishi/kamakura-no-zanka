@@ -4,6 +4,9 @@
 //      node tools/preview-mesh.mjs input.json output.svg
 //      node tools/preview-mesh.mjs --townlife /absolute/output/directory
 import fs from 'node:fs/promises';
+import * as THREE from '../dist/vendor/three.module.min.js';
+import { prepareWorks } from '../dist/valley/kamakura-works.js';
+import { worksRockGeometry, worksPierGeometry, worksBoatGeometry, WORKS_ART } from '../dist/valley/kamakura-works-kit.js';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { houseFrame,buildHouse,HOUSE_PARTS,HOUSE2,house2SurfaceColor } from '../dist/valley/kamakura-house-build.js';
@@ -27,7 +30,7 @@ const dot=(a,b)=>a.reduce((s,v,k)=>s+v*b[k],0);
 const cross=(a,b)=>[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]];
 const rgb=c=>`rgb(${c.map(v=>Math.round(Math.max(0,Math.min(1,v))*255)).join(',')})`;
 const srgb=v=>v<=.0031308?v*12.92:1.055*v**(1/2.4)-.055;
-export function previewMesh(mesh,{view='oblique',colors=null,width=PREVIEW.width,height=PREVIEW.height,debug=false,uv=false,source=null}={}) {
+export function previewMesh(mesh,{view='oblique',colors=null,width=PREVIEW.width,height=PREVIEW.height,debug=false,uv=false,source=null,fast=false,human=true}={}) {
   const pos=mesh.positions,min=[Infinity,Infinity,Infinity],max=[-Infinity,-Infinity,-Infinity];
   for(let i=0;i<pos.length;i+=3)for(let k=0;k<3;k++){min[k]=Math.min(min[k],pos[i+k]);max[k]=Math.max(max[k],pos[i+k]);}
   const center=min.map((v,k)=>(v+max[k])/2),radius=Math.hypot(...max.map((v,k)=>(v-min[k])/2));
@@ -60,8 +63,8 @@ export function previewMesh(mesh,{view='oblique',colors=null,width=PREVIEW.width
   const humanX=max[0]+HOUSE2.verandaDepth, humanZ=(min[2]+max[2])/2;
   const person=[[humanX,0,humanZ],[humanX,PREVIEW.person,humanZ]];
   const a=project(person[0]),b=project(person[1]),shoulder=project([humanX,PREVIEW.person*.73,humanZ]),arm=project([humanX+.3,PREVIEW.person*.65,humanZ]);
-  triangles.push({depth:(a[2]+b[2])/2,svg:`<path d="M${a[0]},${a[1]} L${b[0]},${b[1]} M${shoulder[0]},${shoulder[1]} L${arm[0]},${arm[1]}" stroke="#b34338" stroke-width="3"/><circle cx="${b[0]}" cy="${b[1]}" r="4" fill="#b34338"/>`});
-  const ordered=paintOrder(triangles);
+  if(human)triangles.push({depth:(a[2]+b[2])/2,svg:`<path d="M${a[0]},${a[1]} L${b[0]},${b[1]} M${shoulder[0]},${shoulder[1]} L${arm[0]},${arm[1]}" stroke="#b34338" stroke-width="3"/><circle cx="${b[0]}" cy="${b[1]}" r="4" fill="#b34338"/>`});
+  const ordered=fast?triangles.sort((a,b)=>b.depth-a.depth):paintOrder(triangles);
   let overlay='';
   for(const surface of source??[]){const p=surface.positions,idx=surface.indices;
     for(let i=0;i<(idx?.length??p.length/3);i+=3){const q=[0,1,2].map(j=>{const k=(idx?.[i+j]??i+j)*3;return project(Array.from(p.slice(k,k+3)));});
@@ -189,8 +192,70 @@ export async function writeTownlifePreviews(directory) {
     await sheet(name,{positions:g.positions,colors:new Float32Array(colors)});
   }
 }
+// Public synthetic harbour only: the brief's ring dimensions, with a small invented shore and seabed.
+export function syntheticWorks() {
+  const source={schema:'kz-works/0.1',rocks:[
+    {id:'ring',shape:'ring',x:0,y:0,radius:70,width:9,gap_bearing_deg:135,gap_deg:30,count:150,size_m:[1.6,4.2]},
+    {id:'islet',shape:'disc',x:77,y:-61,radius:14,count:30,size_m:[1.2,5]},
+    {id:'cape',shape:'line',xy_m:[[-110,55],[-100,25],[-107,0]],width:10,count:60,size_m:[1.5,6]}],
+    piers:[{id:'pier',xy_m:[[-45,45],[-45,15]],width_m:2.6,deck_m:1.4}],
+    moorings:[{x:-39,y:19,yaw_deg:90,kind:'boat'},{x:-33,y:29,yaw_deg:0,kind:'sail'}]};
+  const terrain={heightAt(x,z){
+    const bearing=(Math.atan2(x,-z)*180/Math.PI+360)%360;
+    if(Math.abs(Math.hypot(x,z)-70)<=4.5&&Math.abs((bearing-135+540)%360-180)>15)return 1.8;
+    if(Math.hypot(x-77,z-61)<11)return .4;
+    if(x<-98&&z<0)return 2;
+    if(z<-95||x>-49&&x<-41&&z<-45)return .8;
+    return -2.5;
+  }};
+  return {source,terrain,result:prepareWorks(source,terrain)};
+}
+function worksPreviewMesh(fixture,part,debug=false) {
+  const p=[],c=[],dummy=new THREE.Object3D(),v=new THREE.Vector3();
+  function add(g,matrix=null,variant=0,sail=true,wet=false) {
+    const pos=variant?g.attributes['aWorksShape'+variant]:g.attributes.position,col=g.attributes.color,indices=g.index?.array;
+    for(let j=0;j<(indices?.length??pos.count);j+=3){
+      const first=indices?.[j]??j;
+      const sailPart=g.attributes.aWorksSailPart?.getX(first)??0;
+      if(!sail&&sailPart>.5||sail&&sailPart<-.5)continue;
+      for(let k=0;k<3;k++) {const i=indices?.[j+k]??j+k;v.fromBufferAttribute(pos,i);if(matrix)v.applyMatrix4(matrix);p.push(v.x,v.y,v.z);const gain=wet&&v.y<WORKS_ART.wetHeight?WORKS_ART.wetRatio:1;c.push(col.getX(i)*gain,col.getY(i)*gain,col.getZ(i)*gain);}
+    }
+    g.dispose();
+  }
+  const {result,terrain}=fixture;
+  const rocks=part==='pier'||part==='boat'?[]:part==='crest'?result.rocks.filter(r=>r.group===0&&r.z<-63&&Math.abs(r.x)<12):result.rocks;
+  for(const r of rocks) {dummy.position.set(r.x,r.y+r.size/2,r.z);dummy.rotation.set(r.tiltX,r.yaw,r.tiltZ,'YXZ');dummy.scale.setScalar(r.size);dummy.updateMatrix();add(worksRockGeometry(),dummy.matrix,r.variant,true,true);}
+  if(part!=='crest') {
+    if(part!=='boat')add(worksPierGeometry(result.piers,false,debug));
+    for(const boat of result.moorings) {dummy.position.set(boat.x,boat.y,boat.z);dummy.rotation.set(0,boat.yaw,0);dummy.scale.set(boat.w,1,boat.d);dummy.updateMatrix();add(worksBoatGeometry(false,debug),dummy.matrix,0,boat.kind==='sail');}
+  }
+  const bounds=part==='crest'?[-14,14,-77,-62]:part==='boat'?[-42,-23,-37,-12]:part==='pier'?[-50,-24,-48,-10]:[-125,100,-110,90];
+  const [x0,x1,z0,z1]=bounds,ground=new THREE.PlaneGeometry(x1-x0,z1-z0,part==='crest'?28:64,part==='crest'?20:64);ground.rotateX(-Math.PI/2);ground.translate((x0+x1)/2,0,(z0+z1)/2);
+  const a=ground.attributes.position,colors=[];
+  for(let i=0;i<a.count;i++){const h=terrain.heightAt(a.getX(i),a.getZ(i));a.setY(i,part==='pier'||part==='boat'?h:Math.max(0,h));const color=new THREE.Color(h<0?'#245a65':'#817052');colors.push(color.r,color.g,color.b);}
+  ground.setAttribute('color',new THREE.Float32BufferAttribute(colors,3));add(ground);
+  if(part==='pier'||part==='boat') {
+    // A narrow waterline ruler leaves the bed and piles visible in the cutaway.
+    const g=new THREE.BoxGeometry(x1-x0,.025,.05);g.translate((x0+x1)/2,0,z1);const color=new THREE.Color('#35e7ef');g.setAttribute('color',new THREE.Float32BufferAttribute(Array.from({length:g.attributes.position.count},()=>[color.r,color.g,color.b]).flat(),3));add(g);
+  }
+  const mesh={positions:p,colors:c};
+  // Human scale figure on the actual shore/crest (1.66 m), additionally to the generic viewer ruler.
+  const hx=part==='crest'?8:part==='boat'?-33:-44,hz=part==='crest'?-69:part==='boat'?-29:-47,hy=part==='boat'?.4:terrain.heightAt(hx,hz),human=new THREE.BoxGeometry(.4,PREVIEW.person,.25);human.translate(hx,hy+PREVIEW.person/2,hz);
+  human.setAttribute('color',new THREE.Float32BufferAttribute(Array.from({length:human.attributes.position.count},()=>[.65,.1,.05]).flat(),3));add(human);return mesh;
+}
+export async function writeWorksPreviews(directory) {
+  const fixture=syntheticWorks();await fs.mkdir(directory,{recursive:true});
+  const panels=[];
+  for(const [i,[part,view,label]] of [['all','top','harbour top'],['all','oblique','harbour oblique'],['crest','oblique','two crest rows'],['pier','side','pier cutaway / cyan waterline'],['pier','oblique','deck, piles and mooring posts'],['boat','oblique','open hulls and furled sail']].entries()) {
+    const svg=previewMesh(worksPreviewMesh(fixture,part),{view,width:900,height:700,fast:part==='all',human:false});
+    panels.push(`<g transform="translate(${i%2*900},${Math.floor(i/2)*700})">${svg}<text x="15" y="680" font-family="sans-serif" font-size="18">${label} / human 1.66m</text></g>`);
+  }
+  await fs.writeFile(path.join(directory,'works.svg'),`<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="2100"><g shape-rendering="crispEdges">${panels.join('')}</g></svg>`);
+  return {rocks:fixture.result.rocks.length,piers:fixture.result.piers.length,moorings:fixture.result.moorings.length,work:fixture.result.work};
+}
 if(process.argv[1]&&import.meta.url===pathToFileURL(process.argv[1]).href){
   if(process.argv[2]==='--townlife')await writeTownlifePreviews(process.argv[3]);
+  else if(process.argv[2]==='--works')console.log(JSON.stringify(await writeWorksPreviews(process.argv[3])));
   else if(process.argv[2]==='--private')await writePrivatePreviews(process.argv[3],process.env.KZ_WORLD_DIR);
   else if(process.argv[2]==='--demo')await writeHousePreviews(process.argv[3],{debug:process.argv.includes('debug'),uv:process.argv.includes('uv')});
   else {const mesh=JSON.parse(await fs.readFile(process.argv[2],'utf8'));await fs.writeFile(process.argv[3],previewMesh(mesh));}
