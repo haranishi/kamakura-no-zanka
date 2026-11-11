@@ -6,7 +6,9 @@ import { houseNodeName } from '../../dist/valley/kamakura-houses.js';
 import { designedStairs } from './designed-stairs.mjs';
 import { PLAN } from '../worlds/kamakura-return.mjs';
 // These dimensions belong ONLY to the invented CI substitutes. Kits always supply their own dimensions.
-const SUBSTITUTE = Object.freeze({ house:[8,6,7], mansion:[14,8,12], fence:[12,2,.6], gate:[5,4,2],
+// house: narrow and deep, so that a substitute fits the plots of the authored town as a real town house does (a box 8 m wide
+// did not, and the town of the tests stood almost empty).
+const SUBSTITUTE = Object.freeze({ house:[5,6,11], mansion:[14,8,12], fence:[12,2,.6], gate:[5,4,2],
   hall:[20,12,14], buddhaHall:[38,18,32], buddha:[7,11,6], stairs:[12,7.5,20], torii:[14,8,3], portal:[14,8,6], skirt:1, roof:3 });
 function fallback() {
   const hnodes=[], kinds=[];

@@ -8,12 +8,23 @@ export const northOffset=(P.grid.north+P.grid.south)/2;
 export const gameNorth=y=>y-northOffset;
 export const gameZ=y=>northOffset-y;
 export const shoreAt=x=>P.shore.crest-P.shore.amplitude*clamp((x-P.shore.centre)/P.shore.halfWidth,-1,1)**2;
+export function seaBedAt(offshore) {const a=P.shore.seaProfile;let i=1;while(i<a.length-1&&a[i][0]<offshore)i++;return mix(a[i-1][1],a[i][1],clamp((offshore-a[i-1][0])/(a[i][0]-a[i-1][0])));}
 export const plainAt=(x,y)=>P.town.base+(y-P.town.south)*P.town.grade+P.town.ripple*Math.sin(x/P.town.rippleWave)*Math.sin((y-P.town.south)/P.town.rippleWave);
 export const rectangleDistance=(x,y,r)=>Math.hypot(Math.max(r[0]-x,0,x-r[1]),Math.max(r[2]-y,0,y-r[3]));
 export const inRect=(x,y,r)=>x>=r[0]&&x<=r[1]&&y>=r[2]&&y<=r[3];
 const nose=(v,centre,width)=>Math.abs(v-centre)<width/2?(1+Math.cos((v-centre)*Math.PI*2/width))/2:0;
-export const townWestAt=y=>(P.town.west+(y-P.town.south)/(P.town.north-P.town.south)*25)+P.town.edgeCurve*Math.sin((y-P.town.south)/P.town.edgeWave)+P.edge.westRidges.reduce((a,[v,w,d])=>a+d*nose(y,v,w),0)-P.edge.westMouths.reduce((a,[v,w,d])=>a+d*nose(y,v,w),0);
-export const townEastAt=y=>(P.town.east-(y-P.town.south)/(P.town.north-P.town.south)*15)-P.town.edgeCurve*(1+Math.sin(y/P.town.edgeWave))/2-P.edge.eastRidges.reduce((a,[v,w,d])=>a+d*nose(y,v,w),0);
+export const townWestAt=y=>mix(P.town.westSouth,P.town.west,smooth(P.town.south,P.town.westShoulder,y))+P.town.edgeCurve*Math.sin((y-P.town.south)/P.town.edgeWave)+P.edge.westRidges.reduce((a,[v,w,d])=>a+d*nose(y,v,w),0)-P.edge.westMouths.reduce((a,[v,w,d])=>a+d*nose(y,v,w),0);
+export const townEastAt=y=>{const a=P.town.eastNodes;let i=1;while(i<a.length-1&&a[i][0]<y)i++;return mix(a[i-1][1],a[i][1],clamp((y-a[i-1][0])/(a[i][0]-a[i-1][0])))-P.town.edgeCurve*Math.sin((y-P.town.south)/P.town.edgeWave);};
+// Signed distance to an authored ellipse; the northern shore has no artificial wall.
+export function harborAt(x,y) {
+  const h=P.harbor,rx=h.radius-h.width/2,ry=h.radiusY-h.width/2,a=Math.atan2((x-h.x)/rx,(y-h.y)/ry);
+  const px=h.x+rx*Math.sin(a),py=h.y+ry*Math.cos(a),inside=((x-h.x)/rx)**2+((y-h.y)/ry)**2<1;
+  const distance=Math.hypot(x-px,y-py)*(inside?-1:1),bearing=(a*180/Math.PI+360)%360;
+  return {distance,inside,bearing,ring:(!h.northOpen||y<h.y)&&Math.abs((bearing-h.mouth+540)%360-180)>=h.opening/2};
+}
+export const quayAt=(x,y)=>{const h=P.harbor,q=h.quay,w=h.quayWobble*Math.sin((x-q[0])/h.quayWave);return x>=q[0]&&x<=q[1]&&y>=q[2]&&y<=q[3]+w;};
+export const outcropAt=(x,y,margin=0)=>P.outcrops.find(c=>Math.abs(x-c.x)<=c.width/2+margin&&Math.abs(y-c.y)<=c.height/Math.tan(c.angle*Math.PI/180)/2+margin);
+export const eastBankAt=y=>{const c=P.river;return mix(c.valleyWidth,c.eastBank[2],smooth(c.eastBank[0]-c.flatFade,c.eastBank[0],y)*(1-smooth(c.eastBank[1],c.eastBank[1]+c.flatFade,y)));};
 export const townNorthAt=x=>P.town.north+P.town.edgeCurve*(1+Math.sin(x/P.town.edgeWave))/2-P.edge.northNoses.reduce((a,[v,w,d])=>a+d*nose(x,v,w),0);
 // Relief lowers the shoulders between authored peak envelopes, rather than adding a flat summit.
 export function ridgeAt(x,y) {
@@ -35,7 +46,8 @@ export function riverX(y) {
   const m0=(q[0]-prev[0])/(q[1]-prev[1]),m1=(next[0]-p[0])/(next[1]-p[1]);
   return (2*t**3-3*t*t+1)*p[0]+(t**3-2*t*t+t)*dy*m0+(-2*t**3+3*t*t)*q[0]+(t**3-t*t)*dy*m1;
 }
-export function riverWidth(y) {const c=P.river;return y>700?mix(c.widthMiddle,c.widthUpper,smooth(700,1100,y)):y>300?c.widthMiddle:y>100?mix(c.widthLower,c.widthMiddle,smooth(100,300,y)):mix(c.widthMouth,c.widthLower,smooth(-30,100,y));}
+export function riverWidth(y) {const c=P.river,[a,b,d,e]=c.widthBreaks;return y>e?c.widthUpper:y>d?c.widthMiddle:y>b?mix(c.widthLower,c.widthMiddle,(y-b)/(d-b)):y>a?c.widthLower:mix(c.widthMouth,c.widthLower,smooth(c.points.at(-1)[1],a,y));}
+
 function riverFloorAt(y) {
   const c=P.river,base=plainAt(riverX(c.valleyNorth),c.valleyNorth);
   return y<=c.valleyNorth?plainAt(riverX(y),y):mix(base,c.headBed+c.bedDepth,smooth(c.valleyNorth,P.grid.north,y));
@@ -62,7 +74,7 @@ export function createDesignedTerrain(stairRise, gateBounds=null,emit=P.emit) {
 
   function base(x,y) {
     const d=y-shoreAt(x), c=P.shore;
-    let h=d<0?Math.max(-c.seaDepth,d*c.seaDepth/c.seaRun-c.dropDepth*(1-Math.exp(d/c.dropRun))):d<c.beach?d<c.bermRun?c.bermHeight*d/c.bermRun:c.bermHeight+(c.beachTop-c.bermHeight)*(d-c.bermRun)/(c.beach-c.bermRun):d<c.beach+c.stepRun?mix(c.beachTop,plainAt(x,shoreAt(x)+c.beach+c.stepRun),smooth(c.beach,c.beach+c.stepRun,d)):plainAt(x,y);
+    let h=d<0?seaBedAt(-d):d<c.beach?d<c.bermRun?c.bermHeight*d/c.bermRun:c.bermHeight+(c.beachTop-c.bermHeight)*(d-c.bermRun)/(c.beach-c.bermRun):d<c.beach+c.stepRun?mix(c.beachTop,plainAt(x,shoreAt(x)+c.beach+c.stepRun),smooth(c.beach,c.beach+c.stepRun,d)):plainAt(x,y);
     // Wet sand only in the strip around the waterline. Seen in real Chrome: with the whole seabed as wet sand and a 3% shelf,
     // forty metres of water under a metre deep stayed transparent, and the dark wet bed read as a brown band along the beach.
     let code=d<-c.wet?0:d<c.wet?1:d<c.beach?0:4;
@@ -77,11 +89,18 @@ export function createDesignedTerrain(stairRise, gateBounds=null,emit=P.emit) {
       let sideHeight=0;
       for(const [cx,peak,spread] of ridges)sideHeight=Math.max(sideHeight,(peak-relief*.45)*Math.exp(-(((x-cx)/spread)**2)));
       sideHeight=Math.max(sideHeight,P.hill.edgeHeight);
+      sideHeight*=smooth(side.south,side.full,y);
       h=Math.max(h,mix(plainAt(x,clamp(y,P.town.south,P.town.north)),sideHeight,sideAmount));
       if(dn>0){
-        const main=mix(plainAt(x,P.town.north),hc.northPeak-relief,northAmount);
-        const front=hc.frontPeak*Math.exp(-(((y-hc.frontNorth)/hc.frontRun)**2))*(1-hc.frontVariation*(1-Math.cos(x/hc.wave)));
-        h=Math.max(h,main,mix(main,Math.min(front,upper+riseEnvelope(Math.hypot(Math.max(0,Math.abs(x)-P.shrine.upper[1]),Math.max(0,y-P.shrine.upper[3])),P.shrine.rearSlope,P.shrine.edgeRun)),smooth(P.shrine.upper[3]-P.hill.frontBlend,P.shrine.upper[3]+P.shrine.edgeRun,y)*smooth(0,P.hill.frontBlend,dn)));
+        // The main ridge begins behind the middle ridge; a town-relative rise
+        // swallowed both shoulder saddles when this smaller layout was introduced.
+        h=Math.max(h,mix(plainAt(x,P.town.north),hc.northPeak-relief,smooth(hc.middleNorth-hc.frontRun,hc.peakNorth,y)));
+      }
+      if(y>P.shrine.upper[3]){
+        const shoulder=(1-smooth(hc.shoulderX[0],hc.shoulderX[1],Math.abs(x)))*hc.frontPeak+smooth(hc.shoulderX[0],hc.shoulderX[1],Math.abs(x))*hc.shoulderHeight;
+        const front=shoulder*Math.exp(-(((y-hc.frontNorth)/hc.frontRun)**2));
+        const middle=hc.middlePeak*Math.exp(-(((y-hc.middleNorth)/hc.middleRun)**2))*(1-.04*(1-ridgeAt(x,y)));
+        h=Math.max(h,front,middle);
       }
       // The southern hillside also comes out of the beach over a full foothill run.
       const coastHeight=d<c.beach+c.stepRun?mix(c.beachTop,plainAt(x,shoreAt(x)+c.beach+c.stepRun),smooth(c.beach,c.beach+c.stepRun,d)):plainAt(x,y);
@@ -97,7 +116,7 @@ export function createDesignedTerrain(stairRise, gateBounds=null,emit=P.emit) {
       }
       // A broad, gently graded river valley precedes the bank and river-bed carve.
       const floor=y>P.river.valleyNorth?riverFloorAt(y):plainAt(x,y);
-      const outside=Math.max(0,Math.abs(x-rx)-P.river.valleyWidth);
+      const outside=Math.max(0,Math.abs(x-rx)-(x>rx?eastBankAt(y):P.river.valleyWidth));
       h=Math.min(h,floor+riseEnvelope(outside,P.hill.frontSlope,P.river.valleySideRun/6));
 
     }
@@ -106,7 +125,7 @@ export function createDesignedTerrain(stairRise, gateBounds=null,emit=P.emit) {
       const weight=smooth(P.cape.y-P.cape.radius,P.cape.y+P.cape.cliff,y)*(1-smooth(P.cape.neck,P.cape.shoulder,Math.abs(x-P.cape.x))),target=P.cape.min*(1-smooth(...P.cape.join,y));
       if(weight>0){h=mix(h,Math.max(h,target),weight);if(weight>.2)code=5;}
     }
-    for(const t of P.terraces) {h=terraceEarthwork(h,x,y,t.rect,t.blend);if(inRect(x,y,t.rect))code=6;}
+    for(const t of P.terraces) {h=terraceEarthwork(h,x,y,t.rect,t.blend);if(inRect(x,y,t.rect))code=4;}
     if(pad){h=terraceEarthwork(h,x,y,pad,P.terraces[0].blend);if(inRect(x,y,pad))code=6;}
     const l=P.shrine.lower,u=P.shrine.upper;
     // Separate platforms, with a continuous stair apron; rear slope remains at most thirty degrees.
@@ -115,18 +134,19 @@ export function createDesignedTerrain(stairRise, gateBounds=null,emit=P.emit) {
     h=terraceEarthwork(h,x,y,site,P.shrine.edgeRun,P.shrine.rearSlope);
     if(inRect(x,y,site))code=6;
     if(Math.abs(x)<=l[1]&&y>=P.shrine.approach[0]&&y<l[2]) {h=mix(plainAt(x,P.shrine.approach[0]),l[4],smooth(P.shrine.approach[0],l[2],y));code=6;}
-    const hc=P.harbor, radius=Math.hypot(x-hc.x,y-hc.y),bearing=(Math.atan2(x-hc.x,y-hc.y)*180/Math.PI+360)%360;
-    const angle=Math.abs((bearing-hc.mouth+540)%360-180),ring=angle>=hc.opening/2;
-    if(radius<hc.radius-hc.width/2) {h=hc.innerDepth;code=1;}
-    if(ring) {const w=1-smooth(hc.width/2,hc.width/2+hc.slope,Math.abs(radius-hc.radius));h=mix(h,hc.height,w);if(w>.2)code=5;}
-    for(const rect of [hc.connection,hc.quay])if(inRect(x,y,rect)&&!(ring&&Math.abs(radius-hc.radius)<hc.width/2+hc.slope)){h=rect[4];code=6;}
+    const hc=P.harbor,harbor=harborAt(x,y);
+    if(harbor.inside||Math.abs(x-hc.x)<hc.radius-hc.width&&y>=hc.y&&y<hc.quay[2]){h=hc.innerDepth;code=1;}
+    if(harbor.ring){const w=1-smooth(hc.width/2,hc.width/2+hc.slope,Math.abs(harbor.distance));h=mix(h,hc.height,w);if(w>.2)code=5;}
+    if(quayAt(x,y)){h=hc.quay[4];code=0;}
+    else if(inRect(x,y,hc.connection)){h=hc.connection[4];code=0;}
     const island=Math.hypot(x-hc.island[0],y-hc.island[1]),iw=1-smooth(0,hc.islandRadius,island);
     if(iw>0) {h=Math.max(h,mix(hc.innerDepth,hc.island[2],iw));code=5;}
     // No frame embankment: the authored hills continue to the land edge; all southern edges are sea.
     const edge=Math.min(x-P.grid.west,P.grid.east-x,P.grid.north-y);
-    const land=smooth(shoreAt(x),shoreAt(x)+P.hill.coastRun,y);
+    const rocky=x<P.hill.rockyCoast[0]||x>P.hill.rockyCoast[1];
+    const land=smooth(shoreAt(x),shoreAt(x)+(rocky?P.hill.coastEdgeRun:P.hill.coastRun),y);
     const ew=1-smooth(0,P.hill.edgeRun,edge);
-    if(ew>0&&land>0)h=Math.max(h,P.hill.edgeHeight*land*ew);
+    if(ew>0&&land>0){h=Math.max(h,P.hill.edgeHeight*land*ew);if(rocky)code=5;}
     if(y<P.grid.south+P.grid.cell){h=-P.shore.seaDepth;code=1;}
 
     h=frontLimit(h,x,y);
@@ -145,7 +165,7 @@ export function createDesignedTerrain(stairRise, gateBounds=null,emit=P.emit) {
   for(let y=P.roads[0].points[0][1];y<P.roads[0].points[1][1];y+=P.road.step)avenue.points.push([0,y,base(0,y).h]);
   avenue.points.push([0,P.roads[0].points[1][1],base(0,P.roads[0].points[1][1]).h]);
   const bankRoad=[];
-  for(let y=440;y<=P.grid.north;y+=P.road.step)bankRoad.push([riverX(y)+P.road.northeastOffset,y,base(riverX(y)+P.road.northeastOffset,y).h]);
+  for(let y=P.roads.find(r=>r.id==='east-upper').points.at(-1)[1]+P.road.step;y<=P.grid.north;y+=P.road.step)bankRoad.push([riverX(y)+P.road.northeastOffset,y,base(riverX(y)+P.road.northeastOffset,y).h]);
   const bankStart=P.roads.find(r=>r.id==='east-upper').points.at(-1);bankRoad.unshift([...bankStart,base(...bankStart).h]);roads.push({id:'river-road',name:'滑川沿いの道',kind:'kaido',width:3,points:bankRoad});
   for(const road of roads) {
     if(['kenchoji-trail','jochiji-trail','pass'].includes(road.id)) {
@@ -187,15 +207,15 @@ export function createDesignedTerrain(stairRise, gateBounds=null,emit=P.emit) {
     p.bed=Math.min(last,bed);last=p.bed;p.water=p.bed+c.waterDepth;p.width=riverWidth(p.y);
   }
   const riffles=[],bars=[];
-  for(let i=0,arc=P.river.riffleRamp;arc<length;arc+=P.river.riffleGap[0]+hash(i++,0,130)*(P.river.riffleGap[1]-P.river.riffleGap[0])) {
-    const p=river.find(p=>p.s>=arc);if(!p||p.y<=300||crossings.some(q=>Math.abs(q.y-p.y)<P.river.riffleRamp))continue;
+  for(let i=0,arc=P.river.riffleRamp;arc<length;arc+=(P.river.riffleGap[0]+hash(i++,0,130)*(P.river.riffleGap[1]-P.river.riffleGap[0]))/((river.find(p=>p.s>=arc)?.y??0)<=P.river.rapidNorth?P.river.rapidDensity:1)) {
+    const p=river.find(p=>p.s>=arc);if(!p||p.y<=P.town.south||crossings.some(q=>Math.abs(q.y-p.y)<q.width/2+P.grid.cell))continue;
     riffles.push({s:arc,x:p.x,y:p.y,rise:mix(...P.river.riffleRise,hash(i,0,131))});
   }
   const riffleAt=s=>{let lift=0;for(const r of riffles){const d=s-r.s;if(d>=-P.river.riffleRamp&&d<=P.river.riffleDrop)lift=Math.max(lift,r.rise*(d<0?1+d/P.river.riffleRamp:1-d/P.river.riffleDrop));}return lift;};
   last=Infinity;
-  for(const p of river){p.bed=Math.min(last,p.bed+riffleAt(p.s));last=p.bed;}
-  for(let i=0,arc=P.river.barGap[1];arc<length-P.river.barLength;arc+=P.river.barGap[0]+hash(i++,0,132)*(P.river.barGap[1]-P.river.barGap[0])) {
-    const index=river.findIndex(p=>p.s>=arc),p=river[index];if(!p||p.y<P.town.south||crossings.some(q=>Math.abs(q.y-p.y)<P.river.barLength))continue;
+  for(const p of river){const depth=mix(...P.river.lowerDepth,1-smooth(P.river.rapidSouth,P.river.rapidNorth,p.y));p.bed=Math.min(last,p.bed+riffleAt(p.s),p.y<=P.river.rapidNorth?p.water-depth:Infinity);last=p.bed;}
+  for(let i=0,arc=P.river.barGap[1];arc<length-P.river.barLength;arc+=(P.river.barGap[0]+hash(i++,0,132)*(P.river.barGap[1]-P.river.barGap[0]))/((river.find(p=>p.s>=arc)?.y??0)<=P.river.rapidNorth?P.river.rapidDensity:1)) {
+    const index=river.findIndex(p=>p.s>=arc),p=river[index];if(!p||p.y<P.town.south||crossings.some(q=>Math.abs(q.y-p.y)<q.width/2+P.grid.cell))continue;
     const a=river[Math.max(0,index-2)],b=river[Math.min(river.length-1,index+2)],curve=(b.x-p.x)*(p.y-a.y)-(b.y-p.y)*(p.x-a.x),side=curve<=0?1:-1,width=p.width*mix(...P.river.barWidth,hash(i,0,133));
     bars.push({x:p.x+side*(p.width/2-width/2),y:p.y,width,length:P.river.barLength,side,water:p.water});
   }
@@ -225,12 +245,12 @@ export function createDesignedTerrain(stairRise, gateBounds=null,emit=P.emit) {
     else h=(lo+hi)/2;
     h=mix(ungraded,h,smooth(shoreAt(x)+P.shore.beach-P.road.shoulder,shoreAt(x)+P.shore.beach+P.road.shoulder,y));
     if(nearest&&roadDistance<nearest.width/2+P.road.pavedShoulder/4&&y-shoreAt(x)>=P.shore.beach)code=4;
-    for(const terrace of P.terraces){h=terraceEarthwork(h,x,y,terrace.rect,terrace.blend);if(inRect(x,y,terrace.rect))code=6;}
+    for(const terrace of P.terraces){h=terraceEarthwork(h,x,y,terrace.rect,terrace.blend);if(inRect(x,y,terrace.rect))code=4;}
     if(pad){h=terraceEarthwork(h,x,y,pad,P.terraces[0].blend);if(inRect(x,y,pad))code=6;}
     const l=P.shrine.lower,u=P.shrine.upper,t=clamp((y-P.shrine.stairSouth)/(P.shrine.stairNorth-P.shrine.stairSouth));
     h=terraceEarthwork(h,x,y,[mix(l[0],u[0],t),mix(l[1],u[1],t),l[2],u[3],mix(l[4],upper,t)],P.shrine.edgeRun,P.shrine.rearSlope);
     if(y>=P.town.south-P.river.flatFade&&y<=P.river.valleyNorth+P.river.flatFade){
-      const rx=riverX(y),d=Math.max(0,Math.abs(x-rx)-P.river.valleyWidth),envelope=riseEnvelope(d,P.hill.frontSlope,P.river.valleySideRun/6),floor=plainAt(x,y);
+      const rx=riverX(y),d=Math.max(0,Math.abs(x-rx)-(x>rx?eastBankAt(y):P.river.valleyWidth)),envelope=riseEnvelope(d,P.hill.frontSlope,P.river.valleySideRun/6),floor=plainAt(x,y);
       const weight=smooth(P.town.south-P.river.flatFade,P.town.south,y)*(1-smooth(P.river.valleyNorth,P.river.valleyNorth+P.river.flatFade,y));h=mix(h,clamp(h,floor-envelope,floor+envelope),weight);if(x>rx&&d===0)code=2;
       // The small lower temple platform lies outside the flat floodplain.
       for(const terrace of P.terraces)if(terrace.id==='toshoji')h=terraceEarthwork(h,x,y,terrace.rect,terrace.blend);
@@ -239,17 +259,19 @@ export function createDesignedTerrain(stairRise, gateBounds=null,emit=P.emit) {
     const westEdge=townWestAt(y),eastEdge=townEastAt(y),plainSouth=shoreAt(x)+P.shore.beach+P.shore.stepRun;
     if(y>=Math.max(P.town.south,plainSouth)&&y<=townNorthAt(x)&&x>=westEdge&&x<=eastEdge){
       h=plainAt(x,y);
+      if(x>=westEdge+P.grid.cell&&x<=eastEdge-P.grid.cell&&code!==6)code=4;
     }
+    if(inRect(x,y,l))h=mix(plainAt(x,l[2]),l[4],smooth(l[2],P.shrine.forecourtLevel,y));
     const cut=passDepth(x,y);h-=cut;if(cut>0)code=5;
     const q=riverNear(x,y),c=P.river;
     if(q&&q.distance<q.width/2+c.bankMax) {
-      const bank=clamp((h-q.bed)*c.bankRun,c.bankMin,x<q.x?Math.min(c.bankMax,c.valleyWidth):c.bankMax),edge=q.width/2,weight=smooth(edge,edge+bank,q.distance);
+      const bank=clamp((h-q.bed)*c.bankRun,c.bankMin,x<q.x?c.bankMin:eastBankAt(y)),edge=q.width/2,weight=smooth(edge,edge+bank,q.distance);
       const bed=mix(q.bed,q.water-c.waterDepth,smooth(edge-c.gravel,edge+c.gravel,q.distance));h=mix(bed,h,weight);code=q.distance<edge?7:q.distance<edge+c.gravel?6:2;
       if(y>c.valleyNorth&&hash(Math.floor(x/7),Math.floor(y/7),1)>.65)code=5;
     }
     // A road shoulder must not steepen the narrow natural east floodplain.
-    if(y>=P.town.south-c.flatFade&&y<=c.valleyNorth+c.flatFade&&x>q.x&&q.distance<q.width/2+c.bankMax&&!P.terraces.some(t=>inRect(x,y,t.rect))){
-      const weight=smooth(P.town.south-c.flatFade,P.town.south,y)*(1-smooth(c.valleyNorth,c.valleyNorth+c.flatFade,y));h=mix(h,mix(q.bed,y>c.valleyNorth?riverFloorAt(y):plainAt(x,y),smooth(q.width/2,q.width/2+c.bankMax,q.distance)),weight);
+    if(y>=P.town.south-c.flatFade&&y<=c.valleyNorth+c.flatFade&&x>q.x&&q.distance<q.width/2+eastBankAt(y)&&!P.terraces.some(t=>inRect(x,y,t.rect))){
+      const weight=smooth(P.town.south-c.flatFade,P.town.south,y)*(1-smooth(c.valleyNorth,c.valleyNorth+c.flatFade,y));h=mix(h,mix(q.bed,y>c.valleyNorth?riverFloorAt(y):plainAt(x,y),smooth(q.width/2,q.width/2+eastBankAt(y),q.distance)),weight);
     }
     for(const bar of bars) {
       const d=Math.hypot((x-bar.x)/(bar.width/2),(y-bar.y)/(bar.length/2));
@@ -258,7 +280,7 @@ export function createDesignedTerrain(stairRise, gateBounds=null,emit=P.emit) {
     for(const hit of crossings) {
       const angle=hit.bearing*Math.PI/180,dx=x-hit.x,dy=y-hit.y,u=dx*Math.sin(angle)+dy*Math.cos(angle),v=dx*Math.cos(angle)-dy*Math.sin(angle),half=riverWidth(hit.y)/2;
       if(Math.abs(v)<(hit.width+c.bridgeWidthPad)/2+c.bridgeApron&&Math.abs(u)<half+c.bridgeExtra/2+c.bridgeApron+P.grid.cell){
-        const top=smooth(half,half+c.bridgeWallRun,Math.abs(u)),weight=(1-smooth((hit.width+c.bridgeWidthPad)/2,(hit.width+c.bridgeWidthPad)/2+c.bridgeApron,Math.abs(v)))*(1-smooth(half+c.bridgeExtra/2,half+c.bridgeExtra/2+c.bridgeApron,Math.abs(u)));h=mix(h,mix(hit.level-c.bridgeBank,hit.level,top),weight);code=6;
+        const top=smooth(half,half+c.bridgeWallRun,Math.abs(u)),weight=(1-smooth((hit.width+c.bridgeWidthPad)/2,(hit.width+c.bridgeWidthPad)/2+c.bridgeApron,Math.abs(v)))*(1-smooth(half+c.bridgeExtra/2,half+c.bridgeExtra/2+c.bridgeApron,Math.abs(u)));h=mix(h,mix(Math.min(hit.level-c.bridgeBank,q.bed),hit.level,top),weight);code=6;
       }
     }
     if(emit.steps) {
@@ -276,6 +298,7 @@ export function createDesignedTerrain(stairRise, gateBounds=null,emit=P.emit) {
       const t=clamp((y-P.shrine.stairSouth)/(P.shrine.stairNorth-P.shrine.stairSouth));
       h=P.shrine.lower[4]+stairRise*t-(y<P.shrine.stairSouth?P.stairs.entryInset:P.stairs.inset);code=6;
     }
+    if(y<shoreAt(x)&&(x<P.hill.rockyCoast[0]||x>P.hill.rockyCoast[1])){h=seaBedAt(shoreAt(x)-y);code=0;}
     if(y<P.grid.south+P.grid.cell){h=-P.shore.seaDepth;code=1;}
     h=frontLimit(h,x,y);
     const corner=P.hill.cornerPeak-P.hill.cornerRelief*(1-ridgeAt(x,y)),cornerWeight=smooth(...P.hill.cornerX,Math.abs(x))*smooth(...P.hill.cornerY,y);
@@ -284,19 +307,26 @@ export function createDesignedTerrain(stairRise, gateBounds=null,emit=P.emit) {
     if(verge&&y>=avenue.points[0][1]&&y<=avenue.points[1][1]&&(!nearest||nearest.id==='avenue'||roadDistance>nearest.width/2+P.road.pavedShoulder/4))code=2;
     if(y<plainSouth+P.grid.cell*3&&code===4)code=y-shoreAt(x)<P.shore.wet?1:0;
     // Shrine grass, narrow axial gravel and rock retaining faces share the existing platform geometry.
-    if(inRect(x,y,P.harbor.quay))code=0;
+    if(quayAt(x,y))code=0;
     if(inRect(x,y,l))code=Math.abs(x)<=P.sanctuary.axisWidth/2||inRect(x,y,P.sanctuary.square)?6:2;
-    if(y>=P.shrine.stairSouth&&y<=P.shrine.stairNorth&&Math.abs(x)>P.stairs.width/2+P.stairs.ear&&Math.abs(x)<=l[1]+P.shrine.edgeRun)code=5;
+    if(y>=P.shrine.stairSouth&&y<=P.shrine.stairNorth&&Math.abs(x)>P.stairs.width/2+P.stairs.ear&&Math.abs(x)<=l[1]+P.shrine.edgeRun)code=2;
     if(inRect(x,y,u)&&Math.abs(x)>P.sanctuary.axisWidth/2)code=2;
     // Pale exposed south/west faces of the Buddha platform. No earthwork is applied to the entrance path.
     const b=P.terraces[0].rect,bc=P.buddha,run=bc.cliffHeight/Math.tan(bc.cliffAngle*Math.PI/180);
     const south=x>b[0]+bc.cliffInset&&x<b[1]-bc.cliffInset&&y<b[2]&&y>b[2]-run-bc.cliffBlend;
     const west=y>b[2]+bc.cliffInset&&y<b[3]-bc.cliffInset&&x<b[0]&&x>b[0]-run-bc.cliffBlend;
     const entrance=nearest?.id==='west'&&roadDistance<P.road.pavedShoulder+nearest.width/2;
-    if((south||west)&&!entrance){const d=south?b[2]-y:b[0]-x,face=b[4]-bc.cliffHeight*clamp(d/run),weight=1-smooth(run,run+bc.cliffBlend,d);h=mix(h,face,weight);code=5;}
-    const harbor=P.harbor,hr=Math.hypot(x-harbor.x,y-harbor.y);
-    if(hr<harbor.radius-harbor.width/2){h=harbor.innerDepth;code=1;}
-    for(const rect of [harbor.connection,harbor.quay])if(inRect(x,y,rect)&&hr>=harbor.radius-harbor.width/2&&Math.abs(hr-harbor.radius)>harbor.width/2){h=rect[4];code=rect===harbor.quay?0:6;}
+    if((south||west)&&!entrance)code=5;
+    const harbor=P.harbor,hp=harborAt(x,y);
+    if(hp.inside||Math.abs(x-harbor.x)<harbor.radius-harbor.width&&y>=harbor.y&&y<harbor.quay[2]){h=harbor.innerDepth;code=1;}
+    if(hp.ring){const w=1-smooth(harbor.width/2,harbor.width/2+harbor.slope,Math.abs(hp.distance));h=mix(h,harbor.height,w);if(w>.2)code=5;}
+    if(quayAt(x,y)){h=harbor.quay[4];code=0;}
+    else if(inRect(x,y,harbor.connection)){h=harbor.connection[4];code=0;}
+    const island=Math.hypot(x-harbor.island[0],y-harbor.island[1]),iw=1-smooth(0,harbor.islandRadius,island);
+    if(iw>0){h=Math.max(h,mix(harbor.innerDepth,harbor.island[2],iw));code=5;}
+    for(const terrace of P.terraces){if(terrace.id==='buddha'&&rectangleDistance(x,y,terrace.rect)<terrace.blend)h=terraceEarthwork(h,x,y,terrace.rect,terrace.blend);if(inRect(x,y,terrace.rect)){h=terrace.rect[4];code=4;}}
+    const exposure=outcropAt(x,y);
+    if(exposure){h+=Math.tan(exposure.angle*Math.PI/180)*(y-exposure.y);code=5;}
     return {h,code};
   }
   function habitat(x,y) {
