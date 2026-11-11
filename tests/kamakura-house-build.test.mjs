@@ -112,7 +112,7 @@ function safety(source){
 }
 test('H3/H5 shipped shader anchors, complementary colour/depth/distance discard, debug colors, seed and yard mask',async()=>{
   const {buildKamakuraHouses}=await loadHouse2View();
-  for(const search of ['?housefar=0','?housefar=0&house2debug=1','?housefar=0&htex=0']){
+  for(const search of ['?housefar=0','?housefar=0&house2debug=1','?housefar=0&htex=0','?housefar=0&housefull=700&houseswap=760&housecap=200','?housefar=0&housefull=700&houseswap=760&housecap=200&house2debug=1','?housefar=0&housefull=700&houseswap=760&housecap=200&htex=0']){
     const scene=new THREE.Scene(),view=await buildKamakuraHouses(fieldInput(),{heightAt:()=>0},scene,{search});scene.onAfterRender();await warm(view,{x:0,y:0,z:0});
     scene.traverse(o=>{if(!o.isInstancedMesh)return;
       const isDetail=o.name==='house2-instances';
@@ -164,11 +164,11 @@ test('GLSL compiler checks detail and legacy standard/basic/depth/distance with 
   `;
   const {buildKamakuraHouses}=await loadHouse2View();let stages=0;
   try{
-    for(const search of ['?housefar=0','?housefar=0&house2debug=1','?housefar=0&htex=0']){
+    for(const search of ['?housefar=0','?housefar=0&house2debug=1','?housefar=0&htex=0','?housefar=0&housefull=700&houseswap=760&housecap=200','?housefar=0&housefull=700&houseswap=760&housecap=200&house2debug=1','?housefar=0&housefull=700&houseswap=760&housecap=200&htex=0']){
       const scene=new THREE.Scene(),view=await buildKamakuraHouses(fieldInput(),{heightAt:()=>0},scene,{search});scene.onAfterRender();await warm(view,{x:0,y:0,z:0});
       try{
         const legacy=[];scene.traverse(o=>{if(o.name==='house-instances')legacy.push(o);});
-        const meshes=[legacy[0],detailMeshes(scene)[0]];assert(meshes.every(Boolean));
+        const meshes=[legacy[0],detailMeshes(scene)[0],...detailMeshes(scene).filter(m=>m.geometry.attributes.house2PartEnd)];assert(meshes.every(Boolean));
         for(const mesh of meshes)for(const [material,kind] of [[mesh.material,mesh.material.isMeshBasicMaterial?'basic':'standard'],[mesh.customDepthMaterial,'depth'],[mesh.customDistanceMaterial,'distanceRGBA']]){
           const lib=THREE.ShaderLib[kind],shader={uniforms:{},vertexShader:lib.vertexShader,fragmentShader:lib.fragmentShader};material.onBeforeCompile(shader);
           for(const lit of [false,true])for(const [property,stage] of [['vertexShader','vert'],['fragmentShader','frag']]){

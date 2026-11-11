@@ -1,5 +1,5 @@
 // Pure kit measurement, deterministic construction and caller-owned selection buffers.
-import { houseBodyBounds } from './kamakura-houses.js';
+import { houseBodyBounds,HOUSE_POLICY } from './kamakura-houses.js';
 import { houseIndexSeed,HOUSE_PALETTE as P } from './kamakura-house-texture.js';
 export { HOUSE_PARTS } from './kamakura-house-parts.js';
 import { houseParts,box,beam,stone,roofCourse,solid,finishHouse } from './kamakura-house-parts.js';
@@ -12,9 +12,9 @@ export const HOUSE2 = Object.freeze({
   porchPosts:2, // posts: support the outside edge of each source entrance roof.
   rearRafters:6, // tails per slope: reduced detail on secondary wings.
   rearStones:4, // stones per slope: reduced secondary roof decoration.
-  full:60, // metres, 3D: fully modelled near houses.
-  swap:75, // metres, 3D: end of complementary dither.
-  cap:90, // houses: closest eligible houses only.
+  full:HOUSE_POLICY.full, // metres, 3D: fully modelled near houses.
+  swap:HOUSE_POLICY.swap, // metres, 3D: end of complementary dither.
+  cap:HOUSE_POLICY.cap, // houses: closest eligible houses only.
   triangles:160000, // triangles: total submitted detail geometry.
   draws:40, // commands: maximum detail batches.
   sliceMs:2, // milliseconds: yield between construction stages.
@@ -80,6 +80,51 @@ export const HOUSE2 = Object.freeze({
   recessTone:.16, // multiplier: dark brown interior behind openings.
   dirtTone:.72, // multiplier: wall foot/bare bamboo backing.
 });
+// Thin decoration is culled independently of the structural roof, posts and openings.
+export const HOUSE_DETAIL = Object.freeze({
+  end:75, // metres: never submit fine decoration beyond the old swap distance.
+  fade:10, // metres: dither decoration out before its distance/pixel limit.
+  pixels:1.5, // physical screen pixels: minimum projected thickness.
+  referenceHeight:720, referenceFov:50, // pixels, degrees: conservative projection until first presentation.
+  triangles:600000, draws:120, // submitted detail budgets for maps opting into a policy.
+  stages:2, // generator steps: hard per-update construction work limit.
+  parts:Object.freeze({
+    rafter:Object.freeze({end:75,width:.1}), // metres: rafter tails, including porch tails.
+    lattice:Object.freeze({end:75,width:.022}), // metres: window lattice / bamboo backing.
+    stone:Object.freeze({end:75,width:.06}), // metres: conservative short axis of roof and post foot stones.
+    batten:Object.freeze({end:75,width:.05}), // metres: roof battens, ridge bamboo, barge boards.
+    yard:Object.freeze({end:75,width:.022}), // metres: buckets, ladders and drying ropes.
+  }),
+});
+export function houseDetailPart(solid) {
+  const p=HOUSE_DETAIL.parts,label=solid.label;
+  if(solid.role===6)return p.yard;
+  if(label.includes('rafter'))return p.rafter;
+  if(label==='lattice'||label==='bamboo'||label==='eroded plaster')return p.lattice;
+  if(label==='roof stone'||label==='post stone')return p.stone;
+  if(label==='roof batten'||label==='ridge bamboo'||label.includes('bargeboard'))return p.batten;
+  return null;
+}
+export function houseDetailLimit(part, pixelsPerMetre,scale=1) {
+  return Math.min(part.end,part.width*scale*pixelsPerMetre/HOUSE_DETAIL.pixels);
+}
+export function houseDetailFade(distance,end) {
+  return Math.max(0,Math.min(1,(end-distance)/Math.min(end,HOUSE_DETAIL.fade)));
+}
+// Both bands retain the exact source attributes and palette; no recolouring at the boundary.
+export function houseDetailBand(shape,fine) {
+  const keys=['positions','normals','uvs','roles','surfaces','tones'],sizes=[3,3,2,1,1,1],out={...shape,solids:[]};
+  let count=0;for(const s of shape.solids)if(!!houseDetailPart(s)===fine)count+=s.count;
+  keys.forEach((key,i)=>out[key]=new Float32Array(count*sizes[i]));
+  out.partWidth=new Float32Array(count);out.partEnd=new Float32Array(count);
+  let at=0;
+  for(const s of shape.solids){const part=houseDetailPart(s);if(!!part!==fine)continue;
+    keys.forEach((key,i)=>out[key].set(shape[key].subarray(s.start*sizes[i],(s.start+s.count)*sizes[i]),at*sizes[i]));
+    if(part){out.partWidth.fill(part.width,at,at+s.count);out.partEnd.fill(part.end,at,at+s.count);}
+    out.solids.push({...s,start:at});at+=s.count;
+  }
+  out.triangles=count/3;out.fine=fine;return out;
+}
 export function houseFamily(kind) {
   const name=typeof kind==='string'?kind:kind.node??kind.house_type??'';
   if(/塀|門|fence|gate|wall/i.test(name))return null;
@@ -268,13 +313,14 @@ export function houseSilhouette(input) {
     let top=-Infinity;for(let i=s.start*3+1;i<(s.start+s.count)*3;i+=3)top=Math.max(top,input.positions[i]);return {top};
   })};
 }
-export const house2Fade = d => d<=HOUSE2.full?1:d>=HOUSE2.swap?0:(HOUSE2.swap-d)/(HOUSE2.swap-HOUSE2.full);
+export const house2Fade = (d,policy=HOUSE2) => d<=policy.full?1:d>=policy.swap?0:(policy.swap-d)/(policy.swap-policy.full);
 export const house2Variant = (id,family) => houseIndexSeed(id)[1]<(family==='small'?HOUSE2.smallThatchShare:.5)?0:1;
-export function house2Selection(items,pos,indices,distances,limit=HOUSE2.cap) {
+export function house2Selection(items,pos,indices,distances,limit=HOUSE2.cap,swap=HOUSE2.swap) {
   let count=0;const cap=Math.min(limit,indices.length),y=pos.y??0;
+  if(cap<=0)return 0;
   for(let i=0;i<items.length;i++){
     const item=items[i];if(!item.house2Eligible)continue;
-    const m=item.grounded,d=Math.hypot(m[12]-pos.x,m[13]-y,m[14]-pos.z);if(d>=HOUSE2.swap)continue;
+    const m=item.grounded,d=Math.hypot(m[12]-pos.x,m[13]-y,m[14]-pos.z);if(d>=swap)continue;
     let at=Math.min(count,cap-1);if(count===cap&&d>=distances[at])continue;
     while(at>0&&d<distances[at-1]){if(at<cap){indices[at]=indices[at-1];distances[at]=distances[at-1];}at--;}
     indices[at]=i;distances[at]=d;if(count<cap)count++;

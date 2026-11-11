@@ -804,7 +804,7 @@ export function createHouse2Material(base,{texture,search='',environment=null,co
   return material;
 }
 // The same screen-space sample and instance fade are used by legacy/detail and both shadow passes.
-export function house2DitherMaterial(material,detail=false) {
+export function house2DitherMaterial(material,detail=false,fine=null) {
   const previous=material.onBeforeCompile.bind(material),key=material.customProgramCacheKey();
   material.onBeforeCompile=(shader,renderer)=>{
     previous(shader,renderer);
@@ -818,8 +818,16 @@ export function house2DitherMaterial(material,detail=false) {
       varying float vHouse2Fade;`).replace('#include <clipping_planes_fragment>',`#include <clipping_planes_fragment>
       float h2screen=fract(52.9829189*fract(dot(floor(gl_FragCoord.xy),vec2(0.06711056,0.00583715))));
       if(${detail?'h2screen>=vHouse2Fade':'h2screen<vHouse2Fade'})discard;`);
+    if(fine){
+      shader.uniforms.house2Pixels=fine.pixels;
+      shader.vertexShader=shader.vertexShader.replace('#include <common>',`#include <common>
+        attribute float house2PartWidth,house2PartEnd,house2Distance,house2Scale;
+        uniform float house2Pixels;`).replace('vHouse2Fade=house2Fade;',`vHouse2Fade=house2Fade;
+        float h2end=min(house2PartEnd,house2PartWidth*house2Scale*house2Pixels/${fine.constants.pixels.toFixed(4)});
+        vHouse2Fade=min(vHouse2Fade,clamp((h2end-house2Distance)/min(h2end,${fine.constants.fade.toFixed(4)}),0.0,1.0));`);
+    }
   };
-  material.customProgramCacheKey=()=>key+`-h2-dither-${detail}`;
+  material.customProgramCacheKey=()=>key+`-h2-dither-${detail}`+(fine?'-fine':'');
   return material;
 }
 
