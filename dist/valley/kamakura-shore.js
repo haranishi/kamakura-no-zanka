@@ -206,11 +206,13 @@ export function createSignedShoreJob(terrain, {cell=shoreFieldCell(terrain),limi
   const queue=shelter?new Uint32Array(w*h):null,visited=shelter?new Uint8Array(w*h):null;
   let head=0,tail=0,phase=0,cursor=0,work=0,sheltered=0,water=0;
   const phases=shelter?10:5;
-  if(shelter){field.openness=openness;field.opennessAt=(x,z)=>sampleDistance(openField,x,z);}
+  // Until the openness exists every water cell counts as open (the surf of the version before it), on the CPU as in the texture.
+  if(shelter){field.openness=openness;field.opennessAt=(x,z)=>phase===phases?sampleDistance(openField,x,z):1;}
   const openField=shelter?{...field,data:openness}:null;
   function enqueue(k){if(!visited[k]&&sea[k]&&data[k]>=SHELTER.openM){visited[k]=1;queue[tail++]=k;}}
-  function step(budget=256){
-    for(let n=0;n<budget&&phase<phases;n++,work++){
+  // stop: the phase to halt before. 5 ends after the signed distance (the part the sea and the sand wait for).
+  function step(budget=256,stop=phases){
+    for(let n=0;n<budget&&phase<stop;n++,work++){
       if(phase===6){
         if(head===tail){phase++;cursor=0;continue;}
         const k=queue[head++],i=k%w,j=Math.floor(k/w);
@@ -251,9 +253,9 @@ export function createSignedShoreJob(terrain, {cell=shoreFieldCell(terrain),limi
       }
       if(++cursor===data.length){cursor=0;phase++;}
     }
-    return phase===phases;
+    return phase>=stop;
   }
-  return {field,step,get done(){return phase===phases;},get work(){return work;},get shelteredFraction(){return water?sheltered/water:0;}};
+  return {field,step,get done(){return phase===phases;},get distanceReady(){return phase>=5;},get work(){return work;},get shelteredFraction(){return water?sheltered/water:0;}};
 }
 
 // W2c-9r1 shore: allocation-free CPU counterparts for distance acceptance.

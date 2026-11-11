@@ -86,6 +86,25 @@ test('E2 packed topology uses one existing shore sample for all surf, preserves 
     for(const step of [0,1,2,3])v.setAdapt(step);v.dispose();assert(!terrain.shoreSigned);assert.equal(globalThis.__kzSea3,undefined);
   }
 });
+test('E2 pace: the distance is shown first, open everywhere, and the openness follows without holding it back',()=>{
+  const terrain=t(),v=buildKamakuraSea(terrain,d(),{search:'?bankwet=0&debug=1'}),half=H.THREE.DataUtils.fromHalfFloat,at={x:0,y:0,z:0};
+  // Before anything is computed no water reads as closed (a closed start-up field left the sea without surf).
+  const first=v.uniforms.uShoreSea.value.image.data;for(let i=2;i<first.length;i+=4)assert.equal(half(first[i]),1);
+  let shown=0;while(terrain.shoreSigned!==v.jobs[0].field){v.update(.016,at,1);assert(++shown<100);}
+  // The distance is up and the openness is not: every cell is open, in the texture and for the CPU readers.
+  assert(!v.preparedShore);assert(v.jobs[0].distanceReady&&!v.jobs[0].done);
+  const interim=v.uniforms.uShoreSea.value,a=interim.image.data;let released=0;interim.addEventListener('dispose',()=>released++);
+  for(let i=2;i<a.length;i+=4)assert.equal(half(a[i]),1);
+  assert.equal(terrain.shoreSigned.opennessAt(120,70),1);
+  let later=0;while(!v.preparedShore){v.update(.016,at,1);assert(++later<20000);}
+  assert(later>shown,'the openness takes longer than the distance, and the distance did not wait for it');
+  const done=v.uniforms.uShoreSea.value;assert.notEqual(done,interim);assert.equal(released,1);assert(!v.textures.includes(interim));
+  assert.equal(terrain.shoreSigned.opennessAt(120,70),0);assert.equal(terrain.shoreSigned.opennessAt(-260,80),1);
+  v.dispose();assert.equal(released,1);
+  // The job itself: the distance part can be run alone, and a job without openness is finished after it.
+  const job=S.createSignedShoreJob(P.previewEdgesTerrain());while(!job.step(4096,5));assert(job.distanceReady&&!job.done);
+  const plain=S.createSignedShoreJob(P.previewEdgesTerrain(),{shelter:false});while(!plain.step(4096,5));assert(plain.done);
+});
 test('E2 front strengths are proportional to openness; only a thin stationary .25 edge survives',()=>{
   for(const openness of [0,.25,.5,.75,1])for(const distance of [0,4,12,30,50]){
     const a=F.sea3Sample(distance,15,7,2,0,300,'standard',0,{},1),b=F.sea3Sample(distance,15,7,2,0,300,'standard',0,{},openness);
