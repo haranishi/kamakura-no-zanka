@@ -24,7 +24,8 @@ export function designedWorks() {
   const {at,bearing}=cutAxis(),crags=[],t=R.talus;
   for(const [name,sign] of [['ne',1],['sw',-1]]) {
     const c=R.crags[name],[from,to]=c.along,near=sign*R.crags.inner,far=sign*(R.crags.inner+c.depth);
-    crags.push({id:'cut-'+name,xy_m:xy([at(from,near),at(to,near),at(to,far),at(from,far)]),cell_m:R.crags.cell,step_m:R.crags.step,grain_deg:bearing,lift_m:R.crags.lift,rise_m:0});
+    // face_deg: the bearing the road-side face looks towards; the mass keeps its full height there and steps down on the other sides.
+    crags.push({id:'cut-'+name,xy_m:xy([at(from,near),at(to,near),at(to,far),at(from,far)]),cell_m:R.crags.cell,step_m:R.crags.step,grain_deg:bearing,lift_m:R.crags.lift,rise_m:0,face_deg:(bearing+(sign>0?90:270))%360});
     for(const [end,out,tag] of [[from,-1,'a'],[to,1,'b']])for(let base=t.base;base<=t.pushMax;base+=t.push) {
       const line=[at(end+out*t.start,sign*(R.crags.inner+base)),at(end+out*t.reach,sign*(R.crags.inner+base+t.spread))];
       const mid=[(line[0][0]+line[1][0])/2,(line[0][1]+line[1][1])/2];

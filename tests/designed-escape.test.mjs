@@ -67,6 +67,8 @@ test('retreat: both rock faces retain their specified height, run and exposed su
     // The road-side edge stands at the edge of the trodden width, and the mass covers the whole height-field wall behind it.
     assert(R.crags.inner>=R.width/2-.1&&R.crags.inner<R.cutWidth/2);assert(plan.depth>=Math.max(...R.wallBlocks[name].map(b=>b[3]))+2);
     assert.equal(c.cell_m,R.crags.cell);assert.equal(c.step_m,R.crags.step);assert.equal(c.lift_m,R.crags.lift);assert(Math.abs(c.grain_deg-axis.bearing)<1e-9);
+    // The road-side face looks across the road: towards the opposite wall.
+    const look=[Math.sin(c.face_deg*Math.PI/180),Math.cos(c.face_deg*Math.PI/180)],across=axis.of(R.cut[0][0]+look[0],R.cut[0][1]+look[1]);assert(Math.abs(across.along)<1e-9&&Math.abs(across.side+sign)<1e-9,c.id);
   }
   assert(report.wallProfiles.ne.length>=18);assert(report.wallProfiles.sw.length>=12);t.diagnostic(JSON.stringify({walls:report.walls,profiles:report.wallProfiles}));
 });
