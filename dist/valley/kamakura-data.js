@@ -3,14 +3,15 @@ import { decodeWorks, worksEnabled } from './kamakura-works.js';
 import { validateMist } from './kamakura-mist.js';
 import { validateBackdrop } from './kamakura-backdrop.js';
 import { prepareAvenue } from './kamakura-avenue.js';
-import { prepareTownFill } from './kamakura-town-fill.js';
+import { overlookConfig } from './kamakura-fly.js';
+import { townFillConfig, prepareTownFill } from './kamakura-town-fill.js';
 import { sandoLines, sandoEnabled } from './kamakura-sando.js';
 import { decodeFacilities } from './kamakura-facilities.js';
 import { decodeRoads, decodeCrossings, kamakuraPaths, roadStats } from './kamakura-roads.js';
 import { decodeRivers } from './kamakura-rivers.js';
 import { decodeVeg } from './kamakura-veg.js';
 import { decodeHouses } from './kamakura-houses.js';
-// Private data only: no bundled fallback, derived elevations, or remote service.
+// Runtime world files only: no bundled geography or remote service.
 export function validateMeta(m) {
   const g = m?.grid, h = m?.height;
   if (!['kz-world-web/0.1', 'kz-world-web/0.2', 'kz-world-web/0.3', 'kz-world-web/0.4', 'kz-world-web/0.5', 'kz-world-web/0.6', 'kz-world-web/0.7', 'kz-world-web/0.8', 'kz-world-web/0.9'].includes(m?.schema) || !g || !h ||
@@ -34,6 +35,8 @@ export function validateMeta(m) {
   validateSea(m.sea);
   validateMist(m.mist);
   validateBackdrop(m.backdrop);
+  townFillConfig(m.town_fill);
+  overlookConfig(m.overlook);
   return m;
 }
 export function decodeData(meta, heightBuffer, walkBuffer, patchBuffers, groundBuffer) {
@@ -100,7 +103,7 @@ export async function loadKamakura(fetcher = fetch, search = globalThis.location
       const source = await (await read('roads.json')).json();
       data.roads = decodeRoads(source, meta.roads.count);
       data.crossings = decodeCrossings(source);
-      if (new URLSearchParams(search).get('avenue') !== '0') for (const [id, road] of Object.entries(data.roads)) road.route_id = source.roads[id].route_id;
+      if (new URLSearchParams(search).get('avenue') !== '0' || meta.town_fill !== undefined) for (const [id, road] of Object.entries(data.roads)) road.route_id = source.roads[id].route_id;
     } catch { /* Optional roads failure keeps the existing pass paths and terrain. */ }
   }
   if (meta.works && worksEnabled(search)) {

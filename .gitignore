@@ -12,3 +12,5 @@ __pycache__/
 *.pyc
 
 .work/
+
+.world-out/

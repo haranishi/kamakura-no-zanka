@@ -24,6 +24,25 @@ export const TOWN_FILL = Object.freeze({
   axisGap: 300, axisSide: 30, axisAngle: 10, // m / m / degrees: joining unlabelled, aligned avenue fragments
   frontReach: 25, // m: original houses eligible to vote for a model's front face
 });
+// Only layout/rate fields are data-driven; safety budgets and obstacle margins stay fixed.
+export const TOWN_FILL_FIELDS = Object.freeze({
+  frontageMin: [6, 40], frontageMax: [6, 60], depth: [8, 60], laneFirst: [8, 100],
+  laneEvery: [20, 160], crossEvery: [30, 300], reach: [60, 1500], start: [0, 500],
+  shoreGap: [0, 200], coastSmall: [0, 500], outerStart: [0, 1400],
+  houseRate: [0, 1], gardenRate: [0, 1], burntRate: [0, 1], repairRate: [0, 1],
+});
+export function townFillConfig(value) {
+  if (value === undefined) return TOWN_FILL;
+  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new TypeError('Invalid town_fill');
+  for (const [name, v] of Object.entries(value)) {
+    const range = Object.hasOwn(TOWN_FILL_FIELDS, name) && TOWN_FILL_FIELDS[name];
+    if (!range || !Number.isFinite(v) || v < range[0] || v > range[1]) throw new RangeError('Invalid town_fill field: ' + name);
+  }
+  const c = { ...TOWN_FILL, ...value };
+  if (c.frontageMax < c.frontageMin || c.outerStart >= c.reach ||
+      Math.abs(c.houseRate + c.gardenRate + c.burntRate + c.repairRate - 1) > 1e-8) throw new RangeError('Inconsistent town_fill');
+  return Object.freeze(c);
+}
 const C = TOWN_FILL, clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 export function townFillAmount(search = '') {
   const raw = new URLSearchParams(search).get('townfill'), value = Number(raw);
@@ -176,12 +195,13 @@ export function townFront(houses, paths) {
   }
   return { axis: axes, votes };
 }
-export function townState(rank, offset, density = 1, light = false) {
+export function townState(rank, offset, density = 1, light = false, C = TOWN_FILL) {
   let t = clamp((Math.abs(offset) - C.outerStart) / (C.reach - C.outerStart), 0, 1); t = t * t * (3 - 2 * t);
   const house = Math.min(1 - C.burntRate - C.repairRate, (C.houseRate + (C.outerHouseRate - C.houseRate) * t) * density * (light ? C.lightRate : 1));
   return rank < house ? 'house' : rank < 1 - C.burntRate - C.repairRate ? 'garden' : rank < 1 - C.repairRate ? 'burnt' : 'repair';
 }
 export function prepareTownFill(data, { search = '', terrain = null } = {}) {
+  const C = townFillConfig(data.meta?.town_fill);
   const amount = townFillAmount(search); if (!amount) return null;
   const axis = townAxis(data); if (!axis || !data.houses) return null;
   terrain ||= townTerrain(data);
@@ -342,7 +362,7 @@ export function prepareTownFill(data, { search = '', terrain = null } = {}) {
         const yaw = Math.atan2(-p.dz, p.dx), box = { x: p.x - p.dz * side * (p.r + (C.depth + C.setbackMin) / 2), z: p.z + p.dx * side * (p.r + (C.depth + C.setbackMin) / 2), w: width - C.houseGap, d: C.depth - C.setbackMin, rotY: yaw };
         work.candidates++;
         const why = rectReason(box, laneId, false); if (why) { skipped[why]++; continue; }
-        const rank = townHash(seed, salt, 3), state = townState(rank, axisDistance, amount, light);
+        const rank = townHash(seed, salt, 3), state = townState(rank, axisDistance, amount, light, C);
         if (state === 'house') {
           const coastal = stripEnd(signedOffset).beach - axisAlong <= C.coastSmall, type = townHash(seed, salt, 4), group = coastal ? 'koya' : type < C.machiyaRate ? 'machiya' : type < C.machiyaRate + C.koyaRate ? 'koya' : 'kura';
           const k = choose(group, width, salt, seed, 5); if (!k) { work.kindSkipped++; continue; }
