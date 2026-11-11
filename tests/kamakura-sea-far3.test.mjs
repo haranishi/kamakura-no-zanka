@@ -101,6 +101,16 @@ test('sea3 S6 shaders, debug reader, quality, no additional resources and exact 
   const update=source('kamakura-sea-view.js').split('update(dt,pos,audioTime)')[1].split('setAdapt(value)')[0];assert(!/=>|\.map\(|\.filter\(|\.slice\(/.test(update));
 });
 
+test('sea3 far sky: cooler and darker than sea2 away from the sun, the same towards it; the shader carries the sea3 share only',async()=>{
+  const {sea3SkyTint,seaSkyTint}=await import('../dist/valley/kamakura-sea-far.js'),lit=n=>Number(n).toFixed(8);
+  assert.deepEqual(sea3SkyTint(1),[1,1,1]);assert.deepEqual(sea3SkyTint(0),[...S.skyCool]);assert.deepEqual(seaSkyTint(0),[...C.skyCool]);
+  for(let i=0;i<3;i++){assert(S.skyCool[i]<C.skyCool[i]);assert(S.skyCool[i]>.2);}
+  assert(S.skyCool[2]/S.skyCool[0]>C.skyCool[2]/C.skyCool[0],'bluer as well as darker');
+  const on=buildKamakuraSea(terrain(),data(),{search:'?bankwet=0'}),off=buildKamakuraSea(terrain(),data(),{search:'?sea3=0&bankwet=0'});
+  const a=shader(on).fragmentShader,b=shader(off).fragmentShader,cool=c=>`vec3(${c.map(lit).join(',')})`;
+  assert.equal(a.split(cool(S.skyCool)).length,2);assert(!a.includes(cool(C.skyCool)));assert.equal(b.split(cool(C.skyCool)).length,2);assert(!b.includes(cool(S.skyCool)));
+  on.dispose();off.dispose();
+});
 test('sea3=0 retains HEAD shader bytes, cache key, texture format and draw count',()=>{
   const v=buildKamakuraSea(terrain(),data(),{search:'?shelter=0&sea3=0&bankwet=0'}),s=shader(v);
   // Captured from the untouched HEAD onBeforeCompile, independently compared with sea3=0.

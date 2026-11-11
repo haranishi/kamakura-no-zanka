@@ -45,6 +45,15 @@ test('validated normalized directions, elevation, colors, thin haze and independ
   const good=kamakuraAtmosphere('noon',base());
   for(const bad of [{sunColor:'#fff'},{sunDir:[0,0,0]},{sunDir:[0,1,0]},{sunDir:[NaN,1,1]},{sunIntensity:Infinity},{hemiIntensity:-1},{fogDensity:.0007},{mist:{density:.0012,base:0,falloff:.045}}]) assert.throws(()=>validateAtmosphere({...good,...bad}),RangeError);
 });
+test('foliage gain: only the low sun carries one; three bounded numbers or nothing', () => {
+  const golden=kamakuraAtmosphere('golden',base(),false);
+  assert(Array.isArray(golden.foliage)&&golden.foliage.length===3&&golden.foliage.every(v=>v>=1&&v<=2.5));
+  assert(golden.foliage[0]>golden.foliage[2],'the gain is warmer than it is bright: more red and green than blue');
+  for(const time of ['noon','morning','evening']) assert.equal(kamakuraAtmosphere(time,base(),false).foliage,undefined);
+  const good=kamakuraAtmosphere('noon',base());
+  for(const foliage of [[1,1],[1,1,1,1],[.4,1,1],[1,1,2.6],[1,NaN,1],'1,1,1',{0:1,1:1,2:1},null]) assert.throws(()=>validateAtmosphere({...good,foliage}),RangeError);
+  for(const foliage of [undefined,[1,1,1],[.5,2.5,1]]) validateAtmosphere({...good,foliage});
+});
 test('actual atmosphere creation, fog once before materials, quality, follow, update and repeat disposal', () => {
   const fogBefore=chunks(), original=JSON.stringify(base());
   for (const quality of ['standard','light']) for (const time of ['noon','morning','golden','evening']) {

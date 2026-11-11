@@ -83,6 +83,19 @@ test('optional loader is local, fails open, v0.1–0.5 are treeless and trees=0 
   const world=fs.readFileSync(new URL('../dist/valley/world-kamakura.js',import.meta.url),'utf8');
   assert(world.includes('data.veg && treesEnabled(search)'));assert(world.includes('stepWind(windState, dt, { paused })'));assert(world.includes('extraCircles: trees?.circles || []'));
 });
+test('foliage gain multiplies the leaf colour of every level and leaves the trunks alone', () => {
+  const prepared=prepareVeg(decode([row({0:48,1:0,6:2}),row({0:150,1:0,6:6}),row({0:10,1:0,6:4})]),terrain),gain=[2,1.5,.5];
+  const read=view=>{const out=[],c=new THREE.Color();view.update({position:{x:0,z:0}});
+    for(const [key,set] of view.sets)for(const [part,mesh] of [['leaf',set.leaf],['wood',set.wood]])if(mesh)for(let i=0;i<mesh.count;i++){mesh.getColorAt(i,c);out.push([key,part,c.r,c.g,c.b]);}
+    view.dispose();return out;};
+  const plain=read(buildKamakuraVeg(prepared,{wind,sunDir:new THREE.Vector3(1,1,1)})),lit=read(buildKamakuraVeg(prepared,{wind,sunDir:new THREE.Vector3(1,1,1),foliage:gain}));
+  assert.equal(plain.length,lit.length);assert(plain.some(p=>p[1]==='leaf')&&plain.some(p=>p[1]==='wood'));
+  for(let i=0;i<plain.length;i++){
+    assert.deepEqual(plain[i].slice(0,2),lit[i].slice(0,2));
+    for(let k=0;k<3;k++)assert(Math.abs(lit[i][2+k]-plain[i][2+k]*(plain[i][1]==='leaf'?gain[k]:1))<1e-6,`${plain[i][0]} ${plain[i][1]} channel ${k}`);
+  }
+  assert.deepEqual(read(buildKamakuraVeg(prepared,{wind,sunDir:new THREE.Vector3(1,1,1),foliage:null})),plain);
+});
 test('real bundled Three view: generation, overlapping LOD, height/lean/phase, eviction, exact disposal and recreation (no GPU)', () => {
   const prepared=prepareVeg(decode([row({0:48,1:0,6:2}),row({0:150,1:0,6:6}),row({0:10,1:0,6:4})]),terrain);
   for(const renderer of [null,stubRenderer(),stubRenderer({fail:true})]) {

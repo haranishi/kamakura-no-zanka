@@ -21,15 +21,22 @@ export const KAMAKURA_TIMES = {
   },
   golden: {
     // Tuned after a blind comparison with noon (10 fixed views, 2026-11-10): golden won 7, and lost where the far hills turned ochre
-    // and the shade sank to olive black. So the distant haze stays a cool blue-grey and only the haze near the sun is warm (hazeExp 9),
+    // and the shade sank to olive black. So the distant haze stays a cool blue-grey and only the haze near the sun is warm,
     // and the shade takes more of the sky's blue (hemi/fill up, the dark offset of the tone map down).
-    postExposure: 1.06, postBloom: .16, postGlare: .95, postWarmth: .016, postToe: .6, postShade: .22,
-    sunDir: [-0.8008814546671346, 0.3704076727835497, 0.4705178546169415], sunColor: '#ffd9a6', sunIntensity: 3.3,
+    // 2026-11-11, against the designed Kamakura seen from the sea: the sun was too weak beside that fill, and the picture read
+    // as overcast. The sun is stronger and a little more golden (3.3 -> 4.2), the warm haze reaches wider around it (hazeExp 9 -> 7),
+    // and the grade is a touch warmer. The sky light in the shade stays as it was: lowering it made no visible gain in six shaded
+    // views and risked the olive-black shade again.
+    postExposure: 1.06, postBloom: .16, postGlare: .95, postWarmth: .028, postToe: .7, postShade: .22,
+    sunDir: [-0.8008814546671346, 0.3704076727835497, 0.4705178546169415], sunColor: '#ffd08c', sunIntensity: 4.2,
     zenith: '#4f7fbd', mid: '#a9c0d8', horizon: '#ecdcc8', below: '#868f88',
-    fogColor: '#b7c6d8', hazeCool: '#a9bcd6', hazeWarm: '#f3d2a2', hazeExp: 9,
+    fogColor: '#b7c6d8', hazeCool: '#a9bcd6', hazeWarm: '#f4cf96', hazeExp: 7,
     fogDensity: .00011, mist: { density: .00006, base: -4, falloff: .045 },
     hemiSky: '#b2c7ee', hemiGround: '#7d7c5e', hemiIntensity: 1.28,
     envIntensity: .7, fillColor: '#b3c5ea', fillIntensity: .52, exposure: 1,
+    // Seen in real Chrome (the designed Kamakura from the overlook): with the low sun the wooded hills, half of the frame, sank to
+    // a dark olive mass while roofs and ground were lit. Leaf colours get this gain in the low sun (trees only; no other time).
+    foliage: [1.6, 1.5, 1.05],
   },
   // All evening colors/light values come from the unchanged valley ATMOS.
   // postToe 1 = three.js's Neutral as shipped: a blind A/B (11/8) kept the evening's warmth only with the full dark offset.
@@ -54,6 +61,7 @@ export function validateAtmosphere(a) {
   for (const key of ['sunIntensity', 'hemiIntensity', 'envIntensity', 'fillIntensity', 'hazeExp', 'exposure']) {
     if (!Number.isFinite(a[key]) || a[key] < 0 || a[key] > 32) throw new RangeError(`atmosphere value: ${key}`);
   }
+  if (a.foliage !== undefined && !(Array.isArray(a.foliage) && a.foliage.length === 3 && a.foliage.every(v => Number.isFinite(v) && v >= .5 && v <= 2.5))) throw new RangeError('atmosphere foliage');
   if (!(a.fogDensity >= .00008 && a.fogDensity <= .00012)) throw new RangeError('atmosphere fog');
   if (!a.mist || !Number.isFinite(a.mist.base) || !(a.mist.density >= 0 && a.mist.density <= .0001) || !(a.mist.falloff > 0 && a.mist.falloff <= 1)) throw new RangeError('atmosphere mist');
   return a;
