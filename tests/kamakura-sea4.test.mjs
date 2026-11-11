@@ -68,7 +68,7 @@ test('A3 offshore absorption darkens smoothly; the nearshore is identical',()=>{
 test('A3 glitter lobe maximum, opposite zero, height, mean filtering and strength bounds',t=>{
   let sum=0,n=0;for(let x=0;x<90;x+=.31)for(let z=0;z<70;z+=.43){
     const peak=sea4Glitter(x,z,2,0,1,360);assert(peak>=0&&peak<=V.glitterStrength);assert.equal(sea4Glitter(x,z,2,0,-1,360),0);assert.equal(sea4Glitter(x,z,2,0,1,40),0);
-    assert(sea4Glitter(x,z,2,0,.5,360)<=peak);assert.equal(sea4Glitter(x,z,2,5,1,360),V.glitterMean*V.glitterStrength);sum+=peak/V.glitterStrength;n++;
+    assert(sea4Glitter(x,z,2,0,.5,360)<=peak);assert(Math.abs(sea4Glitter(x,z,2,5,1,360)-V.glitterMean*V.glitterStrength)<1e-12);sum+=peak/V.glitterStrength;n++;
   }
   assert(Math.abs(sum/n-V.glitterMean)<.015);t.diagnostic(JSON.stringify({resolvedGlitterMean:sum/n,filteredGlitterMean:V.glitterMean}));
 });

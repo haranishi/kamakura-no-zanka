@@ -7,9 +7,11 @@ export const SEA4=Object.freeze({
   edgeNoiseM:.8, edgeAmplitudeM:.5, // metres: fine shared scallops, identical for every crest so centres cannot cross.
   deepGain:.7, deepTint:Object.freeze([.98,1.01,.98]), // fractional absorption gain; retain a little more of the existing green.
   heightStartM:40,heightFullM:60, // camera metres above water: fade glitter in without a height discontinuity.
-  glitterCellM:1.2,glitterDrift:.06, // metres / cells per second: slow, fine moving sun flecks.
-  glitterLow:.68,glitterHigh:.86,glitterMean:.12, // smooth threshold and unresolved mean of the same noise.
-  glitterStrength:.6,glitterPower:2, // maximum fraction of the existing sun colour / broad reflection lobe exponent.
+  // Seen in real Chrome from 150 m up: flecks of 1.2 m in the sun's own ochre, at six tenths, read as leaves floating on the
+  // water. Glitter is small, sparse and nearly white: finer cells, a higher threshold, the sun colour pulled towards white.
+  glitterCellM:.9,glitterDrift:.06, // metres / cells per second: slow, fine moving sun flecks.
+  glitterLow:.76,glitterHigh:.88,glitterMean:.072, // smooth threshold and unresolved mean of the same noise.
+  glitterStrength:1.5,glitterPower:3,glitterWhite:.6, // gain on the fleck colour / reflection lobe exponent / share of white in that colour.
   filterStart:.5,filterEnd:1, // footprint / cell size: average subpixel holes and flecks.
 });
 export const SEA3 = Object.freeze({
@@ -413,7 +415,7 @@ export function sea4Fragment(fragment){
       vec3 reflected4=reflect(-SUN_DIR_W,vec3(0.0,1.0,0.0));
       float facing4=max(0.0,dot(reflected4,eye4));
       float footprint4=max(shoreFootprint,length(fwidth(vSeaWorld.xz)));
-      outgoingLight+=clamp(uSeaSun,vec3(0.0),vec3(1.0))*sea4Glitter(vSeaWorld.x,vSeaWorld.z,uShoreTime,footprint4,facing4,cameraPosition.y)*smoothstep(${f(S.middleEndM)},${f(S.deepEndM)},sea2Distance);
+      outgoingLight+=mix(clamp(uSeaSun,vec3(0.0),vec3(1.0)),vec3(1.0),${f(V.glitterWhite)})*sea4Glitter(vSeaWorld.x,vSeaWorld.z,uShoreTime,footprint4,facing4,cameraPosition.y)*smoothstep(${f(S.middleEndM)},${f(S.deepEndM)},sea2Distance);
     }
     // Foam is a white surface film`);
 }
