@@ -16,7 +16,7 @@ export function gradeDesignedTerrain(heights,width,height,field) {
     const road=field.roadNear(x,y),pass=routeCliff(x,y,cell*2)||road&&['pass','valley-trail','lookout','kenchoji-trail'].includes(road.road.id)&&road.distance<road.road.width/2+cell*2;
     const run=P.buddha.cliffHeight/Math.tan(P.buddha.cliffAngle*Math.PI/180)+P.buddha.cliffBlend+cell*2;
     const cliff=(x>b[0]-cell*2&&x<b[1]+cell*2&&y>=b[2]-run&&y<=b[2]+cell*2)||(y>b[2]-cell*2&&y<b[3]+cell*2&&x>=b[0]-run&&x<=b[0]+cell*2);
-    if(!plain&&!coast&&!cape&&!masonry&&!rock&&!pass&&!cliff&&!outcropAt(x,y,P.grid.cell*2)&&!P.terraces.some(t=>inRect(x,y,t.rect)))free[k]=1;
+    if(!(P.emit.polish&&y>=P.shrine.stairSouth&&y<=P.shrine.stairNorth&&Math.abs(x)<=P.stairs.width/2+P.stairs.ear+P.stairs.bankWidth)&&!plain&&!coast&&!cape&&!masonry&&!rock&&!pass&&!cliff&&!outcropAt(x,y,P.grid.cell*2)&&!P.terraces.some(t=>inRect(x,y,t.rect)))free[k]=1;
   }
   // A fixed terrace also supplies a lower slope envelope. Lowering only its neighbours
   // previously made a new cliff beside the fixed platform during the first sweep.
@@ -63,7 +63,8 @@ export function gradeDesignedTerrain(heights,width,height,field) {
     const k=j*width+i,x=P.grid.west+(i+.5)*cell,y=P.grid.north-(j+.5)*cell,r=field.riverNear(x,y),road=field.roadNear(x,y);
     const plain=!P.terraces.some(t=>rectangleDistance(x,y,t.rect)<t.blend)&&y>=Math.max(P.town.south,shoreAt(x)+P.shore.beach+P.shore.stepRun)&&y<=townNorthAt(x)&&x>=townWestAt(y)+P.targets.plainEdge&&x<=townEastAt(y)-P.targets.plainEdge;
     const harbor=P.harbor,hr=Math.hypot(x-harbor.x,y-harbor.y),harborFixed=harborAt(x,y).inside||harborAt(x,y).ring&&Math.abs(harborAt(x,y).distance)<harbor.width/2+harbor.slope||[harbor.connection,harbor.quay].some(q=>inRect(x,y,q));
-    locked[k]=routeCliff(x,y,cell*2)||harborFixed||plain||P.terraces.some(t=>inRect(x,y,t.rect))||inRect(x,y,P.shrine.lower)||inRect(x,y,P.shrine.upper)||Math.abs(x)<=P.stairs.width/2+P.stairs.ear&&y>=P.shrine.stairSouth&&y<=P.shrine.stairNorth||r.distance<=r.width/2+P.river.gravel||road&&road.distance<=road.road.width/2?1:0;
+    const bank=P.emit.polish&&y>=P.shrine.stairSouth&&y<=P.shrine.stairNorth&&Math.abs(x)>=P.stairs.width/2+P.stairs.ear&&Math.abs(x)<=P.stairs.width/2+P.stairs.ear+P.stairs.bankWidth;
+    locked[k]=bank||routeCliff(x,y,cell*2)||harborFixed||plain||P.terraces.some(t=>inRect(x,y,t.rect))||inRect(x,y,P.shrine.lower)||inRect(x,y,P.shrine.upper)||Math.abs(x)<=P.stairs.width/2+P.stairs.ear&&y>=P.shrine.stairSouth&&y<=P.shrine.stairNorth||r.distance<=r.width/2+P.river.gravel||road&&road.distance<=road.road.width/2?1:0;
   }
   const finishStep=Math.tan(c.finishSlope*Math.PI/180)*cell;
   let finishPasses=0,finishUpdates=0;

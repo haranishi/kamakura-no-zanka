@@ -3,7 +3,7 @@ import { ESCAPE } from './kamakura-escape.mjs';
 const freeze = value => { if (value && typeof value === 'object') { Object.values(value).forEach(freeze); Object.freeze(value); } return value; };
 export const PLAN = freeze({
   id: 'kamakura-return', seed: 1935,
-  emit: { steps: true, sea: true, light: true, ...ESCAPE.emit }, // compatibility switches; enable after the runtime accepts these fields
+  emit: { polish:true, steps: true, sea: true, light: true, ...ESCAPE.emit }, // compatibility switches; enable after the runtime accepts these fields
   // sun: the concept is lit from the front left by a sun higher than the game's late afternoon, so every time's sun is turned
   // 28 degrees clockwise and lifted 13. air: the presets' haze suits a map kilometres across; here the hills 500 m behind the
   // town must already be pale (haze x11), while the low mist stays thin (x4: at x16 the whole town plain washed out).
@@ -13,7 +13,7 @@ export const PLAN = freeze({
   town: { west:-112, east:143, south:26, north:227, base:2.4, grade:5.8/201, ripple:.08, rippleWave:35, edgeRun:145, edgeCurve:2, edgeWave:18, westShoulder:70, westSouth:-95, eastNodes:[[26,85],[110,91],[150,122],[190,135],[227,143]] },
   // metres: three wooded noses, two western settlement mouths; all curves remain continuous.
   edge: { westRidges:[[112,26,19],[174,28,17]], westMouths:[[88,30,23],[145,32,22]], eastRidges:[], northNoses:[[-70,28,21],[72,26,19]], mouthHouses:2, mouthAttempts:2000, ridgeHeight:15 },
-  buddha: { clear:24, cliffHeight:7, cliffAngle:55, cliffBlend:3, cliffInset:4 },
+  buddha: { pathWidth:4, grassWidth:3, groundBlend:2, trees:8, attempts:2000, treeHeight:[5,7], treeCrown:1.3, clear:24, cliffHeight:7, cliffAngle:55, cliffBlend:3, cliffInset:4 },
   sanctuary: { axisWidth:12, square:[-10,10,220,232], treeTarget:68, attempts:18000, height:[18,26], crown:2.6, axisGap:12, buildingGap:6, lowHeight:5, lowCrown:1.6 },
   burns: { plots:[[60,72,112,129],[76,88,133,150]] },
   shrine: { lower:[-27,27,190,232,7.8], upper:[-26,26,252,322], stair:[0,242], stairSouth:232, stairNorth:252, approach:[190,196], edgeRun:12, rearSlope:40, forecourtLevel:196 },
@@ -27,11 +27,14 @@ export const PLAN = freeze({
   ],
   cape: { east:-112, south:-20, north:55, x:-138, y:0, radius:22, min:18, range:4, cliff:16, join:[40,100], neck:14, shoulder:25 },
   eastCape: { x:170, y:-14, radius:26, height:9, cliff:20 },
-  stairs: { width:10, rise:.18, totalRise:7.5, ear:.5, earLift:.25, embed:1.5, inset:.22, entryInset:.26, colour:[128,124,116], variation:.06, triangles:1200, tones:5, landing:1, nativeInset:.05, footInset:.06 }, // landing: metres of level slab at the top (to the first cell of the upper terrace); footInset: metres the ground lies under the first tread
+  stairs: { width:10, rise:.18, totalRise:7.5, ear:.4, earLift:.25, bankWidth:4, bankBlend:9, edgeDark:.88, embed:1.5, inset:.22, entryInset:.26, colour:[192,186,174], variation:.08, triangles:1200, tones:5, landing:1, nativeInset:.05, footInset:.06 }, // landing: metres of level slab at the top (to the first cell of the upper terrace); footInset: metres the ground lies under the first tread
   // Metres / degrees: authored ridge envelopes and rounded earthworks; building sizes stay unchanged.
   hill: { northPeak:132, westPeak:84, eastPeak:76, relief:10, wave:165, ridgeWave:135, ridgeWeight:.27, ridgeTilt:.35, peakNorth:575, peakEast:-10, frontNorth:385, frontPeak:62, frontRun:48, frontVariation:.12, frontWidth:50, frontBlend:40, shoulderX:[45,90], shoulderNorth:370, shoulderHeight:40, shoulderSpread:40, middleNorth:470, middlePeak:94, middleRun:48, sideLimitX:[310,420], sideLimitY:[430,555], cornerPeak:112, cornerRelief:10, cornerSouth:430, cornerNorth:575, cornerX:[300,420], cornerY:[510,600], valleyFade:[370,470], valleyMouthFade:[65,90], valleyCut:1.5, northRun:300, shrineFoot:322, shrineWidth:65, coastRun:75, edgeHeight:60, edgeRun:60, coastEdgeRun:20, rockyCoast:[-160,200], edgeEase:1, rockSlope:43, frontSlope:40, rearSlope:40, smoothRun:10, terraceShoulder:18, terraceSlope:29, valleyRearGrade:.18 },
   // Authored valley axes point from town-facing mouths through each platform into the hillside.
   grading: { slope:39.2, iterations:8, epsilon:.0001, triangleSlope:43.5, trianglePasses:12, finishPasses:12, finishSlope:42 }, // degrees / offline sweep budget / metres: remove unintended steep joins
+  relief: { heightGain:.13,tintGain:.2 }, // fraction: taller/darker valley trees, lower/brighter ridge trees; species quotas stay unchanged
+  reliefCheck:{columns:96,rows:80,bottom:.26,step:2,far:1400,jump:30,min:.6}, // screen fraction / metres: fixed mountain sampling band
+  housePolicy:{full_m:700,swap_m:760,cap:260},
   sideRidges: { west:[[-285,86,110],[-400,108,100]], east:[[290,76,105],[400,103,100]], valleyDepth:16, south:25, full:100 },
   valleys: [
       { id:'buddha', centre:[-140,77], toward:[.94,-.34], halfWidth:15.75, sideRun:70, grade:.07 },
@@ -68,11 +71,11 @@ export const PLAN = freeze({
     ['5_家_屋敷の塀（直線）','fence'],['6_家_屋敷の門','gate'],['k05_家_町屋B','machiya_b'],['k06_家_町屋C','machiya_c'],['k07_家_町屋D','machiya_d'],
     ['k08_家_小家B','koya_b'],['k09_家_小家C','koya_c'],['k10_家_小家D','koya_d'],['k11_家_屋敷B','yashiki_b'],['k12_家_蔵B','kura_b'],['k13_家_番屋B','banya_b'],['k14_家_長屋門','nagayamon'] ],
   // metres / fractions: sequential random inhibition; no lattice or forest stands.
-  veg: { pitch:6, attempts:360000, farRadius:450, farPitch:6.8, farCrown:1.3, forestCentre:[0,130], steepWeight:.5, spacing:.7, densityVariation:.35, densityWave:55, speciesWave:20, evergreen:.22, cedar:.07, pine:.13, deciduous:.58, cedarTile:48, cedarRadius:13, heightVariation:.25, heightMin:12, heightMax:22, crownMin:2.5, crownMax:3.4, templeHeight:25, templePitch:12, bankGap:[30,90], bankCluster:[3,7], bankSpread:12, bankOffset:6, gardenEvery:3, gardenDeciduous:.7, townTreesMin:64, townTreesMax:100, gardenAttempts:20000, gardenHeight:7, gardenHeightRange:5, gardenCrown:2.5, coastPitch:14, coastNorth:24, pathGap:2, boxGap:2, tint:.6, range:1200, far:20000 },
+  veg: { pitch:6, attempts:360000, farRadius:450, farPitch:6.8, farCrown:1.3, forestCentre:[0,130], steepWeight:.5, spacing:.7, densityVariation:.35, densityWave:55, speciesWave:20, evergreen:.22, cedar:.07, pine:.13, deciduous:.58, cedarTile:48, cedarRadius:13, heightVariation:.25, heightMin:12, heightMax:22, crownMin:2.5, crownMax:3.4, templeHeight:25, templePitch:12, bankGap:[30,90], bankCluster:[3,7], bankSpread:12, bankOffset:6, gardenEvery:3, gardenDeciduous:.7, townTreesMin:112, townTreesMax:148, gardenAttempts:20000, gardenHeight:4, gardenHeightRange:3, gardenCrown:1.3, coastPitch:14, coastNorth:24, pathGap:2, boxGap:2, tint:.6, range:1200, far:20000 },
   // Metres / fractions: narrow wavy ecotone, grouped farms and small roadside homes.
   belt: { width:12, variation:4, waves:[36,55], grass:.5, farms:.3, woods:.2, forestGap:8, farmWidth:6, farmDepth:8, group:[3,6], groupPitch:40, cluster:[4,12], treeHeight:[5,9], treeCrown:2, clusterRadius:20, clusterSpread:8, houseTarget:6, houseSearch:2500, treeAttempts:12000, cliffSlope:38, townFade:4 },
-  townFill: { frontageMin:10,frontageMax:11,depth:20,laneFirst:25,laneEvery:43.2,crossEvery:300,reach:150,start:4,shoreGap:2,coastSmall:0,houseRate:.94,gardenRate:.03,burntRate:.02,repairRate:.01,outerStart:145 },
-  targets: { addedHouses:[60,200], totalHouses:90, townTrees:[60,110], trees:[12000,20000], beachWidth:[12,16], bankFlat:14, platformSlope:42, plainEdge:12, plainEdgeSlope:8, beltWidth:[8,16], farms:8 },
+  townFill: { yaw:9,groupYaw:8,shift:1.4,setbackMin:1,setbackMax:4.5,bend:3,bendWave:70,annexRate:.55,edgeFray:.8,yardRate:.6,roadPlots:1,infillRate:.8,frontageMin:10,frontageMax:11,depth:20,laneFirst:25,laneEvery:43.2,crossEvery:300,reach:150,start:4,shoreGap:2,coastSmall:0,houseRate:.94,gardenRate:.03,burntRate:.02,repairRate:.01,outerStart:145 },
+  targets: { addedHouses:[60,200], totalHouses:100, townTrees:[90,160], trees:[12000,20000], beachWidth:[12,16], bankFlat:14, platformSlope:42, plainEdge:12, plainEdgeSlope:8, beltWidth:[8,16], farms:8 },
   // All count and composition targets come from the authored layout, never from private kits.
   overlook: { back:228,height:98,pitch:28.5,fov:50 },
   ground: { variation:.06, blendCells:1, laneWidth:3.6, burntGain:.7, riverBlend:.35, wave:40, stripeWidth:1.2, repairMix:.25, burntCover:.7, ash:[92,86,78], charcoal:[58,54,50], cliff:[176,166,140], footWidth:1.5, seaSandDepth:1.5, seaMidDepth:4, seaDeepDepth:8, vergeInset:.6, vergeWidth:1.2, // fraction / cells / metres: sRGB authored colour, smooth variation and boundary mixing

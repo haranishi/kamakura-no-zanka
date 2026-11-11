@@ -50,7 +50,7 @@ test('retreat: meadow has at least 250 square metres below six degrees and summi
 });
 test('retreat: both rock faces retain their specified height, run and exposed surfaces',t=>{
   assert(report.walls.ne.every(p=>p.rise>=8),JSON.stringify(report.walls));assert(report.walls.sw.every(p=>p.rise>=5),JSON.stringify(report.walls));
-  const rock=JSON.parse(escape.files.get('works.json')).rocks.filter(r=>r.id.startsWith('pass-'));assert.equal(rock.reduce((n,p)=>n+p.count,0),72);assert(rock.every(p=>p.size_m[0]>=.6&&p.size_m[1]<=2.4));assert(report.wallProfiles.ne.length>=18);assert(report.wallProfiles.sw.length>=12);t.diagnostic(JSON.stringify({walls:report.walls,profiles:report.wallProfiles}));
+  const rock=JSON.parse(escape.files.get('works.json')).rocks.filter(r=>r.id.startsWith('pass-'));const toes=rock.filter(p=>p.id.includes('toe')||p.id.includes('large')).reduce((n,p)=>n+p.count,0);assert(toes>=90&&toes<=120);assert.equal(rock.filter(p=>p.id.includes('large')).reduce((n,p)=>n+p.count,0),10);assert(rock.every(p=>p.size_m[0]>=.6&&p.size_m[1]<=3));assert(report.wallProfiles.ne.length>=18);assert(report.wallProfiles.sw.length>=12);t.diagnostic(JSON.stringify({walls:report.walls,profiles:report.wallProfiles}));
 });
 test('retreat: four hamlet homes and two huts face roads with the required trees and fence lengths',()=>{
   assert.equal(escape.placed.routeHouses.length,6);assert.equal(escape.placed.routeHouses.filter(b=>b.hamlet).length,4);
@@ -78,11 +78,23 @@ test('retreat: town roofs, sea and fires remain visible through terrain and full
   assert.equal(report.visibility.town.length,99);assert(count('town')>=60);assert(count('sea')>=3);assert.equal(count('fires'),5);
   t.diagnostic(JSON.stringify({town:count('town'),sea:count('sea'),fires:count('fires'),trees:report.treeChanges}));
 });
-test('retreat: only the left frame tree enters the near frame; the upper sun band stays open',()=>{
+test('retreat: tall near crowns stay out of frame, low slope shrubs fit, and the sun band stays open',()=>{
   for(const p of report.crowns){if(R.trees.some(t=>t[0]===p.x&&t[1]===p.y))continue;
-    if(p.distance<R.nearTree&&p.bottom>0&&p.top<1)assert(!(p.right>R.frameRight&&p.left<R.nearRight),JSON.stringify(p));
+    const tree=escape.veg.find(v=>v[0]===p.x&&northOffset-v[1]===p.y);
+    const low=tree[4]<=R.foreground.height[1];if(low)assert(tree[4]>=R.foreground.height[0]);
+    if(!low&&p.distance<R.nearTree&&p.bottom>0&&p.top<1)assert(!(p.right>R.frameRight&&p.left<R.nearRight),JSON.stringify(p));
     assert(!(p.top<R.skyBand[2]&&p.bottom>0&&p.right>R.skyBand[0]&&p.left<R.skyBand[1]),JSON.stringify(p));
   }
   const frame=report.crowns.find(p=>p.x===R.trees[0][0]&&p.y===R.trees[0][1]);assert(frame.right<=R.frameRight);
   const meadow=R.trees[1];assert(meadow[2]>=12&&meadow[2]<=14);assert(meadow[3]*2>=9&&meadow[3]*2<=10);
+});
+
+test('retreat polish: low foreground trees and stones fill the right slope without blocking roads or views',()=>{
+  const f=R.foreground,trees=escape.veg.filter(v=>v[4]>=f.height[0]&&v[4]<=f.height[1]);
+  assert(trees.length>=10&&trees.length<=16);
+  for(const v of trees){const dx=v[0]-R.camera.east,dy=northOffset-v[1]-R.camera.north,bearing=(Math.atan2(dx,dy)*180/Math.PI+360)%360,distance=Math.hypot(dx,dy);assert(bearing>=185&&bearing<=215);assert(distance>=8&&distance<=45);}
+  const rocks=JSON.parse(escape.files.get('works.json')).rocks.filter(p=>p.id.startsWith('foreground-'));
+  assert(rocks.length>=15&&rocks.length<=25);assert(rocks.every(p=>p.size_m[0]>=.5&&p.size_m[1]<=1.6));
+  for(const p of rocks){const q=nearLine(R.pass,p.x,p.y+northOffset);assert(q.distance>R.width/2+f.size[1]);}
+  assert(report.moves.every(p=>p.ok));assert(report.rays.every(p=>!p.hit&&p.trees===0));
 });

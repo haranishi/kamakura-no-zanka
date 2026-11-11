@@ -1,4 +1,5 @@
 import { ESCAPE as R } from '../worlds/kamakura-escape.mjs';
+import { routeNear } from './designed-route.mjs';
 import { PLAN as P } from '../worlds/kamakura-return.mjs';
 import { gameNorth, riverX, riverWidth, hash } from './designed-terrain.mjs';
 export function designedWorks() {
@@ -14,7 +15,21 @@ export function designedWorks() {
   rocks.push({id:'river-rapids',shape:'line',xy_m:xy(rapid),width:c.rapidSize[0],count:c.rapidCount,size_m:c.rapidSize});
   for(const side of [-1,1])for(const top of [false,true]) {
     const line=R.cut.map(([x,y],i)=>{const a=R.cut[Math.max(0,i-1)],b=R.cut[Math.min(R.cut.length-1,i+1)],dx=b[0]-a[0],dy=b[1]-a[1],len=Math.hypot(dx,dy),offset=top?R.rocks.topOffset:R.rocks.toeOffset;return [x+side*dy/len*offset,y-side*dx/len*offset];});
-    rocks.push({id:'pass-'+(side>0?'ne':'sw')+(top?'-top':'-toe'),shape:'line',xy_m:xy(line),width:R.rocks.width,count:Math.round(R.rocks.count*(top?R.rocks.topRate:1-R.rocks.topRate)/2),size_m:top?R.rocks.topSize:R.rocks.size});
+    rocks.push({id:'pass-'+(side>0?'ne':'sw')+(top?'-top':'-toe'),shape:'line',xy_m:xy(line),width:R.rocks.width,count:Math.round((R.rocks.count-R.rocks.largeCount)*(top?R.rocks.topRate:1-R.rocks.topRate)/2),size_m:top?R.rocks.topSize:R.rocks.size});
+  }
+  if(P.emit.polish){
+    for(const side of [-1,1]){
+      const line=R.cut.map(([x,y])=>[x+side*R.rocks.toeOffset,y]);
+      rocks.push({id:'pass-large-'+side,shape:'line',xy_m:xy(line),width:R.rocks.width,count:R.rocks.largeCount/2,size_m:R.rocks.largeSize});
+    }
+    const c=R.foreground,points=[];
+    for(let i=0;i<c.attempts&&points.length<c.rocks;i++){
+      const a=(c.bearing[0]+hash(i,0,221)*(c.bearing[1]-c.bearing[0]))*Math.PI/180,d=c.distance[0]+hash(i,0,222)*(c.distance[1]-c.distance[0]);
+      const x=R.camera.east+Math.sin(a)*d,y=R.camera.north+Math.cos(a)*d,q=routeNear(x,y);
+      if(q.distance>q.road.width/2+c.size[1]+P.veg.pathGap)points.push([x,y]);
+    }
+    // Separate single-rock discs preserve the authored angular sector, without line interpolation across the road.
+    for(const [i,[x,y]]of points.entries())rocks.push({id:'foreground-'+i,shape:'disc',x,y:gameNorth(y),radius:c.crown,count:1,size_m:c.size});
   }
   const fences=R.fences.map((p,i)=>({id:'retreat-'+i,kind:'rail',xy_m:xy(p),height_m:R.fenceHeight}));
   return {fences,schema:'kz-works/0.1',rocks,piers:[{id:'quay-pier',xy_m:xy(c.pier),width_m:c.pierWidth,deck_m:c.deck}],moorings:c.moorings.map(([x,y,yaw_deg,kind])=>({x,y:gameNorth(y),yaw_deg,kind}))};

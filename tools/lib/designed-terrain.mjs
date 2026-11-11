@@ -321,7 +321,15 @@ export function createDesignedTerrain(stairRise, gateBounds=null,emit=P.emit) {
     for(const terrace of P.terraces){if(terrace.id==='buddha'&&rectangleDistance(x,y,terrace.rect)<terrace.blend)h=terraceEarthwork(h,x,y,terrace.rect,terrace.blend);if(inRect(x,y,terrace.rect)){h=terrace.rect[4];code=4;}}
     const exposure=outcropAt(x,y);
     if(exposure){h+=Math.tan(exposure.angle*Math.PI/180)*(y-exposure.y);code=5;}
-    return routeTerrain(x,y,{h,code});
+    const routed=routeTerrain(x,y,{h,code});
+    if(emit.polish&&y>=P.shrine.stairSouth&&y<=P.shrine.stairNorth){
+      const c=P.stairs,d=Math.abs(x)-c.width/2-c.ear;
+      if(d>=0&&d<c.bankWidth+c.bankBlend){
+        const nose=l[4]+stairRise*(y-P.shrine.stairSouth)/(P.shrine.stairNorth-P.shrine.stairSouth);
+        routed.h=mix(routed.h,nose,1-smooth(c.bankWidth,c.bankWidth+c.bankBlend,d));routed.code=2;
+      }
+    }
+    return routed;
   }
   roads.push(...routeDefinitions.map(r=>({...r,points:r.points.map(p=>[...p])})));
   function habitat(x,y) {
