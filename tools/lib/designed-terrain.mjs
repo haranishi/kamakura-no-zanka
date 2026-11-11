@@ -332,10 +332,10 @@ export function createDesignedTerrain(stairRise, gateBounds=null,emit=P.emit) {
     return routed;
   }
   roads.push(...routeDefinitions.map(r=>({...r,points:r.points.map(p=>[...p])})));
-  function habitat(x,y) {
+  function habitat(x,y,heightSample=base) {
     let valley=1-smooth(P.river.valleyWidth,P.river.valleyWidth+P.river.valleySideRun,Math.abs(x-riverX(y)));
     for(const v of P.valleys){const across=Math.abs((x-v.centre[0])*v.toward[1]-(y-v.centre[1])*v.toward[0]);valley=Math.max(valley,1-smooth(v.halfWidth,v.halfWidth+v.sideRun,across));}
-    const cell=P.grid.cell,gradient=Math.hypot(base(x+cell,y).h-base(x-cell,y).h,base(x,y+cell).h-base(x,y-cell).h)/(2*cell);
+    const cell=P.grid.cell,gradient=Math.hypot(heightSample(x+cell,y).h-heightSample(x-cell,y).h,heightSample(x,y+cell).h-heightSample(x,y-cell).h)/(2*cell);
     return {valley,ridge:ridgeAt(x,y),steep:clamp(gradient/Math.tan(P.hill.frontSlope*Math.PI/180))};
   }
   return {base,sample,habitat,riverNear,roadNear,river,riverX,roads,crossings,stairRise,upper,bars,riffles,riffleAt};

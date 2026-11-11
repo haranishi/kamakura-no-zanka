@@ -58,7 +58,7 @@ export function routeTerrain(x,y,original) {
   for(const [hx,hy] of R.homes){const r=Math.hypot(x-hx,y-hy);h=mix(h,R.homeHeight,1-smooth(R.homeRadius,R.homeRadius+R.homeBlend,r));}
   for(const [hx,hy,hh] of R.huts){const r=Math.hypot(x-hx,y-hy);h=mix(h,hh,1-smooth(R.hutRadius,R.hutRadius+R.homeBlend,r));}
   const sd=Math.hypot(x-R.summit[0],y-R.summit[1]),summit=R.summit[2]-R.summitSlope*Math.max(0,sd-R.summitRadius);
-  h=Math.max(h,summit);if(sd<R.summitRadius+R.summitBlend)code=5;
+  h=Math.max(h,summit);if(sd<R.summitRadius+R.summitBlend)code=sd<R.summitTurf?2:5; // turf over the flat top and its rounded rim, rock on the faces below
   const cut=nearLine(R.cut,x,y),wall=routeWall(x,y);
   if(wall.h>h){h=wall.h;code=5;}
   // Road shelves win at junctions and on the walkable northwest face of the summit.
@@ -79,16 +79,20 @@ export function crownPoint(x,y,base,u,v,lift,lean=0,yaw=0){
   return [x+u*cy+z*sy,y+u*sy-z*cy,base+lift*co-v*si];
 }
 // Exact segment against a finite canopy cylinder in the tree's own coordinates.
-export function canopyIntersects(origin,target,v,margin=0){
+export function canopyHit(origin,target,v,margin=0){
   const lean=v[11]||0,yaw=v[3]||0,cy=Math.cos(yaw),sy=Math.sin(yaw),co=Math.cos(lean),si=Math.sin(lean),north=(P.grid.north+P.grid.south)/2-v[1];
   const local=point=>{const dx=point[0]-v[0],dz=north-point[1],dy=point[2]-v[2],u=cy*dx-sy*dz,z=sy*dx+cy*dz;return [u,co*dy+si*z,-si*dy+co*z];};
   const a=local(origin),b=local(target),dx=b[0]-a[0],dz=b[2]-a[2],ll=dx*dx+dz*dz,radius=v[5]+margin;
   let lo=0,hi=1;
-  if(ll===0){if(Math.hypot(a[0],a[2])>radius)return false;}
-  else {const t=-(a[0]*dx+a[2]*dz)/ll,off=Math.hypot(a[0]+t*dx,a[2]+t*dz);if(off>=radius)return false;const span=Math.sqrt(radius*radius-off*off)/Math.sqrt(ll);lo=Math.max(0,t-span);hi=Math.min(1,t+span);if(lo>hi)return false;}
-  const min=Math.min(a[1]+(b[1]-a[1])*lo,a[1]+(b[1]-a[1])*hi),max=Math.max(a[1]+(b[1]-a[1])*lo,a[1]+(b[1]-a[1])*hi);
-  return min<v[4]+margin&&max>v[4]*R.crownBase-margin;
+  if(ll===0){if(Math.hypot(a[0],a[2])>radius)return null;}
+  else {const t=-(a[0]*dx+a[2]*dz)/ll,off=Math.hypot(a[0]+t*dx,a[2]+t*dz);if(off>=radius)return null;const span=Math.sqrt(radius*radius-off*off)/Math.sqrt(ll);lo=Math.max(0,t-span);hi=Math.min(1,t+span);if(lo>hi)return null;}
+    const bottom=v[4]*R.crownBase-margin,top=v[4]+margin,dh=b[1]-a[1];
+  if(dh===0)return a[1]>bottom&&a[1]<top?lo:null;
+  const t0=(bottom-a[1])/dh,t1=(top-a[1])/dh;
+  lo=Math.max(lo,Math.min(t0,t1));hi=Math.min(hi,Math.max(t0,t1));
+  return lo<=hi?lo:null;
 }
+export function canopyIntersects(origin,target,v,margin=0){return canopyHit(origin,target,v,margin)!==null;}
 export function crownFrame(x,y,h,r,base,lean=0,yaw=0) {
   const camera=designedCamera('escape'),points=[];
   for(const lift of [R.crownBase,1])for(let i=0;i<R.crownSamples;i++){
@@ -99,22 +103,23 @@ export function crownFrame(x,y,h,r,base,lean=0,yaw=0) {
 }
 export function routeTreeHeight(x,y,h,r,base,targets,named=false) {
   if(named)return h;
-  const c=R.camera,dx=x-c.east,dy=y-c.north,d=Math.hypot(dx,dy),bearing=(Math.atan2(dx,dy)*180/Math.PI+360)%360;
-  if(!named&&d<R.fanRange&&bearing>=R.fan[0]&&bearing<=R.fan[1])return 0;
-  const inFan=bearing>=R.townFan[0]&&bearing<=R.townFan[1];let limit=h;
+  const c=R.camera,dx=x-c.east,dy=y-c.north,d=Math.hypot(dx,dy);
+  if(d<R.nearTree)return 0;
+  if(Math.hypot(x-R.meadow[0]-R.meadowOffset[0],y-R.meadow[1]-R.meadowOffset[1])<=R.meadowRadius)return 0;
+  if(Math.hypot(x-R.huts[1][0],y-R.huts[1][1])<=R.hutClear+r)return 0;
+  let limit=h;
   for(let index=0;index<targets.length;index++){
     const [tx,ty,th]=targets[index];
     const townRay=index>=targets.length-(R.townGrid.east-R.townGrid.west+R.townGrid.step)/R.townGrid.step*(R.townGrid.north-R.townGrid.south+R.townGrid.step)/R.townGrid.step-R.seaTargets.length;
     if((townRay||index>=1&&index<=R.fires.length)&&Math.hypot(x-tx,y-ty)<=R.treeEndpoint)continue;
-    const vx=tx-c.east,vy=ty-c.north,len=Math.hypot(vx,vy),t=(dx*vx+dy*vy)/(len*len),side=Math.hypot(dx-t*vx,dy-t*vy),radius=r+R.rayClearance;
+    const vx=tx-c.east,vy=ty-c.north,len=Math.hypot(vx,vy),t=(dx*vx+dy*vy)/(len*len),side=Math.hypot(dx-t*vx,dy-t*vy),radius=r+R.crownClearance+R.treeSafety;
     if(t<=0||t>=1||side>=radius)continue;
-    const span=Math.sqrt(radius*radius-side*side)/len,low=Math.min(c.height+(th-c.height)*clamp(t-span),c.height+(th-c.height)*clamp(t+span))-R.treeMargin-R.rayClearance-base;
-    if(h<low)continue;
-    if(inFan&&!named)limit=Math.min(limit,low);else if(base+h*R.crownBase<Math.max(c.height+(th-c.height)*clamp(t-span),c.height+(th-c.height)*clamp(t+span))+R.rayClearance)return 0;
+    const span=Math.sqrt(radius*radius-side*side)/len,low=Math.min(c.height+(th-c.height)*clamp(t-span),c.height+(th-c.height)*clamp(t+span))-R.treeMargin-R.treeSafety-base;
+    limit=Math.min(limit,low);
   }
-  if(limit<R.treeMin)return 0;
+  if(limit<Math.min(h,R.treeMin))return 0;
   if(!named){const f=crownFrame(x,y,limit,r,base);
-    if(f&&(d<R.nearTree&&f.right>0&&f.left<R.nearRight&&f.bottom>0&&f.top<1||f.top<R.skyBand[2]&&f.bottom>0&&f.right>R.skyBand[0]&&f.left<R.skyBand[1]))return 0;
+    if(f&&(f.top<R.skyBand[2]&&f.bottom>0&&f.right>R.skyBand[0]&&f.left<R.skyBand[1]))return 0;
   }return limit;
 }
 export function clearRouteTree(x,y,h,r,base,targets,named=false){return routeTreeHeight(x,y,h,r,base,targets,named)>=h;}
@@ -123,5 +128,5 @@ export function townTargets(field){
 }
 export function routeTargets(field,roofTargets=[]) {
   const ground=([x,y])=>[x,y,field.sample(x,y).h];
-  return [ground([0,126]),...R.fires.map(([x,y])=>[x,y,field.sample(x,y).h+R.fireLift]),ground([0,18]),...roofTargets,...R.pass.slice(3,13).map(ground),ground(R.meadow),...townTargets(field),...R.seaTargets];
+  return [ground([0,126]),...R.fires.map(([x,y])=>[x,y,field.sample(x,y).h+R.fireLift]),ground([0,18]),...roofTargets,...R.pass.slice(3,13).map(ground),ground(R.meadow),...R.huts.map(([x,y,h],i)=>[x,y,h+R.hutLifts[i]]),...townTargets(field),...R.seaTargets];
 }
