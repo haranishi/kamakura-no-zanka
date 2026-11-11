@@ -119,6 +119,9 @@ test('8% of houses at noon and 14% morning/evening, selected by stable coordinat
     for (const p of r.items) assert.equal(p.y, w.terrain.heightAt(p.x, p.z) + 5);
     t.diagnostic(`${time}: ${(fraction * 100).toFixed(2)}% synthetic houses`);
   }
+  // A map with fires is a town on fire: no hearth smoke at any time of day.
+  w.data = { ...(w.data || {}), meta: { ...(w.data?.meta || {}), fires: [{ x: 0, y: 0, radius_m: 10, strength: 1 }] } };
+  for (const time of ['noon', 'evening', 'dusk']) assert.equal(prepareProps(w, { time, only: 'smoke' }).placed.smoke, 0);
 });
 
 test('batching gives the same placement and bounds house terrain work per iteration; distance policy has smooth limits', t => {
