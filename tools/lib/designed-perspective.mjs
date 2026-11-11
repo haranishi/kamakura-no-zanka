@@ -50,7 +50,20 @@ export async function writeDesignedPerspective(directory,world) {
   for(let i=1;i<world.field.river.length;i++){const a=world.field.river[i-1],b=world.field.river[i];quad(project(a.x-a.width/2,a.y,a.water+.05),project(a.x+a.width/2,a.y,a.water+.05),project(b.x+b.width/2,b.y,b.water+.05),project(b.x-b.width/2,b.y,b.water+.05),[39,103,96]);}
   function block(x,y,base,width,length,height,colour,yaw=0){const co=Math.cos(yaw),si=Math.sin(yaw),p=(u,v,z)=>project(x+co*u+si*v,y+si*u-co*v,z),v=[[-1,-1],[1,-1],[1,1],[-1,1]],bottom=v.map(([u,v])=>p(u*width/2,v*length/2,base)),top=v.map(([u,v])=>p(u*width/2,v*length/2,base+height));quad(...top,colour);for(let i=0;i<4;i++){const j=(i+1)%4;quad(bottom[i],bottom[j],top[j],top[i],colour.map(v=>Math.round(v*.75)));}}
   for(const h of world.filled.houses.instances){const b=houseBox(world.filled.houses.kinds.get(h.kind),h.matrix),y=northOffset-b.z;block(b.x,y,world.field.sample(b.x,y).h,b.w,b.d,b.height||6,[109,83,55],b.rotY);}
-  for(const n of world.nodes){const x=n.anchor_xz[0],y=northOffset-n.anchor_xz[1],h=world.field.sample(x,y).h;if(world.scene!=='escape'&&n.facility==='daibutsuden'&&n.part==='hall'){const w=n.bbox_max[0]-n.bbox_min[0],d=n.bbox_max[2]-n.bbox_min[2];for(const side of [-1,1])for(const end of [-1,1])block(x+side*w/2,y+end*d/2,h,1,1,n.bbox_max[1],[88,76,55]);continue;}block(x,y,h,n.bbox_max[0]-n.bbox_min[0],n.bbox_max[2]-n.bbox_min[2],n.bbox_max[1],n.facility==='tsurugaoka'?[154,57,32]:n.part==='buddha'?[59,108,87]:[88,76,55]);}
+  for(const n of world.nodes){
+    if(n.part==='stairs'&&P.emit.polish){
+      const c=P.stairs;
+      for(const [i,p]of world.stairs.steps.entries()){
+        const length=i===world.stairs.steps.length-1?c.landing:world.stairs.tread;
+        block(0,p.y+length/2,p.top-c.embed,c.width,length,c.embed,c.colour);
+      }
+      for(const sign of [-1,1]){
+        const x=sign*(c.width+c.ear)/2,a=P.shrine.stairSouth,b=P.shrine.stairNorth,lo=P.shrine.lower[4]+c.earLift,hi=lo+c.totalRise;
+        quad(project(x-c.ear/2,a,lo),project(x+c.ear/2,a,lo),project(x+c.ear/2,b,hi),project(x-c.ear/2,b,hi),c.colour.map(v=>v*c.edgeDark));
+      }
+      continue;
+    }
+    const x=n.anchor_xz[0],y=northOffset-n.anchor_xz[1],h=world.field.sample(x,y).h;if(world.scene!=='escape'&&n.facility==='daibutsuden'&&n.part==='hall'){const w=n.bbox_max[0]-n.bbox_min[0],d=n.bbox_max[2]-n.bbox_min[2];for(const side of [-1,1])for(const end of [-1,1])block(x+side*w/2,y+end*d/2,h,1,1,n.bbox_max[1],[88,76,55]);continue;}block(x,y,h,n.bbox_max[0]-n.bbox_min[0],n.bbox_max[2]-n.bbox_min[2],n.bbox_max[1],n.facility==='tsurugaoka'?[154,57,32]:n.part==='buddha'?[59,108,87]:[88,76,55]);}
   const terrain=createKamakuraTerrain(world.filled),works=prepareWorks(JSON.parse(world.files.get('works.json')),terrain);
   for(const r of works.rocks)block(r.x,northOffset-r.z,r.ground,r.size,r.size,r.height,[111,108,94]);
   for(const p of works.piers)for(const s of p.spans)block(s.x,northOffset-s.z,p.deck,p.width,s.length,.12,[121,90,55],Math.atan2(s.ux,s.uz));

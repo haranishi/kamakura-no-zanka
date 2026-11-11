@@ -36,7 +36,8 @@ export const ESCAPE=freeze({
   hamletTrees:[[-21,300],[-20,317],[-53,317],[-55,297]],hamletTreeHeight:9,hamletCrown:2.5,
   // Degrees / metres: near clear fan and the clearance around tested sightlines.
   fan:[120,200],fanRange:80,rayClearance:2,crownClearance:1,rayStep:.5,fireLift:6,
-  rocks:{count:72,size:[.6,2.4],width:.6,topSize:[.6,1.2],topRate:1/3,toeOffset:4.3,topOffset:6.5},fenceHeight:1.1,
+  foreground:{trees:12,rocks:20,bearing:[201,215],distance:[8,45],height:[1.5,3],crown:.6,size:[.5,1.6],attempts:3000}, // degrees/metres/counts: low near-right slope dressing
+  rocks:{count:132,largeCount:10,largeSize:[2,3],size:[.6,2.4],width:.6,topSize:[.6,1.2],topRate:1/6,toeOffset:4.3,topOffset:6.5},fenceHeight:1.1,
   fences:[
     [[-90.8,371.6],[-98.8,380.6],[-104.9,384.6],[-111.9,388.6]],
     [[-64.9,356.6],[-78.9,365.6]],

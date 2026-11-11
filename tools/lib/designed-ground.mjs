@@ -1,7 +1,7 @@
 import { ESCAPE as R } from '../worlds/kamakura-escape.mjs';
 import { routeCliff } from './designed-route.mjs';
 import { PLAN as P } from '../worlds/kamakura-return.mjs';
-import { gameZ, northOffset, shoreAt, noise, mix, clamp, inRect, hash, quayAt, outcropAt } from './designed-terrain.mjs';
+import { gameZ, northOffset, shoreAt, noise, mix, clamp, inRect, smooth, hash, quayAt, outcropAt } from './designed-terrain.mjs';
 export const designedFurrow=(across)=>Math.floor(across/P.ground.stripeWidth)%2===0?P.ground.soil:P.ground.crop;
 export function designedGround(surface,width,height,heights,field,data=null,{scene='return'}={}) {
   const c=P.ground,cell=P.grid.cell,n=width*height,palette=[c.sand,c.wet,c.grass,c.forest,c.soil,c.rock,c.gravel,c.riverbed],raw=new Float32Array(n*3),out=Buffer.alloc(n*3),use=new Int32Array(n),stripe=new Uint8Array(n);
@@ -28,6 +28,12 @@ export function designedGround(surface,width,height,heights,field,data=null,{sce
       colour=c.cliff.map(v=>v*gain);
     }
     if(P.terraces.some(t=>inRect(x,y,t.rect)))colour=c.terrace;
+    if(P.emit.polish&&inRect(x,y,buddha)){
+      const edge=Math.min(x-buddha[0],buddha[1]-x,y-buddha[2],buddha[3]-y),bc=P.buddha;
+      const grass=1-smooth(bc.grassWidth-bc.groundBlend/2,bc.grassWidth+bc.groundBlend/2,edge);
+      const path=(1-smooth(bc.pathWidth/2-bc.groundBlend/2,bc.pathWidth/2+bc.groundBlend/2,Math.abs(x-(buddha[0]+buddha[1])/2)))*(1-smooth(P.facilities.find(p=>p[1]==='buddha')[4],P.facilities.find(p=>p[1]==='buddha')[4]+bc.groundBlend,y));
+      colour=c.gravel.map((v,q)=>mix(mix(v,c.grass[q],grass),c.chips[q],path));
+    }
     if(quayAt(x,y))colour=c.wet.map((v,q)=>mix(v,c.gravel[q],.35));
     if(scene==='return'&&P.burns.plots.some(r=>inRect(x,y,r))&&surface[k]===2)colour=hash(i,j,155)<c.burntCover?(hash(i,j,156)<.5?c.ash:c.charcoal):c.soil;
     use[k]=surface[k];for(let q=0;q<3;q++)raw[k*3+q]=colour[q];
@@ -41,8 +47,9 @@ export function designedGround(surface,width,height,heights,field,data=null,{sce
     use[k]=id;for(let q=0;q<3;q++)raw[k*3+q]=colour[q];
   });
   let id=16;
-  for(const f of field.farms)paintPlot({...f,state:'garden'},id++,true);
   for(const p of data?.townPlots||[])paintPlot({...p,y:northOffset-p.z,yaw:-p.yaw},id++);
+  // Authored farms keep their furrows when the denser town's plot paint reaches their edge.
+  for(const f of field.farms)paintPlot({...f,state:'garden'},id++,true);
   const laneAt=new Uint8Array(n);
   const paintLine=(a,b,width,kind=1)=>{
     const dx=b[0]-a[0],dy=b[1]-a[1],length=Math.hypot(dx,dy);if(!length)return;
