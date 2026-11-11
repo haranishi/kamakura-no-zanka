@@ -1,13 +1,16 @@
+import { validateFlight } from './kamakura-people.js';
+import { validateFires } from './kamakura-fire.js';
+import { validateLights } from './kamakura-lamps.js';
 import { validateSea } from './kamakura-shore.js';
 import { decodeWorks, worksEnabled } from './kamakura-works.js';
 import { validateMist } from './kamakura-mist.js';
 import { validateBackdrop } from './kamakura-backdrop.js';
 import { prepareAvenue } from './kamakura-avenue.js';
 import { overlookConfig } from './kamakura-fly.js';
-import { sunPlace, airOf } from './kamakura-atmosphere.js';
+import { sunPlace, airOf, sceneSearch } from './kamakura-atmosphere.js';
 import { townFillConfig, prepareTownFill } from './kamakura-town-fill.js';
 import { sandoLines, sandoEnabled } from './kamakura-sando.js';
-import { decodeFacilities } from './kamakura-facilities.js';
+import { decodeFacilities, buddhaSearch } from './kamakura-facilities.js';
 import { decodeRoads, decodeCrossings, kamakuraPaths, roadStats } from './kamakura-roads.js';
 import { decodeRivers } from './kamakura-rivers.js';
 import { decodeVeg } from './kamakura-veg.js';
@@ -33,12 +36,17 @@ export function validateMeta(m) {
       !Number.isInteger(m.patches.total_cells) || m.patches.total_cells < 1 || m.patches.total_cells > g.width * g.height)) {
     throw new Error('鎌倉パッチの形式が対応していません');
   }
+  validateFlight(m.flight);
+  validateLights(m.lights);
   validateSea(m.sea);
   validateMist(m.mist);
+  validateFires(m.fires, m);
   validateBackdrop(m.backdrop);
   townFillConfig(m.town_fill);
   overlookConfig(m.overlook);
   sunPlace(m);
+  sceneSearch(m);
+  buddhaSearch(m);
   airOf(m);
   return m;
 }

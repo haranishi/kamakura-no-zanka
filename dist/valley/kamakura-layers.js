@@ -1,3 +1,4 @@
+import { createKamakuraLamps } from './kamakura-lamps-view.js';
 import { createKamakuraWorks } from './kamakura-works-view.js';
 // kamakura-layers.js — W2c-16: one seam for the Kamakura-only add-on layers (things carried by the wind, wildlife, props, the hero's small
 // motions, the soundscape). Each layer lives in its own file and is built here from a fixed list, so parallel work never has to edit
@@ -19,6 +20,7 @@ import { createKamakuraHarbor } from './kamakura-harbor-view.js';
 import { createKamakuraFields } from './kamakura-fields-view.js';
 import { createKamakuraPeople } from './kamakura-people-view.js';
 import { createKamakuraCrowd } from './kamakura-crowd-view.js';
+import { createKamakuraFire } from './kamakura-fire-view.js';
 import { createKamakuraAvenue } from './kamakura-avenue-view.js';
 import { createKamakuraRuinHall } from './kamakura-ruin-hall-view.js';
 import { createKamakuraRiverlife } from './kamakura-riverlife-view.js';
@@ -35,12 +37,14 @@ export const KAMAKURA_LAYERS = Object.freeze([
   ['props', createKamakuraProps],
   ['works', createKamakuraWorks],
   ['townDress', createKamakuraTownDress],
+  ['lamps', createKamakuraLamps],
   ['ruinHall', createKamakuraRuinHall],
   ['avenue', createKamakuraAvenue],
   ['harbor', createKamakuraHarbor],
   ['fields', createKamakuraFields],
   ['people', createKamakuraPeople],
   ['crowd', createKamakuraCrowd],
+  ['fire', createKamakuraFire],
   ['heroLife', createKamakuraHeroLife],
   ['soundscape', createKamakuraSoundscape],
 ]);

@@ -1,6 +1,11 @@
 // Optional, invented harbour works. Coordinates are east/north in data, east/up/south in placement.
 import { riverlifeHash as hash } from './kamakura-river-rocks.js';
 export const WORKS = Object.freeze({
+  fences: 24, fencePoints: 64, fenceLength: 800, // counts / m: complete rail input limits.
+  fenceSpacing: 2.2, postMin: .12, postMax: .16, railMin: .07, railMax: .09, // m: interval and timber diameters.
+  fenceHeightMin: .6, fenceHeightMax: 1.6, headVariation: .05, fenceTilt: 3, // m / m / m / degrees: natural post heads.
+  railLow: .45, railHigh: .85, railOverhang: .12, fenceEmbed: .12, // height fractions / m / m: two rails, exposed ends, buried foot.
+  fenceColliderSpacing: .18, fenceColliderRadius: .1, // m: close circles along the rail line, no broad road-blocking box.
   groups: 32, rocks: 2000, piers: 8, moorings: 24, // counts: hard input/placement limits.
   coordinate: 1e6, extent: 2000, sizeMin: .2, sizeMax: 20, // m: finite input envelopes.
   linePoints: 128, pierPoints: 9, pierLength: 60, pierWidth: 8, deckMax: 5, // counts / m: bounded construction work.
@@ -36,6 +41,8 @@ export function decodeWorks(source) {
   if (source?.schema !== 'kz-works/0.1') fail();
   const rocks = source.rocks === undefined ? [] : source.rocks, piers = source.piers === undefined ? [] : source.piers, moorings = source.moorings === undefined ? [] : source.moorings;
   if (!Array.isArray(rocks) || !Array.isArray(piers) || !Array.isArray(moorings) || rocks.length > W.groups || piers.length > W.piers || moorings.length > W.moorings) fail();
+  const fences=source.fences===undefined?[]:source.fences;
+  if(!Array.isArray(fences)||fences.length>W.fences)fail();
   let total = 0; const ids = new Set();
   for (const r of rocks) {
     if (!r || typeof r.id !== 'string' || !r.id.length || ids.has(r.id) || !['ring','disc','line'].includes(r.shape) ||
@@ -55,7 +62,13 @@ export function decodeWorks(source) {
     ids.add(p.id);
   }
   for (const m of moorings) if (!m || !finite(m.x,-W.coordinate,W.coordinate) || !finite(m.y,-W.coordinate,W.coordinate) || !finite(m.yaw_deg,0,360) || !['boat','sail'].includes(m.kind)) fail();
-  return { schema: source.schema, rocks, piers, moorings };
+  let fenceLength=0;
+  for(const f of fences) {
+    if(!f || typeof f.id!=='string' || !f.id.length || ids.has(f.id) || f.kind!=='rail' || !finite(f.height_m,W.fenceHeightMin,W.fenceHeightMax))fail();
+    fenceLength+=line(f.xy_m,W.fencePoints);ids.add(f.id);
+  }
+  if(fenceLength>W.fenceLength)fail();
+  return { schema: source.schema, rocks, piers, moorings, fences };
 }
 export function worksEnabled(search = '') { const q = new URLSearchParams(search); return q.get('works') !== '0' && q.get('layers') !== '0'; }
 export function worksPolicy(quality = 'standard', step = 0) {
@@ -117,7 +130,7 @@ function crestCounts(r) {
   return {start,arc,n};
 }
 export function* worksPlacementBatches(source, terrain) {
-  const data=decodeWorks(source), result={rocks:[],piers:[],moorings:[],groups:data.rocks.length,skipped:0,requested:0,supplemental:0,work:{placements:0,heightTests:0,batches:0}};
+  const data=decodeWorks(source), result={rocks:[],piers:[],moorings:[],fences:[],groups:data.rocks.length,skipped:0,requested:0,supplemental:0,work:{placements:0,heightTests:0,batches:0}};
   const probe={}; let serial=0, pending=0;
   for(let group=0;group<data.rocks.length;group++) {
     const r=data.rocks[group], [lo,hi]=r.size_m, crest=r.shape==='ring'?crestCounts(r):null;
@@ -156,6 +169,7 @@ export function* worksPlacementBatches(source, terrain) {
       if(++pending>=W.batch) { pending=0;result.work.batches++;yield result; }
     }
   }
+  for(const f of data.fences) {const plan=fencePlan(f,terrain);plan.rank=result.fences.length/data.fences.length;for(const post of plan.posts)post.rank=plan.rank;result.fences.push(plan);result.work.placements+=plan.posts.length+plan.rails.length;result.work.heightTests+=plan.posts.length;result.work.batches++;yield result;}
   for(const p of data.piers) { result.piers.push(pierPlan(p,terrain));result.work.batches++;yield result; }
   for(let i=0;i<data.moorings.length;i++) {
     const m=data.moorings[i],sail=m.kind==='sail';
@@ -171,3 +185,34 @@ export function worksMotion(boat,time,out) {
   out.x=boat.x;out.z=boat.z;out.y=boat.y+Math.sin(angle)*W.heave;out.yaw=boat.yaw;out.tiltX=0;out.tiltZ=Math.sin(angle)*W.roll*radians;return out;
 }
 export function worksCircles(rocks) { return rocks.map(r=>({x:r.x,z:r.z,r:r.r,height:r.height})); }
+
+// Every authored corner is a post. Each segment is subdivided independently so bends cannot be skipped.
+export function fencePlan(f,terrain) {
+  const posts=[],rails=[];
+  function post(x,z) {
+    const ground=terrain.heightAt(x,z),seed=posts.length;
+    if(!Number.isFinite(ground))throw new Error('柵の地面の高さが不正です');
+    const diameter=W.postMin+(W.postMax-W.postMin)*hash(seed,x+z);
+    const p={x,y:ground,z,height:f.height_m+(hash(seed,193)-.5)*2*W.headVariation,diameter,
+      tiltX:(hash(seed,197)-.5)*2*W.fenceTilt*radians,tiltZ:(hash(seed,199)-.5)*2*W.fenceTilt*radians};
+    posts.push(p);return p;
+  }
+  let previous=post(f.xy_m[0][0],-f.xy_m[0][1]);
+  for(let i=1;i<f.xy_m.length;i++) {
+    const a=f.xy_m[i-1],b=f.xy_m[i],n=Math.ceil(Math.hypot(b[0]-a[0],b[1]-a[1])/W.fenceSpacing);
+    for(let j=1;j<=n;j++) {
+      const next=post(a[0]+(b[0]-a[0])*j/n,-a[1]-(b[1]-a[1])*j/n);
+      for(const ratio of [W.railLow,W.railHigh])rails.push({a:{x:previous.x,y:previous.y+ratio*f.height_m,z:previous.z},b:{x:next.x,y:next.y+ratio*f.height_m,z:next.z},diameter:W.railMin+(W.railMax-W.railMin)*hash(rails.length,211)});
+      previous=next;
+    }
+  }
+  return {id:f.id,kind:'fence',x:posts[0].x,y:posts[0].y,z:posts[0].z,height:f.height_m,posts,rails};
+}
+export function fenceCircles(fences) {
+  const circles=[];
+  for(const f of fences)for(let i=1;i<f.posts.length;i++) {
+    const a=f.posts[i-1],b=f.posts[i],n=Math.ceil(Math.hypot(b.x-a.x,b.z-a.z)/W.fenceColliderSpacing);
+    for(let j=0;j<=n;j++)circles.push({x:a.x+(b.x-a.x)*j/n,z:a.z+(b.z-a.z)*j/n,r:W.fenceColliderRadius,height:f.height});
+  }
+  return circles;
+}

@@ -1,11 +1,14 @@
-// Six fixed batches; static rock matrices, shader LOD, and one reused pose/matrix for each moored hull.
+// Up to seven fixed batches; static rock matrices, shader LOD, and one reused pose/matrix for each moored hull.
 import * as THREE from '../vendor/three.module.min.js';
-import { WORKS as W, worksEnabled, worksPlacementBatches, worksPolicy, worksMotion, worksCircles } from './kamakura-works.js';
-import { WORKS_ART as A, worksRockGeometry, worksPierGeometry, worksBoatGeometry } from './kamakura-works-kit.js';
+import { WORKS as W, worksEnabled, worksPlacementBatches, worksPolicy, worksMotion, worksCircles, fenceCircles } from './kamakura-works.js';
+import { WORKS_ART as A, worksRockGeometry, worksPierGeometry, worksBoatGeometry, worksFenceGeometry } from './kamakura-works-kit.js';
 import { addColliderCircles } from './collision.js';
 export const WORKS_SHADER_PARS = `
 uniform vec3 uWorksViewer;
 uniform float uWorksNear, uWorksFar, uWorksKeep;
+#ifdef WORKS_FENCE
+attribute float aWorksFenceRank;
+#endif
 #ifdef WORKS_PIER
 attribute vec3 aWorksCenter;
 #else
@@ -53,6 +56,11 @@ float worksVisible = 1.0 - worksNear;
 #else
 float worksVisible = worksNear;
 #endif
+
+#ifdef WORKS_FENCE
+worksVisible = 1.0;
+worksRank = aWorksFenceRank;
+#endif
 worksVisible *= (1.0 - step(uWorksFar, worksDistance)) * (1.0 - step(uWorksKeep, worksRank));
 #ifdef WORKS_ROCK
 vWorksHeight = (instanceMatrix * vec4(transformed, 1.0)).y;
@@ -67,7 +75,7 @@ diffuseColor.rgb *= mix(1.0, ${A.wetRatio.toFixed(6)}, worksWet) * vWorksTone;
 #endif
 `;
 export function installWorksShader(material,uniforms,kind,far=false,debug=false) {
-  material.defines={...material.defines,['WORKS_'+kind.toUpperCase()]:1,...(far?{WORKS_FAR:1}:{}),...(debug?{WORKS_MASK:1}:{})};
+  material.defines={...material.defines,['WORKS_'+kind.toUpperCase()]:1,...(kind==='fence'?{WORKS_PIER:1}:{}),...(far?{WORKS_FAR:1}:{}),...(debug?{WORKS_MASK:1}:{})};
   material.onBeforeCompile=shader=>{
     for(const hook of ['common','begin_vertex'])if(!shader.vertexShader.includes('#include <'+hook+'>'))throw new Error('Works shader hook missing: '+hook);
     Object.assign(shader.uniforms,uniforms);
@@ -98,24 +106,27 @@ export function createKamakuraWorks(context) {
     const material=debug?new THREE.MeshBasicMaterial({vertexColors:true,fog:false,toneMapped:false,side:THREE.DoubleSide}):new THREE.MeshLambertMaterial({vertexColors:true,side:THREE.DoubleSide});
     if(kind==='rock'&&!debug)material.flatShading=true;
     material.forceSinglePass=true;installWorksShader(material,uniforms,kind,far,debug);
-    const mesh=kind==='pier'?new THREE.Mesh(geometry,material):new THREE.InstancedMesh(geometry,material,items.length);
+    const mesh=(kind==='pier'||kind==='fence')?new THREE.Mesh(geometry,material):new THREE.InstancedMesh(geometry,material,items.length);
     mesh.name=`works-${kind}-${far?'far':'near'}`;mesh.frustumCulled=false;mesh.visible=false;mesh.castShadow=!far;mesh.receiveShadow=!far;
     if(!far) {mesh.customDepthMaterial=new THREE.MeshDepthMaterial({depthPacking:THREE.RGBADepthPacking,side:THREE.DoubleSide});installWorksShader(mesh.customDepthMaterial,uniforms,kind,far,debug);}
-    if(kind!=='pier') {
+    if(kind!=='pier'&&kind!=='fence') {
       geometry.setAttribute('aWorksRank',new THREE.InstancedBufferAttribute(Float32Array.from(items,p=>p.rank),1));
       geometry.setAttribute('aWorksDetailed',new THREE.InstancedBufferAttribute(Float32Array.from(items,(p,i)=>kind==='rock'?+(i<nearLimit):1),1));
       if(kind==='rock'&&!far)geometry.setAttribute('aWorksVariant',new THREE.InstancedBufferAttribute(Float32Array.from(items,p=>p.variant),1));
       if(kind==='boat'){geometry.setAttribute('aWorksSail',new THREE.InstancedBufferAttribute(Float32Array.from(items,p=>+(p.kind==='sail')),1));mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);}
       for(let i=0;i<items.length;i++)setMatrix(mesh,i,items[i],kind==='boat');mesh.instanceMatrix.needsUpdate=true;
     }
-    const triangles=(geometry.index?geometry.index.count:geometry.attributes.position.count)/3*(kind==='pier'?1:items.length);
+    const triangles=(geometry.index?geometry.index.count:geometry.attributes.position.count)/3*((kind==='pier'||kind==='fence')?1:items.length);
     group.add(mesh);sets.push({kind,far,mesh,items,triangles});
   }
   function build() {
     const pn=worksPierGeometry(result.piers,false,debug),pf=worksPierGeometry(result.piers,true,debug),bn=worksBoatGeometry(false,debug),bf=worksBoatGeometry(true,debug);
     const tris=g=>(g.index?g.index.count:g.attributes.position.count)/3;
-    const infrastructureNear=tris(pn)+tris(bn)*result.moorings.length,infrastructureFar=tris(pf)+tris(bf)*result.moorings.length;
-    const farLimit=Math.min(result.rocks.length,Math.floor((W.farTriangles-infrastructureFar)/12));
+    const fixed=tris(pn)+tris(pf)+(tris(bn)+tris(bf))*result.moorings.length;
+    let fenceCost=0;for(const f of result.fences)fenceCost+=f.posts.length*(A.fenceSides*3-2)+f.rails.length*A.fenceSides*2;
+    const fence=worksFenceGeometry(result.fences,debug,fixed+fenceCost>W.nearTriangles?A.fenceCoarseSides:A.fenceSides);
+    const infrastructureNear=tris(fence)+tris(pn)+tris(bn)*result.moorings.length,infrastructureFar=tris(pf)+tris(bf)*result.moorings.length;
+    const farLimit=Math.max(0,Math.min(result.rocks.length,Math.floor((W.farTriangles-infrastructureFar)/12),Math.floor((W.nearTriangles-infrastructureNear-infrastructureFar)/12)));
     nearLimit=Math.min(farLimit,Math.max(0,Math.floor((W.nearTriangles-infrastructureNear-infrastructureFar-farLimit*12)/42)));
     result.rocks.sort((a,b)=>a.rank-b.rank);
     result.moorings.sort((a,b)=>a.rank-b.rank);
@@ -123,14 +134,16 @@ export function createKamakuraWorks(context) {
     add('rock',false,worksRockGeometry(),result.rocks.slice(0,nearLimit));add('rock',true,worksRockGeometry(true),result.rocks.slice(0,farLimit));
     add('pier',false,pn,result.piers);add('pier',true,pf,result.piers);
     add('boat',false,bn,result.moorings);add('boat',true,bf,result.moorings);
+    add('fence',false,fence,result.fences.flatMap(f=>f.posts));
     let total=0,far=0;for(const s of sets){total+=s.triangles;if(s.far)far+=s.triangles;}
     if(total>W.nearTriangles||far>W.farTriangles||sets.length>W.draws)throw new Error('港の描画予算を超えました');
-    if(context.colliders)release=addColliderCircles(context.colliders,worksCircles(result.rocks));
-    text=`石 ${result.rocks.length}・桟 ${result.piers.length}・繋 ${result.moorings.length}`;
+    if(context.colliders)release=addColliderCircles(context.colliders,[...worksCircles(result.rocks),...fenceCircles(result.fences)]);
+    text=`石 ${result.rocks.length}・桟 ${result.piers.length}・繋 ${result.moorings.length}・柵 ${result.fences.length}・杭 ${result.fences.reduce((n,f)=>n+f.posts.length,0)}`;
   }
   function visible(s,p,i) {
     const at=s.kind==='boat'?p.pose:p,d=Math.hypot(at.x-viewer.x,(at.y+(s.kind==='rock'?p.size/2:0))-viewer.y,at.z-viewer.z);
     if(d>=uniforms.uWorksFar.value||(p.rank??0)>=uniforms.uWorksKeep.value)return false;
+    if(s.kind==='fence')return true;
     const detailed=s.kind!=='rock'||i<nearLimit,near=d<uniforms.uWorksNear.value&&detailed;return s.far?!near:near;
   }
   function inspect() {
@@ -140,7 +153,7 @@ export function createKamakuraWorks(context) {
       if(!nearest||d<nearest.distance)nearest={kind:s.kind==='boat'?p.kind:s.kind,distance:d,bearing:(Math.atan2(at.x-viewer.x,viewer.z-at.z)*180/Math.PI+360)%360};
     }
     return {rocks:{groups:result?.groups??0,placed:result?.rocks.length??0,skipped:result?.skipped??0},piers:result?.piers.length??0,moorings:result?.moorings.length??0,
-      drawn:{...drawn},nearest,ready,supplemental:result?.supplemental??0,work:{...result?.work,...work},limits:{near:nearLimit}};
+      fences:result?.fences.length??0,posts:result?.fences.reduce((n,f)=>n+f.posts.length,0)??0,drawn:{...drawn},nearest,ready,supplemental:result?.supplemental??0,work:{...result?.work,...work},limits:{near:nearLimit}};
   }
   if(q.get('debug')==='1')globalThis.__kzWorks=inspect;
   return {
@@ -153,12 +166,12 @@ export function createKamakuraWorks(context) {
       for(const p of result.moorings)worksMotion(p,clock,p.pose);
       for(const s of sets) {
         let count=0,kept=0;
-        for(let i=0;i<s.items.length;i++){const p=s.items[i];if(s.kind!=='pier'&&p.rank>=uniforms.uWorksKeep.value)break;kept++;if(s.kind==='boat'){setMatrix(s.mesh,i,p,true);work.matrixWrites++;}work.distanceTests++;if(visible(s,p,i))count++;}
+        for(let i=0;i<s.items.length;i++){const p=s.items[i];if(s.kind!=='pier'&&s.kind!=='fence'&&p.rank>=uniforms.uWorksKeep.value)break;kept++;if(s.kind==='boat'){setMatrix(s.mesh,i,p,true);work.matrixWrites++;}work.distanceTests++;if(visible(s,p,i))count++;}
         if(s.kind==='boat')s.mesh.instanceMatrix.needsUpdate=true;
-        if(s.kind!=='pier')s.mesh.count=kept;
+        if(s.kind!=='pier'&&s.kind!=='fence')s.mesh.count=kept;
         s.mesh.visible=count>0;
         if(s.far)drawn.far+=count;else drawn.near+=count;
-        if(count){drawn.triangles+=s.triangles*(s.kind==='pier'?1:kept/s.items.length);drawn.draws++;}
+        if(count){drawn.triangles+=s.triangles*((s.kind==='pier'||s.kind==='fence')?1:kept/s.items.length);drawn.draws++;}
       }
     },
     setAdapt(step){const p=worksPolicy(context.quality,Math.max(0,Math.min(3,step)));uniforms.uWorksNear.value=p.near;uniforms.uWorksFar.value=p.far;uniforms.uWorksKeep.value=p.keep;},

@@ -12,16 +12,21 @@ export const flySpeed = (speed, steps) => clamp(speed * 1.25 ** clamp(steps, -10
 // further out: it showed the whole plain like a map, with houses as dots (parent, real Chrome, against the concept composition).
 export const OVERLOOK = Object.freeze({ far: 'tsurugaoka', near: 'wakamiya_oji', back: 1680, height: 220, pitch: 14, fov: 24 });
 export const OVERLOOK_FIELDS = Object.freeze({ back: [1, 10000], height: [2, 12000], pitch: [1, 89], fov: [8, 90] });
+export const FREE_OVERLOOK_FIELDS = Object.freeze({ east: [-20000, 20000], north: [-20000, 20000], height: [2, 12000], bearing: [0, 360], pitch: [1, 89], fov: [8, 90] });
 export function overlookConfig(value) {
   if (value === undefined) return OVERLOOK;
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new TypeError('Invalid overlook');
+  const free = ['east', 'north', 'bearing'].some(key => Object.hasOwn(value, key));
+  const fields = free ? FREE_OVERLOOK_FIELDS : OVERLOOK_FIELDS;
+  if (free && Object.keys(fields).some(key => !Object.hasOwn(value, key))) throw new RangeError('Incomplete free overlook');
   for (const [name, v] of Object.entries(value)) {
-    const range = Object.hasOwn(OVERLOOK_FIELDS, name) && OVERLOOK_FIELDS[name];
+    const range = Object.hasOwn(fields, name) && fields[name];
     if (!range || !Number.isFinite(v) || v < range[0] || v > range[1]) throw new RangeError('Invalid overlook field: ' + name);
   }
-  return Object.freeze({ ...OVERLOOK, ...value });
+  return Object.freeze(free ? { ...value } : { ...OVERLOOK, ...value });
 }
 export function overlookPose(places, view = OVERLOOK) {
+  if (Object.hasOwn(view, 'east')) return { pos: { x: view.east, y: view.height, z: -view.north }, yaw: -view.bearing * Math.PI / 180, pitch: view.pitch * Math.PI / 180, fov: view.fov };
   const a = places?.find?.(p => p.id === view.far), b = places?.find?.(p => p.id === view.near);
   if (!a || !b) return null;
   const east = b.x - a.x, north = b.y - a.y, length = Math.hypot(east, north);
@@ -52,8 +57,9 @@ export function flyLanding(terrain, pose) {
 export function createFly(search, terrain, spawn) {
   const mode = flyOption(search);
   const cam = mode === 'fly' ? camOption(search, terrain.meta?.places, terrain.meta?.overlook) : null;
+  const free = new URLSearchParams(search).get('cam') === 'overlook' && Object.hasOwn(terrain.meta?.overlook || {}, 'east');
   const pose = cam
-    ? { pos: { x: cam.pos.x, y: Math.max(cam.pos.y, terrain.heightAt(cam.pos.x, cam.pos.z) + 2), z: cam.pos.z }, yaw: cam.yaw, pitch: cam.pitch }
+    ? { pos: { x: cam.pos.x, y: free ? cam.pos.y : Math.max(cam.pos.y, terrain.heightAt(cam.pos.x, cam.pos.z) + 2), z: cam.pos.z }, yaw: cam.yaw, pitch: cam.pitch }
     : { pos: { x: spawn.x, y: terrain.heightAt(spawn.x, spawn.z) + 900, z: spawn.z }, yaw: -Math.PI / 4, pitch: 35 * Math.PI / 180 };
   return { mode, pose: mode === 'top' ? topPose(terrain.bounds) : pose, speed: FLY.speed, returnPose: mode === 'top' ? pose : null, fov: cam?.fov ?? null };
 }

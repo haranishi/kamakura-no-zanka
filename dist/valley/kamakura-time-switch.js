@@ -4,8 +4,8 @@
 // and keeps one code path. Pure: builds the next URL query only.
 import { KAMAKURA_TIMES, atmosphereOptions } from './kamakura-atmosphere.js';
 
-export const TIME_ORDER = Object.freeze(['morning', 'noon', 'golden', 'evening'].filter(name => Object.hasOwn(KAMAKURA_TIMES, name)));
-export const TIME_LABEL = Object.freeze({ morning: '朝', noon: '昼', golden: '夕方前', evening: '夕方' });
+export const TIME_ORDER = Object.freeze(['morning', 'noon', 'golden', 'evening', 'dusk'].filter(name => Object.hasOwn(KAMAKURA_TIMES, name)));
+export const TIME_LABEL = Object.freeze({ morning: '朝', noon: '昼', golden: '夕方前', evening: '夕方', dusk: '夕暮れ' });
 export function currentTime(search = '') { return atmosphereOptions(search).time; }
 export function nextTime(time) { return TIME_ORDER[(TIME_ORDER.indexOf(time) + 1) % TIME_ORDER.length]; }
 export function timeButtonText(search = '') { return `時刻：${TIME_LABEL[currentTime(search)]}`; }

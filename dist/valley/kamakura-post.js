@@ -1,3 +1,4 @@
+import { isEveningLike } from './kamakura-atmosphere.js';
 // W2c-9f: pure post policy; defaults are provisional until parent GPU comparisons.
 // toe: share of Neutral tone mapping's dark offset (x-6.25x^2, up to .04) that is kept. 1 = three.js as shipped. The offset strips the
 // smallest channel from every dark colour, so shade turns dark, green and over-saturated (screen HSV saturation .83 in the grass views).
@@ -54,15 +55,15 @@ export function bloomLift(brightness, threshold = POST_DEFAULTS.threshold, cap =
 }
 export function bloomCap(search = '') {
   const q = new URLSearchParams(search);
-  return q.get('evening2') === '0' ? 0 : q.get('time') === 'evening' ? .65 : .9;
+  return q.get('evening2') === '0' ? 0 : isEveningLike(q.get('time')) ? .65 : .9;
 }
 
 // W2c-12 light7: unchanged black/green shade -> luminance-preserving cooling and dusk floor.
 export function shadeSettings(search = '', params = {}) {
   const q = new URLSearchParams(search), enabled = q.get('light7') !== '0';
   return { strength: enabled ? (toeOption(q.get('pshade')) ?? params.postShade ?? .15) : 0,
-    floor: enabled && q.get('time') === 'evening' ? .0068 : 0,
-    evening: q.get('time') === 'evening' };
+    floor: enabled && isEveningLike(q.get('time')) ? .0068 : 0,
+    evening: isEveningLike(q.get('time')) };
 }
 const shadeWeight = l => { const t = Math.max(0, Math.min(1, l / .12)); return 1 - t*t*(3-2*t); };
 // Linear display RGB after grading. Cooling moves red/blue toward neutral, never away;

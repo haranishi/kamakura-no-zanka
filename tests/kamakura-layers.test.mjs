@@ -15,9 +15,9 @@ function recorder() {
   return { log, layer };
 }
 
-test('the default list names five distinct layers, each with a factory', () => {
+test('the default list names distinct layers, each with a factory', () => {
   const names = KAMAKURA_LAYERS.map(([name]) => name);
-  assert.deepEqual(names, ['backdrop', 'drift', 'fauna', 'riverlife', 'props', 'works', 'townDress', 'ruinHall', 'avenue', 'harbor', 'fields', 'people', 'crowd', 'heroLife', 'soundscape']);
+  assert.deepEqual(names, ['backdrop', 'drift', 'fauna', 'riverlife', 'props', 'works', 'townDress', 'lamps', 'ruinHall', 'avenue', 'harbor', 'fields', 'people', 'crowd', 'fire', 'heroLife', 'soundscape']);
   assert.equal(new Set(names).size, names.length);
   for (const [, make] of KAMAKURA_LAYERS) assert.equal(typeof make, 'function');
   assert(Object.isFrozen(KAMAKURA_LAYERS));
@@ -129,7 +129,7 @@ test('world-kamakura.js builds, drives and closes the layers at the right places
 });
 
 test('every layer file exports the factory the list imports', () => {
-  for (const [file, name] of [['kamakura-drift-view.js', 'createKamakuraDrift'], ['kamakura-fauna-view.js', 'createKamakuraFauna'], ['kamakura-props-view.js', 'createKamakuraProps'], ['kamakura-hero-life-view.js', 'createKamakuraHeroLife'], ['kamakura-soundscape-view.js', 'createKamakuraSoundscape']]) {
+  for (const [file, name] of [['kamakura-fire-view.js', 'createKamakuraFire'], ['kamakura-drift-view.js', 'createKamakuraDrift'], ['kamakura-fauna-view.js', 'createKamakuraFauna'], ['kamakura-props-view.js', 'createKamakuraProps'], ['kamakura-hero-life-view.js', 'createKamakuraHeroLife'], ['kamakura-soundscape-view.js', 'createKamakuraSoundscape']]) {
     assert.match(source(file), new RegExp(`export (?:async )?function ${name}\\(`), `${file} must export ${name}`);
   }
 });

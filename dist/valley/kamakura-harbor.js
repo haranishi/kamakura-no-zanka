@@ -182,7 +182,7 @@ function pierAt(pocket, terrain) {
   }
   return { kind: 'pier', x, y: 0, z, yaw: Math.atan2(dx, dz), w: HARBOR.pierWidth, d: HARBOR.pierLength, dx, dz };
 }
-export function* harborPlacementBatches(context) {
+export function* harborPlacementBatches(context, { shoreOnly = false } = {}) {
   const { terrain, data = {} } = context;
   const result = { items: [], groups: [], oldBoats: [], infra: [], skipped: {}, work: { scans: 0, batches: 0, routeSamples: 0 }, site: null, ready: false };
   const skip = reason => { result.skipped[reason] = (result.skipped[reason] || 0) + 1; };
@@ -250,6 +250,7 @@ export function* harborPlacementBatches(context) {
     } else skip('group');
     result.work.batches++; yield result;
   }
+  if (shoreOnly) { result.ready = true; return result; }
   // Compute a land-distance field incrementally: seaDistanceAt is the opposite, zero at sea.
   const inverse = createDistanceJob(terrain, { cell: HARBOR.inverseCell, limit: HARBOR.inverseLimit });
   while (!inverse.step(HARBOR.inverseBatch)) { result.work.batches++; yield result; }

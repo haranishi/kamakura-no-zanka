@@ -6,19 +6,21 @@ import * as THREE from 'three';
 import { shore2Enabled, shore3Enabled, FOAM_LINEAR_MAX, SHORE_GLSL, bankCrossingDistance } from './kamakura-shore.js';
 import { WATER_ALPHA } from './kamakura-fx.js';
 import { shore4Enabled, riverFlow, FOAM_LINEAR_MAX5, SHORE_R4_GLSL } from './kamakura-shore-r4.js';
-import { atmosphereOptions, kamakuraAtmosphere, eveningEnabled } from './kamakura-atmosphere.js';
+import { atmosphereOptions, kamakuraAtmosphere, eveningEnabled, visualSun, sunPlace } from './kamakura-atmosphere.js';
 import { ATMOS } from './atmosphere.js';
-export function buildKamakuraWater(prepared, { sunDir = new THREE.Vector3(.5, .17, .85), terrain = null, search = '', quality = 'standard' } = {}) {
+export function buildKamakuraWater(prepared, { sunDir = new THREE.Vector3(.5, .17, .85), terrain = null, search = '', quality = 'standard', disc = undefined } = {}) {
   const shore6=shore6Enabled(search),shore2=shore2Enabled(search),shore3=shore3Enabled(search),shore4=shore4Enabled(search);
   const sky=kamakuraAtmosphere(atmosphereOptions(search).time,{...ATMOS,sunDir:ATMOS.sunDir.toArray()},eveningEnabled(search),quality==='light'?.55:1);
   const flows=new Map((shore4?prepared.ribbons||[]:[]).map(r=>[r.id,riverFlow(r,terrain)]));
   const group = new THREE.Group(); group.name = 'kamakura-rivers';
-  const uniforms = { uRiverPebbles6:photoSampler('groundPebbles'),uPhotoBlend:photoBlendUniform, uShore6:{value:shore6?(quality==='light'?.5:1):0}, uShore4:{value:+shore4},uShore4Detail:{value:quality==='light'?0:1},uWaterSkyMid:{value:new THREE.Color(sky.mid)},uWaterSkyHorizon:{value:new THREE.Color(sky.horizon)},uWaterSun:{value:new THREE.Color(sky.sunColor)}, uShore3:{value:+shore3},uShore2:{value:+shore2},uRiverBands:{value:quality==='light'?1:2}, uTime: { value: 0 } };
+  disc ??= visualSun(atmosphereOptions(search).time, sunDir.toArray(), sunPlace(terrain?.meta, search));
+  const visualDir = disc ? new THREE.Vector3(...disc.dir) : sunDir;
+  const uniforms = { uRiverPebbles6:photoSampler('groundPebbles'),uPhotoBlend:photoBlendUniform, uShore6:{value:shore6?(quality==='light'?.5:1):0}, uShore4:{value:+shore4},uShore4Detail:{value:quality==='light'?0:1},uWaterSkyMid:{value:new THREE.Color(sky.mid)},uWaterSkyHorizon:{value:new THREE.Color(sky.horizon)},uWaterSun:{value:new THREE.Color(disc?.enabled === false ? '#000000' : sky.sunColor)}, uShore3:{value:+shore3},uShore2:{value:+shore2},uRiverBands:{value:quality==='light'?1:2}, uTime: { value: 0 } };
   const material = new THREE.MeshStandardMaterial({ color: shore4?0xffffff:0x23565c, roughness: 0.09, metalness: 0.0, transparent: true, opacity: 1, depthWrite: false, envMapIntensity: shore3?.95:shore2?(quality==='light'?1.2:1.65):0.95 });
   material.fog = true;
   material.onBeforeCompile = shader => {
     shader.uniforms.uWaterAlpha = { value: new THREE.Vector3(WATER_ALPHA.shallow, WATER_ALPHA.deep, WATER_ALPHA.depth) };
-    Object.assign(shader.uniforms,uniforms); shader.uniforms.uTime = uniforms.uTime; shader.uniforms.uWaterDistance = { value: prepared.policy.maxDistance }; shader.uniforms.SUN_DIR_W = { value: sunDir.clone().normalize() };
+    Object.assign(shader.uniforms,uniforms); shader.uniforms.uTime = uniforms.uTime; shader.uniforms.uWaterDistance = { value: prepared.policy.maxDistance }; shader.uniforms.SUN_DIR_W = { value: visualDir.clone().normalize() };
     shader.vertexShader = shader.vertexShader
       .replace('#include <common>', '#include <common>\nattribute vec4 waterFlow;varying vec4 vWFlow;attribute float waterTurn;varying float vWTurn;attribute vec3 waterFoamShape;varying vec3 vWFoamShape;attribute vec2 waterBanks; varying vec2 vWBanks; attribute float waterDepth; attribute float waterHalfWidth; varying float vWHalf; varying vec2 vWUv; varying vec3 vWPos; varying float vWDepth;')
       .replace('#include <begin_vertex>', '#include <begin_vertex>\nvWFlow=waterFlow;vWTurn=waterTurn;vWFoamShape=waterFoamShape;vWBanks=waterBanks; vWHalf=waterHalfWidth; vWDepth = waterDepth; vWUv = uv; vWPos = (modelMatrix * vec4(transformed, 1.0)).xyz;');
@@ -163,8 +165,9 @@ export function buildKamakuraWater(prepared, { sunDir = new THREE.Vector3(.5, .1
         #include <opaque_fragment>`).replace('#include <premultiplied_alpha_fragment>',`
         if(uShore3>.5&&foam>.04)gl_FragColor.rgb=min(gl_FragColor.rgb,vec3(.85));
         #include <premultiplied_alpha_fragment>`);
+    if(disc?.enabled === false) shader.fragmentShader = shader.fragmentShader.replace('(uShore4>.0?uWaterSun:vec3(1.0, 0.78, 0.55)) * glint', 'vec3(0.0) * glint');
   };
-  material.customProgramCacheKey = () => 'kamakura-water-11-shore6';
+  material.customProgramCacheKey = () => 'kamakura-water-11-shore6' + (disc?.enabled === false ? '-disc-off' : '');
   let disposed = false,bankCursor=0,bankBudget=quality==='light'?.15:.35;
   const bankJobs=[];
   function dispose() {

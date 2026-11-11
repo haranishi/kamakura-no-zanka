@@ -1,7 +1,7 @@
 // W2c-9f: direct render -> HDR scene + five fullscreen passes, Kamakura only.
 import * as THREE from 'three';
 import { POST_DEFAULTS, postOptions, postRoute, bloomSizes, projectSun, bloomCap, neutralToneChunk, shadeSettings, SHADE_GLSL } from './kamakura-post.js';
-import { atmosphereOptions } from './kamakura-atmosphere.js';
+import { atmosphereOptions, isEveningLike, DUSK } from './kamakura-atmosphere.js';
 import { lightSettings, shaftVisibility, advanceCloudTime, cloudHigh, lightFinalShader, SHAFT_SHADERS } from './kamakura-sky-fx.js';
 import { farShadowEnabled } from './kamakura-far-shadow.js';
 import { createFarShadowView } from './kamakura-far-shadow-view.js';
@@ -50,13 +50,14 @@ export const POST_SHADERS = {
     }`,
 };
 const TONES = { none: THREE.NoToneMapping, aces: THREE.ACESFilmicToneMapping, neutral: THREE.NeutralToneMapping, agx: THREE.AgXToneMapping };
-export function createKamakuraPost({ renderer, quality = 'standard', search = '', params = {}, sunDir, now = () => performance.now(), cloudDirection = [1, 0], terrain = null, farSources = null }) {
+export function createKamakuraPost({ renderer, quality = 'standard', search = '', params = {}, sunDir, disc = null, now = () => performance.now(), cloudDirection = [1, 0], terrain = null, farSources = null }) {
   const options = postOptions(search), savedTone = renderer.toneMapping, savedExposure = renderer.toneMappingExposure;
   options.farshadow = !!(terrain && farSources && sunDir) && farShadowEnabled(search);
   const farMode=new URLSearchParams(search).get('postdebug');
   if(farMode==='farshadow'||farMode==='farshadowmap')options.postdebug=farMode;
   options.mist = options.mist && !!terrain;
-  const shade = shadeSettings(search, params), light = lightSettings(atmosphereOptions(search).time);
+  const shade = shadeSettings(search, params), light = lightSettings(isEveningLike(atmosphereOptions(search).time) ? 'evening' : atmosphereOptions(search).time);
+  const glareDir = disc ? new THREE.Vector3(...disc.dir) : sunDir;
   const needsDepth = options.shafts || options.cloud || options.mist || options.farshadow;
   let farShadow=null,farAdapt=0;
   let cloudTime = 0, lastTime = null, shaftStrength = 0;
@@ -72,7 +73,7 @@ export function createKamakuraPost({ renderer, quality = 'standard', search = ''
   const highCloud = {scale:1,strength:1,height:0};
   Object.assign(air.cloud,{scale:1,strength:0,height:0});
   let valleyField=null, mistTexture=null, firstMistFrame=true;
-  const mistValue=mistStrength(atmosphereOptions(search).time);
+  const mistValue=(atmosphereOptions(search).time === 'dusk' ? DUSK.postMist : mistStrength(atmosphereOptions(search).time));
   const exposure = params.postExposure ?? 1, bloomCapValue = bloomCap(search);
   // W2c-10 grade: Neutral's dark offset, scaled (URL > time-of-day preset > default). The chunk is global, so it is patched before any program
   // compiles (this runs before the first render) and put back on dispose; both the final pass and the no-post route include it.
@@ -227,8 +228,8 @@ export function createKamakuraPost({ renderer, quality = 'standard', search = ''
           draw(combine,targets[4]);
         }
         view.updateMatrixWorld();
-        if(sunDir) direction.copy(sunDir).transformDirection(view.matrixWorldInverse); else direction.set(0,0,1);
-        projectSun(direction.x,direction.y,direction.z,sunDir?.y??-1,view.projectionMatrix.elements[0],view.projectionMatrix.elements[5],projected);
+        if(glareDir) direction.copy(glareDir).transformDirection(view.matrixWorldInverse); else direction.set(0,0,1);
+        projectSun(direction.x,direction.y,direction.z,disc?.enabled === false ? -1 : glareDir?.y??-1,view.projectionMatrix.elements[0],view.projectionMatrix.elements[5],projected);
         final.uniforms.sunUV.value.set(projected.x,projected.y);
         if(needsDepth) {
           final.uniforms.inverseProjection.value.copy(view.projectionMatrixInverse);

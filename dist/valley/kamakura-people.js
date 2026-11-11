@@ -1,4 +1,5 @@
 // W2c-17a: world-anchored people, with no renderer, shared RNG or clock.
+import { harborEnabled, harborPlacementBatches, harborOverlap } from './kamakura-harbor.js';
 import { kamakuraPaths } from './kamakura-roads.js';
 import { createPropSite, propInBox, propPlacementBatches } from './kamakura-props.js';
 
@@ -7,6 +8,80 @@ export const PEOPLE = Object.freeze({ range: 70, lightRange: 45, max: 10, lightM
   gap: 1.2, heroGap: .85, slope: 20, bowNear: 5, waveNear: 6, cooldown: 30, grace: 2.5, jump: 30 });
 export const PEOPLE_CLIPS = Object.freeze(['Casual_Walk', 'CMU_Run', 'Stand_and_Chat', 'Talk_with_Hands_Open', 'Formal_Bow',
   'Sit_Cross_Legged_on_Floor', 'Pull_Radish', 'Male_Bend_Over_Pick_Up', 'Wave_One_Hand', 'Long_Breathe_and_Look_Around']);
+// Metres / counts / ratios: controls for road groups and dry beach workers.
+export const FLIGHT = Object.freeze({
+  fade: 12, // m at each endpoint, shrink before wrapping.
+  priority: 6, // people, reserved inside the existing near-person cap.
+  gapMin: 1, gapMax: 2.5, // m along the road between group members.
+  side: .8, edge: .25, // m lateral spread and clearance from the road edge.
+  jitter: .12, // fraction of group spacing, deterministic group displacement.
+  shoreCap: 14, shorePerGroup: 2, // people, total beach ceiling / group ceiling.
+  shoreMargin: .65, shoreSearch: 4, // m, clearance from hull/rack / outward search.
+});
+export const flightEnabled = (search = '') => new URLSearchParams(search).get('flight') !== '0';
+export function validateFlight(value) {
+  if (value === undefined || value === null) return null;
+  if (!value || typeof value !== 'object' || Array.isArray(value) || typeof value.road !== 'string' || !value.road.trim() ||
+      !Number.isInteger(value.groups) || value.groups < 1 || value.groups > 12 ||
+      !Array.isArray(value.size) || value.size.length !== 2 || !Array.from(value.size).every(n => Number.isInteger(n) && n >= 1 && n <= 5) ||
+      value.size[0] > value.size[1] || !Number.isFinite(value.speed) || value.speed < .4 || value.speed > 1.6) throw new Error('道を行く人の指定が不正です');
+  return value;
+}
+export function prepareFlight(context) {
+  const config = validateFlight(context.data?.meta?.flight);
+  if (!config || !flightEnabled(context.search)) return [];
+  const path = context.data?.roads?.[config.road] || context.data?.patches?.paths?.[config.road];
+  if (!path?.xyz_m?.length) return [];
+  const route = [], points = path.xyz_m; let length = 0;
+  for (let i = 0; i < points.length; i++) {
+    if (i) length += Math.hypot(points[i][0] - points[i-1][0], points[i][1] - points[i-1][1]);
+    route.push({ x: points[i][0], z: -points[i][1], d: length });
+  }
+  if (!(length > 0)) return [];
+  const spots = [], spacing = length / config.groups, width = Math.max(0, (path.width_m || 1) / 2 - FLIGHT.edge);
+  for (let g = 0; g < config.groups; g++) {
+    const size = config.size[0] + Math.floor(peopleHash(g, length, 201) * (config.size[1] - config.size[0] + 1));
+    const gap = FLIGHT.gapMin + (FLIGHT.gapMax - FLIGHT.gapMin) * peopleHash(g, length, 202);
+    const start = (g + .5 + (peopleHash(g, length, 203) * 2 - 1) * FLIGHT.jitter) * spacing;
+    for (let m = 0; m < size; m++) {
+      const p = spot('traveller', route[0].x, route[0].z, 0, `flight-${g}`);
+      Object.assign(p, { id: `flight-${g}-${m}`, route, length, speed: config.speed,
+        s0: start + (m - (size - 1) / 2) * gap, side: (peopleHash(g, m, 204) * 2 - 1) * Math.min(FLIGHT.side, width),
+        staff: spots.length % 3 === 0, flight: true, alpha: 1 });
+      // Seed traits with identity, not a shared start point or a time-dependent coordinate.
+      p.phase = peopleHash(g, m, 205) * PEOPLE.cooldown;
+      p.variant = spots.length % 5; sampleFlight(p, 0, context.terrain, p); spots.push(p);
+    }
+  }
+  return spots;
+}
+// One absolute-time formula, used by both levels; no retained movement integration or allocation.
+export function sampleFlight(p, time, terrain, out) {
+  const s = ((p.s0 + p.speed * time) % p.length + p.length) % p.length;
+  let lo = 1, hi = p.route.length - 1;
+  while (lo < hi) { const mid = (lo + hi) >> 1; if (p.route[mid].d < s) lo = mid + 1; else hi = mid; }
+  const a = p.route[lo - 1], b = p.route[lo], len = b.d - a.d, u = (s - a.d) / len;
+  const dx = (b.x - a.x) / len, dz = (b.z - a.z) / len;
+  out.x = a.x + (b.x - a.x) * u - dz * p.side;
+  out.z = a.z + (b.z - a.z) * u + dx * p.side;
+  out.y = terrain.heightAt(out.x, out.z); out.yaw = face(dx, dz); out.travel = s;
+  out.alpha = Math.max(0, Math.min(1, s / FLIGHT.fade, (p.length - s) / FLIGHT.fade));
+  return out;
+}
+export function selectFlightPeople(spots, pos, quality, step, out, flying = false) {
+  out.fill(-1); if (flying) return 0;
+  const limit = Math.min(out.length, FLIGHT.priority, peopleLimit(quality, step)), range = quality === 'light' ? PEOPLE.lightRange : PEOPLE.range;
+  let count = 0;
+  for (let i = 0; i < spots.length; i++) {
+    const p = spots[i]; if (!p.flight || !p.alpha) continue;
+    const d = Math.hypot(p.x - pos.x, p.z - pos.z); if (d >= range) continue;
+    let k = 0; while (k < count && Math.hypot(spots[out[k]].x - pos.x, spots[out[k]].z - pos.z) <= d) k++;
+    if (k >= limit) continue;
+    for (let j = Math.min(count, limit - 1); j > k; j--) out[j] = out[j - 1];
+    out[k] = i; count = Math.min(limit, count + 1);
+  }
+  return count;
+}
 // Integer mixing avoids cross-engine trigonometric RNG boundary differences.
 export function peopleHash(x, z, salt = 0) {
   let a = Math.imul(Math.round(x * 16) ^ 0x9e3779b9, 0x85ebca6b) ^ Math.imul(Math.round(z * 16) ^ salt, 0xc2b2ae35);
@@ -62,7 +137,7 @@ export function createPeopleSite(context) {
     }
     return false;
   }
-  return { records: base.records, boxes: base.boxes, ground, onRoad };
+  return { records: base.records, boxes: base.boxes, terrain, ground, onRoad };
 }
 function spot(role, x, z, yaw = 0, group = '') {
   const h = peopleHash(x, z, 13);
@@ -72,6 +147,36 @@ function spot(role, x, z, yaw = 0, group = '') {
 function local(b, u, v) {
   const c = Math.cos(b.rotY || 0), s = Math.sin(b.rotY || 0);
   return { x: b.x + c * u + s * v, z: b.z - s * u + c * v };
+}
+function* shorePeopleBatches(context, site) {
+  const shoreSpots = [];
+  if (harborEnabled(context.search) && new URLSearchParams(context.search).get('shorepeople') !== '0') {
+    const harbor = harborPlacementBatches(context, { shoreOnly: true }); let state;
+    do { state = harbor.next(); yield shoreSpots; } while (!state.done);
+    let workers = 0;
+    for (const group of state.value.groups) {
+      let added = 0;
+      const groupItems = state.value.items.filter(p => p.group === group.id && (p.kind === 'beach' || p.kind === 'rack'));
+      const items = [groupItems.find(p=>p.kind==='beach'),groupItems.find(p=>p.kind==='rack'),...groupItems.filter(p=>p.kind==='beach').slice(1)].filter(Boolean);
+      // Both levels use a density-independent quota and seeds, so beach identities coincide.
+      for (const item of items) {
+        search: for (const sign of [-1, 1]) for (let d = 0; d <= FLIGHT.shoreSearch; d++) {
+          if (added >= FLIGHT.shorePerGroup || workers >= FLIGHT.shoreCap) break;
+          const offset = sign * (item.w / 2 + FLIGHT.shoreMargin + d);
+          const p = spot('shore', item.x + Math.cos(item.yaw) * offset, item.z - Math.sin(item.yaw) * offset,
+            face(item.x - (item.x + Math.cos(item.yaw) * offset), item.z - (item.z - Math.sin(item.yaw) * offset)), `shore-${group.id}`);
+          const footprint = { x: p.x, z: p.z, w: FLIGHT.shoreMargin, d: FLIGHT.shoreMargin, yaw: 0 };
+          if (!site.ground(p.x, p.z) || site.onRoad(p.x, p.z) || state.value.items.some(q => harborOverlap(footprint, q, FLIGHT.shoreMargin))) continue;
+          // Do not let town-density throttling erase an otherwise valid beach group.
+          if (shoreSpots.some(q => Math.hypot(q.x - p.x, q.z - p.z) < PEOPLE.gap)) continue;
+          p.id = `shore-${group.id}-${added}`; p.variant = added;p.who='villager_m';p.harborShore=true; shoreSpots.push(p); workers++; added++; break search;
+        }
+        if (added >= FLIGHT.shorePerGroup || workers >= FLIGHT.shoreCap) break;
+      }
+      yield shoreSpots;
+    }
+  }
+  return shoreSpots;
 }
 export function* peoplePlacementBatches(context, amount = 1) {
   const site = createPeopleSite(context), spots = [], occupied = spatial(64), weights = {}, { terrain, habitat } = context;
@@ -93,9 +198,14 @@ export function* peoplePlacementBatches(context, amount = 1) {
     return near < Math.ceil(9 * amount);
   }
   function store(p) {
-    p.id = `person-${spots.length}`; spots.push(p); occupied.add(p, p.x - 60, p.z - 60, p.x + 60, p.z + 60);
+    p.id ||= `person-${spots.length}`; spots.push(p); occupied.add(p, p.x - 60, p.z - 60, p.x + 60, p.z + 60);
   }
   const add = p => { if (allowed(p)) { store(p); return true; } return false; };
+  // Reserve beach workers before density-dependent town placement. The append-only result lets
+  // both cooperative consumers see the same identities without deleting already-consumed spots.
+  const shoreJob = shorePeopleBatches(context, site); let shore;
+  do { shore = shoreJob.next(); yield result; } while (!shore.done);
+  for (const p of shore.value) store(p);
   const houses = context.houses?.boxes || [], houseIndex = spatial(40);
   for (const b of houses) houseIndex.add(b, b.x - 45, b.z - 45, b.x + 45, b.z + 45);
   function chatCentre(x, z) {
@@ -206,6 +316,7 @@ export function* peoplePlacementBatches(context, amount = 1) {
     }
     yield result;
   } while (!next.done);
+  spots.push(...prepareFlight(context));
   return result;
 }
 export function preparePeople(context, amount = 1) {
@@ -235,6 +346,12 @@ function routeAt(s, site) {
 }
 // All state and scratch space is owned by the caller. time is the layer's paused simulation clock.
 export function stepPerson(s, hero, drawn, time, dt, site) {
+  if (s.spot.flight) {
+    sampleFlight(s.spot, time, site.terrain, s);
+    s.anchorX = s.x; s.anchorZ = s.z; s.clip = 'Casual_Walk'; s.clipAge += dt;
+    // The existing collision projection gives the hero priority without changing the shared route clock.
+    avoidPerson(s, hero.x, hero.z, PEOPLE.heroGap, site); return;
+  }
   const p = s.spot, role = p.role, dx = hero.x - s.x, dz = hero.z - s.z, distance = Math.hypot(dx, dz), seated = role === 'sitter' || role === 'farmer';
   s.clipAge += dt; s.reacting = Math.max(0, s.reacting - dt); s.head = 0;
   const near = distance < (role === 'child' ? PEOPLE.waveNear : PEOPLE.bowNear);
@@ -266,7 +383,7 @@ export function stepPerson(s, hero, drawn, time, dt, site) {
       else if (role === 'sitter') s.clip = 'Sit_Cross_Legged_on_Floor';
       else if (role === 'farmer') s.clip = cycle < 14 ? (p.variant ? 'Pull_Radish' : 'Male_Bend_Over_Pick_Up') : 'Long_Breathe_and_Look_Around';
       else if (role === 'worshipper') s.clip = cycle < 3 ? 'Formal_Bow' : 'Long_Breathe_and_Look_Around';
-      else s.clip = cycle < 14 ? 'Long_Breathe_and_Look_Around' : 'Male_Bend_Over_Pick_Up';
+      else s.clip = cycle < 14 ? (p.harborShore && p.variant ? 'Pull_Radish' : 'Long_Breathe_and_Look_Around') : 'Male_Bend_Over_Pick_Up';
     }
   }
   const offsetDistance = Math.hypot(s.ox - s.offsetX, s.oz - s.offsetZ), offsetStep = Math.min(1, dt * 1.2 / (offsetDistance || 1));
