@@ -2,7 +2,7 @@
 // Pure settings. Directions are [east, up, south]; colors stay sRGB hex strings.
 // Dusk tuning: colors are sRGB; intensities/exposure are multipliers, mist heights are metres.
 export const DUSK = Object.freeze({
-  postMist: .75, postExposure: 1.04, postBloom: .18, postGlare: 1, postWarmth: .006, postToe: .7, postShade: .22,
+  postMist: .75, postExposure: 1.24, postBloom: .18, postGlare: 1, postWarmth: .006, postToe: .35, postShade: .22,
   sunDir: Object.freeze([-0.9345448863, 0.1045284633, 0.3401465212]), // bearing 250°, elevation 6°.
   sunColor: '#ff8f4a', sunIntensity: 1.25,
   // The camera of the opening scene sees only the lowest four degrees of sky: with an orange horizon the whole strip was orange.
@@ -12,7 +12,7 @@ export const DUSK = Object.freeze({
   fogDensity: .000115, mist: Object.freeze({ density: .00007, base: -4, falloff: .045 }),
   // The low sun gives level ground almost nothing: with a dim sky light the road under the walker was black (real Chrome, the
   // real-size town). The sky light stays near the evening's; the trees are darkened on their own (foliage).
-  hemiSky: '#929bc9', hemiGround: '#575b7b', hemiIntensity: 1.02,
+  hemiSky: '#929bc9', hemiGround: '#6a6f93', hemiIntensity: 1.2,
   envIntensity: .42, fillColor: '#929fcf', fillIntensity: .3, exposure: 1,
   // Leaves at dusk: darker and bluer than their daylight green (seen against the sun they stayed a bright olive).
   foliage: Object.freeze([.62, .7, .88]),
