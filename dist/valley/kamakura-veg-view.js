@@ -12,7 +12,8 @@ import { uLodFor } from './tree-lod.js';
 import { selectVeg, vegPolicy, vegCircles, vegTrunkHandover, vegTrunkLod } from './kamakura-veg.js';
 export const vegHeight = (species, shape = 0) => treeGeometry(species, 0, shape).height;
 // foliage: a gain on leaf colours for the time of day (kamakura-atmosphere.js); trunks keep their own brightness.
-export function buildKamakuraVeg(prepared, { wind, sunDir, quality = 'standard', renderer = null, families = [], search = '', foliage = null }) {
+// shadeAt(x, z): a gain for the leaves of a tree standing there (the slope under it, kamakura-veg.js); asked once for each tree.
+export function buildKamakuraVeg(prepared, { wind, sunDir, quality = 'standard', renderer = null, families = [], search = '', foliage = null, shadeAt = null }) {
   const policy = vegPolicy(quality), group = new THREE.Group(), sets = new Map(), trunkHandover = vegTrunkHandover(search);
   const materials = treeMaterials({ wind, sunDir, quality });
   // W2c-10b veg5: shared valley shaders stay untouched; this uniform controls only Kamakura.
@@ -99,7 +100,7 @@ export function buildKamakuraVeg(prepared, { wind, sunDir, quality = 'standard',
         for (const mesh of [set.leaf, set.wood]) if (mesh) {
           if (k >= mesh.instanceMatrix.count) throw new RangeError('木の容量を超えました');
           mesh.setMatrixAt(k, matrix);
-          if (mesh === set.leaf) color.setRGB(item.color[0] * leafGain[0], item.color[1] * leafGain[1], item.color[2] * leafGain[2]); else color.setScalar(1 + .12 * item.tint);
+          if (mesh === set.leaf) { const s = shadeAt ? (item.slopeShade ??= shadeAt(item.x, item.z)) : 1; color.setRGB(item.color[0] * leafGain[0] * s, item.color[1] * leafGain[1] * s, item.color[2] * leafGain[2] * s); } else color.setScalar(1 + .12 * item.tint);
           mesh.setColorAt(k, color); mesh.geometry.attributes.aKzPhase.array[k] = item.phase; mesh.count++;
           triangles += (mesh.geometry.index?.count ?? mesh.geometry.attributes.position.count) / 3;
         }

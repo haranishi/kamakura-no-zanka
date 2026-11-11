@@ -31,6 +31,17 @@ export function vegTrunkWeights(distance, policy, handover = true) {
   const [a, b] = policy.lod, w = policy.blend, [x0, x1, z0, z1] = handover ? vegTrunkLod(policy) : [a - 2 * w, a, b, b + 2 * w];
   return [1 - smooth(a, a + 2 * w, distance), smooth(x0, x1, distance) * (1 - smooth(z0, z1, distance))];
 }
+// The ground under a tree decides how much sun its leaves get: a slope that faces the sun is brighter, one that faces away is
+// darker. Seen in real Chrome and in a review against the concept: every hillside carried the same light, so the ridges did not
+// read against each other and the hills were one flat mass. The gain is measured against level ground, which keeps its colour.
+export const VEG_SLOPE = Object.freeze({ probe: 14, strength: .55, min: .58, max: 1.32 }); // m: half-span of the height samples / share / gain limits
+export const vegSlopeEnabled = search => new URLSearchParams(search).get('vslope') !== '0';
+// sun: unit vector towards the sun with x east, y up, z south (THREE.Vector3 or a plain object).
+export function vegSlopeShade(heightAt, x, z, sun, C = VEG_SLOPE) {
+  const p = C.probe, dx = (heightAt(x + p, z) - heightAt(x - p, z)) / (2 * p), dz = (heightAt(x, z + p) - heightAt(x, z - p)) / (2 * p);
+  const lit = Math.max(0, (-dx * sun.x + sun.y - dz * sun.z) / Math.hypot(dx, 1, dz));
+  return Math.max(C.min, Math.min(C.max, 1 + C.strength * (lit - sun.y) / Math.max(.05, sun.y)));
+}
 export function mapVeg(item) {
   const species = [1, 2, 0, 1, 5, null, 3][item.sourceSpecies];
   if (item.tier !== 0 || species === null) return null;

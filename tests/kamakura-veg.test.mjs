@@ -83,6 +83,28 @@ test('optional loader is local, fails open, v0.1–0.5 are treeless and trees=0 
   const world=fs.readFileSync(new URL('../dist/valley/world-kamakura.js',import.meta.url),'utf8');
   assert(world.includes('data.veg && treesEnabled(search)'));assert(world.includes('stepWind(windState, dt, { paused })'));assert(world.includes('extraCircles: trees?.circles || []'));
 });
+test('slope shade: level ground keeps its colour, a slope towards the sun is brighter, one away from it darker, within limits', async () => {
+  const { vegSlopeShade, vegSlopeEnabled, VEG_SLOPE: S } = await import('../dist/valley/kamakura-veg.js');
+  const low = { x: -.8009, y: .3704, z: .4705 }, high = { x: .08, y: .848, z: .5238 }, plane = (gx, gz) => (x, z) => 20 + gx * x + gz * z;
+  assert.equal(vegSlopeShade(plane(0, 0), 5, -7, low), 1);
+  // The height falls towards the sun (west and south here): the slope faces it.
+  const facing = vegSlopeShade(plane(.5, -.3), 0, 0, low), away = vegSlopeShade(plane(-.5, .3), 0, 0, low);
+  assert(facing > 1.2 && facing <= S.max); assert(away < .75 && away >= S.min); assert.equal(vegSlopeShade(plane(-5, 5), 0, 0, low), S.min);
+  for (const [gx, gz] of [[.1, 0], [0, .2], [-.3, .1], [.6, -.6]]) { const g = vegSlopeShade(plane(gx, gz), 30, 40, low); assert(g >= S.min && g <= S.max); assert(Math.abs(g - vegSlopeShade(plane(gx, gz), -400, 900, low)) < 1e-9, 'the same slope anywhere'); }
+  // A high sun lights every slope more evenly.
+  assert(Math.abs(vegSlopeShade(plane(.5, -.3), 0, 0, high) - vegSlopeShade(plane(-.5, .3), 0, 0, high)) < facing - away);
+  assert(vegSlopeEnabled('')); assert(!vegSlopeEnabled('?vslope=0'));
+});
+test('slope shade reaches the leaves only, and each tree is asked once', () => {
+  const prepared=prepareVeg(decode([row({0:48,1:0,6:2}),row({0:150,1:0,6:6}),row({0:10,1:0,6:4})]),terrain);let calls=0;
+  const read=view=>{const out=[],c=new THREE.Color();view.update({position:{x:0,z:0}});view.update({position:{x:40,z:0}});
+    for(const [key,set] of view.sets)for(const [part,mesh] of [['leaf',set.leaf],['wood',set.wood]])if(mesh)for(let i=0;i<mesh.count;i++){mesh.getColorAt(i,c);out.push([key,part,c.r,c.g,c.b]);}
+    view.dispose();return out;};
+  const plain=read(buildKamakuraVeg(prepared,{wind,sunDir:new THREE.Vector3(1,1,1)}));
+  const shaded=read(buildKamakuraVeg(prepared,{wind,sunDir:new THREE.Vector3(1,1,1),shadeAt:(x,z)=>{calls++;return .6;}}));
+  assert.equal(plain.length,shaded.length);assert.equal(calls,3,'one question for each tree, however often the selection is rebuilt');
+  for(let i=0;i<plain.length;i++)for(let k=0;k<3;k++)assert(Math.abs(shaded[i][2+k]-plain[i][2+k]*(plain[i][1]==='leaf'?.6:1))<1e-6);
+});
 test('foliage gain multiplies the leaf colour of every level and leaves the trunks alone', () => {
   const prepared=prepareVeg(decode([row({0:48,1:0,6:2}),row({0:150,1:0,6:6}),row({0:10,1:0,6:4})]),terrain),gain=[2,1.5,.5];
   const read=view=>{const out=[],c=new THREE.Color();view.update({position:{x:0,z:0}});
