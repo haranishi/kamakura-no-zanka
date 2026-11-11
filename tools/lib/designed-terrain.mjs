@@ -1,3 +1,4 @@
+import { routeDefinitions, routeTerrain, routeNear } from './designed-route.mjs';
 import { PLAN as P } from '../worlds/kamakura-return.mjs';
 export const clamp=(v,a=0,b=1)=>Math.max(a,Math.min(b,v));
 export const mix=(a,b,t)=>a+(b-a)*t;
@@ -51,12 +52,6 @@ export function riverWidth(y) {const c=P.river,[a,b,d,e]=c.widthBreaks;return y>
 function riverFloorAt(y) {
   const c=P.river,base=plainAt(riverX(c.valleyNorth),c.valleyNorth);
   return y<=c.valleyNorth?plainAt(riverX(y),y):mix(base,c.headBed+c.bedDepth,smooth(c.valleyNorth,P.grid.north,y));
-}
-function passDepth(x,y) {
-  const c=P.road;if(y<c.passSouth||y>c.passNorth)return 0;
-  const points=P.roads.find(r=>r.id==='pass').points;let i=1;while(i<points.length-1&&points[i][1]<y)i++;
-  const a=points[i-1],b=points[i],px=mix(a[0],b[0],clamp((y-a[1])/(b[1]-a[1])));
-  return c.passCut*smooth(c.passSouth,c.passSouth+c.passTaper,y)*(1-smooth(c.passNorth-c.passTaper,c.passNorth,y))*(1-smooth(c.passWidth/2,c.passWidth/2+c.passWallRun,Math.abs(x-px)));
 }
 export function createDesignedTerrain(stairRise, gateBounds=null,emit=P.emit) {
   const gate=P.facilities.find(p=>p[0]==='daibutsuden'&&p[1]==='gate'),pad=gateBounds?[gate[3]+gateBounds.bbox_min[0]-P.grid.cell,gate[3]+gateBounds.bbox_max[0]+P.grid.cell,gate[4]-gateBounds.bbox_max[2]-P.grid.cell,gate[4]-gateBounds.bbox_min[2]+P.grid.cell,P.terraces[0].rect[4]]:null;
@@ -160,7 +155,7 @@ export function createDesignedTerrain(stairRise, gateBounds=null,emit=P.emit) {
   const river=[];let cursor=1;
   for(let s=0;s<length;s+=P.river.step) {while(cursor<fine.length-1&&fine[cursor].s<s)cursor++;const p=fine[cursor-1],q=fine[cursor],t=(s-p.s)/(q.s-p.s);river.push({x:mix(p.x,q.x,t),y:mix(p.y,q.y,t),s});}
   river.push({...fine.at(-1)});
-  const roads=P.roads.map(p=>({...p,points:p.points.map(([x,y])=>[x,y,base(x,y).h])}));
+  const roads=P.roads.filter(p=>!routeDefinitions.some(r=>r.id===p.id)).map(p=>({...p,points:p.points.map(([x,y])=>[x,y,base(x,y).h])}));
   const avenue=roads.find(r=>r.id==='avenue');avenue.points=[];
   for(let y=P.roads[0].points[0][1];y<P.roads[0].points[1][1];y+=P.road.step)avenue.points.push([0,y,base(0,y).h]);
   avenue.points.push([0,P.roads[0].points[1][1],base(0,P.roads[0].points[1][1]).h]);
@@ -168,11 +163,11 @@ export function createDesignedTerrain(stairRise, gateBounds=null,emit=P.emit) {
   for(let y=P.roads.find(r=>r.id==='east-upper').points.at(-1)[1]+P.road.step;y<=P.grid.north;y+=P.road.step)bankRoad.push([riverX(y)+P.road.northeastOffset,y,base(riverX(y)+P.road.northeastOffset,y).h]);
   const bankStart=P.roads.find(r=>r.id==='east-upper').points.at(-1);bankRoad.unshift([...bankStart,base(...bankStart).h]);roads.push({id:'river-road',name:'滑川沿いの道',kind:'kaido',width:3,points:bankRoad});
   for(const road of roads) {
-    if(['kenchoji-trail','jochiji-trail','pass'].includes(road.id)) {
+    if(['jochiji-trail'].includes(road.id)) {
       const dense=[];
       for(let i=1;i<road.points.length;i++) {
         const a=road.points[i-1],b=road.points[i],count=Math.ceil(Math.hypot(b[0]-a[0],b[1]-a[1])/P.road.step);
-        for(let j=0;j<count;j++){const t=j/count,x=mix(a[0],b[0],t),y=mix(a[1],b[1],t);dense.push([x,y,base(x,y).h-(road.id==='pass'?passDepth(x,y):0)]);}
+        for(let j=0;j<count;j++){const t=j/count,x=mix(a[0],b[0],t),y=mix(a[1],b[1],t);dense.push([x,y,base(x,y).h]);}
       }
       const end=road.points.at(-1);dense.push([end[0],end[1],base(end[0],end[1]).h]);road.points=dense;
     }
@@ -227,8 +222,8 @@ export function createDesignedTerrain(stairRise, gateBounds=null,emit=P.emit) {
   }
   // Small segment index bounds offline terrain carving without a world-size per-cell route scan.
   const roadBins=new Map(),bin=32;
-  for(const road of roads)for(let i=1;i<road.points.length;i++){const a=road.points[i-1],b=road.points[i],r=road.width/2+P.grid.maxHeight/Math.tan(P.hill.frontSlope*Math.PI/180)+P.hill.smoothRun,seg={a,b,road,levelA:a[2]+(road.id==='pass'?passDepth(a[0],a[1]):0),levelB:b[2]+(road.id==='pass'?passDepth(b[0],b[1]):0)};for(let c=Math.floor((Math.min(a[0],b[0])-r)/bin);c<=Math.floor((Math.max(a[0],b[0])+r)/bin);c++)for(let j=Math.floor((Math.min(a[1],b[1])-r)/bin);j<=Math.floor((Math.max(a[1],b[1])+r)/bin);j++){const k=c+','+j;if(!roadBins.has(k))roadBins.set(k,[]);roadBins.get(k).push(seg);}}
-  function roadNear(x,y) {let best=null,dist=Infinity;for(const {a,b,road} of roadBins.get(Math.floor(x/bin)+','+Math.floor(y/bin))||[]){const dx=b[0]-a[0],dy=b[1]-a[1],t=clamp(((x-a[0])*dx+(y-a[1])*dy)/(dx*dx+dy*dy)),d=Math.hypot(x-a[0]-dx*t,y-a[1]-dy*t);if(d<dist){dist=d;best={distance:d,h:mix(a[2],b[2],t),road};}}return best;}
+  for(const road of roads)for(let i=1;i<road.points.length;i++){const a=road.points[i-1],b=road.points[i],r=road.width/2+P.grid.maxHeight/Math.tan(P.hill.frontSlope*Math.PI/180)+P.hill.smoothRun,seg={a,b,road,levelA:a[2],levelB:b[2]};for(let c=Math.floor((Math.min(a[0],b[0])-r)/bin);c<=Math.floor((Math.max(a[0],b[0])+r)/bin);c++)for(let j=Math.floor((Math.min(a[1],b[1])-r)/bin);j<=Math.floor((Math.max(a[1],b[1])+r)/bin);j++){const k=c+','+j;if(!roadBins.has(k))roadBins.set(k,[]);roadBins.get(k).push(seg);}}
+  function roadNear(x,y) {let best=null,dist=Infinity;for(const {a,b,road} of roadBins.get(Math.floor(x/bin)+','+Math.floor(y/bin))||[]){const dx=b[0]-a[0],dy=b[1]-a[1],t=clamp(((x-a[0])*dx+(y-a[1])*dy)/(dx*dx+dy*dy)),d=Math.hypot(x-a[0]-dx*t,y-a[1]-dy*t);if(d<dist){dist=d;best={distance:d,h:mix(a[2],b[2],t),road};}}const r=routeNear(x,y);return !best||r.distance<best.distance?r:best;}
   function sample(x,y) {
     let {h,code}=base(x,y);const ungraded=h;let lo=-Infinity,hi=Infinity,roadDistance=Infinity,nearest=null;
     const valleyDistance=Math.abs(x-riverX(y)),angle=mix(P.road.valleySlope,P.hill.frontSlope,smooth(P.river.valleyWidth,P.river.valleyWidth+P.road.shoulder,valleyDistance));
@@ -262,7 +257,6 @@ export function createDesignedTerrain(stairRise, gateBounds=null,emit=P.emit) {
       if(x>=westEdge+P.grid.cell&&x<=eastEdge-P.grid.cell&&code!==6)code=4;
     }
     if(inRect(x,y,l))h=mix(plainAt(x,l[2]),l[4],smooth(l[2],P.shrine.forecourtLevel,y));
-    const cut=passDepth(x,y);h-=cut;if(cut>0)code=5;
     const q=riverNear(x,y),c=P.river;
     if(q&&q.distance<q.width/2+c.bankMax) {
       const bank=clamp((h-q.bed)*c.bankRun,c.bankMin,x<q.x?c.bankMin:eastBankAt(y)),edge=q.width/2,weight=smooth(edge,edge+bank,q.distance);
@@ -327,8 +321,9 @@ export function createDesignedTerrain(stairRise, gateBounds=null,emit=P.emit) {
     for(const terrace of P.terraces){if(terrace.id==='buddha'&&rectangleDistance(x,y,terrace.rect)<terrace.blend)h=terraceEarthwork(h,x,y,terrace.rect,terrace.blend);if(inRect(x,y,terrace.rect)){h=terrace.rect[4];code=4;}}
     const exposure=outcropAt(x,y);
     if(exposure){h+=Math.tan(exposure.angle*Math.PI/180)*(y-exposure.y);code=5;}
-    return {h,code};
+    return routeTerrain(x,y,{h,code});
   }
+  roads.push(...routeDefinitions.map(r=>({...r,points:r.points.map(p=>[...p])})));
   function habitat(x,y) {
     let valley=1-smooth(P.river.valleyWidth,P.river.valleyWidth+P.river.valleySideRun,Math.abs(x-riverX(y)));
     for(const v of P.valleys){const across=Math.abs((x-v.centre[0])*v.toward[1]-(y-v.centre[1])*v.toward[0]);valley=Math.max(valley,1-smooth(v.halfWidth,v.halfWidth+v.sideRun,across));}

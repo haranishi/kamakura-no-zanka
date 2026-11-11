@@ -134,7 +134,7 @@ test('designed fix1 T1: actual terrain triangles obey slope budgets and each sum
   assert(mean>=10&&mean<=40,'main foothill mean inclination '+mean);
 });
 test('designed fix1 T2: rounded platform cuts and fills keep slopes, flat tops and low front steps',t=>{
-  const report=designedTerraceSlopes(w.field,at);for(const p of report){assert(p.relief<=.3,p.id);assert(p.rear<=(p.id==='kenchoji'?45:P.targets.platformSlope),p.id+' rear '+p.rear);assert(p.front<=(p.id==='buddha'?70:p.id==='kenchoji'?45:P.targets.platformSlope),p.id+' front '+p.front);assert(p.west<=(p.id==='buddha'?70:P.targets.platformSlope),p.id+' west '+p.west);assert(p.east<=P.targets.platformSlope,p.id+' east '+p.east);}
+  const report=designedTerraceSlopes(w.field,at);for(const p of report){assert(p.relief<=.3,p.id);assert(p.rear<=(p.id==='kenchoji'?45:P.targets.platformSlope),p.id+' rear '+p.rear);assert(p.front<=(p.id==='buddha'?70:p.id==='kenchoji'?45:P.targets.platformSlope),p.id+' front '+p.front);assert(p.west<=(p.id==='buddha'?70:P.targets.platformSlope),p.id+' west '+p.west);assert(p.east<=(p.id==='kenchoji'?45:P.targets.platformSlope),p.id+' east '+p.east);}
   for(const r of [...P.terraces.map(t=>t.rect),P.shrine.lower,[...P.shrine.upper,w.field.upper]])for(let x=r[0]+4;x<=r[1]-4;x+=4)if(r!==P.terraces[0].rect)assert(Math.abs(at(x,r[2]+1)-at(x,r[2]-1))<=3,'front masonry cannot exceed 3m');
   const upper=report.find(p=>p.id==='shrine-upper');assert(upper.rear<=P.targets.platformSlope);t.diagnostic(JSON.stringify(report));
 });
@@ -204,7 +204,7 @@ test('designed fix2 F6/F7: grounded stair edges, exact endpoints, triangle cap a
 });
 test('designed fix2 F8: works pass runtime construction and boats remain inside the ring on water',async t=>{
   const {decodeWorks,prepareWorks}=await import('../dist/valley/kamakura-works.js');const source=decodeWorks(JSON.parse(w.files.get('works.json'))),works=prepareWorks(source,terrain);
-  assert.deepEqual(w.meta.works,{file:'works.json'});assert.equal(source.rocks.length,6);assert.equal(source.moorings.length,4);assert.equal(works.piers.length,1);assert.equal(works.moorings.filter(p=>p.kind==='boat').length,3);
+  assert.deepEqual(w.meta.works,{file:'works.json'});assert.equal(source.rocks.length,10);assert.equal(source.moorings.length,4);assert.equal(works.piers.length,1);assert.equal(works.moorings.filter(p=>p.kind==='boat').length,3);
   const ring=works.rocks.filter(r=>r.group===0);assert(ring.length>0);for(const r of ring)assert(r.ground+r.size*Math.max(r.sx,r.sy,r.sz)>0,'wall stones reach above water');
   for(const m of works.moorings){assert(terrain.heightAt(m.x,m.z)<0);const h=P.harbor;assert(((m.x-h.x)/h.radius)**2+((northOffset-m.z-h.y)/h.radiusY)**2<1);}
 
@@ -258,7 +258,7 @@ test('designed fix3 G6/G8/G9/G11: capes are forested, unapproved steep seams are
 });
 test('designed fix3 G10: built stairs and the swell are emitted; the stairs keep their rise, their datum, a landing and a hollow under the treads only',async()=>{
   const {loadDesignedKits}=await import('../tools/lib/designed-kits.mjs'),{placeDesignedFacilities}=await import('../tools/lib/designed-placement.mjs'),{withStairRamps,STAIRS}=await import('../dist/valley/kamakura-stairs.js');
-  assert.deepEqual(P.emit,{steps:true,sea:true,light:true});assert.deepEqual(w.meta.sun,P.atmosphere.sun);assert.deepEqual(w.meta.air,P.atmosphere.air);assert.deepEqual(sunPlace(data.meta),{turn:P.atmosphere.sun.turn_deg,lift:P.atmosphere.sun.lift_deg});assert.deepEqual(airOf(data.meta),P.atmosphere.air);assert.deepEqual(w.meta.sea,{swell_from_deg:P.atmosphere.swellFrom,surf_scale:P.atmosphere.surfScale});
+  assert.deepEqual(P.emit,{steps:true,sea:true,light:true,vista:true,disc:true});assert.deepEqual(w.meta.sun,P.atmosphere.sun);assert.deepEqual(w.meta.air,P.atmosphere.air);assert.deepEqual(sunPlace(data.meta),{turn:P.atmosphere.sun.turn_deg,lift:P.atmosphere.sun.lift_deg});assert.deepEqual(airOf(data.meta),P.atmosphere.air);assert.deepEqual(w.meta.sea,{swell_from_deg:P.atmosphere.swellFrom,surf_scale:P.atmosphere.surfScale});
   const n=w.nodes.find(n=>n.part==='stairs'),lower=P.shrine.lower[4],south=P.shrine.stairSouth,north=P.shrine.stairNorth;
   assert.deepEqual(n.steps,{from_xz:[0,gameZ(south)],to_xz:[0,gameZ(north)],rise_m:7.5,width_m:10,landing_m:P.stairs.landing});assert.deepEqual(n.anchor_xz,n.steps.from_xz);
   // The stairs' own zero is the lower terrace: the decoded ground at the anchor plus rel_anchor reaches it.

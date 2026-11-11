@@ -1,3 +1,4 @@
+import { ESCAPE } from '../worlds/kamakura-escape.mjs';
 import { writeDesignedPerspective } from './designed-perspective.mjs';
 import fs from 'node:fs/promises';
 import path from 'node:path';
@@ -30,6 +31,7 @@ export async function writeDesignedPreview(directory,world) {
   for(const v of veg){if(v[7])continue;overlay+=`<circle cx="${px(v[0])}" cy="${py(northOffset-v[1])}" r="1.1" fill="#103e22" opacity="${c.treeOpacity}"/>`;}
   for(const p of field.roads)overlay+=line(p.points,'#ffe9a0',p.width/cell);
   for(const p of Object.values(filled.lanes||{}))overlay+=line(p.xyz_m.map(([x,y])=>[x,y+northOffset]),'#e9ce95',p.width_m/cell);
+  for(const p of ESCAPE.fences)overlay+=line(p,'#ffffff',.6);
   overlay+=line(field.river.map(p=>[p.x,p.y]),'#009be7',5);
   for(const b of [...placed.boxes,...filled.houses.instances.slice(placed.houses.length).map(p=>({...houseBox(filled.houses.kinds.get(p.kind),p.matrix),added:true}))])overlay+=`<rect x="${-b.w/cell/2}" y="${-b.d/cell/2}" width="${b.w/cell}" height="${b.d/cell}" transform="translate(${px(b.x)} ${py(northOffset-b.z)}) rotate(${-b.rotY*180/Math.PI})" fill="${b.added?'#d17e33':'#69371c'}" stroke="#fff" stroke-width=".4"/>`;
   for(const n of nodes)overlay+=`<rect x="${px(n.anchor_xz[0]+n.bbox_min[0])}" y="${py(northOffset-n.anchor_xz[1]-n.bbox_min[2])}" width="${(n.bbox_max[0]-n.bbox_min[0])/cell}" height="${(n.bbox_max[2]-n.bbox_min[2])/cell}" fill="none" stroke="#cf173d" stroke-width="1.8"/>`;
@@ -38,6 +40,7 @@ export async function writeDesignedPreview(directory,world) {
   overlay+=line([...meta.walk.polygon_m,meta.walk.polygon_m[0]].map(([x,y])=>[x,y+northOffset]),'#ffffff',1.5);
   for(const [id,name,x,y] of P.places) {if(id==='daibutsuden')continue;overlay+=`<text x="${px(x)+7}" y="${py(y)-7}" font-size="12" font-family="sans-serif" fill="#171717" stroke="#fff" stroke-width="2.5" paint-order="stroke">${esc(name)}</text>`;}
   await render('03-layout',svg('道・川・橋・家・施設・森・歩行境界',overlay,'黄: 道 / 青: 川 / 桃: 橋 / 茶: 目印の家 / 橙: 追加の家 / 赤枠: 施設 / 白枠: 歩行境界'));
+  if(world.scene==='escape'){await writeDesignedPerspective(directory,world);return {bridges:bridges.length};}
   const sw=c.sectionWidth,sh=c.sectionHeight/2;
   let sections=`<rect width="100%" height="100%" fill="#faf8ef"/><text x="55" y="30" font-size="22">地形断面（縦: 標高m、横: 設計座標m）</text>`;
   const configs=[['大通り x=0',P.grid.south,P.grid.north,t=>field.sample(0,t).h],... [P.terraces[0].rect[2],P.town.north,P.hill.frontNorth].map(y=>[`東西 y=${y}`,P.grid.west,P.grid.east,t=>field.sample(t,y).h])];

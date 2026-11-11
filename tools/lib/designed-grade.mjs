@@ -1,3 +1,5 @@
+import { ESCAPE as R } from '../worlds/kamakura-escape.mjs';
+import { routeNear, routeCliff } from './designed-route.mjs';
 import { PLAN as P } from '../worlds/kamakura-return.mjs';
 import { inRect, rectangleDistance, townWestAt, townEastAt, townNorthAt, shoreAt, outcropAt, harborAt } from './designed-terrain.mjs';
 // Offline fast sweeping of a slope envelope. The quadratic update uses both axes,
@@ -11,7 +13,7 @@ export function gradeDesignedTerrain(heights,width,height,field) {
     const cape=[P.cape,P.eastCape].some(p=>Math.hypot(x-p.x,y-p.y)<=p.radius+cell*2&&y<p.y+p.cliff);
     const masonry=harborAt(x,y).ring&&Math.abs(harborAt(x,y).distance)<=P.works.ringWidth/2+h.slope+cell*2||Math.hypot(x-h.island[0],y-h.island[1])<h.islandRadius+cell*2||[h.quay,h.connection].some(q=>x>=q[0]-cell*2&&x<=q[1]+cell*2&&y>=q[2]-cell*2&&y<=q[3]+cell*2);
     const river=field.riverNear(x,y),rock=y>P.river.valleyNorth&&river.distance<river.width/2+P.river.bankMax;
-    const road=field.roadNear(x,y),pass=y>P.road.passSouth-cell*2&&y<P.road.passNorth+cell*2&&road?.road.id==='pass'&&road.distance<P.road.passWidth+cell*2;
+    const road=field.roadNear(x,y),pass=routeCliff(x,y,cell*2)||road&&['pass','valley-trail','lookout','kenchoji-trail'].includes(road.road.id)&&road.distance<road.road.width/2+cell*2;
     const run=P.buddha.cliffHeight/Math.tan(P.buddha.cliffAngle*Math.PI/180)+P.buddha.cliffBlend+cell*2;
     const cliff=(x>b[0]-cell*2&&x<b[1]+cell*2&&y>=b[2]-run&&y<=b[2]+cell*2)||(y>b[2]-cell*2&&y<b[3]+cell*2&&x>=b[0]-run&&x<=b[0]+cell*2);
     if(!plain&&!coast&&!cape&&!masonry&&!rock&&!pass&&!cliff&&!outcropAt(x,y,P.grid.cell*2)&&!P.terraces.some(t=>inRect(x,y,t.rect)))free[k]=1;
@@ -61,7 +63,7 @@ export function gradeDesignedTerrain(heights,width,height,field) {
     const k=j*width+i,x=P.grid.west+(i+.5)*cell,y=P.grid.north-(j+.5)*cell,r=field.riverNear(x,y),road=field.roadNear(x,y);
     const plain=!P.terraces.some(t=>rectangleDistance(x,y,t.rect)<t.blend)&&y>=Math.max(P.town.south,shoreAt(x)+P.shore.beach+P.shore.stepRun)&&y<=townNorthAt(x)&&x>=townWestAt(y)+P.targets.plainEdge&&x<=townEastAt(y)-P.targets.plainEdge;
     const harbor=P.harbor,hr=Math.hypot(x-harbor.x,y-harbor.y),harborFixed=harborAt(x,y).inside||harborAt(x,y).ring&&Math.abs(harborAt(x,y).distance)<harbor.width/2+harbor.slope||[harbor.connection,harbor.quay].some(q=>inRect(x,y,q));
-    locked[k]=harborFixed||plain||P.terraces.some(t=>inRect(x,y,t.rect))||inRect(x,y,P.shrine.lower)||inRect(x,y,P.shrine.upper)||Math.abs(x)<=P.stairs.width/2+P.stairs.ear&&y>=P.shrine.stairSouth&&y<=P.shrine.stairNorth||r.distance<=r.width/2+P.river.gravel||road&&road.distance<=road.road.width/2?1:0;
+    locked[k]=routeCliff(x,y,cell*2)||harborFixed||plain||P.terraces.some(t=>inRect(x,y,t.rect))||inRect(x,y,P.shrine.lower)||inRect(x,y,P.shrine.upper)||Math.abs(x)<=P.stairs.width/2+P.stairs.ear&&y>=P.shrine.stairSouth&&y<=P.shrine.stairNorth||r.distance<=r.width/2+P.river.gravel||road&&road.distance<=road.road.width/2?1:0;
   }
   const finishStep=Math.tan(c.finishSlope*Math.PI/180)*cell;
   let finishPasses=0,finishUpdates=0;
@@ -81,6 +83,28 @@ export function gradeDesignedTerrain(heights,width,height,field) {
     if(!bad)break;
   }
   let finishCells=0,finishMaxChange=0;for(let k=0;k<heights.length;k++)if(touched[k]){finishCells++;finishMaxChange=Math.max(finishMaxChange,Math.abs(heights[k]-before[k]));}
+  // Project local triangle gradients directly. Averaging around two fixed road vertices
+  // does not constrain the remaining vertex and can leave an arbitrarily steep seam.
+  const local=[],localLocked=new Uint8Array(heights.length);
+  for(let j=1;j<height-1;j++)for(let i=1;i<width-1;i++){
+    const k=j*width+i,x=P.grid.west+(i+.5)*cell,y=P.grid.north-(j+.5)*cell;
+    localLocked[k]=P.terraces.some(t=>inRect(x,y,t.rect))||Math.hypot(x-R.meadow[0]-R.meadowOffset[0],y-R.meadow[1]-R.meadowOffset[1])<=R.meadowRadius||Math.hypot(x-R.summit[0],y-R.summit[1])<=R.summitRadius?1:0;
+  }
+  // Half-metre road patches retain the authored shelf heights after the coarse grid is graded.
+
+  for(let j=1;j<height-2;j++)for(let i=1;i<width-2;i++){
+    const x=P.grid.west+(i+.5)*cell,y=P.grid.north-(j+.5)*cell,q=routeNear(x,y);
+    if(q.distance<=R.influence+cell*2&&!routeCliff(x,y,cell*2))local.push(j*width+i);
+  }
+  const localStep=Math.tan(c.slope*Math.PI/180)*cell;
+  const projectLocal=(a,b,d)=>{
+    const u=heights[b]-heights[a],v=heights[d]-heights[a],length=Math.hypot(u,v);if(length<=localStep+c.epsilon)return;
+    const grad=[-u-v,u,v],ids=[a,b,d];let norm=0;
+    for(let i=0;i<3;i++)if(!localLocked[ids[i]])norm+=grad[i]*grad[i];if(!norm)return;
+    const step=(length-localStep)*length/norm;
+    for(let i=0;i<3;i++)if(!localLocked[ids[i]])heights[ids[i]]=Math.max(lower[ids[i]],heights[ids[i]]-step*grad[i]);
+  };
+  for(let round=0;round<R.gradePasses;round++)for(const k of local){projectLocal(k,k+1,k+width);projectLocal(k+width+1,k+width,k+1);}
   // The frame is scenery, with a one-sided derivative. Carry the graded edge out
   // to the final sample rather than leaving an ungraded two-metre rim.
   for(let j=0;j<height;j++){heights[j*width]=heights[j*width+1];heights[j*width+width-1]=heights[j*width+width-2];}
