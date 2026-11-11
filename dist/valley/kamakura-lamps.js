@@ -10,7 +10,8 @@ export const LAMPS = Object.freeze({
   groundOffset: .04, poolRadius: 3, poolAhead: 1.7, poolGrid: 4, // m / cells per side: conforming ground patch.
   intensity: 2.6, poolIntensity: .34, edge: .22, // linear light gains: dusk emission, additive spill, dark opening edges.
   flicker: .07, frequency: .55, // fraction / Hz: gentle, independent house phases.
-  pixels: 2.5, eveningGain: .8, // framebuffer pixels / gain: distant points and evening emission.
+  pixels: 3.2, pointGain: 2.4, eveningGain: .8, // framebuffer pixels / gain on a distant point / gain in the evening.
+  // Real Chrome, the opening scene: with the openings' own strength the far points could not be told from the roofs around them.
 });
 const C=LAMPS;
 const EVENING_TIMES=Object.freeze(['evening','dusk']);

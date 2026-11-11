@@ -89,7 +89,7 @@ export function createKamakuraLamps(context) {
   const meshes=builders.map((b,i)=>{
     const color=debug?new THREE.Color([LAMPS_ART.openingDebug,LAMPS_ART.poolDebug,LAMPS_ART.pointDebug][i]):new THREE.Color(...LAMPS_ART.color);
     const material=new THREE.ShaderMaterial({vertexShader:LAMPS_VERTEX,fragmentShader:LAMPS_FRAGMENT,
-      defines:i===1?{LAMP_POOL:1}:i===2?{LAMP_POINT:1}:{},uniforms:{uViewer:{value:viewer},uTime:clock,uFar:far,uColor:{value:color},uGain:{value:C.intensity*gain*(i===1?C.poolIntensity:1)},uDebug:{value:+debug}},
+      defines:i===1?{LAMP_POOL:1}:i===2?{LAMP_POINT:1}:{},uniforms:{uViewer:{value:viewer},uTime:clock,uFar:far,uColor:{value:color},uGain:{value:C.intensity*gain*(i===1?C.poolIntensity:i===2?C.pointGain:1)},uDebug:{value:+debug}},
       transparent:true,depthWrite:false,blending:i===1?THREE.AdditiveBlending:THREE.NormalBlending,side:THREE.DoubleSide,toneMapped:!debug});
     material.forceSinglePass=true;
     const mesh=i===2?new THREE.Points(b.finish(),material):new THREE.Mesh(b.finish(),material);mesh.frustumCulled=false;mesh.name=['lamp-openings','lamp-pools','lamp-points'][i];group.add(mesh);return mesh;

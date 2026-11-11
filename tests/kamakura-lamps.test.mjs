@@ -97,7 +97,7 @@ test('GLSL: balanced brackets, available include hooks, no reserved tokens, floa
   const declared=new Set([...code.matchAll(/\b(?:vec[234]|float)\s+(\w+)/g)].map(m=>m[1]));for(const m of code.matchAll(/(?:uniform|varying|attribute)\s+\w+\s+([^;]+);/g))for(const name of m[1].split(','))declared.add(name.trim());
   const known=new Set(['uniform','attribute','varying','void','main','float','vec2','vec3','vec4','distance','smoothstep','sin','pow','max','abs','length','mix','if','discard','uv','position','projectionMatrix','modelViewMatrix','gl_Position','gl_PointSize','gl_PointCoord','gl_FragColor']);
   for(const m of code.matchAll(/\b[A-Za-z_]\w*\b/g))if(code[m.index-1]!=='.')assert(known.has(m[0])||declared.has(m[0]),'undeclared '+m[0]);
-  assert.match(LAMPS_VERTEX,/gl_PointSize=2\.5/);assert.match(LAMPS_FRAGMENT,/smoothstep/);
+  assert.match(LAMPS_VERTEX,new RegExp('gl_PointSize='+C.pixels.toFixed(1).replace('.','\\.')));assert.match(LAMPS_FRAGMENT,/smoothstep/);
 });
 test('steady frame path allocates no arrays, objects, closures or matrices',async()=>{
   const source=await fs.readFile(new URL('../dist/valley/kamakura-lamps-view.js',import.meta.url),'utf8'),part=source.slice(source.indexOf('    update(frame)'),source.indexOf('    setAdapt(value)'));

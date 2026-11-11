@@ -19,7 +19,7 @@ export const DUSK = Object.freeze({
 });
 // Visible sun only: degrees, radiance multipliers, and radius ratio. No shadow-light changes.
 export const SUN_DISC = Object.freeze({ diameterDeg: 1.15, haloRadius: 11, radiance: 3.2, haloGain: .85,
-  edgeRad: .00015, seaStrength: .85, seaPower: 180, seaFloor: .3, seaDrift: .23, seaCellsM: .8,
+  edgeRad: .00015, seaStrength: 1, seaPower: 70, seaFloor: .3, seaDrift: .23, seaCellsM: .8,
   seaLow: .3, seaHigh: .85, seaReduced: .6 });
 export const isEveningLike = time => time === 'evening' || time === 'dusk';
 export const KAMAKURA_TIMES = {

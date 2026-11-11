@@ -190,7 +190,8 @@ export function* propPlacementBatches(context, { time = 'noon', only = null } = 
     }
     yield result;
   }
-  const houses = context.houses?.boxes || [], smokeChance = (time === 'morning' || isEveningLike(time)) ? .14 : .08;
+  // A town on fire has no hearths burning: where the map has fires (meta.fires), no house sends up a thread of cooking smoke.
+  const houses = context.houses?.boxes || [], smokeChance = context.data?.meta?.fires?.length ? 0 : (time === 'morning' || isEveningLike(time)) ? .14 : .08;
   for (let i = 0; i < houses.length; i++) {
     const b = houses[i];
     if (propHash(b.x, b.z, 21) < smokeChance) { const p = candidate('smoke', b.x, b.z, 0); p.y += b.height; p.yaw = 0; p.scale = 1; add(p); }
