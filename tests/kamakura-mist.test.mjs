@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { MIST, MIST_TIMES, createMistField, sampleMistField, mistAmount, mistAlongRay, mistNoise, mistWisp, mistDownward, mistStrength } from '../dist/valley/kamakura-mist.js';
+import { MIST, MIST_TIMES, MIST_GLSL, MIST_SKY_GLSL, mistSkyFactor, mistSkyShader, createMistField, sampleMistField, mistAmount, mistAlongRay, mistNoise, mistWisp, mistDownward, mistStrength } from '../dist/valley/kamakura-mist.js';
 import { createKamakuraTerrain } from '../dist/valley/kamakura-terrain.js';
 import { readPrivateData } from '../tools/lib/kamakura-validation.mjs';
 const bounds={minX:-1024,maxX:1024,minZ:-1024,maxZ:1024};
@@ -71,6 +71,25 @@ test('mist GLSL identifiers are declared and numeric expressions use floats (arr
     for(const m of expressions.matchAll(/(?<![\d.])\d+(?:\.\d*)?(?![\d.])/g))assert(m[0].includes('.'),'integer in float expression: '+m[0]);
   }
   validate(MIST_GLSL);
+  validate(mistSkyShader(MIST_GLSL));
   assert.throws(()=>validate(MIST_GLSL.replace('mistReady<.5','unknownValue<.5')));
   assert.throws(()=>validate(MIST_GLSL.replace('return vec2(0.)','return vec2(0)')));
+});
+
+test('horizon mist gate is zero at 0/1/3 degrees, preserves every downward surface and retains legacy bytes',t=>{
+  const field=build(x=>100+Math.min(80,Math.abs(x)*.4)),scratch=[0,0],eye={x:0,y:105,z:-800};
+  const readings=[];
+  for(const deg of [-20,-5,-1,0,1,3]){
+    const angle=deg*Math.PI/180,point={x:0,y:eye.y+Math.sin(angle)*1200,z:eye.z+Math.cos(angle)*1200};
+    const old=mistAlongRay(field,eye,point,0,1,0,.8,scratch),now=old*mistSkyFactor(Math.sin(angle));
+    if(deg<0)assert.equal(now,old);else assert.equal(now,0);
+    readings.push({elevationDeg:deg,legacyFinite:old,nowFinite:now,legacyEmptySky:0,nowEmptySky:0});
+    assert.equal(mistSkyFactor(Math.sin(angle),false,true),1);
+  }
+  assert.equal(mistSkyFactor(-Math.sin(.5*Math.PI/180),true),1);assert.equal(mistSkyFactor(0,true),0);
+  const halfway=mistSkyFactor(-Math.sin(.25*Math.PI/180),true);assert(halfway>.49&&halfway<.51);
+  assert.equal(mistSkyShader(MIST_GLSL,'?mistsky=1'),MIST_GLSL);assert.throws(()=>mistSkyShader('missing'));
+  const formula=MIST_SKY_GLSL.match(/return 1\.0-smoothstep\(([-\d.]+),0\.0,rayY\)/);assert(formula);
+  assert(Math.abs(Number(formula[1])+Math.sin(.5*Math.PI/180))<1e-6);
+  t.diagnostic(JSON.stringify({syntheticHorizonProbe:readings}));
 });

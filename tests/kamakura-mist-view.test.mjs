@@ -74,3 +74,14 @@ test('shared debug owner combines atmosphere and post and releases each owner in
   const r=stub(),p=createKamakuraPost({renderer:r,terrain,search:'?debug=1',sunDir:sun()});p.render(new THREE.Scene(),camera());assert.equal(globalThis.__kzAir,getter);assert.equal(globalThis.__kzAir().shadow.size,100);p.dispose();assert.equal(globalThis.__kzAir,getter);delete globalThis.__kzAir;
   const hot=source('kamakura-post-view.js').split('render(world,view) {')[1].split('dispose(){')[0];assert(!/\bnew\s|\.clone\(|\.map\(/.test(hot));
 });
+
+test('compositor rejects genuine empty sky already; finite upward mist is gated and mistsky=1 restores the old expression',()=>{
+  const fragments=[];
+  for(const suffix of ['', '&mistsky=1']){
+    const r=stub(),p=createKamakuraPost({renderer:r,terrain,search:'?shafts=0&cloud=0'+suffix,sunDir:sun()});
+    p.render(new THREE.Scene(),camera());fragments.push(r.draws.at(-1).material.fragmentShader);p.dispose();
+  }
+  assert(fragments.every(s=>s.includes('float mistAmount=skyPixel?0.:kzMistAmount')));
+  assert(fragments[0].includes('*down*kzMistSky(rise,0.0)'));assert(!fragments[1].includes('kzMistSky'));
+  assert.equal(fragments[0].replace(/\nfloat kzMistSky\(float rayY,float skyPixel\)\{[\s\S]*?\}\n/,'').replace('*down*kzMistSky(rise,0.0)','*down'),fragments[1]);
+});

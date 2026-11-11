@@ -15,6 +15,7 @@ import { createKamakuraCrag } from './kamakura-crag-view.js';
 // A layer that fails to build, or throws while running, is switched off and reported once; the walk goes on without it.
 // &layers=0 skips every layer (the pre-W2c-16 world).
 import { createKamakuraHorizon } from './kamakura-horizon-view.js';
+import { createKamakuraWisp } from './kamakura-wisp-view.js';
 import { createKamakuraBackdrop } from './kamakura-backdrop-view.js';
 import { createKamakuraDrift } from './kamakura-drift-view.js';
 import { createKamakuraFauna } from './kamakura-fauna-view.js';
@@ -34,6 +35,7 @@ import { createKamakuraSoundscape } from './kamakura-soundscape-view.js';
 export const KAMAKURA_LAYERS = Object.freeze([
   ['backdrop', createKamakuraBackdrop],
   ['horizon', createKamakuraHorizon],
+  ['wisp', createKamakuraWisp],
   ['drift', createKamakuraDrift],
   ['fauna', createKamakuraFauna],
   ['riverlife', createKamakuraRiverlife],

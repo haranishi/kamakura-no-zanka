@@ -1,5 +1,6 @@
 // Terrain-derived valley field and CPU/GLSL mist mirror. No private data is persisted.
 export const MIST = Object.freeze({
+  skyFadeDeg: .5, // degrees below the horizon: feather for empty sky only; negative-angle surfaces keep their mist.
   floorFadeM: 10, // m: restore the original valley weight above the map's optional floor cutoff.
   gainMin: 0, gainMax: 2, floorMinM: -50, floorMaxM: 500, // allowed map settings, fractional gain / metres.
   cell: 32, // m: desired field sampling interval.
@@ -175,4 +176,26 @@ export function mistShader(settings){
   if(gain===1)return MIST_GLSL;
   return MIST_GLSL.replace('min('+f(MIST.cap)+',amount','min('+f(MIST.cap*gain)+',amount')
     .replace('min('+f(MIST.totalCap)+',amount','min('+f(MIST.totalCap*gain)+',amount');
+}
+
+// Reuse the shipped value noise without adding another noise recipe.
+export const MIST_NOISE_GLSL=MIST_GLSL.slice(MIST_GLSL.indexOf('float kzMistHash'),MIST_GLSL.indexOf('float kzMistAt'));
+export function mistSkyFactor(rayY,skyPixel=false,legacy=false){
+  if(legacy)return 1;
+  if(!skyPixel&&rayY<0)return 1;
+  return 1-smooth(-Math.sin(MIST.skyFadeDeg*Math.PI/180),0,rayY);
+}
+export const MIST_SKY_GLSL=`
+float kzMistSky(float rayY,float skyPixel){
+  if(skyPixel<.5&&rayY<0.0)return 1.0;
+  return 1.0-smoothstep(${f(-Math.sin(MIST.skyFadeDeg*Math.PI/180))},0.0,rayY);
+}
+`;
+// The compositor already rejects depth==1. This also rejects finite-depth rays above the horizon.
+// Keep a byte-identical legacy branch for comparisons; do not disturb the valley field or ground rays.
+export function mistSkyShader(shader,search=''){
+  if(new URLSearchParams(search).get('mistsky')==='1')return shader;
+  const anchor='*down;';
+  if(!shader.includes(anchor))throw new Error('Mist horizon anchor missing');
+  return MIST_SKY_GLSL+shader.replace(anchor,'*down*kzMistSky(rise,0.0);');
 }
