@@ -19,8 +19,9 @@ export const SWELL=Object.freeze({
 export const swellEnabled=search=>new URLSearchParams(search).get('swell')!=='0';
 export function validateSea(sea){
   if(sea===undefined)return;
-  if(!sea||Array.isArray(sea)||typeof sea!=='object'||Object.keys(sea).some(k=>k!=='swell_from_deg')||
-    !Number.isFinite(sea.swell_from_deg)||sea.swell_from_deg<0||sea.swell_from_deg>360)throw new Error('海の波向きの指定が不正です');
+  if(!sea||Array.isArray(sea)||typeof sea!=='object'||Object.keys(sea).some(k=>!['swell_from_deg','surf_scale'].includes(k))||
+    (sea.swell_from_deg!==undefined&&(!Number.isFinite(sea.swell_from_deg)||sea.swell_from_deg<0||sea.swell_from_deg>360))||
+    (sea.surf_scale!==undefined&&(!Number.isFinite(sea.surf_scale)||sea.surf_scale<.25||sea.surf_scale>1.5)))throw new Error('海の波の指定が不正です');
 }
 export function swellFacing(dx,dz,fromDeg){
   const length=Math.hypot(dx,dz);if(length<SWELL.gradientEpsilon)return 1;
@@ -217,7 +218,7 @@ export function shoreFieldCell(terrain) {
 }
 export function createSignedShoreJob(terrain, {cell=shoreFieldCell(terrain),limit=240,shelter=true,sea:seaOptions,swell=true}={}) {
   if(!(cell>0)||!Number.isFinite(cell)||!(limit>0)||!Number.isFinite(limit))throw new RangeError('Invalid signed grid');
-  validateSea(seaOptions);const directional=swell&&seaOptions!==undefined,withOpen=shelter||directional;
+  validateSea(seaOptions);const directional=swell&&seaOptions?.swell_from_deg!==undefined,withOpen=shelter||directional;
   const b=terrain.bounds,x0=b.minX,z0=b.minZ,w=Math.ceil((b.maxX-x0)/cell)+1,h=Math.ceil((b.maxZ-z0)/cell)+1;
   const data=new Float32Array(w*h),heights=new Float32Array(w*h),sea=new Uint8Array(w*h);
   const field={cell,x0,z0,w,h,data,maxX:b.maxX,maxZ:b.maxZ,signedDistanceAt:(x,z)=>sampleDistance(field,x,z)};

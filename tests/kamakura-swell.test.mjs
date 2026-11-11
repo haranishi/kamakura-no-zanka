@@ -13,7 +13,7 @@ const beach=()=>({cell:2,bounds:{minX:-300,maxX:300,minZ:-180,maxZ:220},heightAt
 test('D2 optional meta sea uses strict whitelist, finite numeric direction 0..360',()=>{
   for(const value of [0,180,360]){const f=fixture();f.meta.sea={swell_from_deg:value};assert.equal(validateMeta(f.meta),f.meta);}
   validateSea(undefined);
-  for(const sea of [null,[],{},180,{swell_from_deg:-1},{swell_from_deg:361},{swell_from_deg:'180'},{swell_from_deg:NaN},{swell_from_deg:Infinity},{swell_from_deg:180,unknown:1}]){const f=fixture();f.meta.sea=sea;assert.throws(()=>validateMeta(f.meta));}
+  for(const sea of [null,[],180,{swell_from_deg:-1},{swell_from_deg:361},{swell_from_deg:'180'},{swell_from_deg:NaN},{swell_from_deg:Infinity},{swell_from_deg:180,unknown:1}]){const f=fixture();f.meta.sea=sea;assert.throws(()=>validateMeta(f.meta));}
 });
 test('D2 facing respects compass bearings, smooth cross-shore fade and undefined gradients',()=>{
   assert.equal(swellFacing(0,1,180),1);assert.equal(swellFacing(0,-1,180),0);

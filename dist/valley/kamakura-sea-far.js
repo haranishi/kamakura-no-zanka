@@ -1,6 +1,17 @@
 // W2c-18 seaedge: pure mirrors and shader additions; colours come from shore4's deep band.
 import { seaColor4, seaBand4, SEA_BANDS4 } from './kamakura-shore-r4.js';
 import { SEA_PALETTE, shoreNoise, SHELTER, SWELL, shelteredEdgeFoam } from './kamakura-shore.js';
+export const SEA4=Object.freeze({
+  foamMean:.78, // measured mean coverage of each smoothed hole scale before pixel filtering.
+  rotationDeg:30, // degrees: rotate the small foam cells against the coarse cells.
+  edgeNoiseM:.8, edgeAmplitudeM:.5, // metres: fine shared scallops, identical for every crest so centres cannot cross.
+  deepGain:.7, deepTint:Object.freeze([.98,1.01,.98]), // fractional absorption gain; retain a little more of the existing green.
+  heightStartM:40,heightFullM:60, // camera metres above water: fade glitter in without a height discontinuity.
+  glitterCellM:1.2,glitterDrift:.06, // metres / cells per second: slow, fine moving sun flecks.
+  glitterLow:.68,glitterHigh:.86,glitterMean:.12, // smooth threshold and unresolved mean of the same noise.
+  glitterStrength:.6,glitterPower:2, // maximum fraction of the existing sun colour / broad reflection lobe exponent.
+  filterStart:.5,filterEnd:1, // footprint / cell size: average subpixel holes and flecks.
+});
 export const SEA3 = Object.freeze({
   fromM:40, toM:90, // 3D camera metres: near/far surf exchange.
   positionsM:Object.freeze([5,16,30,50,80]), // metres offshore at birth, shared inward phase with sea2.
@@ -76,9 +87,9 @@ export const sea3SkyTint=(sunward,out=[0,0,0])=>seaSkyTint(sunward,out,S.skyCool
 export const seaSwellGain = range => smooth(C.swellStartM,C.swellFullM,range);
 export const seaLineGain = range => smooth(C.linesStartM,C.linesFullM,range);
 export const seaLineCount = (quality='standard',step=0) => step>=3?0:quality==='light'||step>=2?C.reducedLines:C.linePositionsM.length;
-export const seaLineCentre = (i,time) => {
+export const seaLineCentre = (i,time,surfScale=1) => {
   const phase=((time/C.linePeriodS+C.linePhase)%1+1)%1;
-  return C.linePositionsM[i]+((i?C.linePositionsM[i-1]:0)-C.linePositionsM[i])*phase;
+  return (C.linePositionsM[i]+((i?C.linePositionsM[i-1]:0)-C.linePositionsM[i])*phase)*surfScale;
 };
 export function seaLineWidth(i,footprint,out={}) {
   out.width=Math.max(C.lineWidthsM[i],Math.max(0,footprint)*C.linePixels);
@@ -181,7 +192,7 @@ export const sea3Gain = range => smooth(SEA3.fromM,SEA3.toM,range);
 export const sea3Count = (quality='standard',step=0) => step>=3?0:quality==='light'||step>=2?SEA3.reducedLines:SEA3.positionsM.length;
 const fract3=x=>x-Math.floor(x),mix3=(a,b,t)=>a+(b-a)*t;
 function scalar3(args,body) {
-  const js=Function('smoothstep','clamp','mix','fract','sin','max','min','abs','shoreNoise',`return function(${args}){${body.replace(/float /g,'let ')}}`)(smooth,(x,a,b)=>Math.max(a,Math.min(b,x)),mix3,fract3,Math.sin,Math.max,Math.min,Math.abs,shoreNoise);
+  const js=Function('smoothstep','clamp','mix','fract','sin','max','min','abs','shoreNoise','pow',`return function(${args}){${body.replace(/float /g,'let ')}}`)(smooth,(x,a,b)=>Math.max(a,Math.min(b,x)),mix3,fract3,Math.sin,Math.max,Math.min,Math.abs,shoreNoise,Math.pow);
   return {js,glsl:name=>`float ${name}(${args.split(',').map(a=>'float '+a).join(',')}){${body}}`};
 }
 const S=SEA3;
@@ -330,5 +341,97 @@ export function seaShelterFragment(fragment,{sea2=true,sea3=true,swell=false}={}
         gl_FragColor=vec4(debug3,1.0);`);
   if(swell&&sea3)fragment=fragment.replace('gl_FragColor=vec4(debug3,1.0);',`if(shelterInside&&landDistance>=0.0)debug3=mix(debug3,vec3(${SWELL.debug.map(f).join(',')}),1.0-${sea2?'sea2Shore':'shelterShore'}.a);
         gl_FragColor=vec4(debug3,1.0);`);
+  return fragment;
+}
+
+// Explicit surf_scale opts a world into this revision. Missing metadata keeps the frozen sea3 program.
+const V=SEA4,rc=Math.cos(V.rotationDeg*Math.PI/180),rs=Math.sin(V.rotationDeg*Math.PI/180);
+const texture4=scalar3('x,z,time,footprint,detail',`
+  float rx=x*${f(rc)}-z*${f(rs)},rz=x*${f(rs)}+z*${f(rc)};
+  float large=shoreNoise(rx/${f(S.coarseM)}+${f(S.textureOffset)},rz/${f(S.coarseM)}+${f(S.textureOffset)});
+  float coarseHole=mix(smoothstep(${f(S.holeLow)},${f(S.holeHigh)},large),${f(V.foamMean)},smoothstep(${f(S.coarseM*V.filterStart)},${f(S.coarseM*V.filterEnd)},footprint));
+  if(detail<.5)return coarseHole;
+  float fx=x*${f(rc)}+z*${f(rs)},fz=z*${f(rc)}-x*${f(rs)};
+  float small=shoreNoise(fx/${f(S.fineM)}+time*${f(S.foamDrift)},fz/${f(S.fineM)}-time*${f(S.foamDrift)});
+  float fineHole=mix(smoothstep(${f(S.holeLow)},${f(S.holeHigh)},small),${f(V.foamMean)},smoothstep(${f(S.fineM*V.filterStart)},${f(S.fineM*V.filterEnd)},footprint));
+  return coarseHole*fineHole;
+`);
+const edge4=scalar3('x,z,footprint',`return (shoreNoise((x*${f(rc)}-z*${f(rs)})/${f(V.edgeNoiseM)},(x*${f(rs)}+z*${f(rc)})/${f(V.edgeNoiseM)})*2.0-1.0)*${f(V.edgeAmplitudeM)}*(1.0-smoothstep(${f(V.edgeNoiseM*V.filterStart)},${f(V.edgeNoiseM*V.filterEnd)},footprint));`);
+const glitter4=scalar3('x,z,time,footprint,facing,height',`
+  if(facing<=0.0||height<=${f(V.heightStartM)})return 0.0;
+  float grain=shoreNoise((x*${f(rc)}-z*${f(rs)})/${f(V.glitterCellM)}+time*${f(V.glitterDrift)},(x*${f(rs)}+z*${f(rc)})/${f(V.glitterCellM)}-time*${f(V.glitterDrift)});
+  float fleck=mix(smoothstep(${f(V.glitterLow)},${f(V.glitterHigh)},grain),${f(V.glitterMean)},smoothstep(${f(V.glitterCellM*V.filterStart)},${f(V.glitterCellM*V.filterEnd)},footprint));
+  float lobe=max(0.0,facing);return fleck*pow(lobe,${f(V.glitterPower)})*${f(V.glitterStrength)}*smoothstep(${f(V.heightStartM)},${f(V.heightFullM)},height);
+`);
+export const sea4Texture=texture4.js,sea4Edge=edge4.js,sea4Glitter=glitter4.js;
+export const sea4GlitterEnabled=(search='',quality='standard',step=0)=>new URLSearchParams(search).get('glitter')!=='0'&&quality!=='light'&&step<2;
+export const SEA4_SCALAR_GLSL=[texture4.glsl('sea4Texture'),edge4.glsl('sea4Edge'),glitter4.glsl('sea4Glitter')].join('\n');
+function noiseVec4(source){
+  return source.replace(/shoreNoise\(/g,'NOISE(').split('NOISE(').map((part,i)=>{
+    if(!i)return part;
+    let depth=1,end=0;for(;end<part.length;end++){if(part[end]==='(')depth++;else if(part[end]===')'&&--depth===0)break;}
+    return 'shoreNoise(vec2('+part.slice(0,end)+'))'+part.slice(end+1);
+  }).join('');
+}
+export const SEA4_GLSL=noiseVec4(SEA4_SCALAR_GLSL);
+export const sea4Centre=(i,x,z,time,surfScale=1,footprint=0)=>sea3Centre(i,x,z,time)*surfScale+sea4Edge(x,z,footprint);
+export function sea4Sample(d,x,z,time,footprint=0,range=300,quality='standard',step=0,out={},openness=1,surfScale=1){
+  let crest=0,tail=0,wash=0;const gain=sea3Gain(range),detail=quality==='light'||step>=2?0:1;
+  if(gain>0&&step<3&&d>=-S.washLimitM&&d<S.limitM*surfScale+footprint*C.linePixels){
+    const jitter=sea4Edge(x,z,footprint),phase=sea3Phase(time),birth=smooth(0,C.lineFadePhase,phase)*(1-smooth(1-C.lineFadePhase,1,phase));
+    for(let i=0;i<S.positionsM.length;i++){
+      if(!detail&&i%2)continue;
+      const offset=i*C.gapOffset,delta=d-sea3Centre(i,x,z,time)*surfScale-jitter,width=S.widthsM[i]*surfScale*sea3WidthScale(x,z,offset);
+      const profile=sea3Profile(delta,width,footprint);if(profile<=0)continue;
+      const alpha=profile*sea3LineGap(x,z,i)*sea3Density(x,z,offset)*sea4Texture(x,z,time,footprint,detail)*birth;
+      const head=sea3Crest(delta,width,footprint);crest+=alpha*head;tail+=alpha*(1-head);
+    }
+    wash=sea3WashProfile(d,x,z,time,footprint)*sea4Texture(x,z,time,footprint,detail)*S.washStrength;
+  }
+  out.crest=clamp(crest)*gain*S.strength*openness;out.tail=clamp(tail)*gain*S.strength*openness;out.wash=wash*gain*openness;
+  out.edge=shelteredEdgeFoam(d,footprint)*(1-openness)*gain;out.foam=clamp(out.crest+out.tail+out.wash+out.edge);return out;
+}
+export function sea4Color(d,out=[0,0,0],surfScale=1){
+  sea3Color(d/surfScale,out);const deep=smooth(S.middleEndM*surfScale,S.deepEndM*surfScale,d);
+  for(let i=0;i<3;i++)out[i]*=mix3(1,V.deepGain*V.deepTint[i],deep);return out;
+}
+export function sea4Fragment(fragment){
+  return fragment.replace('float shoreFootprint=max(fwidth(landDistance),.001);','float shoreFootprint=max(max(fwidth(landDistance),length(fwidth(vSeaWorld.xz))),.001);').replace(SHADER_ANCHORS.pars,`${SHADER_ANCHORS.pars}\nuniform float uSea4Glitter;`)
+    .replace('float sea3Phase(',`${SEA4_GLSL}\nfloat sea3Phase(`)
+    .replaceAll('sea3Texture(p.x,p.y,time,footprint,uSea3Detail)','sea4Texture(p.x,p.y,time,footprint,uSea3Detail)')
+    .replace('vec2 fronts=vec2(0.0);','float edgeShift4=sea4Edge(p.x,p.y,footprint);\n  vec2 fronts=vec2(0.0);').replaceAll('fronts+=sea3Line(d,p,','fronts+=sea3Line(d-edgeShift4,p,')
+    .replace('return mix(c,vec3('+colors3[2].map(f).join(',')+'),smoothstep('+f(S.middleEndM)+','+f(S.deepEndM)+',d));',`return mix(c,vec3(${colors3[2].map(f).join(',')}),smoothstep(${f(S.middleEndM)},${f(S.deepEndM)},d))*mix(vec3(1.0),${f(V.deepGain)}*vec3(${V.deepTint.map(f).join(',')}),smoothstep(${f(S.middleEndM)},${f(S.deepEndM)},d));`)
+    // Continue the sea3 absorption offshore too; the old cutoff restored the bright sky contribution.
+    .replace(`*(1.0-smoothstep(${f(S.deepEndM)},${f(S.deepEndM+S.colorBlendM)},landDistance))`, '')
+    .replace('uShoreReady>.5&&sea2Inside&&seaRange>', 'uShoreReady>.5&&seaRange>')
+    .replace('sea3Foam=sea3Surf(landDistance,vSeaWorld.xz,uShoreTime,shoreFootprint,seaRange,sea2Shore.g);','sea3Foam=sea2Inside?sea3Surf(landDistance,vSeaWorld.xz,uShoreTime,shoreFootprint,seaRange,sea2Shore.g):vec3(0.0);')
+    .replace('mix(sea3Color(landDistance),','mix(sea3Color(sea2Distance),')
+    // Replace the earlier sea2 sparkle, so glitter=0 really removes all far sparkle for this revision.
+    .replace(`if(seaRange>${f(C.swellStartM)}&&sea2G<1.0){`, 'if(false){')
+    .replace('// Foam is a white surface film',`if(uSea3>.5&&uSea4Glitter>.5&&cameraPosition.y>${f(V.heightStartM)}){
+      vec3 eye4=normalize(cameraPosition-vSeaWorld);
+      vec3 reflected4=reflect(-SUN_DIR_W,vec3(0.0,1.0,0.0));
+      float facing4=max(0.0,dot(reflected4,eye4));
+      float footprint4=max(shoreFootprint,length(fwidth(vSeaWorld.xz)));
+      outgoingLight+=clamp(uSeaSun,vec3(0.0),vec3(1.0))*sea4Glitter(vSeaWorld.x,vSeaWorld.z,uShoreTime,footprint4,facing4,cameraPosition.y)*smoothstep(${f(S.middleEndM)},${f(S.deepEndM)},sea2Distance);
+    }
+    // Foam is a white surface film`);
+}
+// Scale physical parameters, not the sampled field: all other users retain metres and identical bytes.
+export function seaSurfScaleFragment(fragment,{sea3=true}={}){
+  fragment=fragment.replace(SHADER_ANCHORS.pars,`${SHADER_ANCHORS.pars}\nuniform float uSurfScale;`);
+  fragment=fragment.replace('float moving=mix(centre,previous,phase),','float moving=mix(centre,previous,phase)*uSurfScale,')
+    .replace(`landDistance<${f(C.linePositionsM.at(-1)+C.lineWidthsM.at(-1))}`,`landDistance<${f(C.linePositionsM.at(-1))}*uSurfScale+${f(C.lineWidthsM.at(-1))}`);
+  if(!sea3)return fragment;
+  fragment=fragment.replace('moving=mix(centre,previous,phase)+sea3Shift(p.x,p.y,offset,gap);','moving=(mix(centre,previous,phase)+sea3Shift(p.x,p.y,offset,gap))*uSurfScale;')
+    .replace('physical=width*sea3WidthScale','physical=width*uSurfScale*sea3WidthScale')
+    .replace(`d>${f(S.limitM)}+footprint`,`d>${f(S.limitM)}*uSurfScale+footprint`)
+    .replace('vec3 sea3Color(float d){','vec3 sea3Color(float d){\n  d/=uSurfScale;');
+  // Thresholds only at the call site: the colour function above is already in normalized metres.
+  for(const expression of [
+    `smoothstep(${f(S.shallowEndM-S.colorBlendM/2)},${f(S.shallowEndM+S.colorBlendM/2)},landDistance)`,
+    `smoothstep(${f(S.middleEndM)},${f(S.deepEndM)},landDistance)`,
+    `smoothstep(${f(S.middleEndM)},${f(S.deepEndM)},sea2Distance)`
+  ])fragment=fragment.replaceAll(expression,expression.replace(/,landDistance\)|,sea2Distance\)/,m=>m.replace(')', '/uSurfScale)')));
   return fragment;
 }
