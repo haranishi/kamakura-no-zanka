@@ -11,7 +11,11 @@ export const PEOPLE_CLIPS = Object.freeze(['Casual_Walk', 'CMU_Run', 'Stand_and_
 // Metres / counts / ratios: controls for road groups and dry beach workers.
 export const FLIGHT = Object.freeze({
   fade: 12, // m at each endpoint, shrink before wrapping.
-  priority: 6, // people, reserved inside the existing near-person cap.
+  priority: 6, // people, walking-mode reserved slots inside the existing near-person cap.
+  flyMax: 8, flyRange: 45, // people / m, nearest skeletons by 3D camera distance in flight.
+  groupsMax: 24, sizeMax: 6, // counts, optional flight metadata limits.
+  childScale: .6, childSide: .6, childAhead: .15, familyGap: .5, // adult ratio / m, child beside its guardian and family clearance.
+  familyEvery: 4, carryCycle: 12, // groups per family / adults per deterministic accessory cycle.
   gapMin: 1, gapMax: 2.5, // m along the road between group members.
   side: .8, edge: .25, // m lateral spread and clearance from the road edge.
   jitter: .12, // fraction of group spacing, deterministic group displacement.
@@ -22,8 +26,8 @@ export const flightEnabled = (search = '') => new URLSearchParams(search).get('f
 export function validateFlight(value) {
   if (value === undefined || value === null) return null;
   if (!value || typeof value !== 'object' || Array.isArray(value) || typeof value.road !== 'string' || !value.road.trim() ||
-      !Number.isInteger(value.groups) || value.groups < 1 || value.groups > 12 ||
-      !Array.isArray(value.size) || value.size.length !== 2 || !Array.from(value.size).every(n => Number.isInteger(n) && n >= 1 && n <= 5) ||
+      !Number.isInteger(value.groups) || value.groups < 1 || value.groups > FLIGHT.groupsMax ||
+      !Array.isArray(value.size) || value.size.length !== 2 || !Array.from(value.size).every(n => Number.isInteger(n) && n >= 1 && n <= FLIGHT.sizeMax) ||
       value.size[0] > value.size[1] || !Number.isFinite(value.speed) || value.speed < .4 || value.speed > 1.6) throw new Error('道を行く人の指定が不正です');
   return value;
 }
@@ -39,6 +43,7 @@ export function prepareFlight(context) {
   }
   if (!(length > 0)) return [];
   const spots = [], spacing = length / config.groups, width = Math.max(0, (path.width_m || 1) / 2 - FLIGHT.edge);
+  let adult = 0;
   for (let g = 0; g < config.groups; g++) {
     const size = config.size[0] + Math.floor(peopleHash(g, length, 201) * (config.size[1] - config.size[0] + 1));
     const gap = FLIGHT.gapMin + (FLIGHT.gapMax - FLIGHT.gapMin) * peopleHash(g, length, 202);
@@ -47,7 +52,18 @@ export function prepareFlight(context) {
       const p = spot('traveller', route[0].x, route[0].z, 0, `flight-${g}`);
       Object.assign(p, { id: `flight-${g}-${m}`, route, length, speed: config.speed,
         s0: start + (m - (size - 1) / 2) * gap, side: (peopleHash(g, m, 204) * 2 - 1) * Math.min(FLIGHT.side, width),
-        staff: spots.length % 3 === 0, flight: true, alpha: 1 });
+        flight: true, alpha: 1 });
+      p.child = g % FLIGHT.familyEvery === 0 && size > 1 && m === size - 1;
+      if (p.child) {
+        const guardian = spots[spots.length - m];
+        p.guardian = guardian.id; p.s0 = guardian.s0 + FLIGHT.childAhead;
+        p.side = Math.max(-width, Math.min(width, guardian.side + (guardian.side > 0 ? -1 : 1) * FLIGHT.childSide));
+        p.who = 'child'; p.scale = FLIGHT.childScale; p.carry = 'none';
+      } else {
+        const accessory = adult++ % FLIGHT.carryCycle;
+        p.carry = accessory < 6 ? 'pack' : accessory < 8 ? 'pole' : accessory < 11 ? 'staff' : 'none';
+      }
+      p.staff = p.carry === 'staff'; p.pole = p.carry === 'pole';
       // Seed traits with identity, not a shared start point or a time-dependent coordinate.
       p.phase = peopleHash(g, m, 205) * PEOPLE.cooldown;
       p.variant = spots.length % 5; sampleFlight(p, 0, context.terrain, p); spots.push(p);
@@ -68,14 +84,16 @@ export function sampleFlight(p, time, terrain, out) {
   out.alpha = Math.max(0, Math.min(1, s / FLIGHT.fade, (p.length - s) / FLIGHT.fade));
   return out;
 }
+export function flightDistance(p, pos, flying) { return Math.hypot(p.x - pos.x, flying ? p.y - pos.y : 0, p.z - pos.z); }
 export function selectFlightPeople(spots, pos, quality, step, out, flying = false) {
-  out.fill(-1); if (flying) return 0;
-  const limit = Math.min(out.length, FLIGHT.priority, peopleLimit(quality, step)), range = quality === 'light' ? PEOPLE.lightRange : PEOPLE.range;
+  out.fill(-1);
+  const limit = Math.min(out.length, flying ? FLIGHT.flyMax : FLIGHT.priority, peopleLimit(quality, step));
+  const range = flying ? FLIGHT.flyRange : quality === 'light' ? PEOPLE.lightRange : PEOPLE.range;
   let count = 0;
   for (let i = 0; i < spots.length; i++) {
     const p = spots[i]; if (!p.flight || !p.alpha) continue;
-    const d = Math.hypot(p.x - pos.x, p.z - pos.z); if (d >= range) continue;
-    let k = 0; while (k < count && Math.hypot(spots[out[k]].x - pos.x, spots[out[k]].z - pos.z) <= d) k++;
+    const d = flightDistance(p, pos, flying); if (d > range) continue;
+    let k = 0; while (k < count && flightDistance(spots[out[k]], pos, flying) <= d) k++;
     if (k >= limit) continue;
     for (let j = Math.min(count, limit - 1); j > k; j--) out[j] = out[j - 1];
     out[k] = i; count = Math.min(limit, count + 1);
@@ -345,12 +363,12 @@ function routeAt(s, site) {
   s.yaw = face((b.x - a.x) * s.direction, (b.z - a.z) * s.direction); return true;
 }
 // All state and scratch space is owned by the caller. time is the layer's paused simulation clock.
-export function stepPerson(s, hero, drawn, time, dt, site) {
+export function stepPerson(s, hero, drawn, time, dt, site, avoidHero = true) {
   if (s.spot.flight) {
     sampleFlight(s.spot, time, site.terrain, s);
     s.anchorX = s.x; s.anchorZ = s.z; s.clip = 'Casual_Walk'; s.clipAge += dt;
     // The existing collision projection gives the hero priority without changing the shared route clock.
-    avoidPerson(s, hero.x, hero.z, PEOPLE.heroGap, site); return;
+    if (avoidHero) avoidPerson(s, hero.x, hero.z, PEOPLE.heroGap, site); return;
   }
   const p = s.spot, role = p.role, dx = hero.x - s.x, dz = hero.z - s.z, distance = Math.hypot(dx, dz), seated = role === 'sitter' || role === 'farmer';
   s.clipAge += dt; s.reacting = Math.max(0, s.reacting - dt); s.head = 0;

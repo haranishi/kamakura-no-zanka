@@ -8,7 +8,7 @@ import { performance } from 'node:perf_hooks';
 import * as THREE from '../dist/vendor/three.module.min.js';
 import { PEOPLE, PEOPLE_ROLES, preparePeople, peopleAmount, prepareFlight, sampleFlight } from '../dist/valley/kamakura-people.js';
 import { CROWD, crowdEnabled, crowdTraits, crowdShape, crowdPlacementBatches, createCrowdSelection, selectCrowd,
-  crowdScale, crowdRange, crowdLimit, crowdNear, crowdMotion, travellerTraits, TRAVELLER } from '../dist/valley/kamakura-crowd.js';
+  crowdGait, crowdScale, crowdRange, crowdLimit, crowdNear, crowdMotion, travellerTraits, TRAVELLER } from '../dist/valley/kamakura-crowd.js';
 import { createKamakuraCrowd, CROWD_VERTEX_PARS, CROWD_VERTEX_STATE, CROWD_VERTEX_NORMAL, CROWD_VERTEX_POSITION, CROWD_SHADOW_PARS, CROWD_SHADOW_POSITION } from '../dist/valley/kamakura-crowd-view.js';
 import { readPrivateData } from '../tools/lib/kamakura-validation.mjs';
 import { readPrivateHouses } from '../tools/lib/kamakura-house-validation.mjs';
@@ -78,20 +78,24 @@ test('quality and adaptation reduce distances/counts; step 3 does no scan',()=>{
 test('shape budget, finite unit normals, outward faces, adult/child/seated/bent heights',t=>{
   let triangles=0;
   for(const role of PEOPLE_ROLES)for(const head of [0,1,2]) {
-    const shape=crowdShape(role,head);triangles=shape.triangles;assert(triangles<=90);assert.equal(shape.parts.length,triangles*3);
+    const shape=crowdShape(role,head);triangles=shape.triangles;assert(triangles<=180);assert.equal(shape.parts.length,triangles*3);
     let min=Infinity,max=-Infinity;
     for(let i=0;i<shape.positions.length;i+=3){assert(Math.abs(Math.hypot(...shape.normals.subarray(i,i+3))-1)<1e-6);min=Math.min(min,shape.positions[i+1]);max=Math.max(max,shape.positions[i+1]);}
     assert.equal(min,0);assert(Math.abs(max-(role==='sitter'?CROWD.sitter:role==='farmer'?CROWD.hip+(1-CROWD.hip)*CROWD.farmerBend:1))<1e-6);
     if(role==='chat') {
       // Frustum bottom/top point outward; bad winding makes the hat/body vanish with front-face culling.
-      assert(shape.normals[2]<0); assert(shape.normals[18]>0); // front faces north, right side faces east.
-      const topNormal=shape.normals.subarray(24*3,24*3+3);assert(topNormal[1]>.99);
+      for(let i=0;i<shape.parts.length;i+=3) {
+        const x=(shape.positions[i*3]+shape.positions[(i+1)*3]+shape.positions[(i+2)*3])/3;
+        const z=(shape.positions[i*3+2]+shape.positions[(i+1)*3+2]+shape.positions[(i+2)*3+2])/3;
+        if(shape.joints[i]===0 && shape.parts[i]===0)assert(x*shape.normals[i*3]+z*shape.normals[i*3+2]>=-1e-6,'torso faces outward');
+      }
+      assert(Array.from(shape.normals).some((v,i)=>i%3===1&&v>.99),'top cap faces up');
     }
   }
   const adult=crowdTraits({x:1,z:1,role:'chat'}),child=crowdTraits({x:1,z:1,role:'child'});
   assert.equal(adult.height,child.height);assert(child.height*CROWD.child<1.2);
   assert(CROWD.heightMin*CROWD.sitter>.8&&CROWD.heightMax*CROWD.sitter<1);
-  t.diagnostic(`triangles/body ${triangles}; ${CROWD.max} bodies = ${triangles*CROWD.max} triangles, one geometry/material`);
+  t.diagnostic(`triangles/body ${triangles}; ${CROWD.max} detailed bodies = ${triangles*CROWD.max} triangles; two distance batches share one material`);
 });
 
 test('walkers turn on the return, move at specified speed/amplitude, slope and bob remain bounded; other roles static',()=>{
@@ -107,10 +111,10 @@ test('with a sun the figures lay flat shadows: the same instances drawn once mor
   const c={...world(),scene:new THREE.Scene(),camera:new THREE.PerspectiveCamera(),sunDir:new THREE.Vector3(-.8,.37,.47)};c.camera.position.set(0,2,0);
   const layer=createKamakuraCrowd(c),frame={dt:1/60,pos:{x:0,y:0,z:0},camera:c.camera};
   for(let i=0;i<2000&&!globalThis.__kzCrowd().ready;i++)layer.update(frame);layer.update(frame);
-  const [body,shadow]=c.scene.children;assert.equal(c.scene.children.length,2);assert.equal(body.name,'kamakura-crowd');assert.equal(shadow.name,'kamakura-crowd-shadow');
+  const [body,shadow]=c.scene.children;assert.equal(c.scene.children.length,4);assert.equal(body.name,'kamakura-crowd');assert.equal(shadow.name,'kamakura-crowd-shadow');
   assert.equal(shadow.geometry,body.geometry,'one set of instances');assert(shadow.material.isMeshBasicMaterial&&shadow.material.transparent&&!shadow.material.depthWrite&&shadow.material.fog);
   assert.equal(shadow.material.opacity,CROWD.shadow);assert(!shadow.castShadow&&!shadow.receiveShadow);assert(body.visible&&shadow.visible);
-  const snap=globalThis.__kzCrowd();assert.equal(snap.draws,2);assert(snap.drawn>0);
+  const snap=globalThis.__kzCrowd();assert.equal(snap.draws,4);assert(snap.drawn>0);
   // The shadow program: the body's own posing and placement, then flattened along the sun.
   const shader={uniforms:{},vertexShader:THREE.ShaderLib.basic.vertexShader,fragmentShader:THREE.ShaderLib.basic.fragmentShader};shadow.material.onBeforeCompile(shader);
   for(const part of [CROWD_VERTEX_STATE,CROWD_VERTEX_POSITION,CROWD_SHADOW_POSITION,CROWD_SHADOW_PARS])assert(shader.vertexShader.includes(part));
@@ -138,8 +142,8 @@ test('disabled flags never touch world/scene; correct layer order; only debug ex
   const f=fixture('');assert.equal(globalThis.__kzCrowd,undefined);f.layer.dispose();
 });
 
-test('one draw, capped geometry, no shadows, Lambert/fog, 8m reselection, camera-height refresh, pause and idempotent dispose',t=>{
-  const f=fixture();f.settle();let snap=globalThis.__kzCrowd();assert(snap.drawn>0);assert.equal(snap.draws,1);assert(snap.triangles<=54000);
+test('two distance batches, capped geometry, no shadows, Lambert/fog, 8m reselection, camera-height refresh, pause and idempotent dispose',t=>{
+  const f=fixture();f.settle();let snap=globalThis.__kzCrowd();assert(snap.drawn>0);assert.equal(snap.draws,2);assert(snap.triangles<=CROWD.max*180);
   const mesh=f.c.scene.children[0];assert(mesh.material.isMeshLambertMaterial);assert(mesh.material.fog);assert(!mesh.castShadow&&!mesh.receiveShadow);assert.equal(mesh.geometry.groups.length,0);
   const initial=snap.work.selections,version=mesh.geometry.attributes.crowdAnchor.version;
   const saved=globalThis.Float32Array;globalThis.Float32Array=class extends saved{constructor(...args){super(...args);assert.fail('steady frame allocated a buffer');}};
@@ -177,13 +181,13 @@ test('debug uses role instance colours and shader triple height; all 21 instance
   f.layer.dispose();
 });
 
-test('synthetic crowded town reaches 600 bodies in one instance draw with small bounded buffers',t=>{
+test('synthetic crowded town reaches 600 bodies in two distance batches with bounded buffers',t=>{
   const f=fixture('?debug=1&people=3');f.settle();const s=globalThis.__kzCrowd(),mesh=f.c.scene.children[0],g=mesh.geometry;
-  assert.equal(s.drawn,CROWD.max);assert.equal(g.instanceCount,CROWD.max);assert.equal(s.draws,1);assert.equal(s.triangles,CROWD.max*crowdShape().triangles);
+  assert.equal(s.drawn,CROWD.max);assert.equal(f.c.scene.children.reduce((n,m)=>n+m.geometry.instanceCount,0),CROWD.max);assert.equal(s.draws,2);assert.equal(s.triangles,s.lod.reduce((n,l)=>n+l.count*l.triangles,0));assert(s.lod[1].triangles<s.lod[0].triangles);
   assert(g.isInstancedBufferGeometry);assert(!Array.isArray(mesh.material));assert.equal(g.groups.length,0);
   const staticBytes=Object.values(g.attributes).filter(a=>!a.isInstancedBufferAttribute).reduce((n,a)=>n+a.array.byteLength,0);
   const dynamicBytes=Object.values(g.attributes).filter(a=>a.isInstancedBufferAttribute).reduce((n,a)=>n+a.array.byteLength,0);
-  assert(dynamicBytes<=CROWD.max*14*4);assert(staticBytes<20000);
+  assert(dynamicBytes<=CROWD.max*16*4);assert(staticBytes<25000);
   t.diagnostic(`600 bodies: ${s.triangles} triangles, ${s.draws} draw, static ${staticBytes}B, dynamic ${dynamicBytes}B`);f.layer.dispose();
 });
 
@@ -195,7 +199,7 @@ test('traveller instances retain their identity pack colour through motion and n
   const shader={uniforms:{},vertexShader:THREE.ShaderLib.lambert.vertexShader};mesh.material.onBeforeCompile(shader);
   const u=shader.uniforms;
   assert.deepEqual(u.uCrowdTravellerStraw.value.toArray(),TRAVELLER.straw);assert.deepEqual(u.uCrowdWood.value.toArray(),TRAVELLER.wood);
-  assert(shader.vertexShader.includes('crowdPart > 2.5 && crowdPart < 3.5'));assert(shader.vertexShader.includes('crowdPart > 3.5) vColor = uCrowdWood'));
+  assert(shader.vertexShader.includes('crowdPart > 2.5 && crowdPart < 3.5'));assert(shader.vertexShader.includes('crowdPart < 4.5) vColor = uCrowdWood'));
   for(const time of [30,45,60])for(const flying of [true,false]) {
     frame.time=time;frame.flying=flying;layer.update(frame);
     for(const p of spots)sampleFlight(p,time,w.terrain,p);
@@ -205,6 +209,7 @@ test('traveller instances retain their identity pack colour through motion and n
       const packIndex=g.attributes.crowdPerson.getZ(i);assert.equal(packIndex,travellerTraits(p).packCloth);
       const color=u['uCrowdPack'+packIndex].value;
       assert.equal(color.getHex(),CROWD.clothes[travellerTraits(p).packCloth]);assert.notEqual(color.getHex(),CROWD.clothes[p.variant]);
+      assert(Math.abs(g.attributes.crowdPackGain.getX(i)-travellerTraits(p).packGain)<1e-6);
       assert(!color.equals(u.uCrowdTravellerStraw.value)&&!color.equals(u.uCrowdWood.value));
       assert(!u.uCrowdTravellerStraw.value.equals(u.uCrowdWood.value));
     }
@@ -241,9 +246,11 @@ test('GLSL compiler checks actual injected movement, fade, normal rotation and a
       '\nout vec3 vColor;\nvoid main(){\nvColor=vec3(1.0);\n'+CROWD_VERTEX_STATE+'\nvec3 objectNormal=normal;\n'+CROWD_VERTEX_NORMAL+'\nvec3 transformed=position;\n'+CROWD_VERTEX_POSITION+'\ngl_Position=vec4(transformed+objectNormal*0.001,1.0);\n}';
     const file=path.join(dir,'crowd.vert');fs.writeFileSync(file,code);const args=['--target-env=opengl','-fauto-bind-uniforms','-fauto-map-locations',file,'-o',path.join(dir,'crowd.spv')];
     let result=spawnSync('glslc',args,{encoding:'utf8'});assert.equal(result.status,0,result.stderr);
+    fs.writeFileSync(file,code.replace(CROWD_VERTEX_PARS,CROWD_VERTEX_PARS+CROWD_SHADOW_PARS).replace(CROWD_VERTEX_POSITION,CROWD_VERTEX_POSITION+CROWD_SHADOW_POSITION));
+    result=spawnSync('glslc',args,{encoding:'utf8'});assert.equal(result.status,0,result.stderr);
     fs.writeFileSync(file,code.replace('crowdTravel, crowdWalk.z','undeclaredCrowdTravel, crowdWalk.z'));
     result=spawnSync('glslc',args,{encoding:'utf8'});assert.notEqual(result.status,0,'compiler must catch undeclared names');
-    t.diagnostic('injected vertex shader compiled; undeclared-variable mutation rejected');
+    t.diagnostic('body and ground-shadow vertex shaders compiled; undeclared-variable mutation rejected');
   }finally{fs.rmSync(dir,{recursive:true,force:true});}
 });
 
@@ -260,6 +267,40 @@ test('private world only checks forbidden placements, finite geometry and caps; 
   const list=prepare(w),site=preparePeople(w).site,s=createCrowdSelection();
   for(const b of list){assert(site.ground(b.spot.x,b.spot.z),'private ground violation (values withheld)');assert(Number.isFinite(b.y)&&Number.isFinite(b.slope),'private nonfinite geometry');if(b.spot.role!=='walker')assert(!site.onRoad(b.spot.x,b.spot.z),'private road violation');}
   for(const b of list.slice(0,20))for(const q of ['standard','light'])for(const step of [0,2,3]) {
-    selectCrowd(list,b.spot,{x:b.spot.x,y:b.y+2,z:b.spot.z},q,step,s);assert(s.count<=crowdLimit(q,step));assert(s.count*crowdShape().triangles<=54000);
+    selectCrowd(list,b.spot,{x:b.spot.x,y:b.y+2,z:b.spot.z},q,step,s);assert(s.count<=crowdLimit(q,step));assert(s.count*crowdShape().triangles<=CROWD.max*180);
+  }
+});
+
+test('rounded limbs stay below the shoulders; shader gait separates feet without sinking, in both distance shapes',()=>{
+  const out={},left=[],right=[];
+  for(const simple of [false,true]) {
+    const s=crowdShape('traveller',1,true,simple);assert(s.triangles<=180);assert(s.joints.includes(1)&&s.joints.includes(2)&&s.joints.includes(3)&&s.joints.includes(4));
+    for(let phase=0;phase<Math.PI*2;phase+=Math.PI/16)for(let i=0;i<s.parts.length;i++) {
+      const x=s.positions[i*3],y=s.positions[i*3+1],z=s.positions[i*3+2],joint=s.joints[i];
+      crowdGait(x,y,z,joint,0,phase,true,out);
+      assert(out.y>=-1e-7,'no vertex below the ground over a whole step');
+      if(joint>=3){assert(y<=CROWD.shoulder+1e-6);assert(out.y<=CROWD.shoulder+1e-6);assert(Math.abs(x)>CROWD.torso[0],'sleeves are beside the torso');}
+      if(y===0 && joint===1 && phase===0)left.push(i);
+      if(y===0 && joint===2 && phase===0)right.push(i);
+    }
+    const mean=(indices,phase)=>indices.reduce((sum,i)=>sum+crowdGait(s.positions[i*3],0,s.positions[i*3+2],s.joints[i],0,phase,true,out).z,0)/indices.length;
+    assert(mean(left,Math.PI/2)-mean(right,Math.PI/2)>.2);assert(mean(left,Math.PI*1.5)-mean(right,Math.PI*1.5)<-.2);
+    const upper=crowdGait(0,1,0,0,0,0,true,out);assert(upper.z<0,'lean follows the local forward direction');
+    left.length=right.length=0;
+  }
+  assert(CROWD.sides>=6&&CROWD.sides<=8);
+  const detailed=crowdShape('traveller',1,true);assert(Array.from(detailed.parts).some((part,i)=>part===1&&Math.abs(detailed.positions[i*3+1]-CROWD.neck[5])<1e-6),'head sits on a visible neck above the shoulders');
+});
+
+test('evening cloth uses the existing palette with a linear shade multiplier; loads remain darker in every clothing variant',()=>{
+  for(const time of ['morning','evening','dusk']) {
+    const w={...world(),search:'?time='+time,scene:new THREE.Scene()},layer=createKamakuraCrowd(w);
+    const shader={uniforms:{},vertexShader:THREE.ShaderLib.lambert.vertexShader};w.scene.children[0].material.onBeforeCompile(shader);
+    assert.equal(shader.uniforms.uCrowdClothGain.value,time==='morning'?1:CROWD.duskGain);layer.dispose();
+  }
+  for(let variant=0;variant<5;variant++) {
+    const p={variant},t=travellerTraits(p),cloth=new THREE.Color(CROWD.clothes[variant]),pack=new THREE.Color(CROWD.clothes[t.packCloth]).multiplyScalar(t.packGain);
+    const light=c=>.2126*c.r+.7152*c.g+.0722*c.b;
+    assert(light(pack)<light(cloth));assert(Math.abs(light(pack)/light(cloth)-TRAVELLER.packShade)<1e-6 || t.packGain===1);
   }
 });

@@ -1,10 +1,12 @@
 // W2c-17a: a bounded pool of scenery people. Character/GLBs are loaded only after drawn frames.
+import { atmosphereOptions } from './kamakura-atmosphere.js';
 import * as THREE from '../vendor/three.module.min.js';
 import { PEOPLE, PEOPLE_ROLES, PEOPLE_CLIPS, peopleAmount, peopleLimit, peopleStride,
-  peoplePlacementBatches, createPersonState, resetPerson, stepPerson, avoidPerson, FLIGHT, sampleFlight, selectFlightPeople, flightEnabled } from './kamakura-people.js';
+  peoplePlacementBatches, createPersonState, resetPerson, stepPerson, avoidPerson, FLIGHT, sampleFlight, selectFlightPeople, flightEnabled, flightDistance } from './kamakura-people.js';
 
 import { CROWD, TRAVELLER, travellerTraits } from './kamakura-crowd.js';
 
+const EVENING = Object.freeze(['evening','dusk']);
 const WHO = ['villager_m', 'villager_f', 'child'];
 const COLOURS = [0x18d9ff, 0xff38a0, 0xffe02b, 0x65ff25, 0xac54ff, 0xff701c, 0xeeeeee];
 const DEPS = () => import('./characters.js');
@@ -54,10 +56,10 @@ export function travellerBindings(ch) {
 
 // Each piece has a rigid weight on a mount under its real bone. One ordinary skinned draw
 // preserves head/torso/hand motion and the standard Three.js shadow pass without custom GLSL.
-export function createTravellerEquipment(ch, p, bindings = travellerBindings(ch)) {
+export function createTravellerEquipment(ch, p, bindings = travellerBindings(ch), clothGain = 1) {
   const C = TRAVELLER, traits = travellerTraits(p), positions = [], colors = [], skin = [], weights = [], mounts = [], inverses = [], parts = [];
   const straw = new THREE.Color().fromArray(C.straw), wood = new THREE.Color().fromArray(C.wood);
-  const cloth = new THREE.Color(CROWD.clothes[traits.packCloth]);
+  const cloth = new THREE.Color(CROWD.clothes[traits.packCloth]).multiplyScalar(traits.packGain * clothGain);
   function append(geometry, binding, color, shade) {
     const flat = geometry.index ? geometry.toNonIndexed() : geometry;
     const a = flat.attributes.position, point = new THREE.Vector3(), index = mounts.length;
@@ -91,6 +93,12 @@ export function createTravellerEquipment(ch, p, bindings = travellerBindings(ch)
       const geometry = new THREE.BufferGeometry(); geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
       append(geometry, binding, straw, (a, i) => (a.getY(i) === 0 ? C.hatRim : 1) * (1 - (Math.floor(i / 12) % 2) * C.hatRib));
     } else if (binding.part === 'pack') {
+      if (p.pole) {
+        const geometry = new THREE.CylinderGeometry(C.poleRadius,C.poleRadius,C.poleLength,C.staffSides);
+        geometry.rotateZ(Math.PI / 2); geometry.translate(0,C.poleHeight * (CROWD.heightMin+CROWD.heightMax)/2 - binding.anchor.elements[13],0);
+        append(geometry,{...binding,part:'pole'},cloth); continue;
+      }
+      if (p.carry !== undefined && p.carry !== 'pack') continue;
       let geometry;
       if (traits.basket) {
         const v = [], w = C.packSize / 2, d = C.packDepth / 2, h = C.packHeight / 2, t = C.basketTaper, wall = C.basketWall;
@@ -148,20 +156,22 @@ export function createKamakuraPeople(context, dependencies = {}) {
   const range = context.quality === 'light' ? PEOPLE.lightRange : PEOPLE.range;
   const debug = new URLSearchParams(context.search).get('debug') === '1';
   const pillars = new URLSearchParams(context.search).get('peopledebug') === '1';
+  const clothGain=EVENING.includes(atmosphereOptions(context.search).time)?CROWD.duskGain:1;
   const loadModule = dependencies.loadModule || DEPS;
   const job = peoplePlacementBatches(context, amount), slots = [], chosen = new Int32Array(PEOPLE.max), distances = new Float64Array(PEOPLE.max);
-  const flightChosen = new Int32Array(FLIGHT.priority), movingSpots = [];
+  context.flightPeople = slots;
+  const flightChosen = new Int32Array(FLIGHT.flyMax), movingSpots = [];
   const roster = { templates: new Map(), meta: null }, viewProjection = new THREE.Matrix4(), projected = new THREE.Vector3();
   const playOptions = { fade: .25, restart: true, from: 0, timeScale: 1 };
   let Character, site, spots = [], ready = false, started = false, loaded = false, failed = false, disposed = false, paused = false, step = 0;
   let frames = 0, time = 0, routeTime = 0, centerX = Infinity, centerZ = Infinity, count = 0, nearby = 0, overlaps = 0, bows = 0, boneUpdates = 0;
   let lastX = context.hero?.pos.x || 0, lastZ = context.hero?.pos.z || 0, refresh = true, births = 0, removals = 0;
   let pillarGeometry = null, pillarMaterials = null, grace = 0, arrived = false, flying = false;
-  const camera = context.camera, viewer = {x:0,z:0};
+  const camera = context.camera, viewer = {x:0,y:0,z:0};
   const ownsDebug = () => {
     const byRole = Object.fromEntries(PEOPLE_ROLES.map(role => [role, 0])); let nearest = null;byRole.traveller=0;
     for (const slot of slots) if (slot.live) {
-      const s = slot.state, p = s.spot, dx = s.x - lastX, dz = s.z - lastZ, distance = Math.hypot(dx, dz);
+      const s = slot.state, p = s.spot, dx = s.x - (flying?viewer.x:lastX), dz = s.z - (flying?viewer.z:lastZ), distance = flying ? flightDistance({x:s.x,y:context.terrain.heightAt(s.x,s.z),z:s.z},viewer,true) : Math.hypot(dx, dz);
       byRole[p.role]++;
       if (!nearest || distance < nearest.distance) nearest = { role: p.role, who: p.who, distance, bearing: (Math.atan2(dx, -dz) * 180 / Math.PI + 360) % 360 };
     }
@@ -217,7 +227,7 @@ export function createKamakuraPeople(context, dependencies = {}) {
   }
   // Parent (real Chrome): with only "far or off screen", the town in front of the player stayed empty after loading or after a
   // jump to another place, until the player turned round. For a short while after arriving, people may appear anywhere.
-  function safeChange(x, z) { return grace > 0 || Math.hypot(x - lastX, z - lastZ) > 55 || offscreen(x, z); }
+  function safeChange(x, z) { return flying && movingSpots.length > 0 || grace > 0 || Math.hypot(x - lastX, z - lastZ) > 55 || offscreen(x, z); }
   function makeSlot(who) {
     const ch = new Character(roster, who, { style: 'villager' }), meshes = [];
     ch.model.traverse(o => { if (o.isMesh) { meshes.push(o); o.castShadow = false; } });
@@ -238,10 +248,10 @@ export function createKamakuraPeople(context, dependencies = {}) {
   function selection() {
     chosen.fill(-1); distances.fill(Infinity); nearby = 0;
     const reserved = selectFlightPeople(spots, viewer, context.quality, step, flightChosen, flying);
-    for(let k=0;k<reserved;k++) {chosen[k]=flightChosen[k];distances[k]=Math.hypot(spots[chosen[k]].x-lastX,spots[chosen[k]].z-lastZ);}
+    for(let k=0;k<reserved;k++) {chosen[k]=flightChosen[k];distances[k]=flightDistance(spots[chosen[k]],viewer,flying);}
     const limit = peopleLimit(context.quality, step);
     for (let i = 0; i < spots.length; i++) {
-      const p = spots[i];if(p.flight)continue;const d = Math.hypot(p.x - lastX, p.z - lastZ);
+      const p = spots[i];if(p.flight || flying && movingSpots.length)continue;const d = Math.hypot(p.x - lastX, p.z - lastZ);
       if (d > range) continue; nearby++;
       for (let k = reserved; k < limit; k++) if (d < distances[k]) {
         for (let j = limit - 1; j > k; j--) { distances[j] = distances[j - 1]; chosen[j] = chosen[j - 1]; }
@@ -257,7 +267,7 @@ export function createKamakuraPeople(context, dependencies = {}) {
   }
   function equip(slot, p) {
     releaseTravellerEquipment(slot.equipment);
-    slot.equipment = p.flight ? createTravellerEquipment(slot.ch, p, slot.bindings) : null;
+    slot.equipment = p.flight ? createTravellerEquipment(slot.ch, p, slot.bindings, clothGain) : null;
   }
   function populate() {
     const limit = peopleLimit(context.quality, step); if (count >= limit) return;
@@ -292,7 +302,9 @@ export function createKamakuraPeople(context, dependencies = {}) {
     if(flying!==!!frame.flying){flying=!!frame.flying;refresh=true;}
     frames++; if (!started && frames >= 2) { started = true; void beginLoad(); }
     if (arrived && Math.hypot(frame.pos.x - lastX, frame.pos.z - lastZ) > PEOPLE.jump) { grace = PEOPLE.grace; refresh = true; }
-    lastX = frame.pos.x; lastZ = frame.pos.z;viewer.x=lastX;viewer.z=lastZ;
+    lastX = frame.pos.x; lastZ = frame.pos.z;
+    const eye=frame.camera?.position || camera?.position || frame.pos;
+    viewer.x=flying?eye.x:lastX;viewer.y=eye.y;viewer.z=flying?eye.z:lastZ;
     if (!ready) {
       // Placement is deterministic; yielding changes only preparation time, never the result.
       // Parent (real Chrome): at 32 steps a frame the 60,000 steps of the whole map took half a minute, and the town stayed empty
@@ -320,17 +332,20 @@ export function createKamakuraPeople(context, dependencies = {}) {
     populate(); bows = 0;
     for (const slot of slots) if (slot.live) {
       const s = slot.state;
-      stepPerson(s, frame.hero?.pos || context.hero.pos, !!context.hero.drawn, s.spot.flight ? routeTime : time, dt, site);
+      stepPerson(s, frame.hero?.pos || context.hero.pos, !!context.hero.drawn, s.spot.flight ? routeTime : time, dt, site, !flying);
     }
     // Several bounded passes for chains of neighbours; a final hero projection protects the main character.
     for (let pass = 0; pass < 3; pass++) for (let i = 0; i < slots.length; i++) {
       const a = slots[i]; if (!a.live) continue;
-      for (let j = 0; j < i; j++) if (slots[j].live) avoidPerson(a.state, slots[j].state.x, slots[j].state.z, PEOPLE.gap, site);
+      for (let j = 0; j < i; j++) if (slots[j].live && !(flying && a.state.spot.flight && slots[j].state.spot.flight)) {
+        const b=slots[j].state,related=a.state.spot.guardian===b.spot.id || b.spot.guardian===a.state.spot.id;
+        avoidPerson(a.state,b.x,b.z,related?FLIGHT.familyGap:PEOPLE.gap,site);
+      }
       if (!frame.flying) avoidPerson(a.state, context.hero.pos.x, context.hero.pos.z, PEOPLE.heroGap, site);
     }
     let overlapThisFrame = false;
     for (const slot of slots) if (slot.live) {
-      const s = slot.state, p = s.spot, ch = slot.ch, d = Math.hypot(s.x - lastX, s.z - lastZ); slot.age += dt;
+      const s = slot.state, p = s.spot, ch = slot.ch, d = p.flight ? flightDistance(p,viewer,flying) : Math.hypot(s.x - lastX, s.z - lastZ); slot.age += dt;
       if (!frame.flying && Math.hypot(s.x - context.hero.pos.x, s.z - context.hero.pos.z) < PEOPLE.heroGap - 1e-5) overlapThisFrame = true;
       if (s.reacting > 0 && s.clip === 'Formal_Bow') bows++;
       ch.legs?.undo();
@@ -350,9 +365,9 @@ export function createKamakuraPeople(context, dependencies = {}) {
         if (slot.head && s.head) { slot.headQ.copy(slot.head.quaternion); slot.head.rotation.y += s.head; slot.headApplied = true; }
       }
       ch.root.position.set(s.x, context.terrain.heightAt(s.x, s.z), s.z); ch.root.rotation.y = s.yaw + Math.PI;
-      // Beyond 55m, fade size across the far ten metres and over the first half second.
-      const fade = Math.max(0, Math.min(1, (range - d) / PEOPLE.fade));
-      ch.root.scale.setScalar(p.scale * fade * (p.flight?p.alpha:1) * (slot.bornFar ? Math.min(1, slot.age * 2) : 1));
+      // Complement the silhouette over the final 10m of the active skeleton range.
+      const fade = Math.max(0, Math.min(1, ((p.flight && flying ? FLIGHT.flyRange : range) - d) / PEOPLE.fade));
+      ch.root.scale.setScalar((p.flight ? (CROWD.heightMin+CROWD.heightMax)/2 * (p.child?FLIGHT.childScale:1)/ch.height : p.scale) * fade * (p.flight?p.alpha:1) * (slot.bornFar ? Math.min(1, slot.age * 2) : 1));
       if(p.flight && ch.legs) {
         ch.locoName=s.clip;ch.gait='walk';ch.root.updateMatrixWorld(true);
         ch.legs.apply(dt,context.terrain,true);
@@ -373,6 +388,7 @@ export function createKamakuraPeople(context, dependencies = {}) {
     debugText() { return disposed || failed ? '' : `人 ${count}/${nearby} 礼${bows}`; },
     dispose() {
       if (disposed) return; disposed = true; job.return(); close();
+      if (context.flightPeople === slots) delete context.flightPeople;
       if (globalThis.__kzPeople === ownsDebug) delete globalThis.__kzPeople;
     },
   };
