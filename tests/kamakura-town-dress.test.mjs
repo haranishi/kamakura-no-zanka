@@ -59,13 +59,16 @@ test('D4 deterministic proportions, all three fences and side returns, with open
   for(const f of r.items)if(C.fenceHeights[f.kind]){if(!seen.has(f.plot)){seen.add(f.plot);counts[c.data.townPlots[f.plot].state]++;}}
   for(const [state,rate]of Object.entries({house:C.houseFence,garden:C.gardenFence,burnt:C.otherFence,repair:C.otherFence}))assert(Math.abs(counts[state]/800-rate)<.055);
   for(const [kind,rate]of Object.entries({bamboo:.6,board:.25,log:.15}))assert(Math.abs(r.fences.byKind[kind]/r.fences.plots-rate)<.06);
-  const returns=r.items.filter(p=>C.fenceHeights[p.kind]&&Math.abs(p.yaw-.4)>1);
-  assert(Math.abs(returns.length/r.fences.plots-C.sideRate)<.06);
+  const legacy=r.items.filter(p=>C.fenceHeights[p.kind]&&p.mode==='front'),legacyPlots=new Set(legacy.map(p=>p.plot));
+  const returns=legacy.filter(p=>p.edge==='side');
+  assert(Math.abs(new Set(returns.map(p=>p.plot)).size/legacyPlots.size-C.sideRate)<.06);
+  assert(Math.abs(r.fences.enclosed/3200-(C.enclosed+C.gardenFence*C.gardenEnclosed)/4)<.03);
+  assert(Math.abs(r.fences.half/800-C.half)<.055);
   for(const id of seen){
-    const front=r.items.filter(p=>p.plot===id&&C.fenceHeights[p.kind]&&Math.abs(p.yaw-.4)<1e-8);
-    assert.equal(front.length,2);const plot=c.data.townPlots[id];
+    const front=r.items.filter(p=>p.plot===id&&C.fenceHeights[p.kind]&&p.edge==='front');
+    assert(front.length>=2);const plot=c.data.townPlots[id];
     const ends=front.map(p=>({lo:(p.x-plot.x)*Math.cos(.4)-(p.z-plot.z)*Math.sin(.4)-p.w/2,hi:(p.x-plot.x)*Math.cos(.4)-(p.z-plot.z)*Math.sin(.4)+p.w/2})).sort((a,b)=>a.lo-b.lo);
-    assert(Math.abs(ends[1].lo-ends[0].hi-C.gate)<1e-8);
+    const gaps=ends.slice(1).map((p,i)=>p.lo-ends[i].hi).filter(g=>g>1e-7);assert.equal(gaps.length,1);assert(Math.abs(gaps[0]-C.gate)<1e-8);
   }
   assert.equal(r.boxes.length,r.fences.segments);
 });
@@ -191,7 +194,12 @@ test('private data: no exceptions, submission caps and no fence crossing of any 
   for(const box of r.boxes){assert(c.terrain.walkable(box.x,box.z));for(const lane of Object.values(data.lanes||{}))for(let j=1;j<lane.xyz_m.length;j++){const a={x:lane.xyz_m[j-1][0],z:-lane.xyz_m[j-1][1]},b={x:lane.xyz_m[j][0],z:-lane.xyz_m[j][1]};assert(!houseIntersects(box,a,b,C.laneWidth/2));}}
   const houseBoxes=data.houses.instances.map(p=>houseBox(data.houses.kinds.get(p.kind),p.matrix));
   for(const p of r.items)if(p.kind==='tent')for(const b of houseBoxes)assert(!townBoxesOverlap({...p,rotY:p.yaw},b,0));
+  for(const p of r.items)if(C.fenceHeights[p.kind]){
+    const c=Math.cos(p.yaw),s=Math.sin(p.yaw),a={x:p.x-c*p.w/2,z:p.z+s*p.w/2},b={x:p.x+c*p.w/2,z:p.z-s*p.w/2};
+    for(const h of houseBoxes){if(Math.hypot(h.x-p.x,h.z-p.z)>(Math.hypot(h.w,h.d)+p.w)/2+C.houseClearance+C.fenceDepth)continue;assert(!houseIntersects(h,a,b,C.houseClearance+C.fenceDepth/2-1e-6));}
+  }
   const v=createKamakuraTownDress(c);c.camera.position.set(data.townPlots[0].x,20,data.townPlots[0].z);const f=complete(v,c);const walk=globalThis.__kzTownDress();c.camera.position.y+=700;v.update(f);const fly=globalThis.__kzTownDress();
   for(const s of [walk,fly]){assert(s.drawn.nearTriangles<=C.nearTriangles);assert(s.drawn.farTriangles<=C.farTriangles);assert(s.drawn.draws<=C.draws);}
-  t.diagnostic(JSON.stringify({placementMs:ms,plots:r.plots,fences:r.fences,tents:r.tents,skipped:r.skipped,work:r.work,walk:walk.drawn,fly:fly.drawn}));v.dispose();
+  const housePlots=data.townPlots.filter(p=>p.state==='house').length,houseFence=r.items.filter(p=>p.mode&&data.townPlots[p.plot].state==='house');
+  t.diagnostic(JSON.stringify({placementMs:ms,enclosedHouseRatio:new Set(houseFence.filter(p=>p.mode==='enclosed').map(p=>p.plot)).size/housePlots,halfHouseRatio:new Set(houseFence.filter(p=>p.mode==='half').map(p=>p.plot)).size/housePlots,fenceSegments:r.fences.segments,skipped:r.skipped,work:{probes:r.work.probes,segments:r.work.segments},walk:walk.drawn,fly:fly.drawn}));v.dispose();
 });

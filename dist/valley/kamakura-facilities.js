@@ -5,6 +5,8 @@ export const FACILITY_FAR = Object.freeze({
   wallRange: 2500 // metres: flying fence range.
 });
 export const FACILITY_PARTS = ['hall', 'romon', 'gate', 'torii', 'buddha', 'fence', 'kairo', 'causeway', 'stairs', 'jetty', 'sando', 'platform', 'nagayamon'];
+export const FACILITY_RUINS = Object.freeze(['burnt']);
+export const ruinsEnabled = search => new URLSearchParams(search).get('ruins') !== '0';
 const softParts = new Set(['fence', 'kairo', 'causeway', 'stairs', 'jetty', 'sando', 'platform']);
 export const facilitiesEnabled = search => new URLSearchParams(search).get('facilities') !== '0';
 export function decodeFacilities(catalog) {
@@ -20,7 +22,8 @@ export function decodeFacilities(catalog) {
         !(typeof n.status === 'string' || n.status === null) ||
         !Number.isInteger(n.triangles) || n.triangles <= 0 || !Number.isFinite(n.rel_anchor) ||
         ![n.anchor_xz, n.bbox_min, n.bbox_max].every((a,i) => Array.isArray(a) && a.length === (i ? 3 : 2) && a.every(Number.isFinite)) ||
-        n.bbox_min.some((v,i) => v > n.bbox_max[i])) fail();
+        n.bbox_min.some((v,i) => v > n.bbox_max[i]) ||
+        (n.ruin !== undefined && (n.part !== 'hall' || !FACILITY_RUINS.includes(n.ruin)))) fail();
     names.add(n.node); counts[n.part] = (counts[n.part] || 0) + 1; triangles += n.triangles;
   }
   if (triangles !== catalog.total_triangles || Object.keys(catalog.parts).some(k => !FACILITY_PARTS.includes(k)) ||
@@ -113,4 +116,4 @@ export function enclosingBuddhaHalls(records) {
   return result;
 }
 // Re-export the pure layout so the facility loader and add-on layer share one plan.
-export { prepareRuinHall, RUIN_HALL } from './kamakura-ruin-hall.js';
+export { prepareRuinHall, prepareBurntHall, RUIN_HALL } from './kamakura-ruin-hall.js';

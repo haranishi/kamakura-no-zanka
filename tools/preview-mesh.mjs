@@ -2,6 +2,7 @@
 // API: previewMesh({positions,normals,indices,uvs,colors|roles|surfaces}, {view,colors,width,height,uv}).
 // CLI: node tools/preview-mesh.mjs --demo /absolute/output/directory [debug] [uv]
 //      node tools/preview-mesh.mjs input.json output.svg
+//      node tools/preview-mesh.mjs --townlife /absolute/output/directory
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -140,8 +141,57 @@ export async function writePrivatePreviews(directory,worldDirectory) {
     await fs.writeFile(path.join(directory,name+'.svg'),`<svg xmlns="http://www.w3.org/2000/svg" width="${PREVIEW.width*4}" height="${PREVIEW.height}">${panels.join('')}</svg>`);
   }
 }
+// Townlife review sheets use synthetic plots/footprints only; the same placement and mesh functions as the game.
+export async function writeTownlifePreviews(directory) {
+  const {prepareTownDress,TOWN_DRESS}=await import('../dist/valley/kamakura-town-dress.js');
+  const {townDressGeometry,dressPalette}=await import('../dist/valley/kamakura-town-dress-kit.js');
+  const {prepareBurntHall,ruinHallGeometry}=await import('../dist/valley/kamakura-ruin-hall.js');
+  await fs.mkdir(directory,{recursive:true});
+  const terrain={heightAt:()=>0,waterAt:()=>0,walkable:()=>true};
+  const townPlots=Array.from({length:160},(_,i)=>({x:i*16,z:14,yaw:0,width:16,depth:22,state:'house',lane:'lane'}));
+  const kinds=new Map([[0,{bbox_min:[-3,-4,0],bbox_max:[3,4,4]}]]);
+  const houses={kinds,instances:townPlots.map(p=>({kind:0,matrix:[-1,0,0,0,0,1,0,0,0,0,-1,0,p.x,0,p.z,1]}))};
+  const data={townPlots,houses,lanes:{lane:{width_m:3.2,xyz_m:[[-30,0,0],[2600,0,0]]}}};
+  const layout=prepareTownDress({data,terrain}),all=layout.items.filter(p=>TOWN_DRESS.fenceHeights[p.kind]);
+  const sheet=async(name,mesh)=>{
+    const panels=['top','oblique'].map((view,i)=>`<g transform="translate(${i*PREVIEW.width},0)">${previewMesh(mesh,{view})}</g>`);
+    await fs.writeFile(path.join(directory,name+'.svg'),`<svg xmlns="http://www.w3.org/2000/svg" width="${PREVIEW.width*2}" height="${PREVIEW.height}">${panels.join('')}</svg>`);
+  };
+  function plotMesh(ids){
+    const positions=[],colors=[],origin=townPlots[ids[0]].x;
+    for(const p of all.filter(p=>ids.includes(p.plot))){
+      const g=townDressGeometry(p.kind),v=g.attributes.position.array,col=g.attributes.color.array,c=Math.cos(p.yaw),s=Math.sin(p.yaw);
+      for(let i=0;i<v.length;i+=3){positions.push(p.x-origin+c*v[i]*p.w+s*v[i+2]*p.d,v[i+1],p.z-s*v[i]*p.w+c*v[i+2]*p.d);colors.push(col[i],col[i+1],col[i+2]);}g.dispose();
+    }
+    // The neutral house box and the low door marker make clearance and facade direction legible.
+    for(const id of ids){
+      const plot=townPlots[id],items=[{shape:'block',kind:'base',u:plot.x-origin,v:plot.z,y:0,w:6,h:3,d:8},
+        {shape:'block',kind:'base',u:plot.x-origin,v:plot.z-4.1,y:0,w:.9,h:1.8,d:.12}];
+      const g=ruinHallGeometry({items});for(let i=0;i<g.positions.length;i++)positions.push(g.positions[i]);
+      for(let i=0;i<g.positions.length/3;i++)colors.push(...(i<36?P.oldLime:P.oldWood));
+    }
+    return {positions:new Float32Array(positions),colors:new Float32Array(colors)};
+  }
+  for(const kind of ['bamboo','board','log']){
+    // Isolated plots allow all four edges to be inspected; shared edges get their own sheet below.
+    const isolated=prepareTownDress({data:{...data,townPlots:townPlots.map(p=>({...p,x:p.x*2})),houses:{kinds,instances:houses.instances.map(p=>({...p,matrix:p.matrix.map((v,i)=>i===12?v*2:v)}))},lanes:{lane:{width_m:3.2,xyz_m:[[-30,0,0],[5200,0,0]]}}},terrain});
+    const sample=isolated.items.find(p=>p.kind===kind&&p.mode==='enclosed'),id=sample.plot;
+    const saved=all.splice(0,all.length,...isolated.items.filter(p=>TOWN_DRESS.fenceHeights[p.kind]));
+    const old=townPlots[id].x;townPlots[id].x*=2;await sheet('fence-'+kind,plotMesh([id]));townPlots[id].x=old;all.splice(0,all.length,...saved);
+  }
+  let pair=null;for(let i=0;i<townPlots.length-1;i++)if(all.some(p=>p.plot===i&&p.mode==='enclosed')&&all.some(p=>p.plot===i+1&&p.mode==='enclosed')){pair=[i,i+1];break;}
+  await sheet('shared-boundary',plotMesh(pair));
+  const palette=dressPalette();
+  for(const [name,w,d,height] of [['burnt-large',40,32,18],['burnt-small',14,10,8]]){
+    const slope={...terrain,heightAt:(x,z)=>x*.02+z*.01};
+    const plan=prepareBurntHall({x:0,z:0,w,d,height,rotY:0},slope),g=ruinHallGeometry(plan),colors=[];
+    for(let i=0;i<g.kinds.length;i++){const pigment=({post:palette.char,beam:palette.char,ash:palette.ash,grass:palette.crop,base:palette.stone})[g.kinds[i]];colors.push(...pigment.map(v=>v*g.shades[i]));}
+    await sheet(name,{positions:g.positions,colors:new Float32Array(colors)});
+  }
+}
 if(process.argv[1]&&import.meta.url===pathToFileURL(process.argv[1]).href){
-  if(process.argv[2]==='--private')await writePrivatePreviews(process.argv[3],process.env.KZ_WORLD_DIR);
+  if(process.argv[2]==='--townlife')await writeTownlifePreviews(process.argv[3]);
+  else if(process.argv[2]==='--private')await writePrivatePreviews(process.argv[3],process.env.KZ_WORLD_DIR);
   else if(process.argv[2]==='--demo')await writeHousePreviews(process.argv[3],{debug:process.argv.includes('debug'),uv:process.argv.includes('uv')});
   else {const mesh=JSON.parse(await fs.readFile(process.argv[2],'utf8'));await fs.writeFile(process.argv[3],previewMesh(mesh));}
 }

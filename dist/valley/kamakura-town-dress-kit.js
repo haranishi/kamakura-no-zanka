@@ -21,7 +21,7 @@ export const DRESS_ART = Object.freeze({
   scaffoldHeight: 1.1, scaffoldTop: 2.2, scaffoldWidth: .08, ladderRungs: 6, // m / count: two-level scaffold and ladder
   ridgeSpacing: .9, cropHalfWidth: .2, cropGain: .85, cropGainStep: .075, stakeWidth: .04, stakeInset: .3, // m / ratios: garden row layout
   ridgeRows: 6, ridgeWidth: .6, ridgeHeight: .12, cropEvery: .5, cropLow: .18, cropHigh: .36, stakes: 6, stakeHeight: 1.3, // count / m: garden rows
-  fenceBoards: 18, fenceBamboos: 22, fenceLogs: 4, fenceReference: 5, fencePost: .07, railHeight: .32, // counts / m: detailed fence spacing
+  fenceBoards: 18, fenceBamboos: 22, fenceLogs: 4, fenceReference: TOWN_DRESS.fenceSpan, fencePost: .07, railHeight: .32, // counts / m: detailed fence spacing
   roundSides: 6, fenceFill: .8, fenceInset: .98, // ratios: plank width and post endpoints inside the segment
   tableWidth: 1.2, tableHeight: .75, tableDepth: .65, cargoSize: .5, cargoHeight: .4, cargoSide: -.3, cargoAlong: .2, // m / footprint ratios: awning contents
   tentPost: .06, tentHigh: 2.4, tentLow: 2.1, tentSag: .2, clothCols: 4, clothRows: 2, // m / counts: awning cloth grid
@@ -132,7 +132,7 @@ function garden(b, far, w, d) {
 }
 function fence(b, kind, far) {
   const h=TOWN_DRESS.fenceHeights[kind];
-  if(far){b.quad([-.5,0,0],[.5,0,0],[.5,h,0],[-.5,h,0],kind==='bamboo'?'bamboo':'board');return;}
+  if(far){b.box(0,0,0,1,h,1,kind==='bamboo'?'bamboo':'board');return;}
   const n=kind==='bamboo'?A.fenceBamboos:kind==='board'?A.fenceBoards:A.fenceLogs;
   for(let i=0;i<n;i++) {
     const x=(i/(n-1)-.5)*A.fenceReference*A.fenceInset,width=kind==='board'?A.fenceFill*A.fenceReference/n:A.fencePost;

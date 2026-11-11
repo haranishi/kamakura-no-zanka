@@ -26,6 +26,12 @@ if (aDressStake > aDressStakes) transformed = vec3(0.0);
 float dressWave = ${C.clothAmplitude.toFixed(3)} * clamp(uDressWind,0.0,1.0) * sin(uDressTime * ${C.clothFrequency.toFixed(2)} + (dressOrigin.x+dressOrigin.z) * ${C.clothPhase.toFixed(2)});
 transformed.y += aDressCloth * dressWave * sin(clamp(position.x + 0.5,0.0,1.0) * 3.14159265);
 transformed.y += position.x * aDressGround.x + position.z * aDressGround.y;
+if (uDressFar > 0.5 && uDressFence > 0.5) {
+  float dressThickness = length(instanceMatrix[2].xyz);
+  float dressPixelWidth = ${C.minPixels.toFixed(1)} * 2.0 * aDressGround.z / (uDressViewport.y * projectionMatrix[1][1]);
+  transformed.z *= max(1.0,dressPixelWidth / dressThickness);
+  vDressCoverage = min(1.0,dressThickness / max(dressThickness,dressPixelWidth));
+}
 if (uDressSmoke > 0.5) {
   float dressLife = fract(aDressTag + uDressTime * ${C.smokeSpeed.toFixed(3)} + fract(dressOrigin.x + dressOrigin.z));
   float dressRise = dressLife * ${C.smokeHeight.toFixed(1)};
@@ -92,8 +98,10 @@ export function createKamakuraTownDress(context) {
   const job=townDressBatches(context),sets=[],viewer=new THREE.Vector3(),viewport=new THREE.Vector2(C.viewport,C.viewport),dir=new THREE.Vector2(1,0);
   const shared={uDressTime:{value:0},uDressWind:{value:0},uDressDir:{value:dir},uDressViewport:{value:viewport}};
   const nearSets=new Array(DRESS_KINDS.length).fill(null),farSets=new Array(DRESS_KINDS.length).fill(null);
+  let order=null,distances=null,selected=0;
   let result=null,building=false,buildCursor=0,ready=false,first=true,disposed=false,paused=false,step=0,release=null,nearestId=-1,nearestDistance=Infinity;
   let drawnNear=0,drawnFar=0,nearTriangles=0,farTriangles=0,draws=0,budgetNear=0,budgetFar=0,checks=0,buckets=0,preparedFrames=0,text='';
+  let built=false,builtStep=-1;const builtAt=new THREE.Vector3();
   function buildKind(kind) {
     const k=DRESS_KINDS.indexOf(kind);let capacity=0;for(const p of result.items)if(p.kind===kind)capacity++;
     if(!capacity)return;
@@ -113,6 +121,7 @@ export function createKamakuraTownDress(context) {
     }
   }
   function buildMatrices(){
+    order=new Int32Array(result.items.length);distances=new Float64Array(result.items.length);
     for(const p of result.items){const c=Math.cos(p.yaw),s=Math.sin(p.yaw);p.k=DRESS_KINDS.indexOf(p.kind);
       p.matrix=new Float32Array([c*p.w,0,-s*p.w,0,0,1,0,0,s*p.d,0,c*p.d,0,p.x,p.y,p.z,1]);}
   }
@@ -123,6 +132,15 @@ export function createKamakuraTownDress(context) {
     const mesh=set.mesh,n=mesh.count++;mesh.instanceMatrix.array.set(p.matrix,n*16);
     const ground=mesh.geometry.attributes.aDressGround.array;ground[n*3]=p.gx*p.w;ground[n*3+1]=p.gz*p.d;ground[n*3+2]=distance;
     mesh.geometry.attributes.aDressStakes.array[n]=p.stakes?1:0;return true;
+  }
+  // Reused binary min-heap: budget cuts always discard the farthest eligible segments first.
+  function enqueue(id,d){
+    let at=selected++;distances[id]=d;
+    while(at>0){const parent=(at-1)>>1,other=order[parent];if(distances[other]<=d)break;order[at]=other;at=parent;}order[at]=id;
+  }
+  function dequeue(){
+    const id=order[0],last=order[--selected];let at=0;
+    while(at*2+1<selected){let child=at*2+1;if(child+1<selected&&distances[order[child+1]]<distances[order[child]])child++;if(distances[last]<=distances[order[child]])break;order[at]=order[child];at=child;}order[at]=last;return id;
   }
   const inspect=()=>({ready,plots:{...(result?.plots||{})},fences:{...(result?.fences||{}),byKind:{...(result?.fences.byKind||{})}},tents:result?.tents||0,
     drawn:{near:drawnNear,far:drawnFar,triangles:nearTriangles+farTriangles,nearTriangles,farTriangles,draws},
@@ -143,7 +161,10 @@ export function createKamakuraTownDress(context) {
       viewer.copy(frame.camera?.position||context.camera?.position||frame.pos);
       shared.uDressTime.value=frame.time||0;shared.uDressWind.value=frame.wind||0;if(frame.windDir)dir.set(frame.windDir[0],frame.windDir[1]);
       context.renderer?.getDrawingBufferSize?.(viewport);
-      drawnNear=0;drawnFar=0;nearTriangles=0;farTriangles=0;draws=0;budgetNear=0;budgetFar=0;checks=0;buckets=0;nearestId=-1;nearestDistance=Infinity;
+      // Steady state: time and wind above are all that changes. Rebuild only after the eye has moved, or the quality step changed.
+      if(built&&step===builtStep&&Math.abs(viewer.x-builtAt.x)<C.refresh&&Math.abs(viewer.y-builtAt.y)<C.refresh&&Math.abs(viewer.z-builtAt.z)<C.refresh)return;
+      built=true;builtStep=step;builtAt.copy(viewer);
+      drawnNear=0;drawnFar=0;nearTriangles=0;farTriangles=0;draws=0;budgetNear=0;budgetFar=0;checks=0;buckets=0;nearestId=-1;nearestDistance=Infinity;selected=0;
       for(let s=0;s<sets.length;s++)sets[s].mesh.count=0;
       const range=dressRange('burnt',context.quality,step),keep=dressKeep(context.quality,step),ix0=Math.floor(viewer.x/C.cell),iz0=Math.floor(viewer.z/C.cell),rings=Math.ceil(range/C.cell);
       // Visit nearest cells first so budget pressure never replaces close fences with distant ruins.
@@ -155,11 +176,14 @@ export function createKamakuraTownDress(context) {
           const max=dressRange(p.kind,context.quality,step);if(Math.abs(p.x-viewer.x)>max||Math.abs(p.z-viewer.z)>max||Math.abs(p.y-viewer.y)>max)continue;
           const d=Math.hypot(p.x-viewer.x,p.y-viewer.y,p.z-viewer.z);checks++;if(d>max)continue;
           const near=dressNear(p.kind);if(p.rank>=keep&&(!C.fenceHeights[p.kind]||d>=near-C.blend/2))continue;
-          let shown=false;
-          if(d<near+C.blend/2)shown=submit(nearSets[p.k],p,d);
-          if(d>=near-C.blend/2)shown=submit(farSets[p.k],p,d)||shown;
-          if(shown&&d<nearestDistance){nearestId=id;nearestDistance=d;}
+          enqueue(id,d);
         }
+      }
+      while(selected){
+        const id=dequeue(),p=result.items[id],d=distances[id],near=dressNear(p.kind);let shown=false;
+        if(d<near+C.blend/2)shown=submit(nearSets[p.k],p,d);
+        if(d>=near-C.blend/2)shown=submit(farSets[p.k],p,d)||shown;
+        if(shown&&d<nearestDistance){nearestId=id;nearestDistance=d;}
       }
       for(let s=0;s<sets.length;s++){const mesh=sets[s].mesh;mesh.visible=mesh.count>0;if(mesh.visible){draws++;mesh.instanceMatrix.needsUpdate=true;mesh.geometry.attributes.aDressGround.needsUpdate=true;mesh.geometry.attributes.aDressStakes.needsUpdate=true;}}
     },
