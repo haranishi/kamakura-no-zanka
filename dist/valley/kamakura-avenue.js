@@ -22,18 +22,28 @@ export const AVENUE = Object.freeze({
   nukiDepth: .38, tabletWidth: .38, roofShade: .28, // m / m / pigment gain for the top beam
   radialSegments: 10, beamSegments: 4, // topology counts: torii stays below 400 triangles
   bermWidth: 2.6, bermTop: 1, bermHeight: .7, bermInset: .6, // m: section (foot to foot, level top, height) and inset from road edge
-  bermStep: 4, entranceEvery: 70, entranceWidth: 5, crossingExtra: 6, // m: sampling and openings
+  bermStep: 1.6, entranceEvery: 70, entranceWidth: 5, crossingExtra: 6, // m: sampling and openings
   soilBand: .16, groundLift: .015, grassStrength: .35, // m / m / ratio: exposed soil toe, surface lift, existing tone strength
-  // Two reviews against the concept, both in real Chrome. Banks of one grass colour read as painted prisms; banks faced with pale
-  // stone read as concrete kerbs (straight grey wedges under a flat green lid). The picture has low earthen banks: worn earth below,
-  // grass over the rounded shoulder and the top, no two stretches alike. So the section has a shoulder, every station has its own
-  // height, top width and sideways shift, the lower slope is the ground's own earth (a little darker), and the grass comes down
-  // over the shoulder. The faces share their normals along the section (a rounded bank, not facets), and where a run of the bank
-  // ends (an entrance, a crossing, a house) it comes down to the ground instead of ending in a cut face.
-  bermShoulder: .22, bermShoulderHeight: .8, // m beyond the level top on either side / share of the height reached there
-  bermHeightVary: .14, bermTopVary: .12, bermShift: .08, // +-share of the height / +-share of the top width / +-m sideways, per station
-  earthShade: .8, earthGrass: .3, bermTone: .09, // gain on the ground colour of the lower slope / share of grass mixed into it / +-fraction per stretch
-  bermTriangles: 6000, totalTriangles: 7000, // hard geometry budgets
+  // Three reviews against the concept, all in real Chrome. Banks of one grass colour read as painted prisms; banks faced with pale
+  // stone read as concrete kerbs; banks with a section of their own at every station, in three bands of colour, still read as
+  // extruded prisms (a ruler-straight crest, the same slope for 90 m, colour in stripes). The picture has low earthen banks, overgrown
+  // and worn: they swell and sink, lean one way and the other, have slumped here and there, the road side is trodden to a gentler
+  // slope, the grass is patchy and comes down over the earth in tongues, and tufts stand on the top. So the shape follows smooth
+  // noise along the bank (several wavelengths), the colour is given point by point from other noise, and tufts of grass are added.
+  // Where a run of the bank ends (an entrance, a crossing, a house) it comes down to the ground instead of ending in a cut face.
+  bermShoulder: Object.freeze([.26, .16]), bermShoulderHeight: .8, // m beyond the level top: road side (trodden), house side / share of the height reached there
+  bermSwell: 12, bermSwellGain: .3, bermBump: 3.5, bermBumpGain: .12, // m wavelength and +-share of the height: the long rise and fall, the short lumps
+  bermSlump: 38, bermSlumpFrom: .7, bermSlumpDrop: .55, // m wavelength / noise level above which the bank has slumped / share of the height lost there
+  bermTopWave: 9, bermTopVary: .25, bermShiftWave: 14, bermShift: .2, // m, +-share of the top width / m, +-m sideways
+  bermPatch: 6, bermDry: .4, bermBare: .8, bermCreep: .7, // m wavelength of the cover patches / road earth mixed into dry grass / grass lost on a slumped top / most grass on the lower slope
+  earthShade: .78, bermTone: .09, bermRoad: 1.2, // gain on the road's earth for the bank's own earth / +-fraction along the bank / m into the road where its earth is read
+  // The grass does not end on a line: the cover (0 earth .. 1 grass) is given point by point and broken up by noise in the pixel shader.
+  coverNoise: Object.freeze([1.7, .9, 9, .25]), coverEdge: Object.freeze([.32, .68]), // 1/m and gain of the coarse and fine noise / cover levels where earth turns to grass
+  // The grain is two layers of noise turned against each other: one layer alone showed its square lattice as a woven pattern (real Chrome).
+  bermGrain: Object.freeze([23, .2, .16]), // 1/m of the grain / +-brightness of the grain / +-brightness of the fine noise
+  tuftEvery: .2, tuftBlades: 5, tuftHeight: Object.freeze([.22, .58]), tuftWidth: .05, tuftLean: .45, // m between tufts / blades in one / m tall / m wide at the root / lean as a share of the height
+  tuftRoot: .5, tuftTip: .95, tuftRange: 150, // gain on the grass colour at the root and at the tip / m: tufts are drawn within this distance
+  bermTriangles: 6000, tuftTriangles: 4500, totalTriangles: 11500, // hard geometry budgets (bank, tufts, bank + tufts + torii)
   range: 5000, lightRange: 3000, adaptRange: 2000, adapt1Range: 4000, adapt2Range: 3000, // m: 3D visibility
   markerHeight: 20, markerWidth: 1, // m: debug pine columns
   debugPine: '#ff00ff', debugTorii: '#ffff00', debugBerm: '#00ffff', // unlit identification colours
@@ -159,35 +169,61 @@ export function prepareAvenue(data, { terrain, search = '' } = {}) {
   }
   return { axis, pines, skipped, torii, veg: [...(data.veg || []), ...pines], work: site.work, site };
 }
-// The lower slope of a bank: the ground's own colour, a little darker, with a share of the grass that creeps down. No palette of its own.
-export function bermEarth(ground, grass, tone = 1) {
-  return ground.map((v, k) => (v * AVENUE.earthShade * (1 - AVENUE.earthGrass) + grass[k] / tone * AVENUE.earthGrass) * tone);
-}
 export function bermHash(i, side) { const n = Math.sin(i * 12.9898 + side * 78.233) * 43758.5453; return n - Math.floor(n); }
-// One station's section, from the outer foot to the inner foot: [offset across (m), height (m)] x 8. `along` decides the variation,
-// so the two stretches that meet at a station share its points and the bank has no steps.
+// Smooth noise along the bank (0..1): the hash at whole steps of `wave` metres, eased in between. Places that are close agree,
+// so the bank swells and sinks over several metres instead of jumping from station to station.
+export function bermNoise(along, side, salt, wave) {
+  const t = along / wave, i = Math.floor(t), f = t - i, e = f * f * (3 - 2 * f);
+  return bermHash(i + salt, side) * (1 - e) + bermHash(i + 1 + salt, side) * e;
+}
+// What the bank is like at a place along it: height and half top width (m), sideways shift (m), how far it has slumped (0..1).
+export function bermShape(along, side) {
+  const wave = (salt, length) => 2 * bermNoise(along, side, salt, length) - 1;
+  const s = Math.min(1, Math.max(0, (bermNoise(along, side, 71, AVENUE.bermSlump) - AVENUE.bermSlumpFrom) / (1 - AVENUE.bermSlumpFrom))), slump = s * s * (3 - 2 * s);
+  return { slump, shift: AVENUE.bermShift * wave(37, AVENUE.bermShiftWave), top: AVENUE.bermTop * (1 + AVENUE.bermTopVary * wave(23, AVENUE.bermTopWave)) / 2,
+    height: AVENUE.bermHeight * (1 + AVENUE.bermSwellGain * wave(11, AVENUE.bermSwell) + AVENUE.bermBumpGain * wave(17, AVENUE.bermBump)) * (1 - AVENUE.bermSlumpDrop * slump) };
+}
+// One place's section, from the foot on the road side to the foot on the house side: [offset across (m), height (m)] x 8.
 export function bermSection(along, side) {
-  const key = Math.round(along * 8), vary = salt => 2 * bermHash(key + salt, side) - 1;
-  const height = AVENUE.bermHeight * (1 + AVENUE.bermHeightVary * vary(11)), top = AVENUE.bermTop * (1 + AVENUE.bermTopVary * vary(23)) / 2;
-  const shift = AVENUE.bermShift * vary(37), foot = AVENUE.bermWidth / 2, shoulder = top + AVENUE.bermShoulder;
-  const toe = AVENUE.soilBand / (foot - shoulder) * height * AVENUE.bermShoulderHeight;
-  return [[-foot, 0], [-foot + AVENUE.soilBand, toe], [shift - shoulder, height * AVENUE.bermShoulderHeight], [shift - top, height],
-    [shift + top, height], [shift + shoulder, height * AVENUE.bermShoulderHeight], [foot - AVENUE.soilBand, toe], [foot, 0]];
+  const { height, top, shift } = bermShape(along, side), foot = AVENUE.bermWidth / 2, [worn, steep] = AVENUE.bermShoulder;
+  const shoulder = height * AVENUE.bermShoulderHeight, road = shift - top - worn, house = shift + top + steep;
+  return [[-foot, 0], [-foot + AVENUE.soilBand, AVENUE.soilBand / (road + foot) * shoulder], [road, shoulder], [shift - top, height],
+    [shift + top, height], [house, shoulder], [foot - AVENUE.soilBand, AVENUE.soilBand / (foot - house) * shoulder], [foot, 0]];
 }
 export const BERM_FACES = Object.freeze(['soil', 'earth', 'grass', 'grass', 'grass', 'earth', 'soil']); // the seven faces across a section
-// Vertex buffers remain pure data; the top uses the exact existing ground grass tone operation.
+// The eight section points at one place: `earth` is the colour without grass, `grass` the grass colour, `cover` how much of the
+// point is grass (0..1). The feet are the ground they stand on. The bank's own earth is the road's earth, a little darker. Grass
+// covers the top and the shoulders, thins out in dry patches, is lost where the bank has slumped, and comes down over the lower
+// slopes in tongues. Every colour comes from the ground colours and the existing grass tone: no palette of its own.
+export function bermColours(along, side, grounds) {
+  const { road, under, house } = grounds, slump = bermShape(along, side).slump;
+  const tone = 1 + AVENUE.bermTone * (2 * bermNoise(along, side, 53, AVENUE.bermPatch * 3) - 1);
+  const mix = (a, b, t) => a.map((v, k) => v + (b[k] - v) * t), patch = salt => bermNoise(along, side, salt, AVENUE.bermPatch);
+  const ease = (v, low, high) => { const t = Math.min(1, Math.max(0, (v - low) / (high - low))); return t * t * (3 - 2 * t); };
+  const soil = road.map(v => v * AVENUE.earthShade * tone), fresh = under.map((v, k) => toneChannel(v, k, 0, 0, 1, 0, AVENUE.grassStrength, 0, 0) * tone);
+  const grass = mix(fresh, soil, AVENUE.bermDry * ease(patch(97), .45, .85)), top = 1 - AVENUE.bermBare * slump;
+  const creep = salt => AVENUE.bermCreep * ease(patch(salt), .3, .8) * top;
+  return { grass, earth: [road, soil, soil, soil, soil, soil, soil, house],
+    cover: [0, creep(91) * .5, Math.max(creep(91), .8 * top), top, top, Math.max(creep(93), .8 * top), creep(93) * .5, 0] };
+}
+// Vertex buffers remain pure data: `colors` is the earth, `grass` the grass colour and its cover (r, g, b, cover) for the pixel
+// shader to mix. `tufts` is a second set of buffers: grass standing on the top and the shoulders.
 export function avenueBerm(plan, terrain) {
-  const positions = [], colors = [], normals = [], segments = [], { axis, site } = plan; let length = 0, gaps = 0, inGap = false;
+  const positions = [], colors = [], grasses = [], normals = [], segments = [], { axis, site } = plan; let length = 0, gaps = 0, inGap = false;
+  const tuft = { positions: [], colors: [], normals: [] };
   const from = axis.length * AVENUE.fractions[0], to = axis.length * AVENUE.fractions[1];
   const perStretch = BERM_FACES.length * 2; // two triangles for each face; the ends run down to the ground, so there are no end faces
   const maximum = Math.max(1, Math.floor(AVENUE.bermTriangles / perStretch / 2) - Math.ceil((to - from) / AVENUE.entranceEvery) * 2);
   const step = Math.max(AVENUE.bermStep, (to - from) / maximum), cuts = [from, to];
+  const tuftEvery = Math.max(AVENUE.tuftEvery, (to - from) * 2 * AVENUE.tuftBlades / AVENUE.tuftTriangles);
   for (let s = from + step; s < to; s += step) cuts.push(s);
   for (let center = Math.ceil(from / AVENUE.entranceEvery) * AVENUE.entranceEvery; center < to; center += AVENUE.entranceEvery) for (const sign of [-1, 1]) {
     const s = center + sign * AVENUE.entranceWidth / 2; if (s > from && s < to) cuts.push(s);
   }
   cuts.sort((a, b) => a - b);
-  const triangle = (a, b, c, color, na, nb, nc) => { positions.push(...a, ...b, ...c); for (let i = 0; i < 3; i++) colors.push(...color); normals.push(...na, ...nb, ...nc); };
+  const triangle = (a, b, c, ca, cb, cc, na, nb, nc) => { positions.push(...a, ...b, ...c); colors.push(...ca.earth, ...cb.earth, ...cc.earth); grasses.push(...ca.grass, ...cb.grass, ...cc.grass); normals.push(...na, ...nb, ...nc); };
+  const between = (p, q, t) => [p[0] + (q[0] - p[0]) * t, p[1] + (q[1] - p[1]) * t, p[2] + (q[2] - p[2]) * t];
+  const fallback = [1, 3, 5].map(k => { const v = parseInt(AVENUE.fallbackGround.slice(k, k + 2), 16) / 255; return v <= .04045 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4; });
   // The normal of a section point: across the section (between its neighbours) and along the bank, turned upwards.
   const rounded = (row, other, k) => {
     const p = row[Math.max(0, k - 1)], q = row[Math.min(row.length - 1, k + 1)], ax = q[0] - p[0], ay = q[1] - p[1], az = q[2] - p[2];
@@ -211,35 +247,54 @@ export function avenueBerm(plan, terrain) {
     }
     inGap = false;
     for (let i = 1; i < cuts.length; i++) {
-      const s = cuts[i - 1], end = cuts[i], mid = (s + end) / 2; if (open[i - 1] === null) continue;
+      const s = cuts[i - 1], end = cuts[i]; if (open[i - 1] === null) continue;
       if (!open[i - 1]) { if (!inGap) gaps++; inGap = true; continue; } inGap = false;
       // A neighbour of zero length is skipped: look past it for the next real stretch on either side.
       let before = i - 2; while (before >= 0 && open[before] === null) before--;
       let after = i; while (after < open.length && open[after] === null) after++;
-      const rows = [];
-      for (const [along, joined] of [[s, before >= 0 && open[before]], [end, after < open.length && open[after]]]) {
+      const rows = [], tints = [], stands = [before >= 0 && open[before], after < open.length && open[after]];
+      for (const [along, joined] of [[s, stands[0]], [end, stands[1]]]) {
         const row = [];
         for (const [u, h] of bermSection(along, side)) {
           const p = avenueSample(axis, along, side * (axis.width / 2 - AVENUE.bermInset + u));
           row.push([p.x, terrain.heightAt(p.x, p.z) + (joined ? h : 0) + AVENUE.groundLift, p.z]);
         }
         rows.push(row);
+        const read = u => { const p = avenueSample(axis, along, side * (axis.width / 2 - AVENUE.bermInset + u)); return terrain.groundColorAt?.(p.x, p.z) || fallback; };
+        const foot = AVENUE.bermWidth / 2, grounds = { road: read(-foot - AVENUE.bermRoad), under: read(0), house: read(foot) }, tint = bermColours(along, side, grounds);
+        // Where a run ends, the bank is at ground level: it is the ground there (no grass painted on the road).
+        tints.push(tint.earth.map((earth, k) => ({ earth: joined ? earth : read(bermSection(along, side)[k][0]), grass: [...tint.grass, joined ? tint.cover[k] : 0] })));
       }
-      const center = avenueSample(axis, mid, side * (axis.width / 2 - AVENUE.bermInset));
-      const base = terrain.groundColorAt?.(center.x, center.z) || null;
-      const soil = base || [1, 3, 5].map(k => { const v = parseInt(AVENUE.fallbackGround.slice(k, k + 2), 16) / 255; return v <= .04045 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4; });
-      const tone = 1 + AVENUE.bermTone * (2 * bermHash(i, side) - 1);
-      const grass = soil.map((v, k) => toneChannel(v, k, 0, 0, 1, 0, AVENUE.grassStrength, 0, 0) * tone), tints = { soil, grass, earth: bermEarth(soil, grass, tone) };
       const round = rows.map((row, r) => row.map((_, k) => rounded(row, rows[1 - r], k)));
       for (let k = 0; k < rows[0].length - 1; k++) {
-        const a = rows[0][k], b = rows[1][k], c = rows[1][k + 1], d = rows[0][k + 1], color = tints[BERM_FACES[k]];
+        const a = rows[0][k], b = rows[1][k], c = rows[1][k + 1], d = rows[0][k + 1];
+        const ca = tints[0][k], cb = tints[1][k], cc = tints[1][k + 1], cd = tints[0][k + 1];
         const na = round[0][k], nb = round[1][k], nc = round[1][k + 1], nd = round[0][k + 1];
-        if (side > 0) { triangle(a, c, b, color, na, nc, nb); triangle(a, d, c, color, na, nd, nc); } else { triangle(a, b, c, color, na, nb, nc); triangle(a, c, d, color, na, nc, nd); }
+        if (side > 0) { triangle(a, c, b, ca, cc, cb, na, nc, nb); triangle(a, d, c, ca, cd, cc, na, nd, nc); } else { triangle(a, b, c, ca, cb, cc, na, nb, nc); triangle(a, c, d, ca, cc, cd, na, nc, nd); }
       }
       segments.push({ from: s, to: end, side, rows }); length += end - s;
+      if (!stands[0] || !stands[1]) continue; // no tufts on the stretch that comes down to the ground
+      const count = Math.floor((end - s) / tuftEvery + bermHash(i + 311, side));
+      for (let j = 0; j < count; j++) {
+        const h = salt => bermHash(i * 7 + j * 13 + salt, side);
+        const t = h(1), k = 2 + Math.min(2, Math.floor(h(2) * 3)), v = h(3);
+        const base = between(between(rows[0][k], rows[0][k + 1], v), between(rows[1][k], rows[1][k + 1], v), t);
+        const grass = between(between(tints[0][k].grass, tints[0][k + 1].grass, v), between(tints[1][k].grass, tints[1][k + 1].grass, v), t);
+        const cover = (tints[0][k].grass[3] * (1 - v) + tints[0][k + 1].grass[3] * v) * (1 - t) + (tints[1][k].grass[3] * (1 - v) + tints[1][k + 1].grass[3] * v) * t;
+        if (h(4) > cover) continue; // tufts stand where there is grass: few on dry earth, almost none where the bank has slumped
+        const root = grass.map(c => c * AVENUE.tuftRoot), tip = grass.map(c => c * AVENUE.tuftTip);
+        for (let blade = 0; blade < AVENUE.tuftBlades; blade++) {
+          const angle = h(5 + blade) * Math.PI * 2, tall = AVENUE.tuftHeight[0] + (AVENUE.tuftHeight[1] - AVENUE.tuftHeight[0]) * h(9 + blade);
+          const dx = Math.cos(angle), dz = Math.sin(angle), w = AVENUE.tuftWidth / 2, lean = AVENUE.tuftLean * tall * (.3 + .7 * h(13 + blade)), l = Math.hypot(.35, .94);
+          tuft.positions.push(base[0] - dz * w, base[1], base[2] + dx * w, base[0] + dz * w, base[1], base[2] - dx * w, base[0] + dx * lean, base[1] + tall, base[2] + dz * lean);
+          tuft.colors.push(...root, ...root, ...tip);
+          for (let n = 0; n < 3; n++) tuft.normals.push(dx * .35 / l, .94 / l, dz * .35 / l);
+        }
+      }
     }
   }
-  return { positions: new Float32Array(positions), colors: new Float32Array(colors), normals: new Float32Array(normals), length, gaps, triangles: positions.length / 9, segments };
+  const tufts = { positions: new Float32Array(tuft.positions), colors: new Float32Array(tuft.colors), normals: new Float32Array(tuft.normals), triangles: tuft.positions.length / 9 };
+  return { positions: new Float32Array(positions), colors: new Float32Array(colors), grass: new Float32Array(grasses), normals: new Float32Array(normals), length, gaps, triangles: positions.length / 9, segments, tufts };
 }
 export function avenueToriiColor(data) {
   const kit = data.facilities?.kit;

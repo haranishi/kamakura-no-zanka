@@ -19,12 +19,13 @@ test('layer is null before reading context or allocating scene resources when av
   assert.equal(createKamakuraAvenue({ data: { sandoNotice: 'upstream terrain failure' }, search: '' }), null);
 });
 
-test('two merged draws, shadow/fog materials, real post contacts/collisions and idempotent resource release', t => {
+test('three merged draws (torii, bank, tufts), shadow/fog materials, real post contacts/collisions and idempotent resource release', t => {
   const c = context(), v = createKamakuraAvenue(c); v.update(frame);
-  const g = c.scene.children[0], [torii, berm] = g.children;
-  assert.equal(g.children.length, 2); assert(torii.castShadow && torii.receiveShadow); assert(!berm.castShadow && berm.receiveShadow);
+  const g = c.scene.children[0], [torii, berm, tufts] = g.children;
+  assert.equal(g.children.length, 3); assert(torii.castShadow && torii.receiveShadow); assert(!berm.castShadow && berm.receiveShadow); assert(!tufts.castShadow && tufts.receiveShadow);
+  assert.deepEqual(g.children.map(m => m.name), ['avenue-torii', 'avenue-berm', 'avenue-tufts']);
   for (const m of g.children) { assert(m.material.isMeshLambertMaterial && m.material.fog); assert(m.material.forceSinglePass); for (const k of ['position', 'normal', 'color']) for (const n of m.geometry.attributes[k].array) assert(Number.isFinite(n)); }
-  const d = globalThis.__kzAvenue(); assert.equal(d.draws, 2); assert(d.triangles <= 7000); assert.equal(d.colliders, 4); assert.match(v.debugText(), /松 \d+・鳥居 2/);
+  const d = globalThis.__kzAvenue(); assert.equal(d.draws, 3); assert(d.triangles <= AVENUE.totalTriangles); assert(d.berm.tufts > 0 && d.berm.tuftsVisible); assert.equal(d.colliders, 4); assert.match(v.debugText(), /松 \d+・鳥居 2/);
   assert.equal(c.colliders.circles.length, 4);
   for (const p of c.colliders.circles) { assert.equal(p.r, .5); assert(!freeAt(c.colliders, c.terrain, p.x, p.z, .3)); }
   assert(freeAt(c.colliders, c.terrain, 0, 168, .3));
@@ -35,7 +36,7 @@ test('two merged draws, shadow/fog materials, real post contacts/collisions and 
   }
   const freed = new Map(); for (const m of g.children) for (const r of [m.geometry, m.material]) r.addEventListener('dispose', () => freed.set(r, (freed.get(r) || 0) + 1));
   t.diagnostic(JSON.stringify({ triangles: d.triangles, draws: d.draws, distanceChecksPerFrame: d.work.distanceChecks }));
-  v.dispose(); v.dispose(); assert.equal(c.scene.children.length, 0); assert.equal(c.colliders.circles.length, 0); assert.equal(c.colliders.grid.size, 0); assert.equal(globalThis.__kzAvenue, undefined); assert.equal(freed.size, 4); assert([...freed.values()].every(n => n === 1)); assert.equal(v.debugText(), '');
+  v.dispose(); v.dispose(); assert.equal(c.scene.children.length, 0); assert.equal(c.colliders.circles.length, 0); assert.equal(c.colliders.grid.size, 0); assert.equal(globalThis.__kzAvenue, undefined); assert.equal(freed.size, 6); assert([...freed.values()].every(n => n === 1)); assert.equal(v.debugText(), '');
 });
 
 test('visibility measures camera height in 3D and responds to each quality step, even with a walking pos', () => {
@@ -53,8 +54,28 @@ test('debug colours are unlit/unfogged, pine columns are 20m, and three draws in
   const c = context('?debug=1&avenuedebug=1'), v = createKamakuraAvenue(c); v.update(frame); const g = c.scene.children[0];
   const byName = Object.fromEntries(g.children.map(m => [m.name, m]));
   for (const [name, color] of [['avenue-pines', AVENUE.debugPine], ['avenue-torii', AVENUE.debugTorii], ['avenue-berm', AVENUE.debugBerm]]) { const m = byName[name]; assert(m.material.isMeshBasicMaterial && !m.material.fog && !m.material.toneMapped); assert.equal(m.material.color.getHexString(), color.slice(1)); }
-  close(byName['avenue-pines'].geometry.parameters.height, 20); assert.equal(globalThis.__kzAvenue().draws, 3);
+  close(byName['avenue-pines'].geometry.parameters.height, 20); assert.equal(globalThis.__kzAvenue().draws, 4); assert(byName['avenue-tufts'].material.isMeshBasicMaterial && !byName['avenue-berm'].material.onBeforeCompile.toString().includes('bermGrass'));
   const marker = byName['avenue-pines']; let calls = 0; marker.addEventListener('dispose', () => calls++); v.dispose(); v.dispose(); assert.equal(calls, 1);
+});
+
+function balanced(code) { for (const [open, shut] of ['()', '{}', '[]']) assert.equal(code.split(open).length, code.split(shut).length, `unbalanced ${open}${shut}`); }
+test('the bank mixes earth and grass in the pixel shader: the patch lands on real Lambert chunks, compiles to balanced GLSL, and tufts hide far away', () => {
+  const c = context(), v = createKamakuraAvenue(c), [, berm, tufts] = c.scene.children[0].children;
+  const grass = berm.geometry.attributes.bermGrass; assert.equal(grass.itemSize, 4); assert.equal(grass.count, berm.geometry.attributes.position.count);
+  assert.equal(tufts.geometry.attributes.bermGrass, undefined); assert.equal(typeof berm.material.onBeforeCompile, 'function'); assert.equal(berm.material.customProgramCacheKey(), 'kamakura-avenue-berm');
+  const lambert = THREE.ShaderLib.lambert, shader = { vertexShader: lambert.vertexShader, fragmentShader: lambert.fragmentShader, uniforms: {} };
+  for (const mark of ['#include <common>', '#include <begin_vertex>']) assert(lambert.vertexShader.includes(mark));
+  for (const mark of ['#include <common>', '#include <color_fragment>']) assert(lambert.fragmentShader.includes(mark));
+  berm.material.onBeforeCompile(shader);
+  for (const code of [shader.vertexShader, shader.fragmentShader]) { balanced(code); assert(!/--\d/.test(code)); assert(!/\d[a-zA-Z_]/.test(code.replace(/\d+\.\d+|\d+e-?\d+|vec[234]|mat[34]|sampler2D|texture2D|[A-Za-z_]\w*/g, '')), 'no number runs into a name'); }
+  assert.match(shader.vertexShader, /attribute vec4 bermGrass;[\s\S]*vBermGrass = bermGrass;[\s\S]*vBermWorld = \(modelMatrix \* vec4\(transformed, 1\.0\)\)\.xyz;/);
+  assert.match(shader.fragmentShader, /float kzBermNoise\(vec2 p\)[\s\S]*#include <color_fragment>[\s\S]*diffuseColor\.rgb = mix\(diffuseColor\.rgb, vBermGrass\.rgb, kzCover\)/);
+  for (const name of ['kzCoarse', 'kzFine', 'kzGrain', 'kzCover']) assert(new RegExp(`float ${name} = `).test(shader.fragmentShader), `${name} is declared before use`);
+  assert(!/\bint\b/.test(shader.fragmentShader.slice(shader.fragmentShader.indexOf('float kzCoarse'), shader.fragmentShader.indexOf('diffuseColor.rgb = mix(diffuseColor.rgb, vBermGrass'))), 'floats only');
+  // Tufts are for the walker: from across the town a blade is under a pixel, so they are not drawn there; the bank still is.
+  const far = { pos: { x: 0, y: 12, z: 300 }, camera: { position: new THREE.Vector3(0, 12 + AVENUE.tuftRange + 60, 300) } };
+  v.update(far); assert(berm.visible && !tufts.visible); assert.equal(globalThis.__kzAvenue().draws, 2);
+  v.update(frame); assert(tufts.visible); v.setAdapt(2); v.update(frame); assert(!tufts.visible && berm.visible, 'the cheaper steps drop the tufts first'); v.dispose();
 });
 function close(a, b) { assert(Math.abs(a - b) < 1e-6); }
 
