@@ -24,9 +24,10 @@ function beachWorld() {
   w.houses={boxes:[{x:0,z:-80,w:4,d:5}]};return w;
 }
 test('flight metadata accepts only bounded fields and optional absence; loader invokes its validator',()=>{
+  assert.equal(validateFlight({...config(),groups:24,size:[6,6]}).groups,24);assert.equal(prepareFlight({...world(),data:{...world().data,meta:{flight:{...config(),groups:24,size:[6,6]}}}}).length,144);
   assert.equal(validateFlight(),null);assert.equal(validateFlight(null),null);assert.deepEqual(validateFlight(config()),config());
-  for(const value of [false,[],{}, {...config(),road:''},{...config(),road:3}, ...[0,13,1.5,NaN].map(groups=>({...config(),groups})),
-    ...[[0,4],[2,6],[4,2],[1.5,3],[2],[2,3,4],new Array(2)].map(size=>({...config(),size})),
+  for(const value of [false,[],{}, {...config(),road:''},{...config(),road:3}, ...[0,25,1.5,NaN].map(groups=>({...config(),groups})),
+    ...[[0,4],[2,7],[4,2],[1.5,3],[2],[2,3,4],new Array(2)].map(size=>({...config(),size})),
     ...[.3,1.7,NaN,Infinity,'1'].map(speed=>({...config(),speed}))]) assert.throws(()=>validateFlight(value));
   const m={schema:'kz-world-web/0.1',grid:{width:2,height:2,cell_m:1,row0:'north',col0:'west',sample_position:'cell_center',x_axis:'east',y_axis:'north',z_axis:'up'},
     height:{encoding:'uint16-le',min_m:0,max_m:10,file:'height_u16.bin'},walk:{file:'walk_u8.bin',polygon_m:[[0,0],[1,0],[0,1]]},spawn:{x:0,y:0,z:0,yaw_deg_clockwise_from_north:0},places:[]};
@@ -40,7 +41,7 @@ test('absolute-time groups are deterministic, spaced within the road width, spee
   assert.equal(groups.size,6);
   for(const members of groups.values()) {
     assert(members.length>=2&&members.length<=4);
-    for(let i=1;i<members.length;i++)assert(members[i].s0-members[i-1].s0>=1&&members[i].s0-members[i-1].s0<=2.5);
+    for(let i=1;i<members.length;i++)if(!members[i].child)assert(members[i].s0-members[i-1].s0>=1&&members[i].s0-members[i-1].s0<=2.5);
   }
   const out={},other={};
   for(const p of a) {
@@ -62,16 +63,21 @@ test('absolute-time groups are deterministic, spaced within the road width, spee
     assert(Math.hypot(near.x-out.x,near.z-out.z)<.05);assert(Math.abs(near.yaw-out.yaw)<1e-9);assert.equal(near.clip,'Casual_Walk');
   }
 });
-test('near priority is bounded at six, light quality reduces it, flight mode uses no near slots, hero avoidance survives',()=>{
-  const w=world();w.data.meta.flight={road:'pass',groups:12,size:[5,5],speed:1};const spots=prepareFlight(w),out=new Int32Array(6),viewer={x:0,z:0};
+test('near priority is bounded at six, light quality reduces it, flight selection uses 3D distance, hero avoidance survives',()=>{
+  const w=world();w.data.meta.flight={road:'pass',groups:12,size:[5,5],speed:1};const spots=prepareFlight(w),out=new Int32Array(8),viewer={x:0,y:20,z:0};
   assert.equal(selectFlightPeople(spots,viewer,'standard',0,out),6);assert.equal(selectFlightPeople(spots,viewer,'light',0,out),5);
-  assert.equal(selectFlightPeople(spots,viewer,'standard',3,out),0);assert.equal(selectFlightPeople(spots,viewer,'standard',0,out,true),0);
+  assert.equal(selectFlightPeople(spots,viewer,'standard',3,out),0);assert.equal(selectFlightPeople(spots,viewer,'standard',0,out,true),8);
+  viewer.y=200;assert.equal(selectFlightPeople(spots,viewer,'standard',0,out,true),0);
+  const synthetic=Array.from({length:12},(_,i)=>({flight:true,alpha:1,x:i*4,y:i,z:0}));viewer.y=0;
+  assert.equal(selectFlightPeople(synthetic,viewer,'standard',0,out,true),8);assert.deepEqual(Array.from(out),[0,1,2,3,4,5,6,7]);
+  assert.equal(selectFlightPeople([{flight:true,alpha:1,x:0,y:45,z:0}],viewer,'standard',0,out,true),1);
+  assert.equal(selectFlightPeople([{flight:true,alpha:1,x:0,y:45.01,z:0}],viewer,'standard',0,out,true),0);
   const p=spots[20],s=resetPerson(createPersonState(),p),site=createPeopleSite(w);
   stepPerson(s,{x:p.x,z:p.z},false,0,1/60,site);assert(Math.hypot(s.x-p.x,s.z-p.z)>=PEOPLE.heroGap-1e-6);
 });
 test('traveller silhouette contains a hat, backpack and optional staff with finite normals and a bounded full height',t=>{
   for(const staff of [false,true]) {
-    const shape=crowdShape('traveller',0,staff);assert.equal(shape.triangles,staff?108:96);assert(shape.parts.includes(2)&&shape.parts.includes(3));assert.equal(shape.parts.includes(4),staff);
+    const shape=crowdShape('traveller',0,staff);assert.equal(shape.triangles,staff?180:140);assert(shape.parts.includes(2)&&shape.parts.includes(3));assert.equal(shape.parts.includes(4),staff);
     let min=Infinity,max=-Infinity,hat=0,pack=0;
     for(let i=0;i<shape.parts.length;i++) {const y=shape.positions[i*3+1];min=Math.min(min,y);max=Math.max(max,y);
       if(shape.parts[i]===2)hat=Math.max(hat,Math.abs(shape.positions[i*3]));if(shape.parts[i]===3)pack=Math.max(pack,shape.positions[i*3+2]);
@@ -80,18 +86,18 @@ test('traveller silhouette contains a hat, backpack and optional staff with fini
     assert(hat<=CROWD.travellerHatRadius+1e-6&&pack>.2);
     for(let i=0;i<shape.parts.length;i++)if(shape.parts[i]===3)assert(Math.abs(shape.positions[i*3])<=CROWD.torso[0]+1e-6,'pack fits the back width');
   }
-  t.diagnostic('traveller: 96 triangles; with staff: 108; instanced pass uses 108 per figure');
+  t.diagnostic('traveller: 140 triangles; shared accessories: 180; far shared geometry: 118');
 });
 test('flying overlook retains at least five groups including figures directly below; shadows, moving uploads, caps, pause and disposal',t=>{
   const w=world();w.scene=new THREE.Scene();w.camera=new THREE.PerspectiveCamera();w.camera.position.set(0,55,0);w.sunDir=new THREE.Vector3(-1,.4,1);
   const layer=createKamakuraCrowd(w),frame={dt:1/60,time:30,pos:w.camera.position,camera:w.camera,flying:true};
   for(let i=0;i<2000&&!globalThis.__kzCrowd().ready;i++)layer.update(frame);
   let snap=globalThis.__kzFlight();const mesh=w.scene.children.find(m=>m.name==='kamakura-travellers'),shadow=w.scene.children.find(m=>m.name==='kamakura-travellers-shadow');
-  assert(snap.drawn>=10);assert(snap.groups>=5);assert(snap.byRole.traveller===snap.drawn);assert.equal(snap.draws,2);assert.equal(shadow.geometry,mesh.geometry);
-  assert(snap.nearest.distance<80);assert.equal(snap.triangles,snap.selected*108);
+  assert(snap.drawn>=10);assert(snap.groups>=5);assert(snap.byRole.traveller===snap.drawn);assert.equal(snap.draws,4);assert.equal(shadow.geometry,mesh.geometry);
+  assert(snap.nearest.distance<80);assert.equal(snap.triangles,snap.lod.reduce((n,l)=>n+l.count*l.triangles,0));
   const selected=prepareFlight(w).filter(p=>{sampleFlight(p,frame.time,w.terrain,p);return p.alpha>0;});assert(new Set(selected.map(p=>p.group)).size>=5);
   const anchor=mesh.geometry.attributes.crowdAnchor,person=mesh.geometry.attributes.crowdPerson;
-  assert(Array.from(person.array).filter((v,i)=>i%3===0).some(v=>v===-2),'flying never hides under the near-distance cut');
+  assert(Array.from(person.array).filter((v,i)=>i%4===0).some(v=>v===-2),'flying never hides under the near-distance cut');
   const start=anchor.array.slice(0,3),version=anchor.version;frame.time+=1;layer.update(frame);assert(anchor.version>version);
   const end=anchor.array.slice(0,3);assert(Math.hypot(end[0]-start[0],end[2]-start[2])>.7);
   // No buffers or arrays are created while moving, after the static placement has completed.
@@ -133,4 +139,18 @@ test('moving silhouette count decreases with light/adaptation and flight=0 resto
   }
   const w=world();w.search='?debug=1&flight=0';w.scene=new THREE.Scene();const layer=createKamakuraCrowd(w);
   assert(!w.scene.children.some(m=>m.name==='kamakura-travellers'));assert.equal(globalThis.__kzFlight,undefined);layer.dispose();
+});
+
+test('road identities deterministically balance loads, poles, staffs and children beside their guardian',()=>{
+  const w=world();w.data.meta.flight={...config(),groups:24,size:[6,6]};
+  const a=prepareFlight(w),b=prepareFlight(w);assert.deepEqual(a,b);assert.equal(a.length,144);
+  const adults=a.filter(p=>!p.child),children=a.filter(p=>p.child),counts={pack:0,pole:0,staff:0,none:0};
+  for(const p of adults)counts[p.carry]++;
+  for(const [carry,ratio] of [['pack',.5],['pole',1/6],['staff',1/4],['none',1/12]])assert(Math.abs(counts[carry]/adults.length-ratio)<.03);
+  assert.equal(children.length,6);
+  for(const p of children) {
+    const guardian=a.find(a=>a.id===p.guardian);assert(guardian&&!guardian.child);assert.equal(p.who,'child');assert.equal(p.scale,.6);
+    assert(Math.hypot(p.x-guardian.x,p.z-guardian.z)<.7);assert.equal(p.speed,guardian.speed);assert.equal(p.carry,'none');
+    for(const t of [1,30,100]){const c={},g={};sampleFlight(p,t,w.terrain,c);sampleFlight(guardian,t,w.terrain,g);assert(Math.hypot(c.x-g.x,c.z-g.z)<.7);}
+  }
 });

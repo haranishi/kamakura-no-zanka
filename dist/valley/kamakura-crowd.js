@@ -15,6 +15,8 @@ export const TRAVELLER = Object.freeze({
   packGap: .006, packFitWidth: .12, packFitHeight: .10, // m, back clearance / torso sampling half-width and half-height.
   packFold: .12, basketTaper: .78, basketWall: .018, // shade variation / bottom-to-top ratio / m wall thickness.
   staffLength: 1.28, staffRadius: .01, staffGrip: .20, // m, length / radius / distance of grip below the top.
+  poleLength: 1.35, poleRadius: .045, poleHeight: .70, // m / m / adult-height ratio, long wrapped shoulder load.
+  packShade: .58, // linear luminance ratio, load stays darker than its wearer's garment.
   staffSides: 6, palm: .035, walkReference: .3, // segments / m along hand / seconds, relaxed walking reference pose.
 });
 
@@ -35,10 +37,9 @@ export const CROWD = Object.freeze({
   budget: 2.5, // ms, cooperative placement budget per frame.
   batch: 8192, // generator steps, defensive per-frame work cap.
   heightMin: 1.5, heightMax: 1.7, // m, adult height including headwear.
-  child: .7, sitter: .5625, sitterWidth: 1.25, // ratios, child scale and seated height (~0.9m).
+  child: .6, sitter: .5625, sitterWidth: 1.25, // ratios, child scale and seated height (~0.9m).
   farmerBend: .55, farmerLean: .65, hip: .43, // ratios, bent upper-body pose.
-  walk: 3, speed: .9, bob: .04, // m / m per second / m, walking amplitude, speed, bob.
-  bobRate: 5, // radians per m travelled, walking bob frequency.
+  walk: 3, speed: .9, bob: 0, // m / m per second / m, route amplitude / speed / grounded root (feet lift in the shader).
   debugHeight: 3, // ratio, debug height multiplier (width unchanged).
   // Real Chrome, the overlook: figures eight pixels tall in dark indigo and brown could not be told from the earth they stood on.
   // The cloth is lighter, each figure lays a flat shadow on the ground away from the sun (what makes a small figure read in the
@@ -61,11 +62,21 @@ export const CROWD = Object.freeze({
   staffWidth: .014, staffSide: .34, staffHeight: .8, // adult-height fractions, square staff.
   travellerLight: .75, // ratio, lightweight moving-figure count.
   travellerDebug: 0xff701c, // existing orange role colour for road groups.
-  sides: 8, // segments, headwear cone.
+  sides: 6, // segments, rounded body/limb cross sections.
+  shoulder: .77, hemY: .22, legTop: .43, // height fractions, garment / separated legs.
+  legWidth: .045, legDepth: .055, legSide: .075, // height fractions, leg radii / side offset.
+  armWidth: .065, armDepth: .055, armSide: .205, armLow: .43, // height fractions, lowered sleeve envelope.
+  stride: .13, footLift: .045, lean: .10, armSwing: .075, // height fractions / slope, walking pose.
+  gaitRate: 5, // radians per second, independent of travel wrapping.
+  duskGain: .48, // linear RGB multiplier on existing cloth colours in evening/dusk.
+  lodDistance: 90, // m, same distance as far enlargement begins; use the simpler geometry beyond it.
 });
+const linear = v => { v /= 255; return v <= .04045 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4; };
+const luminance = hex => .2126 * linear(hex >> 16 & 255) + .7152 * linear(hex >> 8 & 255) + .0722 * linear(hex & 255);
 export function travellerTraits(p) {
-  const variant = p.variant || 0;
-  return { packCloth: variant < 3 ? (variant + 1) % 3 : variant % 3, basket: variant % 2 === 1 };
+  const variant = p.variant || 0, packCloth = variant < 3 ? (variant + 1) % 3 : variant % 3;
+  return { packCloth, basket: variant % 2 === 1,
+    packGain: Math.min(1, luminance(CROWD.clothes[variant]) * TRAVELLER.packShade / luminance(CROWD.clothes[packCloth])) };
 }
 const clamp = v => Math.max(0, Math.min(1, v));
 export const crowdEnabled = (search = '') => new URLSearchParams(search).get('crowd') !== '0' && peopleAmount(search) > 0;
@@ -81,9 +92,9 @@ export function crowdTraits(p) {
     const i = Math.max(1, Math.floor(p.route.length / 2)), a = p.route[i - 1], b = p.route[i];
     yaw = Math.atan2(a.x - b.x, a.z - b.z);
   }
-  return { height: CROWD.heightMin + (CROWD.heightMax - CROWD.heightMin) * peopleHash(p.x, p.z, 102),
+  return { height: p.flight ? (CROWD.heightMin + CROWD.heightMax) / 2 : CROWD.heightMin + (CROWD.heightMax - CROWD.heightMin) * peopleHash(p.x, p.z, 102),
     cloth: p.flight ? p.variant : Math.floor(peopleHash(p.x, p.z, 103) * CROWD.clothes.length), head: p.flight ? 1 : roll < CROWD.headHair ? 0 : roll < CROWD.headHat ? 1 : 2,
-    phase: peopleHash(p.x, p.z, 104) * CROWD.walk * 4, dx: -Math.sin(yaw), dz: -Math.cos(yaw) };
+    phase: p.flight ? p.phase : peopleHash(p.x, p.z, 104) * CROWD.walk * 4, dx: -Math.sin(yaw), dz: -Math.cos(yaw) };
 }
 // The same generator is consumed by the near layer. Each added silhouette yields before the next one.
 export function* crowdPlacementBatches(context, amount = peopleAmount(context.search)) {
@@ -146,49 +157,70 @@ export function crowdMotion(body, time, out) {
   const cycle = (time * CROWD.speed + body.phase) % (CROWD.walk * 4);
   out.travel = CROWD.walk - Math.abs(cycle - CROWD.walk * 2);
   out.direction = cycle < CROWD.walk * 2 ? 1 : -1;
-  out.bob = Math.sin((time * CROWD.speed + body.phase) * CROWD.bobRate) * CROWD.bob;
+  out.bob = CROWD.bob;
   return out;
 }
 
-// Flat-shaded geometry; material codes: 0 garment, 1 skin, 2 headwear.
-export function crowdShape(role = 'chat', head = 0, staff = false) {
+// Shared CPU mirror of the shader's local gait; caller owns out (normal checks use the same posing).
+export function crowdGait(x, y, z, joint, time, phase, walking, out) {
+  const swing = walking ? Math.sin(time * CROWD.gaitRate + phase) : 0;
+  if (joint === 1 || joint === 2) {
+    const leg = swing * (joint === 1 ? 1 : -1), weight = Math.max(0, 1 - y / CROWD.legTop);
+    z += leg * CROWD.stride * weight; y += Math.max(0, leg) * CROWD.footLift * weight;
+  }
+  if (joint === 3 || joint === 4) z += swing * (joint === 3 ? -1 : 1) * CROWD.armSwing * Math.max(0, (CROWD.shoulder - y) / (CROWD.shoulder - CROWD.armLow));
+  if (walking && y > CROWD.hip) z -= (y - CROWD.hip) * CROWD.lean;
+  out.x = x; out.y = y; out.z = z; return out;
+}
+
+// Six-sided rings avoid box silhouettes. Part: cloth/skin/hat/pack/staff/shoulder load.
+// Joint: upper body / left leg / right leg / left sleeve / right sleeve.
+export function crowdShape(role = 'chat', head = 0, staff = false, simple = false) {
   if (role === 'traveller') head = 1;
-  const positions = [], normals = [], parts = [];
+  const positions = [], normals = [], parts = [], joints = [], C = CROWD, n = C.sides;
   function pose(v) {
-    let [x, y, z] = v;
-    if (role === 'sitter') { y *= CROWD.sitter; if (v[1] <= CROWD.hip) x *= CROWD.sitterWidth; }
-    if (role === 'farmer' && y > CROWD.hip) { z -= (y - CROWD.hip) * CROWD.farmerLean; y = CROWD.hip + (y - CROWD.hip) * CROWD.farmerBend; }
-    return [x, y, z];
+    let [x,y,z] = v;
+    if (role === 'sitter') { if (y <= C.hip) x *= C.sitterWidth; y *= C.sitter; }
+    if (role === 'farmer' && y > C.hip) { z -= (y-C.hip)*C.farmerLean; y=C.hip+(y-C.hip)*C.farmerBend; }
+    return [x,y,z];
   }
-  function tri(a, b, c, part) {
-    a = pose(a); b = pose(b); c = pose(c);
-    const ux = b[0]-a[0], uy = b[1]-a[1], uz = b[2]-a[2], vx = c[0]-a[0], vy = c[1]-a[1], vz = c[2]-a[2];
-    const nx = uy*vz-uz*vy, ny = uz*vx-ux*vz, nz = ux*vy-uy*vx, length = Math.hypot(nx,ny,nz);
-    for (const p of [a,b,c]) { positions.push(...p); normals.push(nx/length,ny/length,nz/length); parts.push(part); }
+  function tri(a,b,c,part,joint=0) {
+    a=pose(a);b=pose(b);c=pose(c);
+    const ux=b[0]-a[0],uy=b[1]-a[1],uz=b[2]-a[2],vx=c[0]-a[0],vy=c[1]-a[1],vz=c[2]-a[2];
+    const nx=uy*vz-uz*vy,ny=uz*vx-ux*vz,nz=ux*vy-uy*vx,l=Math.hypot(nx,ny,nz);
+    for(const p of [a,b,c]) {positions.push(...p);normals.push(nx/l,ny/l,nz/l);parts.push(part);joints.push(joint);}
   }
-  function quad(a,b,c,d,part) { tri(a,c,b,part); tri(a,d,c,part); }
-  function box(w0,w1,d0,d1,y0,y1,part,x=0,z=0) {
-    const a=[x-w0,y0,z-d0], b=[x+w0,y0,z-d0], c=[x+w0,y0,z+d0], d=[x-w0,y0,z+d0];
-    const e=[x-w1,y1,z-d1], f=[x+w1,y1,z-d1], g=[x+w1,y1,z+d1], h=[x-w1,y1,z+d1];
-    quad(a,b,f,e,part); quad(b,c,g,f,part); quad(c,d,h,g,part); quad(d,a,e,h,part); quad(e,f,g,h,part); quad(d,c,b,a,part);
+  function ring(w,d,y,x=0,z=0) {return Array.from({length:n},(_,i)=>{const a=i/n*Math.PI*2;return [x+Math.cos(a)*w,y,z+Math.sin(a)*d];});}
+  function join(a,b,part,joint=0) {for(let i=0;i<n;i++){const j=(i+1)%n;tri(a[i],b[i],a[j],part,joint);tri(a[j],b[i],b[j],part,joint);}}
+  function cap(a,part,joint=0,top=false) {for(let i=1;i<n-1;i++)top?tri(a[0],a[i+1],a[i],part,joint):tri(a[0],a[i],a[i+1],part,joint);}
+  const hem=ring(C.hem[0],C.hem[2],C.hemY),waist=ring(C.torso[0],C.torso[2],C.hip),shoulder=ring(C.torso[1],C.torso[3],C.shoulder);
+  if(simple)join(hem,shoulder,0);else{join(hem,waist,0);join(waist,shoulder,0);}
+  cap(shoulder,0,0,true);
+  // Keep a visible neck above the shoulder line in the detailed silhouette.
+  if(!simple)join(ring(C.neck[0],C.neck[2],C.neck[4]),ring(C.neck[1],C.neck[3],C.neck[5]),1);
+  // At distance the bottom of the face also supplies the neck.
+  const face=ring(C.head[0],C.head[1],(C.head[2]+C.head[3])/2);
+  for(let i=0;i<n;i++){const j=(i+1)%n;tri([0,simple?C.shoulder:C.head[2],0],face[i],face[j],1);tri([0,C.head[3],0],face[j],face[i],1);}
+  for(const side of [-1,1]) {
+    const joint=side<0?1:2,foot=ring(C.legWidth,C.legDepth,0,side*C.legSide),hip=ring(C.legWidth,C.legDepth,C.legTop,side*C.legSide);
+    join(foot,hip,0,joint);if(!simple)cap(foot,0,joint);
+    const arm=side<0?3:4,hand=ring(C.armWidth,C.armDepth,C.armLow,side*C.armSide),top=ring(C.armWidth,C.armDepth,C.shoulder,side*C.armSide);
+    join(hand,top,0,arm); // The hanging sleeve ends remain open, like cloth.
   }
-  const hem=CROWD.hem, torso=CROWD.torso, sleeve=CROWD.sleeve, neck=CROWD.neck, face=CROWD.head;
-  box(hem[0],hem[1],hem[2],hem[3],0,CROWD.hip,0);
-  box(...torso,0); box(...sleeve.slice(0,6),0,-sleeve[6]); box(...sleeve.slice(0,6),0,sleeve[6]); box(...neck,1);
-  // Octahedral face with a forward point so a returning walker has a readable facing direction.
-  const top=[0,face[3],0], bottom=[0,face[2],0], y=(face[2]+face[3])/2;
-  const ring=[[face[0],y,0],[0,y,-face[1]],[-face[0],y,0],[0,y,face[1]]];
-  for (let i=0;i<4;i++) { tri(top,ring[i],ring[(i+1)%4],1); tri(bottom,ring[(i+1)%4],ring[i],1); }
-  const cover=CROWD.cover, r=role==='traveller'?CROWD.travellerHatRadius:cover[head], brim=role==='traveller'?CROWD.travellerBrim:cover[3], peak=cover[4];
-  for (let i=0;i<CROWD.sides;i++) {
-    const a=i/CROWD.sides*Math.PI*2, b=(i+1)/CROWD.sides*Math.PI*2;
-    const p=[Math.cos(a)*r,brim,Math.sin(a)*r], q=[Math.cos(b)*r,brim,Math.sin(b)*r];
-    tri(p,[0,peak,0],q,2); tri(p,q,[0,brim,0],2);
+  const r=role==='traveller'?C.travellerHatRadius:C.cover[head],brim=role==='traveller'?C.travellerBrim:C.cover[3];
+  const hat=ring(r,r,brim);
+  for(let i=0;i<n;i++){const j=(i+1)%n;tri(hat[i],[0,1,0],hat[j],2);if(!simple)tri(hat[i],hat[j],[0,brim,0],2);}
+  if(role==='traveller') {
+    const pack=ring(C.pack[1],C.pack[3],C.pack[5],0,C.packBack),bottom=ring(C.pack[0],C.pack[2],C.pack[4],0,C.packBack);
+    join(bottom,pack,3);if(!simple){cap(bottom,3);cap(pack,3,0,true);}
+    if(staff){
+      const base=ring(C.staffWidth,C.staffWidth,0,C.staffSide),top=ring(C.staffWidth,C.staffWidth,C.staffHeight,C.staffSide);
+      join(base,top,4);if(!simple){cap(base,4);cap(top,4,0,true);}
+      // Long wrapped load, transverse across one shoulder; hidden unless this person's role carries it.
+      const a=ring(TRAVELLER.poleRadius/((C.heightMin+C.heightMax)/2),TRAVELLER.poleRadius/((C.heightMin+C.heightMax)/2),0),b=ring(TRAVELLER.poleRadius/((C.heightMin+C.heightMax)/2),TRAVELLER.poleRadius/((C.heightMin+C.heightMax)/2),TRAVELLER.poleLength/(C.heightMin+C.heightMax)*2);
+      const turn=v=>[v[1]-TRAVELLER.poleLength/(C.heightMin+C.heightMax),TRAVELLER.poleHeight-v[0],C.packBack+v[2]];
+      const left=a.map(turn),right=b.map(turn);join(left,right,5);if(!simple){cap(left,5);cap(right,5,0,true);}
+    }
   }
-  if (role === 'traveller') {
-    box(...CROWD.pack, 3, 0, CROWD.packBack);
-    // Same topology for the two variants; the no-staff instance hides this part in the shader.
-    if (staff) box(CROWD.staffWidth, CROWD.staffWidth, CROWD.staffWidth, CROWD.staffWidth, 0, CROWD.staffHeight, 4, CROWD.staffSide);
-  }
-  return { positions: new Float32Array(positions), normals: new Float32Array(normals), parts: new Uint8Array(parts), triangles: parts.length/3 };
+  return {positions:new Float32Array(positions),normals:new Float32Array(normals),parts:new Uint8Array(parts),joints:new Uint8Array(joints),triangles:parts.length/3};
 }

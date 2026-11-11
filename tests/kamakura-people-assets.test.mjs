@@ -82,7 +82,7 @@ test('shipped rigs carry distinct coloured shallow hats, rounded bundles or open
     }
     const partColor=name=>{const part=mesh.userData.parts.find(p=>p.name===name);return new THREE.Color().fromBufferAttribute(color,part.start);};
     assert(!partColor('hat').equals(partColor('pack'))&&!partColor('hat').equals(partColor('staff'))&&!partColor('pack').equals(partColor('staff')));
-    const expected=new THREE.Color(CROWD.clothes[travellerTraits(p).packCloth]);
+    const expected=new THREE.Color(CROWD.clothes[travellerTraits(p).packCloth]).multiplyScalar(travellerTraits(p).packGain);
     const pack=partColor('pack');assert(Math.abs(pack.r-expected.r)<1e-6&&Math.abs(pack.g-expected.g)<1e-6&&Math.abs(pack.b-expected.b)<1e-6);
     if(variant===0) {
       const at=new THREE.Vector3().setFromMatrixPosition(bindings.find(b=>b.part==='pack').anchor),point=new THREE.Vector3();let back=Infinity;
@@ -155,4 +155,26 @@ test('real three rigs: finite animated poses, measured triangle/draw work, share
   }
   t.diagnostic(`shipped models ${JSON.stringify(measurements)}; synthetic town 10 people ${triangles} triangles, ${draws} main-pass draws, ${debug.boneUpdates} bone ticks before timing; 600-frame Node mean ${ms.toFixed(3)}ms, max Character constructor ${firstPhaseTime.toFixed(3)}ms (not GPU/frame timing)`);
   layer.dispose();layer.dispose();assert.equal(events.geometry,3);assert.equal(events.material,3);assert.equal(created,disposed);assert.equal(events.cloneSkeleton,created);assert.equal(events.templateSkeleton,3);assert.equal(scene.children.length,0);
+});
+
+test('road roles attach only their own equipment, and shoulder loads share the shaded near/far cloth',t=>{
+  const counts={};
+  for(const carry of ['pack','pole','staff','none']) {
+    const ch=new Character({templates,meta},'villager_m'),p={variant:2,carry,pole:carry==='pole',staff:carry==='staff'};
+    const mesh=createTravellerEquipment(ch,p,travellerBindings(ch),CROWD.duskGain),partNames=mesh.userData.parts.map(p=>p.name);
+    assert.deepEqual(partNames,carry==='none'?['hat']:['hat',carry]);assert(mesh.geometry.attributes.position.count/3<=200);
+    counts[carry]=mesh.geometry.attributes.position.count/3;
+    if(carry==='pack'||carry==='pole') {
+      const part=mesh.userData.parts.find(p=>p.name===carry),actual=new THREE.Color().fromBufferAttribute(mesh.geometry.attributes.color,part.start);
+      const traits=travellerTraits(p),expected=new THREE.Color(CROWD.clothes[traits.packCloth]).multiplyScalar(traits.packGain*CROWD.duskGain);
+      assert(Math.abs(actual.r-expected.r)<1e-6&&Math.abs(actual.g-expected.g)<1e-6&&Math.abs(actual.b-expected.b)<1e-6);
+      if(carry==='pole') {
+        const index=mesh.userData.parts.indexOf(part),inverse=mesh.skeleton.boneInverses[index],box=new THREE.Box3();
+        for(let i=part.start;i<part.start+part.count;i++)box.expandByPoint(new THREE.Vector3().fromBufferAttribute(mesh.geometry.attributes.position,i).applyMatrix4(inverse));
+        assert(Math.abs(box.getSize(new THREE.Vector3()).x-TRAVELLER.poleLength)<1e-6);assert.equal(mesh.skeleton.bones[index].parent.name,'Spine');
+      }
+    }
+    releaseTravellerEquipment(mesh);assert(!ch.model.getObjectByName('traveller-hat'));assert(!ch.model.getObjectByName('traveller-pole'));ch.dispose();
+  }
+  t.diagnostic(`near road equipment triangles ${JSON.stringify(counts)}; one material draw; support bones Head / Spine / RightHand`);
 });

@@ -172,3 +172,43 @@ test('ordinary people retain their local animation clock when the flight feature
   const b=fixture({search:'?debug=1&flight=0&shorepeople=0'});await b.settle();
   assert.deepEqual(b.snapshot().actors.map(({id,clip,yaw,head})=>({id,clip,yaw,head})),before);b.close();
 });
+
+test('flying skeletons are the nearest eight within 45m in 3D, share road anchors and leave silhouettes while loading or beyond range',async t=>{
+  const {createKamakuraCrowd}=await import('../dist/valley/kamakura-crowd-view.js');
+  const {prepareFlight,sampleFlight,selectFlightPeople}=await import('../dist/valley/kamakura-people.js');
+  const f=fixture();f.context.data={meta:{flight:{road:'pass',groups:24,size:[6,6],speed:.8}},roads:{pass:{kind:'trail',width_m:4,xyz_m:[[0,-150,0],[0,150,0]]}}};
+  const crowd=createKamakuraCrowd(f.context,true);f.frame.time=30;f.frame.flying=true;f.frame.pos={x:0,y:20,z:0};
+  crowd.update(f.frame);assert(globalThis.__kzFlight().drawn>0,'pending skeleton loading leaves the road visible');
+  await f.settle();crowd.update(f.frame);let snap=f.snapshot();assert.equal(snap.byRole.traveller,8);assert.equal(snap.active,8);
+  const spots=prepareFlight(f.context);for(const p of spots)sampleFlight(p,30,f.context.terrain,p);
+  const indices=new Int32Array(8),n=selectFlightPeople(spots,f.frame.pos,'standard',0,indices,true);
+  assert.equal(n,8);assert.deepEqual(snap.actors.map(a=>a.id).sort(),Array.from(indices,i=>spots[i].id).sort());
+  for(const a of snap.actors){const p=spots.find(p=>p.id===a.id);assert(Math.hypot(a.x-p.x,a.z-p.z)<.05);assert(Math.hypot(a.x,a.z,20)<=45);
+    const ch=f.characters.find(c=>c.root.visible&&Math.hypot(c.root.position.x-a.x,c.root.position.z-a.z)<.001);assert(ch);
+    const d=Math.hypot(p.x,p.z,20),fade=Math.max(0,Math.min(1,(45-d)/PEOPLE.fade));
+    assert(Math.abs(ch.root.scale.x*ch.height-(p.child?.96:1.6)*p.alpha*fade)<1e-6);}
+  for(const mesh of f.scene.children.filter(m=>m.name.startsWith('kamakura-travellers')&&!m.name.includes('shadow'))) {
+    const g=mesh.geometry;
+    for(let i=0;i<g.instanceCount;i++) {
+      const p=spots.find(p=>Math.hypot(p.x-g.attributes.crowdAnchor.getX(i),p.z-g.attributes.crowdAnchor.getZ(i))<.001);assert(p);
+      const actor=snap.actors.find(a=>a.id===p.id);
+      assert(Math.abs(g.attributes.crowdAnchor.getW(i)-(p.child?.96:1.6)*p.alpha)<1e-6);
+      if(actor)assert(g.attributes.crowdPerson.getW(i)>0);else assert.equal(g.attributes.crowdPerson.getW(i),0);
+    }
+  }
+  f.frame.pos.y=100;f.step();crowd.update(f.frame);assert.equal(f.snapshot().active,0);assert.equal(globalThis.__kzFlight().drawn,spots.filter(p=>p.alpha>0).length);
+  f.frame.pos.y=20;f.step(30);crowd.update(f.frame);assert.equal(f.snapshot().active,8);
+  f.layer.setAdapt(2);crowd.setAdapt(2);f.step(30);crowd.update(f.frame);assert(f.snapshot().active<=6);
+  f.layer.setAdapt(3);crowd.setAdapt(3);assert.equal(f.snapshot().active,0);assert.equal(globalThis.__kzFlight().drawn,0);
+  t.diagnostic(`synthetic flight: ${spots.length} road people, eight skeleton slots at 20m altitude; no skeletons at 100m`);
+  crowd.dispose();f.close();assert.equal(f.context.flightPeople,undefined);
+});
+
+test('walking families stay beside each other while preserving the hero clearance',async()=>{
+  const f=fixture({town:false});f.context.data={meta:{flight:{road:'pass',groups:1,size:[2,2],speed:.8}},roads:{pass:{kind:'trail',width_m:4,xyz_m:[[0,-100,0],[0,100,0]]}}};
+  f.hero.pos.x=10;f.frame.time=0;await f.settle();
+  const actors=f.snapshot().actors.filter(a=>a.role==='traveller');assert.equal(actors.length,2);
+  const distance=Math.hypot(actors[0].x-actors[1].x,actors[0].z-actors[1].z);assert(distance>=.5&&distance<.9);
+  for(const a of actors)assert(Math.hypot(a.x-f.hero.pos.x,a.z-f.hero.pos.z)>=PEOPLE.heroGap);
+  f.close();
+});
