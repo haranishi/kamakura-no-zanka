@@ -13,6 +13,11 @@ export const BACKDROP = Object.freeze({
   northGain: .2, // fraction of extra height from south to north.
   ridgeScaleM: 2800, valleyScaleM: 950, ridgeWeight: .7,
   noiseOffset: 13, // noise cells: decorrelate valleys from the broad ridge. // metre scales and broad ridge weighting.
+  gainMin: .5, gainMax: 4, // allowed per-map linear colour multipliers.
+  coastRiseM: 30, // m: edge elevation that preserves the original full mountain envelope.
+  crownFineM: 12, crownCoarseM: 40, crownContrast: .25, // m / fractional gain: world-anchored canopy variation.
+  crownFineWeight: .5, crownFilterFrom: .35, crownFilterTo: 1, // noise blend / cell widths per pixel: unresolved crowns return to their mean.
+  hazeFromM: 250, hazeToM: 2200, hazeMix: .55, hazeSaturationLoss: .25, // same metres / fractions as the ground's slope airlight.
   shadeScaleM: 560, shadeContrast: .1, // metres and ±fraction of canopy colour.
   canopy: Object.freeze(canopy), // linear RGB from the existing distant forest source.
   debugNear: 0xff00ff, debugFar: 0xffff00, // flat near magenta / far yellow.
@@ -23,10 +28,11 @@ export const BACKDROP = Object.freeze({
 });
 const C=BACKDROP,clamp=x=>Math.max(0,Math.min(1,x));
 const smooth=(a,b,x)=>{const t=clamp((x-a)/(b-a));return t*t*(3-2*t);};
+export const backdrop2Enabled=search=>new URLSearchParams(search).get('backdrop2')!=='0';
 export const backdropEnabled=search=>new URLSearchParams(search).get('backdrop')!=='0';
 export const backdropRange=(quality='standard',step=0)=>Math.min(quality==='light'?C.lightRangeM:C.extentM,C.adaptRangesM[Math.max(0,Math.min(3,step))]);
 // Projection to the nearest boundary segment; outside a corner both segments meet at the same endpoint.
-export function backdropPoint(terrain,x,z,out={}) {
+export function backdropPoint(terrain,x,z,out={},enhanced=true) {
   const b=terrain.bounds,px=Math.max(b.minX,Math.min(b.maxX,x)),pz=Math.max(b.minZ,Math.min(b.maxZ,z));
   const dx=Math.abs(x-px),dz=Math.abs(z-pz),distance=Math.hypot(dx,dz);
   out.inside=x>b.minX&&x<b.maxX&&z>b.minZ&&z<b.maxZ;
@@ -39,7 +45,8 @@ export function backdropPoint(terrain,x,z,out={}) {
   const far=smooth(0,C.farHeightStartM,distance);
   const lo=C.nearMinM+(C.farMinM-C.nearMinM)*far,hi=C.nearMaxM+(C.farMaxM-C.nearMaxM)*far;
   const north=1-clamp((pz-b.minZ)/(b.maxZ-b.minZ));
-  const mountain=lo+(hi-lo)*clamp(n+C.northGain*(north-.5));
+  let mountain=lo+(hi-lo)*clamp(n+C.northGain*(north-.5));
+  if(enhanced)mountain=C.minHeightM+(mountain-C.minHeightM)*smooth(C.landThresholdM,C.coastRiseM,out.edgeHeight);
   // Exact terrain seam takes precedence for a rare edge sample below the 2m clearance.
   out.height=distance===0?out.edgeHeight:Math.max(C.minHeightM,out.edgeHeight+(mountain-out.edgeHeight)*smooth(0,C.blendM,distance));
   return out;
@@ -47,13 +54,16 @@ export function backdropPoint(terrain,x,z,out={}) {
 function edgeProfile(terrain,edge,work) {
   const b=terrain.bounds,horizontal=edge==='north'||edge==='south',start=horizontal?b.minX:b.minZ,end=horizontal?b.maxX:b.maxZ;
   const cell=Math.min(C.nearCellM,terrain.cell||C.nearCellM),n=Math.ceil((end-start)/cell-1e-8),nodes=[],crossings=[];
-  let landLength=0;
+  let landLength=0,coastLength=0;
   for(let i=0;i<=n;i++){
     const u=start+(end-start)*i/n,x=horizontal?u:edge==='east'?b.maxX:b.minX,z=horizontal?(edge==='north'?b.minZ:b.maxZ):u;
     const height=terrain.heightAt(x,z);work.heightSamples++;
     if(!Number.isFinite(height))throw new RangeError('Backdrop edge height is not finite');
     nodes.push(u);
     if(i){const prev=nodes[i-1],old=terrain.heightAt(horizontal?prev:x,horizontal?z:prev);work.heightSamples++;
+      // Linear sub-cell length, independent of the mesh pitch and number of triangles.
+      if(height===old){if(height>=C.landThresholdM&&height<C.coastRiseM)coastLength+=u-prev;}
+      else {const a=(C.landThresholdM-old)/(height-old),b=(C.coastRiseM-old)/(height-old);coastLength+=(u-prev)*Math.max(0,Math.min(1,Math.max(a,b))-Math.max(0,Math.min(a,b)));}
       const a=old>=C.landThresholdM,c=height>=C.landThresholdM;
       if(a&&c)landLength+=u-prev;
       else if(a!==c){let lo=prev,hi=u;
@@ -66,7 +76,7 @@ function edgeProfile(terrain,edge,work) {
     const u=(boundaries[i]+boundaries[i+1])/2,h=terrain.heightAt(horizontal?u:edge==='east'?b.maxX:b.minX,horizontal?(edge==='north'?b.minZ:b.maxZ):u);work.heightSamples++;
     if(h>=C.landThresholdM)intervals.push([boundaries[i],boundaries[i+1]]);
   }
-  return {nodes,crossings,intervals,fraction:landLength/(end-start)};
+  return {nodes,crossings,intervals,coastLength,fraction:landLength/(end-start)};
 }
 function coordinates(start,end,cell,extra) {
   const n=Math.ceil((end-start)/cell),set=new Set([start,end]);
@@ -74,12 +84,12 @@ function coordinates(start,end,cell,extra) {
   for(const v of extra)if(v>start&&v<end)set.add(v);
   return [...set].sort((a,b)=>a-b);
 }
-export function buildBackdrop(terrain,{quality='standard'}={}) {
+export function buildBackdrop(terrain,{quality='standard',enhanced=true,gain=1}={}) {
   const b=terrain.bounds;if(!b||!(b.maxX>b.minX&&b.maxZ>b.minZ))throw new RangeError('Backdrop bounds');
   const work={heightSamples:0,candidateTriangles:0},edges={},landEdges={};
   for(const name of ['north','east','south','west']){edges[name]=edgeProfile(terrain,name,work);landEdges[name]=edges[name].fraction;}
   const segments=[];let triangles=0,maxHeight=0;
-  const sample=(x,z)=>{work.heightSamples++;const p=backdropPoint(terrain,x,z);if(!Number.isFinite(p.height))throw new RangeError('Backdrop height');if(p.distance>(quality==='light'?C.lightRangeM:C.extentM))p.land=false;return {x,z,...p};};
+  const sample=(x,z)=>{work.heightSamples++;const p=backdropPoint(terrain,x,z,{},enhanced);if(!Number.isFinite(p.height))throw new RangeError('Backdrop height');if(p.distance>(quality==='light'?C.lightRangeM:C.extentM))p.land=false;return {x,z,...p};};
   for(const outer of [false,true]){
     if(outer&&quality==='light')continue;
     const cell=outer?C.farCellM:C.nearCellM,start=outer?C.nearExtentM:0,end=outer?C.extentM:C.nearExtentM;
@@ -87,8 +97,8 @@ export function buildBackdrop(terrain,{quality='standard'}={}) {
     const vertex=p=>{
       const key=`${p.x.toFixed(6)},${p.z.toFixed(6)}`;if(cache.has(key))return cache.get(key);
       const i=positions.length/3;cache.set(key,i);positions.push(Math.fround(p.x===b.minX?p.x-C.seamSnapM:p.x===b.maxX?p.x+C.seamSnapM:p.x),Math.fround(p.height),Math.fround(p.z===b.minZ?p.z-C.seamSnapM:p.z===b.maxZ?p.z+C.seamSnapM:p.z));maxHeight=Math.max(maxHeight,p.height);
-      const gain=1+C.shadeContrast*(2*shoreNoise(p.x/C.shadeScaleM,p.z/C.shadeScaleM)-1);
-      colors.push(C.canopy[0]*gain,C.canopy[1]*gain,C.canopy[2]*gain);return i;
+      const shade=(enhanced?gain:1)*(1+C.shadeContrast*(2*shoreNoise(p.x/C.shadeScaleM,p.z/C.shadeScaleM)-1));
+      colors.push(C.canopy[0]*shade,C.canopy[1]*shade,C.canopy[2]*shade);return i;
     };
     const append=(a,c,d)=>{
       if(Math.abs((c.x-a.x)*(d.z-a.z)-(c.z-a.z)*(d.x-a.x))<1e-8)return;
@@ -136,5 +146,59 @@ export function buildBackdrop(terrain,{quality='standard'}={}) {
     }
     if(indices.length)segments.push({outer,positions:new Float32Array(positions),colors:new Float32Array(colors),indices:new Uint32Array(indices),bands});
   }
-  return {segments,triangles,draws:segments.length,landEdges,maxHeight,work};
+  return {segments,triangles,draws:segments.length,landEdges,maxHeight,coastLengthM:Object.values(edges).reduce((sum,edge)=>sum+edge.coastLength,0),gain:enhanced?gain:1,work};
+}
+
+// Two noise evaluations; JS and GLSL use these same constants and world coordinates.
+export function backdropCrown(x,z,pixel=0){
+  const fine=(2*shoreNoise(x/C.crownFineM,z/C.crownFineM)-1)*(1-smooth(C.crownFineM*C.crownFilterFrom,C.crownFineM*C.crownFilterTo,pixel));
+  const coarse=(2*shoreNoise(x/C.crownCoarseM,z/C.crownCoarseM)-1)*(1-smooth(C.crownCoarseM*C.crownFilterFrom,C.crownCoarseM*C.crownFilterTo,pixel));
+  return 1+C.crownContrast*(fine*C.crownFineWeight+coarse*(1-C.crownFineWeight));
+}
+export function backdropHaze(color,fog,distance){
+  const a=smooth(C.hazeFromM,C.hazeToM,distance);if(a===0)return color.slice();
+  const sat=c=>(Math.max(...c)-Math.min(...c))/Math.max(.00001,Math.max(...c));
+  const before=sat(color),air=color.map((v,i)=>v+(fog[i]-v)*C.hazeMix*a);
+  const L=air[0]*.2126+air[1]*.7152+air[2]*.0722,hi=Math.max(...air),lo=Math.min(...air);
+  const target=Math.max(before*(1-C.hazeSaturationLoss*a),Math.min(before,sat(air)));
+  const k=target*L/Math.max(.00001,hi-lo-target*(hi-L));
+  return air.map(v=>L+(v-L)*k);
+}
+const gl=n=>Number(n).toFixed(8);
+export const BACKDROP_GLSL=`
+varying vec3 vBackdropWorld;
+float backdropHash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
+float backdropNoise(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);return mix(mix(backdropHash(i),backdropHash(i+vec2(1.0,0.0)),f.x),mix(backdropHash(i+vec2(0.0,1.0)),backdropHash(i+vec2(1.0)),f.x),f.y);}
+float backdropCrown(vec2 p,float pixel){
+  float fine=(2.0*backdropNoise(p/${gl(C.crownFineM)})-1.0)*(1.0-smoothstep(${gl(C.crownFineM*C.crownFilterFrom)},${gl(C.crownFineM*C.crownFilterTo)},pixel));
+  float coarse=(2.0*backdropNoise(p/${gl(C.crownCoarseM)})-1.0)*(1.0-smoothstep(${gl(C.crownCoarseM*C.crownFilterFrom)},${gl(C.crownCoarseM*C.crownFilterTo)},pixel));
+  return 1.0+${gl(C.crownContrast)}*mix(coarse,fine,${gl(C.crownFineWeight)});
+}
+vec3 backdropHaze(vec3 color,vec3 fog,float dist){
+  float a=smoothstep(${gl(C.hazeFromM)},${gl(C.hazeToM)},dist);if(a<=0.0)return color;
+  float hi=max(max(color.r,color.g),color.b),lo=min(min(color.r,color.g),color.b);
+  float before=(hi-lo)/max(.00001,hi);
+  vec3 air=mix(color,fog,${gl(C.hazeMix)}*a);
+  float L=dot(air,vec3(.2126,.7152,.0722));
+  hi=max(max(air.r,air.g),air.b);lo=min(min(air.r,air.g),air.b);
+  float target=clamp((hi-lo)/max(.00001,hi),before*(1.0-${gl(C.hazeSaturationLoss)}*a),before);
+  float k=target*L/max(.00001,hi-lo-target*(hi-L));
+  return vec3(L)+(air-vec3(L))*k;
+}
+`;
+export function backdropShader(shader){
+  shader.vertexShader=shader.vertexShader.replace('#include <common>','#include <common>\nvarying vec3 vBackdropWorld;').replace('#include <begin_vertex>','#include <begin_vertex>\nvBackdropWorld=(modelMatrix*vec4(position,1.0)).xyz;');
+  shader.fragmentShader=shader.fragmentShader.replace('#include <common>','#include <common>\n'+BACKDROP_GLSL)
+    .replace('#include <color_fragment>','#include <color_fragment>\ndiffuseColor.rgb*=backdropCrown(vBackdropWorld.xz,length(fwidth(vBackdropWorld.xz)));')
+    .replace('#include <opaque_fragment>',`#ifdef USE_FOG
+      outgoingLight=backdropHaze(outgoingLight,fogColor,distance(vBackdropWorld,cameraPosition));
+      #endif
+      #include <opaque_fragment>`);
+}
+
+export function validateBackdrop(value){
+  if(value===undefined)return value;
+  if(!value||typeof value!=='object'||Array.isArray(value))throw new RangeError('meta.backdrop must be an object');
+  for(const key of Object.keys(value))if(key!=='gain'||!Number.isFinite(value[key])||value[key]<C.gainMin||value[key]>C.gainMax)throw new RangeError('Invalid meta.backdrop.'+key);
+  return value;
 }

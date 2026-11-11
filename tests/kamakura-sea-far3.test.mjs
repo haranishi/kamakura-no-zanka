@@ -102,7 +102,7 @@ test('sea3 S6 shaders, debug reader, quality, no additional resources and exact 
 });
 
 test('sea3=0 retains HEAD shader bytes, cache key, texture format and draw count',()=>{
-  const v=buildKamakuraSea(terrain(),data(),{search:'?sea3=0&bankwet=0'}),s=shader(v);
+  const v=buildKamakuraSea(terrain(),data(),{search:'?shelter=0&sea3=0&bankwet=0'}),s=shader(v);
   // Captured from the untouched HEAD onBeforeCompile, independently compared with sea3=0.
   assert.equal(createHash('sha256').update(s.vertexShader+'\n'+s.fragmentShader).digest('hex'),'c892de2aebb1e4200c251020ecb72926a24cedb40f5e200a27393cda2985593e');
   assert.equal(v.mesh.material.customProgramCacheKey(),'kamakura-sea-18-far');assert(!s.fragmentShader.includes('sea3Surf'));assert(!('uSea3' in s.uniforms));assert.equal(v.mesh.geometry.index.count/3,2);assert.equal(v.textures[0].format,THREE.RGFormat);v.dispose();

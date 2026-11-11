@@ -5,7 +5,7 @@ import { atmosphereOptions } from './kamakura-atmosphere.js';
 import { lightSettings, shaftVisibility, advanceCloudTime, cloudHigh, lightFinalShader, SHAFT_SHADERS } from './kamakura-sky-fx.js';
 import { farShadowEnabled } from './kamakura-far-shadow.js';
 import { createFarShadowView } from './kamakura-far-shadow-view.js';
-import { MIST, createMistField, mistStrength } from './kamakura-mist.js';
+import { MIST, MIST_GLSL, mistShader, createMistField, mistStrength } from './kamakura-mist.js';
 const VERT = 'varying vec2 vUv; void main(){ vUv=position.xy*.5+.5; gl_Position=vec4(position.xy,0.,1.); }';
 export const POST_SHADERS = {
   down: `varying vec2 vUv; uniform sampler2D tex; uniform vec2 delta; uniform float threshold, liftCap;
@@ -89,7 +89,7 @@ export function createKamakuraPost({ renderer, quality = 'standard', search = ''
     geometry = new THREE.BufferGeometry(); geometry.setAttribute('position',new THREE.Float32BufferAttribute([-1,-1,0,3,-1,0,-1,3,0],3));
     down = material(POST_SHADERS.down,{ tex:{value:null},delta:{value:new THREE.Vector2()},threshold:{value:0},liftCap:{value:0} });
     combine = material(POST_SHADERS.combine,{ tex0:{value:null},tex1:{value:null},tex2:{value:null},dy:{value:new THREE.Vector3()} });
-    final = material(lightFinalShader(POST_SHADERS.final, options),{
+    final = material(lightFinalShader(POST_SHADERS.final, options).replace(MIST_GLSL,mistShader(terrain?.meta?.mist)),{
       shadeStrength:{value:shade.strength},shadeFloor:{value:shade.floor},shadeDusk:{value:shade.evening?1:0},
       sceneTex:{value:null},bloomTex:{value:null},toneMappingExposure:{value:exposure},toneMode:{value:['none','aces','neutral','agx'].indexOf(options.tone)},
       bloomStrength:{value:options.bloom ? (params.postBloom ?? .12) : 0},glareStrength:{value:0},sunUV:{value:new THREE.Vector2()},

@@ -1,10 +1,11 @@
 // W2c-18 seaedge: build after the first rendered frame, then leave the CPU idle.
 import * as THREE from '../vendor/three.module.min.js';
-import { BACKDROP, backdropEnabled, backdropRange, buildBackdrop } from './kamakura-backdrop.js';
+import { BACKDROP, validateBackdrop, backdrop2Enabled, backdropShader, backdropEnabled, backdropRange, buildBackdrop } from './kamakura-backdrop.js';
 
-export function createKamakuraBackdrop({scene,terrain,camera,search='',quality='standard'}) {
+export function createKamakuraBackdrop({scene,terrain,camera,data,search='',quality='standard'}) {
   if(!backdropEnabled(search))return null;
   const q=new URLSearchParams(search),debug=q.get('debug')==='1',colors=q.get('backdropdebug')==='1';
+  const enhanced=backdrop2Enabled(search),gain=validateBackdrop(data?.meta?.backdrop)?.gain??1;
   const group=new THREE.Group(),meshes=[];group.name='kamakura-backdrop';
   let disposed=false,ready=false,pending=false,frames=0,step=0,timer=null,prepared=null,failure=null;
   function applyAdapt(){
@@ -22,10 +23,11 @@ export function createKamakuraBackdrop({scene,terrain,camera,search='',quality='
   function build(){
     timer=null;if(disposed)return;
     try{
-      prepared=buildBackdrop(terrain,{quality});
+      prepared=buildBackdrop(terrain,{quality,enhanced,gain});
       for(const segment of prepared.segments){
         const geometry=new THREE.BufferGeometry();
         const material=colors?new THREE.MeshBasicMaterial({color:segment.outer?BACKDROP.debugFar:BACKDROP.debugNear,fog:false,toneMapped:false}):new THREE.MeshLambertMaterial({vertexColors:true,fog:true});
+        if(enhanced&&!colors){material.onBeforeCompile=backdropShader;material.customProgramCacheKey=()=> 'kamakura-backdrop-19-coast';}
         // Register resources before populating: a failed attribute/normal build still releases both once.
         const mesh=new THREE.Mesh(geometry,material);meshes.push(mesh);
         geometry.setAttribute('position',new THREE.BufferAttribute(segment.positions,3));
@@ -44,7 +46,7 @@ export function createKamakuraBackdrop({scene,terrain,camera,search='',quality='
       for(let k=0;k<mesh.geometry.drawRange.count;k++){const i=indices[k]*3,dx=p[i]-camera.position.x,dy=p[i+1]-camera.position.y,dz=p[i+2]-camera.position.z,d=Math.hypot(dx,dy,dz);
         if(d<distance){distance=d;bearing=(Math.atan2(dx,-dz)*180/Math.PI+360)%360;}}
     }
-    return {ready,triangles,draws,landEdges:prepared?.landEdges??null,maxHeight:prepared?.maxHeight??0,work:prepared?.work??null,error:failure?.message??null,nearest:{distance:Number.isFinite(distance)?distance:null,bearing}};
+    return {ready,triangles,draws,coastLengthM:prepared?.coastLengthM??0,gain:enhanced?gain:1,landEdges:prepared?.landEdges??null,maxHeight:prepared?.maxHeight??0,work:prepared?.work??null,error:failure?.message??null,nearest:{distance:Number.isFinite(distance)?distance:null,bearing}};
   };
   if(debug)globalThis.__kzBackdrop=reader;
   const layer={group,meshes,

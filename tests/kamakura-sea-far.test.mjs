@@ -51,7 +51,7 @@ test('S2 unequal fronts advance one band each 25 seconds, break up and conserve 
 });
 
 test('S1 sea2=0 retains the pre-change shader bytes, resource format and program key',()=>{
-  const v=buildKamakuraSea(terrain(),data(),{search:'?sea2=0&bankwet=0'}),s=shader(v);
+  const v=buildKamakuraSea(terrain(),data(),{search:'?shelter=0&sea2=0&bankwet=0'}),s=shader(v);
   // Recorded from HEAD before W2c-18: shader source, not a floating-point-generated geometry hash.
   assert.equal(createHash('sha256').update(s.vertexShader+'\n'+s.fragmentShader).digest('hex'),'281fcef06279bb44f9ce15ef8d9759b194c532572b9bc85cc5e5005c669c27b3');
   assert.equal(v.mesh.material.customProgramCacheKey(),'kamakura-sea-11-shore6');assert(!s.fragmentShader.includes('sea2Grazing'));
@@ -108,13 +108,13 @@ test('S2/S4 shipped shader hooks and expanded GLSL are balanced; added names and
 test('S2 texture gains distinguish beach/cliff without extra textures; adaptation/debug/disposal remain bounded',()=>{
   for(const quality of ['standard','light']){
     const v=buildKamakuraSea(terrain(),data(),{quality,search:'?sea3=0&debug=1&sea2debug=1&bankwet=0'}),c=new THREE.PerspectiveCamera();c.position.set(0,700,0);c.lookAt(0,0,-1000);c.updateMatrixWorld();v.mesh.onBeforeRender(null,null,c);
-    assert.equal(v.textures[0].format,THREE.RGFormat);assert.equal(v.uniforms.uSea2Lines.value,quality==='light'?2:4);
+    assert.equal(v.textures[0].format,THREE.RGBAFormat);assert.equal(v.uniforms.uSea2Lines.value,quality==='light'?2:4);
     v.update(.016,c.position,1);assert(globalThis.__kzSea2().swell>0);v.setAdapt(2);assert.equal(v.uniforms.uSea2Lines.value,2);assert.equal(v.uniforms.uSea2Swell.value,.5);
     v.setAdapt(3);assert.equal(v.uniforms.uSea2.value,0);assert.equal(globalThis.__kzSea2().enabled,false);v.setAdapt(0);assert.equal(v.uniforms.uSea2.value,1);
     const resources=[v.mesh.geometry,v.mesh.material,...v.textures],counts=resources.map(()=>0);resources.forEach((r,i)=>r.addEventListener('dispose',()=>counts[i]++));v.dispose();v.dispose();assert(counts.every(n=>n===1));assert.equal(globalThis.__kzSea2,undefined);
   }
   const beach=buildKamakuraSea(terrain(),data(),{search:'?bankwet=0'}),cliff=buildKamakuraSea({...terrain(),heightAt:(_x,z)=>-z*2},data(),{search:'?bankwet=0'});
-  const gain=v=>{const a=v.textures[0].image.data;let sum=0,n=0;for(let i=0;i<a.length;i+=2){if(THREE.DataUtils.fromHalfFloat(a[i])>0&&THREE.DataUtils.fromHalfFloat(a[i])<85){sum+=THREE.DataUtils.fromHalfFloat(a[i+1]);n++;}}return sum/n;};
+  const gain=v=>{const a=v.textures[0].image.data;let sum=0,n=0;for(let i=0;i<a.length;i+=4){if(THREE.DataUtils.fromHalfFloat(a[i])>0&&THREE.DataUtils.fromHalfFloat(a[i])<85){sum+=THREE.DataUtils.fromHalfFloat(a[i+1]);n++;}}return sum/n;};
   assert(gain(beach)>gain(cliff)*2);beach.dispose();cliff.dispose();
   const update=source('kamakura-sea-view.js').split('update(dt,pos,audioTime)')[1].split('setAdapt(value)')[0];
   assert(!/=>|\.map\(|\.filter\(|\.slice\(/.test(update)); // no new per-frame closures or arrays.
