@@ -1,3 +1,5 @@
+import { ESCAPE as R } from '../worlds/kamakura-escape.mjs';
+import { routeTargets, routeTreeHeight } from './designed-route.mjs';
 import { PLAN as P } from '../worlds/kamakura-return.mjs';
 import { gameZ, northOffset, hash, noise, clamp, townWestAt, inRect, townEastAt } from './designed-terrain.mjs';
 import { houseBounds, houseBox, houseIntersects } from '../../dist/valley/kamakura-houses.js';
@@ -12,11 +14,13 @@ export function placeDesignedHouses(kits,field,nodes) {
   const byGroup=group=>kits.kinds.filter(k=>k.house_type.split('_')[0]===group);
   const choose=(group,i)=>{const a=byGroup(group);if(!a.length)throw Error('Missing house family: '+group);return a[i%a.length];};
   const nearest=(x,y)=>{let best=Infinity,target=null;for(const road of field.roads)for(let i=1;i<road.points.length;i++){const a=road.points[i-1],b=road.points[i],dx=b[0]-a[0],dy=b[1]-a[1],t=Math.max(0,Math.min(1,((x-a[0])*dx+(y-a[1])*dy)/(dx*dx+dy*dy))),rx=a[0]+dx*t,ry=a[1]+dy*t,d=Math.hypot(x-rx,y-ry);if(d<best){best=d;target={x:rx,y:ry};}}return target;};
-  function add(k,x,y,{yaw,scaleX=1,scaleZ=1,allowTouch=false,reserve=false}={}) {
+  function add(k,x,y,{yaw,scaleX=1,scaleZ=1,allowTouch=false,reserve=false,retreat=false}={}) {
+    if(!retreat&&y>294)return false;
     if(yaw===undefined){const q=nearest(x,y);yaw=Math.atan2(q.x-x,-(q.y-y));}
     const co=Math.cos(yaw),si=Math.sin(yaw),b=houseBounds(k),u=(b.min[0]+b.max[0])/2,v=(b.min[2]+b.max[2])/2;
     const matrix=[co*scaleX,0,-si*scaleX,0,0,1,0,0,si*scaleZ,0,co*scaleZ,0,x-co*u*scaleX-si*v*scaleZ,0,gameZ(y)+si*u*scaleX-co*v*scaleZ,1];
     const box=houseBox(k,matrix),q=field.riverNear(x,y);
+    if(R.trees.some(([tx,ty])=>houseIntersects(box,{x:tx,z:gameZ(ty)},undefined,P.veg.boxGap)))return false;
     if(reserve&&fillRow(box))return false;
     if(field.sample(x,y).h<=0||q.distance<q.width/2+P.river.bankMin||facilities.some(b=>townBoxesOverlap(box,b,c.gap))||(!allowTouch&&boxes.some(b=>townBoxesOverlap(box,b,c.gap))))return false;
     for(const road of field.roads)for(let i=1;i<road.points.length;i++) {
@@ -28,6 +32,20 @@ export function placeDesignedHouses(kits,field,nodes) {
       if(field.sample(px,py).h<=0||r.distance<r.width/2)return false;
     }
     houses.push({kind:k.index,matrix});boxes.push(box);used.add(k.index);return true;
+  }
+  const routeHouses=[];
+  for(const [i,p] of [...R.homes,...R.huts].entries()){
+    const kinds=byGroup(i<R.homes.length?'koya':'banya').sort((a,b)=>{const x=houseBounds(a),y=houseBounds(b);return (x.max[0]-x.min[0])*(x.max[2]-x.min[2])-(y.max[0]-y.min[0])*(y.max[2]-y.min[2]);});
+    let ok=false;
+    const offsets=[[0,0],[-2,0],[2,0],[0,-2],[0,2],[-3,0],[3,0],[3,-3],[3,3],[-3,-3],[-3,3]];
+    for(const offset of offsets){
+      const x=p[0]+offset[0],y=p[1]+offset[1],q=nearest(x,y),front=Math.atan2(q.x-x,-(q.y-y));
+      for(const turn of i<R.homes.length?[0]:[0,Math.PI/2,-Math.PI/2,Math.PI]){
+        for(const k of kinds)if(add(k,x,y,{retreat:true,yaw:front+turn})){routeHouses.push({...boxes.at(-1),hamlet:i<R.homes.length});ok=true;break;}
+        if(ok)break;
+      }if(ok)break;
+    }
+    if(!ok)throw Error('No safe retreat home at authored site '+i);
   }
   // Reserve a shop on each side of the entrance before the beach hamlet claims those plots.
   const shops=byGroup('machiya').sort((a,b)=>(a.bbox_max[0]-a.bbox_min[0])-(b.bbox_max[0]-b.bbox_min[0]));
@@ -82,7 +100,7 @@ export function placeDesignedHouses(kits,field,nodes) {
     if(!belt||belt.d<0||field.farmAt(x,y))continue;
     if(add(choose('koya',i),x,y,{reserve:true}))beltHouses++;
   }
-  return {houses,boxes,facilities,beltHouses,mouthHouses,beachHouses:beach,portHouses,showcaseSmallHouses};
+  return {routeHouses,houses,boxes,facilities,beltHouses,mouthHouses,beachHouses:beach,portHouses,showcaseSmallHouses};
 }
 export function placeDesignedVeg(field,houseBoxes,nodes,extraPaths=[],extraBoxes=[],plots=[],runtimeExclude=null,townReserve=0) {
   const c=P.veg,boxes=[...houseBoxes,...facilityBoxes(nodes),...extraBoxes],veg=[],forestTrees=new Set(),groveTrees=[];
@@ -102,11 +120,13 @@ export function placeDesignedVeg(field,houseBoxes,nodes,extraPaths=[],extraBoxes
     const dx=target[0]-camera[0],dy=target[1]-camera[1],dz=target[2]-camera[2],t=clamp(((x-camera[0])*dx+(y-camera[1])*dy+(base+h*.7-camera[2])*dz)/(dx*dx+dy*dy+dz*dz));
     return Math.hypot(x-camera[0]-t*dx,y-camera[1]-t*dy,base+h*.7-camera[2]-t*dz)>r;
   };
+  const sightTargets=routeTargets(field,houseBoxes.filter(b=>R.homes.some(p=>Math.hypot(b.x-p[0],northOffset-b.z-p[1])<R.homeRadius)).map(b=>[b.x,northOffset-b.z,field.sample(b.x,northOffset-b.z).h+b.height]));
+  field.routeTrees={lowered:0,omitted:0};
   const treeBins=new Map(),treeCell=c.farPitch*1.5,forest=[];
   function add(x,y,species,tier=0,height=null,crown=null,isForest=false) {
     const a=hash(Math.round(x*100),Math.round(y*100),2),b=hash(Math.round(y*100),Math.round(x*100),3);
     const far=Math.hypot(x-c.forestCentre[0],y-c.forestCentre[1])>c.farRadius;
-    const h=height??((c.heightMin+c.heightMax)/2)*(1+(a*2-1)*c.heightVariation),r=crown??(c.crownMin+(c.crownMax-c.crownMin)*b)*(far?c.farCrown:1);
+    let h=height??((c.heightMin+c.heightMax)/2)*(1+(a*2-1)*c.heightVariation);const r=crown??(c.crownMin+(c.crownMax-c.crownMin)*b)*(far?c.farCrown:1);
     const bx=Math.floor(x/treeCell),by=Math.floor(y/treeCell);
     if(h>P.belt.treeHeight[1])for(let d=-P.belt.forestGap;d<=P.belt.forestGap;d+=P.grid.cell){const yy=y+d;if(yy>=P.town.south&&yy<=P.town.north&&Math.hypot(x-townWestAt(yy),d)<P.belt.forestGap)return false;}
     if(y>=P.shrine.lower[2]&&y<=P.shrine.upper[3]&&Math.abs(x)<P.sanctuary.axisGap)return false;
@@ -116,10 +136,15 @@ export function placeDesignedVeg(field,houseBoxes,nodes,extraPaths=[],extraBoxes
       if(Math.hypot(x-other.tree[0],gameZ(y)-other.tree[1])<Math.max(Math.max(spacing,other.spacing)*(r+other.tree[5]),isForest&&far?c.farPitch:other.far?c.farPitch:0))return false;
     }
     if(!clearBuddha(x,y,h,r,field.sample(x,y).h)||!free(x,y)||runtimeExclude?.({x,z:gameZ(y)})||inTown(x,y)&&townTreeCount>=c.townTreesMax-townReserve)return false;
+    const adjusted=routeTreeHeight(x,y,h,r,field.sample(x,y).h,sightTargets,R.trees.some(p=>p[0]===x&&p[1]===y));
+    if(!adjusted){field.routeTrees.omitted++;return false;}if(adjusted<h){field.routeTrees.lowered++;h=adjusted;}
     const tree=[x,gameZ(y),field.sample(x,y).h,a*Math.PI*2,h,r,species,0,Math.floor(b*3),(a*2-1)*c.tint,b,0,hash(Math.round(x),Math.round(y),4),0,0,0];
+    if(x===R.trees[1][0]&&y===R.trees[1][1]){tree[3]=R.meadowTreeYaw*Math.PI/180;tree[11]=R.meadowTreeLean;}
     veg.push(tree);if(inTown(x,y))townTreeCount++;const entry={tree,spacing,far:far&&isForest};const key=bx+','+by;if(!treeBins.has(key))treeBins.set(key,[]);treeBins.get(key).push(entry);
     if(isForest){forest.push({tree,valley:habitat.valley,ridge:habitat.ridge});forestTrees.add(tree);}return true;
   }
+  for(const [x,y,h,r] of R.trees)if(!add(x,y,3,0,h,r))throw Error('Required retreat tree excluded at '+x+','+y);
+  for(const [x,y] of R.hamletTrees)add(x,y,3,0,R.hamletTreeHeight,R.hamletCrown);
   // Reserve the sacred grove before garden and forest trees compete for its space.
   let sanctuaryTrees=0;
   for(let i=0;i<P.sanctuary.attempts&&sanctuaryTrees<P.sanctuary.treeTarget;i++){
@@ -182,6 +207,7 @@ export function placeDesignedVeg(field,houseBoxes,nodes,extraPaths=[],extraBoxes
   const forestCount=forest.length;
   const cedarScore=p=>{
     const x=p.tree[0],y=p.tree[1],cx=(Math.floor(x/c.cedarTile)+.5)*c.cedarTile,cy=(Math.floor(y/c.cedarTile)+.5)*c.cedarTile;
+    const bearing=(Math.atan2(x-R.camera.east,northOffset-y-R.camera.north)*180/Math.PI+360)%360;if(bearing>=R.townFan[0]&&bearing<=R.townFan[1])return -Infinity;
     return Math.hypot(x-cx,y-cy)<c.cedarRadius?score(p,7)+p.valley:-Infinity;
   };
   forest.sort((a,b)=>cedarScore(b)-cedarScore(a));
@@ -194,5 +220,8 @@ export function placeDesignedVeg(field,houseBoxes,nodes,extraPaths=[],extraBoxes
   const sacred=new Set(groveTrees),bright=veg.filter(v=>!forestTrees.has(v)&&!sacred.has(v)&&(inTown(v[0],northOffset-v[1])||field.beltAt(v[0],northOffset-v[1])));
   bright.sort((a,b)=>hash(Math.round(a[0]),Math.round(a[1]),194)-hash(Math.round(b[0]),Math.round(b[1]),194));
   const broadleaf=Math.round(bright.length*c.gardenDeciduous);for(let i=0;i<bright.length;i++)bright[i][6]=i<broadleaf?3:1;
+  for(const v of veg){const bearing=(Math.atan2(v[0]-R.camera.east,northOffset-v[1]-R.camera.north)*180/Math.PI+360)%360;
+    if(bearing>=R.townFan[0]&&bearing<=R.townFan[1]&&v[4]>R.treeMin&&(v[6]===1||v[6]===2))v[6]=3;
+  }
   return veg;
 }

@@ -1,8 +1,9 @@
+import { ESCAPE } from './kamakura-escape.mjs';
 // Original authored plan, metres east/north/up. No surveyed geography or kit dimensions.
 const freeze = value => { if (value && typeof value === 'object') { Object.values(value).forEach(freeze); Object.freeze(value); } return value; };
 export const PLAN = freeze({
   id: 'kamakura-return', seed: 1935,
-  emit: { steps: true, sea: true, light: true }, // compatibility switches; enable after the runtime accepts these fields
+  emit: { steps: true, sea: true, light: true, ...ESCAPE.emit }, // compatibility switches; enable after the runtime accepts these fields
   // sun: the concept is lit from the front left by a sun higher than the game's late afternoon, so every time's sun is turned
   // 28 degrees clockwise and lifted 13. air: the presets' haze suits a map kilometres across; here the hills 500 m behind the
   // town must already be pale (haze x11), while the low mist stays thin (x4: at x16 the whole town plain washed out).
@@ -49,11 +50,11 @@ export const PLAN = freeze({
       { id:'harbor', name:'港への道', kind:'local_road', width:5, points:[[78,28],[84,14],[90,6]] },
       { id:'west', name:'大仏への道', kind:'local_road', width:5, points:[[0,84],[-60,82],[-112,78],[-124,74]] },
       { id:'beach', name:'浜の道', kind:'local_road', width:3, points:[[-92,28],[80,28]] },
-      { id:'pass', name:'北西の切通', kind:'kaido', width:4, points:[[-40,227],[-48,262],[-62,300],[-86,340],[-104,372],[-118,430],[-130,520]] },
-      { id:'kenchoji-trail', name:'建長寺への坂', kind:'trail', width:3, points:[[-62,300],[-96,298],[-128,286],[-150,270],[-163,262]] },
+      { id:'pass', name:'北西の切通', kind:'kaido', width:ESCAPE.width, points:ESCAPE.pass },
+      { id:'kenchoji-trail', name:'建長寺への坂', kind:'trail', width:3, points:ESCAPE.kenchoji },
       { id:'jochiji-trail', name:'浄智寺への坂', kind:'trail', width:3, points:[[-70,222],[-82,238],[-92,252]] },
   ],
-  road: { earthworkRun:6, step:4, shoulder:22, pavedShoulder:3, valleySlope:6, passCut:10, passWidth:7, passWallRun:.5, passTaper:10, passSouth:370, passNorth:430, northeastOffset:18 },
+  road: { earthworkRun:6, step:4, shoulder:22, pavedShoulder:3, valleySlope:6, northeastOffset:18 },
   facilities: [
     ['tsurugaoka','torii','鳥居',0,196], ['tsurugaoka','hall','舞殿',0,212], ['tsurugaoka','stairs','石段',0,242],
     ['tsurugaoka','romon','楼門',0,262], ['tsurugaoka','hall','拝殿',0,284], ['tsurugaoka','hall','本殿',0,306],

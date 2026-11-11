@@ -1,7 +1,9 @@
+import { ESCAPE as R } from '../worlds/kamakura-escape.mjs';
+import { routeCliff } from './designed-route.mjs';
 import { PLAN as P } from '../worlds/kamakura-return.mjs';
 import { gameZ, northOffset, shoreAt, noise, mix, clamp, inRect, hash, quayAt, outcropAt } from './designed-terrain.mjs';
 export const designedFurrow=(across)=>Math.floor(across/P.ground.stripeWidth)%2===0?P.ground.soil:P.ground.crop;
-export function designedGround(surface,width,height,heights,field,data=null) {
+export function designedGround(surface,width,height,heights,field,data=null,{scene='return'}={}) {
   const c=P.ground,cell=P.grid.cell,n=width*height,palette=[c.sand,c.wet,c.grass,c.forest,c.soil,c.rock,c.gravel,c.riverbed],raw=new Float32Array(n*3),out=Buffer.alloc(n*3),use=new Int32Array(n),stripe=new Uint8Array(n);
   const eachRect=(x,y,w,d,yaw,fn)=>{
     const co=Math.cos(yaw),si=Math.sin(yaw),r=Math.hypot(w,d)/2;
@@ -21,9 +23,13 @@ export function designedGround(surface,width,height,heights,field,data=null) {
     const buddha=P.terraces[0].rect;
     if(surface[k]===5&&(x<buddha[0]+P.buddha.cliffInset&&y>buddha[2]-P.buddha.cliffHeight&&y<buddha[3]||y<buddha[2]&&x>buddha[0]&&x<buddha[1]||Math.hypot(x-P.cape.x,y-P.cape.y)<P.cape.radius&&y<P.cape.y+P.cape.cliff))colour=c.cliff;
     if(surface[k]===5&&outcropAt(x,y))colour=c.cliff;
+    if(surface[k]===5&&routeCliff(x,y)){
+      const gain=mix(R.cliffDark,R.cliffLight,(1+noise(x/R.cliffWave,y/R.cliffWave))/2);
+      colour=c.cliff.map(v=>v*gain);
+    }
     if(P.terraces.some(t=>inRect(x,y,t.rect)))colour=c.terrace;
     if(quayAt(x,y))colour=c.wet.map((v,q)=>mix(v,c.gravel[q],.35));
-    if(P.burns.plots.some(r=>inRect(x,y,r))&&surface[k]===2)colour=hash(i,j,155)<c.burntCover?(hash(i,j,156)<.5?c.ash:c.charcoal):c.soil;
+    if(scene==='return'&&P.burns.plots.some(r=>inRect(x,y,r))&&surface[k]===2)colour=hash(i,j,155)<c.burntCover?(hash(i,j,156)<.5?c.ash:c.charcoal):c.soil;
     use[k]=surface[k];for(let q=0;q<3;q++)raw[k*3+q]=colour[q];
   }
   const paintPlot=(p,id,allowGrass=false)=>eachRect(p.x,p.y,p.width,p.depth,p.yaw,(k,u,v)=>{

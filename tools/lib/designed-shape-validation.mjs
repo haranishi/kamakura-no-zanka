@@ -1,3 +1,4 @@
+import { routeCliff } from './designed-route.mjs';
 import { PLAN as P } from '../worlds/kamakura-return.mjs';
 import { hash, outcropAt, harborAt, shoreAt } from './designed-terrain.mjs';
 export function designedSlopes(world) {
@@ -10,7 +11,7 @@ export function designedSlopes(world) {
     const cape=[P.cape,P.eastCape].some(c=>Math.hypot(x-c.x,y-c.y)<=c.radius+margin&&y<c.y+c.cliff);
     const masonry=harborAt(x,y).ring&&Math.abs(harborAt(x,y).distance)<=P.works.ringWidth/2+harbor.slope+margin||Math.hypot(x-harbor.island[0],y-harbor.island[1])<harbor.islandRadius+margin||[harbor.quay,harbor.connection].some(q=>x>=q[0]-margin&&x<=q[1]+margin&&y>=q[2]-margin&&y<=q[3]+margin); // the quay, and the stone apron that joins it to the beach
     const river=world.field.riverNear(x,y),rock=y>P.river.valleyNorth&&river.distance<river.width/2+P.river.bankMax;
-    const road=world.field.roadNear(x,y),pass=y>P.road.passSouth-margin&&y<P.road.passNorth+margin&&road?.road.id==='pass'&&road.distance<P.road.passWidth+margin;
+    const road=world.field.roadNear(x,y),pass=routeCliff(x,y,margin);
     const b=P.terraces[0].rect,c=P.buddha,run=c.cliffHeight/Math.tan(c.cliffAngle*Math.PI/180)+c.cliffBlend+margin;
     const buddha=(x>b[0]-margin&&x<b[1]+margin&&y>=b[2]-run&&y<=b[2]+margin)||(y>b[2]-margin&&y<b[3]+margin&&x>=b[0]-run&&x<=b[0]+margin);
     if(coast||cape||masonry||rock||pass||buddha||outcropAt(x,y,P.grid.cell*2))continue;

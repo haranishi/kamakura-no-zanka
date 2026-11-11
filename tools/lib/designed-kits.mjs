@@ -8,12 +8,12 @@ import { PLAN } from '../worlds/kamakura-return.mjs';
 // These dimensions belong ONLY to the invented CI substitutes. Kits always supply their own dimensions.
 // house: narrow and deep, so that a substitute fits the plots of the authored town as a real town house does (a box 8 m wide
 // did not, and the town of the tests stood almost empty).
-const SUBSTITUTE = Object.freeze({ house:[5,6,11], mansion:[14,8,12], fence:[12,2,.6], gate:[5,4,2],
+const SUBSTITUTE = Object.freeze({ house:[5,6,11], hut:[4,3,4], mansion:[14,8,12], fence:[12,2,.6], gate:[5,4,2],
   hall:[20,12,14], buddhaHall:[38,18,32], buddha:[7,11,6], stairs:[12,7.5,20], torii:[14,8,3], portal:[14,8,6], skirt:1, roof:3 });
 function fallback() {
   const hnodes=[], kinds=[];
   for (const [index,[name,type]] of PLAN.kinds.entries()) {
-    const shape=/yashiki/.test(type)?SUBSTITUTE.mansion:type==='fence'?SUBSTITUTE.fence:/gate|nagayamon/.test(type)?SUBSTITUTE.gate:SUBSTITUTE.house;
+    const shape=/banya/.test(type)?SUBSTITUTE.hut:/yashiki/.test(type)?SUBSTITUTE.mansion:type==='fence'?SUBSTITUTE.fence:/gate|nagayamon/.test(type)?SUBSTITUTE.gate:SUBSTITUTE.house;
     const [w,h,d]=shape, parts=[{geometry:box(0,-SUBSTITUTE.skirt,0,w,h,d)}];
     if(type!=='fence')parts.push({geometry:box(0,h-SUBSTITUTE.skirt,0,w+2,SUBSTITUTE.roof,d+2,true)});
     const node=/^(5_|6_|k14_)/.test(name)?'designed_'+name:name;
