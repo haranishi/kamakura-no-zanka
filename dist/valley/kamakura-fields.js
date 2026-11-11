@@ -16,6 +16,15 @@ export function fieldOptions(search='') {
   return { enabled:!(s?.trim()&&n===0), density:s?.trim()&&Number.isFinite(n)?Math.max(.25,Math.min(3,n)):1,
     seed:q.has('fieldseed')&&Number.isSafeInteger(seed)?seed:FIELDS.seed, debug:q.get('fieldsdebug')==='1' };
 }
+// A map may thin or thicken its wild flowers: meta.fields.density multiplies the density (1 = as it is). Seen from an overlook at
+// dusk, white lilies at full density along every verge read as noise. `&fields=` in the address still wins (for tuning and captures).
+export const FIELD_MAP_DENSITY = Object.freeze({ min: .1, max: 3 }); // multipliers a map may ask for
+export function fieldMapDensity(meta, search='') {
+  if (new URLSearchParams(search).get('fields')?.trim()) return 1;
+  const f=meta?.fields; if(f===undefined)return 1;
+  if(!f||typeof f!=='object'||Array.isArray(f)||Object.keys(f).some(key=>key!=='density')||!Number.isFinite(f.density)||f.density<FIELD_MAP_DENSITY.min||f.density>FIELD_MAP_DENSITY.max)throw new RangeError('Invalid meta.fields');
+  return f.density;
+}
 // Path buckets are independent of the grass environment's growing metre cache.
 export function createFieldMap({terrain,habitat,data={},colliders,seed=FIELDS.seed}) {
   const routes=new Map(),weights={};

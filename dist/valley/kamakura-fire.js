@@ -22,10 +22,10 @@ export const FIRE = Object.freeze({
   poolShadowKeep: .18, poolShadowSoft: .06, poolRayEpsilon: .0001, // retained glow behind a house; normalized penumbra; ray tolerance.
   pointGain: 18, pointRangeM: 65, pointNearM: 80, pointHeightM: 4, // intensity; m: reach, walking activation, height above ground.
   smokeMinM: 60, smokeMaxM: 160, smokeHeightVariation: .08, smokeHeightPower: .9, // m: height endpoints; fractional source variation; normalized strength exponent.
-  smokeBaseM: 7.6, smokeWidthVariation: .12, smokeWidthPower: .87, // m: base radius; fractional source variation; strength exponent for radius.
-  smokeGrowth: 3.4, smokeTopSpread: 1, smokeTopSpreadStart: .6, // radius/base ratios: linear growth and extra upper spread; normalized tail start.
+  smokeBaseM: 5.2, smokeWidthVariation: .12, smokeWidthPower: .87, // m: base radius; fractional source variation; strength exponent for radius.
+  smokeGrowth: 3.9, smokeTopSpread: 1, smokeTopSpreadStart: .6, // radius/base ratios: linear growth and extra upper spread; normalized tail start.
   smokeWindMin: .34, smokeWindMax: .54, smokeSway: .14, smokeSwayHz: .065, smokeTurns: 1.7, // drift/height; sway/height; Hz; waves/column.
-  smokeDensity: .9, smokeFadeStart: .55, smokeBaseFade: .025, smokeDark: '#141210', smokeMidMix: .03, smokeSkyMix: .14, smokeLitMix: .65, // opacity / normalized height; soot mixed with sky or flame for three colour bands.
+  smokeDensity: .78, smokeFadeStart: .34, smokeBaseFade: .025, smokeDark: '#141210', smokeMidMix: .03, smokeSkyMix: .3, smokeLitMix: .65, // opacity / normalized height; soot mixed with sky or flame for three colour bands.
   smokeLitEnd: .25, smokeTopStart: .4, smokeRootHeight: .035, smokeNoiseScale: 2.1, smokeRise: .028, smokeEdge: .65, smokeEdgeSoft: .34, // normalized colour/root heights; noise frequency; column cycles/s; torn edge size/softness.
   smokeAspect: 1.1, smokeTopAspect: .28, smokeCapHeight: .94, smokeSwayMin: .65, // puff height/width at base/top; normalized cap height; minimum sway multiplier.
   smokeOverlap: 2.4, smokeSpacingJitter: .65, smokePuffVariation: .18, smokeDetailKeep: .72, // vertical overlap; spacing/size variation; minimum internal density.
