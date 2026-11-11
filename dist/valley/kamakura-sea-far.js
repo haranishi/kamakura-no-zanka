@@ -4,22 +4,25 @@ import { SEA_PALETTE, shoreNoise } from './kamakura-shore.js';
 export const SEA3 = Object.freeze({
   fromM:40, toM:90, // 3D camera metres: near/far surf exchange.
   positionsM:Object.freeze([5,16,30,50,80]), // metres offshore at birth, shared inward phase with sea2.
-  widthsM:Object.freeze([1.2,1.6,2,2.5,3]), // metres: crest-to-tail widths before along-front variation.
+  widthsM:Object.freeze([2.2,2.8,3.4,4.2,5]), // metres: crest-to-tail widths before along-front variation. Seen in real Chrome from 150 m up:
+  // at 1.2-3 m with the first thresholds below, the fronts broke into scattered whitecaps and no line could be followed along the shore.
   reducedLines:3, // fronts 0/2/4 in light or adapt 2; adapt 3 restores sea2.
   edgeM:.45, tailWidths:2.5, // metres shoreward rise / offshore decay length in width units.
   fineM:1.2, coarseM:4, // metres: two foam-hole scales (reduced quality uses coarse only).
-  holeLow:.24, holeHigh:.58, filteredFoam:.55, // noise thresholds and unresolved mean coverage.
+  holeLow:.14, holeHigh:.46, filteredFoam:.68, // noise thresholds and unresolved mean coverage.
   foamDrift:.06, textureOffset:13, // noise cells/second / independent hole offset.
-  densityMin:.45, densityM:23, // minimum along-front density / metres of density variation.
+  densityMin:.6, densityM:23, // minimum along-front density / metres of density variation.
+  gapLow:.2, gapHigh:.46, // broken-front thresholds of these fronts (sea2 keeps its own): shorter gaps, so a front reads as one line.
   wanderM:90, wanderFraction:.18, // metre correlation length / maximum shift as share of minimum neighbouring gap.
   widthNoiseM:17, widthOffset:19, widthMin:.5, widthMax:1.8, // metre width-noise scale / offset / width multiplier bounds.
   strength:1, // white-film coverage; gaps and perforation reduce the local maximum.
   washPeriodS:6, washAmplitudeM:1.5, // seconds / metres of shoreline swash.
   scallopM:11, scallopAmplitudeM:1, // metres: shell-edge correlation length and displacement.
-  washEdgeM:.7, washTrailM:2.5, washTrailGain:.4, washStrength:.9, // metres of waterline edge / residual trail / coverage gains.
+  washEdgeM:1.4, washTrailM:4, washTrailGain:.45, washStrength:1, // metres of waterline edge / residual trail / coverage gains.
   washLimitM:6, limitM:110, // metre evaluation bounds; pixel footprint extends the outer bound.
-  shallowEndM:12, middleEndM:45, deepEndM:120, colorBlendM:12, // metres of shallow/middle/deep bands and first transition width.
-  sandMix:.2, middleDeepMix:.4, // existing sand contribution / deep absorption contribution, no new colour table.
+  shallowEndM:8, middleEndM:28, deepEndM:70, colorBlendM:8, // metres of shallow/middle/deep bands and first transition width.
+  // Seen in real Chrome: with 12/45/120 the whole visible sea (300 m offshore from a near overlook) stayed a milky pale green.
+  sandMix:.16, middleDeepMix:.68, // existing sand contribution / deep absorption contribution, no new colour table.
   colorAngleStartDeg:9, colorAngleFullDeg:17, // degrees: preserve low-angle reflection, then reveal sand/depth.
   debugGain:3, // diagnostic coverage amplification (no effect on normal rendering).
   debugShallow:Object.freeze([0,.8,.15]), debugDeep:Object.freeze([0,.12,.03]), // diagnostic shallow/deep green.
@@ -79,6 +82,7 @@ export function seaLineWidth(i,footprint,out={}) {
   out.alpha=C.lineWidthsM[i]/out.width;return out;
 }
 export const seaLineGap = (x,z,i) => smooth(C.gapLow,C.gapHigh,shoreNoise(x/C.gapScaleM+i*C.gapOffset,z/C.gapScaleM+i*C.gapOffset));
+export const sea3LineGap = (x,z,i) => smooth(S.gapLow,S.gapHigh,shoreNoise(x/C.gapScaleM+i*C.gapOffset,z/C.gapScaleM+i*C.gapOffset));
 export function seaOffshoreColor(cosine,horizon,out=[0,0,0]) {
   const f=C.reflectionMin+(1-C.reflectionMin)*(1-clamp(Math.abs(cosine)))**5;
   for(let i=0;i<3;i++)out[i]=C.deep[i]+(horizon[i]-C.deep[i])*f;
@@ -225,7 +229,7 @@ export function sea3Sample(d,x,z,time,footprint=0,range=300,quality='standard',s
       const offset=i*C.gapOffset,delta=d-sea3Centre(i,x,z,time),width=S.widthsM[i]*sea3WidthScale(x,z,offset);
       const profile=sea3Profile(delta,width,footprint);
       if(profile<=0)continue;
-      const alpha=profile*seaLineGap(x,z,i)*sea3Density(x,z,offset)*sea3Texture(x,z,time,footprint,detail)*birth;
+      const alpha=profile*sea3LineGap(x,z,i)*sea3Density(x,z,offset)*sea3Texture(x,z,time,footprint,detail)*birth;
       const head=sea3Crest(delta,width,footprint);crest+=alpha*head;tail+=alpha*(1-head);
     }
     wash=sea3WashProfile(d,x,z,time,footprint)*sea3Texture(x,z,time,footprint,detail)*S.washStrength;
@@ -255,7 +259,7 @@ vec2 sea3Line(float d,vec2 p,float time,float footprint,float centre,float previ
   float delta=d-moving,physical=width*sea3WidthScale(p.x,p.y,offset);
   float profile=sea3Profile(delta,physical,footprint);
   if(profile<=0.0)return vec2(0.0);
-  float alpha=profile*smoothstep(${f(C.gapLow)},${f(C.gapHigh)},shoreNoise(p/${f(C.gapScaleM)}+offset))*sea3Density(p.x,p.y,offset)*sea3Texture(p.x,p.y,time,footprint,uSea3Detail)*smoothstep(0.0,${f(C.lineFadePhase)},phase)*(1.0-smoothstep(${f(1-C.lineFadePhase)},1.0,phase));
+  float alpha=profile*smoothstep(${f(S.gapLow)},${f(S.gapHigh)},shoreNoise(p/${f(C.gapScaleM)}+offset))*sea3Density(p.x,p.y,offset)*sea3Texture(p.x,p.y,time,footprint,uSea3Detail)*smoothstep(0.0,${f(C.lineFadePhase)},phase)*(1.0-smoothstep(${f(1-C.lineFadePhase)},1.0,phase));
   float head=sea3Crest(delta,physical,footprint);return alpha*vec2(head,1.0-head);
 }
 vec3 sea3Surf(float d,vec2 p,float time,float footprint,float range,float beach){
