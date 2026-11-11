@@ -12,6 +12,9 @@ export const HARBOR = Object.freeze({
   groupMin: 3, groupMax: 6, // boats/group
   townReach: 250, townGap: 74, ruralGap: 132, groupMaxGap: 150, // m: house proximity and group intervals
   landMin: 8, landMax: 40, groupLand: 22, slope: 15, // m, m, degrees: entire dry footprint
+  // A strand 16 m deep (a small designed bay) has no dry sand 22 m from the sea, and stood empty. Where no group could be laid
+  // on the usual line, and none stands near, it is tried again nearer the water. Wide beaches keep every boat where it was.
+  narrowLand: Object.freeze([13, 9]), narrowMin: 3.5, // m from the sea: nearer lines for a group, in order / nearest dry point of a hull there
   normalStep: 6, sandWeight: .4, // m, weight: coarse shore normal and legacy sand fallback
   lengthMin: 6.5, lengthMax: 9, widthMin: 1.5, widthMax: 2, depth: .6, // m: beach hull
   spacingMin: 3.4, spacingMax: 3.5, jitter: 2, rollMin: 4, rollMax: 10, // m and degrees: spacing, yaw, roll
@@ -71,7 +74,7 @@ function wet(terrain, x, z) { return inside(terrain, x, z) && (terrain.isSea ? t
 export function createHarborSite(context, oldBoats = []) {
   const { terrain, data = {}, habitat } = context, base = createPropSite(context);
   const codeAt = createSurfaceCodeAt(data.meta?.grid ? data.meta : { grid: { width: 0, height: 0, cell_m: 1 } }, data.surface), weights = {};
-  function reason(p, placed = [], sand = true) {
+  function reason(p, placed = [], sand = true, landMin = HARBOR.landMin) {
     const c = Math.cos(p.yaw), s = Math.sin(p.yaw);
     for (const box of base.boxes) if (harborOverlap(p, box, HARBOR.boxMargin)) return 'box';
     for (const q of oldBoats) if (Math.hypot(p.x - q.x, p.z - q.z) < HARBOR.oldBoatMargin) return 'props';
@@ -84,7 +87,7 @@ export function createHarborSite(context, oldBoats = []) {
       if (terrain.waterAt(x, z) > 0) return 'water';
       if (terrain.slopeAt(x, z) > HARBOR.slope) return 'slope';
       const d = terrain.seaDistanceAt(x, z);
-      if (!(d >= HARBOR.landMin && d <= HARBOR.landMax)) return 'shore';
+      if (!(d >= landMin && d <= HARBOR.landMax)) return 'shore';
       if (terrain.riverDistanceAt?.(x, z, HARBOR.riverMargin) <= HARBOR.riverMargin) return 'river';
       if (sand) {
         const code = codeAt(x, z);
@@ -214,7 +217,10 @@ export function* harborPlacementBatches(context) {
   candidates.sort((a, c) => +(a.town > HARBOR.townReach) - +(c.town > HARBOR.townReach) || a.x-c.x || a.z-c.z);
   const hasRural = candidates.some(p => p.town > HARBOR.townReach);
   let beach = 0, racks = 0, townBoats = 0;
-  for (const at of candidates) {
+  // The usual line first, for every candidate; then the nearer lines, only where the first pass left the beach empty.
+  const passes = [[HARBOR.groupLand, HARBOR.landMin], ...HARBOR.narrowLand.map(land => [land, HARBOR.narrowMin])];
+  for (const [land, landMin] of passes) for (const origin of candidates) {
+    const shift = HARBOR.groupLand - land, at = shift ? { ...origin, x: origin.x + origin.nx * shift, z: origin.z + origin.nz * shift } : origin;
     if (beach >= HARBOR.beachTarget) break;
     if (hasRural && at.town <= HARBOR.townReach && townBoats >= HARBOR.beachTarget * HARBOR.townShare) continue;
     const gap = at.town <= HARBOR.townReach ? HARBOR.townGap : HARBOR.ruralGap;
@@ -229,7 +235,7 @@ export function* harborPlacementBatches(context) {
       const x = at.x + at.nz * offset, z = at.z - at.nx * offset;
       const p = boat('beach', x, z, group.yaw + (h < .5 ? 0 : Math.PI) + (propHash(x, z, 72) * 2 - 1) * HARBOR.jitter * RAD, id, 73);
       p.rank = propHash(at.x, at.z, 74); groundBoat(p,terrain);
-      const why = site.reason(p, result.items) || site.reason(p, pending);
+      const why = site.reason(p, result.items, true, landMin) || site.reason(p, pending, true, landMin);
       if (why) skip(why); else pending.push(p);
     }
     if (pending.length >= HARBOR.groupMin) {
@@ -239,7 +245,7 @@ export function* harborPlacementBatches(context) {
         const p = { ...boat('rack', at.x - at.nx * HARBOR.rackOffset + at.nz * n * HARBOR.rackOffset, at.z - at.nz * HARBOR.rackOffset - at.nx * n * HARBOR.rackOffset, group.yaw, id, 78),
           w: HARBOR.rackMinWidth + h * (HARBOR.rackMaxWidth - HARBOR.rackMinWidth), d: 1, tiltZ: 0, rank: pending[0].rank };
         p.y = terrain.heightAt(p.x, p.z);
-        const why = site.reason(p, result.items); if (why) skip('rack_' + why); else { result.items.push(p); racks++; group.racks++; }
+        const why = site.reason(p, result.items, true, landMin); if (why) skip('rack_' + why); else { result.items.push(p); racks++; group.racks++; }
       }
     } else skip('group');
     result.work.batches++; yield result;
