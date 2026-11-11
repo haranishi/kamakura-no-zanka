@@ -1,6 +1,6 @@
 import { designedCamera } from './designed-perspective.mjs';
 import { ESCAPE as R } from '../worlds/kamakura-escape.mjs';
-import { routeTargets, routeTreeHeight } from './designed-route.mjs';
+import { routeTargets, routeTreeHeight, roadSightTargets } from './designed-route.mjs';
 import { PLAN as P } from '../worlds/kamakura-return.mjs';
 import { gameZ, northOffset, hash, noise, clamp, townWestAt, inRect, townEastAt } from './designed-terrain.mjs';
 import { houseBounds, houseBox, houseIntersects } from '../../dist/valley/kamakura-houses.js';
@@ -135,7 +135,8 @@ export function placeDesignedVeg(field,houseBoxes,nodes,extraPaths=[],extraBoxes
     const y=northOffset-b.z,h=field.sample(b.x,y).h,co=Math.cos(b.rotY),si=Math.sin(b.rotY);
     return [[b.x,y,h+b.height],...(R.homes.some(p=>Math.hypot(b.x-p[0],y-p[1])<R.homeRadius)?[-.3,0,.3].map(u=>[b.x+co*b.w*u+si*b.d/2,y+si*b.w*u-co*b.d/2,h+b.height*R.survey.facadeLift]):[])];
   });
-  const sightTargets=routeTargets(field,roofTargets);
+  // The road samples go in after the first point and the fires: the height rule tells fires and the trailing town / sea points by position.
+  const baseTargets=routeTargets(field,roofTargets),sightTargets=[...baseTargets.slice(0,1+R.fires.length),...roadSightTargets(field),...baseTargets.slice(1+R.fires.length)];
   field.templeGrove=0;
   field.routeForest=0;
   field.routeTrees={lowered:0,omitted:0};
@@ -185,7 +186,10 @@ export function placeDesignedVeg(field,houseBoxes,nodes,extraPaths=[],extraBoxes
   for(let i=0;i<f.attempts;i++){
     const a=(f.bearing[0]+hash(i,0,241)*(f.bearing[1]-f.bearing[0]))*Math.PI/180,d=Math.sqrt(f.distance[0]**2+hash(i,0,242)*(f.distance[1]**2-f.distance[0]**2));
     const x=R.camera.east+Math.sin(a)*d,y=R.camera.north+Math.cos(a)*d;
-    if(add(x,y,3,0,f.height[0]+hash(i,0,243)*(f.height[1]-f.height[0]),f.crown[0]+hash(i,0,244)*(f.crown[1]-f.crown[0])))field.routeForest++;
+    const pick=hash(i,0,245),rank=hash(i,0,246),u=hash(i,0,243),species=pick<f.cedar?2:pick<f.cedar+f.pine?1:pick<f.cedar+f.pine+f.evergreen?0:3;
+    const range=species===2?f.cedarHeight:rank<f.tallRate?f.tall:rank>1-f.smallRate?f.small:f.height,h=range[0]+u*(range[1]-range[0]);
+    const r=species===2?h*f.cedarCrown:h*(f.crownRatio[0]+hash(i,0,244)*(f.crownRatio[1]-f.crownRatio[0]));
+    if(add(x,y,species,0,h,r)){field.routeForest++;veg.at(-1)[9]+=(hash(i,0,247)*2-1)*f.tint;}
   }
   const temple=nodes.find(n=>n.facility==='jochiji'&&n.part==='hall'),tb=facilityBoxes([temple])[0],tc=R.templeGrove;
   for(let i=0;i<tc.attempts&&field.templeGrove<tc.count;i++){
