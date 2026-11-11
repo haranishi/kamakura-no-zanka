@@ -4,6 +4,7 @@ import { mulberry32 } from './scatter.js';
 import { GUST, GUST_GLSL, gustPhase } from './kamakura-gust.js';
 
 export const DRIFT = Object.freeze({
+  flyKeep: .12, // share of the leaves and petals kept around the flying camera
   // Sizes are larger than life on purpose: at game resolution a 3 cm petal is under one pixel beyond 12 m, and a 72 m box left only a
   // handful of particles near the camera (measured in real Chrome: no visible difference from drift=0). 44 m keeps them where they read.
   // The floor of the box sits below the ground and fades over a short distance only: with the same 2-4 m rim as the sides, everything

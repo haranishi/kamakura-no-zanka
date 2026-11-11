@@ -46,18 +46,20 @@ export function duskAirEnabled(search='') { const q=new URLSearchParams(search);
 export const DUSK = Object.freeze({
   postMist: 1.15, postExposure: 1.24, postBloom: .18, postGlare: 1, postWarmth: .006, postToe: .35, postShade: .38,
   sunDir: Object.freeze([-0.9345448863, 0.1045284633, 0.3401465212]), // bearing 250°, elevation 6°.
-  sunColor: '#ff8f4a', sunIntensity: 1.25,
+  // Against the concept, side by side: the whole right half of the frame was orange. The picture is blue-green and violet, and
+  // only the sun and the fires are warm. The sun's light is weaker, and its warm haze keeps to a narrow cone around it.
+  sunColor: '#ff9a66', sunIntensity: .85,
   // The camera of the opening scene sees only the lowest four degrees of sky: with an orange horizon the whole strip was orange.
   // The horizon is a dusty rose, and the orange stays near the sun (its halo and the warm haze towards it).
-  zenith: '#262b52', mid: '#75628a', horizon: '#c7867f', below: '#484c65',
-  fogColor: '#8f9bc0', hazeCool: '#8f9bc0', hazeWarm: '#f0a070', hazeExp: 7,
+  zenith: '#262b52', mid: '#75628a', horizon: '#b9828a', below: '#484c65',
+  fogColor: '#7f8fb8', hazeCool: '#7f8fb8', hazeWarm: '#d99a8c', hazeExp: 18,
   fogDensity: .000115, mist: Object.freeze({ density: .0001, base: 5, falloff: .075 }),
   // The low sun gives level ground almost nothing: with a dim sky light the road under the walker was black (real Chrome, the
   // real-size town). The sky light stays near the evening's; the trees are darkened on their own (foliage).
   hemiSky: '#929bc9', hemiGround: '#6a6f93', hemiIntensity: 1.2,
   envIntensity: .42, fillColor: '#929fcf', fillIntensity: .3, exposure: 1,
   // Leaves at dusk: darker and bluer than their daylight green (seen against the sun they stayed a bright olive).
-  foliage: Object.freeze([.62, .7, .88]),
+  foliage: Object.freeze([.52, .68, .94]),
 });
 // Visible sun only: degrees, radiance multipliers, and radius ratio. No shadow-light changes.
 export const SUN_DISC = Object.freeze({ diameterDeg: 1.15, haloRadius: 11, radiance: 3.2, haloGain: .85,
