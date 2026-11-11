@@ -116,6 +116,22 @@ export function sunPlace(meta, search = '') {
   }
   return place;
 }
+// The presets' air is made for a map kilometres across: a hill 500 m away is as clear as one at arm's length. A small designed
+// map may thicken it: meta.air.haze multiplies the haze that grows with distance, meta.air.mist the low mist near the ground
+// (both 1 = as it is). `&airhaze=` and `&airmist=` in the address override them (for tuning and captures).
+export const AIR = Object.freeze({ hazeMax: 20, mistMax: 40 }); // largest multipliers a map may ask for
+export function airOf(meta, search = '') {
+  const air = meta?.air;
+  if (air !== undefined && (!air || typeof air !== 'object' || Array.isArray(air) || Object.keys(air).some(key => key !== 'haze' && key !== 'mist'))) throw new RangeError('Invalid air');
+  const q = new URLSearchParams(search), out = {};
+  for (const [name, max] of [['haze', AIR.hazeMax], ['mist', AIR.mistMax]]) {
+    const stored = air && Object.hasOwn(air, name) ? air[name] : 1;
+    if (!Number.isFinite(stored) || stored < 1 || stored > max) throw new RangeError('Invalid air');
+    const raw = q.get('air' + name), asked = Number(raw);
+    out[name] = raw !== null && raw !== '' && Number.isFinite(asked) && asked >= 0 && asked <= max ? asked : stored;
+  }
+  return out;
+}
 // dir is a unit [east, up, south]. A new unit array; no turn and no lift return the same numbers.
 export function placeSun(dir, { turn = 0, lift = 0 } = {}) {
   if (!turn && !lift) return [dir[0], dir[1], dir[2]];
@@ -124,11 +140,13 @@ export function placeSun(dir, { turn = 0, lift = 0 } = {}) {
   const k = Math.cos(height) / flat;
   return [(dir[0] * c - dir[2] * s) * k, Math.sin(height), (dir[2] * c + dir[0] * s) * k];
 }
-export function kamakuraAtmosphere(time, evening, enhanced = true, strength = 1, place = undefined) {
+export function kamakuraAtmosphere(time, evening, enhanced = true, strength = 1, place = undefined, air = undefined) {
   const preset = Object.hasOwn(KAMAKURA_TIMES, time) ? KAMAKURA_TIMES[time] : KAMAKURA_TIMES.noon;
   const a = { ...evening, ...preset, sunDir: [...(preset.sunDir || evening.sunDir)], mist: { ...preset.mist } };
   if (time === 'evening' && enhanced) Object.assign(a, eveningLight(a, strength));
   validateAtmosphere(a);
   const length = Math.hypot(...a.sunDir); a.sunDir = placeSun(a.sunDir.map(v => v / length), place);
+  // The map's air comes after the check: the presets keep their own narrow range.
+  if (air) { a.fogDensity *= air.haze ?? 1; a.mist.density *= air.mist ?? 1; }
   return a;
 }

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { atmosphereOptions, atmospherePolicy, kamakuraAtmosphere, validateAtmosphere, DEFAULT_TIME, KAMAKURA_TIMES, SUN_PLACE, sunPlace, placeSun } from '../dist/valley/kamakura-atmosphere.js';
+import { atmosphereOptions, atmospherePolicy, kamakuraAtmosphere, validateAtmosphere, DEFAULT_TIME, KAMAKURA_TIMES, SUN_PLACE, sunPlace, placeSun, AIR, airOf } from '../dist/valley/kamakura-atmosphere.js';
 import { validateMeta } from '../dist/valley/kamakura-data.js';
 import { THREE, load, source } from './helpers/tree-modules.mjs';
 import { startWorld } from '../dist/valley/world-entry.js';
@@ -154,7 +154,36 @@ test('sun place: the light, the sky and everything that asks the world for the s
   toSun.forEach((v, i) => near(v, expected[i], 1e-6));
   plain.dispose(); moved.dispose();
   const boot = source('world-kamakura.js');
-  assert.match(boot, /createKamakuraAtmosphere\(\{ scene, renderer, search, quality, sunPlace: sunPlace\(data\.meta, search\) \}\)/);
+  assert.match(boot, /createKamakuraAtmosphere\(\{ scene, renderer, search, quality, sunPlace: sunPlace\(data\.meta, search\), /);
+});
+// A small designed map may thicken the air (meta.air): the haze that grows with distance and the low mist, nothing else.
+test('map air: the multipliers reach the haze and the mist of every time, and a map that says nothing keeps the presets', () => {
+  for (const time of Object.keys(KAMAKURA_TIMES)) {
+    const plain = kamakuraAtmosphere(time, base(), false);
+    for (const air of [undefined, { haze: 1, mist: 1 }, {}]) assert.deepEqual(kamakuraAtmosphere(time, base(), false, 1, undefined, air), plain);
+    const thick = kamakuraAtmosphere(time, base(), false, 1, undefined, { haze: 8, mist: 16 });
+    near(thick.fogDensity, plain.fogDensity * 8, 1e-12); near(thick.mist.density, plain.mist.density * 16, 1e-12);
+    const rest = a => { const { fogDensity, mist, ...others } = a; return { ...others, base: mist.base, falloff: mist.falloff }; };
+    assert.deepEqual(rest(thick), rest(plain));
+    assert.equal(KAMAKURA_TIMES[time].mist.density, kamakuraAtmosphere(time, base(), false).mist.density, 'the preset itself is untouched');
+  }
+  assert.deepEqual(airOf(undefined), { haze: 1, mist: 1 }); assert.deepEqual(airOf({ air: {} }), { haze: 1, mist: 1 });
+  assert.deepEqual(airOf({ air: { haze: 6 } }), { haze: 6, mist: 1 }); assert.deepEqual(airOf({ air: { haze: 6, mist: 12 } }, '?airmist=3'), { haze: 6, mist: 3 });
+  assert.deepEqual(airOf({ air: { haze: 6 } }, '?airhaze=0'), { haze: 0, mist: 1 }, 'the address may also clear the air for a comparison');
+  for (const search of ['?airhaze=', '?airhaze=x', `?airhaze=${AIR.hazeMax + 1}`, '?airmist=-1']) assert.deepEqual(airOf({ air: { haze: 6, mist: 2 } }, search), { haze: 6, mist: 2 });
+  for (const air of [null, [], 3, { haze: '2' }, { haze: .5 }, { haze: AIR.hazeMax + .1 }, { mist: AIR.mistMax + 1 }, { mist: NaN }, { haze: 2, fog: 1 }]) {
+    assert.throws(() => airOf({ air }), RangeError); const f = fixture(); f.meta.air = air; assert.throws(() => validateMeta(f.meta));
+  }
+  const f = fixture(); f.meta.air = { haze: 10, mist: 20 }; assert.equal(validateMeta(f.meta), f.meta);
+});
+test('map air: the scene fog and the fog chunk of the map carry the thickened values', () => {
+  const plain = createKamakuraAtmosphere({ scene: new THREE.Scene(), renderer: rendererStub(), search: '?time=golden' }), plainChunk = THREE.ShaderChunk.fog_fragment; plain.dispose();
+  const scene = new THREE.Scene(), thick = createKamakuraAtmosphere({ scene, renderer: rendererStub(), search: '?time=golden', mapAir: { haze: 8, mist: 16 } });
+  near(scene.fog.density, KAMAKURA_TIMES.golden.fogDensity * 8, 1e-12);
+  const number = chunk => Number(/MIST_D = ([0-9.]+)/.exec(chunk)[1]);
+  near(number(THREE.ShaderChunk.fog_fragment), number(plainChunk) * 16, 2e-5);
+  thick.dispose();
+  assert.match(source('world-kamakura.js'), /mapAir: airOf\(data\.meta, search\) \}\)/);
 });
 test('world absent never initializes Kamakura even with time and atmosphere query parameters', async()=>{
   let valley=0; await startWorld('?time=morning&atmos=0',{valley:()=>valley++,kamakura:()=>assert.fail(),fallback:()=>assert.fail()}); assert.equal(valley,1);
