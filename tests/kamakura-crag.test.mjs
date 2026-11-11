@@ -1,11 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
+import fsSync from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
+import { spawnSync } from 'node:child_process';
 import * as THREE from '../dist/vendor/three.module.min.js';
-import { CRAG as C, decodeCrags, cragArea, partitionCrag, buildCrags, cragLayerTone, cragOffset } from '../dist/valley/kamakura-crag.js';
+import { CRAG as C, CRAG_LOOK, CRAG_VERTEX_PARS, CRAG_VERTEX, CRAG_FRAGMENT_PARS, CRAG_FRAGMENT, CRAG_NORMAL, cragRockTone, decodeCrags, cragArea, partitionCrag, buildCrags, cragLayerTone, cragOffset } from '../dist/valley/kamakura-crag.js';
 import { decodeWorks } from '../dist/valley/kamakura-works.js';
-import { createKamakuraCrag } from '../dist/valley/kamakura-crag-view.js';
+import { createKamakuraCrag, cragShader } from '../dist/valley/kamakura-crag-view.js';
 import { createKamakuraLayers } from '../dist/valley/kamakura-layers.js';
 import { createKamakuraTerrain } from '../dist/valley/kamakura-terrain.js';
 import { loadKamakura } from '../dist/valley/kamakura-data.js';
@@ -151,12 +154,13 @@ function context(search='?debug=1',crags=[rect()]) {
   return {search,data:{works:source(crags)},terrain,scene,camera,quality:'standard'};
 }
 
-test('view: flags and absent data add nothing; three attributes, one material, shadows, no shader injections',()=>{
+test('view: flags and absent data add nothing; three attributes, one material, shadows, one named surface shader',()=>{
   for(const search of ['?crag=0','?layers=0','?works=0']){const c=context(search);assert.equal(createKamakuraCrag(c),null);assert.equal(c.scene.children.length,0);}
   for(const crags of [undefined,[]]){const c=context();c.data.works.crags=crags;assert.equal(createKamakuraCrag(c),null);assert.equal(c.scene.children.length,0);}
   const c=context(),layer=createKamakuraCrag(c),m=layer.mesh;
   assert.equal(c.scene.children.length,1);assert.deepEqual(Object.keys(m.geometry.attributes).sort(),['color','normal','position']);
-  assert(m.material.isMeshStandardMaterial);assert.equal(m.material.roughness,.96);assert.equal(m.material.metalness,0);assert(m.material.vertexColors&&m.material.fog);assert(m.castShadow&&m.receiveShadow);assert.equal(m.material.onBeforeCompile,THREE.Material.prototype.onBeforeCompile);
+  assert(m.material.isMeshStandardMaterial);assert.equal(m.material.roughness,.96);assert.equal(m.material.metalness,0);assert(m.material.vertexColors&&m.material.fog);assert(m.castShadow&&m.receiveShadow);assert.equal(m.material.onBeforeCompile,cragShader);assert.equal(m.material.customProgramCacheKey(),'kamakura-crag-look');
+  for(const search of ['?craglook=0','?cragdebug=1']){const plain=createKamakuraCrag(context(search));assert.equal(plain.mesh.material.onBeforeCompile,THREE.Material.prototype.onBeforeCompile,search);plain.dispose();}
   const inspect=globalThis.__kzCrag,stats=inspect();assert.equal(stats.draws,1);assert.equal(stats.crags,1);assert(stats.blocks>0);assert(stats.tallest>0);assert.equal(stats.nearest.id,'outcrop');assert(stats.nearest.distance>0);assert(stats.nearest.bearing>=0&&stats.nearest.bearing<360);
   let released=0;for(const lod of layer.lods)lod.geometry.addEventListener('dispose',()=>released++);m.material.addEventListener('dispose',()=>released++);
   layer.dispose();layer.dispose();assert.equal(released,5);assert.equal(c.scene.children.length,0);assert.equal(globalThis.__kzCrag,undefined);assert.equal(inspect().draws,0);
@@ -195,4 +199,39 @@ test('optional private world: sampling and renderer stay bounded without fixed p
   const fetcher=async url=>{const name=String(url).split('/').at(-1),bytes=await fs.readFile(path.join(root,name));return {ok:true,json:async()=>JSON.parse(bytes),arrayBuffer:async()=>bytes.buffer.slice(bytes.byteOffset,bytes.byteOffset+bytes.byteLength)};};
   const data=await loadKamakura(fetcher,'?townfill=0'),tform=createKamakuraTerrain(data);
   for(const quality of ['standard','light']){const result=buildCrags([rect('synthetic-probe')],tform,{quality});assert(result.triangles<=(quality==='light'?C.lightTriangles:C.triangles));}
+});
+
+test('look: rock is darker and greyer than its cliff colour; the surface shader enters at real anchors, once',()=>{
+  const cliff=[.52,.5,.62],rock=cragRockTone(cliff),lum=c=>.2126*c[0]+.7152*c[1]+.0722*c[2],spread=c=>Math.max(...c)-Math.min(...c);
+  assert(lum(rock)<lum(cliff)*.75&&lum(rock)>lum(cliff)*.45);assert(spread(rock)/lum(rock)<spread(cliff)/lum(cliff));
+  assert(CRAG_LOOK.grainLow<1&&CRAG_LOOK.grainHigh>1&&CRAG_LOOK.groove<.5&&CRAG_LOOK.jointWidth<.5&&CRAG_LOOK.fineFrom<CRAG_LOOK.fineTo&&CRAG_LOOK.wallFrom<CRAG_LOOK.wallTo);
+  const standard=THREE.ShaderLib.standard,shader=cragShader({vertexShader:standard.vertexShader,fragmentShader:standard.fragmentShader});
+  for(const [text,chunk]of [[shader.vertexShader,CRAG_VERTEX_PARS],[shader.vertexShader,CRAG_VERTEX],[shader.fragmentShader,CRAG_FRAGMENT_PARS],[shader.fragmentShader,CRAG_FRAGMENT],[shader.fragmentShader,CRAG_NORMAL]])assert.equal(text.split(chunk).length,2);
+  assert(shader.vertexShader.indexOf('#include <beginnormal_vertex>')<shader.vertexShader.indexOf(CRAG_VERTEX),'objectNormal is declared before it is read');
+  assert(shader.fragmentShader.indexOf('#include <color_fragment>')<shader.fragmentShader.indexOf(CRAG_FRAGMENT));
+  assert(shader.fragmentShader.indexOf(CRAG_FRAGMENT)<shader.fragmentShader.indexOf(CRAG_NORMAL),'the relief is computed before the normal reads it');
+  assert(THREE.ShaderChunk.normal_fragment_begin.includes('vec3 normal')&&standard.fragmentShader.includes('varying vec3 vViewPosition'));
+  // Beds stay in order: the uneven thickness never folds a bed back on itself.
+  assert(CRAG_LOOK.unevenGain*CRAG_LOOK.uneven*1.5<1/CRAG_LOOK.bed);
+  assert.throws(()=>cragShader({vertexShader:'void main(){}',fragmentShader:standard.fragmentShader}),/anchor/);
+});
+test('look: emitted GLSL is balanced, float-only and free of reserved or undeclared names',t=>{
+  for(const text of [CRAG_VERTEX_PARS,CRAG_VERTEX,CRAG_FRAGMENT_PARS,CRAG_FRAGMENT,CRAG_NORMAL]){
+    for(const [open,close]of ['()','{}','[]'])assert.equal(text.split(open).length,text.split(close).length,open);
+    assert(!/--\d|\+\+\d/.test(text));assert(!/\b(?:sample|input|output|filter|common|partition|active|texture)\b\s*=/.test(text));
+    // Every numeric literal carries a decimal point: no int/float mixing.
+    for(const n of text.replace(/vec[234]|mat[34]|cragHash3/g,'').match(/(?<![\w.])\d+(?![\w.])/g)||[])assert.fail('integer literal '+n);
+  }
+  const version=spawnSync('glslc',['--version'],{encoding:'utf8'});if(version.error?.code==='ENOENT')return t.skip('glslc unavailable');assert.equal(version.status,0);
+  const dir=fsSync.mkdtempSync(path.join(os.tmpdir(),'crag-glsl-'));
+  try{
+    const stages={
+      'crag.vert':'#version 310 es\nprecision highp float;\n#define varying out\nin vec3 position;in vec3 normal;uniform mat4 modelMatrix;\n'+CRAG_VERTEX_PARS+'\nvoid main(){vec3 transformed=position;vec3 objectNormal=normal;\n'+CRAG_VERTEX+'\ngl_Position=vec4(transformed,1.0);}',
+      'crag.frag':'#version 310 es\nprecision highp float;\n#define varying in\nout vec4 cragOut;\nin vec3 vViewPosition;\n'+CRAG_FRAGMENT_PARS+'\nvoid main(){vec4 diffuseColor=vec4(1.0);vec3 normal=vec3(0.0,0.0,1.0);\n'+CRAG_FRAGMENT+'\n'+CRAG_NORMAL+'\ncragOut=vec4(diffuseColor.rgb*normal.z,1.0);}'};
+    const compile=(name,text)=>{const file=path.join(dir,name);fsSync.writeFileSync(file,text);return spawnSync('glslc',['--target-env=opengl','-fauto-bind-uniforms','-fauto-map-locations',file,'-o',path.join(dir,'out.spv')],{encoding:'utf8'});};
+    for(const [name,text]of Object.entries(stages)){const result=compile(name,text);assert.equal(result.status,0,result.stderr);}
+    assert.notEqual(compile('bad.frag',stages['crag.frag'].replace('vCragWorld,normalize','vMissingWorld,normalize')).status,0);
+    assert.notEqual(compile('bad2.frag',stages['crag.frag'].replace('float tone=cragHash3','int tone=cragHash3')).status,0);
+    t.diagnostic('2 shader stages compiled; undeclared-name and numeric-type mutations rejected');
+  }finally{fsSync.rmSync(dir,{recursive:true,force:true});}
 });

@@ -6,8 +6,8 @@ export const CRAG = Object.freeze({
   cell: 1.9, step: 1.1, lift: .45, rise: 0, // m: authored defaults.
   stretchMin: 1.5, stretchMax: 2.6, acrossMin: .8, acrossMax: 1.25, jitter: .3, // spacing gains / displacement fraction.
   minArea: .25, clearance: .15, embed: .8, heightJitter: .12, // m² / m / m / layer fraction.
-  bevelRatio: .12, bevelMin: .1, bevelMax: .3, insetLimit: .45, // cell fraction / m / m / inradius fraction.
-  offsetMin: .03, offsetMax: .10, offsetShared: .6, miterLimit: .3, // m / m / common-sign share / m.
+  bevelRatio: .2, bevelMin: .12, bevelMax: .5, insetLimit: .45, // cell fraction / m / m / inradius fraction.
+  offsetMin: .04, offsetMax: .2, offsetShared: .6, miterLimit: .3, // m / m / common-sign share / m.
   bandVariation: .10, darkEveryMin: 3, darkEveryMax: 5, darkShade: .18, blockVariation: .06, // brightness / layers / layers / brightness / brightness.
   footHeight: 1.2, footShade: .25, seamWidth: .12, seamShade: .12, // m / darkening / edge fraction / darkening.
   soilRate: .65, soilHeight: 1.2, rockTopGain: 1.08, bevelGain: 1.10, // fraction / m / brightness / brightness.
@@ -17,6 +17,78 @@ export const CRAG = Object.freeze({
   maxSites: 2200, maxRows: 2400, attempts: 32, epsilon: 1e-8, // bounded preparation / numerical tolerance.
   debug: Object.freeze({ rock: Object.freeze([0,1,1]), soil: Object.freeze([0,1,0]), bevel: Object.freeze([1,1,0]), wall: Object.freeze([1,0,1]) }),
 });
+// Seen in a real browser: flat vertex colours read as pale concrete panels up close, and as lavender plastic at dusk. The rock is
+// darker and greyer than the cliff colour it starts from, and its faces carry a world-anchored procedural surface: grain, the
+// grooves between beds, and joints. Even beds with evenly spaced upright joints read as a masonry wall, so the beds differ in
+// thickness, the grooves break off, most joints are left out and the rest lean. The same relief also bends the shading normal.
+// No texture and no extra attribute.
+export const CRAG_LOOK = Object.freeze({
+  tone: .56, grey: .5, warm: Object.freeze([1.06, 1, .9]), // rock brightness against the cliff colour / share pulled to grey / that grey's tint.
+  grain: Object.freeze([2.9, .8, .23]), grainLow: .78, grainHigh: 1.18, // 1/m: three grain sizes / darkest and brightest grain.
+  bed: .5, bend: .7, bendScale: .13, uneven: .85, unevenGain: 1.25, // m: mean bed thickness, its wander, wander scale (1/m) / 1/m and beds: how fast and how far the thickness changes with height.
+  groove: .08, grooveDark: .3, grooveGapScale: .45, grooveGapFrom: .28, grooveGapTo: .5, layerTone: .24, // groove share of a bed / darkening / 1/m and noise gates: where a groove breaks off / tone range between beds.
+  joint: 2.3, jointWidth: .03, jointDark: .42, jointKeep: .62, jointJitter: .8, jointSlant: .5, // m: joint spacing / joint share of the spacing / darkening / share left out / spacings of wander / spacings of lean across one bed.
+  relief: Object.freeze([.022, .04, .035]), bump: 1, // m: depth of grain, grooves and joints for the shading normal / gain.
+  wallFrom: .55, wallTo: .85, fineFrom: .03, fineTo: .14, // |normal.y| over which wall detail gives way to the top / m per pixel over which thin lines fade.
+});
+const L=CRAG_LOOK, gl=n=>Number(n).toFixed(6);
+export function cragRockTone(c) {
+  const lum=.2126*c[0]+.7152*c[1]+.0722*c[2];
+  return c.map((v,i)=>(v+(lum*L.warm[i]-v)*L.grey)*L.tone);
+}
+export const CRAG_VERTEX_PARS = `varying vec3 vCragWorld;
+varying vec3 vCragNormal;`;
+export const CRAG_VERTEX = `vCragWorld=(modelMatrix*vec4(transformed,1.0)).xyz;
+vCragNormal=normalize(mat3(modelMatrix)*objectNormal);`;
+export const CRAG_FRAGMENT_PARS = `varying vec3 vCragWorld;
+varying vec3 vCragNormal;
+float cragRelief=0.0;
+float cragHash3(vec3 p){
+  return fract(sin(dot(p,vec3(12.9898,37.719,78.233)))*43758.5453);
+}
+float cragNoise(vec3 p){
+  vec3 i=floor(p);
+  vec3 f=fract(p);
+  f=f*f*(3.0-2.0*f);
+  float a=mix(mix(cragHash3(i),cragHash3(i+vec3(1.0,0.0,0.0)),f.x),mix(cragHash3(i+vec3(0.0,1.0,0.0)),cragHash3(i+vec3(1.0,1.0,0.0)),f.x),f.y);
+  float b=mix(mix(cragHash3(i+vec3(0.0,0.0,1.0)),cragHash3(i+vec3(1.0,0.0,1.0)),f.x),mix(cragHash3(i+vec3(0.0,1.0,1.0)),cragHash3(i+vec3(1.0,1.0,1.0)),f.x),f.y);
+  return mix(a,b,f.z);
+}
+vec3 cragLook(vec3 base,vec3 p,vec3 n){
+  float pixel=length(fwidth(p));
+  float fine=1.0-smoothstep(${gl(L.fineFrom)},${gl(L.fineTo)},pixel);
+  float wall=1.0-smoothstep(${gl(L.wallFrom)},${gl(L.wallTo)},abs(n.y));
+  float grain=cragNoise(p*${gl(L.grain[0])})*0.5+cragNoise(p*${gl(L.grain[1])})*0.3+cragNoise(p*${gl(L.grain[2])})*0.2;
+  float height=p.y+(cragNoise(vec3(p.xz*${gl(L.bendScale)},1.7))-0.5)*${gl(L.bend)};
+  float layer=height/${gl(L.bed)}+(cragNoise(vec3(height*${gl(L.uneven)},5.3,2.1))-0.5)*${gl(L.unevenGain)};
+  float bedPart=fract(layer);
+  float groove=1.0-smoothstep(0.0,${gl(L.groove)},min(bedPart,1.0-bedPart));
+  groove*=smoothstep(${gl(L.grooveGapFrom)},${gl(L.grooveGapTo)},cragNoise(p*${gl(L.grooveGapScale)}+11.0));
+  float tone=cragHash3(vec3(floor(layer),3.1,7.7));
+  vec2 along=normalize(vec2(-n.z,n.x)+vec2(0.0001,0.0));
+  float span=dot(p.xz,along);
+  float run=span/${gl(L.joint)}+tone*7.0+(cragNoise(vec3(span*0.31,floor(layer)*1.9,9.1))-0.5)*${gl(L.jointJitter)}+(tone-0.5)*${gl(L.jointSlant)}*bedPart;
+  float runPart=fract(run);
+  float joint=1.0-smoothstep(0.0,${gl(L.jointWidth)},min(runPart,1.0-runPart));
+  joint*=step(${gl(L.jointKeep)},cragHash3(vec3(floor(run),floor(layer),1.3)));
+  cragRelief=((grain-0.5)*${gl(L.relief[0])}-(groove*${gl(L.relief[1])}+joint*${gl(L.relief[2])})*wall)*fine;
+  vec3 c=base*mix(${gl(L.grainLow)},${gl(L.grainHigh)},grain);
+  c*=1.0+(tone-0.5)*${gl(L.layerTone)}*wall;
+  c*=1.0-groove*${gl(L.grooveDark)}*wall*fine;
+  c*=1.0-joint*${gl(L.jointDark)}*wall*fine;
+  return c;
+}
+vec3 cragBump(vec3 surface,vec3 eye,float relief){
+  vec3 alongX=dFdx(eye);
+  vec3 alongY=dFdy(eye);
+  vec3 r1=cross(alongY,surface);
+  vec3 r2=cross(surface,alongX);
+  float det=dot(alongX,r1);
+  vec3 slope=sign(det)*(dFdx(relief)*r1+dFdy(relief)*r2);
+  return normalize(abs(det)*surface-slope*${gl(L.bump)});
+}`;
+export const CRAG_FRAGMENT = `diffuseColor.rgb=cragLook(diffuseColor.rgb,vCragWorld,normalize(vCragNormal));`;
+export const CRAG_NORMAL = `normal=cragBump(normal,-vViewPosition,cragRelief);`;
 const C=CRAG, rad=Math.PI/180, clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const finite=(v,a,b)=>Number.isFinite(v)&&v>=a&&v<=b;
 export function cragHash(id, a=0, b=0) {
@@ -155,7 +227,7 @@ function prepareCrag(r,terrain,scale,work) {
     if(top<gMax+C.clearance)top+=Math.ceil((gMax+C.clearance-top)/r.step_m)*r.step_m;
     const source=terrain.groundColorAt(p[0],-p[1]);
     if(!source||source.length!==3||!source.every(Number.isFinite))throw new Error('岩の地面の色が読めません');
-    const rock=cliffColor(source,{x:p[0],y:ground[0],z:-p[1]},{x:1,y:0,z:0},{fine:0});
+    const rock=cragRockTone(cliffColor(source,{x:p[0],y:ground[0],z:-p[1]},{x:1,y:0,z:0},{fine:0}));
     return {...cell,index,id:r.id,phase,step:r.step_m,top,base:gMin-C.embed,gMin,gMax,rise,soil:false,source,rock,
       tone:1+(cragHash(r.id,p[0]+107,p[1])*2-1)*C.blockVariation};
   });

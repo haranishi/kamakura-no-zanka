@@ -1,5 +1,13 @@
 import * as THREE from '../vendor/three.module.min.js';
-import { CRAG as C, cragEnabled, buildCrags } from './kamakura-crag.js';
+import { CRAG as C, cragEnabled, buildCrags, CRAG_VERTEX_PARS, CRAG_VERTEX, CRAG_FRAGMENT_PARS, CRAG_FRAGMENT, CRAG_NORMAL } from './kamakura-crag.js';
+
+// The close-up rock surface is added to the standard material at its named anchors; a missing anchor is an error, not a silent skip.
+export function cragShader(shader) {
+  const put=(text,anchor,extra)=>{if(!text.includes(anchor))throw new Error('Crag shader anchor missing: '+anchor);return text.replace(anchor,anchor+'\n'+extra);};
+  shader.vertexShader=put(put(shader.vertexShader,'#include <common>',CRAG_VERTEX_PARS),'#include <begin_vertex>',CRAG_VERTEX);
+  shader.fragmentShader=put(put(put(shader.fragmentShader,'#include <common>',CRAG_FRAGMENT_PARS),'#include <color_fragment>',CRAG_FRAGMENT),'#include <normal_fragment_maps>',CRAG_NORMAL);
+  return shader;
+}
 
 export function createKamakuraCrag(context) {
   if(!cragEnabled(context.search)||!context.data?.works?.crags?.length)return null;
@@ -24,6 +32,7 @@ export function createKamakuraCrag(context) {
   }
   } catch(error) {for(const lod of lods)lod.geometry.dispose();throw error;}
   const material=new THREE.MeshStandardMaterial({vertexColors:true,roughness:C.roughness,metalness:C.metalness});
+  if(!debug&&q.get('craglook')!=='0'){material.onBeforeCompile=cragShader;material.customProgramCacheKey=()=>'kamakura-crag-look';}
   const mesh=new THREE.Mesh(lods[0].geometry,material);mesh.name='kamakura-crag';mesh.castShadow=true;mesh.receiveShadow=true;
   mesh.frustumCulled=false;context.scene.add(mesh);
   let step=0,disposed=false,camera=context.camera;
