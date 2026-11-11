@@ -2,6 +2,7 @@ export { shore3Enabled, FOAM_LINEAR_MAX } from './kamakura-shore-r3.js';
 import { SHORE_R3_GLSL } from './kamakura-shore-r3.js';
 // W2c-9a: silent sea → shared, pure shore-distance field (metres, 3–4 chamfer).
 export const SHORE_LIMIT_M = 3000;
+export const SHORE_GRID = Object.freeze({ smallMapM:2500, minCellM:4, terrainCellGain:2, maxSide:512, legacyCellM:8 });
 const clamp = (v, hi) => Math.max(0, Math.min(hi, v));
 export function createShoreField(terrain, { cell = 16 } = {}) {
   if (!Number.isFinite(cell) || cell <= 0) throw new RangeError('Invalid shore cell');
@@ -183,7 +184,12 @@ float tideLine(float d){return max(0.0,1.0-abs(d-${SEA_VIS.tide.toFixed(1)})/${S
 
 // W2c-9e2: sub-cell zero-height crossings replace whole-cell visual distances.
 // The 9a audio field above deliberately retains its 16m sampling and semantics.
-export function createSignedShoreJob(terrain, {cell=8,limit=240}={}) {
+// Metres throughout: all wetness/foam/audio consumers sample physical distances, never cell indices.
+export function shoreFieldCell(terrain) {
+  const b=terrain.bounds,span=Math.max(b.maxX-b.minX,b.maxZ-b.minZ),c=SHORE_GRID;
+  return span<=c.smallMapM?Math.max(c.minCellM,(terrain.cell??c.minCellM)*c.terrainCellGain,span/(c.maxSide-1)):c.legacyCellM;
+}
+export function createSignedShoreJob(terrain, {cell=shoreFieldCell(terrain),limit=240}={}) {
   if(!(cell>0)||!Number.isFinite(cell)||!(limit>0)||!Number.isFinite(limit))throw new RangeError('Invalid signed grid');
   const b=terrain.bounds,x0=b.minX,z0=b.minZ,w=Math.ceil((b.maxX-x0)/cell)+1,h=Math.ceil((b.maxZ-z0)/cell)+1;
   const data=new Float32Array(w*h),heights=new Float32Array(w*h),sea=new Uint8Array(w*h);

@@ -107,7 +107,7 @@ test('S2/S4 shipped shader hooks and expanded GLSL are balanced; added names and
 
 test('S2 texture gains distinguish beach/cliff without extra textures; adaptation/debug/disposal remain bounded',()=>{
   for(const quality of ['standard','light']){
-    const v=buildKamakuraSea(terrain(),data(),{quality,search:'?debug=1&sea2debug=1&bankwet=0'}),c=new THREE.PerspectiveCamera();c.position.set(0,700,0);c.lookAt(0,0,-1000);c.updateMatrixWorld();v.mesh.onBeforeRender(null,null,c);
+    const v=buildKamakuraSea(terrain(),data(),{quality,search:'?sea3=0&debug=1&sea2debug=1&bankwet=0'}),c=new THREE.PerspectiveCamera();c.position.set(0,700,0);c.lookAt(0,0,-1000);c.updateMatrixWorld();v.mesh.onBeforeRender(null,null,c);
     assert.equal(v.textures[0].format,THREE.RGFormat);assert.equal(v.uniforms.uSea2Lines.value,quality==='light'?2:4);
     v.update(.016,c.position,1);assert(globalThis.__kzSea2().swell>0);v.setAdapt(2);assert.equal(v.uniforms.uSea2Lines.value,2);assert.equal(v.uniforms.uSea2Swell.value,.5);
     v.setAdapt(3);assert.equal(v.uniforms.uSea2.value,0);assert.equal(globalThis.__kzSea2().enabled,false);v.setAdapt(0);assert.equal(v.uniforms.uSea2.value,1);
