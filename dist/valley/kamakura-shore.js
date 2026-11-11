@@ -17,11 +17,14 @@ export const SWELL=Object.freeze({
   debug:Object.freeze([1,.5,0]) // orange: direction reduced the surf (debug only).
 });
 export const swellEnabled=search=>new URLSearchParams(search).get('swell')!=='0';
+// The share of the usual surf zone a map keeps. A small designed bay seen from 100 m up shows only the first 30 m of sea: at a
+// quarter, the four lines of foam still filled all of it and ringed its breakwater three times. A tenth leaves a fringe at the shore.
+export const SURF_SCALE_MIN = .08, SURF_SCALE_MAX = 1.5;
 export function validateSea(sea){
   if(sea===undefined)return;
   if(!sea||Array.isArray(sea)||typeof sea!=='object'||Object.keys(sea).some(k=>!['swell_from_deg','surf_scale'].includes(k))||
     (sea.swell_from_deg!==undefined&&(!Number.isFinite(sea.swell_from_deg)||sea.swell_from_deg<0||sea.swell_from_deg>360))||
-    (sea.surf_scale!==undefined&&(!Number.isFinite(sea.surf_scale)||sea.surf_scale<.25||sea.surf_scale>1.5)))throw new Error('海の波の指定が不正です');
+    (sea.surf_scale!==undefined&&(!Number.isFinite(sea.surf_scale)||sea.surf_scale<SURF_SCALE_MIN||sea.surf_scale>SURF_SCALE_MAX)))throw new Error('海の波の指定が不正です');
 }
 export function swellFacing(dx,dz,fromDeg){
   const length=Math.hypot(dx,dz);if(length<SWELL.gradientEpsilon)return 1;
