@@ -6,7 +6,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import * as THREE from '../dist/vendor/three.module.min.js';
-import { CRAG as C, CRAG_LOOK, CRAG_VERTEX_PARS, CRAG_VERTEX, CRAG_FRAGMENT_PARS, CRAG_FRAGMENT, CRAG_NORMAL, cragRockTone, decodeCrags, cragArea, partitionCrag, buildCrags, cragLayerTone, cragOffset } from '../dist/valley/kamakura-crag.js';
+import { CRAG as C, CRAG_LOOK, CRAG_VERTEX_PARS, CRAG_VERTEX, CRAG_FRAGMENT_PARS, CRAG_FRAGMENT, CRAG_NORMAL, cragRockTone, decodeCrags, cragArea, partitionCrag, buildCrags, cragLayerTone, cragOffset, cragStrong, cragNaturalOffset, naturalPoint } from '../dist/valley/kamakura-crag.js';
 import { decodeWorks } from '../dist/valley/kamakura-works.js';
 import { createKamakuraCrag, cragShader } from '../dist/valley/kamakura-crag-view.js';
 import { createKamakuraLayers } from '../dist/valley/kamakura-layers.js';
@@ -77,7 +77,7 @@ test('partition: deterministic clipped coverage, no overlaps, symmetric shared e
 
 test('height: corrected terrain sampler, clearance, buried foot and shared bed phase',()=>{
   const f=fixture({width:65,height:65,slope:.7});f.meta.ground={};f.ground=new Uint8Array(65*65*3).fill(128);const t=createKamakuraTerrain(f);
-  const input={...rect(),step_m:.6,rise_m:3},plan=buildCrags([input],t).plans[0];
+  const input={...rect(),step_m:.6,rise_m:3},plan=buildCrags([input],t,{dip:false}).plans[0];
   for(const b of plan.blocks) {
     const heights=[b.point,...b.polygon].map(p=>t.heightAt(p[0],-p[1]));
     near(b.gMin,Math.min(...heights));near(b.gMax,Math.max(...heights));
@@ -106,17 +106,19 @@ function verifyGeometry(result) {
     const face=result.faces[i/9],block=result.plans.find(p=>p.id===face.id).blocks[face.block];
     if(['rock','soil','bevel'].includes(face.kind))assert(n[1]>0);
     if(face.kind==='wall') {
-      near(n[1],0);
+      if(!block.bed)near(n[1],0);
       const a=block.polygon[face.edge],b=block.polygon[(face.edge+1)%block.polygon.length],out=[b[1]-a[1],b[0]-a[0]];
       assert(n[0]*out[0]+n[2]*out[1]>0);
       const neighbor=block.neighbors[face.edge];
-      if(neighbor>=0){const other=result.plans.find(p=>p.id===face.id).blocks[neighbor];assert(block.top>other.top);assert(Math.min(p[i+1],p[i+4],p[i+7])>=other.top-1e-5);}
+      if(neighbor>=0){const other=result.plans.find(p=>p.id===face.id).blocks[neighbor];
+        if(block.bed){assert(block.bedTop-block.bevel>other.bedTop-other.bevel);for(let k=0;k<3;k++)assert(p[i+3*k+1]-result.beds[i/3+k]>=Math.max(block.bedBase,other.bedTop-other.bevel)-1e-4);}
+        else {assert(block.top>other.top);assert(Math.min(p[i+1],p[i+4],p[i+7])>=other.top-1e-5);}}
     }
   }
 }
 
 test('geometry: high side only, exact shared-wall foot, upward caps and outward flat wall normals',()=>{
-  const r=buildCrags([{...rect(),rise_m:5}],terrain);verifyGeometry(r);
+  const r=buildCrags([{...rect(),rise_m:5}],terrain,{dip:false});verifyGeometry(r);
   for(const plan of r.plans)for(const b of plan.blocks)for(let e=0;e<b.neighbors.length;e++) {
     const n=b.neighbors[e];if(n<0||b.top<=plan.blocks[n].top+C.bevelMax)continue;
     const faces=r.faces.map((f,i)=>({f,i})).filter(({f})=>f.kind==='wall'&&f.id===b.id&&f.block===b.index&&f.edge===e);
@@ -124,7 +126,7 @@ test('geometry: high side only, exact shared-wall foot, upward caps and outward 
     for(const {i} of faces)for(let k=1;k<9;k+=3)bottom=Math.min(bottom,r.positions[i*9+k]);
     near(bottom,Math.max(b.base,plan.blocks[n].top),1e-5);
   }
-  const light=buildCrags([{...rect(),rise_m:5}],terrain,{quality:'light'});verifyGeometry(light);assert(!light.faces.some(f=>f.kind==='bevel'));assert(light.triangles<r.triangles);
+  const light=buildCrags([{...rect(),rise_m:5}],terrain,{quality:'light',dip:false});verifyGeometry(light);assert(!light.faces.some(f=>f.kind==='bevel'));assert(light.triangles<r.triangles);
 });
 
 test('colour: shared bed tones and majority bed offset direction, soil caps retain source ground colour',()=>{
@@ -154,11 +156,11 @@ function context(search='?debug=1',crags=[rect()]) {
   return {search,data:{works:source(crags)},terrain,scene,camera,quality:'standard'};
 }
 
-test('view: flags and absent data add nothing; three attributes, one material, shadows, one named surface shader',()=>{
+test('view: flags and absent data add nothing; four attributes, one material, shadows, one named surface shader',()=>{
   for(const search of ['?crag=0','?layers=0','?works=0']){const c=context(search);assert.equal(createKamakuraCrag(c),null);assert.equal(c.scene.children.length,0);}
   for(const crags of [undefined,[]]){const c=context();c.data.works.crags=crags;assert.equal(createKamakuraCrag(c),null);assert.equal(c.scene.children.length,0);}
   const c=context(),layer=createKamakuraCrag(c),m=layer.mesh;
-  assert.equal(c.scene.children.length,1);assert.deepEqual(Object.keys(m.geometry.attributes).sort(),['color','normal','position']);
+  assert.equal(c.scene.children.length,1);assert.deepEqual(Object.keys(m.geometry.attributes).sort(),['color','cragBed','normal','position']);
   assert(m.material.isMeshStandardMaterial);assert.equal(m.material.roughness,.96);assert.equal(m.material.metalness,0);assert(m.material.vertexColors&&m.material.fog);assert(m.castShadow&&m.receiveShadow);assert.equal(m.material.onBeforeCompile,cragShader);assert.equal(m.material.customProgramCacheKey(),'kamakura-crag-look');
   for(const search of ['?craglook=0','?cragdebug=1']){const plain=createKamakuraCrag(context(search));assert.equal(plain.mesh.material.onBeforeCompile,THREE.Material.prototype.onBeforeCompile,search);plain.dispose();}
   const inspect=globalThis.__kzCrag,stats=inspect();assert.equal(stats.draws,1);assert.equal(stats.crags,1);assert(stats.blocks>0);assert(stats.tallest>0);assert.equal(stats.nearest.id,'outcrop');assert(stats.nearest.distance>0);assert(stats.nearest.bearing>=0&&stats.nearest.bearing<360);
@@ -226,7 +228,7 @@ test('look: emitted GLSL is balanced, float-only and free of reserved or undecla
   const dir=fsSync.mkdtempSync(path.join(os.tmpdir(),'crag-glsl-'));
   try{
     const stages={
-      'crag.vert':'#version 310 es\nprecision highp float;\n#define varying out\nin vec3 position;in vec3 normal;uniform mat4 modelMatrix;\n'+CRAG_VERTEX_PARS+'\nvoid main(){vec3 transformed=position;vec3 objectNormal=normal;\n'+CRAG_VERTEX+'\ngl_Position=vec4(transformed,1.0);}',
+      'crag.vert':'#version 310 es\nprecision highp float;\n#define varying out\n#define attribute in\nin vec3 position;in vec3 normal;uniform mat4 modelMatrix;\n'+CRAG_VERTEX_PARS+'\nvoid main(){vec3 transformed=position;vec3 objectNormal=normal;\n'+CRAG_VERTEX+'\ngl_Position=vec4(transformed,1.0);}',
       'crag.frag':'#version 310 es\nprecision highp float;\n#define varying in\nout vec4 cragOut;\nin vec3 vViewPosition;\n'+CRAG_FRAGMENT_PARS+'\nvoid main(){vec4 diffuseColor=vec4(1.0);vec3 normal=vec3(0.0,0.0,1.0);\n'+CRAG_FRAGMENT+'\n'+CRAG_NORMAL+'\ncragOut=vec4(diffuseColor.rgb*normal.z,1.0);}'};
     const compile=(name,text)=>{const file=path.join(dir,name);fsSync.writeFileSync(file,text);return spawnSync('glslc',['--target-env=opengl','-fauto-bind-uniforms','-fauto-map-locations',file,'-o',path.join(dir,'out.spv')],{encoding:'utf8'});};
     for(const [name,text]of Object.entries(stages)){const result=compile(name,text);assert.equal(result.status,0,result.stderr);}
@@ -234,4 +236,142 @@ test('look: emitted GLSL is balanced, float-only and free of reserved or undecla
     assert.notEqual(compile('bad2.frag',stages['crag.frag'].replace('float tone=cragHash3','int tone=cragHash3')).status,0);
     t.diagnostic('2 shader stages compiled; undeclared-name and numeric-type mutations rejected');
   }finally{fsSync.rmSync(dir,{recursive:true,force:true});}
+});
+
+test('dip input: optional angles survive works decoding and reject non-finite or out-of-range values',()=>{
+  for(const [key,max] of [['dip_deg',25],['dip_to_deg',360],['face_deg',360]]) {
+    for(const value of [-1,max+.01,NaN,Infinity,null,'9'])assert.throws(()=>decodeWorks(source([{...rect(),[key]:value}])));
+    for(const value of [0,max])assert.equal(decodeCrags(decodeWorks(source([{...rect(),[key]:value}])).crags)[0][key],value);
+  }
+  assert.equal(decodeCrags([rect()])[0].dip_deg,9);
+});
+
+test('dip fallback: zero angle and URL flag retain identical legacy positions, normals and colours in every LOD',()=>{
+  const input={...rect('legacy'),rise_m:4,dip_deg:18,dip_to_deg:300};
+  for(const quality of ['standard','light'])for(let step=0;step<4;step++) {
+    const off=buildCrags([input],terrain,{quality,step,dip:false}),zero=buildCrags([{...input,dip_deg:0}],terrain,{quality,step});
+    for(const name of ['positions','normals','colors'])assert.deepEqual(off[name],zero[name]);
+    assert(off.beds.every(v=>v===0));assert.equal(off.strong,0);assert.equal(off.lowered,0);
+  }
+  const c=context('?debug=1&cragdip=0'),layer=createKamakuraCrag(c),baseline=buildCrags(c.data.works.crags,terrain,{dip:false});
+  assert.deepEqual(layer.mesh.geometry.attributes.position.array,baseline.positions);
+  assert(globalThis.__kzCrag().dip.every(d=>d.degrees===0));layer.dispose();
+});
+
+test('dip planes: caps and wall beds share the authored gradient and phase; every uploaded cap clears terrain',()=>{
+  for(const dip_to_deg of [0,95,220])for(const quality of ['standard','light']) {
+    const input={...rect('inclined'),dip_deg:25,dip_to_deg,rise_m:5},r=buildCrags([input],terrain,{quality});verifyGeometry(r);
+    const plan=r.plans[0];let tilted=false,bedBoundaries=0;
+    for(const b of plan.blocks){const h=(b.bedTop-plan.phase)/plan.step;assert(Math.abs(h-Math.round(h))<=C.heightJitter+1e-8);}
+    for(let i=0;i<r.faces.length;i++) {
+      const face=r.faces[i],b=plan.blocks[face.block];
+      for(let k=0;k<3;k++) {
+        const at=i*9+k*3,x=r.positions[at],y=r.positions[at+1],north=-r.positions[at+2],bed=r.beds[i*3+k];
+        near(bed,(x-b.bed.origin[0])*b.bed.east+(north-b.bed.origin[1])*b.bed.north,1e-5);
+        if(face.kind==='rock'||face.kind==='soil') {
+          near(y-bed,b.bedTop,1e-4);assert(y>=terrain.heightAt(x,-north)+C.clearance-1e-4);
+          if(Math.abs(r.normals[i*9+1]-1)>.001)tilted=true;
+        }
+        if(face.kind==='wall'){const h=(y-bed-b.phase)/b.step;assert(h>=face.layer-(quality==='light'?1:0)-1e-4&&h<=face.layer+(quality==='light'?2:1)+1e-4);if(Math.abs(h-Math.round(h))<1e-4)bedBoundaries++;}
+      }
+    }
+    assert(tilted&&bedBoundaries>0);assert(CRAG_FRAGMENT_PARS.includes('p.y-vCragBed'));
+  }
+});
+
+test('lean and seams: shared corners coincide through every bed, and uploaded high walls meet the lower bevel rim',()=>{
+  const r=buildCrags([{...rect('seams'),rise_m:5}],terrain),plan=r.plans[0];verifyGeometry(r);let joins=0,slopes=0;
+  const coords=i=>Array.from(r.positions.slice(i,i+3));
+  for(const b of plan.blocks) {
+    assert(b.lean>=3&&b.lean<=9);
+    for(const p of b.polygon) {
+      const v=p.corner,lo=v.anchor+v.limit/v.slope*.1,hi=v.anchor+v.limit/v.slope*.2,a=naturalPoint(p,lo),d=naturalPoint(p,hi);
+      near(Math.hypot(d[0]-a[0],d[1]-a[1])/(hi-lo),v.slope);assert((d[0]-a[0])*v.dx+(d[1]-a[1])*v.dy>0);slopes++;
+      for(let layer=Math.floor((b.bedBase-b.phase)/b.step);layer<(b.bedTop-b.phase)/b.step;layer++) {
+        const start=b.phase+layer*b.step,end=start+b.step,knots=[start,...v.knots.filter(h=>h>start&&h<end),end].sort((a,b)=>a-b),offset=cragNaturalOffset(b.id,layer);
+        for(let k=1;k<knots.length;k++)if(knots[k]-knots[k-1]>C.epsilon) {
+          const a=naturalPoint(p,knots[k-1],offset),d=naturalPoint(p,knots[k],offset),mid=naturalPoint(p,(knots[k-1]+knots[k])/2,offset);
+          near(mid[0],(a[0]+d[0])/2);near(mid[1],(a[1]+d[1])/2);
+        }
+      }
+    }
+    for(let e=0;e<b.neighbors.length;e++) {
+      const index=b.neighbors[e];if(index<0)continue;
+      const other=plan.blocks[index],oe=other.neighbors.indexOf(b.index);
+      for(const [p,q] of [[b.polygon[e],other.polygon[(oe+1)%other.polygon.length]],[b.polygon[(e+1)%b.polygon.length],other.polygon[oe]]]) {
+        for(const h of [b.bedTop,other.bedTop,b.bedTop-b.step,other.bedTop+other.step]) {
+          const layer=Math.floor((h-b.phase)/b.step),a=naturalPoint(p,h,cragNaturalOffset(plan.id,layer)),d=naturalPoint(q,h,cragNaturalOffset(plan.id,layer));
+          near(a[0],d[0],1e-7);near(a[1],d[1],1e-7);
+        }
+      }
+      if(b.bedTop-b.bevel<=other.bedTop-other.bevel+1e-6)continue;
+      const high=[],low=[],height=other.bedTop-other.bevel;
+      for(let i=0;i<r.faces.length;i++) {
+        const f=r.faces[i];if(f.id!==b.id)continue;
+        if((f.block===b.index&&f.edge===e)||(f.block===other.index&&f.edge===oe&&f.kind==='bevel'))for(let k=0;k<3;k++) {
+          const at=i*9+k*3;if(Math.abs(r.positions[at+1]-r.beds[i*3+k]-height)<1e-4)(f.block===b.index?high:low).push(coords(at));
+        }
+      }
+      assert(low.length>=2);for(const p of low)assert(high.some(q=>Math.hypot(...p.map((v,k)=>v-q[k]))<1e-5),'shared rim vertex must exist in uploaded high wall');joins++;
+    }
+  }
+  assert(joins>0&&slopes>0);
+});
+
+test('strong beds: one in four to six, continuous offsets, downward undersides and darker cavities',()=>{
+  for(const id of ['beds-a','beds-b','beds-c']) {
+    let strong=0,positive=0,negative=0;
+    for(let layer=-120;layer<120;layer++) {
+      const kind=cragStrong(id,layer),offset=cragNaturalOffset(id,layer);if(kind)strong++;
+      if(kind>0){assert(offset>=.25&&offset<=.45);positive++;}if(kind<0){assert(offset<=-.25&&offset>=-.5);negative++;}
+    }
+    assert(strong/240>=1/6&&strong/240<=1/4);assert(positive&&negative);
+  }
+  const r=buildCrags([{...rect('underside'),rise_m:8}],terrain),down=r.faces.map((f,i)=>({f,i})).filter(({f,i})=>f.kind==='ledge'&&r.normals[i*9+1]<-.1);
+  assert(down.length>0&&r.strong>0);
+  for(const {f,i} of down){assert(r.normals[i*9+1]<0);const b=r.plans[0].blocks[f.block];assert(r.colors[i*9]<=b.rock[0]*cragLayerTone(b.id,f.layer)*b.tone*C.cavityGain+1e-5);}
+  assert(C.rimGain===1.1&&C.cavityGain===.7&&C.hueVariation===.04);
+});
+
+test('broken tops and contour: stratified rates, corner cuts, road protection and clearance overrides',()=>{
+  for(const face_deg of [undefined,220,40]) {
+    const r=buildCrags([{...rect('broken',40,35),rise_m:10,face_deg}],flat),blocks=r.plans[0].blocks;
+    assert.equal(blocks.filter(b=>b.topShift!==0).length,Math.round(blocks.length*.35));
+    const eligible=blocks.filter(b=>b.edgeEligible),selected=eligible.filter(b=>b.edgeLower>0),corners=blocks.filter(b=>b.corner);
+    assert.equal(selected.length,Math.max(corners.length,Math.round(eligible.length*.45)));
+    assert(r.lowered>0);assert(blocks.some(b=>b.corner&&b.bedTop<=b.nominalBedTop-2*b.step+1e-7));
+    for(const b of blocks) {
+      assert(b.topShift===0||Math.abs(b.topShift)===1||Math.abs(b.topShift)===2);
+      if(b.corner)assert(b.edgeLower-b.topShift>=2);
+      if(b.road){assert.equal(b.edgeLower,0);assert.equal(b.corner,false);}
+      assert(b.top>=2+C.clearance-1e-7);
+    }
+    assert(corners.length>0);assert.equal(r.lowered,blocks.filter(b=>b.bedTop<b.nominalBedTop-1e-8).length);
+    assert(blocks.some(b=>b.topShift>0));assert(blocks.some(b=>b.topShift<0));
+  }
+});
+
+test('diagnostics: dip, strong beds and actually lowered blocks track quality and disposal',()=>{
+  const c=context('?debug=1'),layer=createKamakuraCrag(c);
+  for(let step=0;step<4;step++) {
+    layer.setAdapt(step);const s=globalThis.__kzCrag(),p=layer.lods[step].plan;
+    assert.deepEqual(s.dip,p.plans.map(p=>({id:p.id,degrees:p.dip,bearing:p.direction})));assert.equal(s.strong,p.strong);assert.equal(s.lowered,p.lowered);
+    assert.equal(layer.mesh.geometry.attributes.cragBed.itemSize,1);assert.equal(Object.keys(layer.mesh.geometry.attributes).length,4);
+  }
+  const inspect=globalThis.__kzCrag;layer.dispose();assert.equal(inspect().strong,0);assert.equal(inspect().lowered,0);
+});
+
+test('natural caps: deterministic, non-overlapping triangles cover concave caps without filling the notches',()=>{
+  const input=[{...rect('concave'),rise_m:5}],r=buildCrags(input,terrain),again=buildCrags(input,terrain);
+  assert.deepEqual(r.positions,again.positions);assert.deepEqual(r.beds,again.beds);
+  for(const b of r.plans[0].blocks) {
+    const triangles=[];
+    for(let i=0;i<r.faces.length;i++)if(r.faces[i].block===b.index&&['rock','soil'].includes(r.faces[i].kind)) {
+      const poly=Array.from({length:3},(_,k)=>[r.positions[i*9+k*3],-r.positions[i*9+k*3+2]]);if(cragArea(poly)<0)poly.reverse();triangles.push(poly);
+    }
+    assert(triangles.length>0);
+    for(let i=0;i<triangles.length;i++)for(let j=i+1;j<triangles.length;j++){const p=intersect(triangles[i],triangles[j]);assert(p.length<3||Math.abs(cragArea(p))<1e-6,JSON.stringify({block:b.index,i,j,area:cragArea(p),triangles}));}
+  }
+  const layer=createKamakuraCrag(context('?debug=1'));layer.update({camera:{position:{x:0,y:0,z:10000}}});
+  const s=globalThis.__kzCrag();assert.deepEqual(s.dip,[]);assert.equal(s.strong,0);assert.equal(s.lowered,0);layer.dispose();
 });

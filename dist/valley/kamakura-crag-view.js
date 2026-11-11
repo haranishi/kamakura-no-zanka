@@ -14,18 +14,20 @@ export function createKamakuraCrag(context) {
   const q=new URLSearchParams(context.search),debug=q.get('cragdebug')==='1',lods=[];
   // All four adaptive shapes are prepared once. Changing quality never builds triangles in a frame.
   try { for(let step=0;step<4;step++) {
-    const plan=buildCrags(context.data.works.crags,context.terrain,{quality:context.quality,step,debug,minimumScale:step?lods[step-1].plan.scale*C.adaptScale:1});
+    const plan=buildCrags(context.data.works.crags,context.terrain,{quality:context.quality,step,debug,dip:q.get('cragdip')!=='0',minimumScale:step?lods[step-1].plan.scale*C.adaptScale:1});
     const geometry=new THREE.BufferGeometry();
     geometry.setAttribute('position',new THREE.BufferAttribute(plan.positions,3));
     geometry.setAttribute('normal',new THREE.BufferAttribute(plan.normals,3));
     geometry.setAttribute('color',new THREE.BufferAttribute(plan.colors,3));
+    geometry.setAttribute('cragBed',new THREE.BufferAttribute(plan.beds,1));
     const indices=new Uint32Array(plan.positions.length/3);
     geometry.setIndex(new THREE.BufferAttribute(indices,1).setUsage(THREE.DynamicDrawUsage));
     geometry.computeBoundingSphere();
-    const bounds=plan.plans.map(p=>{
+    const bounds=plan.plans.map((p,i)=>{
       let x=0,y=0,z=0;for(const b of p.blocks){x+=b.point[0];y+=b.top;z-=b.point[1];}
       x/=p.blocks.length;y/=p.blocks.length;z/=p.blocks.length;
       let radius=0;for(const b of p.blocks)for(const v of b.polygon)radius=Math.max(radius,Math.hypot(v[0]-x,b.top-y,-v[1]-z),Math.hypot(v[0]-x,b.base-y,-v[1]-z));
+      if(p.natural){const r=plan.ranges[i];for(let k=r.start*3;k<(r.start+r.count)*3;k+=3)radius=Math.max(radius,Math.hypot(plan.positions[k]-x,plan.positions[k+1]-y,plan.positions[k+2]-z));}
       return {x,y,z,radius};
     });
     lods.push({plan,geometry,bounds,mask:-1,triangles:0,blocks:0,crags:0});
@@ -62,6 +64,8 @@ export function createKamakuraCrag(context) {
       if(d<distance){distance=d;nearest={id:b.id,distance:d,bearing:(Math.atan2(dx,-dz)*180/Math.PI+360)%360};}
     }
     return {crags:disposed?0:lod.crags,blocks:disposed?0:lod.blocks,triangles:disposed?0:lod.triangles,draws:!disposed&&mesh.visible?1:0,
+      dip:disposed?[]:lod.plan.plans.filter((_,i)=>lod.mask&(1<<i)).map(p=>({id:p.id,degrees:p.natural?p.dip:0,bearing:p.direction})),
+      strong:disposed?0:lod.plan.ranges.reduce((n,r,i)=>n+((lod.mask&(1<<i))?r.strong:0),0),lowered:disposed?0:lod.plan.ranges.reduce((n,r,i)=>n+((lod.mask&(1<<i))?r.lowered:0),0),
       scale:lod.plan.scale,tallest:lod.plan.tallest,nearest,work:lod.plan.work,preparedLods:lods.length};
   }
   if(q.get('debug')==='1')globalThis.__kzCrag=inspect;
