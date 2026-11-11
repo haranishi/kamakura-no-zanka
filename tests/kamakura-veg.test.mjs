@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { decodeVeg, VEG_FIELDS, mapVeg, prepareVeg, nearbyVeg, selectVeg, vegPolicy, vegCircles, treesEnabled } from '../dist/valley/kamakura-veg.js';
+import { decodeVeg, VEG_FIELDS, mapVeg, prepareVeg, nearbyVeg, selectVeg, vegPolicy, vegCircles, treesEnabled, configureVegPolicy, VEG_POLICY_LIMITS } from '../dist/valley/kamakura-veg.js';
 import { loadKamakura, decodeData } from '../dist/valley/kamakura-data.js';
 import { buildColliders, moveActor } from '../dist/valley/collision.js';
 import { fixture } from './helpers/kamakura-fixture.mjs';
@@ -119,4 +119,22 @@ test('runtime far-tree cutoff is immediate, reversible and reuses the same sets/
     }
     view.dispose();
   }
+});
+
+test('a map may widen the single-tree range and the far capacity; without it the policy is the default, and bad values are refused', () => {
+  const L = VEG_POLICY_LIMITS, plain = { standard: vegPolicy('standard'), light: vegPolicy('light') };
+  try {
+    assert.equal(configureVegPolicy(null), null); assert.deepEqual(vegPolicy('standard'), plain.standard);
+    configureVegPolicy({ range: 1500, far: 40000 });
+    const wide = vegPolicy('standard'), light = vegPolicy('light');
+    assert.equal(wide.range, 1500); assert.deepEqual(wide.capacities, [plain.standard.capacities[0], plain.standard.capacities[1], 40000]);
+    assert.deepEqual(wide.lod, plain.standard.lod); assert.equal(wide.blend, plain.standard.blend);   // the near levels do not move
+    assert.equal(light.range, 1500 * L.light.range); assert.equal(light.capacities[2], Math.round(40000 * L.light.far));
+    assert(light.range >= plain.light.range && light.capacities[2] >= plain.light.capacities[2]);
+    // The lower bounds equal the defaults: an override can only widen.
+    configureVegPolicy({ range: L.range[0], far: L.far[0] }); assert.deepEqual(vegPolicy('standard'), plain.standard);
+    for (const bad of [{ range: 100, far: 40000 }, { range: 5000, far: 40000 }, { range: 1500, far: 10 }, { range: 1500, far: 1e6 }, { range: '1500', far: 40000 }, { range: 1500, far: 40000.5 }, { range: NaN, far: 40000 }, [1500, 40000], 'wide'])
+      assert.throws(() => configureVegPolicy(bad), /木の範囲/);
+  } finally { configureVegPolicy(null); }
+  assert.deepEqual(vegPolicy('standard'), plain.standard); assert.deepEqual(vegPolicy('light'), plain.light);
 });

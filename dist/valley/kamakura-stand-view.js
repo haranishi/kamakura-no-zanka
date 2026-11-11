@@ -43,6 +43,13 @@ export const STANDS2 = Object.freeze({
   detailCoarse: 3.5, // m: large leaf-cluster noise wavelength.
   detail: .3, // ratio: brightness modulation about the mean.
   detailNormal: .26, // ratio: normal perturbation before scene lighting.
+  // Parent (real Chrome, overlook against the concept composition): smooth domes read as gumdrops. Three things make a crown:
+  // clusters of leaves a few metres wide that catch or miss the light, a broken outline, and a dark side.
+  clump: 7, // m: leaf-cluster wavelength that survives at a kilometre (the two finer ones are filtered away by then).
+  clumpGain: .34, // ratio: brightness swing of those clusters about the mean.
+  rimFrom: .42, // 1 - |cos(view angle)|: where the outline starts to break up (0 faces the eye, 1 is the silhouette).
+  rimCut: 1.25, // ratio: share of the outermost rim that is cut away by the cluster noise.
+  rimScale: 2.6, // m: wavelength of the notches in the outline.
   detailFadeFrom: .5, // cells per pixel: start filtering subpixel detail.
   detailFadeTo: 1, // cells per pixel: completely remove subpixel detail.
   debugFar: .55, // ratio: darken flat debug colour on far geometry.
@@ -153,8 +160,12 @@ function canopyLook(material) {
       float kzCoarseW = 1.0-smoothstep(${f(STANDS2.detailFadeFrom)},${f(STANDS2.detailFadeTo)},max(fwidth(kzCoarseP.x),max(fwidth(kzCoarseP.y),fwidth(kzCoarseP.z))));
       float kzFineN = (kzStandNoise(kzFineP)*2.0-1.0)*kzFineW;
       float kzCoarseN = (kzStandNoise(kzCoarseP)*2.0-1.0)*kzCoarseW;
-      diffuseColor.rgb *= 1.0+${f(STANDS2.detail)}*(kzFineN+kzCoarseN)*0.5;
-      normal = normalize(normal+${f(STANDS2.detailNormal)}*(kzFineN+kzCoarseN)*vec3(0.6,0.2,0.7));
+      float kzClumpN = kzStandNoise(vStandObject / ${f(STANDS2.clump)} + 3.7)*2.0-1.0;
+      diffuseColor.rgb *= 1.0+${f(STANDS2.detail)}*(kzFineN+kzCoarseN)*0.5+${f(STANDS2.clumpGain)}*kzClumpN;
+      normal = normalize(normal+${f(STANDS2.detailNormal)}*(kzFineN+kzCoarseN)*vec3(0.6,0.2,0.7)+${f(STANDS2.detailNormal)}*kzClumpN*vec3(0.5,0.1,0.6));
+      // Broken outline: notches eat into the rim, deeper toward the silhouette. No blending, no sorting: a cut-out.
+      float kzOutline = 1.0-abs(dot(normalize(vViewPosition), normal));
+      if (kzOutline > ${f(STANDS2.rimFrom)} && kzStandNoise(vStandObject / ${f(STANDS2.rimScale)} + 11.3) < (kzOutline-${f(STANDS2.rimFrom)})/(1.0-${f(STANDS2.rimFrom)})*${f(STANDS2.rimCut)}) discard;
     `).replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
       totalEmissiveRadiance += diffuseColor.rgb * ${f(STANDS2.floor)};`);
     // Our instance colour already varies brightness/hue. Do not multiply a second species palette into it.
