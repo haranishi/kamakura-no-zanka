@@ -36,6 +36,7 @@ import { windUniforms } from './vegetation.js';
 import { createWind, stepWind, toUniforms } from './wind.js';
 import { createKamakuraPost } from './kamakura-post-view.js';
 import { createKamakuraAtmosphere } from './kamakura-atmosphere-view.js';
+import { sunPlace, airOf } from './kamakura-atmosphere.js';
 import { waterEnabled, prepareRivers } from './kamakura-rivers.js';
 import { buildKamakuraWater } from './kamakura-water-view.js';
 import { adaptOptions, createAdapt, stepAdapt, adaptPolicy, adaptPixelRatio } from './kamakura-adapt.js';
@@ -90,7 +91,7 @@ export async function bootKamakura(data, search) {
     const quality = options.quality; let adapt = createAdapt(options.step);
     // W2c-10 r4 photo: CC0 detail textures start loading now and swap in together; failure keeps the procedural look.
     photo = startPhoto(THREE, { search, quality, maxAnisotropy: renderer.capabilities.getMaxAnisotropy() });
-    atmosphere = createKamakuraAtmosphere({ scene, renderer, search, quality });
+    atmosphere = createKamakuraAtmosphere({ scene, renderer, search, quality, sunPlace: sunPlace(data.meta, search), mapAir: airOf(data.meta, search) });
     // W2c-9f: isolate HDR/grade from the shared valley renderer.
     post = createKamakuraPost({ renderer, quality, search, terrain: t, params: atmosphere.atmosphere?.params, sunDir: atmosphere.sunDir, farSources: { data, houses: () => houses, facilities: () => facilities, flying: () => !!flight?.active } });
     roster = await loadRoster({ names: ['hero'] });

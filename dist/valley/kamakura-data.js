@@ -4,6 +4,7 @@ import { validateMist } from './kamakura-mist.js';
 import { validateBackdrop } from './kamakura-backdrop.js';
 import { prepareAvenue } from './kamakura-avenue.js';
 import { overlookConfig } from './kamakura-fly.js';
+import { sunPlace, airOf } from './kamakura-atmosphere.js';
 import { townFillConfig, prepareTownFill } from './kamakura-town-fill.js';
 import { sandoLines, sandoEnabled } from './kamakura-sando.js';
 import { decodeFacilities } from './kamakura-facilities.js';
@@ -37,6 +38,8 @@ export function validateMeta(m) {
   validateBackdrop(m.backdrop);
   townFillConfig(m.town_fill);
   overlookConfig(m.overlook);
+  sunPlace(m);
+  airOf(m);
   return m;
 }
 export function decodeData(meta, heightBuffer, walkBuffer, patchBuffers, groundBuffer) {

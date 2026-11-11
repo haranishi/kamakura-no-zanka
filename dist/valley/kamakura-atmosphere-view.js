@@ -43,7 +43,8 @@ export function installKamakuraFog(a, enhanced = true, evening = false) {
   if (evening) THREE.ShaderChunk.fog_pars_fragment = THREE.ShaderChunk.fog_pars_fragment
     .replace('smoothstep(0.93, 0.998, s) * 0.55', 'smoothstep(0.65, 0.995, s) * 0.55');
 }
-export function createKamakuraAtmosphere({ scene, renderer, search = '', quality = 'standard' }) {
+// sunPlace: where the map moves the sun to ({ turn, lift } in degrees); mapAir: how much it thickens the air ({ haze, mist }). Both from kamakura-atmosphere.js.
+export function createKamakuraAtmosphere({ scene, renderer, search = '', quality = 'standard', sunPlace = undefined, mapAir = undefined }) {
   const options = atmosphereOptions(search), resources = new Set(), before = new Set(scene.children);
   const previous = { background: scene.background, fog: scene.fog, environment: scene.environment, environmentIntensity: scene.environmentIntensity,
     shadowEnabled: renderer.shadowMap.enabled, shadowType: renderer.shadowMap.type };
@@ -78,7 +79,7 @@ export function createKamakuraAtmosphere({ scene, renderer, search = '', quality
   }
   try {
     if (options.enabled) {
-      const a = kamakuraAtmosphere(options.time, { ...ATMOS, sunDir: ATMOS.sunDir.toArray() }, eveningEnabled(search), quality === 'light' ? .55 : 1);
+      const a = kamakuraAtmosphere(options.time, { ...ATMOS, sunDir: ATMOS.sunDir.toArray() }, eveningEnabled(search), quality === 'light' ? .55 : 1, sunPlace, mapAir);
       a.sunDir = new THREE.Vector3(...a.sunDir);
       installed = true; installKamakuraFog(a, eveningEnabled(search), options.time === 'evening'); // Before terrain, sea, houses and vegetation materials.
       scene.background = null;

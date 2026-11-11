@@ -10,6 +10,9 @@ export const SEA4=Object.freeze({
   // Seen in real Chrome from 150 m up: flecks of 1.2 m in the sun's own ochre, at six tenths, read as leaves floating on the
   // water. Glitter is small, sparse and nearly white: finer cells, a higher threshold, the sun colour pulled towards white.
   glitterCellM:.9,glitterDrift:.06, // metres / cells per second: slow, fine moving sun flecks.
+  // Seen from a camera 100 m up (a small designed map), a 0.9 m fleck is six pixels across and the sea looked strewn with
+  // confetti. Where a pixel is small enough to show them, finer flecks take over; higher up the coarse ones stay as they were.
+  glitterFineM:.3, // metres: the cell of the flecks a close camera sees.
   glitterLow:.76,glitterHigh:.88,glitterMean:.072, // smooth threshold and unresolved mean of the same noise.
   glitterStrength:1.5,glitterPower:3,glitterWhite:.6, // gain on the fleck colour / reflection lobe exponent / share of white in that colour.
   filterStart:.5,filterEnd:1, // footprint / cell size: average subpixel holes and flecks.
@@ -362,7 +365,9 @@ const edge4=scalar3('x,z,footprint',`return (shoreNoise((x*${f(rc)}-z*${f(rs)})/
 const glitter4=scalar3('x,z,time,footprint,facing,height',`
   if(facing<=0.0||height<=${f(V.heightStartM)})return 0.0;
   float grain=shoreNoise((x*${f(rc)}-z*${f(rs)})/${f(V.glitterCellM)}+time*${f(V.glitterDrift)},(x*${f(rs)}+z*${f(rc)})/${f(V.glitterCellM)}-time*${f(V.glitterDrift)});
-  float fleck=mix(smoothstep(${f(V.glitterLow)},${f(V.glitterHigh)},grain),${f(V.glitterMean)},smoothstep(${f(V.glitterCellM*V.filterStart)},${f(V.glitterCellM*V.filterEnd)},footprint));
+  float coarse=mix(smoothstep(${f(V.glitterLow)},${f(V.glitterHigh)},grain),${f(V.glitterMean)},smoothstep(${f(V.glitterCellM*V.filterStart)},${f(V.glitterCellM*V.filterEnd)},footprint));
+  float fineGrain=shoreNoise((x*${f(rc)}-z*${f(rs)})/${f(V.glitterFineM)}+time*${f(V.glitterDrift)},(x*${f(rs)}+z*${f(rc)})/${f(V.glitterFineM)}-time*${f(V.glitterDrift)});
+  float fleck=mix(smoothstep(${f(V.glitterLow)},${f(V.glitterHigh)},fineGrain),coarse,smoothstep(${f(V.glitterFineM*V.filterStart)},${f(V.glitterFineM*V.filterEnd)},footprint));
   float lobe=max(0.0,facing);return fleck*pow(lobe,${f(V.glitterPower)})*${f(V.glitterStrength)}*smoothstep(${f(V.heightStartM)},${f(V.heightFullM)},height);
 `);
 export const sea4Texture=texture4.js,sea4Edge=edge4.js,sea4Glitter=glitter4.js;

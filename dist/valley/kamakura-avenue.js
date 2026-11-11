@@ -21,12 +21,18 @@ export const AVENUE = Object.freeze({
   beamRise: .025, beamLower: .91, nukiHeight: .66, nukiOverhang: .1, // height ratios and opening ratio
   nukiDepth: .38, tabletWidth: .38, roofShade: .28, // m / m / pigment gain for the top beam
   radialSegments: 10, beamSegments: 4, // topology counts: torii stays below 400 triangles
-  bermWidth: 2.6, bermTop: 1, bermHeight: .7, bermInset: .6, // m: trapezoid section and inset from road edge
-  bermStep: 6, entranceEvery: 70, entranceWidth: 5, crossingExtra: 6, // m: sampling and openings
-  soilBand: .16, groundLift: .015, grassStrength: .7, // m / m / ratio: exposed soil toe, surface lift, existing tone strength
-  // Seen in real Chrome and in a review against the concept: banks of one grass colour read as painted prisms. The slopes are
-  // faced with stone now (the ground's own lightness, without its hue), the top stays grass, and each stretch has its own tone.
-  stoneGain: 1.5, stoneHue: Object.freeze([1, .92, .78]), bermTone: .09, // gain on the ground's luminance / warm grey share per channel / +-fraction per stretch
+  bermWidth: 2.6, bermTop: 1, bermHeight: .7, bermInset: .6, // m: section (foot to foot, level top, height) and inset from road edge
+  bermStep: 4, entranceEvery: 70, entranceWidth: 5, crossingExtra: 6, // m: sampling and openings
+  soilBand: .16, groundLift: .015, grassStrength: .35, // m / m / ratio: exposed soil toe, surface lift, existing tone strength
+  // Two reviews against the concept, both in real Chrome. Banks of one grass colour read as painted prisms; banks faced with pale
+  // stone read as concrete kerbs (straight grey wedges under a flat green lid). The picture has low earthen banks: worn earth below,
+  // grass over the rounded shoulder and the top, no two stretches alike. So the section has a shoulder, every station has its own
+  // height, top width and sideways shift, the lower slope is the ground's own earth (a little darker), and the grass comes down
+  // over the shoulder. The faces share their normals along the section (a rounded bank, not facets), and where a run of the bank
+  // ends (an entrance, a crossing, a house) it comes down to the ground instead of ending in a cut face.
+  bermShoulder: .22, bermShoulderHeight: .8, // m beyond the level top on either side / share of the height reached there
+  bermHeightVary: .14, bermTopVary: .12, bermShift: .08, // +-share of the height / +-share of the top width / +-m sideways, per station
+  earthShade: .8, earthGrass: .3, bermTone: .09, // gain on the ground colour of the lower slope / share of grass mixed into it / +-fraction per stretch
   bermTriangles: 6000, totalTriangles: 7000, // hard geometry budgets
   range: 5000, lightRange: 3000, adaptRange: 2000, adapt1Range: 4000, adapt2Range: 3000, // m: 3D visibility
   markerHeight: 20, markerWidth: 1, // m: debug pine columns
@@ -153,62 +159,87 @@ export function prepareAvenue(data, { terrain, search = '' } = {}) {
   }
   return { axis, pines, skipped, torii, veg: [...(data.veg || []), ...pines], work: site.work, site };
 }
-// Stone facing: a warm grey from the ground's own luminance (lighter than the ground: at the ground's lightness the shaded face
-// sank to navy under the blue sky light). No palette of its own.
-export function bermStone(ground, tone = 1) {
-  const l = .2126 * ground[0] + .7152 * ground[1] + .0722 * ground[2];
-  return AVENUE.stoneHue.map(c => l * c * AVENUE.stoneGain * tone);
+// The lower slope of a bank: the ground's own colour, a little darker, with a share of the grass that creeps down. No palette of its own.
+export function bermEarth(ground, grass, tone = 1) {
+  return ground.map((v, k) => (v * AVENUE.earthShade * (1 - AVENUE.earthGrass) + grass[k] / tone * AVENUE.earthGrass) * tone);
 }
 export function bermHash(i, side) { const n = Math.sin(i * 12.9898 + side * 78.233) * 43758.5453; return n - Math.floor(n); }
+// One station's section, from the outer foot to the inner foot: [offset across (m), height (m)] x 8. `along` decides the variation,
+// so the two stretches that meet at a station share its points and the bank has no steps.
+export function bermSection(along, side) {
+  const key = Math.round(along * 8), vary = salt => 2 * bermHash(key + salt, side) - 1;
+  const height = AVENUE.bermHeight * (1 + AVENUE.bermHeightVary * vary(11)), top = AVENUE.bermTop * (1 + AVENUE.bermTopVary * vary(23)) / 2;
+  const shift = AVENUE.bermShift * vary(37), foot = AVENUE.bermWidth / 2, shoulder = top + AVENUE.bermShoulder;
+  const toe = AVENUE.soilBand / (foot - shoulder) * height * AVENUE.bermShoulderHeight;
+  return [[-foot, 0], [-foot + AVENUE.soilBand, toe], [shift - shoulder, height * AVENUE.bermShoulderHeight], [shift - top, height],
+    [shift + top, height], [shift + shoulder, height * AVENUE.bermShoulderHeight], [foot - AVENUE.soilBand, toe], [foot, 0]];
+}
+export const BERM_FACES = Object.freeze(['soil', 'earth', 'grass', 'grass', 'grass', 'earth', 'soil']); // the seven faces across a section
 // Vertex buffers remain pure data; the top uses the exact existing ground grass tone operation.
 export function avenueBerm(plan, terrain) {
-  const positions = [], colors = [], segments = [], { axis, site } = plan; let length = 0, gaps = 0, inGap = false;
+  const positions = [], colors = [], normals = [], segments = [], { axis, site } = plan; let length = 0, gaps = 0, inGap = false;
   const from = axis.length * AVENUE.fractions[0], to = axis.length * AVENUE.fractions[1];
-  const maximum = Math.max(1, Math.floor(AVENUE.bermTriangles / 14 / 2) - Math.ceil((to - from) / AVENUE.entranceEvery) * 2);
+  const perStretch = BERM_FACES.length * 2; // two triangles for each face; the ends run down to the ground, so there are no end faces
+  const maximum = Math.max(1, Math.floor(AVENUE.bermTriangles / perStretch / 2) - Math.ceil((to - from) / AVENUE.entranceEvery) * 2);
   const step = Math.max(AVENUE.bermStep, (to - from) / maximum), cuts = [from, to];
   for (let s = from + step; s < to; s += step) cuts.push(s);
   for (let center = Math.ceil(from / AVENUE.entranceEvery) * AVENUE.entranceEvery; center < to; center += AVENUE.entranceEvery) for (const sign of [-1, 1]) {
     const s = center + sign * AVENUE.entranceWidth / 2; if (s > from && s < to) cuts.push(s);
   }
   cuts.sort((a, b) => a - b);
-  const triangle = (a, b, c, color) => { positions.push(...a, ...b, ...c); for (let i = 0; i < 3; i++) colors.push(...color); };
+  const triangle = (a, b, c, color, na, nb, nc) => { positions.push(...a, ...b, ...c); for (let i = 0; i < 3; i++) colors.push(...color); normals.push(...na, ...nb, ...nc); };
+  // The normal of a section point: across the section (between its neighbours) and along the bank, turned upwards.
+  const rounded = (row, other, k) => {
+    const p = row[Math.max(0, k - 1)], q = row[Math.min(row.length - 1, k + 1)], ax = q[0] - p[0], ay = q[1] - p[1], az = q[2] - p[2];
+    const bx = other[k][0] - row[k][0], by = other[k][1] - row[k][1], bz = other[k][2] - row[k][2];
+    let x = ay * bz - az * by, y = az * bx - ax * bz, z = ax * by - ay * bx; const l = Math.hypot(x, y, z) || 1, sign = y < 0 ? -1 : 1;
+    return [x / l * sign, y / l * sign, z / l * sign];
+  };
   for (const side of [-1, 1]) {
-    inGap = false;
+    // First find where the bank stands, so that each run of stretches can come down to the ground at both of its ends.
+    const open = [];
     for (let i = 1; i < cuts.length; i++) {
-      const s = cuts[i - 1], end = cuts[i], mid = (s + end) / 2; if (end - s < 1e-6) continue;
+      const s = cuts[i - 1], end = cuts[i], mid = (s + end) / 2; if (end - s < 1e-6) { open.push(null); continue; }
       const cycle = Math.round(mid / AVENUE.entranceEvery) * AVENUE.entranceEvery;
       let blocked = Math.abs(mid - cycle) < AVENUE.entranceWidth / 2;
-      const rows = [];
-      for (const along of [s, end]) {
-        const row = [];
-        for (const [u, h] of [[-AVENUE.bermWidth / 2, 0], [-AVENUE.bermWidth / 2 + AVENUE.soilBand, AVENUE.soilBand / ((AVENUE.bermWidth - AVENUE.bermTop) / 2) * AVENUE.bermHeight], [-AVENUE.bermTop / 2, AVENUE.bermHeight], [AVENUE.bermTop / 2, AVENUE.bermHeight], [AVENUE.bermWidth / 2, 0]]) {
-          const p = avenueSample(axis, along, side * (axis.width / 2 - AVENUE.bermInset + u));
-          row.push([p.x, terrain.heightAt(p.x, p.z) + h + AVENUE.groundLift, p.z]);
-        }
-        rows.push(row);
-      }
-      // Include the full six-metre strip, so even a narrow crossing or house cannot slip between endpoints.
+      // Include the full strip, so even a narrow crossing or house cannot slip between endpoints.
       for (let along = s; along <= end; along += Math.min(AVENUE.bermTop, end - s)) for (const u of [-AVENUE.bermWidth / 2, 0, AVENUE.bermWidth / 2]) {
         const p = avenueSample(axis, along, side * (axis.width / 2 - AVENUE.bermInset + u));
         if (!site.walk(p.x, p.z) || !site.dry(p.x, p.z) || site.boxAt(p.x, p.z, AVENUE.bermTop / 2) || site.roadAt(p.x, p.z, AVENUE.crossingExtra / 2)) blocked = true;
       }
-      if (blocked) { if (!inGap) gaps++; inGap = true; continue; } inGap = false;
+      open.push(!blocked);
+    }
+    inGap = false;
+    for (let i = 1; i < cuts.length; i++) {
+      const s = cuts[i - 1], end = cuts[i], mid = (s + end) / 2; if (open[i - 1] === null) continue;
+      if (!open[i - 1]) { if (!inGap) gaps++; inGap = true; continue; } inGap = false;
+      // A neighbour of zero length is skipped: look past it for the next real stretch on either side.
+      let before = i - 2; while (before >= 0 && open[before] === null) before--;
+      let after = i; while (after < open.length && open[after] === null) after++;
+      const rows = [];
+      for (const [along, joined] of [[s, before >= 0 && open[before]], [end, after < open.length && open[after]]]) {
+        const row = [];
+        for (const [u, h] of bermSection(along, side)) {
+          const p = avenueSample(axis, along, side * (axis.width / 2 - AVENUE.bermInset + u));
+          row.push([p.x, terrain.heightAt(p.x, p.z) + (joined ? h : 0) + AVENUE.groundLift, p.z]);
+        }
+        rows.push(row);
+      }
       const center = avenueSample(axis, mid, side * (axis.width / 2 - AVENUE.bermInset));
       const base = terrain.groundColorAt?.(center.x, center.z) || null;
       const soil = base || [1, 3, 5].map(k => { const v = parseInt(AVENUE.fallbackGround.slice(k, k + 2), 16) / 255; return v <= .04045 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4; });
       const tone = 1 + AVENUE.bermTone * (2 * bermHash(i, side) - 1);
-      const grass = soil.map((v, k) => toneChannel(v, k, 0, 0, 1, 0, AVENUE.grassStrength, 0, 0) * tone), stone = bermStone(soil, tone);
+      const grass = soil.map((v, k) => toneChannel(v, k, 0, 0, 1, 0, AVENUE.grassStrength, 0, 0) * tone), tints = { soil, grass, earth: bermEarth(soil, grass, tone) };
+      const round = rows.map((row, r) => row.map((_, k) => rounded(row, rows[1 - r], k)));
       for (let k = 0; k < rows[0].length - 1; k++) {
-        // toe: bare soil; both slopes: stone facing; top: grass
-        const a = rows[0][k], b = rows[1][k], c = rows[1][k + 1], d = rows[0][k + 1], color = k === 0 ? soil : k === 2 ? grass : stone;
-        if (side > 0) { triangle(a, c, b, color); triangle(a, d, c, color); } else { triangle(a, b, c, color); triangle(a, c, d, color); }
+        const a = rows[0][k], b = rows[1][k], c = rows[1][k + 1], d = rows[0][k + 1], color = tints[BERM_FACES[k]];
+        const na = round[0][k], nb = round[1][k], nc = round[1][k + 1], nd = round[0][k + 1];
+        if (side > 0) { triangle(a, c, b, color, na, nc, nb); triangle(a, d, c, color, na, nd, nc); } else { triangle(a, b, c, color, na, nb, nc); triangle(a, c, d, color, na, nc, nd); }
       }
-      // Close only the exposed section ends, without a hidden bottom face.
-      for (const row of rows) for (let k = 1; k < row.length - 1; k++) triangle(row[0], row[k], row[k + 1], stone);
       segments.push({ from: s, to: end, side, rows }); length += end - s;
     }
   }
-  return { positions: new Float32Array(positions), colors: new Float32Array(colors), length, gaps, triangles: positions.length / 9, segments };
+  return { positions: new Float32Array(positions), colors: new Float32Array(colors), normals: new Float32Array(normals), length, gaps, triangles: positions.length / 9, segments };
 }
 export function avenueToriiColor(data) {
   const kit = data.facilities?.kit;

@@ -65,6 +65,21 @@ test('A3 offshore absorption darkens smoothly; the nearshore is identical',()=>{
     for(let d=28;d<100;d+=.1){const a=sea4Color(d*scale,[],scale),b=sea4Color((d+.1)*scale,[],scale);assert(a.every((v,i)=>Math.abs(v-b[i])<.002));}
   }
 });
+test('A3 glitter flecks follow the pixel: fine ones where a pixel can show them, the coarse ones higher up', () => {
+  const at = footprint => (x, z) => sea4Glitter(x, z, 2, footprint, 1, 360), fine = at(0), coarse = at(V.glitterFineM * V.filterEnd), between = at(V.glitterFineM * (V.filterStart + V.filterEnd) / 2);
+  assert(V.glitterFineM * V.filterEnd <= V.glitterCellM * V.filterStart, 'the coarse flecks are still whole where the fine ones have gone');
+  // The mean length of a lit run along a line: the fine flecks are a fraction of the coarse ones.
+  const run = fn => { let lit = 0, runs = 0, on = false; for (let i = 0; i < 40000; i++) { const v = fn(i * .02, 7.3) > V.glitterStrength * .5; if (v) lit++; if (v && !on) runs++; on = v; } return lit * .02 / Math.max(1, runs); };
+  const fineRun = run(fine), coarseRun = run(coarse);
+  assert(fineRun > 0 && coarseRun > 0 && fineRun < coarseRun * .5, `${fineRun} vs ${coarseRun}`);
+  let differ = 0, n = 0;
+  for (let x = -40; x <= 40; x += 3.7) for (let z = -40; z <= 40; z += 4.1, n++) {
+    const a = fine(x, z), b = coarse(x, z), m = between(x, z);
+    assert(m >= Math.min(a, b) - 1e-12 && m <= Math.max(a, b) + 1e-12, 'the hand-over lies between the two');
+    if (Math.abs(a - b) > 1e-6) differ++;
+  }
+  assert(differ > n * .05, 'two patterns, not one');
+});
 test('A3 glitter lobe maximum, opposite zero, height, mean filtering and strength bounds',t=>{
   let sum=0,n=0;for(let x=0;x<90;x+=.31)for(let z=0;z<70;z+=.43){
     const peak=sea4Glitter(x,z,2,0,1,360);assert(peak>=0&&peak<=V.glitterStrength);assert.equal(sea4Glitter(x,z,2,0,-1,360),0);assert.equal(sea4Glitter(x,z,2,0,1,40),0);

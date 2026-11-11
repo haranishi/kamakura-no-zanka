@@ -135,8 +135,10 @@ export function createKamakuraProps(context, options = {}) {
           // its own came out near black (a grey-green times a grey), and one edge slab in six read as a hole in the paving.
           // A tint relative to the stone instead: less red and blue, a little more green. The first tint (.75, 1.06, .65)
           // then read as whole slabs painted green, in a checker with the grey ones; moss is a cast on the stone, so it is weaker.
-          else if (p.edge && p.age < .3) color.setRGB(.88, 1, .76).multiplyScalar(.9 + p.age * .2);
-          else color.setScalar(.8 + p.age * .34);   // each slab its own wear: a wider spread than the other stones
+          // A second review (real Chrome, a temple court in the low sun): slabs from .8 to 1.14 of the stone's grey, the mossy ones
+          // greener still, read as a board of coloured squares. The wear is a narrower spread now, and the moss a fainter cast.
+          else if (p.edge && p.age < .3) color.setRGB(.94, 1, .86).multiplyScalar(.93 + p.age * .14);
+          else color.setScalar(.9 + p.age * .16);   // each slab its own wear
         }
         else if (s.type === 'cloth') color.set(p.variant ? '#a84734' : '#e0d8c5');
         else color.setScalar(.9 + p.age * .2);
