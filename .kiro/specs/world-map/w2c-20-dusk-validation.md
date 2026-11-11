@@ -54,14 +54,14 @@
 |---|---|---|
 | DUSK.zenith / mid / horizon / below | #262b52 / #75628a / #c7867f / #484c65 | 天頂／中空と雲／水平線／地平線下が明るくなる |
 | DUSK.sunColor / sunIntensity | #ff8f4a / 1.25 | 日なたと暖かい光が明るくなる |
-| DUSK.hemiSky / hemiGround / hemiIntensity | #929bc9 / #575b7b / 1.02 | 陰の上向き／下向きの面が明るくなる |
+| DUSK.hemiSky / hemiGround / hemiIntensity | #929bc9 / #6a6f93 / 1.2 | 陰の上向き／下向きの面が明るくなる |
 | DUSK.envIntensity / fillIntensity / fillColor | 0.42 / 0.3 / #929fcf | 反射／カメラに向いた面が明るくなる |
 | DUSK.fogColor / hazeCool / hazeWarm | #8f9bc0 / #8f9bc0 / #f0a070 | 遠景の冷たい霞／日の側の霞が明るくなる |
 | DUSK.fogDensity / hazeExp | 0.000115 / 7 | 霞が濃くなる／暖かい霞が日のまわりへ絞られる |
 | DUSK.mist.density / base / falloff / postMist | 0.00007 / -4m / 0.045毎m / 0.75 | 低い霧が濃く／上へ／低い所へ集中／帯が濃くなる |
-| DUSK.exposure / postExposure | 1 / 1.04 | postExposureで全体が明るくなる。exposureは検査用の基準値 |
+| DUSK.exposure / postExposure | 1 / 1.24 | postExposureで全体が明るくなる。exposureは検査用の基準値 |
 | DUSK.postBloom / postGlare / postWarmth | 0.18 / 1 / 0.006 | 明部のにじみ／日の光芒／暖色が増える |
-| DUSK.postToe / postShade | 0.7 / 0.22 | 暗部が沈む／陰の青への補正が増える |
+| DUSK.postToe / postShade | 0.35 / 0.22 | 暗部が沈む／陰の青への補正が増える |
 | DUSK.foliage | 0.62 / 0.7 / 0.88 | 木の葉が明るくなる（赤・緑・青の順） |
 | SUN_DISC.diameterDeg / haloRadius | 1.15度 / 11倍 | 円盤／にじみの外径が広がる |
 | SUN_DISC.radiance / haloGain / edgeRad | 3.2 / 0.85 / 0.00015rad | 円盤／にじみが明るく／円盤の縁が柔らかくなる |
@@ -78,6 +78,7 @@
 - 日の円盤は、白く飛んでいた。明るさを下げ、にじみを広げた。
 - 空からの光まで下げると、実寸の鎌倉の出発点で、足元の道が真っ黒になった。高さ 6 度の日は、平らな地面をほとんど照らさない。空からの光は夕方に近い強さへ戻し、暗くするのは木の葉だけにした。
 - 設計した鎌倉の大通りと浜、実寸の鎌倉の出発点と見渡しで、人・家の明かり・火の照り返しが読める。
+- 森の中の山道は、それでも足元が黒かった。全体の明るさを上げ、暗い所の沈み込みを弱めた（`postExposure`・`postToe`）。道・柵・岩・家が読める。
 - コンソールのエラーは 0。
 
 まだ見ていないこと：朝や昼への切り替えを一巡・軽量の品質・音・描く時間（GPU）。海の光の道の太さと、雲の形は、詰めていない。

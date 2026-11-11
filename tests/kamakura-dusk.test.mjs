@@ -45,7 +45,7 @@ test('dusk passes validation, faces WSW at six degrees, keeps a blue sky light, 
   assert(dusk.sunIntensity<evening.sunIntensity);
   // Tuned in real Chrome: the sky light stays near the evening's (level ground gets almost nothing from a sun at six degrees),
   // the fill and the reflections are dimmer.
-  for(const [key,low,high] of [['hemiIntensity',.75,1],['fillIntensity',.5,.8],['envIntensity',.5,.8]]){const ratio=dusk[key]/evening[key];assert(ratio>=low&&ratio<=high,`${key} ${ratio}`);}
+  for(const [key,low,high] of [['hemiIntensity',.75,1.1],['fillIntensity',.5,.8],['envIntensity',.5,.8]]){const ratio=dusk[key]/evening[key];assert(ratio>=low&&ratio<=high,`${key} ${ratio}`);}
   assert(dusk.mist.density>evening.mist.density);
   assert(dusk.foliage.every(v=>v<1)&&dusk.foliage[2]>dusk.foliage[1]&&dusk.foliage[1]>dusk.foliage[0],'leaves are darker and bluer than in daylight');
   assert(Object.isFrozen(DUSK)&&Object.isFrozen(DUSK.mist)&&Object.isFrozen(DUSK.sunDir));
