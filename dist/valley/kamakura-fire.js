@@ -7,12 +7,12 @@ export const FIRE = Object.freeze({
   flameWidth: .65, roofEmbed: .3, eaveHeight: .62, roofInset: .3, // ratios: width, buried base, eave height, roof spread.
   flameWind: .22, flickerHz: .9, flickerAmount: .06, // drift/height; Hz and fractional local brightness modulation.
   flameLow: Object.freeze([.55,.06,.01]), flameMid: Object.freeze([1,.3,.04]), flameCore: Object.freeze([1,.62,.26]), // linear RGB from opening-fire's three flame bands.
-  glowColor: Object.freeze([1,.4,.13]), glowGain: .65, glowRadiusMin: 1.2, glowRadiusMax: 1.8, houseGlowRadius: 1.15, // opening-fire RGB; gain; source radius ratios; house radius/height.
+  glowColor: Object.freeze([1,.4,.13]), glowGain: .5, glowRadiusMin: 1.2, glowRadiusMax: 1.8, houseGlowRadius: 1.15, // opening-fire RGB; gain; source radius ratios; house radius/height.
   poolGain: .48, poolMinM: 20, poolMaxM: 35, poolLiftM: .12, poolSegments: 2, // gain; m: terrain glow radius and clearance; grid divisions.
   poolFalloff: 3.6, poolEdgeStart: .45, poolFlickerHz: .55, poolFlickerAmount: .1, // radial decay; normalized edge fade; Hz and local modulation.
   poolShadowKeep: .18, poolShadowSoft: .06, poolRayEpsilon: .0001, // retained glow behind a house; normalized penumbra; ray tolerance.
   pointGain: 18, pointRangeM: 65, pointNearM: 80, pointHeightM: 4, // intensity; m: reach, walking activation, height above ground.
-  smokeMinM: 90, smokeMaxM: 160, smokeHeightVariation: .14, smokeBaseM: 5.2, smokeWidthVariation: .24, // m: column height/base radius; fractional source variation.
+  smokeMinM: 90, smokeMaxM: 160, smokeHeightVariation: .3, smokeBaseM: 5.2, smokeWidthVariation: .24, // m: column height/base radius; fractional source variation.
   smokeStrengthWidth: .4, smokeGrowth: 4.4, smokeWindMin: .34, smokeWindMax: .54, smokeSway: .14, smokeSwayHz: .065, smokeTurns: 1.7, // fractional strength width; top/base radius; drift/height; sway/height; Hz; waves/column.
   smokeDensity: .9, smokeFadeStart: .55, smokeBaseFade: .025, smokeDark: '#141210', smokeMidMix: .03, smokeSkyMix: .14, smokeLitMix: .07, // opacity / normalized height; soot mixed with sky or flame for three colour bands.
   smokeLitEnd: .22, smokeTopStart: .4, smokeRootHeight: .035, smokeNoiseScale: 2.1, smokeRise: .028, smokeEdge: .65, smokeEdgeSoft: .34, // normalized colour/root heights; noise frequency; column cycles/s; torn edge size/softness.
