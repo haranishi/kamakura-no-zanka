@@ -1,7 +1,8 @@
-// 基準値は変更前に採取。保護域・外側の木・切り戻しを、独立した固定ハッシュでも照合する。
+// 保護域・外側の木は、その場で「丘の形と木の抜き方を切った計算」と突き合わせる（同じ機械の上での比較なので、機械に依らない）。
+// 高さの合計は、変更前に採った値と、許容差つきで比べる。はじめは、値の並びの SHA-256 を固定値で持っていた。Math.pow などの
+// 最後のビットは CPU の種類で違うので、arm64 で採ったハッシュは、x64 の CI で合わなかった（山の斜面の木の高さ）。
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
@@ -17,9 +18,10 @@ const { buildRiverDetails } = await loadView('water.js');
 const terrain = createTerrain(), oldTerrain = createTerrain(WORLD, { fortShape: 0 }), peak = WORLD.peaks[0];
 const trees = scatterTrees(WORLD, terrain), oldTrees = scatterTrees(WORLD, oldTerrain, { fort2: false });
 const species = assignTreeSpecies(WORLD, terrain, trees);
-const hash = v => createHash('sha256').update(JSON.stringify(v)).digest('hex');
+const oldSpecies = assignTreeSpecies(WORLD, oldTerrain, oldTrees);
 const keys = ['x', 'y', 'z', 's', 'rot', 'kind', 'tint'];
-const rows = predicate => trees.x.flatMap((x, i) => predicate(x, trees.z[i]) ? [[...keys.map(k => trees[k][i]), species.species[i], species.stage[i]]] : []);
+const rowsOf = (data, kinds, predicate) => data.x.flatMap((x, i) => predicate(x, data.z[i]) ? [[...keys.map(k => data[k][i]), kinds.species[i], kinds.stage[i]]] : []);
+const rows = predicate => rowsOf(trees, species, predicate), oldRows = predicate => rowsOf(oldTrees, oldSpecies, predicate);
 const inside = (x, z) => x >= -147 && x <= 114 && z >= -147 && z <= 124;
 const compile = b => { const shader = { uniforms: {}, vertexShader: THREE.ShaderLib.standard.vertexShader, fragmentShader: THREE.ShaderLib.standard.fragmentShader }; b.material.onBeforeCompile(shader); return shader; };
 const dispose = b => { b.near.geometry.dispose(); b.far.geometry.dispose(); b.material.dispose(); };
@@ -31,9 +33,9 @@ test('保護域の1m格子71,264点の高さと879本の位置・種類は変更
     assert.equal(canopyBlendAt(WORLD, x, z), 0);
   }
   assert.equal(samples.length, 71264);
-  assert.equal(hash(samples), '8030cd4052593302d74755145b9f5cf2e463411a787d69d3efc458040129d7bf');
+  const sum = samples.reduce((a, h) => a + h, 0); assert(Math.abs(sum - 596858.3055045274) <= 1e-6, String(sum));
   const protectedTrees = rows(inside); assert.equal(protectedTrees.length, 879);
-  assert.equal(hash(protectedTrees), '430dc3398480f8ad47e03b5b3f7e9ee160cac7ffea1fa0f586b9d1400f6f08ca');
+  assert.deepEqual(protectedTrees, oldRows(inside));
 });
 
 test('峰の頂は96mで固定、斜面は非円形。110m外の高さと全15,445本の位置・樹種は一致', () => {
@@ -42,7 +44,7 @@ test('峰の頂は96mで固定、斜面は非円形。110m外の高さと全15,4
   assert(Math.max(...ring) - Math.min(...ring) > 8);
   for (let z = peak.z - 135; z <= peak.z + 135; z++) for (let x = peak.x - 135; x <= peak.x + 135; x++) if (Math.hypot(x - peak.x, z - peak.z) >= 110) assert.equal(terrain.heightAt(x, z), oldTerrain.heightAt(x, z));
   const outside = rows((x, z) => Math.hypot(x - peak.x, z - peak.z) > 110);
-  assert.equal(outside.length, 15445); assert.equal(hash(outside), '362d1d8b6092a1f1591d1964324f7bf0fef7636997b7707f37fa8b17884c5638');
+  assert.equal(outside.length, 15445); assert.deepEqual(outside, oldRows((x, z) => Math.hypot(x - peak.x, z - peak.z) > 110));
   assert.equal(FORT_HILL.shape, 1);
 });
 

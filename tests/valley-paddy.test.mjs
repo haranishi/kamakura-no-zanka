@@ -1,6 +1,5 @@
 // 棚田の区画・通行の余白・近遠混合を、描画から独立して確認する。
 import test from 'node:test';
-import { createHash } from 'node:crypto';
 import assert from 'node:assert/strict';
 import { WORLD } from '../dist/valley/world-data.js';
 import { createTerrain } from '../dist/valley/terrain-height.js';
@@ -8,11 +7,17 @@ import { scatterRice } from '../dist/valley/scatter.js';
 import { PADDY, PADDY_LOOK, createPaddyPlots, createPaddyLayout, paddyAt, paddyNearRice, paddyOptions, paddyWeights, paddyQuality, paddyPropClear, paddyGroundHeight, paddyBundSection } from '../dist/valley/paddy.js';
 const terrain = createTerrain(WORLD), before = JSON.stringify(WORLD), start = performance.now(), layout = createPaddyLayout(WORLD, terrain), buildMs = performance.now() - start;
 
-test('height bit pattern is unchanged on the entire walkable area plus 12m at 0.5m intervals', () => {
-  const digest=createHash('sha256'),bytes=Buffer.alloc(8);let samples=0;
-  for(let z=-147;z<=124;z+=.5)for(let x=-147;x<=114;x+=.5){bytes.writeDoubleLE(terrain.heightAt(x,z));digest.update(bytes);samples++;}
+// The walkable area plus 12 m keeps its heights: the sums below were taken before the terraces were read from the terrain.
+// They are compared within a tolerance, not as a bit pattern. Math.pow and the trigonometric functions differ in their last
+// bit between CPU architectures: a SHA-256 of the bits, taken on an arm64 machine, failed on the x64 CI runner.
+// A real change is far larger: one sample moved by 1 mm shifts the plain sum by a thousand times its tolerance.
+test('heights are unchanged on the entire walkable area plus 12m at 0.5m intervals (sums and moments within a tolerance)', () => {
+  let samples=0,sum=0,square=0,momentX=0,momentZ=0;
+  for(let z=-147;z<=124;z+=.5)for(let x=-147;x<=114;x+=.5){const h=terrain.heightAt(x,z);samples++;sum+=h;square+=h*h;momentX+=h*x;momentZ+=h*z;}
   assert.equal(samples,283989);
-  assert.equal(digest.digest('hex'),'10709b66ddf166e44ff64ee11d53ab389ddf1179a5bde9590c2c4192422454dc');
+  const near=(actual,expected,tolerance,name)=>assert(Math.abs(actual-expected)<=tolerance,`${name}: ${actual} against ${expected}`);
+  near(sum,2376177.502212382,1e-6,'sum');near(square,39636298.67837054,1e-4,'sum of squares');
+  near(momentX,-164040359.6988536,1e-4,'moment about x');near(momentZ,-136367793.22275963,1e-4,'moment about z');
 });
 
 test('read-only terrace values share quantization; positive core treads match their level and southern zero floor is retained', () => {
