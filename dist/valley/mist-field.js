@@ -3,7 +3,7 @@ import { fbm, smooth } from './terrain-height.js';
 
 export const MIST3 = Object.freeze({
   size: 1280, resolution: 256, threshold: 0.05, // m・格子数・面積を数える濃さの下限。
-  sigma: 0.012, maxDistance: 650, maxOpacity: 0.62, epsilon: 0.000001, // 1/m・m・不透明度・水平視線の方向の許容差。
+  sigma: 0.014, maxDistance: 650, maxOpacity: 0.62, epsilon: 0.000001, // 1/m・m・不透明度・水平視線の方向の許容差。
   steps: 28, reducedSteps: 20, lightSteps: 14, bottomSoft: 0.25, topSoft: 0.45, // 点数（標準／自動1／自動2以降・軽量）・上下のぼかし比。
   boundsPadding: 0.5, topGain: 1.12, bottomGain: 0.78, bottomBlue: 0.18, // m：HalfFloat誤差の余白・層の上／下の輝度・下の青白の混色率。
   jitterDot: [127.1, 311.7], jitterGain: 43758.5453, // 画素ハッシュと斑のハッシュの固定係数（時間で変えない）。
@@ -17,6 +17,9 @@ export const MIST3 = Object.freeze({
   basinLift: [6, 18], basinThick: [18, 30], highFade: [80, 110], // m：谷筋の浮き・厚さ・谷底からの高さで薄める帯。
   basinPatch: [0.03, 0.32], basinFineWeight: 0.6, basinRim: [0.84, 1.5], // 雑音の島の境、谷の楕円半径に対する山腹の範囲。
   northFrom: 250, northFull: 400, northWidth: [70, 150], northLift: 3, northThick: [25, 40], // m：北の奥の始点・全量・半幅・浮き・厚さ。
+  // 北の谷あいの霧は、上の面を水平にする（川面から northPool m。そこより高い斜面では northThin m の薄い層）。層を地形に沿わせたままだと、
+  // 霧が谷の両側の斜面をはい上がり、2 本の白い筋（滝）に見えた（実際の画面で確かめた）。谷に、霧の池がたまる形にする。
+  northPool: 42, northThin: 3,
   forestRim: [0.62, 1.0, 1.2], forestNorth: [25, 80], forestWest: [45, 100], forestNoise: 0.4, forestGain: 0.12, forestLift: [1, 3], forestThick: [6, 8], // 谷の半径比・北／西へ立ち上がる距離(m)・雑音率・濃さ・m・m。
   villageMargin: 25, exclusionFade: 12, templeMargin: 5, terraceMargin: 5, walkGain: 0.5, // m（格子補間のにじみも避ける余白）・歩行域の濃さ倍率。
   boundaryFade: 35, mapFade: 40, edgeWarp: 12, seed: 7171, // m：歩行境界の切替・地図端の消失・縁の歪み、位置ハッシュの種。
@@ -71,7 +74,7 @@ export function mistFieldAt(world, terrain, x, z) {
   for (let k = 1; k < strengths.length; k++) if (strengths[k] > strengths[kind]) kind = k;
   const variation = clamp(0.5 + n * 0.5);
   const lifts = [range(m.riverLift, variation), range(m.basinLift, relief), m.northLift, range(m.forestLift, variation)];
-  const thicks = [range(m.riverThick, variation), range(m.basinThick, relief), range(m.northThick, north), range(m.forestThick, variation)];
+  const thicks = [range(m.riverThick, variation), range(m.basinThick, relief), Math.max(m.northThin, Math.min(m.northThick[1] * 1.6, r.y + m.northPool - (h + m.northLift))), range(m.forestThick, variation)];
   const border = Math.max(Math.abs(x - v.cx), Math.abs(z - v.cz));
   mask *= 1 - smooth(m.size / 2 - m.mapFade, m.size / 2, border);
   const total = strengths.reduce((sum, value) => sum + value, 0);
