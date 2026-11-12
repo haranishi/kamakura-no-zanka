@@ -38,7 +38,7 @@ export const PADDY_LOOK = Object.freeze({
   soil: '#967850', soilGain: .42, cutRiceMix: .65, cutGain: 1.38, cutPatch: .15, patchGain: 1.25, // 土は既存地図の土色(150,120,80)。刈田は稲を65%混色、15%に落ち藁。
   riceGreen: .18, rootEnd: 40, rootStart: 22, waveShade: .08, // 緑の残る黄・根元の暗土から地色への距離m・条と風の明暗比。
   rockGain: .66, rockVariation: .12, rockSoil: .5, rockGrass: .10, // 既存岩色の明度・石ごとの差・上段の土と草色の混合。
-  bundSoil: .25, bundCrownGain: 1.7, strawWhite: .35, // 比：畦の土の混色率・壁上の畦の明度倍率・藁束の白木色混合率。
+  bundSoil: .25, bundCrownGain: 1.25, strawWhite: .35, // 比：畦の土の混色率・壁上の畦の明度倍率・藁束の白木色混合率。
   phaseRange: 256, phaseOffset: 128, // m：条の座標テクスチャの符号化範囲と原点。
   rowGradient: .1, rowPeriod: 1.05, rowStrength: .06, cutRowStrength: .10, // m/m／m／比：条の高さ方向換算・周期・立稲と刈田の筋。
   groundWaveDirection: [Math.SQRT1_2, Math.SQRT1_2], // 単位方向：地色を渡る風。波長を斜め方向でもm単位に保つ。
