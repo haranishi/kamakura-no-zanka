@@ -6,7 +6,7 @@ import { THREE, load, source } from './helpers/tree-modules.mjs';
 import { startWorld } from '../dist/valley/world-entry.js';
 import { fixture } from './helpers/kamakura-fixture.mjs';
 import { createKamakuraTerrain } from '../dist/valley/kamakura-terrain.js';
-const { ATMOS } = await load('atmosphere.js');
+const { LEGACY_ATMOS: ATMOS } = await load('atmosphere.js');
 const { createKamakuraAtmosphere } = await load('kamakura-atmosphere-view.js');
 const base = () => ({ ...ATMOS, sunDir: ATMOS.sunDir.toArray() });
 const chunks = () => Object.fromEntries(['fog_pars_vertex','fog_vertex','fog_pars_fragment','fog_fragment'].map(k=>[k,THREE.ShaderChunk[k]]));

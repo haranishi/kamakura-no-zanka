@@ -3,7 +3,7 @@ import { shore6Enabled, SHORE_R6_GLSL } from './kamakura-shore-r6.js';
 import { shore4Enabled, SHORE_R4_GLSL } from './kamakura-shore-r4.js';
 import * as THREE from 'three';
 import { SHELTER, shelterEnabled, swellEnabled, createSignedShoreJob, registerShoreView, unregisterShoreView, SHORE_GLSL, SEA_PALETTE, SEA_CHROMA, BREAKERS, wetReachAt, shore2Enabled, shore3Enabled } from './kamakura-shore.js';
-import { ATMOS } from './atmosphere.js';
+import { LEGACY_ATMOS as ATMOS } from './atmosphere.js';
 import { atmosphereOptions, kamakuraAtmosphere, eveningEnabled, visualSun, sunPlace, SUN_DISC, duskAirEnabled } from './kamakura-atmosphere.js';
 import { waveEnvelope } from './kamakura-sea-audio.js';
 import { buildBankWet } from './kamakura-bank-wet.js';

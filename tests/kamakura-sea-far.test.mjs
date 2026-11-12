@@ -5,7 +5,7 @@ import {DUSK_SEA,duskSeaColor,seaDuskFragment,SEA_FAR as C,sea2Enabled,seaGrazin
 import {seaBand4} from '../dist/valley/kamakura-shore-r4.js';
 import {kamakuraAtmosphere} from '../dist/valley/kamakura-atmosphere.js';
 import {THREE,load,source} from './helpers/tree-modules.mjs';
-const {ATMOS}=await load('atmosphere.js');
+const {LEGACY_ATMOS: ATMOS}=await load('atmosphere.js');
 const {buildKamakuraSea}=await load('kamakura-sea-view.js');
 const terrain=()=>({bounds:{minX:-100,maxX:100,minZ:-100,maxZ:100},cell:4,heightAt:(_x,z)=>-z*.05,isSea:(_x,z)=>z>0,riverDistanceAt:()=>Infinity,seaDistanceAt:(_x,z)=>Math.max(0,-z)});
 const data=()=>({rivers:[],meta:{grid:{width:51,height:51,cell_m:4},surface:{}},surface:new Uint8Array(2601)});

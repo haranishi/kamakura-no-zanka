@@ -20,7 +20,7 @@ import { fixture } from './helpers/kamakura-fixture.mjs';
 import { THREE, load, source } from './helpers/tree-modules.mjs';
 import { loadFacilityView } from './helpers/kamakura-facility-view.mjs';
 import { box, makeGlb } from '../tools/lib/synthetic-glb.mjs';
-const { ATMOS, skyMaterial } = await load('atmosphere.js');
+const { LEGACY_ATMOS: ATMOS, skyMaterial } = await load('atmosphere.js');
 const { kamakuraSkyMaterial, createKamakuraAtmosphere } = await load('kamakura-atmosphere-view.js');
 const { buildKamakuraSea } = await load('kamakura-sea-view.js');
 const base = () => ({ ...ATMOS, sunDir: ATMOS.sunDir.toArray() });

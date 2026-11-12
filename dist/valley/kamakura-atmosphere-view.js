@@ -1,6 +1,6 @@
 // Own the existing atmosphere without changing the valley implementation.
 import * as THREE from 'three';
-import { ATMOS, installFog, createAtmosphere, skyMaterial } from './atmosphere.js';
+import { LEGACY_ATMOS as ATMOS, installFog, createAtmosphere, skyMaterial } from './atmosphere.js';
 import { atmosphereOptions, atmospherePolicy, kamakuraAtmosphere, eveningEnabled, isEveningLike, visualSun, SUN_DISC, CLOUDS2, CLOUDS2_GLSL, clouds2Enabled, duskAirEnabled } from './kamakura-atmosphere.js';
 import { SCALES } from './kamakura-adapt.js';
 import { FLIGHT_SHADOW, createFlightShadowState, flightShadowBox, flightShadowEnabled } from './kamakura-flight-shadow.js';

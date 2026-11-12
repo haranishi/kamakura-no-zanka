@@ -90,7 +90,7 @@ test('S4 foot rings shrink, drift along local flow and retain untouched fish rip
 test('S6 report linear model averages (not rendered frame measurements)',async t=>{
   for(const time of ['noon','evening']){
     // Evening base comes from the shipped atmosphere, loaded through bundled Three.
-    const {ATMOS}=await load('atmosphere.js');const sky=kamakuraAtmosphere(time,{...ATMOS,sunDir:ATMOS.sunDir.toArray()});
+    const {LEGACY_ATMOS: ATMOS}=await load('atmosphere.js');const sky=kamakuraAtmosphere(time,{...ATMOS,sunDir:ATMOS.sunDir.toArray()});
       const mid=new THREE.Color(sky.mid).toArray(),horizon=new THREE.Color(sky.horizon).toArray(),riverMean=[0,0,0],seaMean=[0,0,0];let n=0;
       for(let i=0;i<100;i++){const r=riverColor4(i/99*1.2,mid,horizon),s=seaColor4(i/99*200,mid,horizon);for(let c=0;c<3;c++){riverMean[c]+=r[c]/100;seaMean[c]+=s[c]/100;}n++;}
       const saturation=c=>(Math.max(...c)-Math.min(...c))/Math.max(...c);t.diagnostic(JSON.stringify({time,riverMean,riverSaturation:saturation(riverMean),seaMean,seaSaturation:saturation(seaMean),samples:n}));

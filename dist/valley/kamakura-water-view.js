@@ -7,7 +7,7 @@ import { shore2Enabled, shore3Enabled, FOAM_LINEAR_MAX, SHORE_GLSL, bankCrossing
 import { WATER_ALPHA } from './kamakura-fx.js';
 import { shore4Enabled, riverFlow, FOAM_LINEAR_MAX5, SHORE_R4_GLSL } from './kamakura-shore-r4.js';
 import { atmosphereOptions, kamakuraAtmosphere, eveningEnabled, visualSun, sunPlace } from './kamakura-atmosphere.js';
-import { ATMOS } from './atmosphere.js';
+import { LEGACY_ATMOS as ATMOS } from './atmosphere.js';
 export function buildKamakuraWater(prepared, { sunDir = new THREE.Vector3(.5, .17, .85), terrain = null, search = '', quality = 'standard', disc = undefined } = {}) {
   const shore6=shore6Enabled(search),shore2=shore2Enabled(search),shore3=shore3Enabled(search),shore4=shore4Enabled(search);
   const sky=kamakuraAtmosphere(atmosphereOptions(search).time,{...ATMOS,sunDir:ATMOS.sunDir.toArray()},eveningEnabled(search),quality==='light'?.55:1);

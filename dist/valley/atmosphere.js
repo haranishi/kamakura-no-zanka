@@ -3,7 +3,7 @@
 import * as THREE from 'three';
 import { shadowTexel, snapShadowCenter } from './shadow-snap.js';
 
-export const ATMOS = {
+export const LEGACY_ATMOS = {
   // 夕景：太陽は南南東の低い位置（高さ約10°）。廃寺→里の道を歩くとき右前から逆光が当たり、帰り道は背中から長い影が伸びる。
   // 影は青紫の半球光で持ち上げ、霧は太陽の方向だけ暖かく、ほかは灰紫（空気遠近）。
   sunDir: new THREE.Vector3(0.50, 0.17, 0.85).normalize(),
@@ -16,6 +16,30 @@ export const ATMOS = {
   fillColor: '#a8b0d0', fillIntensity: 0.4, // カメラが向く向きに弱い青白い光（逆光でも人物・壁の正面が読める。影は落とさない）
   exposure: 1.0,
 };
+
+// 方位は北から時計回り、角度は度。谷だけに使う夕景の調整値。
+export const SKY = Object.freeze({
+  bearingDeg: 55, elevationDeg: 7.5, sunColor: '#ffca85', // 低い北東の金橙色。
+  hemiIntensity: 1.12, fillIntensity: 0.58, // 逆光の地面・人物を支える照度。
+  cloudAmount: 0.72, cloudLow: 0.40, cloudHigh: 0.75, // 被覆率と連続した雲の閾値。
+  cloudSpeed: 0.002, cloudScale: 2.2, // 投影座標/秒、雲塊の尺度。
+  cloudShadeMix: 0.32, cloudShadeGain: 0.65, cloudWarmGain: 1.05, // 既存の天頂・中間・地平色から雲色を作る。
+  cloudVioletMix: 0.65, skyVioletMix: 0.20, // 既存の青成分を赤へ混ぜる割合。雲と太陽から遠い空を青紫へ。
+  rimGain: 0.65, undersideGain: 0.30, // 太陽側の縁と雲の下面の暖色量。
+  haloGain: 0.55, discGain: 18, discRadiusDeg: 0.40, // にじみ、円盤の輝度、見かけの半径。
+  dither: 1 / 255, // 最終出力の階調雑音幅（片側はこの半分）。
+});
+const search = () => typeof location === 'undefined' ? '' : location.search;
+export function valleyAtmosphere(searchValue = '') {
+  const q = new URLSearchParams(searchValue), old = q.get('sun') === 'old';
+  const bearing = SKY.bearingDeg * Math.PI / 180, elevation = SKY.elevationDeg * Math.PI / 180;
+  return { ...LEGACY_ATMOS, mist: { ...LEGACY_ATMOS.mist },
+    sunDir: old ? LEGACY_ATMOS.sunDir.clone() : new THREE.Vector3(Math.sin(bearing) * Math.cos(elevation), Math.sin(elevation), -Math.cos(bearing) * Math.cos(elevation)),
+    ...(!old ? { sunColor: SKY.sunColor, hemiIntensity: SKY.hemiIntensity, fillIntensity: SKY.fillIntensity } : {}),
+    sky2: q.get('sky2') !== '0', skyDebug: q.get('sky2debug') === '1', mist2: q.get('mist2') !== '0',
+  };
+}
+export const ATMOS = valleyAtmosphere(search());
 
 // three.js の霧の断片を、距離の霧＋高さ依存の霧に差し替える。材質を作る前に一度だけ呼ぶ。
 const lin = hex => { const c = new THREE.Color(hex); return `vec3(${c.r.toFixed(4)}, ${c.g.toFixed(4)}, ${c.b.toFixed(4)})`; };
@@ -77,7 +101,7 @@ export function installFog(a = ATMOS) {
     gl_FragColor.rgb = mix( gl_FragColor.rgb, fogHazeColor( fogWorldDir ), fogFactor );
     // 谷の壁にかかる霧の帯：高さ約38m・92m・150mに、横へ流れる淡い帯（ノイズで切れ切れ）。遠い斜面にだけ効く。
     // 奥行きが「暗い森」と「稜線」の2段しか無かった（第3周の評価）。帯の色は青灰より明るい淡い青白で、太陽側は暖色が混ざる。
-    {
+    ${a.mist2 ? '' : `{
       float bandD = length( vFogDirV );
       vec3 bandP = cameraPosition + fogWorldDir * bandD;
       float bandY = exp( - pow( ( vFogWorldY - 38.0 ) / 11.0, 2.0 ) ) * 0.8 + exp( - pow( ( vFogWorldY - 92.0 ) / 15.0, 2.0 ) ) * 0.7 + exp( - pow( ( vFogWorldY - 150.0 ) / 20.0, 2.0 ) ) * 0.55;
@@ -85,7 +109,7 @@ export function installFog(a = ATMOS) {
       float band = bandY * smoothstep( 70.0, 230.0, bandD ) * smoothstep( 0.36, 0.76, bandN ) * 0.42;
       vec3 bandCol = mix( vec3( 0.46, 0.51, 0.62 ), fogHazeColor( fogWorldDir ), 0.45 );
       gl_FragColor.rgb = mix( gl_FragColor.rgb, bandCol, band );
-    }
+    }`}
   #else
     // 線形の霧はオープニングの舞台（opening-stage.js）だけが使う。霧は fogColor の一色で、谷の空気遠近（暖色と青灰・霧の帯）はかけない
     float fogFactor = smoothstep( fogNear, fogFar, vFogDepth );
@@ -94,7 +118,7 @@ export function installFog(a = ATMOS) {
 #endif`;
 }
 
-export function skyMaterial(a, time) {
+export function legacySkyMaterial(a, time) {
   return new THREE.ShaderMaterial({
     side: THREE.BackSide, depthWrite: false, depthTest: false, fog: false,
     uniforms: {
@@ -137,6 +161,38 @@ export function skyMaterial(a, time) {
   });
 }
 
+// 単調な暖色量。Node の標本検査とシェーダーで同じ式を使う。
+export function cloudWarmth(sunDot) { return Math.pow(Math.max(0, Math.min(1, sunDot)), 4); }
+export function skyMaterial(a, time) {
+  if (!a.sky2) return legacySkyMaterial(a, time);
+  const m = legacySkyMaterial(a, time), C = SKY;
+  const f = n => n.toFixed(8);
+  const begin = m.fragmentShader.indexOf('        // 薄い雲');
+  const end = m.fragmentShader.indexOf('        // 地平線は霧', begin);
+  if (begin < 0 || end < begin) throw new Error('Sky cloud anchors missing');
+  m.fragmentShader = m.fragmentShader.slice(0, begin) + `
+        vec2 cp = d.xz / (max(h, 0.0) + 0.18) * ${f(C.cloudScale)} + vec2(uTime * ${f(C.cloudSpeed)}, 0.0);
+        float c = fbm(cp);
+        float cover = smoothstep(${f(C.cloudLow)}, ${f(C.cloudHigh)}, c) * smoothstep(0.015, 0.12, h) * (1.0 - smoothstep(0.65, 1.0, h));
+        float warm = pow(sd, 4.0);
+        float edge = 1.0 - smoothstep(${f(C.cloudLow)}, ${f(C.cloudHigh)}, c);
+        float underside = 1.0 - smoothstep(0.08, 0.42, h);
+        vec3 shade = mix(zenith, mid, ${f(C.cloudShadeMix)}) * ${f(C.cloudShadeGain)};
+        shade.r = mix(shade.r, shade.b, ${f(C.cloudVioletMix)});
+        vec3 lit = mix(horizon, sunColor, warm) * ${f(C.cloudWarmGain)};
+        vec3 cloudCol = mix(shade, lit, warm * clamp(edge * ${f(C.rimGain)} + underside * ${f(C.undersideGain)}, 0.0, 1.0));
+        col = mix(col, cloudCol, cover * ${f(C.cloudAmount)});
+        ${a.skyDebug ? 'col = mix(vec3(0.12, 0.05, 0.4), vec3(1.0, 0.35, 0.0), cover);' : ''}
+  ` + m.fragmentShader.slice(end);
+  m.fragmentShader = m.fragmentShader
+    .replace('float sd = max(dot(d, normalize(sunDir)), 0.0);', `float sd = max(dot(d, normalize(sunDir)), 0.0);
+        col.r = mix(col.r, col.b, ${f(C.skyVioletMix)} * (1.0 - pow(sd, 4.0)));`)
+    .replace('pow(sd, 40.0) * 0.55', `pow(sd, 40.0) * ${f(C.haloGain)}`)
+    .replace('22.0 * smoothstep(0.99965, 0.9999, sd)', `${f(C.discGain)} * smoothstep(${f(Math.cos((C.discRadiusDeg + 0.06) * Math.PI / 180))}, ${f(Math.cos(C.discRadiusDeg * Math.PI / 180))}, sd)`)
+    .replace('(hash(gl_FragCoord.xy) - 0.5) / 255.0', `(hash(gl_FragCoord.xy) - 0.5) * ${f(C.dither)}`);
+  return m;
+}
+
 export function createAtmosphere({ scene, renderer, quality = 'standard', a = ATMOS, makeSky = skyMaterial }) {
   const time = { value: 0 };
   const sky = new THREE.Mesh(new THREE.SphereGeometry(900, 48, 24), makeSky(a, time));
@@ -169,9 +225,25 @@ export function createAtmosphere({ scene, renderer, quality = 'standard', a = AT
   scene.add(fill, fill.target);
   const fwd = new THREE.Vector3();
 
+  const layers = a === ATMOS || a.sky2 ? scene.getObjectByName('ridges') : null;
+  let activeQuality = quality, initialPixelRatio = renderer.getPixelRatio?.() ?? 1, tier = -1;
+  function syncLayers() {
+    if (!a.sky2 && a !== ATMOS) return;
+    const pixelRatio = renderer.getPixelRatio?.() ?? initialPixelRatio;
+    initialPixelRatio = Math.max(initialPixelRatio, pixelRatio);
+    const ratio = pixelRatio / initialPixelRatio;
+    const next = ratio < 0.65 ? 3 : ratio < 0.78 ? 2 : ratio < 0.93 ? 1 : 0;
+    if (next === tier) return;
+    tier = next;
+    layers?.userData.configure?.({ quality: activeQuality, tier, a });
+  }
+  syncLayers();
   const dir = [0, 0, 0], snapped = [0, 0, 0];
   return {
     sky, sun, hemi, fill, params: a,
+    // ?qa=1: window.__valley.game.atmosphere.stats()。drawCalls は全周を描く上界、GPU時間ではない。
+    stats() { return { sunDir: a.sunDir.toArray(), skyDrawCalls: 1, skyTriangles: sky.geometry.index.count / 3,
+      skyAddedDrawCalls: 0, skyDebug: !!a.skyDebug, ...(layers?.userData.stats?.() ?? {}) }; },
     // 影の範囲を注視点に追従させる。光の画面の軸で1画素の倍数へ丸める（shadow-snap.js）。
     // 丸め幅は今の影の解像度から毎回出す（品質切替の後に古い幅が残っていた）。
     follow(target) {
@@ -183,12 +255,15 @@ export function createAtmosphere({ scene, renderer, quality = 'standard', a = AT
       sun.target.updateMatrixWorld();
     },
     update(camera, dt) {
+      syncLayers();
+      layers?.userData.update?.(dt);
       time.value += dt;
       sky.position.copy(camera.position);
       camera.getWorldDirection(fwd);
       fill.position.copy(camera.position); fill.target.position.copy(camera.position).add(fwd); fill.target.updateMatrixWorld();
     },
     setQuality(q) {
+      activeQuality = q; initialPixelRatio = renderer.getPixelRatio?.() ?? 1; tier = -1; syncLayers();
       const size = q === 'light' ? 2048 : 4096;
       if (sh.mapSize.x !== size) { sh.mapSize.set(size, size); sh.map?.dispose(); sh.map = null; }
       sun.castShadow = true;

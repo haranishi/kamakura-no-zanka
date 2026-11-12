@@ -2,6 +2,8 @@
 // 依存を増やさず、必要な効果だけを自前で持つ（design.md の判断）。標準／軽量で内容を切り替える。
 import * as THREE from 'three';
 
+export const OUTPUT_DITHER = 1 / 255; // sRGB出力の雑音幅。片側±0.5/255、描画追加なし。
+
 const FULLSCREEN = new THREE.BufferGeometry();
 FULLSCREEN.setAttribute('position', new THREE.Float32BufferAttribute([-1, -1, 0, 3, -1, 0, -1, 3, 0], 3));
 const VERT = 'varying vec2 vUv; void main(){ vUv = position.xy * 0.5 + 0.5; gl_Position = vec4(position.xy, 0.0, 1.0); }';
@@ -58,7 +60,7 @@ export class Post {
         vec2 q = vUv - 0.5; float v = 1.0 - vignette * smoothstep(0.25, 0.95, length(q * vec2(1.15, 1.0)) * 1.25);
         c *= v;
         c = srgb(max(c, vec3(0.0)));
-        c += (hash(gl_FragCoord.xy + uTime) - 0.5) * grain;
+        c += (hash(gl_FragCoord.xy + uTime) - 0.5) * max(grain, ${(typeof location !== 'undefined' && new URLSearchParams(location.search).get('sky2') === '0' ? 0 : OUTPUT_DITHER).toFixed(8)});
         gl_FragColor = vec4(c, 1.0);
       }`, { scene: { value: null }, bloom: { value: null }, exposure: { value: 1 }, bloomStrength: { value: 0.3 }, vignette: { value: 0.25 }, saturation: { value: 1 }, contrast: { value: 1 }, warmth: { value: 1 }, grain: { value: 0.01 }, uBloom: { value: 1 }, uTime: { value: 0 } });
     // 溶け合い（オープニングの場面転換）で、仕上がった絵をそのまま写す。copy は不透明、over は前の1枚を薄く重ねる
