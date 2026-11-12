@@ -3,6 +3,10 @@
 import * as THREE from 'three';
 import { smooth, fbm } from './terrain-height.js';
 import { WORLD } from './world-data.js';
+import { TREES } from './config.js';
+import { ATMOS } from './atmosphere.js';
+import { forestGroveAt } from './tree-species.js';
+import { fortGrassAt } from './scatter.js';
 import { paddySurfaceColor, paddySurfaceMask, patchPaddyGround, paddyDebugColor } from './paddy-view.js';
 import { paddyAt, paddyOptions, createPaddyPlots, PADDY_LOOK } from './paddy.js';
 // 森の下の地面を暗くする強さ：近く（gain・急な斜面で戻す量 steepRelief）と、遠く（farGain）。木の密度に掛けて 1 で頭打ち。
@@ -15,6 +19,76 @@ const TILE = { grass: 2.8, dirt: 2.4, rock: 4.2, gravel: 2.0, mud: 2.6, litter: 
 const NEAR = { x0: -152, x1: 192, z0: -152, z1: 136, step: 1 };
 const FAR = { half: 640, step: 8 };
 const SIZE = 1024;
+
+// 樹冠は世界位置の地図を両メッシュで共有する。歩行域の色と質感はそのまま残す。
+export const CANOPY = Object.freeze({
+  cell: 7, jitter: .44, warp: 1.6, // m・比率・m：5〜9mの樹冠の斑、中心の散らし、領域の歪み。
+  contrast: .55, brightness: .15, warmth: .18, blue: .12, normalTilt: .85, gapShade: .30, // 比率：丸みの明暗・個体差・日なた・日陰・擬似法線。
+  blend: 40, edgeWarp: 6, protectedFade: 4, seam: 8, edgeWave: 29, // m：近景の移行帯・縁の雑音・保護域の外での立上り。
+  gapInner: .18, gapOuter: .85, warpWaves: [19, 23], warpOffset: 17, // セル内の半径比・m・位相：斑の中心と暗い隙間、歪みの波長。
+  grassWave: 9, grassVariation: .10, margin: 12, // m・比率・m：草のむらと模様を入れない余白。
+  mapStep: 4, forestRange: [.32, .68], slopeRange: [47, 61], // m・密度・度：共通地図と森／岩の境。
+  needleShade: '#213a25', needleSun: '#5c7f4c', needleMix: .60, // 杉の房の手続き色（t/rの両端）と平均の推定位置。
+  shade: .48, sun: 1.12, emissive: .24, // 倍率：木と共通の陰〜日なたの範囲と葉の散乱光。
+  grass: '#6b6a35', grassSun: .30, grassGold: '#c2a040', // 既存の里の草・欅の黄から作る丘の日なた。
+  debug: ['#22b34a', '#ca352d', '#808080'], // 樹冠・紅葉・それ以外。
+});
+const canopyEdgeNoise = (x, z) => {
+  const h = (x, z) => { const n = Math.sin(x * 127.1 + z * 311.7) * 43758.5453; return n - Math.floor(n); };
+  const ix = Math.floor(x), iz = Math.floor(z), fx = x - ix, fz = z - iz;
+  const a = fx * fx * (3 - 2 * fx), b = fz * fz * (3 - 2 * fz);
+  const lo = h(ix, iz) * (1 - a) + h(ix + 1, iz) * a, hi = h(ix, iz + 1) * (1 - a) + h(ix + 1, iz + 1) * a;
+  return (lo * (1 - b) + hi * b) * 2 - 1;
+};
+const canopyPalettes = () => {
+  const c = TREES.forest2, p = TREES.palette;
+  const autumn = c.tones.map((t, i) => {
+    const colors = i < 3 ? p.maple : p.zelkova, k = Math.floor(t);
+    const color = new THREE.Color(colors[k]).lerp(new THREE.Color(colors[Math.min(k + 1, colors.length - 1)]), t - k);
+    if (i === 0) color.lerp(new THREE.Color(p.zelkova[3]), c.toneMix[0]).multiplyScalar(1 - c.toneMix[0]);
+    if (i === 4) color.lerp(new THREE.Color(p.zelkova[c.tones[3]]), c.toneMix[4]);
+    return color.multiplyScalar(TREES.leafGain);
+  });
+  const cedar = new THREE.Color(TREES.palette.cedar[0]).multiply(new THREE.Color(CANOPY.needleShade).lerp(new THREE.Color(CANOPY.needleSun), CANOPY.needleMix));
+  return { cedar, autumn };
+};
+export function canopyBlendAt(world, x, z) {
+  const b = world.bounds, m = CANOPY.margin;
+  const outside = Math.max(b.minX - m - x, x - b.maxX - m, b.minZ - m - z, z - b.maxZ - m, 0);
+  if (!outside) return 0;
+  const edge = Math.min(x - NEAR.x0, NEAR.x1 - x, z - NEAR.z0, NEAR.z1 - z);
+  const warp = CANOPY.edgeWarp * canopyEdgeNoise(x / CANOPY.edgeWave, z / CANOPY.edgeWave);
+  return (1 - smooth(CANOPY.seam, CANOPY.seam + CANOPY.blend, edge + warp)) * smooth(0, CANOPY.protectedFade, outside);
+}
+export function canopyFieldAt(world, terrain, x, z, fort = true) {
+  const forest = terrain.forestDensity(x, z), road = terrain.roadInfo(x, z);
+  const slope = terrain.slopeAt?.(x, z) ?? 0;
+  const eligible = (terrain.waterAt(x, z) > .05 ? 0 : 1) * (1 - (road?.w ?? 0));
+  const hill = fort ? fortGrassAt(world, x, z) * eligible : 0;
+  const weight = smooth(...CANOPY.forestRange, forest) * (1 - smooth(...CANOPY.slopeRange, slope)) * eligible * (1 - hill);
+  if (weight <= 0) return [0, 0, 0, hill];
+  const grove = forestGroveAt(world, x, z), c = TREES.forest2;
+  const autumn = (1 - smooth(1 - c.edge, 1 + c.edge, grove.distance)) * (1 - smooth(...c.slope, slope));
+  return [weight, autumn, grove.tone / 4, hill];
+}
+// 照明前の比較用。両メッシュはこの同じ場を一枚の地図で参照する。
+export function canopyColorAt(world, terrain, x, z, { enabled = true, fort = true } = {}) {
+  const field = canopyFieldAt(world, terrain, x, z, fort), palette = canopyPalettes();
+  const color = palette.cedar.clone().lerp(palette.autumn[Math.round(field[2] * 4)], field[1]);
+  return { color, weight: enabled ? field[0] * canopyBlendAt(world, x, z) : 0, grove: field[1], hill: field[3] };
+}
+function canopyMap(world, terrain, fort) {
+  const step = CANOPY.mapStep, n = Math.ceil(FAR.half * 2 / step) + 1, data = new Uint8Array(n * n * 4);
+  let area = 0, hillArea = 0, work = 0;
+  for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) {
+    const x = -FAR.half + i * step, z = -FAR.half + j * step, field = canopyFieldAt(world, terrain, x, z, fort);
+    for (let k = 0; k < 4; k++) data[(j * n + i) * 4 + k] = Math.round(field[k] * 255);
+    area += field[0] * canopyBlendAt(world, x, z); hillArea += field[3]; work++;
+  }
+  const texture = new THREE.DataTexture(data, n, n, THREE.RGBAFormat);
+  texture.minFilter = texture.magFilter = THREE.LinearFilter; texture.generateMipmaps = false; texture.needsUpdate = true;
+  return { texture, area: area / (n * n), hillArea: hillArea * step * step, work, bytes: data.byteLength };
+}
 
 export function paddyGroundMap(world, terrain, debug = false) {
   const T = world.terraces, plots = createPaddyPlots(world, terrain), step = PADDY_LOOK.mapStep;
@@ -67,7 +141,7 @@ export async function loadGroundTextures(base, anisotropy = 8) {
   return { color: make(colorData, true), normal: make(normalData, false) };
 }
 
-function terrainMaterial(textures, quality, coverUniforms) {
+function terrainMaterial(textures, quality, coverUniforms, canopyUniforms) {
   const material = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1, metalness: 0, vertexColors: true });
   const tiles = LAYERS.map(l => TILE[l]);
   const detail = material.userData.uDetailU = { value: quality === 'light' ? 0 : 1 };
@@ -76,7 +150,7 @@ function terrainMaterial(textures, quality, coverUniforms) {
     shader.uniforms.uTexN = { value: textures.normal };
     shader.uniforms.uTile = { value: tiles };
     shader.uniforms.uDetail = detail;
-    Object.assign(shader.uniforms, coverUniforms);
+    Object.assign(shader.uniforms, coverUniforms, canopyUniforms);
     shader.vertexShader = shader.vertexShader
       .replace('#include <common>', `#include <common>
         attribute vec3 aS0; attribute vec3 aS1;
@@ -165,8 +239,71 @@ function terrainMaterial(textures, quality, coverUniforms) {
       .replace('#include <roughnessmap_fragment>', `float roughnessFactor = gRough;`)
       .replace('#include <normal_fragment_maps>', `normal = normalize((viewMatrix * vec4(gN, 0.0)).xyz);`);
   };
+  patchCanopyMaterial(material);
   material.customProgramCacheKey = () => 'valley-terrain-v4-meadow';     // 品質は uniform（uDetail）で切り替えるので、プログラムは1つ
   return material;
+}
+
+// 材質は一つ。品質と自動調整はuniformでセル探索の仕事だけを減らす。
+function patchCanopyMaterial(material) {
+  const before = material.onBeforeCompile, c = CANOPY;
+  material.onBeforeCompile = shader => {
+    before(shader);
+    shader.fragmentShader = shader.fragmentShader.replace('#include <common>', `#include <common>
+      uniform sampler2D uCanopyField;
+      uniform float uCanopy, uCanopyDebug, uFortGround, uFortDebug, uCanopyDetail;
+      uniform vec3 uCanopySun, uCedar, uAutumn[5], uHillGrass, uHillGold;
+      float th_hash(vec2 p); float th_noise(vec2 p);
+      float canopyWeight; float hillWeight; vec3 canopyCheck;
+      // 独立に散らした中心の最近点。世界XZで計算し、8mの頂点格子には依存しない。
+      vec3 canopyCell(vec2 point) {
+        vec2 p = point / ${c.cell.toFixed(2)};
+        p += (vec2(th_noise(point / ${c.warpWaves[0].toFixed(1)}), th_noise(point / ${c.warpWaves[1].toFixed(1)} + ${c.warpOffset.toFixed(1)})) - .5) * ${ (c.warp/c.cell).toFixed(4)};
+        vec2 cell = floor(p), delta = vec2(0.0); float best = 100.0, identity = 0.0;
+        for (int j = -1; j <= 1; j++) for (int i = -1; i <= 1; i++) {
+          if (uCanopyDetail < .5 && (i == -1 || j == -1)) continue;
+          vec2 id = cell + vec2(float(i), float(j));
+          vec2 centre = id + .5 + (vec2(th_hash(id), th_hash(id + 71.0)) * 2.0 - 1.0) * ${c.jitter.toFixed(3)};
+          vec2 v = p - centre; float d = dot(v, v);
+          if (d < best) { best = d; delta = v; identity = th_hash(id + 173.0); }
+        }
+        return vec3(delta, identity);
+      }`);
+    shader.fragmentShader = shader.fragmentShader.replace('gN = normalize(nw);', `gN = normalize(nw);
+      canopyWeight = 0.0; hillWeight = 0.0;
+      if (uCanopy > .5 || uFortGround > .5) {
+      vec4 canopyField = texture(uCanopyField, (wxz + ${FAR.half.toFixed(1)} + ${ (c.mapStep/2).toFixed(1)}) / ${ (FAR.half*2+c.mapStep).toFixed(1)});
+      float nearEdge = min(min(wxz.x - ${NEAR.x0.toFixed(1)}, ${NEAR.x1.toFixed(1)} - wxz.x), min(wxz.y - ${NEAR.z0.toFixed(1)}, ${NEAR.z1.toFixed(1)} - wxz.y));
+      float protect = max(max(${(WORLD.bounds.minX-c.margin).toFixed(1)} - wxz.x, wxz.x - ${(WORLD.bounds.maxX+c.margin).toFixed(1)}), max(${(WORLD.bounds.minZ-c.margin).toFixed(1)} - wxz.y, wxz.y - ${(WORLD.bounds.maxZ+c.margin).toFixed(1)}));
+      float edgeWarp = (th_noise(wxz / ${c.edgeWave.toFixed(1)}) * 2.0 - 1.0) * ${c.edgeWarp.toFixed(1)};
+      float groundBlend = (1.0 - smoothstep(${c.seam.toFixed(1)}, ${(c.seam+c.blend).toFixed(1)}, nearEdge + edgeWarp)) * smoothstep(0.0, ${c.protectedFade.toFixed(1)}, protect);
+      float surfaceClear = (1.0 - clamp(vS0.y, 0.0, 1.0)) * (1.0 - clamp(vS1.x, 0.0, 1.0));
+      canopyWeight = canopyField.r * groundBlend * uCanopy * surfaceClear;
+      vec3 canopyNormal = vec3(0.0, 1.0, 0.0);
+      float canopyLight = .5, cellValue = .5, crownFill = 1.0;
+      if (canopyWeight > .001) {
+        vec3 cell = canopyCell(wxz);
+        canopyNormal = normalize(vec3(cell.x * ${c.normalTilt.toFixed(3)}, 1.0, cell.y * ${c.normalTilt.toFixed(3)}));
+        canopyLight = clamp(.5 + dot(canopyNormal, uCanopySun) * ${c.contrast.toFixed(3)}, 0.0, 1.0);
+        cellValue = cell.z;
+        crownFill = 1.0 - ${c.gapShade.toFixed(3)} * smoothstep(${c.gapInner.toFixed(3)}, ${c.gapOuter.toFixed(3)}, length(cell.xy));
+      }
+      float tone = canopyField.b * 4.0; int toneLo = int(floor(tone)), toneHi = min(4, toneLo + 1);
+      vec3 crownColor = mix(uCedar, mix(uAutumn[toneLo], uAutumn[toneHi], fract(tone)), canopyField.g);
+      crownColor *= crownFill * mix(${c.shade.toFixed(3)}, ${c.sun.toFixed(3)}, canopyLight) * (1.0 + (cellValue * 2.0 - 1.0) * ${c.brightness.toFixed(3)});
+      crownColor *= mix(vec3(${(1-c.blue).toFixed(3)}, 1.0, ${(1+c.blue).toFixed(3)}), vec3(${(1+c.warmth).toFixed(3)}, 1.0, ${(1-c.warmth).toFixed(3)}), canopyLight);
+      diffuseColor.rgb = mix(diffuseColor.rgb, crownColor, canopyWeight);
+      float hill = canopyField.a * uFortGround * surfaceClear; hillWeight = hill;
+      vec3 hillColor = mix(uHillGrass, uHillGold, ${c.grassSun.toFixed(3)} * max(0.0, dot(nW, uCanopySun)));
+      hillColor *= ${(1-c.grassVariation).toFixed(3)} + ${(2*c.grassVariation).toFixed(3)} * th_noise(wxz / ${c.grassWave.toFixed(1)});
+      diffuseColor.rgb = mix(diffuseColor.rgb, hillColor, hill);
+      gN = normalize(mix(gN, canopyNormal, canopyWeight));
+      canopyCheck = mix(vec3(${new THREE.Color(c.debug[2]).toArray().map(x=>x.toFixed(4)).join(',')}), mix(vec3(${new THREE.Color(c.debug[0]).toArray().map(x=>x.toFixed(4)).join(',')}), vec3(${new THREE.Color(c.debug[1]).toArray().map(x=>x.toFixed(4)).join(',')}), step(.35, canopyField.g)), step(.1, canopyWeight));
+      }`)
+      .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+        totalEmissiveRadiance += diffuseColor.rgb * canopyWeight * ${c.emissive.toFixed(3)};`)
+      .replace('#include <fog_fragment>', '#include <fog_fragment>\n if (uCanopyDebug > .5 && uCanopy > .5) gl_FragColor.rgb = canopyCheck;\n if (uFortDebug > .5 && hillWeight > .1) gl_FragColor.rgb = vec3(1.0, .1328683, .5028865);');
+  };
 }
 
 // 高さの格子から法線を出す（隣の頂点との差）
@@ -182,7 +319,9 @@ function gridNormals(heights, nx, nz, step) {
 }
 
 export function buildTerrain({ terrain, textures, quality = 'standard', search = globalThis.location?.search || '' }) {
-  const t0 = performance.now();
+  const t0 = performance.now(), flags = new URLSearchParams(search);
+  const canopyEnabled = flags.get('canopy') !== '0', fortEnabled = flags.get('fort2') !== '0';
+  terrain.fort2 = fortEnabled;
   const { x0, x1, z0, z1, step } = NEAR;
   const nx = Math.round((x1 - x0) / step) + 1, nz = Math.round((z1 - z0) / step) + 1;
 
@@ -225,6 +364,17 @@ export function buildTerrain({ terrain, textures, quality = 'standard', search =
     // 急な斜面で暗さを半分に戻すと、高い所から見渡したとき、木のあいだの地面が赤茶の壁に見えた（絵と並べた講評）。戻す量を 0.5 → 0.15 にする
     const ff = Math.min(1, terrain.forestDensity(x, z) * FOREST_FLOOR.gain) * (1 - smooth(34, 46, slope) * FOREST_FLOOR.steepRelief) * clear;
     col[k * 3] = ao * (1 - ff * 0.66); col[k * 3 + 1] = ao * (1 - ff * 0.5); col[k * 3 + 2] = ao * (1 - ff * 0.7);
+    const boundary = canopyEnabled ? canopyBlendAt(WORLD, x, z) : 0;
+    if (boundary > 0) {
+      const trueSlope = terrain.slopeAt?.(x, z) ?? slope, surface = terrain.surfaceAt(x, z, trueSlope);
+      const nf = Math.min(1, terrain.forestDensity(x, z) * FOREST_FLOOR.gain) * (1 - smooth(34, 46, trueSlope) * FOREST_FLOOR.steepRelief) * clear;
+      const values = [surface.grass, surface.dirt, surface.rock, surface.gravel, surface.mud, surface.litter];
+      for (let c = 0; c < 3; c++) {
+        col[k * 3 + c] += ((1 - nf * [.66, .5, .7][c]) - col[k * 3 + c]) * boundary;
+        s0[k * 3 + c] += (values[c] - s0[k * 3 + c]) * boundary;
+        s1[k * 3 + c] += (values[c + 3] - s1[k * 3 + c]) * boundary;
+      }
+    }
   }
   const idx = new Uint32Array((nx - 1) * (nz - 1) * 6);
   let q = 0;
@@ -257,6 +407,22 @@ export function buildTerrain({ terrain, textures, quality = 'standard', search =
     // 遠景の森の地面は樹冠の面として暗く（元の地面色の1〜1.5割）。60m前後のむら（±25%）で尾根と谷筋に段を付ける
     const patch = 0.78 + 0.44 * fbm(x * 0.016, z * 0.016, terrain.seed + 77, 3);
     fcol[k * 3] = 1 - ff * (1 - 0.1 * patch); fcol[k * 3 + 1] = 1 - ff * (1 - 0.14 * patch); fcol[k * 3 + 2] = 1 - ff * (1 - 0.11 * patch);
+    if (canopyEnabled) {
+      // 継ぎ目の帯だけ路面と陰影をそろえる。外側の岩・川・草の元の重みは維持する。
+      const distance = Math.max(x0 - x, x - x1, z0 - z, z - z1, 0);
+      const edgeFix = 1 - smooth(CANOPY.seam, CANOPY.seam + CANOPY.blend, distance);
+      if (edgeFix > 0) {
+        const trueSlope = terrain.slopeAt?.(x, z) ?? slope, surface = terrain.surfaceAt(x, z, trueSlope);
+        const values = [surface.grass, surface.dirt, surface.rock, surface.gravel, surface.mud, surface.litter];
+        const clear = (1 - (terrain.roadInfo(x, z)?.w ?? 0)) * (1 - water);
+        const nf = Math.min(1, forest * FOREST_FLOOR.gain) * (1 - smooth(34, 46, trueSlope) * FOREST_FLOOR.steepRelief) * clear;
+        for (let c = 0; c < 3; c++) {
+          fcol[k * 3 + c] += ((1 - nf * [.66, .5, .7][c]) - fcol[k * 3 + c]) * edgeFix;
+          fs0[k * 3 + c] += (values[c] - fs0[k * 3 + c]) * edgeFix;
+          fs1[k * 3 + c] += (values[c + 3] - fs1[k * 3 + c]) * edgeFix;
+        }
+      }
+    }
   }
   const fidx = [];
   for (let j = 0; j < fn - 1; j++) for (let i = 0; i < fn - 1; i++) {
@@ -299,7 +465,19 @@ export function buildTerrain({ terrain, textures, quality = 'standard', search =
     for (const value of data) { sum += value; max = Math.max(max, value); }
     coverStats = { nx, nz, mean: sum / data.length / 255, max: max / 255 };
   };
-  const material = terrainMaterial(textures, quality, coverUniforms);
+  const field = canopyMap(WORLD, terrain, fortEnabled), palette = canopyPalettes();
+  const canopyUniforms = {
+    uCanopyField: { value: field.texture }, uCanopy: { value: canopyEnabled ? 1 : 0 },
+    uCanopyDebug: { value: flags.get('canopydebug') === '1' ? 1 : 0 }, uFortDebug: { value: flags.get('riverdebug') === '1' ? 1 : 0 }, uFortGround: { value: fortEnabled ? 1 : 0 },
+    uCanopyDetail: { value: quality === 'light' ? 0 : 1 }, uCanopySun: { value: ATMOS.sunDir },
+    uCedar: { value: palette.cedar }, uAutumn: { value: palette.autumn },
+    uHillGrass: { value: new THREE.Color(CANOPY.grass) }, uHillGold: { value: new THREE.Color(CANOPY.grassGold) },
+  };
+  // 既存のQAのgame.terrainから読める。別の入口ファイルへの配線を増やさない。
+  terrain.groundStats = () => ({ canopyAreaFraction: canopyEnabled ? field.area : 0, hillGrassArea: fortEnabled ? field.hillArea : 0,
+    mapSamples: field.work, textureBytes: field.bytes, addedDraws: 0, addedTriangles: 0, programCount: 1 });
+  const material = terrainMaterial(textures, quality, coverUniforms, canopyUniforms);
+  material.addEventListener('dispose', () => field.texture.dispose());
   const paddy = paddyOptions(search);
   let paddyCoverage = 0;
   if (paddy.enabled) {
@@ -332,8 +510,14 @@ export function buildTerrain({ terrain, textures, quality = 'standard', search =
   const near = new THREE.Mesh(nearGeo, material); near.name = 'terrain-near'; near.receiveShadow = true; near.castShadow = false;
   const far = new THREE.Mesh(farGeo, material); far.name = 'terrain-far'; far.receiveShadow = false;
   near.frustumCulled = true; far.frustumCulled = false;
+  const detailBeforeRender = renderer => {
+    const q = material.userData.uDetailU.value;
+    const base = flags.has('w') ? 1 : Math.min(globalThis.devicePixelRatio || 1, q ? 1.5 : 1);
+    canopyUniforms.uCanopyDetail.value = q && renderer.getPixelRatio() / base >= .78 ? 1 : 0;
+  };
+  near.onBeforeRender = far.onBeforeRender = detailBeforeRender;
   const group = new THREE.Group(); group.name = 'terrain'; group.add(far, near);
   // 品質の切り替え（軽量は細かい法線の凹凸を読まない）
-  const setQuality = q => { const u = material.userData.uDetailU; if (u) u.value = q === 'light' ? 0 : 1; };
+  const setQuality = q => { const u = material.userData.uDetailU; if (u) u.value = q === 'light' ? 0 : 1; canopyUniforms.uCanopyDetail.value = q === 'light' ? 0 : 1; };
   return { group, near, far, material, setQuality, setMeadowCover, paddyCoverage: () => paddyCoverage, meadowCover: () => ({ ...coverStats }), buildMs: performance.now() - t0, stats: { nearVertices: nx * nz, farVertices: fn * fn } };
 }

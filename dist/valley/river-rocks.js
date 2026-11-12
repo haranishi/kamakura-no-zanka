@@ -1,5 +1,5 @@
 // 清瀬川と橋・山砦の装飾配置。高さは既存地形から読むだけで、地形と当たりは変えない。
-import { cellRand } from './scatter.js';
+import { cellRand, fortGrassAt } from './scatter.js';
 
 export const RIVER_ART = Object.freeze({
   largeCount: 40, smallCount: 220, // 個：標準の大岩と小石。
@@ -33,6 +33,32 @@ export const RIVER_ART = Object.freeze({
   lightFraction: 0.6, lightDistance: 0.8, adaptScales: [1, 0.85, 0.7, 0.58], // 比率：軽量と既存の解像度調整。
   selectionMove: 6, // m：小物の選び直し間隔。歩行中の毎コマの詰め直しを避ける。
 });
+// 丘だけの数値。川の岩・橋・砦の建物の座標や寸法とは独立させる。
+export const FORT_GROUND = Object.freeze({
+  rockCount: 10, rockSize: [4, 12], slopeMin: 25, rockRadius: [50, 92], // 個・m・度・m：急斜面に出る露頭。
+  rockDepth: .72, rockHeight: .42, sink: .30, spacing: 9, attempts: 160, // 比率・m・回：岩の形と候補探索上限。
+  pathWidth: 3.2, pathWobble: .4, pathWave: 9, // m：土の道の幅・片縁の揺れ・波長。
+  pathColor: '#b68c64', pathGravel: '#796c5b', pathSoilMix: .45, // 里の土と砂利の平均を混ぜ、明るい赤茶の帯を抑える。
+  rockKeep: [1, .8, .6, .6], lightRockKeep: .6, // 比率：自動4段階・軽量で残す露頭。
+});
+export function fortOutcrops(world, terrain) {
+  const p = world.peaks.find(p => p.id === 'karasumine'), c = FORT_GROUND, out = [];
+  if (!p) return out;
+  for (let i = 0; i < c.attempts && out.length < c.rockCount; i++) {
+    const rand = cellRand(world.seed + 246, i, 0), a = rand() * Math.PI * 2;
+    const r = c.rockRadius[0] + rand() * (c.rockRadius[1] - c.rockRadius[0]);
+    const x = p.x + Math.cos(a) * r, z = p.z + Math.sin(a) * r, size = c.rockSize[0] + rand() * (c.rockSize[1] - c.rockSize[0]);
+    if (terrain.slopeAt(x, z) < c.slopeMin || fortGrassAt(world, x, z) < .2) continue;
+    if (out.some(q => Math.hypot(q.x - x, q.z - z) < c.spacing + size / 2)) continue;
+    const height = size * c.rockHeight;
+    out.push({ x, z, y: terrain.heightAt(x, z) - height * c.sink, size, height, depth: size * c.rockDepth, rot: rand() * Math.PI * 2 });
+  }
+  return out;
+}
+export function fortPathEdge(x, z, side) {
+  const c = FORT_GROUND;
+  return c.pathWidth / 2 * side + c.pathWobble * Math.sin(x / c.pathWave + z / (c.pathWave * .7) + side * 2);
+}
 const A = RIVER_ART, TAU = Math.PI * 2;
 const mix = (a, b, t) => a + (b - a) * t;
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
@@ -83,7 +109,7 @@ export function fortClearing(world) {
 
 export function riverLayout(world, terrain, flags = riverFlags()) {
   const samples = riverSamples(terrain), length = samples.at(-1).along;
-  const out = { rocks: [], foam: [], shoals: [], gates: [], fences: [], banners: [], towers: [], huts: [], clearing: null, path: [] };
+  const out = { rocks: [], foam: [], shoals: [], gates: [], fences: [], banners: [], towers: [], huts: [], clearing: null, path: [], fortRocks: [] };
   if (flags.river) {
     // 曲がりの内側：曲率の符号から法線側を決め、曲がりの強い点を離して5つ選ぶ。
     const bends = samples.slice(2, -2).map((p, k) => {
@@ -147,6 +173,7 @@ export function riverLayout(world, terrain, flags = riverFlags()) {
   if (flags.fort) {
     const f = world.distant.find(d => d.kind === 'fort'), r = A.fortDiameter / 2;
     out.clearing = fortClearing(world);
+    out.fortRocks = fortOutcrops(world, terrain);
     // 門を南側(+Z)へ開ける。最初と最後の端点が門柱につながる、1本の閉じた外周。
     const gap = Math.asin((A.fortGateOpening / 2 + A.gatePost / 2) / r), segments = Math.ceil((TAU - 2 * gap) * r / A.fenceStep);
     const point = t => ({ x: f.x + Math.sin(t) * r, z: f.z + Math.cos(t) * r });

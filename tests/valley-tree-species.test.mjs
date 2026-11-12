@@ -16,7 +16,7 @@ import { TreeField, wind, THREE } from './helpers/tree-field.mjs';
 import { load } from './helpers/tree-modules.mjs';
 // Preserve legacy habitat/stream tests; the enabled slope composition is covered separately.
 const assignTreeSpecies = (world, terrain, trees) => assignForestSpecies(world, terrain, trees, { forest2: false });
-const terrain = createTerrain(WORLD), trees = scatterTrees(WORLD, terrain);
+const terrain = Object.assign(createTerrain(WORLD, { fortShape: 0 }), { fort2: false }), trees = scatterTrees(WORLD, terrain, { fort2: false });
 let t = performance.now();
 const assigned = assignTreeSpecies(WORLD, terrain, trees), assignMs = performance.now() - t;
 t = performance.now();

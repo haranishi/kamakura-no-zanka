@@ -16,7 +16,7 @@ import { field, wind, camera, THREE, stubRenderer } from './helpers/tree-field.m
 import { load } from './helpers/tree-modules.mjs';
 import { installQA } from '../dist/valley/qa.js';
 const { forestColor } = await load('tree-view.js');
-const terrain = createTerrain(WORLD), trees = scatterTrees(WORLD, terrain);
+const terrain = Object.assign(createTerrain(WORLD, { fortShape: 0 }), { fort2: false }), trees = scatterTrees(WORLD, terrain, { fort2: false });
 const start = performance.now(), assigned = assignTreeSpecies(WORLD, terrain, trees), assignmentMs = performance.now() - start;
 const legacy = assignTreeSpecies(WORLD, terrain, trees, { forest2: false });
 const outside = [...trees.x.keys()].filter(i => trees.x[i] < -147 || trees.x[i] > 114 || trees.z[i] < -147 || trees.z[i] > 124);

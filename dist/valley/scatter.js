@@ -1,6 +1,6 @@
 // scatter.js — 木・岩・草・稲の配置を地形関数から決定的に出す純関数（logic層。Three.js非依存）。
 // 乱数は機能ごとに別の系列（seed をずらす）。後から機能を足しても既存の絵を組み替えない（design.md）。
-import { smooth, fbm } from './terrain-height.js';
+import { smooth, fbm, createTerrain } from './terrain-height.js';
 
 export function mulberry32(seed) {
   let a = seed >>> 0;
@@ -15,9 +15,35 @@ export function cellRand(seed, i, j) {
   return mulberry32(h >>> 0);
 }
 
-// 峰（烏峰）の内側か。遠景でも急な斜面に木を立て、頂の平らな所（砦）の周りだけ木を抜く。
+// 木を減らす輪郭は草の色にも共有する。西〜南西は広い肩、北東は狭くする。
+export const FORT_CLEAR = Object.freeze({
+  west: 86, east: 49, wobble: 7, edge: 10, // m：西南西／北東の半径、輪郭の揺れ、混在帯。
+  edgeWave: 19, westBias: .45, westRange: [-.35, .7], // m・比率：縁の波長と広い肩の向き。
+  keep: .16, clusterScale: 13, clusterGain: .12, limit: 110, // 比率・m・比率・m：残す木の塊と影響上限。
+});
+export function fortClearRadius(world, p, x, z) {
+  const dx = x - p.x, dz = z - p.z, d = Math.hypot(dx, dz) || 1;
+  const west = smooth(...FORT_CLEAR.westRange, (-dx + dz * FORT_CLEAR.westBias) / d), c = FORT_CLEAR;
+  return c.east + (c.west - c.east) * west + c.wobble * fbm(x / c.edgeWave, z / c.edgeWave, world.seed + 242, 2);
+}
+export function fortGrassAt(world, x, z) {
+  const p = world.peaks?.find(p => p.id === 'karasumine');
+  if (!p) return 0;
+  const d = Math.hypot(x - p.x, z - p.z), c = FORT_CLEAR;
+  if (d >= c.limit) return 0;
+  const r = fortClearRadius(world, p, x, z);
+  return (1 - smooth(r - c.edge, r + c.edge, d)) * (1 - smooth(c.limit - c.edge, c.limit, d));
+}
+export function fortTreeRemoved(world, x, z) {
+  const mask = fortGrassAt(world, x, z);
+  if (mask <= 0) return false;
+  const c = FORT_CLEAR, cluster = fbm(x / c.clusterScale, z / c.clusterScale, world.seed + 243, 2);
+  // 同じ塊に残す木を集める。位置のハッシュなので、配列順で変わらない。
+  const keep = c.keep + c.clusterGain * cluster;
+  return cellRand(world.seed + 244, Math.round(x * 1024), Math.round(z * 1024))() < mask * (1 - keep);
+}
 function nearPeak(world, x, z, scale = 1) { return (world.peaks || []).some(p => Math.hypot(x - p.x, z - p.z) < p.r * scale); }
-function onPeakTop(world, x, z) { return (world.peaks || []).some(p => Math.hypot(x - p.x, z - p.z) < p.flatR * 1.9); }   // 砦は実寸で約50m。頂の周り約45mは木を抜く（低い所から砦の輪郭が見えるように）
+function onPeakTop(world, x, z) { return (world.peaks || []).some(p => Math.hypot(x - p.x, z - p.z) < p.flatR * 1.9); }
 
 // 岩の模型（boulder.glb）の大きさ(m)。当たりと、里の岩の大きさの上限に使う。
 export const ROCK_MODEL = { width: 2.72, depth: 1.96, height: 1.48 };
@@ -58,7 +84,10 @@ function blockedByWorld(world, terrain, x, z, margin, startRadius = 14) {
 // 木。kind: 0=杉, 1=広葉(ケヤキ・栗), 2=松。戻りは配列の組（描画側が LOD ごとに振り分ける）。
 // 近景（nearBox）は step の格子、その外の遠景は farStep の格子で、ゆらぎをつけて置く。乱数は升ごと（cellRand）。
 // 遠景は大きさ・縦横比・向きをばらつかせ、隣と重なる大きさにして地面をのぞかせない（同じ形が同じ間隔で並ぶと型押しの壁紙に見えた）。
-export function scatterTrees(world, terrain, { seed = 7, step = 4.5, farStep = 11, nearBox = [-210, 240, -210, 200], farHalf = 700 } = {}) {
+export function scatterTrees(world, terrain, { seed = 7, step = 4.5, farStep = 11, nearBox = [-210, 240, -210, 200], farHalf = 700, fort2 = terrain.fort2 ?? true } = {}) {
+  const currentTerrain = terrain;
+  // 旧地形で受理と衝突の順を保ち、全部の配置を確定した後に丘だけ間引く。
+  if (terrain.fortShape) terrain = createTerrain(world, { fortShape: 0 });
   const out = { x: [], y: [], z: [], s: [], rot: [], kind: [], tint: [] };
   const taken = new Map(), cell = 4, base = world.seed + seed * 101;
   const inNearBox = (x, z) => x >= nearBox[0] && x <= nearBox[1] && z >= nearBox[2] && z <= nearBox[3];
@@ -105,6 +134,19 @@ export function scatterTrees(world, terrain, { seed = 7, step = 4.5, farStep = 1
     if (inNearBox(gx, gz)) continue;
     const rand = cellRand(base + 1, ix, iz);
     tryPlace(gx + (rand() - 0.5) * farStep * 1.5, gz + (rand() - 0.5) * farStep * 1.5, false, rand);
+  }
+  if (fort2) {
+    let kept = 0;
+    const total = out.x.length;
+    const keys = Object.keys(out);
+    for (let i = 0; i < out.x.length; i++) {
+      const x = out.x[i], z = out.z[i];
+      if (fortTreeRemoved(world, x, z)) continue;
+      for (const key of keys) out[key][kept] = out[key][i];
+      out.y[kept] = currentTerrain.heightAt(x, z); kept++;
+    }
+    for (const key of keys) out[key].length = kept;
+    Object.defineProperty(out, 'fortRemoved', { value: total - kept });
   }
   return out;
 }

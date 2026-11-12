@@ -16,7 +16,7 @@ const asModule = s => 'data:text/javascript;base64,' + Buffer.from(s).toString('
 const rewrite = f => read(f).replace(/from 'three'/g, `from '${vendor}'`).replace(/from '(\.\/[^']+)'/g, (_, p) => `from '${new URL(p, base).href}'`);
 const paddyURL = asModule(rewrite('paddy-view.js'));
 const { buildPaddy, patchPaddyRice, paddyStoneGeometry, paddyBundGeometry, paddyTuftGeometry, paddySurfaceColor, paddyStoneBandGeometry, paddyDebugColor } = await import(paddyURL);
-const { buildTerrain, paddyGroundMap } = await import(asModule(rewrite('terrain.js').replace(new URL('paddy-view.js', base).href, paddyURL)));
+const { buildTerrain, paddyGroundMap } = await import(asModule(rewrite('terrain.js').replace(new URL('paddy-view.js', base).href, paddyURL).replace(new URL('atmosphere.js', base).href, moduleURL('atmosphere.js'))));
 const vegetationSource = rewrite('vegetation.js').replace(new URL('paddy-view.js', base).href, paddyURL).replace(new URL('tree-view.js', base).href, moduleURL('tree-view.js')).replace(new URL('grass-view.js', base).href, moduleURL('grass-view.js'));
 const { makeTufts } = await import(asModule(vegetationSource));
 const terrain = createTerrain(WORLD), layout = createPaddyLayout(WORLD, terrain);

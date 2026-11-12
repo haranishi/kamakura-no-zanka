@@ -110,13 +110,13 @@ test('旗3種で担当の追加物だけを止め、すべて切ると追加描�
   assert(fs.readFileSync(new URL('../dist/valley/props.js', import.meta.url), 'utf8').includes('river.update(time)'));
 });
 
-test('標準・軽量・自動4段階が5回・各予算以内。描画直前の設定変更と解像度低下に追従する', t => {
+test('標準・軽量・自動4段階が露頭1回を加えた6回・各予算以内。描画直前の設定変更と解像度低下に追従する', t => {
   const l = fixture(''), values = [];
   for (const q of ['standard', 'light']) {
     let previous = Infinity;
     for (let adapt = 0; adapt < 4; adapt++) {
       l.select(camera, q, adapt); const s = l.stats();
-      assert.equal(s.draws, 5); assert.equal(s.triangles, actualTriangles(l.group)); assert(s.triangles <= (q === 'light' ? 40000 : 100000)); assert(s.triangles <= previous); previous = s.triangles;
+      assert.equal(s.draws, 6); assert.equal(s.triangles, actualTriangles(l.group)); assert(s.triangles <= (q === 'light' ? 40000 : 100000)); assert(s.triangles <= previous); previous = s.triangles;
       assert.equal(s.largeRocks, 40); assert.equal(s.rapids, 7); values.push({ q, adapt, rocks: s.rocks, foam: s.foam, triangles: s.triangles, draws: s.draws });
     }
   }

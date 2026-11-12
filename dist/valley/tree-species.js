@@ -1,6 +1,6 @@
 // Derived species and non-colliding understory. Position keys survive insertion/reordering.
 import { TREES } from './config.js';
-import { cellRand, insideFootprint, insidePlot, inSightline, scatterRocks, ROCK_MODEL } from './scatter.js';
+import { cellRand, insideFootprint, insidePlot, inSightline, scatterRocks, ROCK_MODEL, fortTreeRemoved } from './scatter.js';
 import { fbm, smooth } from './terrain-height.js';
 import { propColliders } from './world-colliders.js';
 
@@ -182,7 +182,7 @@ export function scatterUnderstory(world, terrain, trees, { box = [-210, 240, -21
       // Rice keeps 2.5m inside the terrace rectangle; keep the same band clear outside it.
       if (T && x >= T.x0 - 2.5 && x <= T.x1 + 2.5 && z >= T.z0 - 2.5 && z <= T.z1 + 2.5) continue;
       if (world.props.some(p => Math.hypot(x - p.x, z - p.z) < (p.r || 1) + 0.5)) continue;
-      if ((world.peaks || []).some(p => Math.hypot(x - p.x, z - p.z) < p.flatR * 1.9)) continue;
+      if ((world.peaks || []).some(p => Math.hypot(x - p.x, z - p.z) < p.flatR * 1.9) || terrain.fort2 !== false && fortTreeRemoved(world, x, z)) continue;
       if (species === SPECIES.sapling && inSightline(world, x, z)) continue;
       if (rockCircles.some(r => Math.hypot(x - r.x, z - r.z) < r.r + 0.5)) continue;
       if (nearTrunk(x, z)) continue;

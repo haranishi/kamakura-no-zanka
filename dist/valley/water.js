@@ -1,7 +1,7 @@
 // water.js — 川（清瀬川）の水面（view層）。川の中心線に沿った帯に、空を映して流れる水の面を張る。
 // 岸との境目は、水面が地面より下になるところで自然に切れる（深度で隠れる）。帯の縁だけ透かし、浅いところは淡く・縁は白く泡立てる。
 import * as THREE from 'three';
-import { RIVER_ART, riverFlags, riverBudget, riverLayout, riverSamples, riverPoint, foamPhase } from './river-rocks.js';
+import { RIVER_ART, FORT_GROUND, fortPathEdge, riverFlags, riverBudget, riverLayout, riverSamples, riverPoint, foamPhase } from './river-rocks.js';
 
 // 色は既存の旗の木・布、水の泡、および同梱の地表画像の平均から取る。
 export const RIVER_LOOK = Object.freeze({
@@ -173,7 +173,7 @@ export function riverAdaptLevel(renderer, quality, query) {
 export function buildRiverDetails({ world, terrain, models = {}, search = globalThis.location?.search || '', quality = null }) {
   const flags = riverFlags(search), query = new URLSearchParams(search), group = new THREE.Group(); group.name = 'river-details';
   const layout = riverLayout(world, terrain, flags), samples = riverSamples(terrain);
-  const records = [], clothEntries = [], drawn = { rocks: 0, largeRocks: 0, smallRocks: 0, foam: 0, rapids: 0, shoals: layout.shoals.length, fenceLength: layout.fences.reduce((n, f) => n + Math.hypot(f.to.x - f.from.x, f.to.z - f.from.z), 0), banners: layout.banners.length, fortObjects: layout.fences.filter(f => f.group === 'fort').length + layout.banners.filter(f => f.group === 'fort').length + layout.towers.length + layout.huts.length + (flags.fort ? 1 : 0), triangles: 0, draws: 0, adapt: 0, quality: 'standard', frameWork: 0 };
+  const records = [], clothEntries = [], drawn = { rocks: 0, largeRocks: 0, smallRocks: 0, foam: 0, rapids: 0, shoals: layout.shoals.length, fenceLength: layout.fences.reduce((n, f) => n + Math.hypot(f.to.x - f.from.x, f.to.z - f.from.z), 0), banners: layout.banners.length, fortObjects: layout.fences.filter(f => f.group === 'fort').length + layout.banners.filter(f => f.group === 'fort').length + layout.towers.length + layout.huts.length + (flags.fort ? 1 : 0), triangles: 0, draws: 0, adapt: 0, quality: 'standard', frameWork: 0, fortRocks: 0 };
   const material = (roughness, transparent = false) => new THREE.MeshStandardMaterial({ vertexColors: true, roughness, transparent, depthWrite: !transparent, side: THREE.FrontSide });
   const meshOf = (name, parts, mat, count = {}) => {
     if (!parts.length) { mat.dispose(); return null; }
@@ -196,6 +196,18 @@ export function buildRiverDetails({ world, terrain, models = {}, search = global
     const mesh = new THREE.InstancedMesh(geometry, mat, layout.rocks.length); mesh.name = 'river-rocks'; mesh.frustumCulled = false;
     group.add(mesh); records.push({ mesh, triangles: triCount(mesh), rocks: true });
   }
+  if (layout.fortRocks.length) {
+    const source = group.getObjectByName('river-rocks');
+    const geometry = source ? source.geometry.clone() : new THREE.IcosahedronGeometry(.5, A.rockDetail).translate(0, .5, 0);
+    const mat = source ? source.material.clone() : flags.debug ? new THREE.MeshBasicMaterial({ color: C.gray }) : new THREE.MeshStandardMaterial({ color: C.gravel, roughness: C.rockRoughness });
+    const mesh = new THREE.InstancedMesh(geometry, mat, layout.fortRocks.length); mesh.name = 'fort-outcrops'; mesh.frustumCulled = false;
+    const matrix = new THREE.Matrix4(), q = new THREE.Quaternion(), axis = new THREE.Vector3(0, 1, 0);
+    layout.fortRocks.forEach((r, i) => {
+      matrix.compose(new THREE.Vector3(r.x, r.y, r.z), q.setFromAxisAngle(axis, r.rot), new THREE.Vector3(r.size, r.height, r.depth)); mesh.setMatrixAt(i, matrix);
+      mesh.setColorAt(i, new THREE.Color().setScalar(flags.debug ? 1 : C.dryRock));
+    });
+    group.add(mesh); records.push({ mesh, triangles: triCount(mesh), fortRocks: true });
+  }
   // 地面の薄い色：河原と砦の草地・道を同じ材質でまとめる。境界だけ透かして切り紙の縁を避ける。
   const ground = [];
   const patch = (x, z, radiusX, radiusZ, tx, tz, color, groupName) => {
@@ -216,18 +228,19 @@ export function buildRiverDetails({ world, terrain, models = {}, search = global
   };
   for (const s of layout.shoals) patch(s.x, s.z, s.length / 2, s.width / 2, s.tx, s.tz, C.gravel, 'river');
   if (layout.clearing) {
-    const c = layout.clearing; patch(c.x, c.z, c.radius, c.radius, 1, 0, C.grass, 'fort');
+    // 丘の草は地形そのものの色。真円の地表メッシュを置かない。
     // 道は細い三角形の帯。地面を削らず、既存の斜面へ沿わせる。
     const positions = [], uv = [];
     for (let i = 1; i < layout.path.length; i++) {
       const a = layout.path[i - 1], b = layout.path[i], len = Math.hypot(b.x - a.x, b.z - a.z), nx = -(b.z - a.z) / len, nz = (b.x - a.x) / len, n = Math.ceil(len / A.groundStep);
       const point = (k, side) => {
-        const x = a.x + (b.x - a.x) * k / n + nx * A.pathWidth / 2 * side, z = a.z + (b.z - a.z) * k / n + nz * A.pathWidth / 2 * side;
+        const cx = a.x + (b.x - a.x) * k / n, cz = a.z + (b.z - a.z) * k / n, edge = fortPathEdge(cx, cz, side);
+        const x = cx + nx * edge, z = cz + nz * edge;
         positions.push(x, riverGroundHeight(terrain, x, z) + A.groundLift * 2, z); uv.push(side, k);
       };
       for (let k = 0; k < n; k++) { point(k, -1); point(k + 1, 1); point(k + 1, -1); point(k, -1); point(k, 1); point(k + 1, 1); }
     }
-    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.computeVertexNormals(); ground.push(tinted(g, flags.debug ? C.pink : C.dirt));
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.computeVertexNormals(); ground.push(tinted(g, flags.debug ? C.pink : new THREE.Color(FORT_GROUND.pathGravel).lerp(new THREE.Color(FORT_GROUND.pathColor), FORT_GROUND.pathSoilMix)));
   }
   const groundMesh = meshOf('river-ground', ground, flags.debug ? new THREE.MeshBasicMaterial({ vertexColors: true }) : material(C.groundRoughness, true));
   if (groundMesh) { groundMesh.renderOrder = 1; groundMesh.material.polygonOffset = true; groundMesh.material.polygonOffsetFactor = -1; }
@@ -310,7 +323,12 @@ export function buildRiverDetails({ world, terrain, models = {}, search = global
     const maxSmall = Math.floor(A.smallCount * budget.fraction);
     for (const r of records) {
       const mesh = r.mesh;
-      if (r.rocks) {
+      if (r.fortRocks) {
+        const c = FORT_GROUND;
+        mesh.count = Math.ceil(layout.fortRocks.length * c.rockKeep[adapt] * (q === 'light' ? c.lightRockKeep : 1));
+        drawn.fortRocks = mesh.count; drawn.frameWork += layout.fortRocks.length;
+        drawn.triangles += r.triangles * mesh.count; if (mesh.count) drawn.draws++;
+      } else if (r.rocks) {
         for (let i = 0; i < layout.rocks.length; i++) {
           const d = layout.rocks[i]; drawn.frameWork++;
           if (d.kind === 'small' && (drawn.smallRocks >= maxSmall || Math.hypot(d.x - lastX, d.z - lastZ) > budget.smallDistance)) continue;
@@ -356,7 +374,7 @@ export function buildRiverDetails({ world, terrain, models = {}, search = global
       }
       pos.needsUpdate = true; clothMesh.geometry.computeVertexNormals();
     },
-    stats() { return { ...drawn, placed: { rocks: layout.rocks.length, foam: layout.foam.length, shoals: layout.shoals.length, gates: layout.gates.length, towers: layout.towers.length, huts: layout.huts.length, banners: layout.banners.length }, clearingRadius: layout.clearing?.radius || 0, clothVertices: clothBase ? clothBase.length / 3 : 0, bufferedTriangles: records.reduce((n, r) => n + r.triangles * (r.rocks ? layout.rocks.length : 1), 0) }; },
+    stats() { return { ...drawn, placed: { fortRocks: layout.fortRocks.length, rocks: layout.rocks.length, foam: layout.foam.length, shoals: layout.shoals.length, gates: layout.gates.length, towers: layout.towers.length, huts: layout.huts.length, banners: layout.banners.length }, clearingRadius: layout.clearing?.radius || 0, clothVertices: clothBase ? clothBase.length / 3 : 0, bufferedTriangles: records.reduce((n, r) => n + r.triangles * (r.rocks ? layout.rocks.length : r.fortRocks ? layout.fortRocks.length : 1), 0) }; },
     dispose() { if (disposed) return; disposed = true; for (const { mesh } of records) { mesh.dispose?.(); mesh.geometry.dispose(); mesh.material.dispose(); mesh.removeFromParent(); } foamMap?.dispose(); group.removeFromParent(); },
   };
   select({ position: { x: 0, z: 0 } }, typeof quality === 'string' ? quality : currentQuality(query), 0);

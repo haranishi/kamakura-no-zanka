@@ -205,7 +205,7 @@ test('legacy placement hashes and counts remain unchanged [legacy]', () => {
     ['trees', scatterTrees, '7327b88af62332e7', 15830], ['rocks', scatterRocks, '1da272cdfa7d6d2a', 267],
     ['grass', scatterGrass, '5abb950b2a60bd91', 21180], ['rice', scatterRice, '0e98efe119c6b88c', 21882], ['crops', scatterCrops, 'e3a37af7c7f007fb', 618],
   ]) {
-    const a = fn(WORLD, terrain), json = JSON.stringify(a, (_, v) => typeof v === 'number' ? Math.round(v * 1e6) / 1e6 : v);
+    const a = fn(WORLD, name === 'trees' ? createTerrain(WORLD, { fortShape: 0 }) : terrain, name === 'trees' ? { fort2: false } : undefined), json = JSON.stringify(a, (_, v) => typeof v === 'number' ? Math.round(v * 1e6) / 1e6 : v);
     assert.equal(a.x.length, count, `[legacy] ${name} count changed`);
     assert.equal(createHash('sha256').update(json).digest('hex').slice(0, 16), hash, `[legacy] ${name} output changed`);
   }
