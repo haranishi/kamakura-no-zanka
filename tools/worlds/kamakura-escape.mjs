@@ -62,7 +62,7 @@ export const ESCAPE=freeze({
   crags:{inner:1.45,ne:{along:[-2,24],depth:9.55},sw:{along:[-2.5,16],depth:7.05},cell:1.9,step:1.1,lift:.45},
   // Counts / metres: fallen stones round the ends of the two walls (none on the walls: the rock masses stand there). start/reach =
   // run of each heap beyond a wall end; base/spread = its distance from the road-side edge; push = step outwards until clear of the road.
-  talus:{count:9,size:[.6,2.2],width:2.2,start:.6,reach:3.6,base:1,spread:3.4,push:.5,pushMax:6,clear:.3},fenceHeight:1.1,
+  talus:{count:10,size:[.6,1.3],width:1.6,start:.6,reach:3.6,base:1,spread:3.4,push:.5,pushMax:6,clear:.3},fenceHeight:1.1,
   fences:[
     [[-90.8,371.6],[-98.8,380.6],[-104.9,384.6],[-111.9,388.6]],
     [[-64.5,357.2],[-78.9,365.6]],
