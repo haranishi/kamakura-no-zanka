@@ -24,7 +24,7 @@ export default async function ({ st, step, call, v, shot, freeze, start }) {
   await ev('arrived', { place: 'viewpoint' }); await adv(); await ev('choose_plan', { plan: 'front' }); await ev('enter_zone', { zone: 'village_front' });
   await ev('enemy_down', { id: 'officer', how: 'routed' }); await adv(); await ev('interact', { id: 'archer_captive' }); await adv(); await ev('party_joined', { id: 'archer' });
   await v("(document.body.classList.add('hide-hud'), document.getElementById('toast')?.classList.remove('on'), __valley.game.hud.showChoice?.(false), 0)");
-  await call('teleport', 0, 30, 0); await step(60);
+  await call('teleport', 0, 30, 0); await step(660);   // かまどの煙が立ちのぼるまで（約 11 秒ぶん）進める
   await cam('09-concept-overlook-saved', [30, 70, 180], [82.4, 36.3, -2.6], 64, 30);
   await cam('10-village-saved', [-34, 9, 34], [2, 2, 2], 50);
   await cam('11-terraces-saved', [-10, 14, 128], [0, 2, 30], 55);
