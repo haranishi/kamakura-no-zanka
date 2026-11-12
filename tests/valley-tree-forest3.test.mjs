@@ -44,10 +44,12 @@ test('forest3: protected height/density grid and all trunk/collider inputs match
 
 test('forest3: dense/sparse/open area, total count, empty openings and preserved sightlines', t => {
   const s = trees.forest3, a = s.area;
-  assert(a.dense >= .45 && a.dense <= .55);
-  assert(a.sparse >= .25 && a.sparse <= .35);
-  assert(a.open >= .15 && a.open <= .22);
-  assert(trees.x.length >= before.x.length * .8 && trees.x.length <= before.x.length * .95);
+  // Seen on the real screen, the first shares (dense 49%, sparse 33%, open 19%, one opening in every 120 m cell) read as hills
+  // dotted with tree clumps, not as a deep wooded valley. Most of the forest stays dense; openings are few, small and irregular.
+  assert(a.dense >= .72 && a.dense <= .88);
+  assert(a.sparse >= .08 && a.sparse <= .2);
+  assert(a.open >= .03 && a.open <= .09);
+  assert(trees.x.length >= before.x.length * .88 && trees.x.length <= before.x.length * .98);
   const counts = [0, 0];
   for (let i = 0; i < trees.x.length; i++) {
     const x = trees.x[i], z = trees.z[i], p = forestPatchAt(WORLD, x, z);
@@ -60,14 +62,14 @@ test('forest3: dense/sparse/open area, total count, empty openings and preserved
   const originalCounts = [0, 0, 0];
   before.x.forEach((x, i) => { const zone = forestPatchAt(WORLD, x, before.z[i]).zone; if (zone >= 0) originalCounts[zone]++; });
   const denseSpacing = Math.sqrt(originalCounts[0] / counts[0]);
-  assert(denseSpacing >= .7 && denseSpacing <= .85);
+  assert(denseSpacing >= .7 && denseSpacing <= 1.02, String(denseSpacing));
   assert(counts[1] / originalCounts[1] >= .4 && counts[1] / originalCounts[1] <= .6);
-  assert(s.openings > 30);
+  assert(s.openings > 30, String(s.openings));
   assert.deepEqual(scatterTrees(WORLD, terrain), trees);
   t.diagnostic(JSON.stringify({ ...s, scatterMs, counts, originalCounts, denseSpacing }));
 });
 
-test('forest3: openings are separate irregular 30–90m patches, excluding clipped boundary fragments', t => {
+test('forest3: openings are separate irregular 12–90m patches, excluding clipped boundary fragments', t => {
   const n = 321, step = 4, cells = new Uint8Array(n * n), seen = new Uint8Array(n * n), patches = [];
   for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) cells[j * n + i] = forestPatchAt(WORLD, -640 + i * step, -640 + j * step).zone === 2 ? 1 : 0;
   for (let k = 0; k < cells.length; k++) if (cells[k] && !seen[k]) {
@@ -84,8 +86,8 @@ test('forest3: openings are separate irregular 30–90m patches, excluding clipp
     }
     if (!clipped) patches.push({ span: (Math.max(maxX - minX, maxZ - minZ) + 1) * step, ratio: (maxX - minX + 1) / (maxZ - minZ + 1) });
   }
-  assert(patches.length > 60);
-  assert(patches.every(p => p.span >= 30 && p.span <= 90));
+  assert(patches.length > 25, String(patches.length));
+  assert(patches.every(p => p.span >= 12 && p.span <= 90), JSON.stringify(patches.filter(p => p.span < 12 || p.span > 90)));
   assert(patches.filter(p => Math.abs(p.ratio - 1) > .1).length > patches.length * .3, 'openings must not all be circular stamps');
   t.diagnostic(JSON.stringify({ fullOpenings: patches.length, span: [Math.min(...patches.map(p => p.span)), Math.max(...patches.map(p => p.span))] }));
 });

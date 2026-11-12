@@ -54,9 +54,10 @@ export function forestPatchAt(world, x, z) {
   const seed = world.seed + c.seed, ix = Math.floor(x / c.largeWave), iz = Math.floor(z / c.largeWave);
   const wx = c.warp * fbm(x / c.largeWave, z / c.largeWave, seed, 2);
   const wz = c.warp * fbm(x / c.largeWave, z / c.largeWave, seed + 1, 2);
-  let distance = Infinity;
+  let distance = c.far;
   for (let dz = -1; dz <= 1; dz++) for (let dx = -1; dx <= 1; dx++) {
     const gx = ix + dx, gz = iz + dz;
+    if (hash(gx, gz, seed + 8) >= c.openChance) continue; // この升目には、開地を置かない
     const cx = (gx + .5 + (hash(gx, gz, seed + 2) * 2 - 1) * c.jitter) * c.largeWave;
     const cz = (gz + .5 + (hash(gx, gz, seed + 3) * 2 - 1) * c.jitter) * c.largeWave;
     const radius = lerp(...c.radius, hash(gx, gz, seed + 4)), stretch = lerp(...c.stretch, hash(gx, gz, seed + 5));
