@@ -7,6 +7,14 @@ export const FIRE = Object.freeze({
   flameWidth: .65, roofEmbed: .3, eaveHeight: .62, roofInset: .38, // ratios: width, buried base, eave height, roof spread.
   flamePlanes: 3, flamePlanesMin: 2, flameCrossRad: Math.PI, // boards/tongue; radians: spread over a half turn (60° or 90° between boards).
   flameSizeMin: .62, flameSizeRange: .38, flamePeakEvery: 3, // height ratios; tongue interval: occasional tall ridge flare.
+  flameClusterMin: 2, flameClusterMax: 3, // tongues/cluster; a three-tongue budget leaves one isolated tip.
+  flamePairPull: .5, flameTriplePull: .4, flameClusterJitter: .04, // nominal slot ratios: contraction toward each cluster centre and shared ± jitter (total ≤ .45).
+  flameIsolatedPush: .24, // nominal slot ratio: separate the lone tip when only three roof tongues fit the budget.
+  flameHeightMin: .45, flameHeightMax: 1.55, flamePeakHeight: 1.45, // house reference height ratios: bounds and the single dominant cluster peak.
+  flameOtherPeak: 1.12, flameEdgeMin: .6, flameEdgeMax: .72, flameAreaTarget: .98, // height ratios: lesser peaks / low edges; target roof area relative to the previous layout.
+  flameWidthMin: .75, flameWidthMax: 1.35, // previous tongue width ratios; independent of the new height.
+  flameDepth: .25, flameTurnRad: Math.PI, // roof short-side fraction: ± depth scatter; radians: independent cross-plane rotation.
+  flameLeanMin: .6, flameLeanMax: 1.5, flameSwayMinHz: .65, flameSwayMaxHz: 1.35, flameSwayAmount: .16, // wind bend ratios; Hz and fractional bend oscillation.
   flameTipStart: .72, flameSideStart: .7, // normalized board coordinates: soften tips and lateral edges to zero.
   coalGain: .8, coalHotMix: .62, coalCoolGain: .34, // linear gain; flame-colour blend; minimum patch brightness.
   coalHz: .42, coalPulse: .28, coalNoiseScale: 3.4, coalEdgeStart: .75, // Hz; flicker fraction; patch frequency; normalized edge fade start.
@@ -134,7 +142,7 @@ export function fireHouseLayout(house) {
   for(const side of h.w>=FIRE.twoWindowsM?[-1,1]:[1])openings.push({...at(side*h.w*FIRE.windowOffset,FIRE.windowYM,h.d/2),w:FIRE.windowWidthM,h:FIRE.windowHeightM,kind:'window'});
   return {roofs,facade,openings,alongX};
 }
-export function flameTongue(source,house,index,count,out={}) {
+function legacyTongue(source,house,index,count,out={}) {
   const key=(source.index+1)*4099+index+Math.imul(Math.round(house.x*100),31)+Math.imul(Math.round(house.z*100),131),alongX=house.w>=house.d;
   const fromOpening=!house.ground&&index===count-1,roofCount=house.ground?count:count-1;
   let dx=0,dz=0,base=0;
@@ -151,7 +159,54 @@ export function flameTongue(source,house,index,count,out={}) {
   }
   const c=Math.cos(house.rotY),s=Math.sin(house.rotY);
   out.x=house.x+c*dx+s*dz;out.z=house.z-s*dx+c*dz;out.y=house.y+base-out.height*FIRE.roofEmbed;
-  out.angle=house.rotY+(alongX?0:Math.PI/2);out.opening=fromOpening;out.seed=fireRandom(key,8);return out;
+  out.width=out.height*FIRE.flameWidth;
+  out.angle=house.rotY+(alongX?0:Math.PI/2);out.opening=fromOpening;out.seed=fireRandom(key,8);
+  out.lean=1;out.swayHz=0;out.swayPhase=0;out.cluster=-1;return out;
+}
+// Keep the existing opening and ground flames intact. Roof tongues alone form irregular hills.
+export function flameTongue(source,house,index,count,out={}) {
+  legacyTongue(source,house,index,count,out);
+  if(out.opening||house.ground)return out;
+  const n=count-1,key=(source.index+1)*4099+Math.imul(Math.round(house.x*100),31)+Math.imul(Math.round(house.z*100),131);
+  const alongX=house.w>=house.d,run=alongX?house.w:house.d,depth=alongX?house.d:house.w;
+  const reference=clamp(house.height*mix(FIRE.flameScaleMin,FIRE.flameScaleMax,source.strength),FIRE.flameMinM,FIRE.flameMaxM);
+  const minGroups=Math.ceil(n/FIRE.flameClusterMax),maxGroups=Math.max(minGroups,Math.floor(n/FIRE.flameClusterMin));
+  const groups=n===FIRE.flameClusterMax?2:minGroups+Math.floor(fireRandom(key,10)*(maxGroups-minGroups+1));
+  const dominant=Math.floor(fireRandom(key,11)*groups),reverse=fireRandom(key,12)<.5;
+  const rows=[];let cursor=0,oldArea=0,area=0,minHeight=Infinity,maxHeight=0;
+  for(let group=0;group<groups;group++){
+    const size=Math.floor(n/groups)+(group<n%groups?1:0),peak=Math.floor(size/2);
+    const jitter=(fireRandom(key+group,13)*2-1)*FIRE.flameClusterJitter;
+    for(let local=0;local<size;local++){
+      const k=cursor+local,legacy=legacyTongue(source,house,k,count),seed=key+k;
+      const factor=local===peak?(group===dominant?FIRE.flamePeakHeight:FIRE.flameOtherPeak):mix(FIRE.flameEdgeMin,FIRE.flameEdgeMax,fireRandom(seed,14));
+      const height=reference*factor,width=legacy.width*mix(FIRE.flameWidthMin,FIRE.flameWidthMax,fireRandom(seed,15));
+      const pull=size===FIRE.flameClusterMax?FIRE.flameTriplePull:FIRE.flamePairPull;
+      const slot=k+((size-1)/2-local)*pull+jitter+(size===1?FIRE.flameIsolatedPush:0);
+      rows.push({slot:reverse?n-1-slot:slot,height,width,previousWidth:legacy.width,group});
+      oldArea+=legacy.width*legacy.height;area+=width*height;minHeight=Math.min(minHeight,factor);maxHeight=Math.max(maxHeight,factor);
+    }
+    cursor+=size;
+  }
+  // Preserve total additive area without thickening the base or changing fragment opacity.
+  const scale=clamp(oldArea*FIRE.flameAreaTarget/area,FIRE.flameHeightMin/minHeight,FIRE.flameHeightMax/maxHeight),t=rows[index];
+  // If height bounds stop area normalization, use only the remaining permitted width range.
+  const change=oldArea*FIRE.flameAreaTarget-area*scale,bound=change<0?FIRE.flameWidthMin:FIRE.flameWidthMax;
+  const capacity=rows.reduce((sum,row)=>sum+(row.previousWidth*bound-row.width)*row.height*scale,0);
+  const correction=capacity===0?0:clamp(change/capacity,0,1);
+  out.height=t.height*scale;out.width=mix(t.width,t.previousWidth*bound,correction);
+  const along=(t.slot/Math.max(1,n-1)*2-1)*run*FIRE.roofInset;
+  const cross=(fireRandom(key+index,16)*2-1)*depth*FIRE.flameDepth;
+  const dx=alongX?along:cross,dz=alongX?cross:along,c=Math.cos(house.rotY),s=Math.sin(house.rotY);
+  out.x=house.x+c*dx+s*dz;out.z=house.z-s*dx+c*dz;
+  out.y=house.y+house.height-FIRE.roofSlope*Math.abs(cross)-out.height*FIRE.roofEmbed;
+  out.angle+=fireRandom(key+index,17)*FIRE.flameTurnRad;
+  out.lean=mix(FIRE.flameLeanMin,FIRE.flameLeanMax,fireRandom(key+index,18));
+  out.swayHz=mix(FIRE.flameSwayMinHz,FIRE.flameSwayMaxHz,fireRandom(key+index,19));
+  out.swayPhase=fireRandom(key+index,20)*Math.PI*2;out.cluster=t.group;return out;
+}
+export function flameDrift(v,height,lean,hz,phase,time) {
+  return v*v*height*FIRE.flameWind*lean*(1+FIRE.flameSwayAmount*Math.sin(time*hz*2*Math.PI+phase));
 }
 export function smokeLight(t,day=1) {
   const u=clamp(t/FIRE.smokeLitEnd,0,1);
@@ -171,6 +226,10 @@ export function smokeProfile(t,height,windX=0,windZ=0,out={},seed=0,time=0,stren
   return out;
 }
 const gl=n=>Number(n).toFixed(8);
+export const FIRE_FLAME_GLSL=`
+float fireFlameDrift(float v,float height,float lean,float hz,float phase,float time){
+  return v*v*height*${gl(FIRE.flameWind)}*lean*(1.0+${gl(FIRE.flameSwayAmount)}*sin(time*hz*${gl(2*Math.PI)}+phase));
+}`;
 export const FIRE_SMOKE_GLSL=`
 vec4 fireSmokeProfile(float t,float height,vec2 wind,float seed,float time,float strength){
   t=clamp(t,0.0,1.0);
