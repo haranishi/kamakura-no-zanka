@@ -35,6 +35,7 @@ b0 庭へ降りる（`temple_yard` に入る）→ b1 穂太の話 → b2 林道
 
 ## 例
 - `tools/scenarios/capture-set.mjs`：固定画角を撮る（画面の採点・前後比較用）。影は主人公に追従するので、遠景を撮るときは主人公をカメラの足元へ置く。
+- `tools/scenarios/capture-concept.mjs`：構想の絵（隠れ谷の夕景）と見比べる固定画角 8 枚（絵と同じ向きの見渡し・棚田・川と橋・里・寺・砦・歩く視点 2 つ）。見渡しは、番地に `&autostart=new&intro=0&cam=concept` を付けても開ける（`&cam=<名前>` は `dist/valley/shots.js` の固定画角の名前）。
 - `tools/scenarios/regress-arrow-death.mjs`：矢で倒れても描画が止まらず、倒れた画面が出る（`--strict` で回す）。
 - `tools/scenarios/regress-retry-leak.mjs`：やり直しを4回繰り返しても形・画像が増えず、毎回主人公が立ち直って見晴らしへ戻り、里の敵5人が作り直される。
 - `tools/scenarios/regress-cleared-dialogue.mjs`：里を守った瞬間に振りかぶっていた兵の一撃・飛んでいる矢が、会話の最中に主人公へ当たらない（体力10で見守る）。
