@@ -216,7 +216,11 @@ export function buildRidges({ center = [WORLD.valley.cx, WORLD.valley.cz], searc
   const mist = mistEnabled ? mistMesh(sites, center) : null;
   if (mist) group.add(mist.mesh);
   let activeLayers = old ? 3 : 4, activeBands = mist?.bands.length ?? 0, work = 0;
+  // 深度の準備が済んだ後処理だけが帯を外す。単独の風景ページと未設定の場面は従来どおり。
+  let mist3 = false, lastConfig = null, activeKinds = { river: 0, basin: 0, ridge: 0 };
+  group.userData.setMist3 = enabled => { if (mist3 === enabled) return; mist3 = enabled; if (lastConfig) group.userData.configure(lastConfig); };
   group.userData.configure = ({ quality = 'standard', tier = 0, a }) => {
+    lastConfig = { quality, tier, a };
     activeLayers = old ? 3 : quality === 'light' || tier >= 2 ? 2 : tier ? 3 : 4;
     if (mountains) {
       const g = mountains.geometry, p = g.attributes.position;
@@ -238,7 +242,10 @@ export function buildRidges({ center = [WORLD.valley.cx, WORLD.valley.cz], searc
       activeBands = tier >= 3 ? Math.ceil(mist.bands.length / 3) : quality === 'light' || tier >= 2 ? Math.ceil(mist.bands.length / 2) : tier ? mist.bands.length - 2 : mist.bands.length;
       const eligible = mist.bands.map((band, i) => ({ band, i })).filter(({band}) => band.kind !== 'ridge' || RIDGES.layers.indexOf(band.layer) < activeLayers - 1);
       activeBands = Math.min(activeBands, eligible.length);
-      const selected = Array.from({ length: activeBands }, (_, i) => eligible[Math.floor(i * eligible.length / activeBands)].i);
+      const selected = Array.from({ length: activeBands }, (_, i) => eligible[Math.floor(i * eligible.length / activeBands)].i)
+        .filter(i => !mist3 || mist.bands[i].kind === 'ridge');
+      activeBands = selected.length; activeKinds = { river: 0, basin: 0, ridge: 0 };
+      for (const i of selected) activeKinds[mist.bands[i].kind]++;
       selected.sort((x, y) => x - y);
       const index = mist.mesh.geometry.index, perBand = MIST.segments * MIST.rows * 6;
       for (let i = 0; i < selected.length; i++) index.array.set(mist.indices.subarray(selected[i] * perBand, (selected[i] + 1) * perBand), i * perBand);
@@ -248,7 +255,7 @@ export function buildRidges({ center = [WORLD.valley.cx, WORLD.valley.cz], searc
     }
   };
   group.userData.update = dt => { if (mist) mist.mesh.material.uniforms.clock.value += dt; };
-  group.userData.stats = () => ({ ridgeLayers: activeLayers, mistBands: activeBands,
+  group.userData.stats = () => ({ ridgeLayers: activeLayers, mistBands: activeBands, mistBandKinds: { ...activeKinds }, mist3,
     drawCalls: old ? 3 + (mist ? 1 : 0) : 1 + (mist ? 1 : 0),
     triangles: activeLayers * RIDGES.segments * 2 + activeBands * MIST.segments * MIST.rows * 2,
     work, siteHeightSamples: heightSamples, vertices: (mountains ? mountains.geometry.attributes.position.count : 0) + (mist ? mist.mesh.geometry.attributes.position.count : 0), updateWork: mist ? 1 : 0, textureBytes: 0 });
