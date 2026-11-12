@@ -9,7 +9,9 @@ export const CRAG = Object.freeze({
   topRate: .35, topDoubleRate: .08, edgeRate: .45, edgeSteps: 3, cornerSteps: 2, // fractions / counts: top breaks and contour lowering.
   sharedCornerLimit: .2, // edge-clearance fraction: keep shared corner motion from crossing a thin cell.
   foldFacesMin: 3, foldFacesMax: 4, // counts: planar roof sectors (each may need several triangles along its outline).
-  foldLowRate: .3, foldShift: .3, foldMin: .4, foldMax: 1.1, // fraction / width fraction / layer fractions: depressed hubs, hub drift and roof height.
+  // Real Chrome: at .4 to 1.1 of a layer every block ended in a pyramid, and the mass read as a cluster of crystals. Lower roofs
+  // read as broken rock, and are gentle enough for the grass cover to settle on them.
+  foldLowRate: .3, foldShift: .3, foldMin: .12, foldMax: .5, // fraction / width fraction / layer fractions: depressed hubs, hub drift and roof height.
   bendLength: 2.2, bendMin: .12, bendMax: .35, // m: minimum outer edge length and mid-edge wall displacement.
   offsetFade: .25, // m: strong beds taper to zero at shared cap junctions.
   cavityGain: .7, rimGain: 1.1, hueVariation: .04, // brightness / brightness / warm-cool rock tint fraction.

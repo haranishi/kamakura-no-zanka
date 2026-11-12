@@ -384,7 +384,8 @@ test('folded roofs: three or four planar sectors, upward normals, terrain cleara
     const r=buildCrags([{...rect('folds',40,35),rise_m:4}],ground,{quality}),blocks=r.plans[0].blocks;
     near(blocks.filter(b=>b.fold<0).length/blocks.length,.3,.1);assert.equal(r.folded,blocks.length);verifyGeometry(r);
     for(const b of blocks) {
-      assert(Math.abs(b.fold)/b.step>=.4&&Math.abs(b.fold)/b.step<=1.1);
+      // The roof height follows the tuning constants (lowered after pyramids read as crystals in a real browser): below a layer, above flat.
+      assert(C.foldMin>.05&&C.foldMax<=.6&&C.foldMax>C.foldMin);assert(Math.abs(b.fold)/b.step>=C.foldMin-1e-9&&Math.abs(b.fold)/b.step<=C.foldMax+1e-9);
       assert(b.roofFaces>=2&&b.roofFaces<=4);
       const normalGroups=[];
       for(let i=0;i<r.faces.length;i++)if(r.faces[i].block===b.index&&['rock','soil'].includes(r.faces[i].kind)) {
