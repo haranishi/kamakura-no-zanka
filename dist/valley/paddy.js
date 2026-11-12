@@ -4,12 +4,15 @@ import { createTerrain } from './terrain-height.js';
 
 export const PADDY = Object.freeze({
   sampleStep: .5, lineStep: 1.2, maskMin: .90, edgeNoise: .025, // m／比：段の標本・折れ線間隔・栽培域と外縁の揺れ。
-  bundEdgeFraction: .045, edgeFrequencyX: .71, edgeFrequencyZ: .83, // 段内比／rad/m：畦の余白と外縁の雑音。
+  bundEdgeFraction: .02, edgeFrequencyX: .71, edgeFrequencyZ: .83, // 段内比／rad/m：畦の余白と外縁の雑音。
   splitJitter: .6, splitPeriod: 11, flatTolerance: .025, // m：南北畦の蛇行・波長・踏み面の許容高低差。
-  stoneBandWidth: .95, rowJitter: .35, rowSpacing: 1.05, // m／比：法面の帯幅・条内の株の揺れ・遠景の条間。
+  stoneBandWidth: 1.4, rowJitter: .35, rowSpacing: 1.05, // m／比：法面の帯幅・条内の株の揺れ・遠景の条間。
+  edgeAmplitude: 4, edgePeriods: [18, 23], edgeDetail: .18, edgeMaskFloor: .3, // m／比：外縁の変位・波長・細部・栽培域の下限。
+  maxPlotArea: 500, splitAreaTarget: 390, harvestCluster: 3, harvestNorthBias: .65, // ㎡／枚／比：区画上限と分割余裕・刈田の塊・北への偏り。
+  edgeStonePitch: 4, edgeStoneChance: .35, // m／比：外縁の崩れた石の間隔と採用率。
   propStepX: 1, propStepZ: .4, // m：狭い踏み面で稲架と藁束の置き場を探す刻み。
   standing: .60, harvested: .25, partial: .15, // 枚数比。端数は最も近い整数へ。
-  bundWidth: .75, bundHeight: .19, // m：草の畦の幅と田面からの高さ。
+  bundWidth: .65, bundHeight: .19, // m：草の畦の幅と田面からの高さ。
   variation: .08, // 色・丈の区画差の最大比率。
   nearStart: 60, nearEnd: 95, farEnd: 300, // m：近遠混合帯と標準の最遠距離。
   farStep: 1.15, lightDensity: .15, lightEnd: 200, // m／比率：遠景株の条内間隔・軽量密度・軽量距離。
@@ -34,16 +37,18 @@ export const PADDY_LOOK = Object.freeze({
   grass: '#65803d', rock: '#d2d2c8', wood: '#bfae92', // 既存の高草・里の薄い岩・木材の色。
   soil: '#967850', soilGain: .42, cutRiceMix: .65, cutGain: 1.38, cutPatch: .15, patchGain: 1.25, // 土は既存地図の土色(150,120,80)。刈田は稲を65%混色、15%に落ち藁。
   riceGreen: .18, rootEnd: 40, rootStart: 22, waveShade: .08, // 緑の残る黄・根元の暗土から地色への距離m・条と風の明暗比。
-  rockGain: .95, rockVariation: .12, rockSoil: .12, rockGrass: .10, // 既存岩色の明度・石ごとの差・上段の土と草色の混合。
-  bundSoil: .25, strawWhite: .35, // 畦の土の最大混色率・立てた藁束の白木色混合率。
+  rockGain: .66, rockVariation: .12, rockSoil: .5, rockGrass: .10, // 既存岩色の明度・石ごとの差・上段の土と草色の混合。
+  bundSoil: .25, bundCrownGain: 1.7, strawWhite: .35, // 比：畦の土の混色率・壁上の畦の明度倍率・藁束の白木色混合率。
   phaseRange: 256, phaseOffset: 128, // m：条の座標テクスチャの符号化範囲と原点。
   rowGradient: .1, rowPeriod: 1.05, rowStrength: .06, cutRowStrength: .10, // m/m／m／比：条の高さ方向換算・周期・立稲と刈田の筋。
   groundWaveDirection: [Math.SQRT1_2, Math.SQRT1_2], // 単位方向：地色を渡る風。波長を斜め方向でもm単位に保つ。
   groundWavePeriod: 16, groundWaveStrength: .08, groundWaveSpeed: .18, // m／比／rad/s：地色の風の波長・明暗・速度。
   debugHueStep: 1/7, debugSaturation: .85, debugTreadLightness: .6, debugRiserLightness: .35, // 確認色：段の色相間隔・彩度・踏み面と法面の明度。
-  farRoot: [.5, .5, .22], stoneMidRail: .55, // 線形RGB／比：遠景の房の根元・石帯の中間断面。
-  farShadeFloor: .72, stoneShadow: .42, stoneGrassEdge: .16, // 比：房の日陰の下限・石帯の下端の影・上端の草混色。
-  mapStep: .5, farWidth: 1.25, farHeight: .86, // m：地色格子、遠景の房の幅・丈。
+  farGain: .88, farDesaturate: .12, farWarmth: .90, farHueVariation: .006, // 比／色相：既存の稲色から遠景を暗く・低彩度・橙へ、区画の熟れ差。
+  farRootGain: .94, farTipMix: .24, farShadowTint: [1.06, .97, .86], // 比：根元の明度・穂先の混色・日陰の橙茶。
+  // 遠景の色は線形RGBで計算する。
+  farShadeFloor: .66, stoneShadow: .42, stoneShadowWidth: .5, stoneGrassEdge: .16, // 比／m：房の日陰・石帯下端の影・影幅・上端の草混色。
+  mapStep: .5, farWidth: .85, farHeight: .24, // m：地色格子、遠景の房の幅・丈。
   windSpaceX: .37, windSpaceZ: .21, windSlow: 1.15, windFast: 2.4, // 既存稲と同じ風の空間位相・角速度。
   windPhase: 1.7, windAmplitude: .045, windX: .5, windZ: .28, // 風の位相倍率・振幅・方向成分。
   flutter: .03, flutterX: 3.6, flutterZ: 3.1, flutterHeight: 1.9, flutterWidth: 1.7, // 既存稲の小揺れ。
@@ -82,40 +87,60 @@ function terraceField(world, terrain) {
     return (data[k]*(1-a)+data[k+1]*a)*(1-b)+(data[k+nx]*(1-a)+data[k+nx+1]*a)*b;
   };
   return { nx,nz,step,values,masks,edge:1-T.riser/(T.drop*14),
-    value:(x,z)=>sample(values,x,z), mask:(x,z)=>sample(masks,x,z), height:(x,z)=>sample(heights,x,z) };
+    exactHeight:terrain.heightAt, exactTerrace:terrain.terraceAt, value:(x,z)=>sample(values,x,z), mask:(x,z)=>sample(masks,x,z), height:(x,z)=>sample(heights,x,z) };
+}
+// 二つの波長を重ねて直線の外縁を崩す。角は元のmaskの積で丸くつながる。
+export function paddyEdgeMask(field,x,z) {
+  const [a,b]=PADDY.edgePeriods, wave=t=>PADDY.edgeAmplitude*(Math.sin(t/a*2*Math.PI)+PADDY.edgeDetail*Math.sin(t/b*2*Math.PI))/(1+PADDY.edgeDetail);
+  return Math.min(field.mask(x,z)/PADDY.edgeMaskFloor, field.mask(x+wave(z),z+wave(x)));
 }
 const splitX=(p,z,right=false)=> (right?p.x1:p.x0) + ((right?p.outerRight:p.outerLeft)?0:PADDY.splitJitter*Math.sin(z/PADDY.splitPeriod*2*Math.PI+p.level));
 export function createPaddyPlots(world, terrain = createTerrain(world)) {
   // 一部の描画試験は平面の代用品を渡す。段の定義自体は必ず実地形から取る。
   const source=terrain.terraceAt?terrain:createTerrain(world), field=terraceField(world,source), T=world.terraces, levels=new Map(), plots=[];
   for(let j=0;j<field.nz;j++) for(let i=0;i<field.nx;i++) {
-    const k=j*field.nx+i;if(field.masks[k]<PADDY.maskMin)continue;
-    const level=Math.max(0,Math.floor(field.values[k])),x=T.x0+i*field.step,z=T.z0+j*field.step;
-    if(!levels.has(level))levels.set(level,{level,x0:x,x1:x,z0:z,z1:z});
-    const b=levels.get(level);b.x0=Math.min(b.x0,x);b.x1=Math.max(b.x1,x);b.z0=Math.min(b.z0,z);b.z1=Math.max(b.z1,z);
+    const k=j*field.nx+i;if(paddyEdgeMask(field,T.x0+i*field.step,T.z0+j*field.step)<PADDY.maskMin)continue;
+    const level=Math.floor(field.values[k]),x=T.x0+i*field.step,z=T.z0+j*field.step;
+    if(!levels.has(level))levels.set(level,{level,x0:x,x1:x,z0:z,z1:z,area:0});
+    const b=levels.get(level);b.area+=field.step**2;b.x0=Math.min(b.x0,x);b.x1=Math.max(b.x1,x);b.z0=Math.min(b.z0,z);b.z1=Math.max(b.z1,z);
   }
   const bands=[...levels.values()].filter(b=>b.x1-b.x0>2 && b.z1-b.z0>1).sort((a,b)=>a.z0-b.z0 || b.level-a.level);
   for(const [row,b] of bands.entries()) {
-    const count=1+Math.floor(hash(world.seed,b.level,0)*3);
+    const count=Math.min(3,Math.max(1+Math.floor(hash(world.seed,b.level,0)*3),Math.ceil(b.area/Math.min(PADDY.splitAreaTarget,PADDY.maxPlotArea))));
     for(let i=0;i<count;i++) plots.push({id:plots.length,row,level:b.level,x0:b.x0+(b.x1-b.x0)*i/count,x1:b.x0+(b.x1-b.x0)*(i+1)/count,z0:b.z0,z1:b.z1,
-      outerLeft:i===0,outerRight:i===count-1,tint:1+(hash(world.seed,b.level,i)*2-1)*PADDY.variation,height:1+(hash(world.seed+1,b.level,i)*2-1)*PADDY.variation});
+      outerLeft:i===0,outerRight:i===count-1,hue:(hash(world.seed+20,b.level,i)*2-1)*PADDY_LOOK.farHueVariation,tint:1+(hash(world.seed,b.level,i)*2-1)*PADDY.variation,height:1+(hash(world.seed+1,b.level,i)*2-1)*PADDY.variation});
   }
-  const order=[...plots].sort((a,b)=>a.row-b.row || hash(world.seed+2,a.x0,a.level)-hash(world.seed+2,b.x0,b.level));
-  const total=PADDY.standing+PADDY.harvested+PADDY.partial, cut=Math.round(plots.length*PADDY.harvested/total),partial=Math.round(plots.length*PADDY.partial/total);
-  order.forEach((p,i)=>{p.kind=i<cut?'harvested':i<cut+partial?'partial':'standing';});
+  plots.forEach(p=>{p.area=0;});
   Object.defineProperties(plots,{field:{value:field},world:{value:world},bands:{value:bands}});
+  for(let z=T.z0+field.step/2;z<T.z1;z+=field.step)for(let x=T.x0+field.step/2;x<T.x1;x+=field.step){const s=paddyAt(plots,x,z);if(s?.cultivated)s.plot.area+=field.step**2;}
+  // 面積0の細い法面だけの切れ端は田に数えない。田面がある帯と区画だけを残す。
+  for(let i=plots.length-1;i>=0;i--)if(!plots[i].area)plots.splice(i,1);
+  for(let i=bands.length-1;i>=0;i--)if(!plots.some(p=>p.level===bands[i].level))bands.splice(i,1);
+  plots.forEach((p,id)=>{p.id=id;p.row=bands.findIndex(b=>b.level===p.level);});
+  const total=PADDY.standing+PADDY.harvested+PADDY.partial, cut=Math.round(plots.length*PADDY.harvested/total),partial=Math.round(plots.length*PADDY.partial/total);
+  plots.forEach(p=>{p.kind='standing';});
+  // 各南北区間に2〜4枚の連続した塊を置く。窓の中だけ北寄りにし、南の刈田も残す。
+  const clusters=Math.max(1,Math.round(cut/PADDY.harvestCluster));
+  for(let c=0;c<clusters;c++) {
+    const first=Math.floor(c*plots.length/clusters),last=Math.floor((c+1)*plots.length/clusters),size=Math.floor(cut/clusters)+(c<cut%clusters?1:0);
+    const offset=Math.floor(hash(world.seed+2,c,0)*(last-first-size)*PADDY.harvestNorthBias);
+    for(let i=0;i<size;i++)plots[first+offset+i].kind='harvested';
+  }
+  plots.filter(p=>p.kind==='standing').sort((a,b)=>hash(world.seed+21,a.level,a.x0)-hash(world.seed+21,b.level,b.x0)).slice(0,partial).forEach(p=>{p.kind='partial';});
   return plots;
 }
 export function paddyAt(plots,x,z) {
   const T=plots.world.terraces;if(x<T.x0||x>=T.x1||z<T.z0||z>=T.z1)return null;
-  const field=plots.field,mask=field.mask(x,z),threshold=PADDY.maskMin+PADDY.edgeNoise*Math.sin(x*PADDY.edgeFrequencyX+Math.sin(z*PADDY.edgeFrequencyZ));
+  const field=plots.field,mask=paddyEdgeMask(field,x,z),threshold=PADDY.maskMin+PADDY.edgeNoise*Math.sin(x*PADDY.edgeFrequencyX+Math.sin(z*PADDY.edgeFrequencyZ));
   if(mask<threshold)return null;
-  // 峰の合成が負の標高を0へ持ち上げる既存地形では、南側を同じ平場として扱う。
-  const f=field.value(x,z),level=Math.max(0,Math.floor(f)),frac=f<0?field.edge/2:f-level;
+  const f=field.value(x,z),terrace=field.exactTerrace(x,z),level=terrace.level,frac=terrace.frac;
   const p=plots.find(p=>p.level===level&&x>=splitX(p,z)&&x<splitX(p,z,true));if(!p)return null;
-  const riser=frac>=field.edge;
-  const flat=Math.abs(field.height(x,z)-level*T.drop)<=PADDY.flatTolerance;
-  const bund=(!p.outerLeft&&x-splitX(p,z)<PADDY.bundWidth/2)||(!p.outerRight&&splitX(p,z,true)-x<PADDY.bundWidth/2)||frac<PADDY.bundEdgeFraction||frac>field.edge-PADDY.bundEdgeFraction;
+  const hasDrop=Math.max(0,(level+1)*T.drop)-Math.max(0,level*T.drop)>=PADDY.shallowDrop;
+  const riser=hasDrop&&frac>=field.edge;
+  const target=Math.max(0,level*T.drop);
+  const flat=Math.abs(field.exactHeight(x,z)-target)<=PADDY.flatTolerance;
+  const flatBoundary=Math.min(frac,1-frac)*T.drop/PADDY_LOOK.rowGradient<PADDY.bundWidth/2;
+  const bund=(!hasDrop&&flatBoundary)||(!p.outerLeft&&x-splitX(p,z)<PADDY.bundWidth/2)||(!p.outerRight&&splitX(p,z,true)-x<PADDY.bundWidth/2)||(hasDrop&&(frac<PADDY.bundEdgeFraction||frac>field.edge-PADDY.bundEdgeFraction));
   return {plot:p,bund:bund||riser||!flat,riser,frac,mask,cultivated:flat&&!riser,
     rowPhase:f*T.drop/PADDY_LOOK.rowGradient,cut:p.kind==='harvested'||(p.kind==='partial'&&frac<field.edge/2)};
 }
@@ -124,7 +149,7 @@ function terraceLines(plots) {
   const {field,world}=plots,T=world.terraces,lines=[],step=field.step;
   const key=p=>`${p.x.toFixed(5)},${p.z.toFixed(5)}`;
   for(const band of plots.bands) {
-    const iso=band.level+(1+field.edge)/2,segments=[],nodes=new Map();
+    const iso=band.level+(band.level>=0?(1+field.edge)/2:1),segments=[],nodes=new Map();
     for(let j=0;j<field.nz-1;j++)for(let i=0;i<field.nx-1;i++) {
       const k=j*field.nx+i, ids=[k,k+1,k+field.nx+1,k+field.nx],xy=[[i,j],[i+1,j],[i+1,j+1],[i,j+1]],hits=[];
       for(let e=0;e<4;e++) {const n=(e+1)%4,a=field.values[ids[e]],b=field.values[ids[n]];
@@ -171,29 +196,56 @@ export function paddyGroundHeight(terrain, x, z) {
 export function createPaddyLayout(world, terrain) {
   const T=world.terraces,plots=createPaddyPlots(world,terrain),field=plots.field,lines=terraceLines(plots);
   const stones=[],bunds=[],far=[],stubble=[],grass=[],walls=[],racks=[],straw=[];
+  const boundaries=new Map();
   const direction=(x,z)=>{const e=field.step,dx=field.value(x+e,z)-field.value(x-e,z),dz=field.value(x,z+e)-field.value(x,z-e),l=Math.hypot(dx,dz)||1;return {x:dx/l,z:dz/l};};
-  const addBund=(a,b,row)=>{
+  const addBund=(a,b,row,flat=false,outer=false,crown=false)=>{
     const length=Math.hypot(b.x-a.x,b.z-a.z),x=(a.x+b.x)/2,z=(a.z+b.z)/2;
     if(length<.01||!clearRoad(terrain,x,z,length/2+PADDY.bundWidth/2))return;
-    bunds.push({x,z,y:paddyGroundHeight(terrain,x,z),y0:paddyGroundHeight(terrain,a.x,a.z),y1:paddyGroundHeight(terrain,b.x,b.z),a,b,row,sx:length,sz:PADDY.bundWidth,alongX:true,jitter:PADDY.bundJitter});
+    bunds.push({flat,outer,crown,x,z,y:paddyGroundHeight(terrain,x,z),y0:paddyGroundHeight(terrain,a.x,a.z),y1:paddyGroundHeight(terrain,b.x,b.z),a,b,row,sx:length,sz:PADDY.bundWidth,alongX:true,jitter:PADDY.bundJitter});
   };
-  let stoneLength=0;
+  let stoneLength=0,contourLength=0;
   for(const line of lines)for(let i=1;i<line.points.length;i++) {
     const a=line.points[i-1],b=line.points[i],x=(a.x+b.x)/2,z=(a.z+b.z)/2,length=Math.hypot(b.x-a.x,b.z-a.z);
-    if(field.mask(x,z)<PADDY.maskMin+PADDY.edgeNoise*Math.sin(x*PADDY.edgeFrequencyX+Math.sin(z*PADDY.edgeFrequencyZ))||!clearRoad(terrain,x,z,length/2+PADDY.stoneBandWidth))continue;
+    if(paddyEdgeMask(field,x,z)<PADDY.maskMin+PADDY.edgeNoise*Math.sin(x*PADDY.edgeFrequencyX+Math.sin(z*PADDY.edgeFrequencyZ))||!clearRoad(terrain,x,z,length/2+PADDY.stoneBandWidth))continue;
+    contourLength+=length;
+    const n=direction(x,z),half=PADDY.stoneBandWidth/2;
+    const realDrop=Math.abs(field.height(x+n.x*half,z+n.z*half)-field.height(x-n.x*half,z-n.z*half));
+    if(line.level<0||realDrop<PADDY.shallowDrop) {
+      addBund(a,b,line.row,line.level<0);if(!boundaries.has(line.level))boundaries.set(line.level,false);continue;
+    }
+    boundaries.set(line.level,true);
     const edge=p=>{const n=direction(p.x,p.z),half=PADDY.stoneBandWidth/2;
       return [ {x:p.x+n.x*half,z:p.z+n.z*half}, {x:p.x-n.x*half,z:p.z-n.z*half} ];};
     const [aTop,aBottom]=edge(a),[bTop,bBottom]=edge(b);
     for(const p of [aTop,aBottom,bTop,bBottom])p.y=clamp(paddyGroundHeight(terrain,p.x,p.z)+PADDY_LOOK.detailsLift,Math.max(0,line.level*T.drop),(line.level+1)*T.drop);
     const top=Math.max(aTop.y,bTop.y,aBottom.y,bBottom.y),bottom=Math.min(aTop.y,bTop.y,aBottom.y,bBottom.y);
-    walls.push({row:line.row,level:line.level,x,z,top,bottom,drop:top-bottom,width:length,aTop,aBottom,bTop,bBottom});stoneLength+=length;
-    addBund(aTop,bTop,line.row);
+    const shadow=p=>{const n=direction(p.x,p.z),x=p.x-n.x*PADDY_LOOK.stoneShadowWidth,z=p.z-n.z*PADDY_LOOK.stoneShadowWidth;return {x,z,y:paddyGroundHeight(terrain,x,z)+PADDY_LOOK.detailsLift};};
+    walls.push({aShadow:shadow(aBottom),bShadow:shadow(bBottom),realDrop,row:line.row,level:line.level,x,z,top,bottom,drop:top-bottom,width:length,aTop,aBottom,bTop,bBottom});stoneLength+=length;
+    addBund(aTop,bTop,line.row,false,false,true);
     const layers=top-bottom<PADDY.shallowDrop?1:PADDY.stoneLayers;
     for(let layer=0;layer<layers;layer++) {
       const t=(layer+.5)/layers,ax=aBottom.x+(aTop.x-aBottom.x)*t,az=aBottom.z+(aTop.z-aBottom.z)*t,bx=bBottom.x+(bTop.x-bBottom.x)*t,bz=bBottom.z+(bTop.z-bBottom.z)*t;
       const sx=ax+(bx-ax)*(layer?.65:.3),sz=az+(bz-az)*(layer?.65:.3),y=paddyGroundHeight(terrain,sx,sz);
       stones.push({row:line.row,layer,layers,x:sx,z:sz,y,top:Math.max(top,y),bottom:Math.min(bottom,y),drop:top-bottom,followsContour:true,
         width:PADDY.stoneMin+hash(world.seed+layer,x,z)*(PADDY.stoneMax-PADDY.stoneMin),height:Math.max(PADDY.stoneHeightMin,(top-bottom)/layers),depth:PADDY.stoneDepthMin+hash(world.seed+8,x,layer)*(PADDY.stoneDepthMax-PADDY.stoneDepthMin),tilt:(hash(world.seed+9,x,layer)*2-1)*PADDY.stoneTilt,turn:hash(world.seed+10,x,layer)*Math.PI*2,shade:1+(hash(world.seed+11,x,layer)*2-1)*PADDY_LOOK.rockVariation});
+    }
+  }
+  // 稲をやめる縁の外に草の土手とまばらな崩れ石。長い直線を追加しない。
+  for(const side of ['east','west','south','north']) {
+    const alongX=side==='south'||side==='north', high=side==='east'||side==='south';let previous=null;
+    const from=alongX?T.x0:T.z0,to=alongX?T.x1:T.z1;
+    for(let u=from;u<to;u+=PADDY.lineStep) {
+      let point=null;
+      for(let v=high?(alongX?T.z1:T.x1):(alongX?T.z0:T.x0);high?v>(alongX?T.z0:T.x0):v<(alongX?T.z1:T.x1);v+=high?-field.step:field.step) {
+        const x=alongX?u:v,z=alongX?v:u;
+        if(paddyAt(plots,x,z)){point={x,z};break;}
+      }
+      if(point&&previous&&Math.hypot(point.x-previous.x,point.z-previous.z)<PADDY.edgeStonePitch)addBund(previous,point,-1,false,true);
+      if(point&&hash(world.seed+22,u,from)<PADDY.edgeStoneChance&&Math.round((u-from)/PADDY.lineStep)%Math.ceil(PADDY.edgeStonePitch/PADDY.lineStep)===0&&paddyPropClear(world,terrain,point.x,point.z,.5)) {
+        const y=paddyGroundHeight(terrain,point.x,point.z),height=PADDY.stoneHeightMin;
+        stones.push({x:point.x,z:point.z,y,top:y+height/2,bottom:y-height/2,height,width:PADDY.stoneMin,depth:PADDY.stoneDepthMin,tilt:0,turn:hash(world.seed+23,u,from)*Math.PI,shade:1,layer:0,layers:1,outer:true});
+      }
+      previous=point;
     }
   }
   // 南北の短い仕切り。外縁を長方形の畦で囲まない。
@@ -218,14 +270,15 @@ export function createPaddyLayout(world, terrain) {
     const t=(i+.5)/count,x=b.a.x+(b.b.x-b.a.x)*t,z=b.a.z+(b.b.z-b.a.z)*t;
     grass.push({x,z,y:b.y0+t*(b.y1-b.y0)+PADDY.bundHeight+paddyBundLift(x,z),height:PADDY.grassMin+(PADDY.grassMax-PADDY.grassMin)*hash(world.seed+13,x,z)});
   }
+  const rackQuota=Math.ceil(PADDY.rackCount/plots.filter(p=>p.kind==='harvested').length);
   // 小物の全ての足が同じ踏み面に収まることを確認。道・任務・巡回の余白は元の判定を使う。
   for(let z=T.z0;z<T.z1;z+=PADDY.propStepZ)for(let x=T.x0;x<T.x1;x+=PADDY.propStepX) {
     const s=paddyAt(plots,x,z);if(!s||s.bund||s.plot.kind!=='harvested')continue;
     const n=direction(x,z),turn=Math.atan2(n.x,n.z),dx=n.z,dz=-n.x;
     const length=PADDY.rackMinLength+hash(world.seed+4,x,z)*(PADDY.rackMaxLength-PADDY.rackMinLength),radius=Math.hypot(length/2,.8);
     const foot=(along,across)=>paddyAt(plots,x+dx*along+n.x*across,z+dz*along+n.z*across);
-    if(racks.length<PADDY.rackCount && paddyPropClear(world,terrain,x,z,radius)&&[-1,1].every(a=>[-.8,.8].every(b=>{const q=foot(a*length/2,b);return q&&!q.bund&&q.plot.id===s.plot.id;})) && racks.every(r=>Math.hypot(x-r.x,z-r.z)>radius+r.radius+1))racks.push({x,z,y:paddyGroundHeight(terrain,x,z),turn,length,height:PADDY.rackHeight,radius,plot:s.plot.id});
-    if(straw.length>=PADDY.strawCount||racks.some(r=>Math.hypot(x-r.x,z-r.z)<r.radius+1.5)||straw.some(r=>Math.hypot(x-r.x,z-r.z)<3))continue;
+    if(racks.filter(r=>r.plot===s.plot.id).length<rackQuota&&racks.length<PADDY.rackCount && paddyPropClear(world,terrain,x,z,radius)&&[-1,1].every(a=>[-.8,.8].every(b=>{const q=foot(a*length/2,b);return q&&!q.bund&&q.plot.id===s.plot.id;})) && racks.every(r=>Math.hypot(x-r.x,z-r.z)>radius+r.radius+1))racks.push({x,z,y:paddyGroundHeight(terrain,x,z),turn,length,height:PADDY.rackHeight,radius,plot:s.plot.id});
+    if(straw.filter(r=>r.plot===s.plot.id).length>=4||straw.length>=PADDY.strawCount||racks.some(r=>Math.hypot(x-r.x,z-r.z)<r.radius+1.5)||straw.some(r=>Math.hypot(x-r.x,z-r.z)<3))continue;
     const cluster=[];
     for(let k=0;k<4;k++){const sx=x+dx*(k%2)*.8+n.x*Math.floor(k/2)*.8,sz=z+dz*(k%2)*.8+n.z*Math.floor(k/2)*.8,q=paddyAt(plots,sx,sz);
       if(!q||q.bund||q.plot.id!==s.plot.id||!paddyPropClear(world,terrain,sx,sz,.5)||racks.some(r=>Math.hypot(sx-r.x,sz-r.z)<r.radius+.7))break;
@@ -233,7 +286,7 @@ export function createPaddyLayout(world, terrain) {
     if(cluster.length===4)straw.push(...cluster);
   }
   far.sort((a,b)=>a.rank-b.rank);
-  return {bounds:T,plots,lines,stones,walls,bunds,far,stubble,grass,racks,straw,stoneLength,terraces:plots.bands.length,stoneBandVertices:walls.length*18};
+  return {bounds:T,plots,lines,stones,walls,bunds,far,stubble,grass,racks,straw,stoneLength,contourLength,terraces:plots.bands.length,raisedBoundaries:[...boundaries.values()].filter(Boolean).length,flatBoundaries:[...boundaries.values()].filter(v=>!v).length,maxPlotArea:Math.max(...plots.map(p=>p.area)),stoneBandVertices:walls.length*18};
 }
 export function paddyNearRice(data, plots) {
   const out = { x: [], y: [], z: [], s: [], rot: [], tint: [] }, plotKinds = [];

@@ -9,13 +9,13 @@ import * as THREE from '../dist/vendor/three.module.min.js';
 import { moduleURL } from './helpers/tree-modules.mjs';
 import { WORLD } from '../dist/valley/world-data.js';
 import { createTerrain } from '../dist/valley/terrain-height.js';
-import { createPaddyLayout, PADDY, PADDY_LOOK, PADDY_DEBUG, paddyAt } from '../dist/valley/paddy.js';
+import { createPaddyLayout, PADDY, PADDY_LOOK, PADDY_DEBUG, paddyAt, paddyGroundHeight } from '../dist/valley/paddy.js';
 const base = new URL('../dist/valley/', import.meta.url), vendor = new URL('../dist/vendor/three.module.min.js', import.meta.url).href;
 const read = f => fs.readFileSync(new URL(f, base), 'utf8');
 const asModule = s => 'data:text/javascript;base64,' + Buffer.from(s).toString('base64');
 const rewrite = f => read(f).replace(/from 'three'/g, `from '${vendor}'`).replace(/from '(\.\/[^']+)'/g, (_, p) => `from '${new URL(p, base).href}'`);
 const paddyURL = asModule(rewrite('paddy-view.js'));
-const { buildPaddy, patchPaddyRice, paddyStoneGeometry, paddyBundGeometry, paddyTuftGeometry, paddySurfaceColor, paddyStoneBandGeometry, paddyDebugColor } = await import(paddyURL);
+const { buildPaddy, patchPaddyRice, paddyStoneGeometry, paddyBundGeometry, paddyTuftGeometry, paddySurfaceColor, paddyStoneBandGeometry, paddyDebugColor, paddyFarRiceColor, paddyRiceColor, paddyRockColor } = await import(paddyURL);
 const { buildTerrain, paddyGroundMap } = await import(asModule(rewrite('terrain.js').replace(new URL('paddy-view.js', base).href, paddyURL).replace(new URL('atmosphere.js', base).href, moduleURL('atmosphere.js'))));
 const vegetationSource = rewrite('vegetation.js').replace(new URL('paddy-view.js', base).href, paddyURL).replace(new URL('tree-view.js', base).href, moduleURL('tree-view.js')).replace(new URL('grass-view.js', base).href, moduleURL('grass-view.js'));
 const { makeTufts } = await import(asModule(vegetationSource));
@@ -239,20 +239,37 @@ test('walk-height updates retain dense stubble and grass, switch stone LOD, stay
   }
 });
 
-test('sloping ribbon has a bright grey middle, grassy crown and dark lower edge, retained past 150m', () => {
+test('sloping ribbon has a warm grey-brown wall, grassy crown and half-metre soil shadow, retained past 150m', () => {
   for(const w of layout.walls){
     const g=paddyStoneBandGeometry(w),p=g.attributes.position,c=g.attributes.color;assert.equal(p.count,8);assert.equal(g.index.count/3,6);
-    for(let i=0;i<p.count;i++)assert(p.getY(i)>=w.bottom-1e-6&&p.getY(i)<=w.top+1e-6);
-    for(let i=0;i<p.count;i++)assert(p.getY(i)>=Math.max(0,w.level*WORLD.terraces.drop)-1e-6&&p.getY(i)<=(w.level+1)*WORLD.terraces.drop+1e-6);
+    for(const i of [0,1,2,4,5,6])assert(p.getY(i)>=w.bottom-1e-6&&p.getY(i)<=w.top+1e-6);
+    for(const i of [0,1,2,4,5,6])assert(p.getY(i)>=Math.max(0,w.level*WORLD.terraces.drop)-1e-6&&p.getY(i)<=(w.level+1)*WORLD.terraces.drop+1e-6);
+    assert(PADDY.stoneBandWidth>=1.2&&PADDY.stoneBandWidth<=1.6);
+    for(const i of [2,6]){assert(c.getX(i)>c.getZ(i));assert(Math.abs(Math.hypot(p.getX(i+1)-p.getX(i),p.getZ(i+1)-p.getZ(i))-PADDY_LOOK.stoneShadowWidth)<1e-5);assert(Math.abs(p.getY(i+1)-paddyGroundHeight(terrain,p.getX(i+1),p.getZ(i+1))-PADDY_LOOK.detailsLift)<1e-4);}
+    assert(PADDY_LOOK.stoneShadowWidth>=.4&&PADDY_LOOK.stoneShadowWidth<=.6);
     assert(c.getX(2)>c.getX(3));g.dispose();
   }
   const v=buildPaddy({layout,wind});v.update(camera(-50,45,250));assert(v.stats().stoneBands>0);dispose(v);
 });
 
-test('far rice shaded face stays at least 70% as bright; ground rows and slow waves use the shared wind', () => {
-  assert(PADDY_LOOK.farShadeFloor>=.7);
+test('far rice has orange gold and 60–72% orange-brown shade; ground rows and slow waves use shared wind', t => {
+  assert(PADDY_LOOK.farShadeFloor>=.60&&PADDY_LOOK.farShadeFloor<=.72);
   const v=buildPaddy({layout,wind}),far=v.group.children.find(m=>m.isInstancedMesh),s=compile(far.material);
-  assert(s.fragmentShader.includes(`outgoingLight = clamp(outgoingLight, diffuseColor.rgb * ${PADDY_LOOK.farShadeFloor}, diffuseColor.rgb)`));
+  assert(s.fragmentShader.includes(`,${PADDY_LOOK.farShadeFloor},1.0)`));
+  assert(s.fragmentShader.includes('paddyShadeTint /= dot(paddyShadeTint'));
+  assert(s.fragmentShader.includes('outgoingLight = paddySun*paddyLit*mix(paddyShadeTint,vec3(1.0)'));
+  const lum=c=>.2126*c.r+.7152*c.g+.0722*c.b,shadowTint=new THREE.Color().setRGB(...PADDY_LOOK.farShadowTint);
+  shadowTint.multiplyScalar(1/lum(shadowTint));
+  const original=paddyRiceColor(),sun=paddyFarRiceColor(),shade=sun.clone().multiplyScalar(PADDY_LOOK.farShadeFloor).multiply(shadowTint);
+  assert(sun.r/sun.g>=1.12&&shade.r/shade.g>sun.r/sun.g);assert(lum(shade)/lum(sun)>=.6&&lum(shade)/lum(sun)<=.72);
+  assert(lum(sun)/lum(original)>=.8&&lum(sun)/lum(original)<=.9);assert(sun.getHSL({}).s<original.getHSL({}).s);
+  assert(paddyFarRiceColor(undefined,true).r>sun.r);
+  for(const p of layout.plots){const c=paddyFarRiceColor(p);assert(c.r/c.g>=1.12);}
+  far.geometry.computeBoundingBox();assert(far.geometry.boundingBox.max.y<=.3);assert(PADDY_LOOK.farWidth<1.25);
+  const near=makeTufts({data:{x:[0],y:[0],z:[60],s:[1],rot:[0],tint:[.5]},geometry:new THREE.PlaneGeometry(.05,1),wind,height:1,fadeStart:60,fadeEnd:95,tintA:PADDY_LOOK.tintA,tintB:PADDY_LOOK.tintB,paddy:{}});
+  const nearShader=compile(near.children[0].material);assert(!nearShader.fragmentShader.includes('paddyShadeTint'));dispose({group:near});
+  assert(paddyRockColor().r>paddyRockColor().b);
+  t.diagnostic(JSON.stringify({sun: sun.toArray(),shade:shade.toArray(),tip:paddyFarRiceColor(undefined,true).toArray(),shadeRatio:lum(shade)/lum(sun),rock:paddyRockColor().toArray()}));
   const b=buildTerrain({terrain:flat,textures:{}}),ground=compile(b.material,'standard');
   assert.equal(ground.uniforms.uPaddyTime,wind.uTime);assert.equal(ground.uniforms.uPaddyWind,wind.uWind);
   assert(ground.fragmentShader.includes('texture2D(uPaddyPhase,paddyUV)'));assert(ground.fragmentShader.includes('fwidth(paddyStripePhase)'));

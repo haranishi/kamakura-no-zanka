@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { WORLD } from '../dist/valley/world-data.js';
 import { createTerrain } from '../dist/valley/terrain-height.js';
 import { scatterRice } from '../dist/valley/scatter.js';
-import { PADDY, createPaddyPlots, createPaddyLayout, paddyAt, paddyNearRice, paddyOptions, paddyWeights, paddyQuality, paddyPropClear, paddyGroundHeight, paddyBundSection } from '../dist/valley/paddy.js';
+import { PADDY, PADDY_LOOK, createPaddyPlots, createPaddyLayout, paddyAt, paddyNearRice, paddyOptions, paddyWeights, paddyQuality, paddyPropClear, paddyGroundHeight, paddyBundSection } from '../dist/valley/paddy.js';
 const terrain = createTerrain(WORLD), before = JSON.stringify(WORLD), start = performance.now(), layout = createPaddyLayout(WORLD, terrain), buildMs = performance.now() - start;
 
 test('height bit pattern is unchanged on the entire walkable area plus 12m at 0.5m intervals', () => {
@@ -27,12 +27,12 @@ test('read-only terrace values share quantization; positive core treads match th
   assert(treads>1000&&zeroFloor>5000);
 });
 
-test('real treads contain 1–3 deterministic wavy plots, keep height spread below 5cm, area above 80% and harvest shares', t => {
+test('positive and negative levels contain 1–3 deterministic plots below 500 square metres, retain 80% treads and harvest shares', t => {
   for(let seed=WORLD.seed;seed<WORLD.seed+20;seed++){
     const world={...WORLD,seed},plots=createPaddyPlots(world);
     assert.deepEqual(plots,createPaddyPlots(world));
     assert(plots.length>=plots.bands.length&&plots.length<=plots.bands.length*3);
-    for(const band of plots.bands){const list=plots.filter(p=>p.level===band.level);assert(list.length>=1&&list.length<=3);list.forEach(p=>{assert(Math.abs(p.tint-1)<=.08);assert(Math.abs(p.height-1)<=.08);});}
+    for(const band of plots.bands){const list=plots.filter(p=>p.level===band.level);assert(list.length>=1&&list.length<=3);list.forEach(p=>{assert(p.area>0&&p.area<=500);assert(Math.abs(p.tint-1)<=.08);assert(Math.abs(p.height-1)<=.08);});}
     for(const [kind,wanted] of [['standing',.60],['harvested',.25],['partial',.15]])assert(Math.abs(plots.filter(p=>p.kind===kind).length/plots.length-wanted)<=.1,`${seed} ${kind}`);
     const mean=kind=>{const a=plots.filter(p=>p.kind===kind);return a.reduce((n,p)=>n+p.row,0)/a.length;};assert(mean('harvested')<mean('standing'));
   }
@@ -41,11 +41,11 @@ test('real treads contain 1–3 deterministic wavy plots, keep height spread bel
     if(terrain.terraceAt(x,z).mask<=.9)continue;eligible++;
     const s=paddyAt(layout.plots,x,z);if(!s?.cultivated)continue;covered++;
     const y=terrain.heightAt(x,z),range=ranges.get(s.plot.id)||[y,y];range[0]=Math.min(range[0],y);range[1]=Math.max(range[1],y);ranges.set(s.plot.id,range);
-    assert.equal(Math.max(0,terrain.terraceAt(x,z).level),s.plot.level);
+    assert.equal(terrain.terraceAt(x,z).level,s.plot.level);
   }
-  assert(covered/eligible>=.8);for(const r of ranges.values())assert(r[1]-r[0]<=.05);
+  assert(layout.terraces>=12&&layout.terraces<=16);assert(layout.maxPlotArea<=500);assert(covered/eligible>=.8);for(const r of ranges.values())assert(r[1]-r[0]<=.05);
   assert.equal(ranges.size,layout.plots.length);assert.deepEqual(layout,createPaddyLayout(WORLD,terrain));assert.equal(JSON.stringify(WORLD),before);
-  t.diagnostic(JSON.stringify({terraces:layout.terraces,plots:layout.plots.length,area:covered/eligible,maxSpread:Math.max(...[...ranges.values()].map(r=>r[1]-r[0]))}));
+  t.diagnostic(JSON.stringify({terraces:layout.terraces,plots:layout.plots.length,maxPlotArea:layout.maxPlotArea,raisedBoundaries:layout.raisedBoundaries,flatBoundaries:layout.flatBoundaries,area:covered/eligible,maxSpread:Math.max(...[...ranges.values()].map(r=>r[1]-r[0]))}));
 });
 
 test('partial fields divide along the terrace and contain both cut and uncut treads; near/far rice and stubble respect them', () => {
@@ -70,7 +70,7 @@ test('contours bend at least 3 degrees, never cross adjacent levels, keep 1–1.
     // 向きの折り返しで ±π が出るため、平均方向を基準に差を取る。
     const mean=Math.atan2(headings.reduce((n,a)=>n+Math.sin(a),0),headings.reduce((n,a)=>n+Math.cos(a),0));
     const spread=Math.sqrt(headings.reduce((n,a)=>n+Math.atan2(Math.sin(a-mean),Math.cos(a-mean))**2,0)/headings.length)*180/Math.PI;maximumSpread=Math.max(maximumSpread,spread);
-    for(const p of line.points)assert(Math.abs(layout.plots.field.value(p.x,p.z)-(line.level+(1+layout.plots.field.edge)/2))<.005);
+    for(const p of line.points)assert(Math.abs(layout.plots.field.value(p.x,p.z)-(line.level+(line.level>=0?(1+layout.plots.field.edge)/2:1)))<.005);
   }
   assert(maximumSpread>=3);
   const cross=(a,b,c)=>(b.x-a.x)*(c.z-a.z)-(b.z-a.z)*(c.x-a.x);
@@ -79,6 +79,7 @@ test('contours bend at least 3 degrees, never cross adjacent levels, keep 1–1.
     for(let u=1;u<a.points.length;u++)for(let v=1;v<b.points.length;v++)assert(!(cross(a.points[u-1],a.points[u],b.points[v-1])*cross(a.points[u-1],a.points[u],b.points[v])<0&&cross(b.points[v-1],b.points[v],a.points[u-1])*cross(b.points[v-1],b.points[v],a.points[u])<0));
   }
   for(const w of layout.walls){
+    assert(w.level>=0&&w.realDrop>=PADDY.shallowDrop);
     const road=terrain.roadInfo(w.x,w.z);assert(!road||road.dist>w.width/2+PADDY.stoneBandWidth);
     for(const p of [w.aTop,w.aBottom,w.bTop,w.bBottom])assert(p.y>=w.bottom-1e-9&&p.y<=w.top+1e-9);
     assert(Math.abs(Math.hypot(w.aTop.x-w.aBottom.x,w.aTop.z-w.aBottom.z)-PADDY.stoneBandWidth)<1e-8);
@@ -148,4 +149,26 @@ test('short stubble follows contour rows at 30cm average spacing; far plants jit
   const gaps=[];for(const row of rows.values()){row.sort((a,b)=>a.x-b.x);for(let i=1;i<row.length;i++){const d=row[i].x-row[i-1].x;if(d<PADDY.farStep*2)gaps.push(d);}}
   const mean=gaps.reduce((a,b)=>a+b,0)/gaps.length,cv=Math.sqrt(gaps.reduce((n,d)=>n+(d-mean)**2,0)/gaps.length)/mean;
   assert(cv>=.2);t.diagnostic(JSON.stringify({farSpacingCV:cv}));
+});
+
+
+test('flat southern boundaries have only raised grass bunds and no stone ribbons; harvested clusters reach well south of the first three bands', () => {
+  const flat=layout.bunds.filter(b=>b.flat);assert(flat.length>0);assert(layout.flatBoundaries>=6&&layout.raisedBoundaries>=5);
+  assert(layout.walls.every(w=>w.level>=0));
+  for(const b of flat){assert(b.sz>=.6&&b.sz<=.8);assert(b.row>=6);assert(PADDY.bundHeight>=.15&&PADDY.bundHeight<=.2);}
+  const cut=layout.plots.filter(p=>p.kind==='harvested');assert(cut.filter(p=>p.row>2).length>=2);assert(cut.some(p=>p.row>=layout.terraces*2/3));
+  const clusters=[];for(const p of layout.plots){if(p.kind==='harvested'){if(!clusters.length||clusters.at(-1).at(-1).id!==p.id-1)clusters.push([]);clusters.at(-1).push(p);}}
+  assert(clusters.length>=2);for(const group of clusters)assert(group.length>=2&&group.length<=4);
+  assert(layout.racks.some(p=>layout.plots[p.plot].row>2));assert(layout.straw.some(p=>layout.plots[p.plot].row>2));
+});
+
+test('actual east and south crop edges wander more than 1.5 metres and keep sparse rubble and grass banks clear of protected places', t => {
+  const T=WORLD.terraces,edges={east:[],south:[]};
+  for(let z=T.z0+12;z<T.z1-12;z+=.5){for(let x=T.x1;x>T.x0;x-=.1)if(paddyAt(layout.plots,x,z)){edges.east.push(x);break;}}
+  for(let x=T.x0+12;x<T.x1-12;x+=.5){for(let z=T.z1;z>T.z0;z-=.1)if(paddyAt(layout.plots,x,z)){edges.south.push(z);break;}}
+  const spread=a=>{const m=a.reduce((s,v)=>s+v,0)/a.length;return Math.sqrt(a.reduce((s,v)=>s+(v-m)**2,0)/a.length);};
+  assert(spread(edges.east)>=1.5);assert(spread(edges.south)>=1.5);
+  assert(layout.bunds.some(b=>b.outer));const stones=layout.stones.filter(s=>s.outer);assert(stones.length>0);
+  for(const s of stones){assert(terrain.terraceAt(s.x,s.z).mask>=.3);assert(paddyPropClear(WORLD,terrain,s.x,s.z,.5));}
+  t.diagnostic(JSON.stringify({eastEdgeStd:spread(edges.east),southEdgeStd:spread(edges.south),outerStones:stones.length}));
 });
