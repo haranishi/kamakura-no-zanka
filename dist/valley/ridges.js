@@ -8,7 +8,9 @@ import { createTerrain } from './terrain-height.js';
 // 距離・標高はm。角度の重なりを広げ、手前の輪郭に奥が隠れないようにする。
 export const RIDGES = Object.freeze({
   segments: 360, bottom: -120, warmGain: 0.18, warmPower: 12, // 全周の刻み・裾・太陽側の暖色。
-  notchWidth: 0.20, notchOffset: 58, // 太陽側の鞍部の幅(rad)・光線より高くする標高(m)。
+  // 日を山の端の上（15.5 度）へ上げたので、鞍部は、日の光線より 40m 低くする（日が、重なる稜線の上に出る）。光線より高くしたままだと、
+  // 日の側で 4 段の稜線が同じ高さに集まり、重なりが読めなくなった。
+  notchWidth: 0.20, notchOffset: -40, // 太陽側の鞍部の幅(rad)・日の光線からの標高の差(m。負＝光線より低い)。
   layers: Object.freeze([
     { radius: 760, base: 205, amp: 62, seed: 71, color: '#3d4a62' },
     { radius: 1100, base: 300, amp: 84, seed: 73, color: '#52607a' },

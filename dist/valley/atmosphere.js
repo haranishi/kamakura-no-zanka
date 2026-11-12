@@ -19,7 +19,8 @@ export const LEGACY_ATMOS = {
 
 // 方位は北から時計回り、角度は度。谷だけに使う夕景の調整値。
 export const SKY = Object.freeze({
-  bearingDeg: 55, elevationDeg: 7.5, sunColor: '#ffca85', // 低い北東の金橙色。
+  // 高さ 7.5 度では、谷を囲む山の縁（日の方向で約 14.65 度）に隠れて、谷のどこからも夕日が見えなかった。縁のすぐ上へ上げた。
+  bearingDeg: 55, elevationDeg: 15.5, sunColor: '#ffca85', // 北東の山の端にかかる、金橙色の日。
   hemiIntensity: 1.12, fillIntensity: 0.58, // 逆光の地面・人物を支える照度。
   cloudAmount: 0.72, cloudLow: 0.40, cloudHigh: 0.75, // 被覆率と連続した雲の閾値。
   cloudSpeed: 0.002, cloudScale: 2.2, // 投影座標/秒、雲塊の尺度。
