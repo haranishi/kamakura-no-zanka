@@ -80,7 +80,7 @@ async function main() {
       if (keys.has('KeyE')) camera.position.y += sp; if (keys.has('KeyQ')) camera.position.y -= sp;
     }
     atmosphere.update(camera, dt);
-    veg.wind.uTime.value += dt; veg.trees.update(camera); veg.grass.update(camera);
+    veg.wind.uTime.value += dt; veg.trees.update(camera); veg.grass.update(camera); veg.rice.update(camera);
     atmosphere.follow(new THREE.Vector3(camera.position.x + (-Math.sin(yaw) * 20), camera.position.y - 10, camera.position.z + (-Math.cos(yaw) * 20)));
     post.render(scene, camera, dt);
     frames++;

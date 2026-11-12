@@ -4,6 +4,8 @@ import * as THREE from 'three';
 import { mulberry32 } from './scatter.js';
 import { TreeField } from './tree-view.js';
 import { buildGrass } from './grass-view.js';
+import { paddyOptions, paddyNearRice, PADDY_LOOK, PADDY_DEBUG } from './paddy.js';
+import { buildPaddy, patchPaddyRice } from './paddy-view.js';
 
 const TAU = Math.PI * 2;
 
@@ -83,9 +85,10 @@ function patchWind(material, uniforms, { height = 20, flutter = 0, fadeStart = 0
 }
 
 // 草・稲：近くだけ見える（距離で縮めて消す）。空間の区画ごとに InstancedMesh を分け、視錐台と距離で区画ごと描かない。
-export function makeTufts({ data, geometry, wind, height, fadeStart, fadeEnd, tintA, tintB, flutter = 0, chunk = 24 }) {
+export function makeTufts({ data, geometry, wind, height, fadeStart, fadeEnd, tintA, tintB, flutter = 0, chunk = 24, paddy = null }) {
   const material = new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide, alphaToCoverage: false, emissive: 0x24351c });
-  patchWind(material, wind, { height, flutter: flutter + 0.01, fadeStart, fadeEnd });
+  patchWind(material, wind, { height, flutter: flutter + 0.01, fadeStart: paddy ? 0 : fadeStart, fadeEnd: paddy ? 0 : fadeEnd });
+  if (paddy) patchPaddyRice(material, wind, { debug: paddy.debug });
   const n = data.x.length, buckets = new Map();
   for (let i = 0; i < n; i++) {
     const key = Math.floor(data.x[i] / chunk) + ',' + Math.floor(data.z[i] / chunk);
@@ -99,7 +102,9 @@ export function makeTufts({ data, geometry, wind, height, fadeStart, fadeEnd, ti
     idx.forEach((i, k) => {
       q.setFromAxisAngle(up, data.rot[i]); s.setScalar(data.s[i]); p.set(data.x[i], data.y[i] - 0.02, data.z[i]);
       m.compose(p, q, s); mesh.setMatrixAt(k, m);
-      c.copy(a).lerp(b, data.tint[i]); mesh.setColorAt(k, c);
+      c.copy(a).lerp(b, data.tint[i]);
+      if (paddy?.debug) c.set(PADDY_DEBUG[data.plotKinds?.[i] || 'standing']);
+      mesh.setColorAt(k, c);
     });
     mesh.instanceMatrix.needsUpdate = true; mesh.instanceColor.needsUpdate = true;
     mesh.castShadow = false; mesh.receiveShadow = true; mesh.frustumCulled = true;
@@ -119,9 +124,19 @@ export function buildVegetation({ scatter, quality = 'standard', field, sunDir, 
   const trees = new TreeField({ data: scatter.trees, species: scatter.species, understory: scatter.understory, wind, sunDir, quality, renderer });
   group.add(trees.group);
   const grass = buildGrass({ field, wind, quality, sunDir });
-  const rice = makeTufts({ data: scatter.rice, geometry: riceGeometry(), wind, height: 1.0, fadeStart: 60, fadeEnd: 95, tintA: '#b8963c', tintB: '#d6b658', flutter: 0.02 });
+  const paddy = paddyOptions(globalThis.location?.search || '');
+  const riceData = paddy.enabled && field?.paddy ? paddyNearRice(scatter.rice, field.paddy.plots) : scatter.rice;
+  const rice = makeTufts({ data: riceData, geometry: riceGeometry(), wind, height: 1.0, fadeStart: 60, fadeEnd: 95, tintA: PADDY_LOOK.tintA, tintB: PADDY_LOOK.tintB, flutter: 0.02, paddy: paddy.enabled && field?.paddy ? paddy : null });
+  const paddyView = buildPaddy({ layout: field?.paddy, wind, quality });
+  if (paddy.enabled && field?.paddy) group.add(paddyView.group);
+  const nearUpdate = rice.update;
+  rice.update = camera => { nearUpdate(camera); paddyView.update(camera); };
+  const setLookQuality = grass.setLookQuality;
+  grass.setLookQuality = level => { setLookQuality(level); paddyView.setLevel(level); };
+  const setDensityScale = grass.setDensityScale;
+  grass.setDensityScale = value => { setDensityScale(value); paddyView.setLevel(Math.ceil((1 - value) * 3)); };
   group.add(grass.group, rice);
   const crops = scatter.crops?.x.length ? makeTufts({ data: scatter.crops, geometry: cropGeometry(), wind, height: 0.4, fadeStart: 55, fadeEnd: 90, tintA: '#3d5230', tintB: '#617548', flutter: 0.01 }) : null;   // 家のそばの野菜畑
   if (crops) group.add(crops);
-  return { group, trees, grass, rice, crops, wind };
+  return { group, trees, grass, rice, crops, wind, paddy: paddyView };
 }

@@ -63,6 +63,26 @@ export const GRASS = Object.freeze({
 
 // Tree species are derived; legacy placement and collision keep using kind.
 export const TREES = Object.freeze({
+  forest2: Object.freeze({
+    margin: 12, // m: bounds の外側もこの幅までは従来の木を保護する。
+    cell: 100, radius: Object.freeze([25, 35]), jitter: .24, edge: .14, // m・比率: 群れの間隔、半径、中心のずれ、縁のまだら。
+    warp: 9, detail: 22, seed: 52301, // m・seed: 群れの輪郭を曲げる位置雑音。
+    habitatGain: .22, slope: Object.freeze([38, 56]), ridgeHeight: Object.freeze([220, 280]), // 比率・度・m: 沢と肩を優先、急崖と高い頂を避ける。
+    pineRate: .06, pineSlope: 32, // 比率・度: 杉候補の約8%を急斜面・尾根から選び、全体で約6%の松にする。
+    height: Object.freeze([.7, 1.45]), width: Object.freeze([.8, 1.25]), // 倍率: 外側の杉の丈と独立した枝張り。
+    oldRate: .045, oldHeight: Object.freeze([1.5, 1.9]), oldWidth: 1.45, oldCrown: .5, // 比率・倍率: 古杉の出現率、丈、幹の太さ、下半分の枝葉を減らす境。
+    groupScale: 65, heightHabitat: .18, heightGroup: .15, // m・比率: 杉の群れの雑音、沢で丈を増す量。
+    stretch: Object.freeze([.8, 1]), neighbourTone: .3, // 比率: 群れの短径／長径、隣の色段を混ぜる率。
+    bank: Object.freeze([20, 90]), relief: Object.freeze([-3, 4]), // m: 沢からの距離、周囲より低い量を群れの適性へ変換する区間。
+    habitatWeights: Object.freeze([.4, .35, .25]), heightBias: .8, // 比率: 沢・緩斜面・窪みの重み、背丈の補正の中心。
+    pineWeights: Object.freeze([.30, .45, .25, .3]), pineNormal: .4, // 比率: 松の基礎・急斜面・尾根・高地の重みと正規化。
+    shadeStep: 1, shadeGradient: 4, // m・m: 夕日に背を向ける斜面を測る間隔と青みが最大になる勾配差。
+    adaptive: Object.freeze([1, .85, .7, .58]), farKeep: Object.freeze([1, .85, .7, .58]), lodScale: Object.freeze([1, .94, .88, .82]), // 自動解像度の段階・遠景を残す比率・LOD距離の倍率。
+    leafBrightness: .10, leafHue: .06, cedarBrightness: .09, groupBrightness: .07, shadeBlue: .06, // ±比率: 個体の色、杉の群れ、北東の夕日に背を向ける斜面の青み。
+    // 既存 maple/zelkova の色から作る5段（深紅・朱・橙・黄・黄緑）。値は元パレットの位置／混色の割合。
+    tones: Object.freeze([3, 2.65, 2, 2, 0]), toneMix: Object.freeze([.18, 0, 0, 0, .24]),
+    debug: Object.freeze(['#22b34a', '#e1c638', '#a342cc', '#ca352d', '#287cdb']), // 杉・欅・松・楓・古杉。
+  }),
   palette: Object.freeze({
     cedar: Object.freeze(['#b1bca5']), pine: Object.freeze(['#7f9e91']),
     zelkova: Object.freeze(['#6a7f3a', '#a09a45', '#c2a040', '#96683a']),

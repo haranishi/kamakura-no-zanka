@@ -3,10 +3,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { moduleURL } from './helpers/tree-modules.mjs';
 import * as THREE from '../dist/vendor/three.module.min.js';
 const read = name => fs.readFileSync(new URL('../dist/valley/' + name, import.meta.url), 'utf8');
 const source = read('terrain.js').replace(/from 'three'/g, `from '${new URL('../dist/vendor/three.module.min.js', import.meta.url).href}'`)
-  .replace(/from '(\.\/[^']+)'/g, (_, p) => `from '${new URL('../dist/valley/' + p, import.meta.url).href}'`);
+  .replace(/from '(\.\/[^']+)'/g, (_, p) => `from '${p === './paddy-view.js' ? moduleURL('paddy-view.js') : new URL('../dist/valley/' + p, import.meta.url).href}'`);
 const { buildTerrain } = await import('data:text/javascript;base64,' + Buffer.from(source).toString('base64'));
 const terrain = { seed: 1, heightAt: () => 0, surfaceAt: () => ({ grass: .2, dirt: .8, rock: 0, gravel: 0, mud: 0, litter: 0 }), roadInfo: () => null, waterAt: () => 0, forestDensity: () => 0 };
 const compile = material => {

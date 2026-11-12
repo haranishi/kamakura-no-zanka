@@ -2,6 +2,7 @@
 import { GRASS } from './config.js';
 import { cellRand, insideFootprint, insidePlot, scatterRocks, ROCK_MODEL } from './scatter.js';
 import { fbm } from './terrain-height.js';
+import { createPaddyLayout } from './paddy.js';
 
 export const SHORT = 0;
 export const TALL = 1;
@@ -113,6 +114,7 @@ export function createGrassField(world, terrain, { box = GRASS.box, padding = GR
     if (total < weight) low = shift; else high = shift;
   }
   for (const k of candidates) if (field.placeable[k]) field.midPatch[k] = clamp(field.midPatch[k] + (low + high) / 2, .2, 1.8);
+  field.paddy = Number.isFinite(world.terraces.step) ? createPaddyLayout(world, terrain) : null;
   field.stats = { eligible: candidates.length, clearCount, clearingThreshold };
   return field;
 }
