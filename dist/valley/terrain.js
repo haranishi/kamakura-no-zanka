@@ -23,14 +23,18 @@ const SIZE = 1024;
 // 樹冠は世界位置の地図を両メッシュで共有する。歩行域の色と質感はそのまま残す。
 export const CANOPY = Object.freeze({
   cell: 7, jitter: .44, warp: 1.6, // m・比率・m：5〜9mの樹冠の斑、中心の散らし、領域の歪み。
-  contrast: .55, brightness: .15, warmth: .18, blue: .12, normalTilt: .85, gapShade: .30, // 比率：丸みの明暗・個体差・日なた・日陰・擬似法線。
+  contrast: .34, brightness: .15, warmth: .07, blue: .12, normalTilt: .85, gapShade: .30, // 比率：丸みの明暗・個体差・日なた・日陰・擬似法線。
+  // normalMix：地形の法線を、樹冠の擬似法線へ寄せる割合。1 では、日に背を向けた斜面まで、上を向いた面として日が当たり、斑の日の側が
+  // 黄土色に光って、うろこや砂丘に見えた（実際の画面で確かめた）。斜面の向きを残す。shadeContrast：日の当たらない斜面で残す、斑の明暗の割合。
+  normalMix: .25, shadeContrast: .4,
   blend: 40, edgeWarp: 6, protectedFade: 4, seam: 8, edgeWave: 29, // m：近景の移行帯・縁の雑音・保護域の外での立上り。
   gapInner: .18, gapOuter: .85, warpWaves: [19, 23], warpOffset: 17, // セル内の半径比・m・位相：斑の中心と暗い隙間、歪みの波長。
   grassWave: 9, grassVariation: .10, margin: 12, // m・比率・m：草のむらと模様を入れない余白。
   mapStep: 4, forestRange: [.32, .68], slopeRange: [47, 61], // m・密度・度：共通地図と森／岩の境。
-  needleShade: '#213a25', needleSun: '#5c7f4c', needleMix: .60, // 杉の房の手続き色（t/rの両端）と平均の推定位置。
-  shade: .48, sun: 1.12, emissive: .24, // 倍率：木と共通の陰〜日なたの範囲と葉の散乱光。
+  needleShade: '#213a25', needleSun: '#5c7f4c', needleMix: .66, // 杉の房の手続き色（t/rの両端）と平均の推定位置。
+  shade: .56, sun: 1.12, emissive: .26, // 倍率：木と共通の陰〜日なたの範囲と葉の散乱光。
   grass: '#6b6a35', grassSun: .30, grassGold: '#c2a040', // 既存の里の草・欅の黄から作る丘の日なた。
+  groveGain: .5, groveGrey: .3, // 倍率・比率：紅葉の群れの地面の明るさと、灰色へ寄せる量。
   debug: ['#22b34a', '#ca352d', '#808080'], // 樹冠・紅葉・それ以外。
 });
 const canopyEdgeNoise = (x, z) => {
@@ -47,7 +51,9 @@ const canopyPalettes = () => {
     const color = new THREE.Color(colors[k]).lerp(new THREE.Color(colors[Math.min(k + 1, colors.length - 1)]), t - k);
     if (i === 0) color.lerp(new THREE.Color(p.zelkova[3]), c.toneMix[0]).multiplyScalar(1 - c.toneMix[0]);
     if (i === 4) color.lerp(new THREE.Color(p.zelkova[c.tones[3]]), c.toneMix[4]);
-    return color.multiplyScalar(TREES.leafGain);
+    // 紅葉の地面は、木の葉の色そのままだと、樹冠の影のない一面の色になり、橙の絵の具を流したように見えた。暗く・彩度を下げる。
+    const grey = color.r * .2126 + color.g * .7152 + color.b * .0722;
+    return color.multiplyScalar(TREES.leafGain).lerp(new THREE.Color(grey, grey, grey), CANOPY.groveGrey).multiplyScalar(CANOPY.groveGain);
   });
   const cedar = new THREE.Color(TREES.palette.cedar[0]).multiply(new THREE.Color(CANOPY.needleShade).lerp(new THREE.Color(CANOPY.needleSun), CANOPY.needleMix));
   return { cedar, autumn };
@@ -251,7 +257,7 @@ function patchCanopyMaterial(material) {
     before(shader);
     shader.fragmentShader = shader.fragmentShader.replace('#include <common>', `#include <common>
       uniform sampler2D uCanopyField;
-      uniform float uCanopy, uCanopyDebug, uFortGround, uFortDebug, uCanopyDetail;
+      uniform float uCanopy, uCanopyDebug, uFortGround, uFortDebug, uCanopyDetail, uCanopyGlow;
       uniform vec3 uCanopySun, uCedar, uAutumn[5], uHillGrass, uHillGold;
       float th_hash(vec2 p); float th_noise(vec2 p);
       float canopyWeight; float hillWeight; vec3 canopyCheck;
@@ -284,7 +290,8 @@ function patchCanopyMaterial(material) {
       if (canopyWeight > .001) {
         vec3 cell = canopyCell(wxz);
         canopyNormal = normalize(vec3(cell.x * ${c.normalTilt.toFixed(3)}, 1.0, cell.y * ${c.normalTilt.toFixed(3)}));
-        canopyLight = clamp(.5 + dot(canopyNormal, uCanopySun) * ${c.contrast.toFixed(3)}, 0.0, 1.0);
+        float slopeSun = smoothstep(-0.05, 0.3, dot(nW, uCanopySun));
+        canopyLight = clamp(.5 + dot(canopyNormal, uCanopySun) * ${c.contrast.toFixed(3)} * mix(${c.shadeContrast.toFixed(3)}, 1.0, slopeSun), 0.0, 1.0);
         cellValue = cell.z;
         crownFill = 1.0 - ${c.gapShade.toFixed(3)} * smoothstep(${c.gapInner.toFixed(3)}, ${c.gapOuter.toFixed(3)}, length(cell.xy));
       }
@@ -292,16 +299,23 @@ function patchCanopyMaterial(material) {
       vec3 crownColor = mix(uCedar, mix(uAutumn[toneLo], uAutumn[toneHi], fract(tone)), canopyField.g);
       crownColor *= crownFill * mix(${c.shade.toFixed(3)}, ${c.sun.toFixed(3)}, canopyLight) * (1.0 + (cellValue * 2.0 - 1.0) * ${c.brightness.toFixed(3)});
       crownColor *= mix(vec3(${(1-c.blue).toFixed(3)}, 1.0, ${(1+c.blue).toFixed(3)}), vec3(${(1+c.warmth).toFixed(3)}, 1.0, ${(1-c.warmth).toFixed(3)}), canopyLight);
-      diffuseColor.rgb = mix(diffuseColor.rgb, crownColor, canopyWeight);
+      // 頂点の色（森の下を暗くする倍率）は、このあとの color_fragment で掛かる。樹冠と丘の草の色には掛けたくないので、先に割っておく。
+      // 割らないと、樹冠の色が 1 割まで暗くなり、木の間が黒い穴のままだった（実際の画面で、確認用の単色と並べて見つけた）。
+      vec3 groundShade = max(vColor.rgb, vec3(0.04));
+      diffuseColor.rgb = mix(diffuseColor.rgb, crownColor / groundShade, canopyWeight);
       float hill = canopyField.a * uFortGround * surfaceClear; hillWeight = hill;
       vec3 hillColor = mix(uHillGrass, uHillGold, ${c.grassSun.toFixed(3)} * max(0.0, dot(nW, uCanopySun)));
       hillColor *= ${(1-c.grassVariation).toFixed(3)} + ${(2*c.grassVariation).toFixed(3)} * th_noise(wxz / ${c.grassWave.toFixed(1)});
-      diffuseColor.rgb = mix(diffuseColor.rgb, hillColor, hill);
-      gN = normalize(mix(gN, canopyNormal, canopyWeight));
+      diffuseColor.rgb = mix(diffuseColor.rgb, hillColor / groundShade, hill);
+      gN = normalize(mix(gN, canopyNormal, canopyWeight * ${c.normalMix.toFixed(3)}));
       canopyCheck = mix(vec3(${new THREE.Color(c.debug[2]).toArray().map(x=>x.toFixed(4)).join(',')}), mix(vec3(${new THREE.Color(c.debug[0]).toArray().map(x=>x.toFixed(4)).join(',')}), vec3(${new THREE.Color(c.debug[1]).toArray().map(x=>x.toFixed(4)).join(',')}), step(.35, canopyField.g)), step(.1, canopyWeight));
       }`)
       .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
-        totalEmissiveRadiance += diffuseColor.rgb * canopyWeight * ${c.emissive.toFixed(3)};`)
+        totalEmissiveRadiance += diffuseColor.rgb * canopyWeight * ${c.emissive.toFixed(3)};
+        // 木と同じ、遠くの森の逆光の透け（config.js の TREES.backlight.far）。木だけが明るく、地面が黒い穴に見えないように。
+        vec3 canopySight = normalize(vWorldPos - cameraPosition);
+        float canopyGlow = pow(max(0.0, dot(canopySight, uCanopySun)), ${TREES.backlight.farPower.toFixed(2)}) * ${TREES.backlight.far.toFixed(2)} * smoothstep(${TREES.backlight.farFrom[0].toFixed(1)}, ${TREES.backlight.farFrom[1].toFixed(1)}, distance(vWorldPos, cameraPosition));
+        totalEmissiveRadiance += min(vec3(${TREES.backlight.cap.toFixed(2)}), diffuseColor.rgb * vec3(${TREES.backlight.farTint.map(v => v.toFixed(2)).join(', ')}) * canopyGlow) * canopyWeight * uCanopyGlow;`)
       .replace('#include <fog_fragment>', '#include <fog_fragment>\n if (uCanopyDebug > .5 && uCanopy > .5) gl_FragColor.rgb = canopyCheck;\n if (uFortDebug > .5 && hillWeight > .1) gl_FragColor.rgb = vec3(1.0, .1328683, .5028865);');
   };
 }
@@ -469,7 +483,7 @@ export function buildTerrain({ terrain, textures, quality = 'standard', search =
   const canopyUniforms = {
     uCanopyField: { value: field.texture }, uCanopy: { value: canopyEnabled ? 1 : 0 },
     uCanopyDebug: { value: flags.get('canopydebug') === '1' ? 1 : 0 }, uFortDebug: { value: flags.get('riverdebug') === '1' ? 1 : 0 }, uFortGround: { value: fortEnabled ? 1 : 0 },
-    uCanopyDetail: { value: quality === 'light' ? 0 : 1 }, uCanopySun: { value: ATMOS.sunDir },
+    uCanopyDetail: { value: quality === 'light' ? 0 : 1 }, uCanopySun: { value: ATMOS.sunDir }, uCanopyGlow: { value: flags.get('glow') === '0' ? 0 : 1 },
     uCedar: { value: palette.cedar }, uAutumn: { value: palette.autumn },
     uHillGrass: { value: new THREE.Color(CANOPY.grass) }, uHillGold: { value: new THREE.Color(CANOPY.grassGold) },
   };
