@@ -20,8 +20,11 @@ export const LEGACY_ATMOS = {
 // 方位は北から時計回り、角度は度。谷だけに使う夕景の調整値。
 export const SKY = Object.freeze({
   // 高さ 7.5 度では、谷を囲む山の縁（日の方向で約 14.65 度）に隠れて、谷のどこからも夕日が見えなかった。縁のすぐ上へ上げた。
-  bearingDeg: 55, elevationDeg: 15.5, sunColor: '#ffca85', // 北東の山の端にかかる、金橙色の日。
-  hemiIntensity: 1.12, fillIntensity: 0.58, // 逆光の地面・人物を支える照度。
+  // 3 周目：見渡しを南の高い所（地面から 86m）へ移し、日を、谷の奥の切れ目の上（方位 40 度・高さ 16.5 度）へ寄せた。方位 55 度では、
+  // 日が画面の右上の外に出て、講評で「夕日が見えない」と言われた。この位置なら、日は、尾根の木の上・画面の右上に入る。
+  bearingDeg: 40, elevationDeg: 16.5, sunColor: '#ffca85', // 北東の山の端にかかる、金橙色の日。
+  hemiIntensity: 1.12, fillIntensity: 0.7, // 逆光の地面・人物を支える照度（0.58 では、手前を向いた斜面が暗すぎた）。
+  fogDensity: 0.0011, // 遠くの霞（1/m）。0.0007 では、奥の尾根まで同じ濃さで、奥行きの段が出なかった。
   horizon: '#ff9050', mid: '#d59a9c', zenith: '#4d568c', // 谷専用：金橙・珊瑚桃・青紫。lkのhorc/midc/zencで上書き。
   // 色の帯は、山の縁（里から見て約 15 度）でなく、遠い山並みのすぐ上（約 4 度）から始める。高い所からの見渡しでは、空は仰角 3〜18 度しか
   // 写らず、縁から始めると、写る空の全体が同じ淡い金色になった（絵と並べて確かめた）。日の色の混合率も下げ、地平線の橙を濃く残す。
@@ -49,7 +52,7 @@ export function valleyAtmosphere(searchValue = '') {
   const bearing = SKY.bearingDeg * Math.PI / 180, elevation = SKY.elevationDeg * Math.PI / 180;
   return { ...LEGACY_ATMOS, mist: { ...LEGACY_ATMOS.mist },
     sunDir: old ? LEGACY_ATMOS.sunDir.clone() : new THREE.Vector3(Math.sin(bearing) * Math.cos(elevation), Math.sin(elevation), -Math.cos(bearing) * Math.cos(elevation)),
-    ...(!old ? { sunColor: SKY.sunColor, hemiIntensity: SKY.hemiIntensity, fillIntensity: SKY.fillIntensity } : {}),
+    ...(!old ? { sunColor: SKY.sunColor, hemiIntensity: SKY.hemiIntensity, fillIntensity: SKY.fillIntensity, fogDensity: SKY.fogDensity } : {}),
     ...(!old && q.get('sky2') !== '0' ? { horizon: SKY.horizon, mid: SKY.mid, zenith: SKY.zenith } : {}),
     sky2: q.get('sky2') !== '0', skyDebug: q.get('sky2debug') === '1', mist2: q.get('mist2') !== '0',
     grade: old ? null : SKY.grade,

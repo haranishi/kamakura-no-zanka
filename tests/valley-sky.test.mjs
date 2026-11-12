@@ -19,8 +19,9 @@ test('sun defaults to low northeast; old lighting is exact and look overrides st
   assert(Math.abs(a.sunDir.length() - 1) < 1e-12);
   const bearing = Math.atan2(a.sunDir.x, -a.sunDir.z) * 180 / Math.PI;
   const height = Math.asin(a.sunDir.y) * 180 / Math.PI;
-  // The valley rim stands about 14.65 degrees high towards the sun: a lower sun never clears it, and the valley has no visible sunset.
-  assert(bearing >= 45 && bearing <= 65); assert(height >= 14 && height <= 18);
+  // The valley rim stands 12 to 15 degrees high towards the sun: a lower sun never clears it, and the valley has no visible sunset.
+  // Third round: the sun moved from bearing 55 to 40, over the notch at the head of the valley, inside the overlook's frame.
+  assert(bearing >= 35 && bearing <= 65); assert(height >= 14 && height <= 18); assert(a.fogDensity > old.fogDensity);
   assert.deepEqual(old.sunDir.toArray(), new THREE.Vector3(.5, .17, .85).normalize().toArray());
   for (const key of ['sunColor','sunIntensity','hemiSky','hemiGround','hemiIntensity','envIntensity','fillColor','fillIntensity']) assert.equal(old[key], LEGACY_ATMOS[key]);
   assert(a.hemiIntensity > old.hemiIntensity && a.fillIntensity > old.fillIntensity);
