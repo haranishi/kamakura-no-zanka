@@ -63,7 +63,7 @@ test('horizon layer is absent without metadata or with flag, ignores camera tran
   }
 });
 test('land colours follow the active sky at every time; range is fainter than headland',()=>{
-  const {ATMOS}=awaitableAtmos;
+  const {LEGACY_ATMOS: ATMOS}=awaitableAtmos;
   for(const time of ['morning','noon','golden','evening','dusk']){
     const a=kamakuraAtmosphere(time,{...ATMOS,sunDir:ATMOS.sunDir.toArray()});
     const v=createKamakuraHorizon({scene:new THREE.Scene(),data:{meta:{horizon:examples()}},atmosphere:{atmosphere:{params:a}},search:'?time='+time});

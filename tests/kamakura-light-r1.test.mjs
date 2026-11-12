@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { THREE, load, source } from './helpers/tree-modules.mjs';
 import { kamakuraAtmosphere, eveningEnabled, eveningLight, sunBacklight, validateAtmosphere } from '../dist/valley/kamakura-atmosphere.js';
 import { bloomLift, bloomCap } from '../dist/valley/kamakura-post.js';
-const { ATMOS } = await load('atmosphere.js');
+const { LEGACY_ATMOS: ATMOS } = await load('atmosphere.js');
 const { installKamakuraFog } = await load('kamakura-atmosphere-view.js');
 const { createKamakuraPost } = await load('kamakura-post-view.js');
 const base = { ...ATMOS, sunDir: ATMOS.sunDir.toArray() };
