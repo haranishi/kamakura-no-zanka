@@ -20,7 +20,7 @@ const qa = f => { globalThis.window = {}; return installQA({ veg: { trees: f }, 
 const matrix = (s,k=0) => { const m=new THREE.Matrix4();s.leaf.getMatrixAt(k,m);return m.elements; };
 // Fixed historical counts exercise the disabled path; the slope forest has its own real-scatter budget test.
 let realScatter;
-const real = () => { if (!realScatter) { const terrain=createTerrain(WORLD),trees=scatterTrees(WORLD,terrain); realScatter={terrain,trees,species:assignTreeSpecies(WORLD,terrain,trees,{forest2:false}),understory:scatterUnderstory(WORLD,terrain,trees)}; } return realScatter; };
+const real = () => { if (!realScatter) { const terrain=Object.assign(createTerrain(WORLD, { fortShape: 0 }), { fort2: false }),trees=scatterTrees(WORLD,terrain,{fort2:false}); realScatter={terrain,trees,species:assignTreeSpecies(WORLD,terrain,trees,{forest2:false}),understory:scatterUnderstory(WORLD,terrain,trees)}; } return realScatter; };
 // The first tint on a fine grid that selects each family, so one tree stands for each family.
 const tintFor = (sp, shape) => { for (let k=0;k<1000;k++) { const t=(k+.5)/1000; if (treeShape(sp,t)===shape) return t; } throw new Error('[shape-selection] unreachable family'); };
 test('derived species capacity, variants, color and shadow [species]',()=>{
