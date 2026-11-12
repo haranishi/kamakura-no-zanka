@@ -9,6 +9,8 @@ test('shots: every fixed view has finite numbers; the concept overlook looks nor
     assert([...s.pos, ...s.look, s.fov].every(Number.isFinite), name); assert(s.fov >= 30 && s.fov <= 70, name);
   }
   const c = SHOTS.concept; assert(c.look[0] > c.pos[0] && c.look[1] < c.pos[1]); assert(c.eye >= 30 && c.eye <= 60);
+  // It looks down by 10 to 20 degrees, so that the terraces fill the foot of the frame and the far hills its top edge.
+  const run = Math.hypot(c.look[0] - c.pos[0], c.look[1] - c.pos[1]), pitch = Math.atan2(c.eye - c.look[2], run) * 180 / Math.PI; assert(pitch >= 10 && pitch <= 20, String(pitch));
 });
 test('shots: a named view becomes a fixed camera in world coordinates; unknown names give null', () => {
   const o = shotOverride('concept', terrain), c = SHOTS.concept;

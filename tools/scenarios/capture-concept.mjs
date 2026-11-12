@@ -6,7 +6,7 @@ export default async function ({ step, call, v, shot, freeze, start }) {
   await start('new'); await freeze(true); await step(40); await call('god', true);
   await v("(document.body.classList.add('hide-hud'), document.getElementById('toast')?.classList.remove('on'), __valley.game.settings.waymarks = 'off', __valley.game.aiPaused = true, 0)");
   await call('teleport', 0, 30, 0); await step(10);
-  await cam('01-concept-overlook', [-50, 40, 110], [12, 5, -80], 50, 30);
+  await cam('01-concept-overlook', [-50, 40, 110], [-0.6, 0.4, -42.2], 58, 30);
   await cam('02-terraces', [-10, 14, 128], [0, 2, 30], 55);
   await cam('04-village-from-east', [70, 12, 30], [0, 3, 4], 55);
   await call('teleport', 60, -10, 0); await step(10);
