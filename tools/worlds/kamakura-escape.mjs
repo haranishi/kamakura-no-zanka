@@ -6,7 +6,7 @@ export const ESCAPE=freeze({
   camera:{east:-112,north:410,height:55,bearing:156,pitch:21.4,fov:50},
   spawn:[-113.2202,412.7406],sun:{turn_deg:-68,lift_deg:0},disc:1.5,air:{haze:4,mist:7},
   fires:[[24,152,14,1],[-20,122,10,.75],[58,96,8,.5],[-52,82,6,.35]],
-  lights:{rate:.7},flight:{road:'pass',groups:18,size:[2,4],speed:.9},
+  lights:{rate:.9},flight:{road:'pass',groups:18,size:[2,4],speed:.9},
   fields:{density:.28}, // multiplier: wild flowers along the verges, thinned so that white lilies do not read as noise at dusk
   // East / design north / radius / thickness / strength: thin mist pooled in hollows off the road (never on the meadow or the path:
   // there it read as a white lake). wispLift = metres from the ground at the centre to the underside.
@@ -35,7 +35,7 @@ export const ESCAPE=freeze({
   meadowTreeLean:.425,meadowTreeYaw:185,crownBase:.55,crownSamples:32,roofClearance:1.2,
   // Existing cliff palette modulation: brighter broad faces and dark vertical seams.
   cliffLight:1.14,cliffDark:.72,cliffWave:3,
-  homes:[[-32,280],[-30,294],[-29,308],[-52,321]],homeHeight:18,homeRadius:8,homeBlend:7,
+  homes:[[-32,280],[-30,294],[-29,308],[-52,321]],homeHeight:18,homeRadius:8,homeBlend:7,hamletTurn:1.3, // hamletTurn = radians a home may turn from its road towards the overlook
   huts:[[-81,390,27.5],[-108,330,25]],hutRadius:5,hutClear:6,meadowHutScale:.55,
   trees:[[-89.05,402.98,13,2],[-86,384,12,4.5]], // x,north,height,crown radius: frame tree and meadow broadleaf
   hamletTrees:[[-21,300],[-20,317],[-53,317],[-55,297]],hamletTreeHeight:9,hamletCrown:2.5,

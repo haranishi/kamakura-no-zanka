@@ -40,7 +40,11 @@ export function placeDesignedHouses(kits,field,nodes) {
     let ok=false;
     const offsets=[[0,0],[-2,0],[2,0],[0,-2],[0,2],[-3,0],[3,0],[3,-3],[3,3],[-3,-3],[-3,3]];
     for(const offset of offsets){
-      const x=p[0]+offset[0],y=p[1]+offset[1],q=nearest(x,y),front=Math.atan2(q.x-x,-(q.y-y));
+      const x=p[0]+offset[0],y=p[1]+offset[1],q=nearest(x,y),road=Math.atan2(q.x-x,-(q.y-y));
+      // A hamlet home turns its lit front towards the overlook when the road lies within R.hamletTurn of that direction: seen from
+      // the overlook, a home that faces only the road shows its dark back, and the hamlet has no light.
+      const aim=Math.atan2(R.camera.east-x,-(R.camera.north-y)),swing=Math.atan2(Math.sin(aim-road),Math.cos(aim-road));
+      const front=i<R.homes.length&&Math.abs(swing)<=R.hamletTurn?aim:road;
       for(const turn of i<R.homes.length?[0]:[0,Math.PI/2,-Math.PI/2,Math.PI]){
         for(const k of kinds){
           let scale=1;
