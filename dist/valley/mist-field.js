@@ -3,19 +3,25 @@ import { fbm, smooth } from './terrain-height.js';
 
 export const MIST3 = Object.freeze({
   size: 1280, resolution: 256, threshold: 0.05, // m・格子数・面積を数える濃さの下限。
-  sigma: 0.014, maxDistance: 650, maxOpacity: 0.62, epsilon: 0.000001, // 1/m・m・不透明度・水平視線の方向の許容差。
+  sigma: 0.0095, maxDistance: 650, maxOpacity: 0.5, epsilon: 0.000001, // 1/m（60mで0.434）・m・不透明度・水平視線の方向の許容差。
   steps: 28, reducedSteps: 20, lightSteps: 14, bottomSoft: 0.25, topSoft: 0.45, // 点数（標準／自動1／自動2以降・軽量）・上下のぼかし比。
   boundsPadding: 0.5, topGain: 1.12, bottomGain: 0.78, bottomBlue: 0.18, // m：HalfFloat誤差の余白・層の上／下の輝度・下の青白の混色率。
   jitterDot: [127.1, 311.7], jitterGain: 43758.5453, // 画素ハッシュと斑のハッシュの固定係数（時間で変えない）。
   near: 25, nearEnd: 55, // m：足元を消す距離と、霧が全量に戻る距離。
   largePeriod: 115, finePeriod: 40, fineWeight: 0.3, heightNoise: 0.08, // m・m・比率・高さを雑音座標へ混ぜる比率。
   speed: 0.7, thicknessMin: 0.6, thicknessMax: 1.2, // m/s（旧霧と同じ−X向き）・厚さの雑音倍率。
-  coolLift: 0.70, warmMix: 0.48, backGain: 0.88, sunGain: 1.15, sunPower: 6, // 既存の霧色の持上げ・桃の混色・反日側／日側の輝度・前方散乱の指数。
+  coolLift: 0.70, warmMix: 0.48, backGain: 0.88, sunGain: 1.45, sunPower: 3, // 既存の霧色の持上げ・桃の混色・反日側／日側の輝度・前方散乱の指数（35度で0.55）。
+  colourGain: 0.8, skyMix: 0.18, skyHorizonMix: 0.4, // 線形光の明るさ倍率・空の混色率・空色内の地平線の比率。
+  resolutionScale: 0.5, blurWidth: 1, blurCenter: 0.375, blurNear: 0.25, blurFar: 0.0625, // 画面に対する積算の解像度比・半解像度の画素単位の幅・横・縦5点ぼかしの中心／隣／2画素先の重み。
+  depthFloor: 1, depthRelative: 0.015, // m・比率：深度の重み exp(-差/max(1m,視深度の1.5%)) の許容幅。
   riverWidth: 2.8, riverLift: [0, 1], riverThick: [7, 10], riverGain: 0.65, riverFloor: 0.45, riverNorth: [-180, -120], riverSouth: [90, 150], // 川半幅の倍率・m・m・濃さ、上下流の濃さを戻すz帯(m)。
   bridgeRadius: 70, bridgeFade: 30, sightFade: 15, // m：橋と見通しの保護域、なだらかに戻す幅。
   ringRadii: [43, 65], ringSamples: 8, depression: [0.6, 6], basinGain: 0.85, // m・方向数・窪みの深さ(m)・濃さ。
-  basinLift: [6, 18], basinThick: [18, 30], highFade: [80, 110], // m：谷筋の浮き・厚さ・谷底からの高さで薄める帯。
+  basinLift: [6, 18], basinThick: [10, 18], basinLevels: [22, 50, 82, 118], basinLevelFade: 6, highFade: [80, 110], // m：谷筋の浮き・厚さ・谷底基準の底の標高段・段境で消す半幅・高所の消失帯。
   basinPatch: [0.03, 0.32], basinFineWeight: 0.6, basinRim: [0.84, 1.5], // 雑音の島の境、谷の楕円半径に対する山腹の範囲。
+  basinLargePeriod: 150, basinFinePeriod: 55, // m：水平な谷筋の塊の大小。川・森の雑音は変えない。
+  basinMinSpan: 80, // m：段境で切れた小さい島を残さない、連結した谷筋の最小の差し渡し。
+  basinBlendThick: [18, 30], // m：川・森・北奥に混ざっていた谷筋の厚さ。既存の3種の断面を保つため据え置く。
   northFrom: 250, northFull: 400, northWidth: [70, 150], northLift: 3, northThick: [25, 40], // m：北の奥の始点・全量・半幅・浮き・厚さ。
   // 北の谷あいの霧は、上の面を水平にする（川面から northPool m。そこより高い斜面では northThin m の薄い層）。層を地形に沿わせたままだと、
   // 霧が谷の両側の斜面をはい上がり、2 本の白い筋（滝）に見えた（実際の画面で確かめた）。谷に、霧の池がたまる形にする。
@@ -35,6 +41,15 @@ function rectDistance(f, x, z) {
 function segmentDistance(x, z, a, b) {
   const dx = b[0] - a[0], dz = b[1] - a[1], t = clamp(((x - a[0]) * dx + (z - a[1]) * dz) / (dx * dx + dz * dz || 1));
   return Math.hypot(x - a[0] - t * dx, z - a[1] - t * dz);
+}
+// 隣の段の中点から離れるほど濃さを戻す。層の底そのものは補間しない。
+export function basinLayer(base, floor) {
+  const levels = MIST3.basinLevels, relative = base - floor;
+  let index = 0;
+  for (let i = 1; i < levels.length; i++) if (Math.abs(relative - levels[i]) < Math.abs(relative - levels[index])) index = i;
+  let gap = Infinity;
+  for (let i = 1; i < levels.length; i++) gap = Math.min(gap, Math.abs(relative - (levels[i - 1] + levels[i]) / 2));
+  return { bottom: floor + levels[index], fade: smooth(0, MIST3.basinLevelFade, gap), index };
 }
 export function mistFieldAt(world, terrain, x, z) {
   const m = MIST3, v = world.valley, b = world.bounds, T = world.terraces;
@@ -64,7 +79,10 @@ export function mistFieldAt(world, terrain, x, z) {
   const rim = Math.hypot((x - v.cx) / v.rx, (z - v.cz) / v.rz);
   const mountain = smooth(...m.basinRim, rim) * (1 - smooth(...m.highFade, h - world.floor.y0));
   const outsideFade = smooth(0, m.boundaryFade, outside);
-  const basin = inside ? 0 : relief * mountain * smooth(...m.basinPatch, n * (1 - m.basinFineWeight) + detail * m.basinFineWeight) * m.basinGain * outsideFade;
+  const basinNoise = noise(x, z, m.basinLargePeriod, m.seed) * (1 - m.basinFineWeight) + noise(x, z, m.basinFinePeriod, m.seed + 1) * m.basinFineWeight;
+  const layer = basinLayer(h + range(m.basinLift, relief), world.floor.y0);
+  const basin = inside ? 0 : relief * mountain * smooth(...m.basinPatch, basinNoise) * m.basinGain * outsideFade;
+  const blendBasin = inside ? 0 : relief * mountain * smooth(...m.basinPatch, n * (1 - m.basinFineWeight) + detail * m.basinFineWeight) * m.basinGain * outsideFade;
   const north = inside ? 0 : smooth(m.northFrom, m.northFull, village.z - z) *
     (1 - smooth(m.northWidth[0], m.northWidth[1] + warp, r.d)) * outsideFade;
   const forest = (1 - smooth(m.forestRim[1], m.forestRim[2], rim)) * smooth(m.forestRim[0], m.forestRim[1], rim) *
@@ -74,33 +92,70 @@ export function mistFieldAt(world, terrain, x, z) {
   for (let k = 1; k < strengths.length; k++) if (strengths[k] > strengths[kind]) kind = k;
   const variation = clamp(0.5 + n * 0.5);
   const lifts = [range(m.riverLift, variation), range(m.basinLift, relief), m.northLift, range(m.forestLift, variation)];
-  const thicks = [range(m.riverThick, variation), range(m.basinThick, relief), Math.max(m.northThin, Math.min(m.northThick[1] * 1.6, r.y + m.northPool - (h + m.northLift))), range(m.forestThick, variation)];
+  const thicks = [range(m.riverThick, variation), range(m.basinBlendThick, relief), Math.max(m.northThin, Math.min(m.northThick[1] * 1.6, r.y + m.northPool - (h + m.northLift))), range(m.forestThick, variation)];
   const border = Math.max(Math.abs(x - v.cx), Math.abs(z - v.cz));
   mask *= 1 - smooth(m.size / 2 - m.mapFade, m.size / 2, border);
-  const total = strengths.reduce((sum, value) => sum + value, 0);
-  const blend = values => total > 0 ? values.reduce((sum, value, i) => sum + value * strengths[i], 0) / total : values[kind];
+  const blendStrengths = [river, blendBasin, north, forest], total = blendStrengths.reduce((sum, value) => sum + value, 0);
+  const blend = values => total > 0 ? values.reduce((sum, value, i) => sum + value * blendStrengths[i], 0) / total : values[kind];
   const walkFade = mix(m.walkGain, 1, outsideFade);
-  return { strength: clamp(strengths[kind] * mask * walkFade), lift: blend(lifts), thick: blend(thicks), kind: ['river', 'basin', 'north', 'forest'][kind] };
+  const lift = blend(lifts), isBasin = kind === 1;
+  return { strength: clamp(strengths[kind] * mask * walkFade) * (isBasin ? layer.fade : 1), lift,
+    thick: isBasin ? range(m.basinThick, relief) : blend(thicks),
+    g: isBasin ? layer.bottom - lift : h, level: isBasin ? layer.index : -1, kind: ['river', 'basin', 'north', 'forest'][kind] };
 }
 // 地図の各画素の中心を採る。地形の照会はここだけで、窪みはその格子を線形補間して読む。
 export function bakeMistField(world, terrain) {
   const m = MIST3, n = m.resolution, step = m.size / n, x0 = world.valley.cx - m.size / 2, z0 = world.valley.cz - m.size / 2;
-  const data = new Float32Array(n * n * 4), kinds = new Uint8Array(n * n);
-  for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) data[(j * n + i) * 4] = terrain.heightAt(x0 + (i + 0.5) * step, z0 + (j + 0.5) * step);
+  const data = new Float32Array(n * n * 4), kinds = new Uint8Array(n * n), ground = new Float32Array(n * n), levels = new Int8Array(n * n);
+  for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) ground[j * n + i] = terrain.heightAt(x0 + (i + 0.5) * step, z0 + (j + 0.5) * step);
   const heightAt = (x, z) => {
     const u = clamp((x - x0) / step - 0.5, 0, n - 1), v = clamp((z - z0) / step - 0.5, 0, n - 1);
     const i = Math.floor(u), j = Math.floor(v), i1 = Math.min(i + 1, n - 1), j1 = Math.min(j + 1, n - 1);
-    return mix(mix(data[(j * n + i) * 4], data[(j * n + i1) * 4], u - i), mix(data[(j1 * n + i) * 4], data[(j1 * n + i1) * 4], u - i), v - j);
+    return mix(mix(ground[j * n + i], ground[j * n + i1], u - i), mix(ground[j1 * n + i], ground[j1 * n + i1], u - i), v - j);
   };
   const cached = { ...terrain, heightAt }, area = { river: 0, basin: 0, north: 0, forest: 0 };
   let occupied = 0, ringLookups = 0;
   for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) {
     const k = j * n + i, f = mistFieldAt(world, cached, x0 + (i + 0.5) * step, z0 + (j + 0.5) * step);
-    data[k * 4 + 1] = f.strength; data[k * 4 + 2] = f.lift; data[k * 4 + 3] = f.thick;
+    data[k * 4] = f.g; data[k * 4 + 1] = f.strength; data[k * 4 + 2] = f.lift; data[k * 4 + 3] = f.thick; levels[k] = f.level;
     const x = x0 + (i + 0.5) * step, z = z0 + (j + 0.5) * step, b = world.bounds;
     if (x < b.minX || x > b.maxX || z < b.minZ || z > b.maxZ) ringLookups += m.ringSamples * m.ringRadii.length;
     kinds[k] = ['river', 'basin', 'north', 'forest'].indexOf(f.kind);
-    if (f.strength > m.threshold) { occupied++; area[f.kind] += step * step; }
+  }
+  // 5m格子をまたぐ段境は両側1セルを空ける。線形補間で段間に斜めの霧を架けない。
+  let boundaryCells = 0, boundaryLookups = 0;
+  for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) {
+    const k = j * n + i;
+    if (kinds[k] === 1) for (let dz = -1; dz <= 1; dz++) for (let dx = -1; dx <= 1; dx++) {
+      const at = clamp(j + dz, 0, n - 1) * n + clamp(i + dx, 0, n - 1);
+      boundaryLookups++;
+      if (kinds[at] === 1 && levels[at] !== levels[k]) { if (data[k * 4 + 1] > 0) boundaryCells++; data[k * 4 + 1] = 0; }
+    }
+  }
+  const visited = new Uint8Array(n * n); let basinPatches = 0, basinFloodCells = 0;
+  for (let k = 0; k < n * n; k++) {
+    if (visited[k] || kinds[k] !== 1 || data[k * 4 + 1] <= m.threshold) continue;
+    const queue = [k]; visited[k] = 1;
+    let minX = n, maxX = 0, minZ = n, maxZ = 0;
+    for (let at = 0; at < queue.length; at++) {
+      basinFloodCells++;
+      const cell = queue[at], x = cell % n, z = Math.floor(cell / n);
+      minX = Math.min(minX, x); maxX = Math.max(maxX, x); minZ = Math.min(minZ, z); maxZ = Math.max(maxZ, z);
+      for (const next of [x ? cell - 1 : -1, x < n - 1 ? cell + 1 : -1, cell - n, cell + n]) {
+        if (next < 0 || next >= n * n || visited[next] || kinds[next] !== 1 || data[next * 4 + 1] <= m.threshold) continue;
+        visited[next] = 1; queue.push(next);
+      }
+    }
+    if (Math.max(maxX - minX + 1, maxZ - minZ + 1) * step < m.basinMinSpan) {
+      // 消す島の周囲1セルも薄め、濃さの閾値が新しい硬い縁にならないようにする。
+      for (const cell of queue) for (let dz = -1; dz <= 1; dz++) for (let dx = -1; dx <= 1; dx++) {
+        const next = clamp(Math.floor(cell / n) + dz, 0, n - 1) * n + clamp(cell % n + dx, 0, n - 1);
+        if (kinds[next] === 1) data[next * 4 + 1] = 0;
+      }
+    } else basinPatches++;
+  }
+  for (let k = 0; k < n * n; k++) if (data[k * 4 + 1] > m.threshold) {
+    occupied++; area[['river', 'basin', 'north', 'forest'][kinds[k]]] += step * step;
   }
   // 線形補間は隣の無霧セルも混ぜるため、その高さも含める。厚さ倍率は配線側で反映する。
   let minBottom = Infinity, maxBottom = -Infinity, maxThickness = 0;
@@ -114,8 +169,22 @@ export function bakeMistField(world, terrain) {
     }
   }
   const heightRange = { minBottom, maxBottom, maxThickness };
-  return { data, kinds, heightAt, x0, z0, step, stats: { occupiedFraction: occupied / (n * n), area, heightRange, heightSamples: n * n, fieldSamples: n * n, ringLookups, textureBytes: n * n * 8 } };
+  return { data, kinds, heightAt, x0, z0, step, stats: { occupiedFraction: occupied / (n * n), area, heightRange, boundaryCells, boundaryLookups, basinFloodCells, basinPatches,
+    postprocessCells: n * n * 3, heightSamples: n * n, fieldSamples: n * n, ringLookups, textureBytes: n * n * 8 } };
 }
+export const mistBlurEnabled = (quality, tier = 0) => quality !== 'light' && tier < 2;
+export const mistDepthWeight = (center, depth) => Math.exp(-Math.abs(depth - center) / Math.max(MIST3.depthFloor, Math.abs(center) * MIST3.depthRelative));
+// 深度を見てSとTを同じ重みで平均する。足りる深度の標本がなければ透明へ戻す。
+export function filterMist(centerDepth, samples) {
+  const sum = [0, 0, 0, 0]; let weight = 0;
+  for (const s of samples) {
+    const w = s.weight * mistDepthWeight(centerDepth, s.depth); weight += w;
+    for (let c = 0; c < 4; c++) sum[c] += s.value[c] * w;
+  }
+  return weight > MIST3.epsilon ? sum.map(v => v / weight) : [0, 0, 0, 1];
+}
+export const MIST3_DEPTH_GLSL = `
+float mistDepthWeight(float center,float depth){return exp(-abs(depth-center)/max(${MIST3.depthFloor.toFixed(8)},abs(center)*${MIST3.depthRelative.toFixed(8)}));}`;
 // 視線上の等間隔積算のJS写し。GLSLと同じ断面・区間・消散式を試験する。
 export const mistSteps = (quality = 'standard', tier = 0) => quality === 'light' || tier >= 2 ? MIST3.lightSteps : tier >= 1 ? MIST3.reducedSteps : MIST3.steps;
 export function mistHeightBounds(range, thicknessScale = 1) {

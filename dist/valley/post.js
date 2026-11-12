@@ -1,7 +1,7 @@
 // post.js — 後処理の最小パス：MSAA（HalfFloat）→谷の局所霧→ブルーム→階調（ACES風）＋色調整→ビネット（view層）。
 // 依存を増やさず、必要な効果だけを自前で持つ（design.md の判断）。標準／軽量で内容を切り替える。
 import * as THREE from 'three';
-import { MIST3, MIST3_AMOUNT_GLSL, bakeMistField, mistHeightBounds, mistSteps } from './mist-field.js';
+import { MIST3, MIST3_AMOUNT_GLSL, bakeMistField, mistHeightBounds, mistSteps, mistBlurEnabled, MIST3_DEPTH_GLSL } from './mist-field.js';
 
 export const OUTPUT_DITHER = 1 / 255; // sRGB出力の雑音幅。片側±0.5/255、描画追加なし。
 
@@ -17,18 +17,18 @@ const TONEMAP = `
 // 面まで（空なら最遠まで）の視線を、霧の高さ帯に絞って等間隔に積む。
 export const MIST3_FRAGMENT = `
   varying vec2 vUv;
-  uniform sampler2D tex, depthTex, field;
+  uniform sampler2D depthTex, field;
   uniform mat4 inverseProjection, cameraWorld;
   uniform vec2 mapCenter, heightBounds;
   uniform vec3 eye, sun, cool, warm;
-  uniform float clock, sigma, thicknessScale, lightQuality, debug;
+  uniform float clock, sigma, thicknessScale, lightQuality;
   uniform int stepCount;
   float hash(vec2 p){return fract(sin(dot(p,vec2(${MIST3.jitterDot.map(n => n.toFixed(1)).join(',')})))*${MIST3.jitterGain.toFixed(4)});}
   float noise(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);
     return mix(mix(hash(i),hash(i+vec2(1.0,0.0)),f.x),mix(hash(i+vec2(0.0,1.0)),hash(i+vec2(1.0)),f.x),f.y);}
   ${MIST3_AMOUNT_GLSL}
   void main(){
-    vec4 original=texture2D(tex,vUv);float depth=texture2D(depthTex,vUv).r;
+    float depth=texture2D(depthTex,vUv).r;
     vec4 view=inverseProjection*vec4(vUv*2.0-1.0,depth*2.0-1.0,1.0);
     vec3 p=(cameraWorld*vec4(view.xyz/view.w,1.0)).xyz;
     vec3 ray=p-eye;float distance=length(ray);vec3 direction=ray/max(distance,${MIST3.epsilon.toFixed(8)});
@@ -59,8 +59,61 @@ export const MIST3_FRAGMENT = `
         scattering+=transmittance*a*colour;transmittance*=1.0-a;
       }
     }
-    gl_FragColor=debug>0.5?vec4(vec3(1.0-transmittance),1.0):vec4(original.rgb*transmittance+scattering,original.a);
+    gl_FragColor=vec4(scattering,transmittance);
   }`;
+
+// 深度は線形の視深度(m)で比べる。半解像度のS/Tは必ず離散的に読み、輪郭をまたぐ線形補間を避ける。
+const MIST_FILTER = `
+  varying vec2 vUv;
+  uniform sampler2D fogTex, depthTex;
+  uniform mat4 inverseProjection;
+  uniform vec2 fogSize;
+  ${MIST3_DEPTH_GLSL}
+  float depthAt(vec2 uv){
+    float d=texture2D(depthTex,uv).r;
+    vec4 v=inverseProjection*vec4(uv*2.0-1.0,d*2.0-1.0,1.0);
+    return abs(v.z/v.w);
+  }
+  vec2 fogUV(vec2 pixel){return (clamp(pixel,vec2(0.0),fogSize-1.0)+0.5)/fogSize;}
+  void addMist(vec2 uv,float spatial,float center,inout vec4 sum,inout float total){
+    float w=spatial*mistDepthWeight(center,depthAt(uv));
+    sum+=texture2D(fogTex,uv)*w;total+=w;
+  }`;
+export const MIST3_BLUR_FRAGMENT = `${MIST_FILTER}
+  uniform vec2 blurAxis;
+  void main(){
+    float center=depthAt(vUv),total=${MIST3.blurCenter.toFixed(8)};
+    vec4 sum=texture2D(fogTex,vUv)*total;
+    vec2 pixel=floor(vUv*fogSize),axis=blurAxis*${MIST3.blurWidth.toFixed(8)};
+    addMist(fogUV(pixel+axis),${MIST3.blurNear.toFixed(8)},center,sum,total);
+    addMist(fogUV(pixel-axis),${MIST3.blurNear.toFixed(8)},center,sum,total);
+    addMist(fogUV(pixel+axis*2.0),${MIST3.blurFar.toFixed(8)},center,sum,total);
+    addMist(fogUV(pixel-axis*2.0),${MIST3.blurFar.toFixed(8)},center,sum,total);
+    gl_FragColor=sum/total;
+  }`;
+export const MIST3_COMPOSITE_FRAGMENT = `${MIST_FILTER}
+  uniform sampler2D tex;
+  uniform float debug;
+  void main(){
+    vec2 pixel=vUv*fogSize-0.5,base=floor(pixel),f=fract(pixel);
+    float center=depthAt(vUv),total=0.0;vec4 sum=vec4(0.0);
+    addMist(fogUV(base),(1.0-f.x)*(1.0-f.y),center,sum,total);
+    addMist(fogUV(base+vec2(1.0,0.0)),f.x*(1.0-f.y),center,sum,total);
+    addMist(fogUV(base+vec2(0.0,1.0)),(1.0-f.x)*f.y,center,sum,total);
+    addMist(fogUV(base+vec2(1.0)),f.x*f.y,center,sum,total);
+    vec4 fog=total>${MIST3.epsilon.toFixed(8)}?sum/total:vec4(0.0,0.0,0.0,1.0);
+    vec4 original=texture2D(tex,vUv);
+    gl_FragColor=debug>0.5?vec4(vec3(1.0-fog.a),1.0):vec4(original.rgb*fog.a+fog.rgb,original.a);
+  }`;
+
+// 既存色の出どころを保って空色を混ぜ、線形光で20%下げる。品質切替では作り直さない。
+export function mistColours(a) {
+  const sky=new THREE.Color(a.mid).lerp(new THREE.Color(a.horizon),MIST3.skyHorizonMix);
+  return {
+    cool:new THREE.Color(a.fogColor).multiplyScalar(1+MIST3.coolLift).lerp(sky,MIST3.skyMix).multiplyScalar(MIST3.colourGain),
+    warm:new THREE.Color(a.hazeWarm).lerp(new THREE.Color(a.mid),MIST3.warmMix).lerp(sky,MIST3.skyMix).multiplyScalar(MIST3.colourGain),
+  };
+}
 
 function pass(fragment, uniforms, extra = {}) {
   return new THREE.ShaderMaterial({ vertexShader: VERT, fragmentShader: fragment, uniforms, depthTest: false, depthWrite: false, ...extra });
@@ -117,7 +170,7 @@ export class Post {
     this.matCopy = pass(COPY, { tex: { value: null }, opacity: { value: 1 } });
     this.matOver = pass(COPY, { tex: { value: null }, opacity: { value: 0 } }, { transparent: true });
     this.hold = null;
-    this.mist = null; this.mistTarget = null; this.mistReason = 'not-configured'; this.mistActive = false;
+    this.mist = null; this.mistTarget = null; this.mistAccum = null; this.mistBlur = null; this.mistReason = 'not-configured'; this.mistActive = false;
   }
 
   // scene の同一性で限定する。オープニングと world.js の場面へ霧を掛けない。
@@ -125,7 +178,7 @@ export class Post {
     this.disposeMist();
     const q = new URLSearchParams(search);
     this.mist = { scene, world, a, tier, enabled: q.get('mist3') !== '0', debug: q.get('mist3debug') === '1',
-      sigma: Math.max(0, look.mist3 ?? MIST3.sigma), thicknessScale: Math.max(0, look.mist3t ?? 1), map: null, texture: null, material: null };
+      sigma: Math.max(0, look.mist3 ?? MIST3.sigma), thicknessScale: Math.max(0, look.mist3t ?? 1), map: null, texture: null, material: null, blurMaterial: null, compositeMaterial: null };
     const m = this.mist;
     this.mistReason = !m.enabled ? 'flag' : this.depthSupportReason();
     if (!this.mistReason) {
@@ -134,12 +187,16 @@ export class Post {
       for (let i = 0; i < half.length; i++) half[i] = THREE.DataUtils.toHalfFloat(m.map.data[i]);
       m.texture = new THREE.DataTexture(half, MIST3.resolution, MIST3.resolution, THREE.RGBAFormat, THREE.HalfFloatType);
       m.texture.minFilter = m.texture.magFilter = THREE.LinearFilter; m.texture.generateMipmaps = false; m.texture.needsUpdate = true;
-      m.material = pass(MIST3_FRAGMENT, { tex: { value: null }, depthTex: { value: null }, field: { value: m.texture },
+      const colours = mistColours(a);
+      m.material = pass(MIST3_FRAGMENT, { depthTex: { value: null }, field: { value: m.texture },
         inverseProjection: { value: new THREE.Matrix4() }, cameraWorld: { value: new THREE.Matrix4() },
         mapCenter: { value: new THREE.Vector2(world.valley.cx, world.valley.cz) }, eye: { value: new THREE.Vector3() }, sun: { value: a.sunDir.clone().normalize() },
-        cool: { value: new THREE.Color(a.fogColor).multiplyScalar(1 + MIST3.coolLift) }, warm: { value: new THREE.Color(a.hazeWarm).lerp(new THREE.Color(a.mid), MIST3.warmMix) },
+        cool: { value: colours.cool }, warm: { value: colours.warm },
         heightBounds: { value: new THREE.Vector2(...mistHeightBounds(m.map.stats.heightRange, m.thicknessScale)) }, stepCount: { value: mistSteps(this.quality, tier()) },
-        clock: { value: 0 }, sigma: { value: m.sigma }, thicknessScale: { value: m.thicknessScale }, lightQuality: { value: 0 }, debug: { value: +m.debug } });
+        clock: { value: 0 }, sigma: { value: m.sigma }, thicknessScale: { value: m.thicknessScale }, lightQuality: { value: 0 } });
+      const filterUniforms = () => ({ fogTex: { value: null }, depthTex: { value: null }, inverseProjection: { value: new THREE.Matrix4() }, fogSize: { value: new THREE.Vector2() } });
+      m.blurMaterial = pass(MIST3_BLUR_FRAGMENT, { ...filterUniforms(), blurAxis: { value: new THREE.Vector2(1, 0) } });
+      m.compositeMaterial = pass(MIST3_COMPOSITE_FRAGMENT, { ...filterUniforms(), tex: { value: null }, debug: { value: +m.debug } });
     }
     scene.getObjectByName('ridges')?.userData.setMist3?.(!this.mistReason);
     if (this.size) this.setSize(this.size.w, this.size.h, 1);
@@ -153,17 +210,28 @@ export class Post {
   disposeMist() {
     const m = this.mist;
     m?.scene.getObjectByName('ridges')?.userData.setMist3?.(false);
-    m?.texture?.dispose(); m?.material?.dispose(); this.mistTarget?.dispose(); this.mistTarget = null;
+    m?.texture?.dispose(); m?.material?.dispose(); m?.blurMaterial?.dispose(); m?.compositeMaterial?.dispose(); this.disposeMistTargets();
     if (this.target?.depthTexture) { this.target.depthTexture.dispose(); this.target.depthTexture = null; }
     this.mist = null; this.mistActive = false;
   }
+  disposeMistTargets() {
+    for (const key of ['mistTarget', 'mistAccum', 'mistBlur']) { this[key]?.dispose(); this[key] = null; }
+  }
   stats() {
+    const blur = mistBlurEnabled(this.quality, this.mist?.tier() ?? 0), calls = this.mistActive ? (blur ? 4 : 2) : 0;
+    const targetBytes = [this.mistTarget, this.mistAccum, this.mistBlur].reduce((sum,t) => sum + (t ? t.width*t.height*8 : 0), 0);
+    const halfFraction = this.mistAccum ? this.mistAccum.width*this.mistAccum.height/(this.size.w*this.size.h) : 0;
     return { mist3: { ...this.mist?.map?.stats, enabled: !!this.mist?.material && !this.mistReason, active: this.mistActive, reason: this.mistReason,
       steps: mistSteps(this.quality, this.mist?.tier() ?? 0), noiseOctaves: this.quality === 'light' ? 1 : 2,
       maxFieldReads: mistSteps(this.quality, this.mist?.tier() ?? 0), maxNoiseReads: mistSteps(this.quality, this.mist?.tier() ?? 0) * (this.quality === 'light' ? 1 : 2),
       heightBounds: this.mist?.material?.uniforms.heightBounds.value.toArray(), maxDistance: MIST3.maxDistance, maxOpacity: MIST3.maxOpacity,
-      sigma: this.mist?.sigma, thicknessScale: this.mist?.thicknessScale, drawCalls: this.mistActive ? 1 : 0, triangles: this.mistActive ? 1 : 0,
-      targetBytes: this.mistTarget ? this.mistTarget.width * this.mistTarget.height * 12 : 0 } };
+      sigma: this.mist?.sigma, thicknessScale: this.mist?.thicknessScale, drawCalls: calls, triangles: calls,
+      resolutionScale: MIST3.resolutionScale, blur: this.mistActive && blur, blurPasses: this.mistActive && blur ? 2 : 0,
+      accumulationSize: this.mistAccum ? [this.mistAccum.width, this.mistAccum.height] : null,
+      blurSize: this.mistBlur ? [this.mistBlur.width, this.mistBlur.height] : null,
+      compositeSize: this.mistTarget ? [this.mistTarget.width, this.mistTarget.height] : null,
+      targetBytes, depthBytes: this.target?.depthTexture ? this.size.w*this.size.h*4 : 0,
+      maxTextureReadsPerFullPixel: halfFraction ? (1 + mistSteps(this.quality, this.mist?.tier() ?? 0)) * halfFraction + (blur ? 20*halfFraction : 0) + 10 : 0 } };
   }
 
   // オープニングの場面の溶け合い（ディゾルブ）。使う間だけ、仕上げを画面でなく8bitの絵（cur）へ描いて画面へ写す。
@@ -189,7 +257,7 @@ export class Post {
     const depth = this.target?.depthTexture;
     if (this.target) this.target.depthTexture = null;
     this.target?.dispose(); depth?.dispose();
-    this.mistTarget?.dispose(); this.mistTarget = null;
+    this.disposeMistTargets();
     const samples = this.quality === 'light' ? 0 : 4;
     this.target = new THREE.WebGLRenderTarget(w, h, { type: THREE.HalfFloatType, samples, depthBuffer: true, stencilBuffer: false });
     this.target.texture.colorSpace = THREE.LinearSRGBColorSpace;
@@ -197,6 +265,9 @@ export class Post {
       this.target.depthTexture = new THREE.DepthTexture(w, h, THREE.FloatType);
       this.mistTarget = new THREE.WebGLRenderTarget(w, h, { type: THREE.HalfFloatType, depthBuffer: false });
       this.mistTarget.texture.colorSpace = THREE.LinearSRGBColorSpace;
+      const fw = Math.max(1, Math.ceil(w * MIST3.resolutionScale)), fh = Math.max(1, Math.ceil(h * MIST3.resolutionScale));
+      this.mistAccum = new THREE.WebGLRenderTarget(fw, fh, { type: THREE.HalfFloatType, depthBuffer: false, minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter });
+      if (this.quality !== 'light') this.mistBlur = this.mistAccum.clone();
     }
     for (const l of this.levels) l.dispose();
     this.levels = [];
@@ -216,6 +287,11 @@ export class Post {
     this.quad.material = material;
     this.renderer.setRenderTarget(target);
     this.renderer.render(this.scene, this.camera);
+  }
+
+  prepareMistFilter(material, fogTexture, camera) {
+    const f = material.uniforms; f.fogTex.value = fogTexture; f.depthTex.value = this.target.depthTexture;
+    f.inverseProjection.value.copy(camera.projectionMatrixInverse); f.fogSize.value.set(this.mistAccum.width, this.mistAccum.height);
   }
 
   render(scene, camera, dt = 0) {
@@ -238,11 +314,19 @@ export class Post {
     this.mistActive = !!(this.mist?.material && !this.mistReason && scene === this.mist.scene && this.mistTarget);
     if (this.mistActive) {
       const u = this.mist.material.uniforms;
-      u.tex.value = sceneTexture; u.depthTex.value = this.target.depthTexture;
+      u.depthTex.value = this.target.depthTexture;
       u.inverseProjection.value.copy(camera.projectionMatrixInverse); u.cameraWorld.value.copy(camera.matrixWorld);
       u.eye.value.setFromMatrixPosition(camera.matrixWorld); u.clock.value += dt; u.lightQuality.value = +(this.quality === 'light');
       u.stepCount.value = mistSteps(this.quality, this.mist.tier());
-      this.run(this.mist.material, this.mistTarget); sceneTexture = this.mistTarget.texture;
+      this.run(this.mist.material, this.mistAccum);
+      let fogTexture = this.mistAccum.texture;
+      if (mistBlurEnabled(this.quality, this.mist.tier())) {
+        const b = this.mist.blurMaterial;
+        this.prepareMistFilter(b, fogTexture, camera); b.uniforms.blurAxis.value.set(1, 0); this.run(b, this.mistBlur);
+        this.prepareMistFilter(b, this.mistBlur.texture, camera); b.uniforms.blurAxis.value.set(0, 1); this.run(b, this.mistAccum);
+      }
+      this.prepareMistFilter(this.mist.compositeMaterial, fogTexture, camera); this.mist.compositeMaterial.uniforms.tex.value = sceneTexture;
+      this.run(this.mist.compositeMaterial, this.mistTarget); sceneTexture = this.mistTarget.texture;
     }
     const mistDebug = this.mistActive && this.mist.debug;
     const bloom = !mistDebug && this.quality !== 'light' && p.bloomStrength > 0;
