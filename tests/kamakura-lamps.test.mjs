@@ -59,7 +59,8 @@ test('time and flags: evening/dusk only, absent/rate zero null; dawn and noon st
   finally {if(existing===undefined)delete KAMAKURA_TIMES.dusk;}
 });
 test('distance transition is continuous, complementary and visible at 450m',()=>{
-  assert.equal(lampFarWeight(100),0);assert.equal(lampFarWeight(120),.5);assert.equal(lampFarWeight(140),1);
+  // Openings stay true shapes out to the overlook's distances (a hamlet 150m away showed no light as 3-pixel points).
+  assert(C.blendStart>=200&&C.blendEnd<=400&&C.blendEnd>C.blendStart);assert.equal(lampFarWeight(C.blendStart),0);assert.equal(lampFarWeight((C.blendStart+C.blendEnd)/2),.5);assert.equal(lampFarWeight(C.blendEnd),1);
   let last=0;
   for(let d=99;d<141;d+=.05){const far=lampFarWeight(d);assert(far>=last);assert(far-last<.003);assert.equal(1-far+far,1);last=far;}
   const c=context(),l=createKamakuraLamps(c);c.camera.position.set(0,450,0);l.update(frame(c));const info=globalThis.__kzLamps();assert(info.points>0);assert.equal(info.openings,0);assert(info.nearest.distance>140);l.dispose();

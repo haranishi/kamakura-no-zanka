@@ -4,7 +4,9 @@ import { houseFamily } from './kamakura-house-build.js';
 export const LAMPS = Object.freeze({
   max: 400, lightMax: 200, adaptKeep: .18, // houses / fraction: capacity and reduction per step.
   far: 1600, adaptDistance: .18, // m / fraction: far limit and reduction per step.
-  blendStart: 100, blendEnd: 140, // m: opening-to-point transition around 120m.
+  // Real Chrome, from the overlook: a hamlet 150m away showed no light. Its openings had already given way to 3-pixel points, while
+  // a door there is still 6 by 12 pixels. Openings and their spill on the ground now stay true shapes out to about 290m.
+  blendStart: 260, blendEnd: 320, // m: opening-to-point transition around 290m.
   wallOffset: .03, doorWidth: .9, doorHeight: 1.7, windowWidth: .7, windowHeight: .5, // m: front openings.
   windowY: 1.45, doorBase: .12, windowOffset: .3, twoWindows: 5, // m / width fraction / m: window layout.
   groundOffset: .04, poolRadius: 3, poolAhead: 1.7, poolGrid: 4, // m / cells per side: conforming ground patch.
