@@ -44,7 +44,9 @@ function cropGeometry() {
   return m.build();
 }
 
-function riceGeometry() {
+function riceGeometry(merged = false) {
+  // 棚田を有効にした稲の形は、穂・草・切株と同じ予算のまとめ描きが持つ。
+  if (merged) { const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute([],3));g.setAttribute('normal',new THREE.Float32BufferAttribute([],3));g.setAttribute('color',new THREE.Float32BufferAttribute([],3));return g; }
   const rnd = mulberry32(9201);
   const m = new Mesher();
   for (let b = 0; b < 7; b++) {
@@ -89,7 +91,7 @@ export function makeTufts({ data, geometry, wind, height, fadeStart, fadeEnd, ti
   const material = new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide, alphaToCoverage: false, emissive: 0x24351c });
   patchWind(material, wind, { height, flutter: flutter + 0.01, fadeStart: paddy ? 0 : fadeStart, fadeEnd: paddy ? 0 : fadeEnd });
   if (paddy) patchPaddyRice(material, wind, { debug: paddy.debug });
-  const n = data.x.length, buckets = new Map();
+  const n = geometry.attributes.position.count ? data.x.length : 0, buckets = new Map();
   for (let i = 0; i < n; i++) {
     const key = Math.floor(data.x[i] / chunk) + ',' + Math.floor(data.z[i] / chunk);
     if (!buckets.has(key)) buckets.set(key, []);
@@ -126,7 +128,7 @@ export function buildVegetation({ scatter, quality = 'standard', field, sunDir, 
   const grass = buildGrass({ field, wind, quality, sunDir });
   const paddy = paddyOptions(globalThis.location?.search || '');
   const riceData = paddy.enabled && field?.paddy ? paddyNearRice(scatter.rice, field.paddy.plots) : scatter.rice;
-  const rice = makeTufts({ data: riceData, geometry: riceGeometry(), wind, height: 1.0, fadeStart: 60, fadeEnd: 95, tintA: PADDY_LOOK.tintA, tintB: PADDY_LOOK.tintB, flutter: 0.02, paddy: paddy.enabled && field?.paddy ? paddy : null });
+  const rice = makeTufts({ data: riceData, geometry: riceGeometry(paddy.enabled && !!field?.paddy), wind, height: 1.0, fadeStart: 60, fadeEnd: 95, tintA: PADDY_LOOK.tintA, tintB: PADDY_LOOK.tintB, flutter: 0.02, paddy: paddy.enabled && field?.paddy ? paddy : null });
   const paddyView = buildPaddy({ layout: field?.paddy, wind, quality });
   if (paddy.enabled && field?.paddy) group.add(paddyView.group);
   const nearUpdate = rice.update;

@@ -8,7 +8,7 @@ import { ATMOS } from './atmosphere.js';
 import { forestGroveAt } from './tree-species.js';
 import { fortGrassAt } from './scatter.js';
 import { paddySurfaceColor, paddySurfaceMask, patchPaddyGround, paddyDebugColor } from './paddy-view.js';
-import { paddyAt, paddyOptions, createPaddyPlots, PADDY_LOOK } from './paddy.js';
+import { paddyAt, paddyOptions, createPaddyPlots, paddyShadowAt, PADDY_LOOK } from './paddy.js';
 // 森の下の地面を暗くする強さ：近く（gain・急な斜面で戻す量 steepRelief）と、遠く（farGain）。木の密度に掛けて 1 で頭打ち。
 // 遠くは 1.5 → 2.6：まばらに木が立つ急な斜面でも、地面が森の床の色になり、木が「茶色の壁に刺さって」見えない。
 export const FOREST_FLOOR = Object.freeze({ gain: 1.5, steepRelief: 0.15, farGain: 2.6 });
@@ -107,7 +107,8 @@ export function paddyGroundMap(world, terrain, debug = false) {
     phaseData[k] = phase >>> 8; phaseData[k+1] = phase & 255; phaseData[k+3] = 255;
     if (!s || (road && road.dist <= step / Math.SQRT2)) continue;
     eligible++;
-    const color = debug ? paddyDebugColor(s.plot.level, s.riser) : paddySurfaceColor(s, x, z);
+    const shadow=debug?1:paddyShadowAt(plots,x,z);phaseData[k+2]=Math.round(shadow*255);
+    const color = debug ? paddyDebugColor(s.plot.level, s.riser) : paddySurfaceColor(s, x, z).multiplyScalar(shadow);
     data[k] = Math.round(color.r * 255); data[k + 1] = Math.round(color.g * 255); data[k + 2] = Math.round(color.b * 255); data[k + 3] = debug ? 255 : paddySurfaceMask(s);
     if (!s.bund) covered++;
   }
