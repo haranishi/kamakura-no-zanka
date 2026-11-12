@@ -74,6 +74,8 @@ test('retreat: both rock faces retain their specified height, run and exposed su
 });
 test('retreat: four hamlet homes and two huts face roads with the required trees and fence lengths',()=>{
   assert.equal(escape.placed.routeHouses.length,6);assert.equal(escape.placed.routeHouses.filter(b=>b.hamlet).length,4);
+  // Three of the four homes turn their lit front to the overlook; the fourth stands across the road and keeps facing it.
+  assert(details.hamlet.filter(p=>p.frontFacing).length>=3,JSON.stringify(details.hamlet.map(p=>p.frontFacing)));assert(R.hamletTurn>0&&R.hamletTurn<Math.PI/2);
   for(const [x,y,h]of R.trees){const tree=escape.veg.find(v=>Math.hypot(v[0]-x,northOffset-v[1]-y)<.01);assert(tree);assert.equal(tree[4],h);assert.equal(tree[6],3);}
   assert(report.fences.count>=6&&report.fences.count<=10);assert(report.fences.length>=120&&report.fences.length<=220);
   const fences=JSON.parse(escape.files.get('works.json')).fences;for(const f of fences){assert.equal(f.kind,'rail');for(const [x,y]of f.xy_m)assert(nearLine(R.cut,x,y+northOffset).distance>R.cutWidth/2);}
