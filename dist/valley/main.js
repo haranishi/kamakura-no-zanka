@@ -115,6 +115,7 @@ async function boot() {
   const roster = await loadRoster({ anisotropy: renderer.capabilities.getMaxAnisotropy(), onProgress: p => hud.loading(0.42 + p * 0.45, '人物を読み込んでいます') });
   await step(0.9, '空と光を整えています');
   const atmosphere = createAtmosphere({ scene, renderer, quality });
+  post.configureMist({ scene, world: WORLD, terrain, a: ATMOS, look: LOOK, search: location.search, tier: () => scaleIdx });
   resize();
   await step(0.95, '道と見通しを調べています');
   game = new Game({ scene, camera, renderer, post, atmosphere, veg, props, water, terrain, scatter, roster, hud, audio, input, storage: (() => { try { return localStorage; } catch { return null; } })(), seed: Number(q.get('seed') || 1333),

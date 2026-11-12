@@ -1,6 +1,7 @@
-// post.js — 後処理の最小パス：MSAA（HalfFloat）→ブルーム→階調（ACES風）＋色調整→ビネット（view層）。
+// post.js — 後処理の最小パス：MSAA（HalfFloat）→谷の局所霧→ブルーム→階調（ACES風）＋色調整→ビネット（view層）。
 // 依存を増やさず、必要な効果だけを自前で持つ（design.md の判断）。標準／軽量で内容を切り替える。
 import * as THREE from 'three';
+import { MIST3, MIST3_AMOUNT_GLSL, bakeMistField, mistHeightBounds, mistSteps } from './mist-field.js';
 
 export const OUTPUT_DITHER = 1 / 255; // sRGB出力の雑音幅。片側±0.5/255、描画追加なし。
 
@@ -12,6 +13,54 @@ const TONEMAP = `
   vec3 aces(vec3 x){ const float a=2.51, b=0.03, c=2.43, d=0.59, e=0.14; return clamp((x*(a*x+b))/(x*(c*x+d)+e), 0.0, 1.0); }
   vec3 srgb(vec3 c){ return mix(c*12.92, 1.055*pow(c, vec3(1.0/2.4)) - 0.055, step(0.0031308, c)); }
   float luma(vec3 c){ return dot(c, vec3(0.2126, 0.7152, 0.0722)); }`;
+
+// 面まで（空なら最遠まで）の視線を、霧の高さ帯に絞って等間隔に積む。
+export const MIST3_FRAGMENT = `
+  varying vec2 vUv;
+  uniform sampler2D tex, depthTex, field;
+  uniform mat4 inverseProjection, cameraWorld;
+  uniform vec2 mapCenter, heightBounds;
+  uniform vec3 eye, sun, cool, warm;
+  uniform float clock, sigma, thicknessScale, lightQuality, debug;
+  uniform int stepCount;
+  float hash(vec2 p){return fract(sin(dot(p,vec2(${MIST3.jitterDot.map(n => n.toFixed(1)).join(',')})))*${MIST3.jitterGain.toFixed(4)});}
+  float noise(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);
+    return mix(mix(hash(i),hash(i+vec2(1.0,0.0)),f.x),mix(hash(i+vec2(0.0,1.0)),hash(i+vec2(1.0)),f.x),f.y);}
+  ${MIST3_AMOUNT_GLSL}
+  void main(){
+    vec4 original=texture2D(tex,vUv);float depth=texture2D(depthTex,vUv).r;
+    vec4 view=inverseProjection*vec4(vUv*2.0-1.0,depth*2.0-1.0,1.0);
+    vec3 p=(cameraWorld*vec4(view.xyz/view.w,1.0)).xyz;
+    vec3 ray=p-eye;float distance=length(ray);vec3 direction=ray/max(distance,${MIST3.epsilon.toFixed(8)});
+    if(depth>=1.0)distance=${MIST3.maxDistance.toFixed(1)};
+    vec2 interval=mistInterval(eye.y,direction.y,distance,heightBounds.x,heightBounds.y);
+    float transmittance=1.0;vec3 scattering=vec3(0.0);
+    if(interval.y>interval.x && sigma>0.0 && thicknessScale>0.0){
+      float dt=(interval.y-interval.x)/float(stepCount),jitter=hash(gl_FragCoord.xy);
+      float facing=pow(max(0.0,dot(direction,sun)),${MIST3.sunPower.toFixed(1)});
+      vec3 sunColour=mix(cool,warm,facing)*mix(${MIST3.backGain.toFixed(3)},${MIST3.sunGain.toFixed(3)},facing);
+      for(int i=0;i<${MIST3.steps};i++){
+        if(i>=stepCount)break;
+        float t=interval.x+(float(i)+jitter)*dt;
+        vec3 point=eye+direction*t;
+        vec2 uv=(point.xz-mapCenter)/${MIST3.size.toFixed(1)}+0.5;
+        if(any(lessThan(uv,vec2(0.0)))||any(greaterThan(uv,vec2(1.0))))continue;
+        vec4 f=texture2D(field,uv);
+        if(f.g<=0.0)continue;
+        vec2 moving=point.xz+vec2(clock*${MIST3.speed.toFixed(3)},point.y*${MIST3.heightNoise.toFixed(3)});
+        float large=noise(moving/${MIST3.largePeriod.toFixed(1)}),n=large;
+        if(lightQuality<0.5)n=mix(large,noise(moving/${MIST3.finePeriod.toFixed(1)}),${MIST3.fineWeight.toFixed(3)});
+        float thick=f.a*thicknessScale,h=point.y-(f.r+f.b);
+        float profile=mistProfile(h,thick,mix(${MIST3.thicknessMin.toFixed(3)},${MIST3.thicknessMax.toFixed(3)},n));
+        float density=sigma*f.g*n*profile*smoothstep(${MIST3.near.toFixed(1)},${MIST3.nearEnd.toFixed(1)},t);
+        float a=mistStepAlpha(transmittance,density,dt);
+        float heightFraction=clamp(h/max(thick,${MIST3.epsilon.toFixed(8)}),0.0,1.0);
+        vec3 colour=mix(cool,sunColour,mix(${(1-MIST3.bottomBlue).toFixed(3)},1.0,heightFraction))*mix(${MIST3.bottomGain.toFixed(3)},${MIST3.topGain.toFixed(3)},heightFraction);
+        scattering+=transmittance*a*colour;transmittance*=1.0-a;
+      }
+    }
+    gl_FragColor=debug>0.5?vec4(vec3(1.0-transmittance),1.0):vec4(original.rgb*transmittance+scattering,original.a);
+  }`;
 
 function pass(fragment, uniforms, extra = {}) {
   return new THREE.ShaderMaterial({ vertexShader: VERT, fragmentShader: fragment, uniforms, depthTest: false, depthWrite: false, ...extra });
@@ -68,6 +117,53 @@ export class Post {
     this.matCopy = pass(COPY, { tex: { value: null }, opacity: { value: 1 } });
     this.matOver = pass(COPY, { tex: { value: null }, opacity: { value: 0 } }, { transparent: true });
     this.hold = null;
+    this.mist = null; this.mistTarget = null; this.mistReason = 'not-configured'; this.mistActive = false;
+  }
+
+  // scene の同一性で限定する。オープニングと world.js の場面へ霧を掛けない。
+  configureMist({ scene, world, terrain, a, look = {}, search = '', tier = () => 0 }) {
+    this.disposeMist();
+    const q = new URLSearchParams(search);
+    this.mist = { scene, world, a, tier, enabled: q.get('mist3') !== '0', debug: q.get('mist3debug') === '1',
+      sigma: Math.max(0, look.mist3 ?? MIST3.sigma), thicknessScale: Math.max(0, look.mist3t ?? 1), map: null, texture: null, material: null };
+    const m = this.mist;
+    this.mistReason = !m.enabled ? 'flag' : this.depthSupportReason();
+    if (!this.mistReason) {
+      m.map = bakeMistField(world, terrain);
+      const half = new Uint16Array(m.map.data.length);
+      for (let i = 0; i < half.length; i++) half[i] = THREE.DataUtils.toHalfFloat(m.map.data[i]);
+      m.texture = new THREE.DataTexture(half, MIST3.resolution, MIST3.resolution, THREE.RGBAFormat, THREE.HalfFloatType);
+      m.texture.minFilter = m.texture.magFilter = THREE.LinearFilter; m.texture.generateMipmaps = false; m.texture.needsUpdate = true;
+      m.material = pass(MIST3_FRAGMENT, { tex: { value: null }, depthTex: { value: null }, field: { value: m.texture },
+        inverseProjection: { value: new THREE.Matrix4() }, cameraWorld: { value: new THREE.Matrix4() },
+        mapCenter: { value: new THREE.Vector2(world.valley.cx, world.valley.cz) }, eye: { value: new THREE.Vector3() }, sun: { value: a.sunDir.clone().normalize() },
+        cool: { value: new THREE.Color(a.fogColor).multiplyScalar(1 + MIST3.coolLift) }, warm: { value: new THREE.Color(a.hazeWarm).lerp(new THREE.Color(a.mid), MIST3.warmMix) },
+        heightBounds: { value: new THREE.Vector2(...mistHeightBounds(m.map.stats.heightRange, m.thicknessScale)) }, stepCount: { value: mistSteps(this.quality, tier()) },
+        clock: { value: 0 }, sigma: { value: m.sigma }, thicknessScale: { value: m.thicknessScale }, lightQuality: { value: 0 }, debug: { value: +m.debug } });
+    }
+    scene.getObjectByName('ridges')?.userData.setMist3?.(!this.mistReason);
+    if (this.size) this.setSize(this.size.w, this.size.h, 1);
+  }
+  depthSupportReason() {
+    const gl = this.renderer.getContext?.();
+    if (!gl || gl.DEPTH_COMPONENT32F === undefined) return 'depth-texture-unavailable';
+    if (!this.renderer.extensions?.has('EXT_color_buffer_float')) return 'float-target-unavailable';
+    return '';
+  }
+  disposeMist() {
+    const m = this.mist;
+    m?.scene.getObjectByName('ridges')?.userData.setMist3?.(false);
+    m?.texture?.dispose(); m?.material?.dispose(); this.mistTarget?.dispose(); this.mistTarget = null;
+    if (this.target?.depthTexture) { this.target.depthTexture.dispose(); this.target.depthTexture = null; }
+    this.mist = null; this.mistActive = false;
+  }
+  stats() {
+    return { mist3: { ...this.mist?.map?.stats, enabled: !!this.mist?.material && !this.mistReason, active: this.mistActive, reason: this.mistReason,
+      steps: mistSteps(this.quality, this.mist?.tier() ?? 0), noiseOctaves: this.quality === 'light' ? 1 : 2,
+      maxFieldReads: mistSteps(this.quality, this.mist?.tier() ?? 0), maxNoiseReads: mistSteps(this.quality, this.mist?.tier() ?? 0) * (this.quality === 'light' ? 1 : 2),
+      heightBounds: this.mist?.material?.uniforms.heightBounds.value.toArray(), maxDistance: MIST3.maxDistance, maxOpacity: MIST3.maxOpacity,
+      sigma: this.mist?.sigma, thicknessScale: this.mist?.thicknessScale, drawCalls: this.mistActive ? 1 : 0, triangles: this.mistActive ? 1 : 0,
+      targetBytes: this.mistTarget ? this.mistTarget.width * this.mistTarget.height * 12 : 0 } };
   }
 
   // オープニングの場面の溶け合い（ディゾルブ）。使う間だけ、仕上げを画面でなく8bitの絵（cur）へ描いて画面へ写す。
@@ -89,11 +185,19 @@ export class Post {
 
   setSize(width, height, pixelRatio) {
     const w = Math.max(2, Math.floor(width * pixelRatio)), h = Math.max(2, Math.floor(height * pixelRatio));
-    this.size = { w, h };
-    this.target?.dispose();
+    this.size = { w, h }; this.depthChecked = false;
+    const depth = this.target?.depthTexture;
+    if (this.target) this.target.depthTexture = null;
+    this.target?.dispose(); depth?.dispose();
+    this.mistTarget?.dispose(); this.mistTarget = null;
     const samples = this.quality === 'light' ? 0 : 4;
     this.target = new THREE.WebGLRenderTarget(w, h, { type: THREE.HalfFloatType, samples, depthBuffer: true, stencilBuffer: false });
     this.target.texture.colorSpace = THREE.LinearSRGBColorSpace;
+    if (this.mist?.material && !this.mistReason) {
+      this.target.depthTexture = new THREE.DepthTexture(w, h, THREE.FloatType);
+      this.mistTarget = new THREE.WebGLRenderTarget(w, h, { type: THREE.HalfFloatType, depthBuffer: false });
+      this.mistTarget.texture.colorSpace = THREE.LinearSRGBColorSpace;
+    }
     for (const l of this.levels) l.dispose();
     this.levels = [];
     let lw = w, lh = h;
@@ -119,12 +223,32 @@ export class Post {
     const prevTone = r.toneMapping, prevAuto = r.autoClear;
     r.toneMapping = THREE.NoToneMapping;
     r.setRenderTarget(this.target); r.clear();
+    // 深度用の framebuffer が成立しない環境では旧い帯へ戻す。例外は握りつぶさない。
+    if (this.mist?.material && !this.mistReason && this.target.depthTexture && !this.depthChecked) {
+      const gl = r.getContext();
+      if (gl.checkFramebufferStatus(gl.FRAMEBUFFER) !== gl.FRAMEBUFFER_COMPLETE) {
+        this.mistReason = 'depth-framebuffer-incomplete'; this.mist.scene.getObjectByName('ridges')?.userData.setMist3?.(false);
+        this.setSize(this.size.w, this.size.h, 1); r.setRenderTarget(this.target); r.clear();
+      }
+      this.depthChecked = true;
+    }
     r.render(scene, camera);
     r.toneMapping = prevTone;
-    const bloom = this.quality !== 'light' && p.bloomStrength > 0;
+    let sceneTexture = this.target.texture;
+    this.mistActive = !!(this.mist?.material && !this.mistReason && scene === this.mist.scene && this.mistTarget);
+    if (this.mistActive) {
+      const u = this.mist.material.uniforms;
+      u.tex.value = sceneTexture; u.depthTex.value = this.target.depthTexture;
+      u.inverseProjection.value.copy(camera.projectionMatrixInverse); u.cameraWorld.value.copy(camera.matrixWorld);
+      u.eye.value.setFromMatrixPosition(camera.matrixWorld); u.clock.value += dt; u.lightQuality.value = +(this.quality === 'light');
+      u.stepCount.value = mistSteps(this.quality, this.mist.tier());
+      this.run(this.mist.material, this.mistTarget); sceneTexture = this.mistTarget.texture;
+    }
+    const mistDebug = this.mistActive && this.mist.debug;
+    const bloom = !mistDebug && this.quality !== 'light' && p.bloomStrength > 0;
     if (bloom) {
       // ダウンサンプル（最初に明るい所だけ抜く）
-      let src = this.target.texture;
+      let src = sceneTexture;
       for (let i = 0; i < this.levels.length; i++) {
         const dst = this.levels[i], u = this.matDown.uniforms;
         u.tex.value = src; u.texel.value.set(1 / (i === 0 ? this.size.w : this.levels[i - 1].width), 1 / (i === 0 ? this.size.h : this.levels[i - 1].height));
@@ -142,11 +266,12 @@ export class Post {
       r.autoClear = prevAuto;
     }
     const f = this.matFinal.uniforms;
-    f.scene.value = this.target.texture; f.bloom.value = this.levels[0]?.texture || null; f.uBloom.value = bloom ? 1 : 0;
+    f.scene.value = sceneTexture; f.bloom.value = this.levels[0]?.texture || null; f.uBloom.value = bloom ? 1 : 0;
     f.exposure.value = p.exposure; f.bloomStrength.value = p.bloomStrength; f.vignette.value = p.vignette;
     f.saturation.value = p.saturation; f.contrast.value = p.contrast; f.warmth.value = p.warmth; f.grain.value = p.grain; f.uTime.value = (f.uTime.value + dt) % 100;
     const h = this.hold?.cur ? this.hold : null;
-    this.run(this.matFinal, h ? h.cur : null);
+    if (mistDebug) { this.matCopy.uniforms.tex.value = sceneTexture; this.run(this.matCopy, h ? h.cur : null); }
+    else this.run(this.matFinal, h ? h.cur : null);
     if (!h) return;
     this.matCopy.uniforms.tex.value = h.cur.texture; this.run(this.matCopy, null);
     if (h.mix > 0 && h.frozen) {

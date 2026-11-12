@@ -62,7 +62,7 @@ test('cloud warmth is monotonic, output noise is bounded, flags restore the old 
 });
 
 test('four different skyline profiles remain separated in the concept northward sector and grow paler', () => {
-  const a = buildRidges(), b = buildRidges();
+  const a = buildRidges({search:'?mist3=0'}), b = buildRidges({search:'?mist3=0'});
   a.userData.configure({a:ATMOS}); b.userData.configure({a:ATMOS});
   const mesh = a.getObjectByName('ridge-layers'), other = b.getObjectByName('ridge-layers');
   assert.equal(hash(mesh.geometry.attributes.position.array), hash(other.geometry.attributes.position.array));
@@ -96,7 +96,7 @@ test('four different skyline profiles remain separated in the concept northward 
 });
 
 test('quality and adaptive tiers reduce mountain and mist work within the triangle and draw budgets', t => {
-  const g = buildRidges(), stats = [];
+  const g = buildRidges({search:'?mist3=0'}), stats = [];
   const originalIndices = hash(g.getObjectByName('valley-mist').geometry.index.array);
   for (const [quality,tier,layers] of [['standard',0,4],['standard',1,3],['standard',2,2],['standard',3,2],['light',0,2]]) {
     g.userData.configure({quality,tier,a:ATMOS}); const s = g.userData.stats();
@@ -132,7 +132,7 @@ test('mist locations follow river and sampled terrain lows; proximity, opacity a
   assert.equal(mistNearFade(0),0); assert.equal(mistNearFade(MIST.near),0); assert.equal(mistNearFade(MIST.far),1);
   for(let i=1;i<200;i++)assert(mistNearFade(i)>=mistNearFade(i-1));
   assert(MIST.opacity<=.5);
-  const g=buildRidges({search:'?mist2debug=1&ridges2debug=1'});g.userData.configure({a:ATMOS});
+  const g=buildRidges({search:'?mist3=0&mist2debug=1&ridges2debug=1'});g.userData.configure({a:ATMOS});
   assert.equal(g.getObjectByName('valley-mist').material.uniforms.debug.value,1);
   assert.equal(g.getObjectByName('ridge-layers').material.uniforms.debug.value,1);
   assert.equal(g.getObjectByName('valley-mist').material.depthWrite,false);
@@ -146,7 +146,7 @@ test('atmosphere hooks expose quality and adaptive counts without new main wirin
   const renderer={xr:{enabled:false},autoClear:true,toneMapping:THREE.NoToneMapping,
     state:{buffers:{depth:{getReversed:()=>false}}},getRenderTarget:()=>target,getActiveCubeFace:()=>0,getActiveMipmapLevel:()=>0,
     getClearColor:c=>c.set(0),setRenderTarget:t=>{target=t;},compile(){},render(){},getPixelRatio:()=>pixelRatio};
-  const scene=new THREE.Scene(),g=buildRidges();scene.add(g);
+  const scene=new THREE.Scene(),g=buildRidges({search:'?mist3=0'});scene.add(g);
   const atmosphere=createAtmosphere({scene,renderer}),camera=new THREE.PerspectiveCamera();camera.position.set(10,5,10);
   assert.equal(atmosphere.stats().ridgeLayers,4);assert.equal(atmosphere.stats().skyAddedDrawCalls,0);
   for(const [ratio,layers,bands] of [[1.275,3,9],[1.05,2,6],[.87,2,4],[1.5,4,11]]){
@@ -181,7 +181,7 @@ test('fog anchors exist in bundled Three, GLSL variants compile including delibe
       installFog(a);
       for(const kind of ['FOG_EXP2','LINEAR']) compile('#define USE_FOG\n'+(kind==='FOG_EXP2'?'#define FOG_EXP2\n':'')+THREE.ShaderChunk.fog_pars_fragment+'\nvoid main(){gl_FragColor=vec4(1.0);'+THREE.ShaderChunk.fog_fragment+'\n}');
     }
-    const g=buildRidges();for(const mesh of g.children){compile(mesh.material.fragmentShader);compile(mesh.material.vertexShader,true,'vert');}
+    const g=buildRidges({search:'?mist3=0'});for(const mesh of g.children){compile(mesh.material.fragmentShader);compile(mesh.material.vertexShader,true,'vert');}
     compile('void main(){gl_FragColor=vec4(undeclaredValue);}',false);
     g.traverse(o=>{o.geometry?.dispose();o.material?.dispose();});
     for(const key of ['fog_pars_vertex','fog_vertex','fog_pars_fragment','fog_fragment'])assert(Object.hasOwn(THREE.ShaderChunk,key));
