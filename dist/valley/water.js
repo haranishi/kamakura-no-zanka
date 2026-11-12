@@ -24,7 +24,9 @@ export const RIVER_LOOK = Object.freeze({
 // 夕日の照り返しの強さ。日を北東の低い位置へ動かすと、見渡しのカメラが日を正面に見るので、core 3.0・wide 0.35 では川面が白く飛び、
 // にじみが橋まで覆った（実際の画面で見て直した）。細い筋（core）と広いにじみ（wide）を弱め、足す光に上限（cap）を付ける。
 // それでも白く飛んだ：原因は、材質そのものの、太陽の鏡面反射だった。水面から出る光の全体にも上限（limit）を付ける。
-export const WATER_GLINT = Object.freeze({ core: 1.1, corePower: 90, wide: 0.12, widePower: 14, cap: 0.85, limit: 1.05 });
+// 上限 1.05 だけでは、日を正面に見る向きで、川の全体が白い帯になり、雪か砂に見えた（講評）。先に、水面の地の光を base で頭打ちに
+// して水の色を残し、その上に、波で割れる照り返し（core・wide）を足す。
+export const WATER_GLINT = Object.freeze({ core: 1.1, corePower: 90, wide: 0.12, widePower: 14, cap: 0.85, limit: 1.05, base: 0.42 });
 export function buildWater({ terrain, world, sunDir = new THREE.Vector3(0.5, 0.17, 0.85) }) {
   const L = terrain.riverLine, hw = world.river.halfWidth + 2.2;
   const pos = [], uv = [], idx = [];
@@ -84,13 +86,14 @@ export function buildWater({ terrain, world, sunDir = new THREE.Vector3(0.5, 0.1
           vec3 vdir = normalize(vWPos - cameraPosition);
           vec3 wn = normalize((vec4(normal, 0.0) * viewMatrix).xyz);
           vec3 rf = reflect(vdir, wn);
+          outgoingLight = min(outgoingLight, vec3(${WATER_GLINT.base.toFixed(3)}));
           float glint = pow(max(dot(rf, SUN_DIR_W), 0.0), ${WATER_GLINT.corePower.toFixed(1)}) * ${WATER_GLINT.core.toFixed(3)} + pow(max(dot(rf, SUN_DIR_W), 0.0), ${WATER_GLINT.widePower.toFixed(1)}) * ${WATER_GLINT.wide.toFixed(3)};
           outgoingLight += vec3(1.0, 0.78, 0.55) * min(glint, ${WATER_GLINT.cap.toFixed(3)}) * (1.0 - abs(vdir.y));
           outgoingLight = min(outgoingLight, vec3(${WATER_GLINT.limit.toFixed(3)}));
         }
         #include <opaque_fragment>`);
   };
-  material.customProgramCacheKey = () => 'valley-water-v3';
+  material.customProgramCacheKey = () => 'valley-water-v4';
   const mesh = new THREE.Mesh(geometry, material);
   mesh.name = 'water'; mesh.renderOrder = 2; mesh.receiveShadow = false; mesh.castShadow = false; mesh.frustumCulled = false;
   return { mesh, update(time) { uniforms.uTime.value = time; } };

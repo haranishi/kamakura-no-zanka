@@ -5,6 +5,9 @@ import { smooth, fbm } from './terrain-height.js';
 import { WORLD } from './world-data.js';
 import { paddySurfaceColor, paddySurfaceMask, patchPaddyGround } from './paddy-view.js';
 import { paddyAt, paddyOptions, createPaddyPlots, PADDY_LOOK, PADDY_DEBUG } from './paddy.js';
+// 森の下の地面を暗くする強さ：近く（gain・急な斜面で戻す量 steepRelief）と、遠く（farGain）。木の密度に掛けて 1 で頭打ち。
+// 遠くは 1.5 → 2.6：まばらに木が立つ急な斜面でも、地面が森の床の色になり、木が「茶色の壁に刺さって」見えない。
+export const FOREST_FLOOR = Object.freeze({ gain: 1.5, steepRelief: 0.15, farGain: 2.6 });
 
 const LAYERS = ['grass', 'dirt', 'rock', 'gravel', 'mud', 'litter'];
 // 1回繰り返しあたりのメートル数
@@ -217,7 +220,8 @@ export function buildTerrain({ terrain, textures, quality = 'standard', search =
     const ao = 1 - 0.42 * cavity;
     // 森の下は樹冠の影で暗い緑（遠景と同じ規則。道・水の上は除く）
     const road = terrain.roadInfo(x, z), clear = (road ? 1 - road.w : 1) * (terrain.waterAt(x, z) > 0.05 ? 0 : 1);
-    const ff = Math.min(1, terrain.forestDensity(x, z) * 1.5) * (1 - smooth(34, 46, slope) * 0.5) * clear;
+    // 急な斜面で暗さを半分に戻すと、高い所から見渡したとき、木のあいだの地面が赤茶の壁に見えた（絵と並べた講評）。戻す量を 0.5 → 0.15 にする
+    const ff = Math.min(1, terrain.forestDensity(x, z) * FOREST_FLOOR.gain) * (1 - smooth(34, 46, slope) * FOREST_FLOOR.steepRelief) * clear;
     col[k * 3] = ao * (1 - ff * 0.66); col[k * 3 + 1] = ao * (1 - ff * 0.5); col[k * 3 + 2] = ao * (1 - ff * 0.7);
   }
   const idx = new Uint32Array((nx - 1) * (nz - 1) * 6);
@@ -247,7 +251,7 @@ export function buildTerrain({ terrain, textures, quality = 'standard', search =
     fs0[k * 3] = (1 - rock) * (1 - forest) * (1 - water); fs0[k * 3 + 2] = rock; fs1[k * 3] = water * 0.8; fs1[k * 3 + 2] = (1 - rock) * forest * (1 - water);
     // 木が立っていれば、急な斜面（岩の質感）でも暗くする。岩の重みで暗さを消すと、烏峰の急斜面で木のあいだに明るい地面の帯が残った（第3周の評価）
     const f = forest * (1 - water);
-    const ff = Math.min(1, f * 1.5);
+    const ff = Math.min(1, f * FOREST_FLOOR.farGain);
     // 遠景の森の地面は樹冠の面として暗く（元の地面色の1〜1.5割）。60m前後のむら（±25%）で尾根と谷筋に段を付ける
     const patch = 0.78 + 0.44 * fbm(x * 0.016, z * 0.016, terrain.seed + 77, 3);
     fcol[k * 3] = 1 - ff * (1 - 0.1 * patch); fcol[k * 3 + 1] = 1 - ff * (1 - 0.14 * patch); fcol[k * 3 + 2] = 1 - ff * (1 - 0.11 * patch);
