@@ -6,6 +6,7 @@ import { TREES } from './config.js';
 import { treeGeometry } from './tree-geometry.js';
 import { CEDAR_FAMILIES } from './tree-branches.js';
 import { IMPOSTOR, impostorFamilies, impostorLayout, frameFit, frameUV, bakePlacement } from './tree-impostor.js';
+import { farGlowGLSL, farGlowEnabled } from './tree-materials.js';
 const heights = [20, 12, 13, 8];
 const f3 = v => v.toFixed(3);
 // The boards are baked from the near trees (L0): the middle cedar's 36 large tufts left thin, see-through far crowns
@@ -218,7 +219,7 @@ export function impostorMaterial({ wind, sunDir, quality, frame, atlas, height =
       vTreeWeight = enter*leave;
     `);
     shader.fragmentShader = shader.fragmentShader.replace('#include <common>', `#include <common>
-      uniform sampler2D uImpAlbedo; uniform sampler2D uImpNormal;
+      uniform sampler2D uImpAlbedo; uniform sampler2D uImpNormal; uniform vec3 uSunDir;
       varying vec3 vTreeWorld; varying float vTreeDistance; varying float vTreeWeight;
       varying vec2 vImpUvA; varying vec2 vImpUvB; varying float vImpT; varying float vImpWood;
       varying vec3 vImpRight; varying vec3 vImpUp; varying vec3 vImpFwd;`)
@@ -240,13 +241,17 @@ export function impostorMaterial({ wind, sunDir, quality, frame, atlas, height =
       vec3 impN = impNormal.rgb * 2.0 - 1.0;
       normal = normalize(impN.x * vImpRight + impN.y * vImpUp + impN.z * vImpFwd);`)
       .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
-      totalEmissiveRadiance += diffuseColor.rgb*mix(.10, .24, step(.5, impNormal.a));`)
+      totalEmissiveRadiance += diffuseColor.rgb*mix(.10, .24, step(.5, impNormal.a));
+      // 遠くの森の逆光の透け（近くの木と同じ式。葉だけ）。
+      vec3 sight = normalize(vTreeWorld-cameraPosition);
+      ${farGlowGLSL()}
+      totalEmissiveRadiance += min(vec3(${TREES.backlight.cap.toFixed(2)}),diffuseColor.rgb*vec3(${TREES.backlight.farTint.map(v => v.toFixed(2)).join(',')})*farGlow)*step(.5, impNormal.a);`)
       .replace('#include <fog_fragment>', `#include <fog_fragment>
       // The same evening air as the near foliage (tree-materials.js): saturation fades with distance.
       float leafAir = ${TREES.leafAir.amount.toFixed(2)}*smoothstep(${TREES.leafAir.near.toFixed(1)}, ${TREES.leafAir.far.toFixed(1)}, length(vViewPosition));
       gl_FragColor.rgb = mix(gl_FragColor.rgb, vec3(dot(gl_FragColor.rgb, vec3(.2126,.7152,.0722)))*vec3(.94,.98,1.08), leafAir);`);
   };
-  m.customProgramCacheKey = () => `tree-impostor-v1-${quality}-${fadeMode}`;
+  m.customProgramCacheKey = () => `tree-impostor-v2-${quality}-${farGlowEnabled() ? 'glow' : 'plain'}-${fadeMode}`;
   return m;
 }
 
