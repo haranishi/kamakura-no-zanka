@@ -4,8 +4,9 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import * as THREE from '../dist/vendor/three.module.min.js';
-import { FIRE, FIRE_SMOKE_GLSL, fireEnabled, fireDayGain, validateFires, selectFireHouses, prepareFires, fireCounts, smokeProfile, emberOrigin, poolOcclusion, fireHouseLayout, flameTongue, smokeLight, FIRE_SMOKE_LIGHT_GLSL } from '../dist/valley/kamakura-fire.js';
+import { FIRE, FIRE_SMOKE_GLSL, fireEnabled, fireDayGain, fireRandom, validateFires, selectFireHouses, prepareFires, fireCounts, smokeProfile, emberOrigin, poolOcclusion, fireHouseLayout, flameTongue, flameDrift, FIRE_FLAME_GLSL, smokeLight, FIRE_SMOKE_LIGHT_GLSL } from '../dist/valley/kamakura-fire.js';
 import { createKamakuraFire, FIRE_VERTEX, FIRE_FRAGMENT, FIRE_POOL_VERTEX, FIRE_POOL_FRAGMENT } from '../dist/valley/kamakura-fire-view.js';
 import { createKamakuraTerrain } from '../dist/valley/kamakura-terrain.js';
 import { validateMeta } from '../dist/valley/kamakura-data.js';
@@ -62,6 +63,7 @@ test('all counts fit 900 boards; light and adaptation reduce costs without losin
     let previous=Infinity;
     for(let step=0;step<=3;step++){
       const count=fireCounts(p,quality,step);assert(count.boards<=900);assert(count.boards<=previous);previous=count.boards;
+      assert.equal(count.boards,(quality==='standard'?[896,816,464,280]:[816,464,280,280])[step]);
       assert(count.sources.every(s=>s.flames>=3&&s.glows>=2&&s.smoke>=4&&s.embers>0));
       if(quality==='standard'&&step===0)assert(count.sources.every(s=>s.embers>=20&&s.embers<=60&&s.smoke>=24&&s.smoke<=40));
       measure.push({quality,step,boards:count.boards});
@@ -107,11 +109,19 @@ test('every tongue has crossed fixed planes on both ridge and openings, with var
         if(tongue.opening)opening++;else roof++;
         const localY=tongue.y-h.y+tongue.height*FIRE.roofEmbed;
         assert(tongue.y<localY+h.y,'flame base must lie inside its roof/opening');
-        if(!tongue.opening)assert(Math.abs(localY-h.height)<1e-9);
+        if(!tongue.opening){
+          const x=tongue.x-h.x,z=tongue.z-h.z,cross=h.w>=h.d?Math.sin(rotY)*x+Math.cos(rotY)*z:Math.cos(rotY)*x-Math.sin(rotY)*z;
+          assert(Math.abs(localY-(h.height-FIRE.roofSlope*Math.abs(cross)))<1e-9);
+        }
         for(let p=0;p<n.planes;p++){
           const i=k*n.planes+p;
           assert(Math.abs(a.getX(i)-tongue.x)<1e-5&&Math.abs(a.getY(i)-tongue.y)<1e-5&&Math.abs(a.getZ(i)-tongue.z)<1e-5);
           assert.equal(g.attributes.fireSize.getZ(i),0);assert.equal(g.attributes.fireSize.getW(i),tongue.opening?1:0);
+          assert(Math.abs(g.attributes.fireSize.getX(i)-tongue.width)<1e-6);
+          assert(Math.abs(g.attributes.fireMotion.getX(i)-tongue.lean)<1e-6);
+          assert(Math.abs(g.attributes.fireMotion.getY(i)-tongue.swayHz)<1e-6);
+          assert(Math.abs(g.attributes.fireMotion.getZ(i)-tongue.swayPhase)<1e-6);
+          assert(Math.abs(r.getX(i)-Math.cos(tongue.angle+p*FIRE.flameCrossRad/n.planes))<1e-6);
           if(p){const prev=i-1,dot=r.getX(i)*r.getX(prev)+r.getZ(i)*r.getZ(prev);assert(Math.abs(dot-Math.cos(FIRE.flameCrossRad/n.planes))<1e-6);}
         }
         for(let bearing=0;bearing<Math.PI*2;bearing+=.1){
@@ -128,6 +138,97 @@ test('every tongue has crossed fixed planes on both ridge and openings, with var
     f.layer.dispose();
   }
   assert(FIRE_VERTEX.includes('right=fireRight;up=fireUp;'));
+});
+
+// Previous roof/opening dimensions: retain these arithmetic inputs as an area regression reference.
+function previousHeight(s,h,k,count){
+  const key=(s.index+1)*4099+k+Math.imul(Math.round(h.x*100),31)+Math.imul(Math.round(h.z*100),131);
+  const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
+  const base=clamp(h.height*(.8+.8*s.strength),4,9),variation=k%3===0?1:.62+.38*fireRandom(key,7);
+  return clamp(base*variation*(!h.ground&&k===count-1?.82:1),4,9);
+}
+const coefficient=values=>{
+  const mean=values.reduce((a,b)=>a+b,0)/values.length;
+  return Math.sqrt(values.reduce((a,b)=>a+(b-mean)**2,0)/values.length)/mean;
+};
+test('roof clusters break the comb without increasing tongue counts, widths or total luminous area',t=>{
+  let minCV=Infinity,minRatio=Infinity,maxRatio=0,minHeightRatio=Infinity,cases=0;
+  for(let seed=0;seed<48;seed++)for(const [w,d] of [[10,6],[4,9]])for(const height of [3,5,7,10])for(const strength of [.2,.45,.8,1])for(const count of [3,4,5,6,7]){
+    const s={index:seed%8,strength},h={x:seed*1.3,z:-seed*.7,y:2,w,d,height,rotY:.73,ground:false};
+    const tongues=Array.from({length:count},(_,k)=>flameTongue(s,h,k,count)),roof=tongues.filter(a=>!a.opening);
+    assert.equal(roof.length,count-1);assert.deepEqual(tongues,Array.from({length:count},(_,k)=>flameTongue(s,h,k,count)));
+    const oldArea=tongues.reduce((sum,_,k)=>sum+previousHeight(s,h,k,count)**2*.65,0),area=tongues.reduce((sum,a)=>sum+a.width*a.height,0),ratio=area/oldArea;
+    assert(ratio>=.8&&ratio<=1.15,`area ratio ${ratio}`);minRatio=Math.min(minRatio,ratio);maxRatio=Math.max(maxRatio,ratio);
+    const reference=Math.max(4,Math.min(9,height*(.8+.8*strength))),groups=new Map(),slots=[];
+    for(let k=0;k<roof.length;k++){
+      const a=roof[k],x=a.x-h.x,z=a.z-h.z,dx=Math.cos(h.rotY)*x-Math.sin(h.rotY)*z,dz=Math.sin(h.rotY)*x+Math.cos(h.rotY)*z;
+      const along=w>=d?dx:dz,cross=w>=d?dz:dx,run=Math.max(w,d),depth=Math.min(w,d);
+      assert(Math.abs(dx)<=w/2&&Math.abs(dz)<=d/2,'every roof root stays over its own house');
+      assert(Math.abs(cross)<=depth*.25,'depth scatter stays inside the central half of the roof');
+      assert(a.height>=reference*.45-1e-9&&a.height<=reference*1.55+1e-9);
+      const widthRatio=a.width/(previousHeight(s,h,k,count)*.65);
+      assert(widthRatio>=.75&&widthRatio<=1.35,'width must not follow the increased height');
+      assert(a.lean>=.6&&a.lean<=1.5&&a.swayHz>=FIRE.flameSwayMinHz&&a.swayHz<=FIRE.flameSwayMaxHz);
+      slots.push((along/(run*.38)+1)/2*(roof.length-1));
+      if(!groups.has(a.cluster))groups.set(a.cluster,[]);groups.get(a.cluster).push({a,slot:slots.at(-1)});
+    }
+    slots.sort((a,b)=>a-b);slots.forEach((slot,k)=>assert(Math.abs(slot-k)<=.45+1e-9));
+    const gaps=slots.slice(1).map((slot,k)=>slot-slots[k]);
+    if(gaps.length>=2){const cv=coefficient(gaps);assert(cv>=.35);minCV=Math.min(minCV,cv);}
+    // Gaps are measured in fitted nominal tongue-spacing units; narrow roofs compress the whole layout.
+    const peaks=[];
+    for(const members of groups.values()){
+      assert(members.length<=3);if(roof.length!==3)assert(members.length>=2);
+      const peak=members.reduce((best,b)=>b.a.height>best.a.height?b:best);peaks.push(peak.a.height);
+      if(members.length===3)assert.equal(peak,members[1]);
+      for(let k=1;k<members.length;k++){const gap=Math.abs(members[k].slot-members[k-1].slot);assert(gap>=.5-1e-9&&gap<=.9+1e-9);}
+    }
+    const sorted=roof.map((a,k)=>({a,slot:(w>=d?Math.cos(h.rotY)*(a.x-h.x)-Math.sin(h.rotY)*(a.z-h.z):Math.sin(h.rotY)*(a.x-h.x)+Math.cos(h.rotY)*(a.z-h.z))})).sort((a,b)=>a.slot-b.slot);
+    for(let k=1;k<sorted.length;k++)if(sorted[k].a.cluster!==sorted[k-1].a.cluster){const gap=gaps[k-1];assert(gap>=1.4-1e-9&&gap<=2.4+1e-9);}
+    assert.equal(peaks.filter(p=>p===Math.max(...peaks)).length,1,'one cluster is highest in each house');
+    const heightRatio=Math.max(...roof.map(a=>a.height))/Math.min(...roof.map(a=>a.height));assert(heightRatio>=2);minHeightRatio=Math.min(minHeightRatio,heightRatio);
+    assert.equal(new Set(roof.map(a=>a.angle)).size,roof.length);assert.equal(new Set(roof.map(a=>a.swayHz)).size,roof.length);assert.equal(new Set(roof.map(a=>a.swayPhase)).size,roof.length);
+    const opening=tongues.at(-1);assert.equal(opening.height,previousHeight(s,h,count-1,count));assert.equal(opening.width,opening.height*.65);
+    assert.equal(opening.lean,1);assert.equal(opening.swayHz,0);assert.equal(opening.swayPhase,0);cases++;
+  }
+  t.diagnostic(JSON.stringify({cases,minCV,minHeightRatio,minAreaRatio:minRatio,maxAreaRatio:maxRatio}));
+  const s={index:0,strength:1},h={x:0,z:0,y:2,w:10,d:6,height:7,rotY:.73,ground:false};
+  const measure=[7,5,3].map(count=>{
+    const tongues=Array.from({length:count},(_,k)=>flameTongue(s,h,k,count));
+    const before=tongues.reduce((sum,_,k)=>sum+previousHeight(s,h,k,count)**2*.65,0),after=tongues.reduce((sum,a)=>sum+a.width*a.height,0);
+    return {tonguesBefore:count,tonguesAfter:count,roofTongues:count-1,beforeM2:before,afterM2:after,areaRatio:after/before};
+  });
+  t.diagnostic(JSON.stringify({syntheticHouse:measure}));
+});
+
+test('fragment shaders stay byte-identical to the accepted colours, opacity and outline',()=>{
+  // Hashes cover stable shader text, not platform-dependent geometry or measurements.
+  assert.equal(createHash('sha256').update(FIRE_FRAGMENT).digest('hex'),'03e16c9696ad165372b0add168766ced87f5d2c3c01493bccd45daf4279c5468');
+  assert.equal(createHash('sha256').update(FIRE_POOL_FRAGMENT).digest('hex'),'0dad217379cbf3f653c962d62855b0c4b33ed3d6c6f20170a13373bc71afa0ec');
+});
+
+test('area remains bounded when low roofs and independent random widths exhaust the height normalization range',()=>{
+  for(const seed of [...Array.from({length:1024},(_,i)=>i),14239,8921]){
+    const s={index:seed%8,strength:.2+fireRandom(seed,1)*.8},h={x:fireRandom(seed,2)*500-250,z:fireRandom(seed,3)*500-250,y:0,w:4,d:5,height:3+fireRandom(seed,4)*7,rotY:.2},count=3+seed%5;
+    let before=0,after=0;
+    for(let k=0;k<count;k++){
+      const height=previousHeight(s,h,k,count),a=flameTongue(s,h,k,count);before+=height**2*.65;after+=a.width*a.height;
+      assert(a.width>=height*.65*.75-1e-9&&a.width<=height*.65*1.35+1e-9);
+    }
+    assert(after/before>=.8&&after/before<=1.15,`area ratio ${after/before}`);
+  }
+});
+
+test('individual wind lean, speed and phase agree with executable vertex GLSL and leave opening motion unchanged',()=>{
+  const body=FIRE_FLAME_GLSL.match(/\{([\s\S]*)\}/)[1],run=new Function('v','height','lean','hz','phase','time','sin',body);
+  assert(FIRE_VERTEX.includes(FIRE_FLAME_GLSL));assert(FIRE_VERTEX.includes('fireFlameDrift(uv.y,height,fireMotion.x,fireMotion.y,fireMotion.z,uTime)'));
+  for(const v of [0,.2,.5,1])for(const height of [1.8,4,9,13.95])for(const lean of [.6,1,1.5])for(const hz of [0,.65,1.35])for(const phase of [0,1,6])for(const time of [0,1,13,60]){
+    const cpu=flameDrift(v,height,lean,hz,phase,time),gpu=run(v,height,lean,hz,phase,time,Math.sin);
+    assert(Math.abs(cpu-gpu)<1e-6);assert(cpu>=0);if(v===0)assert.equal(cpu,0);
+    assert(Math.abs(flameDrift(v,height,1,0,0,time)-v*v*height*FIRE.flameWind)<1e-12);
+  }
+  const h={...boxes[0],y:0,ground:true},s={index:0,strength:1};
+  for(let k=0;k<7;k++){const a=flameTongue(s,h,k,7);assert.equal(a.height,previousHeight(s,h,k,7));assert.equal(a.x,h.x);assert.equal(a.z,h.z);assert.equal(a.swayHz,0);}
 });
 
 test('coal faces follow both pitched roof slopes; facade light uses existing front door/window positions',()=>{
@@ -324,7 +425,10 @@ test('real scene batches, ground conformity, flame placement and quality counts 
     const sprites=meshes.filter(m=>m!==pool).reduce((n,m)=>n+m.geometry.instanceCount,0);
     assert.equal(s.triangles,sprites*2+pool.geometry.index.count/3);assert.equal(s.boards,sprites+3*FIRE.poolSegments**2);assert.equal(s.draws,4);
     const tongues=meshes[0].geometry.attributes.fireSize;
-    for(let i=0;i<meshes[0].geometry.instanceCount;i++)if(tongues.getZ(i)===0)assert(tongues.getY(i)>=4&&tongues.getY(i)<=9);
+    for(let i=0;i<meshes[0].geometry.instanceCount;i++)if(tongues.getZ(i)===0){
+      const opening=tongues.getW(i)===1;
+      assert(tongues.getY(i)>=(opening?4:4*FIRE.flameHeightMin)-1e-6&&tongues.getY(i)<=(opening?9:9*FIRE.flameHeightMax)+1e-6);
+    }
     assert(s.nearest.distance>200);t.diagnostic(JSON.stringify(s));
   }
   f.layer.dispose();

@@ -1,6 +1,6 @@
 import * as THREE from '../vendor/three.module.min.js';
 import { atmosphereOptions } from './kamakura-atmosphere.js';
-import { FIRE as C, prepareFires, fireCounts, fireDayGain, fireRandom, emberOrigin, fireHouseLayout, flameTongue, FIRE_SMOKE_GLSL, FIRE_SMOKE_LIGHT_GLSL } from './kamakura-fire.js';
+import { FIRE as C, prepareFires, fireCounts, fireDayGain, fireRandom, emberOrigin, fireHouseLayout, flameTongue, FIRE_FLAME_GLSL, FIRE_SMOKE_GLSL, FIRE_SMOKE_LIGHT_GLSL } from './kamakura-fire.js';
 const gl=n=>Number(n).toFixed(8), rgb=a=>'vec3('+a.map(gl).join(',')+')';
 // Value noise follows opening-fire; no textures, geometry animation, clocks or random state on the CPU.
 export const FIRE_NOISE_GLSL=`
@@ -14,6 +14,7 @@ attribute vec4 fireAnchor;
 attribute vec4 fireSize;
 attribute vec2 fireSeed;
 attribute vec3 fireRight,fireUp;
+attribute vec3 fireMotion;
 uniform vec3 uCam;
 uniform vec2 uWind;
 uniform float uTime;
@@ -22,6 +23,7 @@ varying vec4 vData;
 varying float vDepth,vPlume;
 varying vec2 vSize;
 ${FIRE_SMOKE_GLSL}
+${FIRE_FLAME_GLSL}
 void main(){
   vUv=uv;vData=vec4(fireSeed,fireSize.zw);vPlume=0.0;vSize=fireSize.xy;
   vec3 origin=fireAnchor.xyz;float kind=fireSize.z;
@@ -48,7 +50,7 @@ void main(){
   vec3 up=kind<0.5?vec3(0.0,1.0,0.0):normalize(cross(facing,right));
   if(kind<0.5||kind>3.5){right=fireRight;up=fireUp;}
   vec3 p=origin+right*(uv.x-0.5)*width+up*vertical*height;
-  if(kind<0.5)p.xz+=uWind*uv.y*uv.y*height*${gl(C.flameWind)};
+  if(kind<0.5)p.xz+=uWind*fireFlameDrift(uv.y,height,fireMotion.x,fireMotion.y,fireMotion.z,uTime);
   if(kind>1.5&&kind<2.5)vPlume=(p.y-fireAnchor.y)/fireAnchor.w;
   vec4 mv=viewMatrix*vec4(p,1.0);vDepth=-mv.z;gl_Position=projectionMatrix*mv;
 }`;
@@ -160,7 +162,7 @@ function spriteBatch(capacity,uniforms,smoke,name) {
   const g=new THREE.InstancedBufferGeometry();
   g.setAttribute('position',new THREE.Float32BufferAttribute([-.5,0,0,.5,0,0,-.5,1,0,.5,1,0],3));
   g.setAttribute('uv',new THREE.Float32BufferAttribute([0,0,1,0,0,1,1,1],2));g.setIndex([0,1,2,2,1,3]);
-  for(const [name,size] of [['fireAnchor',4],['fireSize',4],['fireSeed',2],['fireRight',3],['fireUp',3]])g.setAttribute(name,new THREE.InstancedBufferAttribute(new Float32Array(capacity*size),size).setUsage(THREE.DynamicDrawUsage));
+  for(const [name,size] of [['fireAnchor',4],['fireSize',4],['fireSeed',2],['fireRight',3],['fireUp',3],['fireMotion',3]])g.setAttribute(name,new THREE.InstancedBufferAttribute(new Float32Array(capacity*size),size).setUsage(THREE.DynamicDrawUsage));
   g.instanceCount=0;
   const material=new THREE.ShaderMaterial({uniforms,vertexShader:FIRE_VERTEX,fragmentShader:FIRE_FRAGMENT,
     transparent:true,depthWrite:false,side:THREE.DoubleSide,blending:smoke?THREE.NormalBlending:THREE.AdditiveBlending,toneMapped:false});
@@ -168,10 +170,11 @@ function spriteBatch(capacity,uniforms,smoke,name) {
   const mesh=new THREE.Mesh(g,material);mesh.name=name;mesh.frustumCulled=false;mesh.renderOrder=smoke?5:6;
   mesh.castShadow=mesh.receiveShadow=false;return mesh;
 }
-function put(mesh,x,y,z,sourceHeight,w,h,kind,phase,seed,power,right=null,up=null) {
+function put(mesh,x,y,z,sourceHeight,w,h,kind,phase,seed,power,right=null,up=null,motion=null) {
   const g=mesh.geometry,i=g.instanceCount++;
   g.attributes.fireAnchor.setXYZW(i,x,y,z,sourceHeight);g.attributes.fireSize.setXYZW(i,w,h,kind,phase);g.attributes.fireSeed.setXY(i,seed,power);
   if(right)g.attributes.fireRight.setXYZ(i,...right);if(up)g.attributes.fireUp.setXYZ(i,...up);
+  if(motion)g.attributes.fireMotion.setXYZ(i,motion.lean,motion.swayHz,motion.swayPhase);
 }
 export function createKamakuraFire(context) {
   const prepared=prepareFires(context);if(!prepared)return null;
@@ -223,7 +226,7 @@ export function createKamakuraFire(context) {
           const t=flameTongue(s,h,k,n.tongues);
           for(let plane=0;plane<n.planes;plane++){
             const angle=t.angle+plane*C.flameCrossRad/n.planes,right=[Math.cos(angle),0,-Math.sin(angle)];
-            put(flame,t.x,t.y,t.z,0,t.height*C.flameWidth,t.height,0,t.opening?1:0,t.seed,s.strength/n.planes,right,[0,1,0]);
+            put(flame,t.x,t.y,t.z,0,t.width,t.height,0,t.opening?1:0,t.seed,s.strength/n.planes,right,[0,1,0],t);
           }
         }
         if(!h.ground){
