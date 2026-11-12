@@ -3,8 +3,8 @@
 import * as THREE from 'three';
 import { smooth, fbm } from './terrain-height.js';
 import { WORLD } from './world-data.js';
-import { paddySurfaceColor, paddySurfaceMask, patchPaddyGround } from './paddy-view.js';
-import { paddyAt, paddyOptions, createPaddyPlots, PADDY_LOOK, PADDY_DEBUG } from './paddy.js';
+import { paddySurfaceColor, paddySurfaceMask, patchPaddyGround, paddyDebugColor } from './paddy-view.js';
+import { paddyAt, paddyOptions, createPaddyPlots, PADDY_LOOK } from './paddy.js';
 // 森の下の地面を暗くする強さ：近く（gain・急な斜面で戻す量 steepRelief）と、遠く（farGain）。木の密度に掛けて 1 で頭打ち。
 // 遠くは 1.5 → 2.6：まばらに木が立つ急な斜面でも、地面が森の床の色になり、木が「茶色の壁に刺さって」見えない。
 export const FOREST_FLOOR = Object.freeze({ gain: 1.5, steepRelief: 0.15, farGain: 2.6 });
@@ -17,19 +17,21 @@ const FAR = { half: 640, step: 8 };
 const SIZE = 1024;
 
 export function paddyGroundMap(world, terrain, debug = false) {
-  const T = world.terraces, plots = createPaddyPlots(world), step = PADDY_LOOK.mapStep;
-  const nx = Math.ceil((T.x1 - T.x0) / step), nz = Math.ceil((T.z1 - T.z0) / step), data = new Uint8Array(nx * nz * 4);
+  const T = world.terraces, plots = createPaddyPlots(world, terrain), step = PADDY_LOOK.mapStep;
+  const nx = Math.ceil((T.x1 - T.x0) / step), nz = Math.ceil((T.z1 - T.z0) / step), data = new Uint8Array(nx * nz * 4), phaseData = new Uint8Array(nx * nz * 4);
   let covered = 0, eligible = 0;
   for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) {
     const x = T.x0 + (i + .5) * step, z = T.z0 + (j + .5) * step, s = paddyAt(plots, x, z), road = terrain.roadInfo(x, z);
+    const k = (j * nx + i) * 4;
+    const phase = Math.round(Math.max(0, Math.min(1, (plots.field.value(x,z) * world.terraces.drop / PADDY_LOOK.rowGradient + PADDY_LOOK.phaseOffset) / PADDY_LOOK.phaseRange)) * 65535);
+    phaseData[k] = phase >>> 8; phaseData[k+1] = phase & 255; phaseData[k+3] = 255;
     if (!s || (road && road.dist <= step / Math.SQRT2)) continue;
     eligible++;
-    const color = debug ? new THREE.Color(PADDY_DEBUG[s.bund ? 'bund' : s.plot.kind]) : paddySurfaceColor(s, x, z);
-    const k = (j * nx + i) * 4;
+    const color = debug ? paddyDebugColor(s.plot.level, s.riser) : paddySurfaceColor(s, x, z);
     data[k] = Math.round(color.r * 255); data[k + 1] = Math.round(color.g * 255); data[k + 2] = Math.round(color.b * 255); data[k + 3] = debug ? 255 : paddySurfaceMask(s);
     if (!s.bund) covered++;
   }
-  return { data, nx, nz, x0: T.x0, z0: T.z0, width: nx * step, depth: nz * step, coverage: covered / eligible };
+  return { data, phaseData, nx, nz, x0: T.x0, z0: T.z0, width: nx * step, depth: nz * step, coverage: covered / eligible };
 }
 
 
@@ -304,6 +306,8 @@ export function buildTerrain({ terrain, textures, quality = 'standard', search =
     const map = paddyGroundMap(WORLD, terrain, paddy.debug); paddyCoverage = map.coverage;
     const texture = new THREE.DataTexture(map.data, map.nx, map.nz, THREE.RGBAFormat, THREE.UnsignedByteType);
     texture.magFilter = texture.minFilter = THREE.NearestFilter; texture.generateMipmaps = false; texture.needsUpdate = true;
+    const phaseTexture = new THREE.DataTexture(map.phaseData, map.nx, map.nz, THREE.RGBAFormat, THREE.UnsignedByteType);
+    phaseTexture.magFilter = phaseTexture.minFilter = THREE.LinearFilter; phaseTexture.generateMipmaps = false; phaseTexture.needsUpdate = true;
     const before = material.onBeforeCompile;
     material.onBeforeCompile = shader => {
       before(shader);
@@ -317,11 +321,12 @@ export function buildTerrain({ terrain, textures, quality = 'standard', search =
           if (any(lessThan(paddyUV,vec2(0.0))) || any(greaterThanEqual(paddyUV,vec2(1.0)))) paddyGround.a=0.0;
           albedo = mix(albedo,paddyGround.rgb,paddyGround.a);
           diffuseColor.rgb *= albedo;`);
-      patchPaddyGround(shader, paddy.debug, WORLD.terraces);
+      shader.uniforms.uPaddyPhase = { value: phaseTexture };
+      patchPaddyGround(shader, paddy.debug);
       if (paddy.debug) shader.fragmentShader = shader.fragmentShader.replace('#include <opaque_fragment>', 'if(paddyGround.a > 0.5) outgoingLight = paddyGround.rgb;\n #include <opaque_fragment>');
     };
     material.customProgramCacheKey = () => 'valley-terrain-paddy';
-    material.addEventListener('dispose', () => texture.dispose());
+    material.addEventListener('dispose', () => { texture.dispose(); phaseTexture.dispose(); });
   }
   material.addEventListener('dispose', () => coverUniforms.uCover.value.dispose());
   const near = new THREE.Mesh(nearGeo, material); near.name = 'terrain-near'; near.receiveShadow = true; near.castShadow = false;

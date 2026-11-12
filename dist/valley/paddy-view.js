@@ -3,10 +3,14 @@ import * as THREE from 'three';
 import { cellRand } from './scatter.js';
 import { PADDY, paddyQuality, paddyOptions, PADDY_LOOK, PADDY_DEBUG, paddyBundSection } from './paddy.js';
 
+// 地色も植生の共有風を読む。独自の時計は作らない。
+const groundWind = { uTime: { value: 0 }, uWind: { value: 0 } };
 const originalRiceColor = () => new THREE.Color(PADDY_LOOK.tintA).lerp(new THREE.Color(PADDY_LOOK.tintB), .5).multiply(new THREE.Color().setRGB(...PADDY_LOOK.tip));
 export const paddyRiceColor = () => originalRiceColor().lerp(new THREE.Color(PADDY_LOOK.grass), PADDY_LOOK.riceGreen);
+export const paddyDebugColor = (level, riser = false) => new THREE.Color().setHSL(((level * PADDY_LOOK.debugHueStep) % 1 + 1) % 1, PADDY_LOOK.debugSaturation, riser ? PADDY_LOOK.debugRiserLightness : PADDY_LOOK.debugTreadLightness);
 export const paddySoilColor = () => new THREE.Color(PADDY_LOOK.soil).multiplyScalar(PADDY_LOOK.soilGain);
 export function paddySurfaceColor(state, x, z) {
+  if (state.riser) return new THREE.Color(PADDY_LOOK.rock).multiplyScalar(PADDY_LOOK.rockGain);
   if (state.bund) return new THREE.Color(PADDY_LOOK.grass);
   const rice = paddyRiceColor().multiplyScalar(PADDY_LOOK.groundGain * state.plot.tint);
   if (!state.cut) return rice;
@@ -16,22 +20,30 @@ export function paddySurfaceColor(state, x, z) {
 }
 // 地色の細い条は解像度に合わせて平均化し、遠くのちらつきを避ける。
 export const paddySurfaceMask = state => state.bund ? 253 : state.cut ? 254 : 255;
-export function patchPaddyGround(shader, debug, bounds) {
+export function patchPaddyGround(shader, debug) {
   if (debug) return;
-  shader.fragmentShader = shader.fragmentShader.replace('albedo = mix(albedo,paddyGround.rgb,paddyGround.a);', `
-    float paddyRowOrigin = ${bounds.z0.toFixed(1)}+floor((vWorldPos.z-${bounds.z0.toFixed(1)})/${bounds.step.toFixed(1)})*${bounds.step.toFixed(1)};
-    float paddyStripePhase = (vWorldPos.z-paddyRowOrigin) / ${PADDY.stubbleStep} * 6.2831853;
-    float paddyStripe = sin(paddyStripePhase) * (1.0-smoothstep(0.5,3.0,fwidth(paddyStripePhase)));
-    paddyGround.rgb *= 1.0-${PADDY_LOOK.rowDark}*paddyStripe;
-    vec3 paddyRootSoil = vec3(${paddySoilColor().toArray().join(',')});
-    // 緑の畦と、低彩度の刈田を除き、立ち稲の株元だけ暗くする。
+  Object.assign(shader.uniforms, { uPaddyTime: groundWind.uTime, uPaddyWind: groundWind.uWind });
+  shader.fragmentShader = shader.fragmentShader.replace('#include <common>', `#include <common>
+    uniform sampler2D uPaddyPhase; uniform float uPaddyTime; uniform float uPaddyWind;`)
+    .replace('albedo = mix(albedo,paddyGround.rgb,paddyGround.a);', `
+    vec2 paddyEncoded = texture2D(uPaddyPhase,paddyUV).rg;
+    float paddyAlong = (dot(paddyEncoded,vec2(255.0,1.0))*255.0/65535.0*${PADDY_LOOK.phaseRange.toFixed(1)}-${PADDY_LOOK.phaseOffset.toFixed(1)});
     float paddyStanding = step(254.5,paddyGround.a*255.0);
-    paddyGround.a = step(0.5,paddyGround.a);
+    float paddyCut = step(253.5,paddyGround.a*255.0)*(1.0-paddyStanding);
+    float paddyStripePhase = paddyAlong / mix(${PADDY.stubbleStep},${PADDY_LOOK.rowPeriod},paddyStanding) * 6.2831853;
+    float paddyStripe = sin(paddyStripePhase) * (1.0-smoothstep(0.5,3.0,fwidth(paddyStripePhase)));
+    paddyGround.rgb *= 1.0+mix(${PADDY_LOOK.cutRowStrength},${PADDY_LOOK.rowStrength},paddyStanding)*paddyStripe*(paddyStanding+paddyCut);
+    float paddyWave = sin((vWorldPos.x*${PADDY_LOOK.groundWaveDirection[0].toFixed(8)}+vWorldPos.z*${PADDY_LOOK.groundWaveDirection[1].toFixed(8)})*6.2831853/${PADDY_LOOK.groundWavePeriod.toFixed(1)}-uPaddyTime*${PADDY_LOOK.groundWaveSpeed});
+    paddyGround.rgb *= 1.0+${PADDY_LOOK.groundWaveStrength}*paddyWave*uPaddyWind*paddyStanding;
+    vec3 paddyRootSoil = vec3(${paddySoilColor().toArray().join(',')});
+    float paddyCover = step(0.5,paddyGround.a);
     paddyGround.rgb = mix(paddyGround.rgb,paddyRootSoil,paddyStanding*(1.0-smoothstep(${PADDY_LOOK.rootStart.toFixed(1)},${PADDY_LOOK.rootEnd.toFixed(1)},distance(vWorldPos,cameraPosition))));
+    paddyGround.a = paddyCover;
     albedo = mix(albedo,paddyGround.rgb,paddyGround.a);`);
 }
 // 同じ画素ハッシュを近・遠の両方へ使い、混合帯の被覆の和を1にする。
 export function patchPaddyRice(material, wind, { far = false, distance = { value: PADDY.farEnd }, debug = false } = {}) {
+  Object.assign(groundWind, wind);
   const old = material.onBeforeCompile;
   material.onBeforeCompile = shader => {
     old.call(material, shader);
@@ -51,6 +63,7 @@ export function patchPaddyRice(material, wind, { far = false, distance = { value
       if (paddyGrain >= paddyFar*paddyOuter) discard;` : 'if (paddyGrain < paddyFar) discard;'}
       `);
     if (!debug) shader.fragmentShader = shader.fragmentShader.replace('#include <color_fragment>', `#include <color_fragment>\n diffuseColor.rgb *= vec3(1.0,${1 + PADDY_LOOK.riceGreen},1.0)*(1.0+${PADDY_LOOK.waveShade}*sin(vPaddyRoot.x*${PADDY_LOOK.windSpaceX}+vPaddyRoot.z*${PADDY_LOOK.windSpaceZ}-uTime*${PADDY_LOOK.windSlow})*uWind);`);
+    if (far && !debug) shader.fragmentShader = shader.fragmentShader.replace('#include <opaque_fragment>', `outgoingLight = clamp(outgoingLight, diffuseColor.rgb * ${PADDY_LOOK.farShadeFloor}, diffuseColor.rgb);\n #include <opaque_fragment>`);
     if (debug) shader.fragmentShader = shader.fragmentShader.replace('#include <opaque_fragment>', 'outgoingLight = vColor;\n #include <opaque_fragment>');
   };
   material.customProgramCacheKey = () => `paddy-rice-${far}-${debug}`;
@@ -100,12 +113,25 @@ export function paddyStoneGeometry(stone, near = true) {
   for (let i = 0; i < a.count; i++) a.setY(i, (a.getY(i) - lo) / (hi - lo) * stone.height - stone.height / 2);
   g.computeVertexNormals(); g.translate(stone.x, stone.y, stone.z); return g;
 }
+export function paddyStoneBandGeometry(w, debug = false) {
+  const positions=[],colors=[],indices=[],rails=[0,PADDY_LOOK.stoneGrassEdge,PADDY_LOOK.stoneMidRail,1];
+  const rock=new THREE.Color(PADDY_LOOK.rock).multiplyScalar(PADDY_LOOK.rockGain),grass=new THREE.Color(PADDY_LOOK.grass);
+  for(let end=0;end<2;end++)for(let i=0;i<rails.length;i++) {
+    const t=rails[i],a=end?w.bTop:w.aTop,b=end?w.bBottom:w.aBottom;
+    positions.push(a.x+(b.x-a.x)*t,a.y+(b.y-a.y)*t,a.z+(b.z-a.z)*t);
+    const c=debug?new THREE.Color(PADDY_DEBUG.stone):rock.clone().multiplyScalar(i===3?PADDY_LOOK.stoneShadow:1).lerp(grass,i===0?1:0);
+    colors.push(c.r,c.g,c.b);
+  }
+  for(let i=0;i<rails.length-1;i++)indices.push(i,i+4,i+1,i+1,i+4,i+5);
+  const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));g.setAttribute('color',new THREE.Float32BufferAttribute(colors,3));g.setIndex(indices);g.computeVertexNormals();return g;
+}
 export function paddyBundGeometry(b, segments = PADDY.bundSegments) {
   const pos = [], indices = [], n = segments;
   for (let end = 0; end < 2; end++) for (let i = 0; i <= n; i++) {
-    const along = end - .5, across = i / n - .5;
+    const across = i / n - .5;
     const ripple = b.jitter * Math.sin(b.x * PADDY.bundSpaceX + b.z * PADDY.bundSpaceZ) * Math.sin(Math.PI * i / n);
-    const x = b.x + (b.alongX ? along * b.sx : across * b.sx + ripple), z = b.z + (b.alongX ? across * b.sz + ripple : along * b.sz);
+    const dx=b.b.x-b.a.x,dz=b.b.z-b.a.z,len=Math.hypot(dx,dz),t=end;
+    const x=b.a.x+dx*t-dz/len*(across*b.sz+ripple),z=b.a.z+dz*t+dx/len*(across*b.sz+ripple);
     pos.push(x, (end ? b.y1 : b.y0) + paddyBundSection(i / n, x, z), z);
   }
   for (let i = 0; i < n; i++) indices.push(i, i + n + 1, i + 1, i + 1, i + n + 1, i + n + 2);
@@ -123,7 +149,7 @@ export function paddyTuftGeometry(s, grass = false) {
 }
 function cachedPart(geometry, color, item) {
   const g = geometry.index ? geometry.toNonIndexed() : geometry;
-  const result = { pos: g.attributes.position.array.slice(), nor: g.attributes.normal.array.slice(), color, item, triangles: tris(g) };
+  const result = { pos: g.attributes.position.array.slice(), nor: g.attributes.normal.array.slice(), col: g.attributes.color?.array.slice(), color, item, triangles: tris(g) };
   if (g !== geometry) g.dispose(); geometry.dispose(); return result;
 }
 // 出力用配列は一度だけ確保。移動時もsubarray・配列・行列を作らない。
@@ -135,7 +161,7 @@ function dynamicMesh(material, name, budget) {
   let count = 0; const uploadRange = { start: 0, count: 0 };
   return { mesh, reset() { count = 0; }, add(p, fade = 1) {
     const a = g.attributes; const root = p.item;
-    for (let i = 0; i < p.pos.length; i++) { a.position.array[count+i] = fade === 1 ? p.pos[i] : (i % 3 === 0 ? root.x : i % 3 === 1 ? root.y : root.z) * (1-fade) + p.pos[i] * fade; a.normal.array[count+i] = p.nor[i]; a.color.array[count+i] = i % 3 === 0 ? p.color.r : i % 3 === 1 ? p.color.g : p.color.b; }
+    for (let i = 0; i < p.pos.length; i++) { a.position.array[count+i] = fade === 1 ? p.pos[i] : (i % 3 === 0 ? root.x : i % 3 === 1 ? root.y : root.z) * (1-fade) + p.pos[i] * fade; a.normal.array[count+i] = p.nor[i]; a.color.array[count+i] = p.col ? p.col[i] : i % 3 === 0 ? p.color.r : i % 3 === 1 ? p.color.g : p.color.b; }
     count += p.pos.length;
   }, finish() { g.setDrawRange(0, count / 3); mesh.visible = count > 0; uploadRange.count = count;
     for (let i = 0; i < 3; i++) { const a = i === 0 ? g.attributes.position : i === 1 ? g.attributes.normal : g.attributes.color; a.updateRanges[0] = uploadRange; a.needsUpdate = true; } }, triangles: () => count / 9 };
@@ -143,7 +169,7 @@ function dynamicMesh(material, name, budget) {
 export function buildPaddy({ layout, wind, quality = 'standard', search = globalThis.location?.search || '' }) {
   const options = paddyOptions(search), group = new THREE.Group(); group.name = 'paddy';
   let level = 0, work = 0, profile = paddyQuality(quality);
-  const empty = { enabled: false, plots: 0, standing: 0, harvested: 0, partial: 0, farRice: 0, stoneLength: 0, racks: 0, straw: 0, triangles: 0, drawCalls: 0, updateItems: 0 };
+  const empty = { enabled: false, plots: 0, standing: 0, harvested: 0, partial: 0, terraces: 0, contourLength: 0, stoneBandVertices: 0, farRice: 0, stoneLength: 0, racks: 0, straw: 0, triangles: 0, drawCalls: 0, updateItems: 0 };
   if (!options.enabled || !layout) return { group, update() {}, setLevel() {}, stats: () => ({ ...empty }) };
   const debug = options.debug, details = [], stoneParts = [], nearParts = [], bands = [], color = (normal, key) => debug ? new THREE.Color(PADDY_DEBUG[key]) : normal;
   const box = (list, x, y, z, sx, sy, sz, c) => list.push({ geometry: new THREE.BoxGeometry(sx, sy, sz).translate(x, y, z), color: c });
@@ -153,20 +179,17 @@ export function buildPaddy({ layout, wind, quality = 'standard', search = global
   };
   const gold = paddyRiceColor().multiplyScalar(PADDY_LOOK.groundGain), grassColor = new THREE.Color(PADDY_LOOK.grass), soil = paddySoilColor();
   for (const b of layout.bunds) details.push({ geometry: paddyBundGeometry(b, quality === 'light' ? PADDY.lightBundSegments : PADDY.bundSegments), color: color(grassColor.clone().lerp(soil, PADDY_LOOK.bundSoil * cellRand(2310, Math.floor(b.x), Math.floor(b.z))()), 'bund') });
-  for (const w of layout.walls) {
-    const g = new THREE.PlaneGeometry(w.width, w.top - w.bottom).translate(w.x, (w.top + w.bottom) / 2, w.z);
-    details.push({ geometry: g, color: color(soil, 'stone') });
-    bands.push(cachedPart(new THREE.PlaneGeometry(w.width, w.top - w.bottom).translate(w.x, (w.top + w.bottom) / 2, w.z + .02), color(new THREE.Color(PADDY_LOOK.rock).multiplyScalar(PADDY_LOOK.rockGain), 'stone'), w));
-  }
+  for (const w of layout.walls) bands.push(cachedPart(paddyStoneBandGeometry(w,debug), color(new THREE.Color(PADDY_LOOK.rock), 'stone'), w));
   for (const stone of layout.stones) {
     const c = color(new THREE.Color(PADDY_LOOK.rock).multiplyScalar(PADDY_LOOK.rockGain * stone.shade).lerp(soil, PADDY_LOOK.rockSoil).lerp(grassColor, stone.layer === stone.layers - 1 ? PADDY_LOOK.rockGrass : 0), 'stone');
-    stoneParts.push({ item: stone, near: cachedPart(paddyStoneGeometry(stone), c, stone), mid: cachedPart(paddyStoneGeometry(stone, false), c, stone) });
+    stoneParts.push({ item: stone, near: cachedPart(paddyStoneGeometry(stone), c, stone) });
   }
   for (const item of layout.stubble) nearParts.push(cachedPart(paddyTuftGeometry(item), color(gold.clone().lerp(new THREE.Color(PADDY_LOOK.wood), PADDY_LOOK.strawWhite), layout.plots[item.plot].kind), item));
   for (const item of layout.grass) nearParts.push(cachedPart(paddyTuftGeometry(item, true), color(grassColor, 'bund'), item));
   let stubbleCount = 0, grassCount = 0, detailRadius = 0, stoneNearCount = 0, stoneMidCount = 0, stoneBandCount = 0;
   const rackGold = color(gold, 'rack'), wood = color(new THREE.Color(PADDY_LOOK.wood).multiplyScalar(.5), 'rack');
   for (const r of layout.racks) {
+    const firstPart=details.length;
     const h = r.y + r.height, ends = [r.x - r.length / 2, r.x + r.length / 2];
     for (const x of ends) for (const [dx, dz] of [[-.3, -.65], [.3, -.65], [0, .65]]) rod([x + dx, r.y, r.z + dz], [x, h, r.z], PADDY_LOOK.rackRadius, wood);
     rod([ends[0] - .2, h, r.z], [ends[1] + .2, h, r.z], PADDY_LOOK.rackRadius, wood);
@@ -174,6 +197,7 @@ export function buildPaddy({ layout, wind, quality = 'standard', search = global
       // 細い頂と太い裾を持つ稲束を横木の両側へ垂らす。
       for (const side of [-1, 1]) details.push({ geometry: new THREE.ConeGeometry(PADDY_LOOK.sheafRadius, .8, 4, 1).translate(x, h - .35, r.z + side * .18), color: rackGold });
     }
+    for(let i=firstPart;i<details.length;i++)details[i].geometry.translate(-r.x,0,-r.z).rotateY(r.turn).translate(r.x,0,r.z);
   }
   for (const s of layout.straw) {
     details.push({ geometry: new THREE.ConeGeometry(.38, s.height, 5, 1).translate(s.x, s.y + s.height / 2, s.z), color: debug ? new THREE.Color(PADDY_DEBUG.harvested) : gold.clone().lerp(new THREE.Color(PADDY_LOOK.wood), PADDY_LOOK.strawWhite) });
@@ -182,7 +206,7 @@ export function buildPaddy({ layout, wind, quality = 'standard', search = global
   const makeMaterial = () => debug ? new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide }) : new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide });
   const detailMesh = meshFromParts(details, makeMaterial(), 'paddy-bunds-harvest');
   const budget = quality === 'light' ? PADDY.lightTriangleBudget : PADDY.triangleBudget;
-  const stoneDynamic = dynamicMesh(makeMaterial(), 'paddy-stones', layout.stones.length * 12 + layout.walls.length * 2);
+  const stoneDynamic = dynamicMesh(makeMaterial(), 'paddy-stones', layout.stones.length * 12 + layout.walls.length * 6);
   const nearDynamic = dynamicMesh(makeMaterial(), 'paddy-stubble-grass', budget);
   detailMesh.frustumCulled = false;
   group.add(detailMesh, stoneDynamic.mesh, nearDynamic.mesh);
@@ -191,8 +215,8 @@ export function buildPaddy({ layout, wind, quality = 'standard', search = global
     const dx = Math.cos(axis * Math.PI / 2), dz = Math.sin(axis * Math.PI / 2), w = PADDY_LOOK.farWidth / 2, h = PADDY_LOOK.farHeight;
     const points = [[-w, 0], [w, 0], [w * .7, h * .8], [-w, 0], [w * .7, h * .8], [-w * .6, h], [-w * .6, h], [w * .7, h * .8], [w * .15, h * 1.08]];
     for (const [x, y] of points) {
-      pos.push(dx * x, y, dz * x); normals.push(0, 1, .1);
-      const tip = Math.min(1, y / h), c = new THREE.Color().setRGB(.5 + .34 * tip, .5 + .14 * tip, .22 + .05 * tip);
+      pos.push(dx * x, y, dz * x); normals.push(0, 1, 0);
+      const tip = Math.min(1, y / h), c = new THREE.Color().setRGB(...PADDY_LOOK.farRoot).lerp(new THREE.Color().setRGB(...PADDY_LOOK.tip), tip);
       colors.push(c.r, c.g, c.b);
     }
   }
@@ -204,7 +228,7 @@ export function buildPaddy({ layout, wind, quality = 'standard', search = global
   const far = new THREE.InstancedMesh(geo, material, layout.far.length); far.name = 'paddy-far-rice'; far.receiveShadow = true; far.frustumCulled = false;
   const matrix = new THREE.Matrix4(), rotation = new THREE.Quaternion(), scale = new THREE.Vector3(), root = new THREE.Vector3(), tint = new THREE.Color(PADDY_LOOK.tintA).lerp(new THREE.Color(PADDY_LOOK.tintB), .5);
   for (let i = 0; i < layout.far.length; i++) {
-    const s = layout.far[i], p = layout.plots[s.plot]; root.set(s.x, s.y, s.z); scale.set(1, s.height, 1); matrix.compose(root, rotation, scale); far.setMatrixAt(i, matrix); far.setColorAt(i, debug ? new THREE.Color(PADDY_DEBUG[p.kind]) : tint.clone().multiplyScalar(p.tint));
+    const s = layout.far[i], p = layout.plots[s.plot]; root.set(s.x, s.y, s.z); scale.set(1, s.height, 1); matrix.compose(root, rotation, scale); far.setMatrixAt(i, matrix); far.setColorAt(i, debug ? paddyDebugColor(p.level) : tint.clone().multiplyScalar(p.tint));
   }
   far.instanceMatrix.needsUpdate = true; far.instanceColor.needsUpdate = true; group.add(far);
   // 描画用の順序はrank順。品質変更は数だけを減らすので毎コマの配列・行列確保は無い。
@@ -227,13 +251,12 @@ export function buildPaddy({ layout, wind, quality = 'standard', search = global
     for (const p of stoneParts) {
       tests++;
       const d = Math.hypot(p.item.x-c.x,p.item.y-c.y,p.item.z-c.z);
-      if (d > q.distance || d > PADDY.stoneMid) continue;
-      if (d <= PADDY.stoneNear) { stoneDynamic.add(p.near); stoneNearCount++; }
-      else { stoneDynamic.add(p.mid); stoneMidCount++; }
+      if (d > q.distance || d > PADDY.stoneNear) continue;
+      stoneDynamic.add(p.near); stoneNearCount++;
     }
     for (const p of bands) {
       tests++; const d = Math.hypot(p.item.x-c.x,(p.item.top+p.item.bottom)/2-c.y,p.item.z-c.z);
-      if (d > PADDY.stoneMid && d <= q.distance) { stoneDynamic.add(p); stoneBandCount++; }
+      if (d <= q.distance) { stoneDynamic.add(p); stoneBandCount++; }
     }
     stoneDynamic.finish();
     const available = budget - tris(detailMesh.geometry) - stoneDynamic.triangles() - farBudgetCount * tris(geo);
@@ -262,7 +285,7 @@ export function buildPaddy({ layout, wind, quality = 'standard', search = global
   return { group, update, setLevel(n) { const v = Math.max(0, Math.min(3, Math.floor(n))); if (v !== level) { level = v; profile = paddyQuality(quality, level); dirty = true; } },
     stats() {
       const counts = { standing: 0, harvested: 0, partial: 0 }; for (const p of layout.plots) counts[p.kind]++;
-      return { enabled: true, plots: layout.plots.length, ...counts, farRice: far.count, stoneLength: layout.stoneLength, contourLength: layout.walls.filter(s => s.drop >= PADDY.contourMin).length * PADDY.stonePitch, stones: layout.stones.length, racks: layout.racks.length, straw: layout.straw.length, stubble: stubbleCount, stubbleCapacity: layout.stubble.length, grass: grassCount, detailRadius, stoneNear: stoneNearCount, stoneMid: stoneMidCount, stoneBands: stoneBandCount,
+      return { enabled: true, plots: layout.plots.length, ...counts, farRice: far.count, stoneLength: layout.stoneLength, terraces: layout.terraces, contourLength: layout.stoneLength, stoneBandVertices: stoneBandCount * 18, stoneBandCapacity: layout.stoneBandVertices, stones: layout.stones.length, racks: layout.racks.length, straw: layout.straw.length, stubble: stubbleCount, stubbleCapacity: layout.stubble.length, grass: grassCount, detailRadius, stoneNear: stoneNearCount, stoneMid: stoneMidCount, stoneBands: stoneBandCount,
         triangles: tris(detailMesh.geometry) + stoneDynamic.triangles() + nearDynamic.triangles() + far.count * tris(geo), drawCalls: 1 + Number(stoneDynamic.mesh.visible) + Number(nearDynamic.mesh.visible) + Number(far.count > 0), level, distance: distance.value, updateItems: work, capacity: layout.far.length };
     } };
 }

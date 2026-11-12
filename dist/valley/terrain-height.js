@@ -107,8 +107,8 @@ export function createTerrain(world = WORLD) {
     return { d: n.d, y: surfaceY(n.pz) };
   }
 
-  // 道や川を除いた自然な高さ
-  function natural(x, z) {
+  // 棚田の量子化前の高さと段情報。描画もこの同じ式を読む。
+  function terraceAt(x, z) {
     const e = Math.hypot((x - valley.cx) / valley.rx, (z - valley.cz) / valley.rz);
     const t = hill.dirX * x + hill.dirZ * z; // 里から廃寺方向（北西）へ進んだ距離
     let h = floor.y0 + floor.gx * x + floor.gz * z + hill.amp * smooth(hill.from, hill.to, t);
@@ -138,13 +138,19 @@ export function createTerrain(world = WORLD) {
     const inX = smooth(T.x0 - 6, T.x0 + 6, x) * (1 - smooth(T.x1 - 6, T.x1 + 6, x));
     const inZ = smooth(T.z0 - 4, T.z0 + 8, z) * (1 - smooth(T.z1 - 10, T.z1 + 2, z));
     const mask = inX * inZ;
-    if (mask > 0) {
-      const fall = 5.6 * smooth(T.z0 - 2, T.z1, z);
-      const base = h - fall;
-      const f = base / T.drop, fl = Math.floor(f), fr = f - fl;
-      const stepped = (fl + smooth(1 - T.riser / (T.drop * 14), 1, fr)) * T.drop;
-      h = lerp(h, stepped, mask);
-    }
+    const fall = 5.6 * smooth(T.z0 - 2, T.z1, z);
+    const base = h - fall;
+    const f = base / T.drop, fl = Math.floor(f), fr = f - fl;
+    const edge = 1 - T.riser / (T.drop * 14);
+    const stepped = (fl + smooth(edge, 1, fr)) * T.drop;
+    return { mask, level: fl, frac: fr, edge, stepped, height: h, river: r };
+  }
+
+  // 道や川を除いた自然な高さ。量子化前後の演算順序は保存する。
+  function natural(x, z) {
+    const terrace = terraceAt(x, z), r = terrace.river;
+    let h = terrace.height;
+    if (terrace.mask > 0) h = lerp(h, terrace.stepped, terrace.mask);
 
     // 峰（平らな頂から r までなめらかに下る。山と合成して高い方を採る）
     for (const p of world.peaks) {
@@ -260,5 +266,5 @@ export function createTerrain(world = WORLD) {
     return slopeAt(x, z) < 40;
   }
 
-  return { seed, heightAt, slopeAt, normalAt, waterAt, waterLevelAt, surfaceAt, forestDensity, roadInfo, riverInfo, walkable, bounds: b, riverLine, roads, natural };
+  return { seed, heightAt, slopeAt, normalAt, waterAt, waterLevelAt, surfaceAt, forestDensity, roadInfo, riverInfo, walkable, bounds: b, riverLine, roads, natural, terraceAt };
 }
