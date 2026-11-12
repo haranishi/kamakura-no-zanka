@@ -20,7 +20,7 @@ const stageAt = (f, species, jitter) => {
   const season = clamp(0.5 + 1.6 * (f.stage - 0.5));
   return Math.round(clamp((species === SPECIES.maple ? 0.45 + 0.55 * season : season) + jitter) * 255);
 };
-export function assignTreeSpecies(world, terrain, trees) {
+function legacyTreeSpecies(world, terrain, trees) {
   const species = new Uint8Array(trees.x.length), stage = new Uint8Array(trees.x.length);
   for (let i = 0; i < species.length; i++) {
     const x = trees.x[i], z = trees.z[i], f = treeFieldsAt(world, x, z), rng = positionRand(world, x, z);
@@ -44,6 +44,84 @@ export function assignTreeSpecies(world, terrain, trees) {
     stage[i] = stageAt(f, kind, (draws() - 0.5) * 40 / 255);
   }
   return { species, stage };
+}
+
+// The protected rectangle deliberately includes its corners: no gameplay tree can change.
+export function forestProtected(world, x, z) {
+  const b = world.bounds, m = TREES.forest2.margin;
+  return !b || x >= b.minX - m && x <= b.maxX + m && z >= b.minZ - m && z <= b.maxZ + m;
+}
+const lerp = (a, b, t) => a + (b - a) * t;
+// A jittered grove per cell. Warped, elliptical edges leave mixed cedar margins, not circular stamps.
+export function forestGroveAt(world, x, z) {
+  const c = TREES.forest2, ix = Math.floor(x / c.cell), iz = Math.floor(z / c.cell);
+  const wx = c.warp * fbm(x / c.detail, z / c.detail, world.seed + c.seed + 1, 2);
+  const wz = c.warp * fbm(x / c.detail, z / c.detail, world.seed + c.seed + 2, 2);
+  let best = Infinity, grove = null;
+  for (let dz = -1; dz <= 1; dz++) for (let dx = -1; dx <= 1; dx++) {
+    const gx = ix + dx, gz = iz + dz, rng = cellRand(world.seed + c.seed, gx, gz);
+    const cx = (gx + .5 + (rng() * 2 - 1) * c.jitter) * c.cell;
+    const cz = (gz + .5 + (rng() * 2 - 1) * c.jitter) * c.cell;
+    const radius = lerp(...c.radius, rng()), stretch = lerp(...c.stretch, rng()), angle = rng() * Math.PI;
+    const px = x + wx - cx, pz = z + wz - cz, ca = Math.cos(angle), sa = Math.sin(angle);
+    const distance = Math.hypot((px * ca - pz * sa) / radius, (px * sa + pz * ca) / (radius * stretch));
+    // One of two neighbouring stages per grove. This choice never depends on the tree's order.
+    const tone = Math.floor(rng() * 4), id = (gx + 32768) * 65536 + gz + 32768;
+    if (distance < best) { best = distance; grove = { id, distance, tone, x: cx, z: cz }; }
+  }
+  return grove;
+}
+export function assignTreeSpecies(world, terrain, trees, { forest2 = true } = {}) {
+  const legacy = legacyTreeSpecies(world, terrain, trees);
+  if (!forest2) return legacy;
+  const c = TREES.forest2, n = trees.x.length;
+  const result = { species: legacy.species.slice(), stage: legacy.stage.slice(), legacy,
+    outside: new Uint8Array(n), old: new Uint8Array(n), tone: new Uint8Array(n),
+    cluster: new Float64Array(n).fill(-1), height: new Float32Array(n).fill(1), width: new Float32Array(n).fill(1),
+    brightness: new Float32Array(n).fill(1), hue: new Float32Array(n), blue: new Float32Array(n) };
+  const before = [0, 0, 0, 0], after = [0, 0, 0, 0], groves = new Set();
+  let outside = 0, oldCount = 0;
+  for (let i = 0; i < n; i++) {
+    const x = trees.x[i], z = trees.z[i];
+    if (forestProtected(world, x, z)) continue;
+    result.outside[i] = 1; outside++; before[legacy.species[i]]++;
+    const g = forestGroveAt(world, x, z), rng = positionRand(world, x, z);
+    const slope = terrain.slopeAt(x, z, 1.5), bank = 1 - smooth(...c.bank, terrain.riverInfo(x, z).d);
+    const gentle = 1 - smooth(...c.slope, slope), high = smooth(...c.ridgeHeight, trees.y[i]);
+    // Positive curvature is a hollow / sheltered shoulder, negative is an exposed crest.
+    const relief = (terrain.heightAt(x - c.detail, z) + terrain.heightAt(x + c.detail, z)
+      + terrain.heightAt(x, z - c.detail) + terrain.heightAt(x, z + c.detail)) / 4 - trees.y[i];
+    const hollow = smooth(...c.relief, relief), w = c.habitatWeights, habitat = w[0] * bank + w[1] * gentle + w[2] * hollow;
+    const edge = 1 - smooth(1 - c.edge, 1 + c.edge, g.distance - c.habitatGain * (habitat - .5));
+    let sp = rng() < edge * gentle * (1 - high) ? (g.tone >= 2 ? SPECIES.zelkova : SPECIES.maple) : SPECIES.cedar;
+    // Pine replaces only conifer ground. A steep / exposed site has priority over a sheltered slope.
+    const p = c.pineWeights, pineHabitat = clamp(p[0] + p[1] * smooth(c.pineSlope, c.slope[1], slope) + p[2] * (1 - hollow) + p[3] * high);
+    if (sp === SPECIES.cedar && rng() < c.pineRate * pineHabitat / c.pineNormal) sp = SPECIES.pine;
+    const group = field(world, x, z, c.groupScale, c.seed + 3) * 2 - 1;
+    result.species[i] = sp;
+    if (sp === SPECIES.maple || sp === SPECIES.zelkova) {
+      result.cluster[i] = g.id; groves.add(g.id);
+      result.tone[i] = g.tone + (rng() < c.neighbourTone ? 1 : 0);
+      // stage remains useful to old QA clients; colour uses the five named tones in the view.
+      result.stage[i] = Math.round(result.tone[i] * 255 / 4);
+      result.brightness[i] = 1 + (rng() * 2 - 1) * c.leafBrightness;
+      result.hue[i] = (rng() * 2 - 1) * c.leafHue;
+    } else {
+      result.brightness[i] = (1 + (rng() * 2 - 1) * c.cedarBrightness) * (1 + group * c.groupBrightness);
+      const dx = terrain.heightAt(x + c.shadeStep, z) - terrain.heightAt(x - c.shadeStep, z);
+      const dz = terrain.heightAt(x, z + c.shadeStep) - terrain.heightAt(x, z - c.shadeStep);
+      result.blue[i] = clamp((dx - dz) / c.shadeGradient) * c.shadeBlue;
+      if (sp === SPECIES.cedar) {
+        const old = rng() < c.oldRate; result.old[i] = old ? 1 : 0; oldCount += old ? 1 : 0;
+        result.height[i] = old ? lerp(...c.oldHeight, rng()) : lerp(...c.height, clamp(rng() + c.heightHabitat * (hollow + bank - c.heightBias) + c.heightGroup * group));
+        result.width[i] = lerp(...c.width, rng()) * (old ? c.oldWidth : 1);
+      }
+    }
+    after[sp]++;
+  }
+  result.summary = { outside, before, after, groves: groves.size, old: oldCount,
+    work: { trees: n, groveCandidates: outside * 9, terrainQueriesUpperBound: outside * 10 } };
+  return result;
 }
 
 // Same local axes as insideFootprint and the collider boxes.

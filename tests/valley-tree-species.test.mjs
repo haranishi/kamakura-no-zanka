@@ -9,11 +9,13 @@ import { WORLD } from '../dist/valley/world-data.js';
 import { TREES, GRASS } from '../dist/valley/config.js';
 import { createTerrain } from '../dist/valley/terrain-height.js';
 import { scatterTrees, scatterRocks, scatterRice, ROCK_MODEL, insideFootprint, insidePlot, inSightline } from '../dist/valley/scatter.js';
-import { SPECIES, treeFieldsAt, assignTreeSpecies, scatterUnderstory } from '../dist/valley/tree-species.js';
+import { SPECIES, treeFieldsAt, assignTreeSpecies as assignForestSpecies, scatterUnderstory } from '../dist/valley/tree-species.js';
 import { measurementWorld } from '../tools/lib/measurement-world.mjs';
 import { measureTrees } from '../tools/measure-trees.mjs';
 import { TreeField, wind, THREE } from './helpers/tree-field.mjs';
 import { load } from './helpers/tree-modules.mjs';
+// Preserve legacy habitat/stream tests; the enabled slope composition is covered separately.
+const assignTreeSpecies = (world, terrain, trees) => assignForestSpecies(world, terrain, trees, { forest2: false });
 const terrain = createTerrain(WORLD), trees = scatterTrees(WORLD, terrain);
 let t = performance.now();
 const assigned = assignTreeSpecies(WORLD, terrain, trees), assignMs = performance.now() - t;
@@ -49,7 +51,7 @@ test('reachable denominator, ratios, clustering and stages [ratio cluster]', () 
   assert(s.nonCedarPct >= 30 && s.broadleafPct >= 15 && s.speciesCount >= 4, '[ratio] reachable diversity');
   assert(s.reachable[1]/645 >= .04 && s.reachable[3]/645 >= .04, '[ratio] missing zelkova/maple');
   const broad = (s.all[1]+s.all[3])/15830;
-  assert(broad >= .05 && broad <= .12, '[ratio] global broadleaf outside 5–12%');
+  assert(broad >= .18 && broad <= .28, '[ratio] global broadleaf outside slope forest range');
   assert(c.actual.sameSpeciesRate >= c.shuffled.sameSpeciesRate + .10, '[cluster] trees form confetti');
   assert(c.actual.stageDifference < c.shuffled.stageDifference, '[cluster] stages are not shared');
 });
