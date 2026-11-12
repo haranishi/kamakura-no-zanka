@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { WORLD } from '../dist/valley/world-data.js';
 import { createTerrain } from '../dist/valley/terrain-height.js';
 import { scatterRice } from '../dist/valley/scatter.js';
-import { PADDY, createPaddyPlots, createPaddyLayout, paddyAt, paddyNearRice, paddyOptions, paddyWeights, paddyQuality, paddyPropClear, paddyGroundHeight } from '../dist/valley/paddy.js';
+import { PADDY, createPaddyPlots, createPaddyLayout, paddyAt, paddyNearRice, paddyOptions, paddyWeights, paddyQuality, paddyPropClear, paddyGroundHeight, paddyBundSection } from '../dist/valley/paddy.js';
 const terrain = createTerrain(WORLD), before = JSON.stringify(WORLD), start = performance.now(), layout = createPaddyLayout(WORLD, terrain), buildMs = performance.now() - start;
 
 test('six deterministic rows contain 2–4 disjoint plots, bounded variation and requested harvest shares', () => {
@@ -45,18 +45,24 @@ test('partial fields have one straight cutting line and full harvested fields co
   for (const s of layout.stubble) assert(paddyAt(layout.plots, s.x, s.z).cut);
 });
 
-test('six stone lines use two courses at the existing drop, keep roads clear and expose their contour coverage', () => {
+test('six stone lines follow actual high and low ground with staggered courses, shallow single stones and clear roads', () => {
   for (let row = 0; row < 6; row++) assert(layout.stones.some(s => s.row === row));
   for (const s of layout.stones) {
     assert(s.x >= WORLD.terraces.x0 && s.x <= WORLD.terraces.x1);
     assert(Math.abs(s.z - s.nominal) <= PADDY.contourSearch + .001);
     assert(s.width >= PADDY.stoneMin && s.width <= PADDY.stoneMax);
-    assert.equal(s.height * PADDY.stoneLayers, WORLD.terraces.drop);
-    const road = terrain.roadInfo(s.x, s.z); assert(!road || road.dist > PADDY.stoneMax - .08);
-    if (s.followsContour) assert(terrain.heightAt(s.sampleX, s.z - PADDY.contourProbe) - terrain.heightAt(s.sampleX, s.z + PADDY.contourProbe) >= PADDY.contourMin);
+    assert(s.y >= s.bottom - 1e-9 && s.y <= s.top + 1e-9, 'centre belongs to the actual wall, below the grass bank');
+    const a = paddyGroundHeight(terrain, s.sampleX, s.z - PADDY.contourProbe), b = paddyGroundHeight(terrain, s.sampleX, s.z + PADDY.contourProbe);
+    assert(s.y >= Math.min(a, b) - 1e-9 && s.y <= Math.max(a, b) + 1e-9, 'rendered terrain bounds the centre as well');
+    assert.equal(s.layers, s.drop < PADDY.shallowDrop ? 1 : PADDY.stoneLayers);
+    assert(Math.abs(s.height - Math.max(.18, s.drop / s.layers)) < 1e-9);
+    assert(Math.abs(s.x - s.sampleX - (s.layer ? PADDY.stonePitch / 2 : 0)) < 1e-9);
+    assert(s.depth >= .25 && s.depth <= .45 && Math.abs(s.tilt) <= 12);
+    const road = terrain.roadInfo(s.x, s.z); assert(!road || road.dist > PADDY.stoneMax - PADDY.stonePitch / 2);
+    if (s.followsContour) assert(Math.abs(terrain.heightAt(s.sampleX, s.z - PADDY.contourProbe) - terrain.heightAt(s.sampleX, s.z + PADDY.contourProbe)) >= PADDY.contourMin);
   }
   assert(layout.stones.some(s => s.followsContour));
-  assert(layout.stones.some(s => !s.followsContour), 'existing southern terrain eases out; retain explicit embedded-edge fallback');
+  assert(layout.stones.some(s => !s.followsContour), 'existing southern terrain eases out; retain shallow single-course coverage');
   assert(layout.stoneLength > 600 && layout.stoneLength < 6 * 118);
   for (const b of layout.bunds) { assert(b.x - b.sx / 2 >= WORLD.terraces.x0 - 1e-8 && b.x + b.sx / 2 <= WORLD.terraces.x1 + 1e-8 && b.z - b.sz / 2 >= WORLD.terraces.z0 - 1e-8 && b.z + b.sz / 2 <= WORLD.terraces.z1 + 1e-8); const r = terrain.roadInfo(b.x, b.z); assert(!r || r.dist > Math.hypot(b.sx, b.sz) / 2); }
 });
@@ -96,4 +102,28 @@ test('surface attachment uses the same diagonal as the one-metre terrain mesh', 
 test('layout metrics are reported without changing any collision or world input', t => {
   t.diagnostic(JSON.stringify({ buildMs, plots: layout.plots.length, farCapacity: layout.far.length, stoneLength: layout.stoneLength, stones: layout.stones.length, stubble: layout.stubble.length, racks: layout.racks.length, straw: layout.straw.length }));
   assert.equal(JSON.stringify(WORLD), before);
+});
+
+
+test('rounded bund section has low edges, a raised centre and continuous bounded crown variation', () => {
+  for (let x = -60; x < 45; x += .2) {
+    assert.equal(paddyBundSection(0, x, 50), 0);
+    assert(Math.abs(paddyBundSection(1, x, 50)) < 1e-10);
+    assert(paddyBundSection(.5, x, 50) >= .15 && paddyBundSection(.5, x, 50) <= .22);
+    assert(paddyBundSection(.5, x, 50) > paddyBundSection(1/6, x, 50));
+  }
+});
+
+test('dense short stubble follows each plot long edge with 30cm rows and 26cm plant spacing', () => {
+  assert(layout.stubble.length > 20000);
+  for (const s of layout.stubble) {
+    const p = layout.plots[s.plot], alongX = p.x1 - p.x0 >= p.z1 - p.z0;
+    assert.equal(s.alongX, alongX);
+    const row = ((alongX ? s.z : s.x) - (alongX ? p.z0 : p.x0)) / PADDY.stubbleStep;
+    const plant = ((alongX ? s.x : s.z) - (alongX ? p.x0 : p.z0)) / PADDY.stubblePitch;
+    assert(Math.abs(row - Math.round(row)) < 1e-8 && Math.abs(plant - Math.round(plant)) < 1e-8);
+    assert(s.height >= .08 && s.height <= .14);
+    const at = paddyAt(layout.plots, s.x, s.z); assert(at.cut && !at.bund);
+    const road = terrain.roadInfo(s.x, s.z); assert(!road || road.dist > PADDY.bundWidth / 2);
+  }
 });

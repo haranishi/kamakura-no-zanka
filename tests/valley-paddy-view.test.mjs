@@ -15,8 +15,8 @@ const read = f => fs.readFileSync(new URL(f, base), 'utf8');
 const asModule = s => 'data:text/javascript;base64,' + Buffer.from(s).toString('base64');
 const rewrite = f => read(f).replace(/from 'three'/g, `from '${vendor}'`).replace(/from '(\.\/[^']+)'/g, (_, p) => `from '${new URL(p, base).href}'`);
 const paddyURL = asModule(rewrite('paddy-view.js'));
-const { buildPaddy, patchPaddyRice } = await import(paddyURL);
-const { buildTerrain, paddyGroundMap } = await import(asModule(rewrite('terrain.js')));
+const { buildPaddy, patchPaddyRice, paddyStoneGeometry, paddyBundGeometry, paddyTuftGeometry, paddySurfaceColor } = await import(paddyURL);
+const { buildTerrain, paddyGroundMap } = await import(asModule(rewrite('terrain.js').replace(new URL('paddy-view.js', base).href, paddyURL)));
 const vegetationSource = rewrite('vegetation.js').replace(new URL('paddy-view.js', base).href, paddyURL).replace(new URL('tree-view.js', base).href, moduleURL('tree-view.js')).replace(new URL('grass-view.js', base).href, moduleURL('grass-view.js'));
 const { makeTufts } = await import(asModule(vegetationSource));
 const terrain = createTerrain(WORLD), layout = createPaddyLayout(WORLD, terrain);
@@ -32,7 +32,7 @@ test('submitted real geometry stays below both budgets; adaptive distance/densit
     const start = performance.now(), v = buildPaddy({ layout, quality, wind }); v.update(camera());
     const stats = v.stats();
     let triangles = 0, calls = 0;
-    v.group.traverse(m => { if (m.isMesh && m.visible) { calls++; triangles += (m.geometry.index?.count ?? m.geometry.attributes.position.count) / 3 * (m.isInstancedMesh ? m.count : 1); assert(!m.castShadow); } });
+    v.group.traverse(m => { if (m.isMesh && m.visible) { calls++; triangles += (Math.min(m.geometry.drawRange.count, m.geometry.index?.count ?? m.geometry.attributes.position.count)) / 3 * (m.isInstancedMesh ? m.count : 1); assert(!m.castShadow); } });
     assert.equal(triangles, stats.triangles); assert.equal(calls, stats.drawCalls);
     assert(stats.triangles <= (quality === 'light' ? 50000 : 120000)); assert(stats.drawCalls <= 4);
     const allFar = v.group.children.find(m => m.isInstancedMesh);
@@ -66,6 +66,7 @@ test('ground cover colors exceed 80% of the complete terrace area, keep the true
     const x = map.x0 + (i + .5) * PADDY_LOOK.mapStep, z = map.z0 + (j + .5) * PADDY_LOOK.mapStep, k = (j * map.nx + i) * 4;
     const r = terrain.roadInfo(x, z), s = paddyAt(layout.plots, x, z);
     if (r && r.dist <= PADDY_LOOK.mapStep / Math.SQRT2) { assert.equal(map.data[k + 3], 0); continue; }
+    assert.equal(map.data[k + 3], s.bund ? 253 : s.cut ? 254 : 255, 'ground type mask must distinguish roots from harvested straw');
     const color = new THREE.Color(PADDY_DEBUG[s.bund ? 'bund' : s.plot.kind]);
     for (const [channel, value] of [color.r, color.g, color.b].entries()) assert.equal(debug.data[k + channel], Math.round(value * 255));
     if (!s.bund && map.data[k + 3]) covered++;
@@ -100,12 +101,14 @@ function variants(debug) {
 test('real shader anchors, shared wind, complementary dithering and balanced GLSL survive both debug variants', () => {
   assert(THREE.ShaderLib.lambert.vertexShader.includes('#include <begin_vertex>'));
   assert(THREE.ShaderLib.lambert.fragmentShader.includes('#include <alphatest_fragment>'));
+  assert(THREE.ShaderLib.lambert.fragmentShader.includes('#include <color_fragment>'));
   assert(THREE.ShaderLib.standard.fragmentShader.includes('#include <map_fragment>'));
   for (const debug of [false, true]) {
     const v = variants(debug);
     for (const [s, instanced] of v.shaders) {
       // Threeの#ifの両枝には関数の開き括弧が重複する。挿入後の本体の対応と、全includeの実在を別々に検査する。
       safety(s.vertexShader); safety(s.fragmentShader); expand(s.vertexShader); expand(s.fragmentShader);
+      if (instanced && !debug) assert(s.fragmentShader.includes('sin(vPaddyRoot.x*') && s.fragmentShader.includes('-uTime*'));
       if (instanced) { for (const key of Object.keys(wind)) assert.equal(s.uniforms[key], wind[key]); assert.match(s.vertexShader, /vPaddyDistance = distance\(paddyRoot, cameraPosition\)/); }
       else assert(s.fragmentShader.includes('mix(albedo,paddyGround.rgb,paddyGround.a)'));
     }
@@ -159,4 +162,78 @@ test('game and world viewer update the far rice and expose QA counters; adaptive
   assert.match(read('world.js'), /veg.rice.update\(camera\)/); assert.match(read('game.js'), /this.veg.rice.update\(this.camera\)/);
   assert.match(read('vegetation.js'), /rice.update = camera => \{ nearUpdate\(camera\); paddyView.update\(camera\); \}/);
   assert.match(read('vegetation.js'), /paddyView.setLevel\(level\)/);
+});
+
+test('stones are smooth twelve-face lumps near the player, six-face lumps beyond 40m, and never boxes', () => {
+  for (const s of layout.stones.filter(s => s.followsContour).slice(0, 30)) {
+    for (const near of [true, false]) {
+      const g = paddyStoneGeometry(s, near), normals = g.attributes.normal, positions = g.attributes.position;
+      assert.equal(g.index.count / 3, near ? 12 : 6);
+      const directions = new Set();
+      for (let i = 0; i < normals.count; i++) directions.add([normals.getX(i), normals.getY(i), normals.getZ(i)].map(n => n.toFixed(3)).join(','));
+      assert(directions.size >= (near ? 8 : 5), 'smooth shared normals must include oblique directions');
+      assert(positions.count < 12, 'shared smooth vertices, not six separate rectangular sides');
+      let lo = Infinity, hi = -Infinity;
+      for (let i = 0; i < positions.count; i++) { lo = Math.min(lo, positions.getY(i)); hi = Math.max(hi, positions.getY(i)); }
+      assert(Math.abs((lo + hi) / 2 - s.y) < 1e-5);
+      assert(s.y >= s.bottom && s.y <= s.top);
+      g.dispose();
+    }
+  }
+});
+
+test('the real bund mesh has seven rounded section points and the real stubble has five separate short fanned stems', () => {
+  const b = layout.bunds.find(b => b.alongX && b.sx === 1), g = paddyBundGeometry(b), p = g.attributes.position;
+  assert.equal(p.count, 14);
+  for (const offset of [0, 7]) {
+    assert(p.getY(offset + 3) > p.getY(offset) + .15);
+    assert(p.getY(offset + 3) > p.getY(offset + 6) + .15);
+  }
+  g.dispose();
+  for (const s of layout.stubble.slice(0, 30)) {
+    const g = paddyTuftGeometry(s), p = g.attributes.position;
+    assert.equal(p.count / 3, 5);
+    const tips = new Set();
+    for (let stem = 0; stem < 5; stem++) {
+      const k = stem * 3 + 2;
+      assert(Math.abs(p.getY(k) - s.y - s.height) < 1e-5);
+      assert(Math.abs(Math.hypot(p.getX(k)-s.x,p.getZ(k)-s.z) - .05) < 1e-5);
+      tips.add([p.getX(k).toFixed(3),p.getZ(k).toFixed(3)].join(','));
+    }
+    assert.equal(tips.size, 5); g.dispose();
+  }
+});
+
+test('harvest ground is less saturated than standing gold, with 10–20% light straw patches and preserved dark-soil source', t => {
+  const saturation = c => c.getHSL({}).s;
+  const standing = layout.plots.find(p => p.kind === 'standing'), cut = layout.plots.find(p => p.kind === 'harvested');
+  const gold = paddySurfaceColor({ plot: standing, cut: false }, 0, 0), patches = [];
+  let bright = 0;
+  for (let z = cut.z0 + 1; z < cut.z1 - 1; z += .5) for (let x = cut.x0 + 1; x < cut.x1 - 1; x += .5) {
+    const c = paddySurfaceColor({ plot: cut, cut: true }, x, z);
+    assert(saturation(c) < saturation(gold)); patches.push(c.r);
+  }
+  const min = Math.min(...patches); for (const r of patches) if (r > min * 1.1) bright++;
+  assert(bright / patches.length >= .1 && bright / patches.length <= .2);
+  t.diagnostic(JSON.stringify({ standingSaturation: saturation(gold), cutSaturation: saturation(paddySurfaceColor({ plot: cut, cut: true }, 0, 0)), patchFraction: bright / patches.length }));
+});
+
+test('walk-height updates retain dense stubble and grass, switch stone LOD, stay in budget and stop all uploads while stationary', t => {
+  for (const quality of ['standard', 'light']) {
+    const v = buildPaddy({ layout, wind, quality });
+    for (const [x, z, h] of [[-10, 49, 1.7], [-55, 62, 1.7], [-50, 110, 14], [-50, 110, 40], [-50, 250, 1.7]]) {
+      const c = camera(x, terrain.heightAt(x, z) + h, z); v.update(c); const stats = v.stats();
+      assert(stats.triangles <= (quality === 'light' ? 50000 : 120000)); assert(stats.drawCalls <= 4);
+      if (h === 1.7 && z < 100) { assert(stats.stubble > 0 && stats.grass > 0 && stats.stoneNear > 0); assert(stats.detailRadius <= 40); }
+      if (z === 250) { assert.equal(stats.stoneNear + stats.stoneMid, 0); assert(stats.stoneBands > 0 || quality === 'light'); }
+      let submitted = 0;
+      v.group.traverse(m => { if (m.isMesh && m.visible) submitted += Math.min(m.geometry.drawRange.count, m.geometry.index?.count ?? m.geometry.attributes.position.count) / 3 * (m.isInstancedMesh ? m.count : 1); });
+      assert.equal(stats.triangles, submitted);
+      const versions = v.group.children.map(m => m.isInstancedMesh ? m.instanceMatrix.version : m.geometry.attributes.position.version);
+      v.update(c); assert.equal(v.stats().updateItems, 0);
+      assert.deepEqual(v.group.children.map(m => m.isInstancedMesh ? m.instanceMatrix.version : m.geometry.attributes.position.version), versions);
+      t.diagnostic(JSON.stringify({ quality, x, z, h, ...stats }));
+    }
+    dispose(v);
+  }
 });

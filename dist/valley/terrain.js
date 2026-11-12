@@ -3,6 +3,7 @@
 import * as THREE from 'three';
 import { smooth, fbm } from './terrain-height.js';
 import { WORLD } from './world-data.js';
+import { paddySurfaceColor, paddySurfaceMask, patchPaddyGround } from './paddy-view.js';
 import { paddyAt, paddyOptions, createPaddyPlots, PADDY_LOOK, PADDY_DEBUG } from './paddy.js';
 
 const LAYERS = ['grass', 'dirt', 'rock', 'gravel', 'mud', 'litter'];
@@ -12,7 +13,6 @@ const NEAR = { x0: -152, x1: 192, z0: -152, z1: 136, step: 1 };
 const FAR = { half: 640, step: 8 };
 const SIZE = 1024;
 
-const riceColor = () => new THREE.Color(PADDY_LOOK.tintA).lerp(new THREE.Color(PADDY_LOOK.tintB), .5).multiply(new THREE.Color().setRGB(...PADDY_LOOK.tip));
 export function paddyGroundMap(world, terrain, debug = false) {
   const T = world.terraces, plots = createPaddyPlots(world), step = PADDY_LOOK.mapStep;
   const nx = Math.ceil((T.x1 - T.x0) / step), nz = Math.ceil((T.z1 - T.z0) / step), data = new Uint8Array(nx * nz * 4);
@@ -21,9 +21,9 @@ export function paddyGroundMap(world, terrain, debug = false) {
     const x = T.x0 + (i + .5) * step, z = T.z0 + (j + .5) * step, s = paddyAt(plots, x, z), road = terrain.roadInfo(x, z);
     if (!s || (road && road.dist <= step / Math.SQRT2)) continue;
     eligible++;
-    const color = debug ? new THREE.Color(PADDY_DEBUG[s.bund ? 'bund' : s.plot.kind]) : s.bund ? new THREE.Color(PADDY_LOOK.grass) : riceColor().multiplyScalar(PADDY_LOOK.groundGain * s.plot.tint * (s.cut ? PADDY_LOOK.cutGain : 1));
+    const color = debug ? new THREE.Color(PADDY_DEBUG[s.bund ? 'bund' : s.plot.kind]) : paddySurfaceColor(s, x, z);
     const k = (j * nx + i) * 4;
-    data[k] = Math.round(color.r * 255); data[k + 1] = Math.round(color.g * 255); data[k + 2] = Math.round(color.b * 255); data[k + 3] = 255;
+    data[k] = Math.round(color.r * 255); data[k + 1] = Math.round(color.g * 255); data[k + 2] = Math.round(color.b * 255); data[k + 3] = debug ? 255 : paddySurfaceMask(s);
     if (!s.bund) covered++;
   }
   return { data, nx, nz, x0: T.x0, z0: T.z0, width: nx * step, depth: nz * step, coverage: covered / eligible };
@@ -313,6 +313,7 @@ export function buildTerrain({ terrain, textures, quality = 'standard', search =
           if (any(lessThan(paddyUV,vec2(0.0))) || any(greaterThanEqual(paddyUV,vec2(1.0)))) paddyGround.a=0.0;
           albedo = mix(albedo,paddyGround.rgb,paddyGround.a);
           diffuseColor.rgb *= albedo;`);
+      patchPaddyGround(shader, paddy.debug, WORLD.terraces);
       if (paddy.debug) shader.fragmentShader = shader.fragmentShader.replace('#include <opaque_fragment>', 'if(paddyGround.a > 0.5) outgoingLight = paddyGround.rgb;\n #include <opaque_fragment>');
     };
     material.customProgramCacheKey = () => 'valley-terrain-paddy';
