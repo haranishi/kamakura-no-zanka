@@ -8,6 +8,11 @@ export const CRAG = Object.freeze({
   breakReserve: 2, // layers: room above terrain clearance before top breaks and edge erosion.
   topRate: .35, topDoubleRate: .08, edgeRate: .45, edgeSteps: 3, cornerSteps: 2, // fractions / counts: top breaks and contour lowering.
   sharedCornerLimit: .2, // edge-clearance fraction: keep shared corner motion from crossing a thin cell.
+  foldFacesMin: 3, foldFacesMax: 4, // counts: planar roof sectors (each may need several triangles along its outline).
+  // Real Chrome: at .4 to 1.1 of a layer every block ended in a pyramid, and the mass read as a cluster of crystals. Lower roofs
+  // read as broken rock, and are gentle enough for the grass cover to settle on them.
+  foldLowRate: .3, foldShift: .3, foldMin: .12, foldMax: .5, // fraction / width fraction / layer fractions: depressed hubs, hub drift and roof height.
+  bendLength: 2.2, bendMin: .12, bendMax: .35, // m: minimum outer edge length and mid-edge wall displacement.
   offsetFade: .25, // m: strong beds taper to zero at shared cap junctions.
   cavityGain: .7, rimGain: 1.1, hueVariation: .04, // brightness / brightness / warm-cool rock tint fraction.
   cell: 1.9, step: 1.1, lift: .45, rise: 0, // m: authored defaults.
@@ -28,29 +33,64 @@ export const CRAG = Object.freeze({
 // darker and greyer than the cliff colour it starts from, and its faces carry a world-anchored procedural surface: grain, the
 // grooves between beds, and joints. Even beds with evenly spaced upright joints read as a masonry wall, so the beds differ in
 // thickness, the grooves break off, most joints are left out and the rest lean. The same relief also bends the shading normal.
-// No texture; one scalar attribute carries the bed-height correction.
+// No texture; the fourth attribute packs bed height, ground RGB, crown height and grass weight.
 export const CRAG_LOOK = Object.freeze({
   tone: .56, grey: .5, warm: Object.freeze([1.06, 1, .9]), // rock brightness against the cliff colour / share pulled to grey / that grey's tint.
   grain: Object.freeze([2.9, .8, .23]), grainLow: .78, grainHigh: 1.18, // 1/m: three grain sizes / darkest and brightest grain.
   bed: .5, bend: .7, bendScale: .13, uneven: .85, unevenGain: 1.25, // m: mean bed thickness, its wander, wander scale (1/m) / 1/m and beds: how fast and how far the thickness changes with height.
   groove: .08, grooveDark: .3, grooveGapScale: .45, grooveGapFrom: .28, grooveGapTo: .5, layerTone: .24, // groove share of a bed / darkening / 1/m and noise gates: where a groove breaks off / tone range between beds.
-  joint: 2.3, jointWidth: .03, jointDark: .42, jointKeep: .62, jointJitter: .8, jointSlant: .5, // m: joint spacing / joint share of the spacing / darkening / share left out / spacings of wander / spacings of lean across one bed.
+  joint: 2.3, jointWidth: .03, jointDark: .42, jointKeep: .8, jointJitter: .8, jointSlant: 25, // m: joint spacing / joint share of the spacing / darkening / share left out / spacings of wander / degrees of fine-joint lean.
+  broadBand: 2.7, broadTone: .09, // m / gain: broad beds, visible beyond the fine-detail fade.
+  crackSpacing: 8, crackJitter: .3, crackWidthMin: .25, crackWidthMax: .6, crackDark: .35, // m / m / m / m / darkening: world-anchored large joints (5–11m apart).
+  crackSwayMin: .3, crackSwayMax: 1.2, crackWave: 7, crackPeriod: 9, crackGap: .3, crackDirection: .37, // m / m / m / m / fraction / slope: joint wander and interruptions.
+  weatherHeight: 1.5, weatherGain: .08, // m below the crown / gain: pale weathered top edge.
+  grassStrength: .8, grassSize: 2, grassFrom: .35, grassTo: .65, grassNormal: .87, shelfGrass: .5, // blend / m / noise gates / min normal.y / shelf share: ground-coloured cover.
   relief: Object.freeze([.022, .04, .035]), bump: 1, // m: depth of grain, grooves and joints for the shading normal / gain.
-  wallFrom: .55, wallTo: .85, fineFrom: .03, fineTo: .14, // |normal.y| over which wall detail gives way to the top / m per pixel over which thin lines fade.
+  wallFrom: .55, wallTo: .85, fineFrom: .012, fineTo: .05, // |normal.y| over which wall detail gives way to the top / m per pixel over which thin lines fade.
 });
 const L=CRAG_LOOK, gl=n=>Number(n).toFixed(6);
 export function cragRockTone(c) {
   const lum=.2126*c[0]+.7152*c[1]+.0722*c[2];
   return c.map((v,i)=>(v+(lum*L.warm[i]-v)*L.grey)*L.tone);
 }
-export const CRAG_VERTEX_PARS = `attribute float cragBed;
+export const CRAG_VERTEX_PARS = `attribute vec4 cragBed;
 varying float vCragBed;
+varying vec3 vCragGrass;
+varying vec2 vCragCap;
 varying vec3 vCragWorld;
 varying vec3 vCragNormal;`;
-export const CRAG_VERTEX = `vCragBed=cragBed;
+export const CRAG_VERTEX = `vCragBed=cragBed.x;
+float grassCode=cragBed.y;
+vCragGrass=vec3(floor(grassCode/65536.0),mod(floor(grassCode/256.0),256.0),mod(grassCode,256.0))/255.0;
+vCragCap=cragBed.zw;
 vCragWorld=(modelMatrix*vec4(transformed,1.0)).xyz;
 vCragNormal=normalize(mat3(modelMatrix)*objectNormal);`;
+const fract=x=>x-Math.floor(x), mix=(a,b,t)=>a+(b-a)*t;
+const smooth=(a,b,x)=>{const t=Math.max(0,Math.min(1,(x-a)/(b-a)));return t*t*(3-2*t);};
+export const cragHash3=(x,y,z)=>fract(Math.sin(x*12.9898+y*37.719+z*78.233)*43758.5453);
+export function cragLargeJoint(x,y,z) {
+  const u=x+z*L.crackDirection;
+  const cell=Math.floor(u/L.crackSpacing);
+  const seed=cragHash3(cell,4.1,9.7);
+  const sway=mix(L.crackSwayMin,L.crackSwayMax,cragHash3(cell,2.3,8.1));
+  const center=(cell+.5)*L.crackSpacing+(seed*2-1)*L.crackJitter+sway*Math.sin(y/L.crackWave+seed*6.283185);
+  const width=mix(L.crackWidthMin,L.crackWidthMax,cragHash3(cell,6.1,1.7));
+  const present=fract(y/L.crackPeriod+seed)>=L.crackGap?1:0;
+  return (1-smooth(width*.35,width*.5,Math.abs(u-center)))*present;
+}
+function scalarGLSL(fn) {
+  return fn.toString().replace('function cragLargeJoint(x,y,z)','float cragLargeJoint(float x,float y,float z)')
+    .replace(/const /g,'float ').replace(/L\.(\w+)/g,(_,k)=>gl(L[k]))
+    .replace(/Math\.(floor|sin|abs)/g,'$1').replace(/cragHash3\(([^,]+),([^,]+),([^,)]+)\)/g,'cragHash3(vec3($1,$2,$3))')
+    .replace(/\bsmooth\(/g,'smoothstep(').replace(/(?<![\w.])(\d+)(?![\w.])/g,'$1.0');
+}
+export const CRAG_LARGE_JOINT=scalarGLSL(cragLargeJoint);
+export const cragFine=pixel=>1-smooth(L.fineFrom,L.fineTo,pixel);
+export const cragGrass=(normalY,noise,enabled=true,shelf=false)=>enabled&&normalY>=L.grassNormal?L.grassStrength*smooth(L.grassFrom,L.grassTo,noise)*(shelf?L.shelfGrass:1):0;
 export const CRAG_FRAGMENT_PARS = `varying float vCragBed;
+varying vec3 vCragGrass;
+varying vec2 vCragCap;
+uniform float cragGrassStrength;
 varying vec3 vCragWorld;
 varying vec3 vCragNormal;
 float cragRelief=0.0;
@@ -65,6 +105,7 @@ float cragNoise(vec3 p){
   float b=mix(mix(cragHash3(i+vec3(0.0,0.0,1.0)),cragHash3(i+vec3(1.0,0.0,1.0)),f.x),mix(cragHash3(i+vec3(0.0,1.0,1.0)),cragHash3(i+vec3(1.0,1.0,1.0)),f.x),f.y);
   return mix(a,b,f.z);
 }
+${CRAG_LARGE_JOINT}
 vec3 cragLook(vec3 base,vec3 p,vec3 n){
   float pixel=length(fwidth(p));
   float fine=1.0-smoothstep(${gl(L.fineFrom)},${gl(L.fineTo)},pixel);
@@ -78,16 +119,21 @@ vec3 cragLook(vec3 base,vec3 p,vec3 n){
   float tone=cragHash3(vec3(floor(layer),3.1,7.7));
   vec2 along=normalize(vec2(-n.z,n.x)+vec2(0.0001,0.0));
   float span=dot(p.xz,along);
-  float run=span/${gl(L.joint)}+tone*7.0+(cragNoise(vec3(span*0.31,floor(layer)*1.9,9.1))-0.5)*${gl(L.jointJitter)}+(tone-0.5)*${gl(L.jointSlant)}*bedPart;
+  float run=span/${gl(L.joint)}+tone*7.0+(cragNoise(vec3(span*0.31,floor(layer)*1.9,9.1))-0.5)*${gl(L.jointJitter)}+tan((tone*2.0-1.0)*${gl(L.jointSlant*Math.PI/180)})*height/${gl(L.joint)};
   float runPart=fract(run);
   float joint=1.0-smoothstep(0.0,${gl(L.jointWidth)},min(runPart,1.0-runPart));
   joint*=step(${gl(L.jointKeep)},cragHash3(vec3(floor(run),floor(layer),1.3)));
   cragRelief=((grain-0.5)*${gl(L.relief[0])}-(groove*${gl(L.relief[1])}+joint*${gl(L.relief[2])})*wall)*fine;
   vec3 c=base*mix(${gl(L.grainLow)},${gl(L.grainHigh)},grain);
-  c*=1.0+(tone-0.5)*${gl(L.layerTone)}*wall;
+  c*=1.0+(tone-0.5)*${gl(L.layerTone)}*wall*fine;
+  c*=1.0+sin((p.y-vCragBed)/${gl(L.broadBand)}*6.283185)*${gl(L.broadTone)}*wall;
+  c*=1.0-cragLargeJoint(p.x,p.y,p.z)*${gl(L.crackDark)}*wall;
+  c*=1.0+(1.0-smoothstep(0.0,${gl(L.weatherHeight)},vCragCap.x-(p.y-vCragBed)))*${gl(L.weatherGain)};
   c*=1.0-groove*${gl(L.grooveDark)}*wall*fine;
   c*=1.0-joint*${gl(L.jointDark)}*wall*fine;
-  return c;
+  float cover=smoothstep(${gl(L.grassFrom)},${gl(L.grassTo)},cragNoise(p/${gl(L.grassSize)}));
+  float grass=step(${gl(L.grassNormal)},n.y)*cover*cragGrassStrength*vCragCap.y;
+  return mix(c,vCragGrass,grass);
 }
 vec3 cragBump(vec3 surface,vec3 eye,float relief){
   vec3 alongX=dFdx(eye);
@@ -302,7 +348,9 @@ function prepareNatural(r,blocks,terrain,work,cell,light) {
     if(!v.boundary)v.anchor=Math.min(...v.blocks.map(b=>b.legacyTop))-C.embed;
     v.anchor-=delta(v.point); // wall heights below are bed coordinates.
   }
+  const depressed=new Set(pick(blocks,C.foldLowRate,r.id,191));
   for(const b of blocks) {
+    b.fold=(depressed.has(b)?-1:1)*r.step_m*(C.foldMin+(C.foldMax-C.foldMin)*cragHash(r.id,b.index,193));
     const jitter=(cragHash(r.id,...b.point)*2-1)*C.heightJitter*r.step_m;
     const nominal=b.phase+Math.ceil((terrain.heightAt(b.point[0],-b.point[1])-delta(b.point)+r.lift_m+b.rise-b.phase)/r.step_m)*r.step_m+jitter;
     work.heightTests++;
@@ -315,10 +363,11 @@ function prepareNatural(r,blocks,terrain,work,cell,light) {
     for(let attempt=0;attempt<C.attempts;attempt++) {
       let deficit=0;
       const cap=naturalRing(b.polygon,b.bedTop),inner=naturalInset(cap,b.bevel);
-      for(const q of [...cap,...inner]) {
+      const roof=foldRoof(inner,b),samples=[...cap.map(q=>({q,shift:0})),...inner.map((q,i)=>({q,shift:roof.heights[i]})),{q:roof.hub,shift:b.fold}];
+      for(const {q,shift} of samples) {
         const g=terrain.heightAt(q[0],-q[1]);work.heightTests++;
         if(!Number.isFinite(g))throw new Error('岩の地面の高さが読めません');
-        deficit=Math.max(deficit,g+C.clearance-delta(q)-b.bedTop);
+        deficit=Math.max(deficit,g+C.clearance-delta(q)-b.bedTop-shift);
       }
       if(deficit<=C.epsilon)break;
       b.bedTop+=Math.ceil(deficit/r.step_m)*r.step_m;
@@ -354,20 +403,46 @@ function naturalInset(poly,width) {
   const radius=Math.min(...poly.map(p=>Math.hypot(p[0]-center[0],p[1]-center[1]))),ratio=Math.min(C.insetLimit,width/radius);
   return poly.map(p=>[p[0]+(center[0]-p[0])*ratio,p[1]+(center[1]-p[1])*ratio]);
 }
-// Shared corners can make a cap concave. Ears retain its actual outline; a convex fan would cover a neighbour.
-function capTriangles(poly) {
-  const ids=poly.map((_,i)=>i),out=[],cross=(a,b,c)=>(b[0]-a[0])*(c[1]-a[1])-(b[1]-a[1])*(c[0]-a[0]);
-  while(ids.length>3) {
-    let found=false;
-    for(let i=0;i<ids.length;i++) {
-      const a=ids[(i+ids.length-1)%ids.length],b=ids[i],c=ids[(i+1)%ids.length];
-      if(cross(poly[a],poly[b],poly[c])<=C.epsilon)continue;
-      if(ids.some(j=>j!==a&&j!==b&&j!==c&&cross(poly[a],poly[b],poly[j])>=-C.epsilon&&cross(poly[b],poly[c],poly[j])>=-C.epsilon&&cross(poly[c],poly[a],poly[j])>=-C.epsilon))continue;
-      out.push([a,b,c]);ids.splice(i,1);found=true;break;
+function foldHub(poly,b) {
+  const xs=poly.map(p=>p[0]),ys=poly.map(p=>p[1]);
+  let kernel=[[Math.min(...xs),Math.min(...ys)],[Math.max(...xs),Math.min(...ys)],[Math.max(...xs),Math.max(...ys)],[Math.min(...xs),Math.max(...ys)]];
+  for(const e of planes(poly))kernel=clip(kernel,e.nx,e.ny,e.k-C.epsilon);
+  if(kernel.length<3)throw new Error('岩の頂を折る点が見つかりません');
+  const center=[kernel.reduce((n,p)=>n+p[0],0)/kernel.length,kernel.reduce((n,p)=>n+p[1],0)/kernel.length];
+  const angle=cragHash(b.id,b.index,197)*Math.PI*2,distance=Math.min(Math.max(...xs)-Math.min(...xs),Math.max(...ys)-Math.min(...ys))*C.foldShift*cragHash(b.id,b.index,199);
+  const shift=[Math.cos(angle)*distance,Math.sin(angle)*distance];let fraction=1;
+  for(const e of planes(poly)){const out=e.nx*shift[0]+e.ny*shift[1];if(out>0)fraction=Math.min(fraction,Math.max(0,(e.k-e.nx*center[0]-e.ny*center[1])/out)*.9);}
+  return [center[0]+shift[0]*fraction,center[1]+shift[1]*fraction];
+}
+function foldRoof(poly,b) {
+  const hub=foldHub(poly,b),heights=new Array(poly.length).fill(0),preferred=Math.min(poly.length,C.foldFacesMin+Math.floor(cragHash(b.id,b.index,227)*(C.foldFacesMax-C.foldFacesMin+1)));
+  const cross=(i,j)=>(poly[i][0]-hub[0])*(poly[j][1]-hub[1])-(poly[i][1]-hub[1])*(poly[j][0]-hub[0]);
+  let anchors=null,best=Infinity;
+  // A near-straight sector can amplify its plane far past the cap. Prefer the partition
+  // whose boundary excursions are smallest, rather than the first legal combination.
+  function choose(ids,count) {
+    if(ids.length===count){
+      if(cross(ids.at(-1),ids[0])<=C.epsilon)return;
+      let score=0;
+      for(let j=0;j<count;j++) {
+        const start=ids[j],end=j+1<count?ids[j+1]:ids[0]+poly.length,a=poly[start],d=poly[end%poly.length],ax=a[0]-hub[0],ay=a[1]-hub[1],dx=d[0]-hub[0],dy=d[1]-hub[1],det=ax*dy-ay*dx;
+        for(let i=start;i<end;i++){const p=poly[i%poly.length],x=p[0]-hub[0],y=p[1]-hub[1];score=Math.max(score,Math.abs(1-(x*dy-y*dx+ax*y-ay*x)/det));}
+      }
+      if(score<best){best=score;anchors=ids.slice();}return;
     }
-    if(!found)throw new Error('岩の頂の輪郭が交差しています');
+    for(let i=ids.length?ids.at(-1)+1:0;i<=poly.length-count+ids.length;i++)if(!ids.length||cross(ids.at(-1),i)>C.epsilon){ids.push(i);choose(ids,count);ids.pop();}
   }
-  if(ids.length===3){if(cross(...ids.map(i=>poly[i]))<=C.epsilon)throw new Error('岩の頂の輪郭が交差しています');out.push(ids);}return out;
+  choose([],preferred);if(!anchors)choose([],preferred===3?4:3);
+  if(!anchors)throw new Error('岩の頂の折れが交差しています');
+  const count=anchors.length;anchors.push(anchors[0]+poly.length);
+  for(let j=0;j<count;j++) {
+    const a=poly[anchors[j]],d=poly[anchors[j+1]%poly.length],ax=a[0]-hub[0],ay=a[1]-hub[1],dx=d[0]-hub[0],dy=d[1]-hub[1],det=ax*dy-ay*dx;
+    for(let i=anchors[j];i<anchors[j+1];i++) {
+      const p=poly[i%poly.length],x=p[0]-hub[0],y=p[1]-hub[1];
+      heights[i%poly.length]=b.fold*(1-(x*dy-y*dx+ax*y-ay*x)/det);
+    }
+  }
+  return {hub,heights,count};
 }
 function offsetRing(poly,ps,amount) {
   return poly.map((p,i)=>{
@@ -378,9 +453,9 @@ function offsetRing(poly,ps,amount) {
     return [p[0]+dx,p[1]+dy];
   });
 }
-// Flat triangle normals; position, normal, colour and one scalar bed correction are the four GPU attributes.
+// Flat triangle normals; the fourth attribute packs the bed and surface data without another draw.
 function geometryFor(plans,light,debug,budget,work) {
-  const positions=[],normals=[],colors=[],beds=[],faces=[],ranges=[];let overflow=false,tallest=0,activePlan=null;
+  const positions=[],normals=[],colors=[],beds=[],surface=[],faces=[],ranges=[];let overflow=false,tallest=0,activePlan=null;
   const strongBeds=new Set();
   function tri(a,b,c,colorA,colorB,colorC,expected,kind,block,edge=-1,layer=null) {
     if(overflow)return;
@@ -390,7 +465,9 @@ function geometryFor(plans,light,debug,budget,work) {
     let n=[ab[1]*ac[2]-ab[2]*ac[1],ab[2]*ac[0]-ab[0]*ac[2],ab[0]*ac[1]-ab[1]*ac[0]],len=Math.hypot(...n);
     if(len<=C.epsilon)return;
     if(n.reduce((sum,v,i)=>sum+v*expected[i],0)<0){[b,c]=[c,b];[colorB,colorC]=[colorC,colorB];n=n.map(v=>-v);}
-    for(const v of [a,b,c]){const bed=block.bed;beds.push(bed?(v[0]-bed.origin[0])*bed.east+(-v[2]-bed.origin[1])*bed.north:0);}
+    const packed=block.source.reduce((code,v)=>code*256+Math.round(clamp(v,0,1)*255),0);
+    const grass=['rock','soil'].includes(kind)?1:kind==='ledge'?L.shelfGrass:0;
+    for(const v of [a,b,c]){const bed=block.bed,delta=bed?(v[0]-bed.origin[0])*bed.east+(-v[2]-bed.origin[1])*bed.north:0;beds.push(delta);surface.push(delta,packed,block.crown??block.top,grass);}
     positions.push(...a,...b,...c);for(let j=0;j<3;j++)normals.push(...n.map(v=>v/len));colors.push(...colorA,...colorB,...colorC);
     faces.push({kind,id:block.id,block:block.index,edge,layer});work.triangles++;
     if(faces.length>budget)overflow=true;
@@ -412,12 +489,24 @@ function geometryFor(plans,light,debug,budget,work) {
       const poly=b.polygon,ps=planes(poly),bevel=plan.natural?b.bevel:light?0:Math.min(clamp(plan.cell*C.bevelRatio,C.bevelMin,C.bevelMax),inradius(poly,ps)*C.insetLimit);
       const topBed=plan.natural?b.bedTop:b.top,capPoly=plan.natural?naturalRing(poly,topBed):poly;
       const inner=plan.natural?naturalInset(capPoly,bevel):bevel?offsetRing(capPoly,planes(capPoly),-bevel):capPoly,kind=b.soil?'soil':'rock',color=tint(b,kind,b.soil?1:C.rockTopGain*b.tone);
-      if(plan.natural){for(const [a,c,d] of capTriangles(inner))tri(pos(inner[a],topBed),pos(inner[c],topBed),pos(inner[d],topBed),color,color,color,[0,1,0],kind,b);}
+      if(plan.natural){
+        const roof=foldRoof(inner,b);b.hub=roof.hub;b.hubBed=topBed+b.fold;b.roofFaces=roof.count;b.cap=inner;b.capHeights=roof.heights;b.crown=topBed+Math.max(b.fold,...roof.heights);
+        for(let e=0;e<inner.length;e++)tri(pos(b.hub,b.hubBed),pos(inner[e],topBed+roof.heights[e]),pos(inner[(e+1)%inner.length],topBed+roof.heights[(e+1)%inner.length]),color,color,color,[0,1,0],kind,b);
+      }
       else for(let j=1;j<inner.length-1;j++)tri(pos(inner[0],topBed),pos(inner[j],topBed),pos(inner[j+1],topBed),color,color,color,[0,1,0],kind,b);
       for(let e=0;e<poly.length;e++) {
         const j=(e+1)%poly.length,a=poly[e],d=poly[j],n=[ps[e].nx,0,-ps[e].ny];
         const rim=plan.natural?naturalRing(poly,topBed-bevel):poly;
-        if(bevel){const col=tint(b,'bevel',C.bevelGain*b.tone);quad(pos(rim[e],topBed-bevel),pos(rim[j],topBed-bevel),pos(inner[j],topBed),pos(inner[e],topBed),col,col,col,col,[0,1,0],'bevel',b,e);}
+        if(bevel){const col=tint(b,'bevel',C.bevelGain*b.tone);quad(pos(rim[e],topBed-bevel),pos(rim[j],topBed-bevel),pos(inner[j],topBed+(b.capHeights?.[j]??0)),pos(inner[e],topBed+(b.capHeights?.[e]??0)),col,col,col,col,[0,1,0],'bevel',b,e);}
+        else if(plan.natural) {
+          // Without a bevel, a folded boundary still needs a curtain to the shared planar rim.
+          // Split at a sign change so a raised and a lowered endpoint cannot cross the curtain.
+          const A=b.capHeights[e],B=b.capHeights[j],stops=A*B<0?[0,A/(A-B),1]:[0,1],col=tint(b,'wall',b.tone);
+          for(let k=1;k<stops.length;k++) {
+            const u=stops[k-1],v=stops[k],p=[inner[e][0]+(inner[j][0]-inner[e][0])*u,inner[e][1]+(inner[j][1]-inner[e][1])*u],q=[inner[e][0]+(inner[j][0]-inner[e][0])*v,inner[e][1]+(inner[j][1]-inner[e][1])*v];
+            quad(pos(p,topBed),pos(q,topBed),pos(q,topBed+A+(B-A)*v),pos(p,topBed+A+(B-A)*u),col,col,col,col,n,'ledge',b,e);
+          }
+        }
         const neighbor=b.neighbors[e],other=plan.blocks[neighbor],base=plan.natural?b.bedBase:b.base;
         const otherBevel=other&&!light?Math.min(clamp(plan.cell*C.bevelRatio,C.bevelMin,C.bevelMax),inradius(other.polygon,planes(other.polygon))*C.insetLimit):0;
         const bottom=neighbor<0?base:Math.max(base,plan.natural?other.bedTop-otherBevel:other.top),top=topBed-bevel;
@@ -430,33 +519,41 @@ function geometryFor(plans,light,debug,budget,work) {
         if(bottom+C.footHeight<top)cuts.push(bottom+C.footHeight);
         if(plan.natural)for(const p of [a,d])for(const h of p.corner.knots)if(h>bottom+C.epsilon&&h<top-C.epsilon)cuts.push(h);
         cuts.push(top);cuts.sort((a,b)=>a-b);
-        let previous=plan.natural?naturalRing(poly,bottom):poly,previousHeight=bottom,previousOffset=0,lastLayer=null;
+        const bend=plan.natural&&!light&&neighbor<0&&Math.hypot(d[0]-a[0],d[1]-a[1])>=C.bendLength?
+          (cragHash(b.id,b.index,e+211)<.5?-1:1)*(C.bendMin+(C.bendMax-C.bendMin)*cragHash(b.id,b.index,e+223)):0;
+        if(bend){b.bentEdges??=[];b.bentEdges.push({edge:e,displacement:bend});}
+        const edgePoint=(ring,t,h,amount)=>[ring[e][0]+(ring[j][0]-ring[e][0])*t+ps[e].nx*amount*(1-Math.abs(2*t-1))*clamp((top-h)/C.offsetFade,0,1),ring[e][1]+(ring[j][1]-ring[e][1])*t+ps[e].ny*amount*(1-Math.abs(2*t-1))*clamp((top-h)/C.offsetFade,0,1)];
+        const bridgeEdge=(from,fy,fb,to,ty,tb,col,normal,layer)=>{
+          const stops=bend?[0,.5,1]:[0,1];
+          for(let k=1;k<stops.length;k++)quad(pos(edgePoint(from,stops[k-1],fy,fb),fy),pos(edgePoint(from,stops[k],fy,fb),fy),pos(edgePoint(to,stops[k],ty,tb),ty),pos(edgePoint(to,stops[k-1],ty,tb),ty),col,col,col,col,normal,'ledge',b,e,layer);
+        };
+        let previous=plan.natural?naturalRing(poly,bottom):poly,previousHeight=bottom,previousOffset=0,lastLayer=null,previousBend=0;
         for(let k=1;k<cuts.length;k++) {
           const lo=cuts[k-1],hi=cuts[k];if(hi-lo<C.epsilon)continue;
           const layer=Math.floor(((lo+hi)/2-b.phase)/plan.step),bedLayer=light?Math.floor(layer/2)*2:layer;
           const offset=plan.natural?cragNaturalOffset(plan.id,bedLayer):cragOffset(plan.id,b.index,bedLayer);
           const ring=plan.natural?naturalRing(poly,lo,offset):offsetRing(poly,ps,offset),upper=plan.natural?naturalRing(poly,hi,offset):ring;
           const strong=plan.natural?cragStrong(plan.id,bedLayer):0;if(strong)strongBeds.add(plan.id+':'+bedLayer);
-          const A=ring[e],B=ring[j],tone=cragLayerTone(plan.id,layer)*b.tone;
+          const tone=cragLayerTone(plan.id,layer)*b.tone;
           // Horizontal bridges seal the changes of bed offset, including the foot and bevel rim.
           const bridge=tint(b,'wall',tone*(plan.natural?(previousOffset<offset?C.cavityGain:C.rimGain):1));
-          if(!(plan.natural&&light&&previousOffset<offset))quad(pos(previous[e],previousHeight),pos(previous[j],previousHeight),pos(B,lo),pos(A,lo),bridge,bridge,bridge,bridge,[0,previousOffset-offset,0],'ledge',b,e,layer);
-          const stops=[0,C.seamWidth,1-C.seamWidth,1];
+          if(!(plan.natural&&light&&previousOffset<offset))bridgeEdge(previous,previousHeight,previousBend,ring,lo,bend,bridge,[0,previousOffset-offset,0],layer);
+          const stops=bend?[0,C.seamWidth,.5,1-C.seamWidth,1]:[0,C.seamWidth,1-C.seamWidth,1];
           const shade=(t,y)=>tint(b,'wall',tone*(plan.natural&&strong<0?C.cavityGain:1)*(1-C.footShade*(1-clamp((y-bottom)/C.footHeight,0,1)))*(t===0||t===1?1-C.seamShade:1));
           for(let s=1;s<stops.length;s++) {
-            const u=stops[s-1],v=stops[s],p=[A[0]+(B[0]-A[0])*u,A[1]+(B[1]-A[1])*u],q=[A[0]+(B[0]-A[0])*v,A[1]+(B[1]-A[1])*v];
-            const P=plan.natural?[upper[e][0]+(upper[j][0]-upper[e][0])*u,upper[e][1]+(upper[j][1]-upper[e][1])*u]:p,Q=plan.natural?[upper[e][0]+(upper[j][0]-upper[e][0])*v,upper[e][1]+(upper[j][1]-upper[e][1])*v]:q;
+            const u=stops[s-1],v=stops[s],p=edgePoint(ring,u,lo,bend),q=edgePoint(ring,v,lo,bend);
+            const P=plan.natural?edgePoint(upper,u,hi,bend):p,Q=plan.natural?edgePoint(upper,v,hi,bend):q;
             quad(pos(p,lo),pos(q,lo),pos(Q,hi),pos(P,hi),shade(u,lo),shade(v,lo),shade(v,hi),shade(u,hi),n,'wall',b,e,layer);
           }
-          previous=upper;previousHeight=hi;previousOffset=offset;lastLayer=layer;
+          previous=upper;previousHeight=hi;previousOffset=offset;lastLayer=layer;previousBend=bend;
         }
-        const col=tint(b,'wall',b.tone*(plan.natural?cragLayerTone(plan.id,lastLayer)*(previousOffset>0?C.rimGain:C.cavityGain):1));quad(pos(previous[e],top),pos(previous[j],top),pos(rim[j],top),pos(rim[e],top),col,col,col,col,[0,previousOffset,0],'ledge',b,e,plan.natural?lastLayer:null);
+        const col=tint(b,'wall',b.tone*(plan.natural?cragLayerTone(plan.id,lastLayer)*(previousOffset>0?C.rimGain:C.cavityGain):1));bridgeEdge(previous,top,previousBend,rim,top,0,col,[0,previousOffset,0],plan.natural?lastLayer:null);
       }
       if(overflow)break;
     }
-    ranges.push({id:plan.id,start,count:positions.length/3-start,blocks:plan.blocks.length,strong:strongBeds.size-strongStart,lowered:plan.blocks.filter(b=>b.lowered).length});if(overflow)break;
+    ranges.push({id:plan.id,start,count:positions.length/3-start,blocks:plan.blocks.length,strong:strongBeds.size-strongStart,lowered:plan.blocks.filter(b=>b.lowered).length,folded:plan.blocks.filter(b=>b.fold!==undefined).length,bent:plan.blocks.reduce((n,b)=>n+(b.bentEdges?.length??0),0)});if(overflow)break;
   }
-  return {positions:Float32Array.from(positions),normals:Float32Array.from(normals),colors:Float32Array.from(colors),beds:Float32Array.from(beds),faces,ranges,overflow,tallest,strong:strongBeds.size};
+  return {positions:Float32Array.from(positions),normals:Float32Array.from(normals),colors:Float32Array.from(colors),beds:Float32Array.from(beds),surface:Float32Array.from(surface),faces,ranges,overflow,tallest,strong:strongBeds.size};
 }
 export function buildCrags(items,terrain,{quality='standard',step=0,debug=false,minimumScale=1,dip=true}={}) {
   const crags=decodeCrags(items),light=quality==='light',budget=light?C.lightTriangles:C.triangles;
@@ -467,7 +564,7 @@ export function buildCrags(items,terrain,{quality='standard',step=0,debug=false,
     for(const r of crags){const p=prepareCrag(r,terrain,scale,work,dip,light);if(!p)break;plans.push(p);}
     if(plans.length!==crags.length)continue;
     const geometry=geometryFor(plans,light,debug,budget,work);if(geometry.overflow)continue;
-    return {...geometry,plans,scale,work,lowered:plans.reduce((n,p)=>n+p.blocks.filter(b=>b.lowered).length,0),blocks:plans.reduce((n,p)=>n+p.blocks.length,0),triangles:geometry.positions.length/9,draws:plans.length?1:0};
+    return {...geometry,plans,scale,work,folded:geometry.ranges.reduce((n,r)=>n+r.folded,0),bent:geometry.ranges.reduce((n,r)=>n+r.bent,0),lowered:plans.reduce((n,p)=>n+p.blocks.filter(b=>b.lowered).length,0),blocks:plans.reduce((n,p)=>n+p.blocks.length,0),triangles:geometry.positions.length/9,draws:plans.length?1:0};
   }
   throw new Error('岩の形状を描画予算に収められません');
 }

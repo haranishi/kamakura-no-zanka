@@ -1,8 +1,9 @@
 import * as THREE from '../vendor/three.module.min.js';
-import { CRAG as C, cragEnabled, buildCrags, CRAG_VERTEX_PARS, CRAG_VERTEX, CRAG_FRAGMENT_PARS, CRAG_FRAGMENT, CRAG_NORMAL } from './kamakura-crag.js';
+import { CRAG as C, CRAG_LOOK, cragEnabled, buildCrags, CRAG_VERTEX_PARS, CRAG_VERTEX, CRAG_FRAGMENT_PARS, CRAG_FRAGMENT, CRAG_NORMAL } from './kamakura-crag.js';
 
 // The close-up rock surface is added to the standard material at its named anchors; a missing anchor is an error, not a silent skip.
 export function cragShader(shader) {
+  shader.uniforms??={};shader.uniforms.cragGrassStrength={value:this?.userData?.cragGrass===false?0:CRAG_LOOK.grassStrength};
   const put=(text,anchor,extra)=>{if(!text.includes(anchor))throw new Error('Crag shader anchor missing: '+anchor);return text.replace(anchor,anchor+'\n'+extra);};
   shader.vertexShader=put(put(shader.vertexShader,'#include <common>',CRAG_VERTEX_PARS),'#include <begin_vertex>',CRAG_VERTEX);
   shader.fragmentShader=put(put(put(shader.fragmentShader,'#include <common>',CRAG_FRAGMENT_PARS),'#include <color_fragment>',CRAG_FRAGMENT),'#include <normal_fragment_maps>',CRAG_NORMAL);
@@ -19,7 +20,7 @@ export function createKamakuraCrag(context) {
     geometry.setAttribute('position',new THREE.BufferAttribute(plan.positions,3));
     geometry.setAttribute('normal',new THREE.BufferAttribute(plan.normals,3));
     geometry.setAttribute('color',new THREE.BufferAttribute(plan.colors,3));
-    geometry.setAttribute('cragBed',new THREE.BufferAttribute(plan.beds,1));
+    geometry.setAttribute('cragBed',new THREE.BufferAttribute(plan.surface,4));
     const indices=new Uint32Array(plan.positions.length/3);
     geometry.setIndex(new THREE.BufferAttribute(indices,1).setUsage(THREE.DynamicDrawUsage));
     geometry.computeBoundingSphere();
@@ -34,6 +35,7 @@ export function createKamakuraCrag(context) {
   }
   } catch(error) {for(const lod of lods)lod.geometry.dispose();throw error;}
   const material=new THREE.MeshStandardMaterial({vertexColors:true,roughness:C.roughness,metalness:C.metalness});
+  material.userData.cragGrass=q.get('craggrass')!=='0';
   if(!debug&&q.get('craglook')!=='0'){material.onBeforeCompile=cragShader;material.customProgramCacheKey=()=>'kamakura-crag-look';}
   const mesh=new THREE.Mesh(lods[0].geometry,material);mesh.name='kamakura-crag';mesh.castShadow=true;mesh.receiveShadow=true;
   mesh.frustumCulled=false;context.scene.add(mesh);
@@ -66,6 +68,7 @@ export function createKamakuraCrag(context) {
     return {crags:disposed?0:lod.crags,blocks:disposed?0:lod.blocks,triangles:disposed?0:lod.triangles,draws:!disposed&&mesh.visible?1:0,
       dip:disposed?[]:lod.plan.plans.filter((_,i)=>lod.mask&(1<<i)).map(p=>({id:p.id,degrees:p.natural?p.dip:0,bearing:p.direction})),
       strong:disposed?0:lod.plan.ranges.reduce((n,r,i)=>n+((lod.mask&(1<<i))?r.strong:0),0),lowered:disposed?0:lod.plan.ranges.reduce((n,r,i)=>n+((lod.mask&(1<<i))?r.lowered:0),0),
+      folded:disposed?0:lod.plan.ranges.reduce((n,r,i)=>n+((lod.mask&(1<<i))?r.folded:0),0),bent:disposed?0:lod.plan.ranges.reduce((n,r,i)=>n+((lod.mask&(1<<i))?r.bent:0),0),
       scale:lod.plan.scale,tallest:lod.plan.tallest,nearest,work:lod.plan.work,preparedLods:lods.length};
   }
   if(q.get('debug')==='1')globalThis.__kzCrag=inspect;

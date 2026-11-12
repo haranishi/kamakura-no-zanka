@@ -6,7 +6,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import * as THREE from '../dist/vendor/three.module.min.js';
-import { CRAG as C, CRAG_LOOK, CRAG_VERTEX_PARS, CRAG_VERTEX, CRAG_FRAGMENT_PARS, CRAG_FRAGMENT, CRAG_NORMAL, cragRockTone, decodeCrags, cragArea, partitionCrag, buildCrags, cragLayerTone, cragOffset, cragStrong, cragNaturalOffset, naturalPoint } from '../dist/valley/kamakura-crag.js';
+import { CRAG as C, CRAG_LOOK, CRAG_VERTEX_PARS, CRAG_VERTEX, CRAG_FRAGMENT_PARS, CRAG_FRAGMENT, CRAG_NORMAL, cragRockTone, CRAG_LARGE_JOINT, cragHash3, cragLargeJoint, cragFine, cragGrass, decodeCrags, cragArea, partitionCrag, buildCrags, cragLayerTone, cragOffset, cragStrong, cragNaturalOffset, naturalPoint } from '../dist/valley/kamakura-crag.js';
 import { decodeWorks } from '../dist/valley/kamakura-works.js';
 import { createKamakuraCrag, cragShader } from '../dist/valley/kamakura-crag-view.js';
 import { createKamakuraLayers } from '../dist/valley/kamakura-layers.js';
@@ -269,7 +269,9 @@ test('dip planes: caps and wall beds share the authored gradient and phase; ever
         const at=i*9+k*3,x=r.positions[at],y=r.positions[at+1],north=-r.positions[at+2],bed=r.beds[i*3+k];
         near(bed,(x-b.bed.origin[0])*b.bed.east+(north-b.bed.origin[1])*b.bed.north,1e-5);
         if(face.kind==='rock'||face.kind==='soil') {
-          near(y-bed,b.bedTop,1e-4);assert(y>=terrain.heightAt(x,-north)+C.clearance-1e-4);
+          const samples=[...b.cap.map((p,i)=>[p,b.bedTop+b.capHeights[i]]),[b.hub,b.hubBed]];
+          assert(samples.some(([p,h])=>Math.hypot(p[0]-x,p[1]-north)<1e-4&&Math.abs(y-bed-h)<1e-4));
+          assert(y>=terrain.heightAt(x,-north)+C.clearance-1e-4);
           if(Math.abs(r.normals[i*9+1]-1)>.001)tilted=true;
         }
         if(face.kind==='wall'){const h=(y-bed-b.phase)/b.step;assert(h>=face.layer-(quality==='light'?1:0)-1e-4&&h<=face.layer+(quality==='light'?2:1)+1e-4);if(Math.abs(h-Math.round(h))<1e-4)bedBoundaries++;}
@@ -355,8 +357,8 @@ test('diagnostics: dip, strong beds and actually lowered blocks track quality an
   const c=context('?debug=1'),layer=createKamakuraCrag(c);
   for(let step=0;step<4;step++) {
     layer.setAdapt(step);const s=globalThis.__kzCrag(),p=layer.lods[step].plan;
-    assert.deepEqual(s.dip,p.plans.map(p=>({id:p.id,degrees:p.dip,bearing:p.direction})));assert.equal(s.strong,p.strong);assert.equal(s.lowered,p.lowered);
-    assert.equal(layer.mesh.geometry.attributes.cragBed.itemSize,1);assert.equal(Object.keys(layer.mesh.geometry.attributes).length,4);
+    assert.deepEqual(s.dip,p.plans.map(p=>({id:p.id,degrees:p.dip,bearing:p.direction})));assert.equal(s.strong,p.strong);assert.equal(s.lowered,p.lowered);assert.equal(s.folded,p.folded);assert.equal(s.bent,p.bent);
+    assert.equal(layer.mesh.geometry.attributes.cragBed.itemSize,4);assert.equal(Object.keys(layer.mesh.geometry.attributes).length,4);
   }
   const inspect=globalThis.__kzCrag;layer.dispose();assert.equal(inspect().strong,0);assert.equal(inspect().lowered,0);
 });
@@ -374,4 +376,121 @@ test('natural caps: deterministic, non-overlapping triangles cover concave caps 
   }
   const layer=createKamakuraCrag(context('?debug=1'));layer.update({camera:{position:{x:0,y:0,z:10000}}});
   const s=globalThis.__kzCrag();assert.deepEqual(s.dip,[]);assert.equal(s.strong,0);assert.equal(s.lowered,0);layer.dispose();
+});
+
+test('folded roofs: three or four planar sectors, upward normals, terrain clearance and seven-to-three hub signs',()=>{
+  const ground={...flat,heightAt:(x,z)=>2+Math.sin(x*1.9)*.3+Math.cos(z*1.7)*.25};
+  for(const quality of ['standard','light']) {
+    const r=buildCrags([{...rect('folds',40,35),rise_m:4}],ground,{quality}),blocks=r.plans[0].blocks;
+    near(blocks.filter(b=>b.fold<0).length/blocks.length,.3,.1);assert.equal(r.folded,blocks.length);verifyGeometry(r);
+    for(const b of blocks) {
+      // The roof height follows the tuning constants (lowered after pyramids read as crystals in a real browser): below a layer, above flat.
+      assert(C.foldMin>.05&&C.foldMax<=.6&&C.foldMax>C.foldMin);assert(Math.abs(b.fold)/b.step>=C.foldMin-1e-9&&Math.abs(b.fold)/b.step<=C.foldMax+1e-9);
+      assert(b.roofFaces>=2&&b.roofFaces<=4);
+      const normalGroups=[];
+      for(let i=0;i<r.faces.length;i++)if(r.faces[i].block===b.index&&['rock','soil'].includes(r.faces[i].kind)) {
+        const n=Array.from(r.normals.slice(i*9,i*9+3));assert(n[1]>0);
+        if(!normalGroups.some(g=>Math.hypot(...n.map((v,k)=>v-g[k]))<1e-3))normalGroups.push(n);
+        for(let k=0;k<3;k++){const at=i*9+k*3;assert(r.positions[at+1]>=ground.heightAt(r.positions[at],r.positions[at+2])+C.clearance-1e-4);}
+      }
+      assert(normalGroups.length>=2&&normalGroups.length<=4,'sectors must be planar after upload');
+      const center=b.cap.reduce((v,p)=>[v[0]+p[0]/b.cap.length,v[1]+p[1]/b.cap.length],[0,0]);
+      const width=Math.max(...b.cap.map(p=>p[0]))-Math.min(...b.cap.map(p=>p[0])),depth=Math.max(...b.cap.map(p=>p[1]))-Math.min(...b.cap.map(p=>p[1]));
+      assert(Math.hypot(b.hub[0]-center[0],b.hub[1]-center[1])<=Math.max(width,depth)*C.foldShift+1e-6);
+    }
+  }
+  const off=buildCrags([rect()],ground,{dip:false});assert.equal(off.folded,0);assert.equal(off.bent,0);
+});
+
+test('bent walls: actual midpoints displace only long outer edges, match bands and vanish in light quality',()=>{
+  const r=buildCrags([{...rect('bends'),rise_m:6}],terrain);let midpoints=0;
+  for(const b of r.plans[0].blocks)for(const entry of b.bentEdges??[]) {
+    const e=entry.edge,a=b.polygon[e],d=b.polygon[(e+1)%b.polygon.length],length=Math.hypot(d[0]-a[0],d[1]-a[1]),nx=(d[1]-a[1])/length,ny=(a[0]-d[0])/length;
+    assert.equal(b.neighbors[e],-1);assert(length>=2.2);assert(Math.abs(entry.displacement)>=.12&&Math.abs(entry.displacement)<=.35);
+    for(let i=0;i<r.faces.length;i++)if(r.faces[i].block===b.index&&r.faces[i].edge===e&&r.faces[i].kind==='wall')for(let k=0;k<3;k++) {
+      const at=i*9+k*3,h=r.positions[at+1]-r.beds[i*3+k],layer=r.faces[i].layer,offset=cragNaturalOffset(b.id,layer),A=naturalPoint(a,h,offset),B=naturalPoint(d,h,offset);
+      const fade=Math.max(0,Math.min(1,(b.bedTop-b.bevel-h)/C.offsetFade));
+      const expected=[(A[0]+B[0])/2+nx*entry.displacement*fade,(A[1]+B[1])/2+ny*entry.displacement*fade];
+      if(Math.hypot(r.positions[at]-expected[0],-r.positions[at+2]-expected[1])<1e-4)midpoints++;
+    }
+  }
+  assert(midpoints>0);assert.equal(r.bent,r.plans[0].blocks.reduce((n,b)=>n+(b.bentEdges?.length??0),0));
+  for(const quality of ['standard','light']) {
+    const result=quality==='standard'?r:buildCrags([{...rect('bends'),rise_m:6}],terrain,{quality});
+    if(quality==='light'){assert.equal(result.bent,0);assert(result.plans[0].blocks.every(b=>!b.bentEdges));}
+    let shared=0;
+    for(let i=0;i<result.faces.length;i++) {
+      const f=result.faces[i],b=result.plans[0].blocks[f.block];if(f.kind!=='wall'||b.neighbors[f.edge]<0)continue;
+      shared++;
+      const a=b.polygon[f.edge],d=b.polygon[(f.edge+1)%b.polygon.length],layer=quality==='light'?Math.floor(f.layer/2)*2:f.layer;
+      for(let k=0;k<3;k++) {
+        const at=i*9+k*3,h=result.positions[at+1]-result.beds[i*3+k],offset=cragNaturalOffset(b.id,layer),A=naturalPoint(a,h,offset),B=naturalPoint(d,h,offset);
+        assert([0,C.seamWidth,1-C.seamWidth,1].some(t=>Math.hypot(result.positions[at]-A[0]-(B[0]-A[0])*t,-result.positions[at+2]-A[1]-(B[1]-A[1])*t)<1e-4),'shared wall retains exactly its original horizontal stops');
+      }
+    }
+    assert(shared>0);verifyGeometry(result);
+  }
+});
+
+test('large joints: world spacing, width, wandering and thirty percent interruption; CPU and emitted GLSL agree',()=>{
+  const glsl=CRAG_LARGE_JOINT.replace('float cragLargeJoint(float x,float y,float z)','function emitted(x,y,z)').replace(/float /g,'const ').replace(/cragHash3\(vec3\(([^)]+)\)\)/g,'hash($1)').replace(/\b(floor|sin|abs)\(/g,'Math.$1(');
+  const smoothstep=(a,b,x)=>{const t=Math.max(0,Math.min(1,(x-a)/(b-a)));return t*t*(3-2*t);};
+  const emitted=Function('hash','fract','mix','smoothstep',glsl+';return emitted;')(cragHash3,x=>x-Math.floor(x),(a,b,t)=>a+(b-a)*t,smoothstep);
+  const L=CRAG_LOOK,center=(i,y)=>(i+.5)*L.crackSpacing+(cragHash3(i,4.1,9.7)*2-1)*L.crackJitter+(L.crackSwayMin+(L.crackSwayMax-L.crackSwayMin)*cragHash3(i,2.3,8.1))*Math.sin(y/L.crackWave+cragHash3(i,4.1,9.7)*6.283185);
+  for(let i=-12;i<=12;i++) {
+    const width=L.crackWidthMin+(L.crackWidthMax-L.crackWidthMin)*cragHash3(i,6.1,1.7);assert(width>=.25&&width<=.6);
+    let missing=0,visible=0;
+    for(let sample=0;sample<600;sample++) {
+      const y=sample/600*L.crackPeriod,c=center(i,y),spacing=center(i+1,y)-c;
+      assert(spacing>=5&&spacing<=11);near(emitted(c,y,0),cragLargeJoint(c,y,0),1e-10);
+      if(cragLargeJoint(c,y,0)===0)missing++;else {visible++;near(cragLargeJoint(c,y,0),1);near(cragLargeJoint(c+width*.51,y,0),0);}
+      near(emitted(c-y*.13,y,y*.13/L.crackDirection),cragLargeJoint(c-y*.13,y,y*.13/L.crackDirection),1e-10);
+    }
+    assert(missing/600>=.15&&missing/600<=.45);assert(visible>0);
+    assert(Math.abs(center(i,0)-center(i,15))>.01);
+  }
+});
+
+test('fine rock detail: grooves, fine joints, per-layer tone and bump all fade before overlook pixel sizes',()=>{
+  assert.equal(CRAG_LOOK.fineFrom,.012);assert.equal(CRAG_LOOK.fineTo,.05);assert.equal(CRAG_LOOK.jointKeep,.8);assert.equal(CRAG_LOOK.jointSlant,25);
+  for(const pixel of [.05,.08,.14,1])assert.equal(cragFine(pixel),0);
+  assert.equal(cragFine(.001),1);assert(cragFine(.03)>0&&cragFine(.03)<1);
+  assert(CRAG_FRAGMENT_PARS.includes('groove*0.300000*wall*fine'));
+  assert(CRAG_FRAGMENT_PARS.includes('joint*0.420000*wall*fine'));
+  assert(CRAG_FRAGMENT_PARS.includes('(tone-0.5)*0.240000*wall*fine'));
+  assert(CRAG_FRAGMENT_PARS.includes('cragLargeJoint(p.x,p.y,p.z)'));
+});
+
+test('grass: ground-derived packed colour, upward mask, shelf half strength and independent URL switch',()=>{
+  assert(cragGrass(.87,.9)>0);assert.equal(cragGrass(.3,.9),0);assert.equal(cragGrass(-1,.9),0);assert.equal(cragGrass(1,.9,false),0);
+  near(cragGrass(1,.9,true,true),cragGrass(1,.9)*.5);
+  assert(CRAG_FRAGMENT_PARS.includes('step(0.870000,n.y)'));assert(CRAG_FRAGMENT_PARS.includes('mix(c,vCragGrass,grass)'));
+  for(const search of ['?debug=1','?debug=1&craggrass=0']) {
+    const layer=createKamakuraCrag(context(search)),shader={vertexShader:THREE.ShaderLib.standard.vertexShader,fragmentShader:THREE.ShaderLib.standard.fragmentShader};
+    layer.mesh.material.onBeforeCompile(shader);assert.equal(shader.uniforms.cragGrassStrength.value,search.includes('craggrass=0')?0:CRAG_LOOK.grassStrength);
+    const r=layer.lods[0].plan;assert.equal(Object.keys(layer.mesh.geometry.attributes).length,4);
+    for(let i=0;i<r.faces.length;i++) {
+      const b=r.plans[0].blocks[r.faces[i].block],code=r.surface[i*12+1],rgb=[Math.floor(code/65536),Math.floor(code/256)%256,code%256].map(v=>v/255);
+      for(let k=0;k<3;k++)near(rgb[k],b.source[k],1/255);
+      const kind=r.faces[i].kind;assert.equal(r.surface[i*12+3],['rock','soil'].includes(kind)?1:kind==='ledge'?.5:0);
+    }
+    const stats=globalThis.__kzCrag();assert.equal(stats.folded,r.folded);assert.equal(stats.bent,r.bent);
+    layer.update({camera:{position:{x:0,y:0,z:10000}}});assert.equal(globalThis.__kzCrag().folded,0);assert.equal(globalThis.__kzCrag().bent,0);
+    const inspect=globalThis.__kzCrag;layer.dispose();assert.equal(inspect().folded,0);assert.equal(inspect().bent,0);
+  }
+});
+
+
+test('light roofs: non-planar rim vertices have a closing curtain to the unmodified shared wall rim',()=>{
+  const r=buildCrags([{...rect('light-seals'),rise_m:5}],terrain,{quality:'light'});let sealed=0;
+  for(const b of r.plans[0].blocks)for(let e=0;e<b.cap.length;e++) {
+    if(Math.abs(b.capHeights[e])<1e-5)continue;
+    const p=b.cap[e],height=b.bedTop+b.capHeights[e];let top=false,bottom=false;
+    for(let i=0;i<r.faces.length;i++)if(r.faces[i].block===b.index&&r.faces[i].kind==='ledge')for(let k=0;k<3;k++) {
+      const at=i*9+k*3;if(Math.hypot(r.positions[at]-p[0],-r.positions[at+2]-p[1])>1e-4)continue;
+      const h=r.positions[at+1]-r.beds[i*3+k];if(Math.abs(h-height)<1e-4)top=true;if(Math.abs(h-b.bedTop)<1e-4)bottom=true;
+    }
+    assert(top&&bottom,'both ends of the curtain must be present in uploaded geometry');sealed++;
+  }
+  assert(sealed>0);
 });
