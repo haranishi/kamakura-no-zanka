@@ -6,12 +6,12 @@ export default async function ({ st, step, call, v, shot, freeze, start }) {
   await start('new'); await freeze(true); await step(40); await call('god', true);
   await v("(document.body.classList.add('hide-hud'), document.getElementById('toast')?.classList.remove('on'), __valley.game.settings.waymarks = 'off', __valley.game.aiPaused = true, 0)");
   await call('teleport', 0, 30, 0); await step(10);
-  await cam('01-concept-overlook', [-50, 40, 110], [-0.6, 1.88, -42.2], 62, 30);
+  await cam('01-concept-overlook', [30, 70, 180], [82.4, 36.3, -2.6], 64, 30);
   await cam('02-terraces', [-10, 14, 128], [0, 2, 30], 55);
   await cam('04-village-from-east', [70, 12, 30], [0, 3, 4], 55);
   await call('teleport', 60, -10, 0); await step(10);
-  await cam('03-river-bridge', [86, 9, 20], [130, -1, -46], 55);
-  await cam('06-fort', [20, 5, 40], [260, 60, -140], 40);
+  await cam('03-river-bridge', [96, 6, -8], [130, 0, -46], 50);
+  await cam('06-fort', [30, 70, 180], [262, 6, -140], 16);
   await call('teleport', -90, -80, 0); await step(10);
   await cam('05-temple', [-70, 6, -60], [-110, 4, -100], 55);
   await call('camera', null);
@@ -24,8 +24,8 @@ export default async function ({ st, step, call, v, shot, freeze, start }) {
   await ev('arrived', { place: 'viewpoint' }); await adv(); await ev('choose_plan', { plan: 'front' }); await ev('enter_zone', { zone: 'village_front' });
   await ev('enemy_down', { id: 'officer', how: 'routed' }); await adv(); await ev('interact', { id: 'archer_captive' }); await adv(); await ev('party_joined', { id: 'archer' });
   await v("(document.body.classList.add('hide-hud'), document.getElementById('toast')?.classList.remove('on'), __valley.game.hud.showChoice?.(false), 0)");
-  await call('teleport', 0, 30, 0); await step(60);
-  await cam('09-concept-overlook-saved', [-50, 40, 110], [-0.6, 1.88, -42.2], 62, 30);
+  await call('teleport', 0, 30, 0); await step(660);   // かまどの煙が立ちのぼるまで（約 11 秒ぶん）進める
+  await cam('09-concept-overlook-saved', [30, 70, 180], [82.4, 36.3, -2.6], 64, 30);
   await cam('10-village-saved', [-34, 9, 34], [2, 2, 2], 50);
   await cam('11-terraces-saved', [-10, 14, 128], [0, 2, 30], 55);
 }

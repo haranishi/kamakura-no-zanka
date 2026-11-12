@@ -72,18 +72,19 @@ test('four different skyline profiles remain separated in the concept northward 
     const c = new THREE.Color(layer.color), luminance = c.r * .2126 + c.g * .7152 + c.b * .0722;
     assert(luminance > previous); previous = luminance;
   }
-  // The fixed overlook itself (dist/valley/shots.js): a hand-copied camera put the fourth skyline exactly on its top edge.
+  // The fixed overlook itself (dist/valley/shots.js), rays from its own eye: a hand-copied camera put the fourth skyline exactly on its top edge.
   const terrain = createTerrain(WORLD), view = shotOverride('concept', terrain), camera = new THREE.PerspectiveCamera(view.fov,16/9,.15,2200);
   camera.position.set(...view.pos);camera.lookAt(...view.look);camera.updateMatrixWorld();
-  for (const bearing of [15,20,30]) {
+  const [ex,,ez]=view.pos;
+  for (const bearing of [5,15,25]) {
     const angle=bearing*Math.PI/180, dx=Math.sin(angle), dz=-Math.cos(angle);
     let terrainAngle=-Math.PI/2;
-    for(let d=30;d<850;d+=4)terrainAngle=Math.max(terrainAngle,Math.atan2(terrain.heightAt(-50+dx*d,110+dz*d)-camera.position.y,d));
+    for(let d=30;d<850;d+=4)terrainAngle=Math.max(terrainAngle,Math.atan2(terrain.heightAt(ex+dx*d,ez+dz*d)-camera.position.y,d));
     let visible=0, last=terrainAngle;
     for(const layer of RIDGES.layers) {
-      const ox=-50-WORLD.valley.cx,oz=110-WORLD.valley.cz,b=ox*dx+oz*dz;
+      const ox=ex-WORLD.valley.cx,oz=ez-WORLD.valley.cz,b=ox*dx+oz*dz;
       const distance=-b+Math.sqrt(b*b-(ox*ox+oz*oz-layer.radius**2));
-      const x=-50+dx*distance,z=110+dz*distance;
+      const x=ex+dx*distance,z=ez+dz*distance;
       const height=ridgeHeight(layer,Math.atan2(z-WORLD.valley.cz,x-WORLD.valley.cx),ATMOS.sunDir);
       const screen=new THREE.Vector3(x,height,z).project(camera),elevation=Math.atan2(height-camera.position.y,distance);
       if(elevation>last&&Math.abs(screen.x)<1&&Math.abs(screen.y)<1)visible++;

@@ -24,7 +24,15 @@ export const RIVER_LOOK = Object.freeze({
 // 夕日の照り返しの強さ。日を北東の低い位置へ動かすと、見渡しのカメラが日を正面に見るので、core 3.0・wide 0.35 では川面が白く飛び、
 // にじみが橋まで覆った（実際の画面で見て直した）。細い筋（core）と広いにじみ（wide）を弱め、足す光に上限（cap）を付ける。
 // それでも白く飛んだ：原因は、材質そのものの、太陽の鏡面反射だった。水面から出る光の全体にも上限（limit）を付ける。
-export const WATER_GLINT = Object.freeze({ core: 1.1, corePower: 90, wide: 0.12, widePower: 14, cap: 0.85, limit: 1.05 });
+// 上限 1.05 だけでは、日を正面に見る向きで、川の全体が白い帯になり、雪か砂に見えた（講評）。先に、水面の地の光を base で頭打ちに
+// して水の色を残し、その上に、波で割れる照り返し（core・wide）を足す。
+export const WATER_GLINT = Object.freeze({ core: 1.1, corePower: 90, wide: 0.12, widePower: 14, cap: 0.85, limit: 1.05, base: 0.22 });
+// 遠くの川面（from〜to m で 0→1）の見え方。絵と並べて、実際の画面で確かめた値。
+// - streakKeep・rapidKeep：流れの白い筋と瀬の模様を残す割合。細かい白の模様は、遠くで平均されて、川の全体が明るい灰色になった。
+// - rippleKeep・glintKeep：さざ波の法線と、日の照り返しを残す割合。遠くまで同じ強さだと、画素より細かい波の全部が日を照り返した。
+// - skyKeep：空の映り込みを残す割合。川は森に挟まれていて、浅い角度で水面に映るのは、空でなく岸の木である。映り込みを全部空にすると、
+//   逆光の淡い空が一面に映り、川が白っぽい灰色の帯（砂利の道）に見えた。残りは、岸の木の暗い緑（bank × 映り込みの明るさ × bankGain）にする。
+export const WATER_FAR = Object.freeze({ from: 40, to: 140, streakKeep: 0.1, rapidKeep: 0.45, rippleKeep: 0.15, glintKeep: 0.3, skyKeep: 0.3, bank: Object.freeze([0.2, 0.42, 0.3]), bankGain: 0.3 });
 export function buildWater({ terrain, world, sunDir = new THREE.Vector3(0.5, 0.17, 0.85) }) {
   const L = terrain.riverLine, hw = world.river.halfWidth + 2.2;
   const pos = [], uv = [], idx = [];
@@ -69,6 +77,8 @@ export function buildWater({ terrain, world, sunDir = new THREE.Vector3(0.5, 0.1
         float streak = smoothstep(0.72, 0.9, w_fbm(vWPos.xz * vec2(2.4, 0.7) + vec2(0.0, -uTime * 0.8))) * 0.35;
         // 白波：流れの筋に沿った細い泡の帯を、中ほどにも散らす（平らな灰青の面に見えた）。瀬の位置は川に沿った低周波のむらで決める
         float rapid = smoothstep(0.55, 0.8, w_fbm(vec2(vWUv.y * 0.035, 3.7))) * smoothstep(0.35, 0.7, w_fbm(vWPos.xz * vec2(3.6, 1.1) + vec2(0.0, -uTime * 1.3))) * (1.0 - smoothstep(0.75, 1.0, edge)) * 0.75;
+        float waterFar = smoothstep(${WATER_FAR.from.toFixed(1)}, ${WATER_FAR.to.toFixed(1)}, distance(vWPos, cameraPosition));
+        streak *= mix(1.0, ${WATER_FAR.streakKeep.toFixed(3)}, waterFar); rapid *= mix(1.0, ${WATER_FAR.rapidKeep.toFixed(3)}, waterFar);
         diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.86, 0.9, 0.88), clamp(foam + rapid + streak * (1.0 - edge), 0.0, 0.88));
         diffuseColor.a *= 1.0 - smoothstep(0.93, 1.0, edge);`)
       .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
@@ -76,7 +86,7 @@ export function buildWater({ terrain, world, sunDir = new THREE.Vector3(0.5, 0.1
           vec2 p = vWPos.xz; float e = 0.16;
           float h0 = w_height(p), hx = w_height(p + vec2(e, 0.0)), hz = w_height(p + vec2(0.0, e));
           vec3 nw = normalize(vec3((h0 - hx) * 0.9, 1.0, (h0 - hz) * 0.9));
-          normal = normalize(mix(normal, normalize((viewMatrix * vec4(nw, 0.0)).xyz), 0.85));
+          normal = normalize(mix(normal, normalize((viewMatrix * vec4(nw, 0.0)).xyz), 0.85 * mix(1.0, ${WATER_FAR.rippleKeep.toFixed(3)}, waterFar)));
         }`)
       // 夕日の照り返し：太陽の方向へ細い光の筋が水面に伸びる（波の法線で割れる）。見る角度が浅いほど強い
       .replace('#include <opaque_fragment>', `
@@ -84,13 +94,18 @@ export function buildWater({ terrain, world, sunDir = new THREE.Vector3(0.5, 0.1
           vec3 vdir = normalize(vWPos - cameraPosition);
           vec3 wn = normalize((vec4(normal, 0.0) * viewMatrix).xyz);
           vec3 rf = reflect(vdir, wn);
+          {
+            vec3 skyMirror = reflectedLight.indirectSpecular * (1.0 - mix(1.0, ${WATER_FAR.skyKeep.toFixed(3)}, waterFar));
+            outgoingLight += vec3(${WATER_FAR.bank.map(v => v.toFixed(3)).join(', ')}) * dot(skyMirror, vec3(0.2126, 0.7152, 0.0722)) * ${WATER_FAR.bankGain.toFixed(3)} - skyMirror;
+          }
+          outgoingLight *= min(1.0, ${WATER_GLINT.base.toFixed(3)} / max(dot(outgoingLight, vec3(0.2126, 0.7152, 0.0722)), 1e-4)); // 明るさだけを抑える（色ごとに切ると、灰色になる）
           float glint = pow(max(dot(rf, SUN_DIR_W), 0.0), ${WATER_GLINT.corePower.toFixed(1)}) * ${WATER_GLINT.core.toFixed(3)} + pow(max(dot(rf, SUN_DIR_W), 0.0), ${WATER_GLINT.widePower.toFixed(1)}) * ${WATER_GLINT.wide.toFixed(3)};
-          outgoingLight += vec3(1.0, 0.78, 0.55) * min(glint, ${WATER_GLINT.cap.toFixed(3)}) * (1.0 - abs(vdir.y));
+          outgoingLight += vec3(1.0, 0.78, 0.55) * min(glint, ${WATER_GLINT.cap.toFixed(3)}) * (1.0 - abs(vdir.y)) * mix(1.0, ${WATER_FAR.glintKeep.toFixed(3)}, waterFar);
           outgoingLight = min(outgoingLight, vec3(${WATER_GLINT.limit.toFixed(3)}));
         }
         #include <opaque_fragment>`);
   };
-  material.customProgramCacheKey = () => 'valley-water-v3';
+  material.customProgramCacheKey = () => 'valley-water-v11';
   const mesh = new THREE.Mesh(geometry, material);
   mesh.name = 'water'; mesh.renderOrder = 2; mesh.receiveShadow = false; mesh.castShadow = false; mesh.frustumCulled = false;
   return { mesh, update(time) { uniforms.uTime.value = time; } };

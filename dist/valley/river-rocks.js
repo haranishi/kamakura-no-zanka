@@ -18,10 +18,12 @@ export const RIVER_ART = Object.freeze({
   fenceStep: 0.48, fenceRadius: 0.20, fenceTip: 0.32, // m：丸太の間隔・半径・尖端。
   bridgeBanners: 4, bannerHeight: 4.2, bannerWidth: 0.65, bannerLength: 2.8, // 本・m：橋の流れ旗。
   bannerPole: 0.055, bannerWave: 0.22, bannerRate: 2.1, bannerRows: 12, // m・m・rad/s・分割数：竿と布。
-  fortDiameter: 60, fortFenceHeight: 2.8, fortGateOpening: 4.5, // m：砦の輪と門の開口。
+  // 砦は、見渡しから約 470m 先にある（置き場所は変えない決まり）。実寸のやぐら 9m・幟 5.8m は、数画素にしかならず、講評で
+  // 「ほとんど見えない」と言われた。歩いては行けない場所なので、遠くから読めるように、やぐら・柵・幟を大きめに作る。
+  fortDiameter: 60, fortFenceHeight: 4, fortGateOpening: 4.5, // m：砦の輪と門の開口。
   fortModelScale: 0.56, // 倍：既存模型を主建物として外周内へ収める見た目だけの倍率。旗を切ると元へ戻る。
-  towerHeight: 9, towerWidth: 4.6, towerOffset: [-23, -8], // m：屋根を含む高さ・幅・砦中心からの位置。
-  fortBanners: 8, fortBannerHeight: 5.8, fortBannerWidth: 0.95, // 本・m：遠景で残す旗。
+  towerHeight: 15, towerWidth: 6, towerOffset: [-23, -8], // m：屋根を含む高さ・幅・砦中心からの位置。
+  fortBanners: 10, fortBannerHeight: 9, fortBannerWidth: 1.6, // 本・m：遠景で残す旗。
   hutCount: 3, hutWidth: 5, hutHeight: 3.5, hutSpacing: 12, hutSouth: 22, // 棟・m：砦内の小屋。
   peakClearScale: 1.9, // flatR比：scatter.jsの既存の頂上除外と同じ。既存の木をさらに消さない。
   pathWidth: 2.8, pathPoints: [[0, 30], [-25, 42], [24, 57], [-13, 75]], // m：砦中心からのつづら折り（色のみ）。

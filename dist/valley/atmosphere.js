@@ -23,8 +23,14 @@ export const SKY = Object.freeze({
   bearingDeg: 55, elevationDeg: 15.5, sunColor: '#ffca85', // 北東の山の端にかかる、金橙色の日。
   hemiIntensity: 1.12, fillIntensity: 0.58, // 逆光の地面・人物を支える照度。
   horizon: '#ff9050', mid: '#d59a9c', zenith: '#4d568c', // 谷専用：金橙・珊瑚桃・青紫。lkのhorc/midc/zencで上書き。
-  rimDeg: 15, lowTopDeg: 18, midTopDeg: 45, // 山の縁の仰角、縁からの低い帯／中間帯の上端(度)。
-  sunSideDeg: 50, sunFadeDeg: 90, goldMix: 0.48, backGain: 0.72, // 暖色が満ちる／消える方位差(度)、日の色の混合率、反対側の明るさ。
+  // 色の帯は、山の縁（里から見て約 15 度）でなく、遠い山並みのすぐ上（約 4 度）から始める。高い所からの見渡しでは、空は仰角 3〜18 度しか
+  // 写らず、縁から始めると、写る空の全体が同じ淡い金色になった（絵と並べて確かめた）。日の色の混合率も下げ、地平線の橙を濃く残す。
+  rimDeg: 4, lowTopDeg: 22, midTopDeg: 52, // 色の帯が始まる仰角、そこからの低い帯／中間帯の上端(度)。
+  sunSideDeg: 50, sunFadeDeg: 95, goldMix: 0.3, backGain: 0.72, // 暖色が満ちる／消える方位差(度)、日の色の混合率、反対側の明るさ。
+  // 地平線の近くの細長い雲（層雲）。方位と仰角で作る、横に長い縞。本体は暗い紫、日の側の縁と下の面は、焼けた橙〜桃。
+  streakAmount: 0.9, streakLowDeg: [1.5, 5], streakHighDeg: [14, 26], // 濃さ、出始める／消える仰角の幅(度)。
+  streakAzimuth: 2.6, streakElevation: 0.34, streakSpeed: 0.0012, // 方位(円周の座標)・仰角(度)に対する縞の細かさ、流れる速さ(座標/秒)。
+  streakLow: 0.46, streakHigh: 0.62, streakShade: 0.55, streakLit: 1.25, streakRim: 1.25, streakBase: 0.08, // 雲になる閾値、本体の暗さ、焼けた色の明るさ、縁の光り方、縁以外に残る光。
   cloudAmount: 0.72, cloudLow: 0.40, cloudHigh: 0.75, // 被覆率と連続した雲の閾値。
   cloudSpeed: 0.002, cloudScale: 2.2, // 投影座標/秒、雲塊の尺度。
   cloudShadeMix: 0.32, cloudShadeGain: 0.65, cloudWarmGain: 1.05, // 既存の天頂・中間・地平色から雲色を作る。
@@ -245,6 +251,16 @@ export function skyMaterial(a, time) {
       vec3 lit = mix(horizon, sunColor, warm) * ${f(C.cloudWarmGain)};
       vec3 cloudCol = mix(shade, lit, warm * clamp(edge * ${f(C.rimGain)} + underside * ${f(C.undersideGain)}, 0.0, 1.0));
       col = mix(col, cloudCol, cover * ${f(C.cloudAmount)});
+      // 地平線の近くの細長い雲。円筒の座標（方位の cos・sin）で 2 回引いて混ぜる（真南に継ぎ目を作らない）。
+      vec2 ring = normalize(d.xz + vec2(1e-5));
+      vec2 streakP = vec2(uTime * ${f(C.streakSpeed)}, elevation * ${f(C.streakElevation)});
+      float streakN = fbm(vec2(ring.x * ${f(C.streakAzimuth)}, 0.0) + streakP) * ring.y * ring.y + fbm(vec2(ring.y * ${f(C.streakAzimuth)} + 9.1, 4.7) + streakP) * ring.x * ring.x;
+      float streakBand = smoothstep(${f(C.streakLowDeg[0])}, ${f(C.streakLowDeg[1])}, elevation) * (1.0 - smoothstep(${f(C.streakHighDeg[0])}, ${f(C.streakHighDeg[1])}, elevation));
+      float streakCover = smoothstep(${f(C.streakLow)}, ${f(C.streakHigh)}, streakN) * streakBand * ${f(C.streakAmount)};
+      float streakEdge = 1.0 - smoothstep(${f(C.streakLow)}, ${f(C.streakHigh + 0.1)}, streakN);
+      vec3 streakCol = mix(shade * ${f(C.streakShade)}, mix(horizon, sunColor, 0.3) * ${f(C.streakLit)}, warm * clamp(streakEdge * ${f(C.streakRim)} + ${f(C.streakBase)}, 0.0, 1.0));
+      col = mix(col, streakCol, streakCover);
+      cover = max(cover, streakCover / ${f(C.cloudAmount)});
       // 大きなにじみは雲の後にも届く。円盤は雲で薄まり、HDRの上限で白い塊を防ぐ。
       float discVisibility = 1.0 - cover * ${f(C.cloudAmount)};
       col = vec3(skyRadiance(col.r, sunColor.r, sd, discVisibility), skyRadiance(col.g, sunColor.g, sd, discVisibility), skyRadiance(col.b, sunColor.b, sd, discVisibility));

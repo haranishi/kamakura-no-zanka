@@ -3,6 +3,12 @@ import * as THREE from 'three';
 import { TREES } from './config.js';
 import { needleTexture, mapleLeafTexture, zelkovaLeafTexture, cedarSprayTexture, leafDetailTexture, barkTexture } from './tree-textures.js';
 const heights = [20, 12, 13, 8, 3, 1.2];
+// 遠くの森の逆光の透け（TREES.backlight.far）。近くの木と、遠景の絵の板（tree-bake.js）が、同じ式を使う。番地の旗 &glow=0 で切る。
+export const farGlowEnabled = (search = globalThis.location?.search || '') => new URLSearchParams(search).get('glow') !== '0';
+export function farGlowGLSL(on = farGlowEnabled()) {
+  const b = TREES.backlight;
+  return on ? `float farGlow = pow(max(0.0,dot(sight,normalize(uSunDir))),${b.farPower.toFixed(2)})*${b.far.toFixed(2)}*smoothstep(${b.farFrom[0].toFixed(1)},${b.farFrom[1].toFixed(1)},vTreeDistance);` : 'float farGlow = 0.0;';
+}
 // A solid far crown keeps the alpha-weighted mean of its near texture, not white. Each sRGB
 // byte decodes to linear light first, as the GPU samples it; averaging bytes was about 5% dark.
 const linear = Array.from({ length: 256 }, (_, k) => new THREE.Color().setRGB(k / 255, k / 255, k / 255, THREE.SRGBColorSpace).r);
@@ -181,17 +187,19 @@ ${shapeGLSL(nearFade)}        vec4 treeWorld = vec4(transformed,1.0);
         ${leaf ? `vec3 sight = normalize(vTreeWorld-cameraPosition);
         float backlight = pow(max(0.0,dot(sight,normalize(uSunDir))),3.0);
         backlight *= 1.0-smoothstep(30.0,100.0,vTreeDistance);
+        ${farGlowGLSL()}
         // Thin leaves turned away from the sun pass more light; the shell's inner leaves stay dark (exposure).
         float leafThrough = ${detail ? `.55 + .45*max(0.0, dot(normal, -normalize((viewMatrix*vec4(uSunDir,0.0)).xyz)))` : '1.0'};
         // Against the sun the thin edges of leaves and needle sprays glow (low image alpha = thin foliage).
         leafThrough *= 1.0 + ${TREES.backlight.edge.toFixed(2)}*(1.0-smoothstep(.3, .95, leafAlpha));
-        totalEmissiveRadiance += min(vec3(${TREES.backlight.cap.toFixed(2)}),diffuseColor.rgb*vec3(1.0,.82,.52)*backlight*${conifer ? TREES.backlight.conifer.toFixed(2) : '1.0'}*leafThrough);` : ''}`);
+        totalEmissiveRadiance += min(vec3(${TREES.backlight.cap.toFixed(2)}),diffuseColor.rgb*vec3(1.0,.82,.52)*backlight*${conifer ? TREES.backlight.conifer.toFixed(2) : '1.0'}*leafThrough);
+        totalEmissiveRadiance += min(vec3(${TREES.backlight.cap.toFixed(2)}),diffuseColor.rgb*vec3(${TREES.backlight.farTint.map(v => v.toFixed(2)).join(',')})*farGlow);` : ''}`);
       // Third round: foliage passes and scatters light, so the sun's shadow on leaves keeps part of the light. Full-strength,
       // the low sun cast hard round blotches of one cluster on the next (dark stains on lit crowns: blind review Q04, Q09).
       if (leaf) shader.fragmentShader = shader.fragmentShader.replace('#include <lights_fragment_begin>', THREE.ShaderChunk.lights_fragment_begin
         .replace('getShadow( directionalShadowMap[ i ]', `${TREES.leafShadow.toFixed(2)} + ${(1 - TREES.leafShadow).toFixed(2)}*getShadow( directionalShadowMap[ i ]`));
     };
-    m.customProgramCacheKey = () => `tree-specimen-v3-${species}-${level}-${leaf}-${variant}-${shape}-${quality}-${fadeMode}`;
+    m.customProgramCacheKey = () => `tree-specimen-v4-${species}-${level}-${leaf}-${variant}-${shape}-${quality}-${farGlowEnabled() ? 'glow' : 'plain'}-${fadeMode}`;
     // Only the near level casts (tree-view.js). Three copies map, alphaTest (0.5 under coverage) and side onto this material
     // on every shadow render, as it did for its own depth material; what it cannot know is the shader's shape and leaf cut.
     if (level === 0) m.userData.depth = depthMaterial({ leaf, map, detail, crownLit, gap, group, shapeGLSL, declare, noise,

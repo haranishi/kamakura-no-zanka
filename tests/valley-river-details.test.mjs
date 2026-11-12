@@ -78,7 +78,9 @@ test('砦の輪は門だけ開き、櫓と小屋が輪の中に入り、既存�
   for (const s of ring) for (const p of [s.from, s.to]) assert(Math.abs(Math.hypot(p.x - f.x, p.z - f.z) - A.fortDiameter / 2) < 1e-8);
   for (const p of [...layout.towers, ...layout.huts]) assert(Math.hypot(p.x - f.x, p.z - f.z) + p.width * 0.85 < A.fortDiameter / 2);
   for (const p of [...layout.towers, ...layout.huts]) assert(Math.hypot(p.x - f.x, p.z - f.z) - p.width / 2 > 31.06 * A.fortModelScale);
-  assert.equal(layout.towers[0].height, 9); assert.equal(layout.huts.length, 3); assert.equal(layout.banners.filter(b => b.group === 'fort').length, 8);
+  // 砦は見渡しから約 470m 先にあるので、やぐらと幟は、遠くから読める大きめの寸法にしてある（実寸の 9m・8 本では、数画素だった）。
+  assert.equal(layout.towers[0].height, A.towerHeight); assert(A.towerHeight >= 9 && A.towerHeight <= 16); assert.equal(layout.huts.length, 3);
+  assert.equal(layout.banners.filter(b => b.group === 'fort').length, A.fortBanners); assert(A.fortBanners >= 8 && A.fortBanners <= 12);
   const clearing = fortClearing(WORLD); assert(clearing.radius >= 45 && clearing.radius <= 70);
   const trees = scatterTrees(WORLD, terrain);
   for (let i = 0; i < trees.x.length; i++) assert(Math.hypot(trees.x[i] - clearing.x, trees.z[i] - clearing.z) >= clearing.radius);
