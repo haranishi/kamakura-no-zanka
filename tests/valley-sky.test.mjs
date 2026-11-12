@@ -8,6 +8,7 @@ import { createHash } from 'node:crypto';
 import { THREE, load, source } from './helpers/tree-modules.mjs';
 import { WORLD } from '../dist/valley/world-data.js';
 import { createTerrain } from '../dist/valley/terrain-height.js';
+import { shotOverride } from '../dist/valley/shots.js';
 const { ATMOS, LEGACY_ATMOS, SKY, valleyAtmosphere, skyMaterial, legacySkyMaterial, cloudWarmth, installFog, createAtmosphere } = await load('atmosphere.js');
 const { buildRidges, RIDGES, MIST, ridgeHeight, mistSites, mistNearFade } = await load('ridges.js');
 const hash = a => createHash('sha256').update(Buffer.from(a.buffer)).digest('hex');
@@ -18,7 +19,8 @@ test('sun defaults to low northeast; old lighting is exact and look overrides st
   assert(Math.abs(a.sunDir.length() - 1) < 1e-12);
   const bearing = Math.atan2(a.sunDir.x, -a.sunDir.z) * 180 / Math.PI;
   const height = Math.asin(a.sunDir.y) * 180 / Math.PI;
-  assert(bearing >= 45 && bearing <= 65); assert(height >= 7 && height <= 9);
+  // The valley rim stands about 14.65 degrees high towards the sun: a lower sun never clears it, and the valley has no visible sunset.
+  assert(bearing >= 45 && bearing <= 65); assert(height >= 14 && height <= 18);
   assert.deepEqual(old.sunDir.toArray(), new THREE.Vector3(.5, .17, .85).normalize().toArray());
   for (const key of ['sunColor','sunIntensity','hemiSky','hemiGround','hemiIntensity','envIntensity','fillColor','fillIntensity']) assert.equal(old[key], LEGACY_ATMOS[key]);
   assert(a.hemiIntensity > old.hemiIntensity && a.fillIntensity > old.fillIntensity);
@@ -70,8 +72,9 @@ test('four different skyline profiles remain separated in the concept northward 
     const c = new THREE.Color(layer.color), luminance = c.r * .2126 + c.g * .7152 + c.b * .0722;
     assert(luminance > previous); previous = luminance;
   }
-  const terrain = createTerrain(WORLD), camera = new THREE.PerspectiveCamera(50,16/9,.15,2200);
-  camera.position.set(-50,terrain.heightAt(-50,110)+40,110);camera.lookAt(12,terrain.heightAt(12,-80)+5,-80);camera.updateMatrixWorld();
+  // The fixed overlook itself (dist/valley/shots.js): a hand-copied camera put the fourth skyline exactly on its top edge.
+  const terrain = createTerrain(WORLD), view = shotOverride('concept', terrain), camera = new THREE.PerspectiveCamera(view.fov,16/9,.15,2200);
+  camera.position.set(...view.pos);camera.lookAt(...view.look);camera.updateMatrixWorld();
   for (const bearing of [15,20,30]) {
     const angle=bearing*Math.PI/180, dx=Math.sin(angle), dz=-Math.cos(angle);
     let terrainAngle=-Math.PI/2;
