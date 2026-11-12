@@ -1,6 +1,7 @@
 // scatter.js — 木・岩・草・稲の配置を地形関数から決定的に出す純関数（logic層。Three.js非依存）。
 // 乱数は機能ごとに別の系列（seed をずらす）。後から機能を足しても既存の絵を組み替えない（design.md）。
-import { smooth, fbm, createTerrain } from './terrain-height.js';
+import { smooth, fbm, createTerrain, forestPatchAt } from './terrain-height.js';
+import { TREES } from './config.js';
 
 export function mulberry32(seed) {
   let a = seed >>> 0;
@@ -84,10 +85,10 @@ function blockedByWorld(world, terrain, x, z, margin, startRadius = 14) {
 // 木。kind: 0=杉, 1=広葉(ケヤキ・栗), 2=松。戻りは配列の組（描画側が LOD ごとに振り分ける）。
 // 近景（nearBox）は step の格子、その外の遠景は farStep の格子で、ゆらぎをつけて置く。乱数は升ごと（cellRand）。
 // 遠景は大きさ・縦横比・向きをばらつかせ、隣と重なる大きさにして地面をのぞかせない（同じ形が同じ間隔で並ぶと型押しの壁紙に見えた）。
-export function scatterTrees(world, terrain, { seed = 7, step = 4.5, farStep = 11, nearBox = [-210, 240, -210, 200], farHalf = 700, fort2 = terrain.fort2 ?? true } = {}) {
+export function scatterTrees(world, terrain, { seed = 7, step = 4.5, farStep = 11, nearBox = [-210, 240, -210, 200], farHalf = 700, fort2 = terrain.fort2 ?? true, forest3 = terrain.forest3 ?? false, patchLayout = false } = {}) {
   const currentTerrain = terrain;
   // 旧地形で受理と衝突の順を保ち、全部の配置を確定した後に丘だけ間引く。
-  if (terrain.fortShape) terrain = createTerrain(world, { fortShape: 0 });
+  if (terrain.fortShape || forest3 || patchLayout) terrain = createTerrain(world, { fortShape: 0 });
   const out = { x: [], y: [], z: [], s: [], rot: [], kind: [], tint: [] };
   const taken = new Map(), cell = 4, base = world.seed + seed * 101;
   const inNearBox = (x, z) => x >= nearBox[0] && x <= nearBox[1] && z >= nearBox[2] && z <= nearBox[3];
@@ -101,7 +102,12 @@ export function scatterTrees(world, terrain, { seed = 7, step = 4.5, farStep = 1
   const tryPlace = (x, z, inNear, rand) => {
     const roll = rand(), r = rand(), sz = rand(), rot = rand(), tint = rand();            // 受け入れの可否によらず、毎回同じ数だけ引く
     const density = terrain.forestDensity(x, z) + (inNear ? 0 : 0.25);
-    const p = Math.pow(Math.max(0, Math.min(1, (density - 0.22) / 0.55)), 1.15);
+    let p = Math.pow(Math.max(0, Math.min(1, (density - 0.22) / 0.55)), 1.15);
+    if (patchLayout) {
+      const zone = forestPatchAt(world, x, z).zone;
+      if (zone < 0 || zone === 2) return;
+      if (zone === 1) p *= TREES.forest3.sparseKeep * TREES.forest3.spacing ** 2;
+    }
     if (roll > p) return;
     if (terrain.waterAt(x, z) > 0.02) return;
     if (inSightline(world, x, z)) return;
@@ -148,7 +154,57 @@ export function scatterTrees(world, terrain, { seed = 7, step = 4.5, farStep = 1
     for (const key of keys) out[key].length = kept;
     Object.defineProperty(out, 'fortRemoved', { value: total - kept });
   }
-  return out;
+  if (!forest3) return out;
+  // Rebuild only the scenery after the old protected trees have all been accepted.
+  // This prevents altered collision acceptance from moving even one gameplay trunk.
+  const c = TREES.forest3, keys = Object.keys(out), protectedIndices = out.x.flatMap((x, i) => forestPatchAt(world, x, out.z[i]).zone < 0 ? [i] : []);
+  const result = Object.fromEntries(keys.map(k => [k, protectedIndices.map(i => out[k][i])]));
+  const lodIndex = protectedIndices.slice(); // Preserve the old light-quality parity of every protected tree.
+  const candidates = scatterTrees(world, currentTerrain, { seed, step: step * c.spacing, farStep: farStep * c.spacing, nearBox, farHalf, fort2, forest3: false, patchLayout: true });
+  const limit = Math.floor(out.x.length * c.maxCount);
+  const bounds = world.bounds, guard = TREES.forest2.margin + c.protectedGuard;
+  let protectedChecks = 0;
+  // Stable position priority distributes a possible count cap over the whole landscape.
+  const order = candidates.x.map((x, i) => [i, cellRand(base + c.seed, Math.round(x * 1024), Math.round(candidates.z[i] * 1024))()]).sort((a, b) => a[1] - b[1]);
+  for (const [i] of order) {
+    if (result.x.length >= limit) break;
+    const x = candidates.x[i], z = candidates.z[i];
+    if (bounds && x >= bounds.minX - guard && x <= bounds.maxX + guard && z >= bounds.minZ - guard && z <= bounds.maxZ + guard && protectedIndices.some(j => {
+      protectedChecks++;
+      return Math.hypot(x - out.x[j], z - out.z[j]) < (out.kind[j] === 1 ? 2.6 : 1.9) * out.s[j] + (candidates.kind[i] === 1 ? 2.6 : 1.9) * candidates.s[i];
+    })) continue;
+    for (const k of keys) result[k].push(candidates[k][i]);
+    lodIndex.push(i);
+  }
+  Object.defineProperty(result, 'lodIndex', { value: lodIndex });
+  Object.defineProperty(result, 'fortRemoved', { value: out.fortRemoved ?? 0 });
+  Object.defineProperty(result, 'forest3', { value: { enabled: true, before: out.x.length, after: result.x.length,
+    ...forestPatchStats(world), work: { baselineTrees: out.x.length, candidateTrees: candidates.x.length, protectedChecks } } });
+  return result;
+}
+
+// Four-neighbour components count openings, rather than the number of yellow grid samples.
+export function forestPatchStats(world) {
+  const c = TREES.forest3, n = Math.floor(c.mapHalf * 2 / c.mapStep) + 1, zones = new Int8Array(n * n), counts = [0, 0, 0];
+  let samples = 0, openings = 0;
+  for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) {
+    const zone = forestPatchAt(world, -c.mapHalf + i * c.mapStep, -c.mapHalf + j * c.mapStep).zone;
+    zones[j * n + i] = zone;
+    if (zone >= 0) { counts[zone]++; samples++; }
+  }
+  const visited = new Uint8Array(zones.length), queue = new Int32Array(zones.length);
+  for (let k = 0; k < zones.length; k++) if (zones[k] === 2 && !visited[k]) {
+    openings++; let head = 0, tail = 1; queue[0] = k; visited[k] = 1;
+    while (head < tail) {
+      const q = queue[head++], i = q % n;
+      for (const next of [i ? q - 1 : -1, i < n - 1 ? q + 1 : -1, q - n, q + n]) {
+        if (next < 0 || next >= zones.length || visited[next] || zones[next] !== 2) continue;
+        visited[next] = 1; queue[tail++] = next;
+      }
+    }
+  }
+  return { area: { dense: counts[0] / samples, sparse: counts[1] / samples, open: counts[2] / samples }, openings,
+    areaSamples: samples, areaStep: c.mapStep, areaHalf: c.mapHalf };
 }
 
 // 岩（河原・斜面・路肩）。戻りは {x,y,z,s,rot,sx,sz,sink}。乱数は升ごと（cellRand）で、物を足しても既存の岩は動かない。

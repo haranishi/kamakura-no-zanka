@@ -1,6 +1,7 @@
 // terrain-height.js — 地形の高さ・傾斜・水・路面を world-data から出す純関数（logic層。Three.js非依存）。
 // 描画（メッシュ・質感）・当たり・植生の配置・敵の経路が、すべてこの同じ関数を読む。
 import { WORLD } from './world-data.js';
+import { TREES } from './config.js';
 
 // 峰だけの調整。shape=0で旧円錐台。歩行域と半径108mの外は必ず旧式に戻す。
 export const FORT_HILL = Object.freeze({
@@ -44,6 +45,31 @@ export function fbm(x, z, seed, octaves = 4) {
   let sum = 0, amp = 0.5, freq = 1, norm = 0;
   for (let i = 0; i < octaves; i++) { sum += amp * (vnoise(x * freq, z * freq, seed + i * 17) * 2 - 1); norm += amp; amp *= 0.5; freq *= 2.03; }
   return sum / norm;
+}
+
+// Shared by placement, crown colour and the ground. The protected rectangle is an exact early return.
+export function forestPatchAt(world, x, z) {
+  const c = TREES.forest3, b = world.bounds, m = TREES.forest2.margin;
+  if (!b || x >= b.minX - m && x <= b.maxX + m && z >= b.minZ - m && z <= b.maxZ + m) return { zone: -1, value: 1, core: 0 };
+  const seed = world.seed + c.seed, ix = Math.floor(x / c.largeWave), iz = Math.floor(z / c.largeWave);
+  const wx = c.warp * fbm(x / c.largeWave, z / c.largeWave, seed, 2);
+  const wz = c.warp * fbm(x / c.largeWave, z / c.largeWave, seed + 1, 2);
+  let distance = Infinity;
+  for (let dz = -1; dz <= 1; dz++) for (let dx = -1; dx <= 1; dx++) {
+    const gx = ix + dx, gz = iz + dz;
+    const cx = (gx + .5 + (hash(gx, gz, seed + 2) * 2 - 1) * c.jitter) * c.largeWave;
+    const cz = (gz + .5 + (hash(gx, gz, seed + 3) * 2 - 1) * c.jitter) * c.largeWave;
+    const radius = lerp(...c.radius, hash(gx, gz, seed + 4)), stretch = lerp(...c.stretch, hash(gx, gz, seed + 5));
+    const angle = hash(gx, gz, seed + 6) * Math.PI, ca = Math.cos(angle), sa = Math.sin(angle);
+    const px = x + wx - cx, pz = z + wz - cz;
+    distance = Math.min(distance, Math.hypot((px * ca - pz * sa) / radius, (px * sa + pz * ca) / (radius * stretch)));
+  }
+  const valley = world.valley, e = valley ? Math.hypot((x - valley.cx) / valley.rx, (z - valley.cz) / valley.rz) : 0;
+  // Reuse the mountain's ridge noise; positive relief and both valley shoulders keep denser trees.
+  const ridge = fbm(x * c.ridgeFrequency, z * c.ridgeFrequency, world.seed + 3, 3);
+  const shoulder = smooth(c.shoulderRange[0], c.shoulderRange[1], e) * (1 - smooth(c.shoulderRange[1], c.shoulderRange[2], e));
+  const value = distance + c.smallWeight * fbm(x / c.smallWave, z / c.smallWave, seed + 7, 2) + c.ridgeBias * ridge + c.valleyBias * shoulder;
+  return { zone: value < c.openLimit ? 2 : value < c.denseLimit ? 1 : 0, value, core: smooth(c.denseLimit, c.centreLimit, value) };
 }
 
 // 折れ線を Catmull-Rom でなめらかにして、約 step m ごとの点列にする。
@@ -116,7 +142,7 @@ function rectDistance(f, x, z) {
   return ex > 0 || ez > 0 ? Math.hypot(Math.max(ex, 0), Math.max(ez, 0)) : Math.max(ex, ez);
 }
 
-export function createTerrain(world = WORLD, { fortShape = FORT_HILL.shape } = {}) {
+export function createTerrain(world = WORLD, { fortShape = FORT_HILL.shape, forest3 = false } = {}) {
   const seed = world.seed;
   const { valley, floor, hill, river } = world;
   const riverLine = smoothPolyline(river.points, 3);
@@ -241,12 +267,18 @@ export function createTerrain(world = WORLD, { fortShape = FORT_HILL.shape } = {
   }
   function waterLevelAt(x, z) { return riverInfo(x, z).y; }
 
-  function forestDensity(x, z) {
+  function forestBaseDensity(x, z) {
     const f = world.forest;
     let v = f.base + 0.16 * fbm(x * 0.02, z * 0.02, seed + 21, 3);
     for (const c of f.dense) v += 0.5 * (1 - smooth(0, c.r, Math.hypot(x - c.x, z - c.z)));
     for (const c of f.clearings) v -= 1.1 * (1 - smooth(c.r * 0.55, c.r, Math.hypot(x - c.x, z - c.z)));
     return clamp(v, 0, 1);
+  }
+  function forestDensity(x, z) {
+    const base = forestBaseDensity(x, z);
+    if (!api.forest3) return base;
+    const patch = forestPatchAt(world, x, z);
+    return patch.zone === 2 ? 0 : patch.zone === 1 ? base * TREES.forest3.sparseKeep : base;
   }
 
   // 路面の種類の重み。合計1。質感の重ね合わせと植生の配置に使う。
@@ -287,5 +319,6 @@ export function createTerrain(world = WORLD, { fortShape = FORT_HILL.shape } = {
     return slopeAt(x, z) < 40;
   }
 
-  return { seed, fortShape, heightAt, slopeAt, normalAt, waterAt, waterLevelAt, surfaceAt, forestDensity, roadInfo, riverInfo, walkable, bounds: b, riverLine, roads, natural, terraceAt };
+  const api = { seed, fortShape, forest3, heightAt, slopeAt, normalAt, waterAt, waterLevelAt, surfaceAt, forestDensity, forestBaseDensity, roadInfo, riverInfo, walkable, bounds: b, riverLine, roads, natural, terraceAt };
+  return api;
 }

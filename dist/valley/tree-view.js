@@ -127,17 +127,23 @@ export function buildSpecimens({ terrain, wind, sunDir, quality = 'standard', at
 export class TreeField {
   constructor({ data, species, understory, wind, sunDir, quality = 'standard', renderer = null,
     forest2 = new URLSearchParams(globalThis.location?.search ?? '').get('forest2') !== '0',
-    forest2debug = new URLSearchParams(globalThis.location?.search ?? '').get('forest2debug') === '1' }) {
+    forest2debug = new URLSearchParams(globalThis.location?.search ?? '').get('forest2debug') === '1',
+    forest3 = data.forest3?.enabled ?? false,
+    forest3debug = new URLSearchParams(globalThis.location?.search ?? '').get('forest3debug') === '1' }) {
     this.data = data;
     this.species = (!forest2 && species?.legacy ? species.legacy : species) ?? { species: data.kind, stage: new Uint8Array(data.x.length) };
     this.forest = forest2 && this.species.outside ? this.species : null;
     this.forestDebug = forest2 && forest2debug;
+    this.forest3 = forest3;
+    this.patchDebug = forest3 && forest3debug;
+    this.patchSummary = data.forest3 ?? { enabled: false };
     this.forestColors = new Float32Array(data.x.length * 3);
     if (this.forest) for (let i = 0; i < data.x.length; i++) {
       const f = this.forest, sp = f.species[i];
-      if (!f.outside[i]) continue;
-      const color = sp === 1 || sp === 3 ? forestColor(sp, f.tone[i], f.brightness[i], f.hue[i])
-        : new THREE.Color().setRGB(f.brightness[i] * (1 - f.blue[i]), f.brightness[i], f.brightness[i] * (1 + f.blue[i]));
+      if (!f.outside[i] && !(forest3 && f.protectedColor?.[i])) continue;
+      const colorSpecies = f.protectedColor?.[i] ? (f.tone[i] < 3 ? 3 : 1) : sp;
+      const color = sp === 1 || sp === 3 ? forestColor(colorSpecies, f.tone[i], f.brightness[i], f.hue[i])
+        : new THREE.Color().setRGB(f.brightness[i] * (1 - f.blue[i]) * (1 - f.hue[i]), f.brightness[i], f.brightness[i] * (1 + f.blue[i]) * (1 + f.hue[i]));
       color.toArray(this.forestColors, i * 3);
     }
     this.forestSummary = this.forest ? { enabled: true, ...this.forest.summary } : { enabled: false };
@@ -157,7 +163,7 @@ export class TreeField {
       catch (error) { impostors.dispose(); console.warn('tree impostor bake failed; far trees keep their meshes', error); }
     }
     this.sets = []; this.lookup = new Map(); this.disposed = false;
-    this.stats = { near: 0, mid: 0, far: 0, understory: 0, forest2: this.forestSummary };
+    this.stats = { near: 0, mid: 0, far: 0, understory: 0, forest2: this.forestSummary, forest3: this.patchSummary };
     const counts = new Map();
     const count = (sp, variant, shape = 0) => { const key = `${sp}/${variant}/${shape}`; counts.set(key, (counts.get(key) ?? 0) + 1); };
     for (let i = 0; i < data.x.length; i++) { const sp = this.species.species[i]; count(sp, 0, treeShape(sp, data.tint[i])); }
@@ -193,7 +199,7 @@ export class TreeField {
         }
         if (this.forest || this.forestDebug) for (const mesh of [set.leaf, set.wood]) if (mesh) {
           mesh.geometry.setAttribute('aForestAge', new THREE.InstancedBufferAttribute(new Float32Array(capacity), 1).setUsage(THREE.DynamicDrawUsage));
-          forestProgram(mesh.material, { board: !!set.impostor, leaf: mesh === set.leaf, debug: this.forestDebug });
+          forestProgram(mesh.material, { board: !!set.impostor, leaf: mesh === set.leaf, debug: this.forestDebug || this.patchDebug });
           if (mesh.customDepthMaterial) forestProgram(mesh.customDepthMaterial, { leaf: mesh === set.leaf, depth: true });
         }
         this.sets.push(set); this.lookup.set(`${key}/${level}`, set);
@@ -220,7 +226,7 @@ export class TreeField {
     if (!force && Math.hypot(cx - this.last.x, cz - this.last.y) < 5) return;
     this.last.set(cx, cz);
     for (const set of this.sets) { set.leaf.count = 0; if (set.wood) set.wood.count = 0; }
-    this.stats = { near: 0, mid: 0, far: 0, understory: 0, forest2: { ...this.forestSummary, adaptiveTier: tier, drawnOld: 0 } };
+    this.stats = { near: 0, mid: 0, far: 0, understory: 0, forest2: { ...this.forestSummary, adaptiveTier: tier, drawnOld: 0 }, forest3: this.patchSummary };
     const put = (d, i, sp, stage, variant, shape, level, baseScale) => {
       const set = this.lookup.get(`${sp}/${variant}/${shape}/${level}`), k = set.leaf.count;
       if (k >= set.capacity) throw new RangeError('tree capacity exceeded');
@@ -228,23 +234,25 @@ export class TreeField {
       const forest = d === this.data && this.forest?.outside[i] ? this.forest : null;
       const old = forest?.old[i] ?? 0;
       const width = forest && sp === 0 ? forest.width[i] : .85 + .5 * f1;
-      const height = forest && sp === 0 ? forest.height[i] : .85 + .45 * f2;
+      const height = forest && (sp === 0 || this.forest3) ? forest.height[i] : .85 + .45 * f2;
       this.s.set(baseScale * width, baseScale * height, baseScale * width);
       const tiltX = (((tv * 17.7) % 1) * 2 - 1) * Math.PI / 60;
       const tiltZ = (((tv * 23.3) % 1) * 2 - 1) * Math.PI / 60;
       this.q.setFromEuler(this.euler.set(tiltX, d.rot[i], tiltZ, 'YXZ')); this.p.set(d.x[i], d.y[i] - .15, d.z[i]); this.m.compose(this.p, this.q, this.s);
-      if (forest) this.color.fromArray(this.forestColors, i * 3);
+      if (forest || d === this.data && this.forest3 && this.forest?.protectedColor?.[i]) this.color.fromArray(this.forestColors, i * 3);
       else if (sp !== 0 && sp !== 2) this.color.copy(stageColor(sp, stage / 255, tv, variant));
       // Far conifers keep the near brightness and add only a small far-only jitter (no jump at the dissolve).
       else if (level === 2) { const v = (.85 + tv * .3) * (.88 + .24 * f3); this.color.setRGB(v * (.9 + .2 * f1), v, v * (.8 + .4 * f2)); }
       else { const v = .85 + tv * .3; this.color.setRGB(v, v * 1.02, v * .95); }
       if (old) this.stats.forest2.drawnOld++;
       if (this.forestDebug) this.color.set(TREES.forest2.debug[old ? 4 : sp === 4 ? (variant ? 3 : 1) : sp === 5 ? 1 : sp]);
+      if (this.patchDebug && forest?.patchZone?.[i] >= 0) this.color.set(TREES.forest3.debug[forest.patchZone[i]]);
       set.leaf.setMatrixAt(k, this.m); set.leaf.setColorAt(k, this.color); set.leaf.count++;
       if (set.leaf.geometry.attributes.aForestAge) set.leaf.geometry.attributes.aForestAge.array[k] = old;
       if (set.wood) {
         set.wood.setMatrixAt(k, this.m); this.color.setRGB(1, 1, 1).multiplyScalar(.85 + tv * .3);
         if (this.forestDebug) this.color.set(TREES.forest2.debug[old ? 4 : sp === 4 ? (variant ? 3 : 1) : sp === 5 ? 1 : sp]);
+        if (this.patchDebug && forest?.patchZone?.[i] >= 0) this.color.set(TREES.forest3.debug[forest.patchZone[i]]);
         set.wood.setColorAt(k, this.color); set.wood.count++;
         if (set.wood.geometry.attributes.aForestAge) set.wood.geometry.attributes.aForestAge.array[k] = old;
       } else if (set.impostor) set.leaf.geometry.attributes.aImpWood.array[k] = .85 + tv * .3;
@@ -255,7 +263,7 @@ export class TreeField {
       const d = this.data, distance = Math.hypot(d.x[i] - cx, d.z[i] - cz);
       const membership = lodMembership(distance, this.policy);
       for (let level = 0; level < 3; level++) if (membership[level]) {
-        if (this.light && level === 2 && (i & 1)) continue;
+        if (this.light && level === 2 && ((this.data.lodIndex?.[i] ?? i) & 1)) continue;
         if (this.forest?.outside[i] && level === 2 && ((this.data.tint[i] * 31.73) % 1) >= TREES.forest2.farKeep[tier]) continue;
         put(d, i, this.species.species[i], this.species.stage[i], 0, treeShape(this.species.species[i], d.tint[i]), level, d.s[i]);
       }
