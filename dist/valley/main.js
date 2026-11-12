@@ -7,7 +7,7 @@ import { createTerrain } from './terrain-height.js';
 import { buildTerrain, loadGroundTextures } from './terrain.js';
 import { installFog, createAtmosphere } from './atmosphere.js';
 import { Post } from './post.js';
-import { SHOTS, applyShot } from './shots.js';
+import { SHOTS, applyShot, shotOverride } from './shots.js';
 import { scatterTrees, scatterRocks, scatterRice, scatterCrops } from './scatter.js';
 import { buildRidges } from './ridges.js';
 import { buildVegetation } from './vegetation.js';
@@ -131,6 +131,9 @@ async function boot() {
   document.getElementById('loading').classList.add('hidden');
   window.__valleyReady = true;
   if (q.get('autostart')) start(q.get('autostart') === 'continue' ? 'continue' : 'new');
+  // &cam=<固定画角の名前>：その画角にカメラを固定して眺める（例：&autostart=new&intro=0&cam=concept）。遊びの規則は変えない。
+  const fixed = q.get('cam') ? shotOverride(q.get('cam'), terrain) : null;
+  if (fixed) game.camOverride = fixed;
 }
 
 // 設定（感度・反転・揺れ・音量・字幕・品質・道しるべ・血の表現）。保存は端末の中だけ。

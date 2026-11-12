@@ -13,7 +13,17 @@ export const SHOTS = {
   backlight: { eye: 2.0, pos: [-30, 2], look: [-110, -60, 14], fov: 56, note: '夕日の逆光' },
   mountains: { eye: 5.0, pos: [20, 40], look: [260, -140, 60], fov: 40, note: '対岸の山砦' },
   title:     { eye: 1.35, pos: [-83.5, -73.5], look: [-104, -93, 4.2], fov: 46, note: 'タイトル：焚き火の向こうの廃寺' },
+  // 構想の絵（隠れ谷の夕景）と同じ向き：南西の高い所から北東。左に寺へ上る道、中央に里、手前に棚田、右に川と橋、右の奥に丘の砦。
+  // 絵のカメラは里から 60〜70m だが、配置を変えない決まりなので、寺と橋が入る位置まで下がっている（里まで約 120m）。
+  concept:   { eye: 40, pos: [-50, 110], look: [12, -80, 5], fov: 50, note: '絵と同じ向きの見渡し（南西の高い所から北東）' },
 };
+// 番地の旗 &cam=<名前> と撮影の道具が使う：固定カメラの位置・見る点・画角（世界の座標）。名前が無ければ null。
+export function shotOverride(name, terrain) {
+  const shot = Object.hasOwn(SHOTS, name) ? SHOTS[name] : null;
+  if (!shot) return null;
+  const [x, z] = shot.pos, [lx, lz, ly] = shot.look;
+  return { pos: [x, terrain.heightAt(x, z) + shot.eye, z], look: [lx, terrain.heightAt(lx, lz) + (ly != null ? ly : 1.2), lz], fov: shot.fov };
+}
 export function applyShot(camera, shot, terrain) {
   const [x, z] = shot.pos, y = terrain.heightAt(x, z) + shot.eye;
   camera.position.set(x, y, z);
