@@ -19,9 +19,12 @@ export const RIDGES = Object.freeze({
   ]),
 });
 export const MIST = Object.freeze({
-  height: 3.5, thickness: 16, width: 110, depth: 44, // 地形からの高さ・縦厚・横幅・奥行き(m)。
+  height: 3.5, thickness: 11, width: 110, depth: 44, // 地形からの高さ・縦厚・横幅・奥行き(m)。厚さ 16m では、木立の上に白いこぶが盛り上がって見えた。
   farThickness: 180, farOffset: 24, // 段間の厚み・稜線の投影から帯の中心までの差(m)。裾を厚く隠す。
-  opacity: 0.48, opacityMax: 0.5, densityFloor: 0.55, near: 24, far: 100, // 不透明度・上限・斑の最低密度、接近時の消失距離(m)。
+  // 実際の画面で見ると、濃さ 0.48・縁の幅 25% の帯は、白い半透明の板や、こぶに見えた（縁が硬い）。濃さを下げ、帯の上下と左右の
+  // 全体をなだらかに薄め、近く（60m 以内）では描かない。霧は、遠くの谷にたなびく物として見せる。
+  opacity: 0.36, opacityMax: 0.4, densityFloor: 0.5, near: 60, far: 200, // 不透明度・上限・斑の最低密度、接近時の消失距離(m)。
+  foot: 0.45, crown: 0.5, side: 0.3, // 帯の高さ・幅に対する割合：下の縁・上の縁・左右の端を薄める幅。
   coolLift: 0.70, warmMix: 0.48, warmEndDeg: 90, warmFullDeg: 40, villageFade: 1.45, // 青白の持上げ／桃色の混合率、暖色の方位差(度)、里の保護域の倍率。
   speed: 0.7, scale: 0.018, breakup: 0.35, // 流速(m/s)・斑の尺度(1/m)・端の欠け。
   segments: 64, rows: 4, basinStep: 32, // 帯の分割数、くぼ地を探す格子(m)。
@@ -132,6 +135,9 @@ export function mistVillageFade(x, z) {
   const dx = x - village.x, dz = z - village.z, c = Math.cos(village.rot), s = Math.sin(village.rot);
   return smooth(1, MIST.villageFade, Math.max(Math.abs(c * dx + s * dz) / village.hx, Math.abs(-s * dx + c * dz) / village.hz));
 }
+// 帯の中の位置から決まる形：v は下から上（0〜1）、top は雑音で揺れる上の端、u は左右（0〜1）。シェーダーと同じ式。
+export function mistShape(v, top) { return smooth(0, MIST.foot, v) * (1 - smooth(top - MIST.crown, top, v)); }
+export function mistSide(u) { return smooth(0, MIST.side, u) * (1 - smooth(1 - MIST.side, 1, u)); }
 export function mistOpacity(shape, edge, noise, distance, x, z) {
   const density = MIST.densityFloor + (1 - MIST.densityFloor) * smooth(MIST.breakup, 0.78, noise);
   return Math.max(0, Math.min(MIST.opacityMax, shape * edge * density * mistNearFade(distance) * MIST.opacity * mistVillageFade(x, z)));
@@ -149,8 +155,8 @@ export const MIST_FRAGMENT = `uniform vec3 cool,warm,sun;uniform float clock,deb
     vec2 p=vWorld.xz*${MIST.scale.toFixed(5)}+vec2(clock*${(MIST.speed * MIST.scale).toFixed(5)},0.0);
     float n=noise(p)*.65+noise(p*2.07+3.1)*.35;
     float top=.65+noise(p*.7+7.0)*.35;
-    float shape=smoothstep(0.0,.28,vUv.y)*(1.0-smoothstep(top-.25,top,vUv.y));
-    float edge=smoothstep(0.0,.18,vUv.x)*(1.0-smoothstep(.82,1.0,vUv.x));
+    float shape=smoothstep(0.0,${MIST.foot.toFixed(3)},vUv.y)*(1.0-smoothstep(top-${MIST.crown.toFixed(3)},top,vUv.y));
+    float edge=smoothstep(0.0,${MIST.side.toFixed(3)},vUv.x)*(1.0-smoothstep(${(1 - MIST.side).toFixed(3)},1.0,vUv.x));
     float density=${MIST.densityFloor.toFixed(3)}+(1.0-${MIST.densityFloor.toFixed(3)})*smoothstep(${MIST.breakup.toFixed(3)},.78,n);
     vec2 localP=vWorld.xz-vec2(${village.x.toFixed(3)},${village.z.toFixed(3)});
     localP=mat2(${Math.cos(village.rot).toFixed(5)},${(-Math.sin(village.rot)).toFixed(5)},${Math.sin(village.rot).toFixed(5)},${Math.cos(village.rot).toFixed(5)})*localP;

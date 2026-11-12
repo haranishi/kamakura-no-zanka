@@ -6,7 +6,7 @@ import { WORLD } from '../dist/valley/world-data.js';
 import { createTerrain } from '../dist/valley/terrain-height.js';
 import { shotOverride } from '../dist/valley/shots.js';
 const { SKY, SUNSET_GLSL, valleyAtmosphere, skyMaterial, skyChannel, cloudWarmth, sunGlow, sunDisc, skyRadiance, LEGACY_ATMOS } = await load('atmosphere.js');
-const { MIST, mistOpacity, mistVillageFade, mistSites, buildRidges } = await load('ridges.js');
+const { MIST, mistOpacity, mistShape, mistSide, mistVillageFade, mistSites, buildRidges } = await load('ridges.js');
 const smoothstep = (a,b,x) => { const t=Math.max(0,Math.min(1,(x-a)/(b-a))); return t*t*(3-2*t); };
 const cos = degrees => Math.cos(degrees*Math.PI/180);
 // Execute the actual scalar shader functions, with only GLSL declarations translated to JS.
@@ -90,9 +90,13 @@ test('mist is dense at range, clears the village and nearby camera, and has surf
   const terrain=createTerrain(WORLD), sites=mistSites(WORLD,terrain), g=buildRidges();g.userData.configure({a:valleyAtmosphere()});
   const mist=g.getObjectByName('valley-mist'), p=mist.geometry.attributes.position, perBand=(MIST.segments+1)*(MIST.rows+1);
   assert.equal(sites.length,8);assert(MIST.farThickness>=100);
-  for(const distance of [100,250,450])for(const n of [0,.5,1]) {
-    const alpha=mistOpacity(1,1,n,distance,140,-100);assert(alpha>=.25 && alpha<=.5);
+  // Seen in a real browser, bands of .25 to .5 everywhere read as white plastic sheets. Mist is now a thin veil at range
+  // (.15 to .4), thinner still while it fades in between `near` and `far`, and never the dominant shape.
+  for(const distance of [250,450])for(const n of [0,.5,1]) {
+    const alpha=mistOpacity(1,1,n,distance,140,-100);assert(alpha>=.15 && alpha<=.4,`${distance} ${n} ${alpha}`);
   }
+  for(const n of [0,.5,1]) { const mid=mistOpacity(1,1,n,(MIST.near+MIST.far)/2,140,-100); assert(mid>0 && mid<mistOpacity(1,1,n,250,140,-100)); }
+  assert(MIST.opacityMax<=.4 && MIST.near>=40 && MIST.far>MIST.near);
   assert.equal(mistOpacity(1,1,1,10,140,-100),0);
   const village=WORLD.flats.find(f=>f.id==='village');
   for(let x=-village.hx;x<=village.hx;x+=4)for(let z=village.z-village.hz;z<=village.z+village.hz;z+=4)assert.equal(mistVillageFade(x,z),0);
@@ -109,6 +113,8 @@ test('concept has at least four terrain-visible fog bands, including all three g
   const terrain=createTerrain(WORLD), view=shotOverride('concept',terrain), camera=new THREE.PerspectiveCamera(view.fov,16/9,.15,2200);
   camera.position.set(...view.pos);camera.lookAt(...view.look);camera.updateMatrixWorld();
   const g=buildRidges();g.userData.configure({a:valleyAtmosphere()});g.updateMatrixWorld(true);
+  let peakShape=0;for(let v=0;v<=1;v+=.01)peakShape=Math.max(peakShape,mistShape(v,.65));
+  assert(peakShape>.4&&peakShape<=1);assert.equal(mistShape(0,.65),0);assert.equal(mistShape(.65,.65),0);assert.equal(mistSide(0),0);assert.equal(mistSide(.5),1);assert.equal(mistSide(1),0);
   const p=g.getObjectByName('valley-mist').geometry.attributes.position, per=(MIST.segments+1)*(MIST.rows+1), counts=[];
   const ray=new THREE.Raycaster(), eye=camera.position;
   for(let band=0;band<11;band++) {
@@ -123,13 +129,21 @@ test('concept has at least four terrain-visible fog bands, including all three g
       for(let d=4;d<Math.min(distance,850);d+=4) {
         const at=eye.clone().addScaledVector(dir,d);if(terrain.heightAt(at.x,at.z)>at.y){blocked=true;break;}
       }
-      const edge=smoothstep(0,.18,i/MIST.segments)*(1-smoothstep(.82,1,i/MIST.segments));
-      // At bandUv.y=.5, the minimum noisy top (.65) leaves a shape of .648; even the lowest density remains visible.
-      if(!blocked && mistOpacity(.648,edge,0,distance,point.x,point.z)>.1)visible++;
+      const edge=mistSide(i/MIST.segments);
+      // The band is at its densest a little below its middle. Even with the lowest noisy top (.65) and the lowest density, it stays visible there.
+      if(!blocked && mistOpacity(peakShape,edge,0,distance,point.x,point.z)>.1)visible++;
     }
     counts.push(visible);
   }
   assert(counts.filter(n=>n>0).length>=4,JSON.stringify(counts));
   assert(counts.slice(0,3).every(n=>n>0),`ridge gaps hidden: ${JSON.stringify(counts)}`);
   t.diagnostic(JSON.stringify({geometricallyVisibleBands:counts.filter(n=>n>0).length,visibleSamplesPerBand:counts}));dispose(g);
+});
+
+test('grade: the sunset finish is applied before the URL overrides, and the old sun keeps the old finish', () => {
+  const g = valleyAtmosphere('').grade; assert.equal(g, SKY.grade); assert(Object.isFrozen(g));
+  assert(g.exposure > 1 && g.exposure <= 1.15); assert(g.warmth > 1 && g.warmth <= 1.2); assert(g.saturation >= 1 && g.saturation <= 1.12);
+  assert.equal(valleyAtmosphere('?sun=old').grade, null);
+  const main = source('main.js'), apply = main.indexOf('if (ATMOS.grade) Object.assign(post.params, ATMOS.grade);'), override = main.indexOf("post.params[key] = LOOK[k]");
+  assert(apply > 0 && override > apply, 'the grade is set first; ?lk= wins afterwards');
 });

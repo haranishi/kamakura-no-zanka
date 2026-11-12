@@ -60,6 +60,7 @@ view.append(renderer.domElement);
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(58, 1, 0.15, 2200);
 const post = new Post(renderer, { quality });
+if (ATMOS.grade) Object.assign(post.params, ATMOS.grade);   // 谷の夕方の仕上げの色調（atmosphere.js の SKY.grade）。下の ?lk= の上書きが、あとから勝つ
 for (const [k, key] of [['exp', 'exposure'], ['bloom', 'bloomStrength'], ['vig', 'vignette'], ['sat', 'saturation'], ['con', 'contrast'], ['warm', 'warmth'], ['grain', 'grain']]) if (LOOK[k] != null) post.params[key] = LOOK[k];
 const input = new Input(renderer.domElement);
 const audio = new ValleyAudio(msg => hud.toast(msg, 3000));

@@ -33,6 +33,9 @@ export const SKY = Object.freeze({
   haloRadiusDeg: 26, haloGain: 0.65, coreRadiusDeg: 4, coreGain: 0.35, // 広いにじみ／円盤の近傍の半径(度)と線形輝度。
   discGain: 2.4, discRadiusDeg: 0.40, discSoftDeg: 0.06, radianceMax: 3.0, // 円盤の線形輝度・半径／縁の幅(度)、空の各成分の上限。
   dither: 1 / 255, // 最終出力の階調雑音幅（片側はこの半分）。
+  // 仕上げの色調。日を北東の低い位置へ動かしただけでは、日なたの地面がくすんだ黄土色で、金色の夕方に見えなかった（実際の画面で
+  // 見比べた）。露出を少し上げ、暖色と彩度を足す。歩く視点で、地面と主人公が白く飛ばない値。`&sun=old` では使わない。
+  grade: Object.freeze({ exposure: 1.08, warmth: 1.1, saturation: 1.05 }),
 });
 const search = () => typeof location === 'undefined' ? '' : location.search;
 export function valleyAtmosphere(searchValue = '') {
@@ -43,6 +46,7 @@ export function valleyAtmosphere(searchValue = '') {
     ...(!old ? { sunColor: SKY.sunColor, hemiIntensity: SKY.hemiIntensity, fillIntensity: SKY.fillIntensity } : {}),
     ...(!old && q.get('sky2') !== '0' ? { horizon: SKY.horizon, mid: SKY.mid, zenith: SKY.zenith } : {}),
     sky2: q.get('sky2') !== '0', skyDebug: q.get('sky2debug') === '1', mist2: q.get('mist2') !== '0',
+    grade: old ? null : SKY.grade,
   };
 }
 export const ATMOS = valleyAtmosphere(search());
