@@ -25,7 +25,7 @@ export const PADDY = Object.freeze({
   bundSegments: 6, lightBundSegments: 4, bundSpaceX: .73, bundSpaceZ: .61, // 点数-1／mの逆数：畦の断面分割・起伏の空間位相。
   bundJitter: .10, bundHeightJitter: .02, bundGrassDensity: 7, grassMin: .15, grassMax: .5, // m／株毎m：畦の起伏・草密度・草丈。
   grassShoulder: .36, grassAlongJitter: .35, lightGrassDensity: .75, // 幅比／比：肩への配置幅・条内の揺れ・軽量の密度。
-  riceLeaves: 3, lightRiceLeaves: 2, riceHeads: 3, lightRiceHeads: 2, // 枚／本：近景の葉と垂れ穂。まとめ描きの予算内で配置。
+  riceLeaves: 1, lightRiceLeaves: 1, riceHeads: 3, lightRiceHeads: 2, // 枚／本：近景の葉と垂れ穂。まとめ描きの予算内で配置。
   riceHeight: .88, riceSpread: .32, riceWidth: .026, riceDroop: .16, // m：葉の丈・開き・半幅・先端の垂れ。
   headLength: .23, headWidth: .012, headReachRatio: .70, headDropRatio: .52, headSegments: 4, // m／比／節：穂の長さ・半幅・外への弓・垂れ・粒列の分割。
   leafRootWidth: .12, headPhase: .35, headStemSpread: .48, stemWidth: .004, // 幅比／周／開き比／m：葉元の細さ・穂の向き・茎の開き・茎の半幅。
@@ -39,17 +39,24 @@ export const PADDY = Object.freeze({
   triangleBudget: 120000, lightTriangleBudget: 50000, updateStep: .5, // 三角形／m：品質上限と位置更新間隔。
 
 });
+// 実際の画面（歩く視点）で見て直した値：
+// - 地色の地図は 0.5m の升目を補間せずに読む（種類を α に入れているため）。畦の土と草の斑を升目ごとに二値で決めると、緑と茶の
+//   市松模様に見えた。地図には、ゆっくり変わる色（bundMapPatch・bundMapSoft）だけを入れ、細かいむらは材質の雑音で足す（bundMottle）。
+// - 刈った田のひびは、明るい金色の地に暗い線の網で、石畳に見えた。線を淡く・目を細かくし（crack…）、地色の彩度と明るさを下げた（cut…）。
+// - 畦の草（grass・bundCrownGain）は、日が当たると蛍光の黄緑の板に見えた。まわりの草地に近い、暗いオリーブへ。
+// - 近くの稲は、穂の付いた株だけにすると、予算の中では数が足りず、まばらに見えた。葉は、前からある密な株（vegetation.js）に任せ、
+//   ここでは穂と茎を主に足す（riceLeaves）。
 export const PADDY_LOOK = Object.freeze({
   tintA: '#b8963c', tintB: '#d6b658', // 既存の稲のインスタンス色（sRGB）。
   tip: [.84, .64, .27], groundGain: 1.10, // 既存の穂の頂点色と、地面・刈田の明るさ倍率。
-  grass: '#65803d', rock: '#d2d2c8', wood: '#bfae92', // 既存の高草・里の薄い岩・木材の色。
-  soil: '#967850', soilGain: .42, cutRiceMix: .65, cutGain: 1.38, cutPatch: .15, patchGain: 1.25, // 土は既存地図の土色(150,120,80)。刈田は稲を65%混色、15%に落ち藁。
+  grass: '#5d7039', rock: '#d2d2c8', wood: '#bfae92', // 既存の高草・里の薄い岩・木材の色。
+  soil: '#967850', soilGain: .42, cutRiceMix: .55, cutGain: 1.4, cutGrey: .38, cutPatch: .15, patchGain: 1.07, // 土は既存地図の土色(150,120,80)。刈田は稲を55%混色・灰へ38%寄せる。15%に落ち藁（升目が見えない淡さ）。
   riceGreen: .18, rootEnd: 40, rootStart: 22, waveShade: .08, // 緑の残る黄・根元の暗土から地色への距離m・条と風の明暗比。
   rockGain: .66, rockVariation: .12, rockSoil: .5, rockGrass: .10, // 既存岩色の明度・石ごとの差・上段の土と草色の混合。
-  bundSoil: .35, bundCrownGain: 1.08, strawWhite: .35, // 比：土の面積・壁上の畦の明度倍率・藁束の白木色混合率。
-  bundPatch: .72, bundPatchSoft: .04, bundGrassWarmth: .25, bundNoiseRange: [.2,.8], // m／比：土草の斑・ぼかし・草の土色・雑音の有効幅。
+  bundSoil: .35, bundCrownGain: 1.0, strawWhite: .35, // 比：土の面積・壁上の畦の明度倍率・藁束の白木色混合率。
+  bundPatch: .72, bundPatchSoft: .04, bundMapPatch: 2.6, bundMapSoft: .3, bundMottle: .16, bundMottleScale: .9, bundGrassWarmth: .38, bundNoiseRange: [.2,.8], // m／比：土草の斑・ぼかし・草の土色・雑音の有効幅。
   leafRoot: [.38,.40,.17], leafTip: [.72,.58,.28], headRoot: [.88,.66,.28], headTip: [1,.81,.42], // 線形RGB：根・葉先・穂元・穂先。既存の葉と穂の金から作る。
-  mudGain: .72, mudPatch: .18, mudRelief: .14, crackCell: .55, crackWidth: .018, crackShade: .35, // 比／m：湿土の明度・落藁率・浅いむら・乾土のひびの目と幅と明度。
+  mudGain: .72, mudPatch: .18, mudRelief: .14, crackCell: .34, crackWidth: .012, crackShade: .82, // 比／m：湿土の明度・落藁率・浅いむら・乾土のひびの目と幅と明度。
   mudScale: .38, mudStrawMix: .42, mudRowBase: .78, mudRowContrast: .22, grassTipGain: 1.12, grassRootGain: .85, // m／比：湿土の斑・落藁混色・条間と根の明暗・草の先と根の明度。
   wallTint: [.94,.98,1.06], // 線形RGB倍率：壁の陰を青みの灰茶へ寄せる。
   shadowLength: 2.2, flatShadowLength: .6, shadowGain: .50, shadowSoft: .35, wallShade: .60, // m／比：段／平畦の南影の長さ・日なた比・ぼかし幅・壁の陰。

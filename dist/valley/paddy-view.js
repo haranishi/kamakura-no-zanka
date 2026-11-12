@@ -24,18 +24,19 @@ export function paddyPatch(x,z,scale=PADDY_LOOK.bundPatch) {
   const h=(x,z)=>cellRand(2310,x,z)();
   return (h(i,j)*(1-a)+h(i+1,j)*a)*(1-b)+(h(i,j+1)*(1-a)+h(i+1,j+1)*a)*b;
 }
-export function paddyBundColor(x,z,crown=false) {
-  const threshold=PADDY_LOOK.bundSoil,soft=PADDY_LOOK.bundPatchSoft;
-  const range=PADDY_LOOK.bundNoiseRange,noise=smooth01((paddyPatch(x,z)-range[0])/(range[1]-range[0]));
+export function paddyBundColor(x,z,crown=false,scale=PADDY_LOOK.bundPatch,soft=PADDY_LOOK.bundPatchSoft) {
+  const threshold=PADDY_LOOK.bundSoil;
+  const range=PADDY_LOOK.bundNoiseRange,noise=smooth01((paddyPatch(x,z,scale)-range[0])/(range[1]-range[0]));
   const grass=new THREE.Color(PADDY_LOOK.grass).lerp(paddySoilColor(),PADDY_LOOK.bundGrassWarmth);
   return paddySoilColor().lerp(grass,smooth01((noise-threshold+soft)/(2*soft))).multiplyScalar(crown?PADDY_LOOK.bundCrownGain:1);
 }
 export function paddySurfaceColor(state, x, z) {
   if (state.riser) return paddyRockColor().multiplyScalar(PADDY_LOOK.wallShade).multiply(new THREE.Color().setRGB(...PADDY_LOOK.wallTint));
-  if (state.bund) return paddyBundColor(x,z);
+  if (state.bund) return paddyBundColor(x,z,false,PADDY_LOOK.bundMapPatch,PADDY_LOOK.bundMapSoft);
   const rice = paddyFarRiceColor(state.plot).multiplyScalar(PADDY_LOOK.groundGain);
   if (!state.cut) return rice;
   const soil = paddySoilColor(), cut = soil.lerp(rice, PADDY_LOOK.cutRiceMix).multiplyScalar(PADDY_LOOK.cutGain);
+  { const grey = cut.r * .2126 + cut.g * .7152 + cut.b * .0722; cut.lerp(new THREE.Color(grey, grey, grey), PADDY_LOOK.cutGrey); }
   const patch = cellRand(2309, Math.floor(x / PADDY_LOOK.mapStep), Math.floor(z / PADDY_LOOK.mapStep))() < PADDY_LOOK.cutPatch;
   return cut.multiplyScalar(patch ? PADDY_LOOK.patchGain : 1);
 }
@@ -64,6 +65,7 @@ export function patchPaddyGround(shader, debug) {
     if(paddyGround.a>0.5) {
     vec2 paddySoilCell = vWorldPos.xz / ${PADDY_LOOK.crackCell};
     vec2 paddySoilBase = floor(paddySoilCell);
+    paddyGround.rgb *= 1.0+(1.0-paddyStanding)*(1.0-paddyCut)*${PADDY_LOOK.bundMottle}*(paddySoilNoiseAt(vWorldPos.xz/${PADDY_LOOK.bundMottleScale})*2.0-1.0);
     float paddyNearSoil = 1.0-smoothstep(${PADDY_LOOK.rootStart.toFixed(1)},${PADDY_LOOK.rootEnd.toFixed(1)},distance(vWorldPos,cameraPosition));
     float paddyCrackAA = max(fwidth(paddySoilCell.x),fwidth(paddySoilCell.y));
     float paddyFirst = 8.0, paddySecond = 8.0;
