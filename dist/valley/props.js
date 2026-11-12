@@ -5,6 +5,8 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { gradeModel } from './grade.js';
 import { placementMatrix, batchParts, mergeIndexed } from './batch.js';
+import { buildRiverDetails } from './water.js';
+import { RIVER_ART, riverFlags } from './river-rocks.js';
 
 const DIR = new URL('../assets/valley/models/', import.meta.url).href;
 // 石の小道具の色のそろえ。地蔵は赤い前掛けを残すので彩度の上限を高く、灯籠の黄色い地衣は強く抑える。
@@ -105,10 +107,11 @@ export function buildProps({ world, terrain, models }) {
   for (const [key, placements] of yard) yardGroup.add(batchParts(models[key], placements, { name: key }));
   group.add(yardGroup);
   // 遠景（関所・砦・馬防柵）。1つずつで、影の扱いが違うので複製のまま。橋は buildings.js が置く
+  const fortScale = riverFlags(globalThis.location?.search || '').fort ? RIVER_ART.fortModelScale : 1;
   for (const d of world.distant || []) {
     const o = ['gatehouse', 'fort', 'barricade'].includes(d.kind) && cloneOf(d.kind);
     if (!o) continue;
-    place(o, d.x, d.z, d.rotY || 0, d.scale || 1, d.lift ?? -0.15);
+    place(o, d.x, d.z, d.rotY || 0, (d.scale || 1) * (d.kind === 'fort' ? fortScale : 1), d.lift ?? -0.15);
     o.traverse(m => { if (m.isMesh) { m.castShadow = d.kind === 'barricade'; m.receiveShadow = d.kind !== 'fort'; } });
   }
   // 飾り（柵・薪・幟）
@@ -126,10 +129,13 @@ export function buildProps({ world, terrain, models }) {
   }
   group.add(batchParts(models.fence, fences, { name: 'fences' }), batchParts(models.firewood, firewood, { name: 'firewood' }));
   const banners = buildBanners(bannerDefs, terrain); group.add(banners.group);
+  const river = buildRiverDetails({ world, terrain, models }); group.add(river.group);
   const v = new THREE.Vector3();
   return {
     group,
+    river,
     update(time) {
+      river.update(time);
       for (const s of banners.sets) {
         const pos = s.cloth.geometry.attributes.position, base = s.base;
         for (const b of s.banners) {
