@@ -50,7 +50,7 @@ export const PADDY_LOOK = Object.freeze({
   tintA: '#b8963c', tintB: '#d6b658', // 既存の稲のインスタンス色（sRGB）。
   tip: [.84, .64, .27], groundGain: 1.10, // 既存の穂の頂点色と、地面・刈田の明るさ倍率。
   grass: '#5d7039', rock: '#d2d2c8', wood: '#bfae92', // 既存の高草・里の薄い岩・木材の色。
-  soil: '#967850', soilGain: .42, cutRiceMix: .55, cutGain: 1.4, cutGrey: .38, cutPatch: .15, patchGain: 1.07, // 土は既存地図の土色(150,120,80)。刈田は稲を55%混色・灰へ38%寄せる。15%に落ち藁（升目が見えない淡さ）。
+  soil: '#967850', soilGain: .42, cutRiceMix: .55, cutGain: 1.4, cutGrey: .38, cutPatch: .15, patchGain: 1.12, // 土は既存地図の土色(150,120,80)。刈田は稲を55%混色・灰へ38%寄せる。15%に落ち藁（升目が目立たない淡さ。1.25 では升目が見えた）。
   riceGreen: .18, rootEnd: 40, rootStart: 22, waveShade: .08, // 緑の残る黄・根元の暗土から地色への距離m・条と風の明暗比。
   rockGain: .66, rockVariation: .12, rockSoil: .5, rockGrass: .10, // 既存岩色の明度・石ごとの差・上段の土と草色の混合。
   bundSoil: .35, bundCrownGain: 1.0, strawWhite: .35, // 比：土の面積・壁上の畦の明度倍率・藁束の白木色混合率。
