@@ -1,7 +1,8 @@
-// Baseline hashes were captured before changing either density or tree placement.
+// Baseline sums and counts were captured before changing either density or tree placement. They are compared within a
+// tolerance (heights pass through Math.pow, whose last bit differs between CPU architectures: a SHA-256 of the values,
+// taken on arm64, does not hold on the x64 CI runner). Exact comparisons are made at run time, against the path with the flag off.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createHash } from 'node:crypto';
 import { WORLD } from '../dist/valley/world-data.js';
 import { TREES } from '../dist/valley/config.js';
 import { createTerrain, forestPatchAt } from '../dist/valley/terrain-height.js';
@@ -9,7 +10,8 @@ import { scatterTrees, inSightline, fortTreeRemoved } from '../dist/valley/scatt
 import { assignTreeSpecies, forestProtected, protectedAutumnOrder, scatterUnderstory } from '../dist/valley/tree-species.js';
 import { field, camera, stubRenderer, THREE } from './helpers/tree-field.mjs';
 import { installQA } from '../dist/valley/qa.js';
-const hash = a => createHash('sha256').update(JSON.stringify(a)).digest('hex');
+const near = (actual, expected, tolerance, name) => assert(Math.abs(actual - expected) <= tolerance, `${name}: ${actual} against ${expected}`);
+const total = a => a.reduce((v, x) => v + x, 0);
 const keys = ['x', 'y', 'z', 's', 'rot', 'kind', 'tint'];
 const oldTerrain = createTerrain(), terrain = createTerrain(WORLD, { forest3: true });
 const before = scatterTrees(WORLD, oldTerrain), beforeSpecies = assignTreeSpecies(WORLD, oldTerrain, before);
@@ -26,13 +28,15 @@ test('forest3: protected height/density grid and all trunk/collider inputs match
     assert.equal(terrain.forestDensity(x, z), oldTerrain.forestDensity(x, z));
     samples.push([terrain.heightAt(x, z), terrain.forestDensity(x, z)]);
   }
-  assert.equal(hash(samples), 'bb105b9d29dc0233d47a6874460540b73175b9761da72265c5bf37873f2ac045');
+  assert.equal(samples.length, 71264);
+  near(total(samples.map(s => s[0])), 596858.3055045274, 1e-6, 'protected heights'); near(total(samples.map(s => s[1])), 29790.738257721317, 1e-6, 'protected density');
   const protectedTrees = protectedRows(trees, assigned);
   assert.equal(protectedTrees.length, 879);
-  assert.equal(hash(protectedTrees), '430dc3398480f8ad47e03b5b3f7e9ee160cac7ffea1fa0f586b9d1400f6f08ca');
   assert.deepEqual(protectedTrees, protectedRows(before, beforeSpecies));
   assert.equal(before.x.length, 15717);
-  assert.equal(hash(rows(before, beforeSpecies)), 'faf5bd774e9ae0a6e441840cb993f6c25b30057beed56af77cc4345f2c4fca5f');
+  near(total(before.x), -69367.06821594901, 1e-6, 'x'); near(total(before.z), -38477.20722097193, 1e-6, 'z'); near(total(before.y), 2255910.8083007834, 1e-4, 'y'); near(total(before.s), 17372.248565551203, 1e-6, 'size');
+  const census = [0, 0, 0, 0]; for (const k of beforeSpecies.species) census[k]++;
+  assert.deepEqual(census, [11030, 1869, 977, 1841]); assert.equal(total(Array.from(beforeSpecies.stage)), 2000081);
   const disabled = scatterTrees(WORLD, terrain, { forest3: false });
   assert.deepEqual(disabled, before);
   for (let z = -640; z <= 640; z += 16) for (let x = -640; x <= 640; x += 16) assert.equal(terrain.heightAt(x, z), oldTerrain.heightAt(x, z));
