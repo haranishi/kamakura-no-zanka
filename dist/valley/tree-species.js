@@ -1,7 +1,7 @@
 // Derived species and non-colliding understory. Position keys survive insertion/reordering.
 import { TREES } from './config.js';
 import { cellRand, insideFootprint, insidePlot, inSightline, scatterRocks, ROCK_MODEL, fortTreeRemoved } from './scatter.js';
-import { fbm, smooth } from './terrain-height.js';
+import { fbm, smooth, forestPatchAt } from './terrain-height.js';
 import { propColliders } from './world-colliders.js';
 
 export const SPECIES = Object.freeze({ cedar: 0, zelkova: 1, pine: 2, maple: 3, sapling: 4, shrub: 5 });
@@ -71,14 +71,15 @@ export function forestGroveAt(world, x, z) {
   }
   return grove;
 }
-export function assignTreeSpecies(world, terrain, trees, { forest2 = true } = {}) {
+export function assignTreeSpecies(world, terrain, trees, { forest2 = true, forest3 = terrain.forest3 ?? false } = {}) {
   const legacy = legacyTreeSpecies(world, terrain, trees);
   if (!forest2) return legacy;
-  const c = TREES.forest2, n = trees.x.length;
+  const c = TREES.forest2, c3 = TREES.forest3, n = trees.x.length;
   const result = { species: legacy.species.slice(), stage: legacy.stage.slice(), legacy,
     outside: new Uint8Array(n), old: new Uint8Array(n), tone: new Uint8Array(n),
     cluster: new Float64Array(n).fill(-1), height: new Float32Array(n).fill(1), width: new Float32Array(n).fill(1),
     brightness: new Float32Array(n).fill(1), hue: new Float32Array(n), blue: new Float32Array(n) };
+  if (forest3) result.patchZone = new Int8Array(n).fill(-1);
   const before = [0, 0, 0, 0], after = [0, 0, 0, 0], groves = new Set();
   let outside = 0, oldCount = 0;
   for (let i = 0; i < n; i++) {
@@ -92,11 +93,14 @@ export function assignTreeSpecies(world, terrain, trees, { forest2 = true } = {}
     const relief = (terrain.heightAt(x - c.detail, z) + terrain.heightAt(x + c.detail, z)
       + terrain.heightAt(x, z - c.detail) + terrain.heightAt(x, z + c.detail)) / 4 - trees.y[i];
     const hollow = smooth(...c.relief, relief), w = c.habitatWeights, habitat = w[0] * bank + w[1] * gentle + w[2] * hollow;
-    const edge = 1 - smooth(1 - c.edge, 1 + c.edge, g.distance - c.habitatGain * (habitat - .5));
+    const patch = forest3 ? forestPatchAt(world, x, z) : null;
+    if (patch) result.patchZone[i] = patch.zone;
+    const groveDistance = g.distance / (patch?.zone === 1 ? c3.groveSparse : 1);
+    const edge = (1 - smooth(1 - c.edge, 1 + c.edge, groveDistance - c.habitatGain * (habitat - .5))) * (patch?.zone === 0 ? lerp(1, c3.groveDense, patch.core) : 1);
     let sp = rng() < edge * gentle * (1 - high) ? (g.tone >= 2 ? SPECIES.zelkova : SPECIES.maple) : SPECIES.cedar;
     // Pine replaces only conifer ground. A steep / exposed site has priority over a sheltered slope.
     const p = c.pineWeights, pineHabitat = clamp(p[0] + p[1] * smooth(c.pineSlope, c.slope[1], slope) + p[2] * (1 - hollow) + p[3] * high);
-    if (sp === SPECIES.cedar && rng() < c.pineRate * pineHabitat / c.pineNormal) sp = SPECIES.pine;
+    if (sp === SPECIES.cedar && rng() < (patch?.zone === 1 ? c3.sparsePine : c.pineRate) * pineHabitat / c.pineNormal) sp = SPECIES.pine;
     const group = field(world, x, z, c.groupScale, c.seed + 3) * 2 - 1;
     result.species[i] = sp;
     if (sp === SPECIES.maple || sp === SPECIES.zelkova) {
@@ -107,7 +111,8 @@ export function assignTreeSpecies(world, terrain, trees, { forest2 = true } = {}
       result.brightness[i] = 1 + (rng() * 2 - 1) * c.leafBrightness;
       result.hue[i] = (rng() * 2 - 1) * c.leafHue;
     } else {
-      result.brightness[i] = (1 + (rng() * 2 - 1) * c.cedarBrightness) * (1 + group * c.groupBrightness);
+      result.brightness[i] = (1 + (rng() * 2 - 1) * c.cedarBrightness) * (1 + group * (forest3 ? c3.groupBrightness : c.groupBrightness));
+      if (forest3) result.hue[i] = group * c3.groupHue;
       const dx = terrain.heightAt(x + c.shadeStep, z) - terrain.heightAt(x - c.shadeStep, z);
       const dz = terrain.heightAt(x, z + c.shadeStep) - terrain.heightAt(x, z - c.shadeStep);
       result.blue[i] = clamp((dx - dz) / c.shadeGradient) * c.shadeBlue;
@@ -117,11 +122,53 @@ export function assignTreeSpecies(world, terrain, trees, { forest2 = true } = {}
         result.width[i] = lerp(...c.width, rng()) * (old ? c.oldWidth : 1);
       }
     }
+    if (patch) {
+      const groupHeight = lerp(...c3.groupHeight, clamp(.5 + fbm(x / c3.groupWave, z / c3.groupWave, world.seed + c3.seed + 2, 2)));
+      if (patch.zone === 1) {
+        if (result.old[i]) result.width[i] /= c.oldWidth;
+        oldCount -= result.old[i]; result.old[i] = 0;
+        result.height[i] = lerp(...c3.sparseHeight, rng());
+      } else if (sp === SPECIES.cedar && !result.old[i]) {
+        result.height[i] = groupHeight * lerp(c3.edgeHeight, c3.centreHeight, patch.core) * (1 + (rng() * 2 - 1) * c3.heightJitter);
+      }
+    }
     after[sp]++;
   }
+  if (forest3) assignProtectedTones(world, trees, result);
   result.summary = { outside, before, after, groves: groves.size, old: oldCount,
     work: { trees: n, groveCandidates: outside * 9, terrainQueriesUpperBound: outside * 10 } };
   return result;
+}
+
+// A position-sorted nearest walk is independent of buffer order. Noise selects the colour;
+// only a third equal stop is shifted to its neighbour to break the village's repeating red band.
+export function protectedAutumnOrder(world, trees, species) {
+  const pending = trees.x.flatMap((x, i) => forestProtected(world, x, trees.z[i]) && [1, 3].includes(species[i]) ? [i] : [])
+    .sort((a, b) => trees.x[a] - trees.x[b] || trees.z[a] - trees.z[b]);
+  const order = [];
+  if (!pending.length) return order;
+  order.push(pending.shift());
+  while (pending.length) {
+    const prev = order[order.length - 1]; let nearest = 0, distance = Infinity;
+    for (let j = 0; j < pending.length; j++) {
+      const i = pending[j], d = (trees.x[i] - trees.x[prev]) ** 2 + (trees.z[i] - trees.z[prev]) ** 2;
+      if (d < distance) { nearest = j; distance = d; }
+    }
+    order.push(pending.splice(nearest, 1)[0]);
+  }
+  return order;
+}
+function assignProtectedTones(world, trees, result) {
+  const c = TREES.forest3, order = protectedAutumnOrder(world, trees, result.species);
+  result.protectedColor = new Uint8Array(trees.x.length);
+  for (let j = 0; j < order.length; j++) {
+    const i = order[j], x = trees.x[i], z = trees.z[i], rng = positionRand(world, x, z);
+    let tone = Math.min(4, Math.floor(clamp(.5 + fbm(x / c.toneWave, z / c.toneWave, world.seed + c.seed + 3, 2)) * 5));
+    if (j >= 2 && result.tone[order[j - 1]] === tone && result.tone[order[j - 2]] === tone) tone = tone === 4 ? 3 : tone + 1;
+    result.tone[i] = tone; result.protectedColor[i] = 1;
+    result.brightness[i] = 1 + (rng() * 2 - 1) * c.leafBrightness;
+    result.hue[i] = (rng() * 2 - 1) * c.leafHue;
+  }
 }
 
 // Same local axes as insideFootprint and the collider boxes.

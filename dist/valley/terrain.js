@@ -1,14 +1,14 @@
 // terrain.js — 地形メッシュ（近景1m・遠景8m）と、6層の質感を重ねる材質（view層）。
 // 高さ・路面の重みは terrain-height.js（純関数）から取る。近景と遠景は縁で縫合して、継ぎ目に割れを出さない。
 import * as THREE from 'three';
-import { smooth, fbm } from './terrain-height.js';
+import { smooth, fbm, forestPatchAt } from './terrain-height.js';
 import { WORLD } from './world-data.js';
 import { TREES } from './config.js';
 import { ATMOS } from './atmosphere.js';
 import { forestGroveAt } from './tree-species.js';
 import { fortGrassAt } from './scatter.js';
 import { paddySurfaceColor, paddySurfaceMask, patchPaddyGround, paddyDebugColor } from './paddy-view.js';
-import { paddyAt, paddyOptions, createPaddyPlots, PADDY_LOOK } from './paddy.js';
+import { paddyAt, paddyOptions, createPaddyPlots, paddyShadowAt, PADDY_LOOK } from './paddy.js';
 // 森の下の地面を暗くする強さ：近く（gain・急な斜面で戻す量 steepRelief）と、遠く（farGain）。木の密度に掛けて 1 で頭打ち。
 // 遠くは 1.5 → 2.6：まばらに木が立つ急な斜面でも、地面が森の床の色になり、木が「茶色の壁に刺さって」見えない。
 export const FOREST_FLOOR = Object.freeze({ gain: 1.5, steepRelief: 0.15, farGain: 2.6 });
@@ -73,8 +73,10 @@ export function canopyFieldAt(world, terrain, x, z, fort = true) {
   const hill = fort ? fortGrassAt(world, x, z) * eligible : 0;
   const weight = smooth(...CANOPY.forestRange, forest) * (1 - smooth(...CANOPY.slopeRange, slope)) * eligible * (1 - hill);
   if (weight <= 0) return [0, 0, 0, hill];
-  const grove = forestGroveAt(world, x, z), c = TREES.forest2;
-  const autumn = (1 - smooth(1 - c.edge, 1 + c.edge, grove.distance)) * (1 - smooth(...c.slope, slope));
+  const grove = forestGroveAt(world, x, z), c = TREES.forest2, c3 = TREES.forest3;
+  const patch = terrain.forest3 ? forestPatchAt(world, x, z) : null;
+  const distance = grove.distance / (patch?.zone === 1 ? c3.groveSparse : 1);
+  const autumn = (1 - smooth(1 - c.edge, 1 + c.edge, distance)) * (1 - smooth(...c.slope, slope)) * (patch?.zone === 0 ? 1 - (1 - c3.groveDense) * patch.core : 1);
   return [weight, autumn, grove.tone / 4, hill];
 }
 // 照明前の比較用。両メッシュはこの同じ場を一枚の地図で参照する。
@@ -84,16 +86,26 @@ export function canopyColorAt(world, terrain, x, z, { enabled = true, fort = tru
   return { color, weight: enabled ? field[0] * canopyBlendAt(world, x, z) : 0, grove: field[1], hill: field[3] };
 }
 function canopyMap(world, terrain, fort) {
-  const step = CANOPY.mapStep, n = Math.ceil(FAR.half * 2 / step) + 1, data = new Uint8Array(n * n * 4);
+  const step = CANOPY.mapStep, n = Math.ceil(FAR.half * 2 / step) + 1, data = new Uint8Array(n * n * 4), patches = new Uint8Array(n * n * 4);
   let area = 0, hillArea = 0, work = 0;
   for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) {
     const x = -FAR.half + i * step, z = -FAR.half + j * step, field = canopyFieldAt(world, terrain, x, z, fort);
     for (let k = 0; k < 4; k++) data[(j * n + i) * 4 + k] = Math.round(field[k] * 255);
+    if (terrain.forest3) {
+      const patch = forestPatchAt(world, x, z), k = (j * n + i) * 4;
+      const slope = terrain.slopeAt?.(x, z) ?? 0;
+      patches[k] = Math.max(0, patch.zone) * 85;
+      patches[k + 1] = patch.zone === 2 ? Math.round(255 * (1 - smooth(...TREES.forest3.grassSlope, slope))) : 0;
+      patches[k + 2] = patch.zone >= 0 ? 255 : 0;
+      patches[k + 3] = patch.zone === 2 && slope >= TREES.forest3.rockSlope ? 255 : 0;
+    }
     area += field[0] * canopyBlendAt(world, x, z); hillArea += field[3]; work++;
   }
   const texture = new THREE.DataTexture(data, n, n, THREE.RGBAFormat);
   texture.minFilter = texture.magFilter = THREE.LinearFilter; texture.generateMipmaps = false; texture.needsUpdate = true;
-  return { texture, area: area / (n * n), hillArea: hillArea * step * step, work, bytes: data.byteLength };
+  const patchTexture = new THREE.DataTexture(patches, n, n, THREE.RGBAFormat);
+  patchTexture.minFilter = patchTexture.magFilter = THREE.LinearFilter; patchTexture.generateMipmaps = false; patchTexture.needsUpdate = true;
+  return { texture, patchTexture, area: area / (n * n), hillArea: hillArea * step * step, work, bytes: data.byteLength + patches.byteLength };
 }
 
 export function paddyGroundMap(world, terrain, debug = false) {
@@ -107,7 +119,8 @@ export function paddyGroundMap(world, terrain, debug = false) {
     phaseData[k] = phase >>> 8; phaseData[k+1] = phase & 255; phaseData[k+3] = 255;
     if (!s || (road && road.dist <= step / Math.SQRT2)) continue;
     eligible++;
-    const color = debug ? paddyDebugColor(s.plot.level, s.riser) : paddySurfaceColor(s, x, z);
+    const shadow=debug?1:paddyShadowAt(plots,x,z);phaseData[k+2]=Math.round(shadow*255);
+    const color = debug ? paddyDebugColor(s.plot.level, s.riser) : paddySurfaceColor(s, x, z).multiplyScalar(shadow);
     data[k] = Math.round(color.r * 255); data[k + 1] = Math.round(color.g * 255); data[k + 2] = Math.round(color.b * 255); data[k + 3] = debug ? 255 : paddySurfaceMask(s);
     if (!s.bund) covered++;
   }
@@ -256,7 +269,9 @@ function patchCanopyMaterial(material) {
   material.onBeforeCompile = shader => {
     before(shader);
     shader.fragmentShader = shader.fragmentShader.replace('#include <common>', `#include <common>
-      uniform sampler2D uCanopyField;
+      uniform sampler2D uCanopyField, uForestPatch;
+      uniform float uForest3, uForest3Debug;
+      uniform vec3 uForestGrass;
       uniform float uCanopy, uCanopyDebug, uFortGround, uFortDebug, uCanopyDetail, uCanopyGlow;
       uniform vec3 uCanopySun, uCedar, uAutumn[5], uHillGrass, uHillGold;
       float th_hash(vec2 p); float th_noise(vec2 p);
@@ -277,7 +292,7 @@ function patchCanopyMaterial(material) {
       }`);
     shader.fragmentShader = shader.fragmentShader.replace('gN = normalize(nw);', `gN = normalize(nw);
       canopyWeight = 0.0; hillWeight = 0.0;
-      if (uCanopy > .5 || uFortGround > .5) {
+      if (uCanopy > .5 || uFortGround > .5 || uForest3 > .5) {
       vec4 canopyField = texture(uCanopyField, (wxz + ${FAR.half.toFixed(1)} + ${ (c.mapStep/2).toFixed(1)}) / ${ (FAR.half*2+c.mapStep).toFixed(1)});
       float nearEdge = min(min(wxz.x - ${NEAR.x0.toFixed(1)}, ${NEAR.x1.toFixed(1)} - wxz.x), min(wxz.y - ${NEAR.z0.toFixed(1)}, ${NEAR.z1.toFixed(1)} - wxz.y));
       float protect = max(max(${(WORLD.bounds.minX-c.margin).toFixed(1)} - wxz.x, wxz.x - ${(WORLD.bounds.maxX+c.margin).toFixed(1)}), max(${(WORLD.bounds.minZ-c.margin).toFixed(1)} - wxz.y, wxz.y - ${(WORLD.bounds.maxZ+c.margin).toFixed(1)}));
@@ -307,6 +322,9 @@ function patchCanopyMaterial(material) {
       vec3 hillColor = mix(uHillGrass, uHillGold, ${c.grassSun.toFixed(3)} * max(0.0, dot(nW, uCanopySun)));
       hillColor *= ${(1-c.grassVariation).toFixed(3)} + ${(2*c.grassVariation).toFixed(3)} * th_noise(wxz / ${c.grassWave.toFixed(1)});
       diffuseColor.rgb = mix(diffuseColor.rgb, hillColor / groundShade, hill);
+      vec4 forestPatch = texture(uForestPatch, (wxz + ${FAR.half.toFixed(1)} + ${(c.mapStep/2).toFixed(1)}) / ${(FAR.half*2+c.mapStep).toFixed(1)});
+      float forestGrass = forestPatch.g * uForest3 * surfaceClear * smoothstep(0.0, ${c.protectedFade.toFixed(1)}, protect);
+      diffuseColor.rgb = mix(diffuseColor.rgb, uForestGrass * (${(1-c.grassVariation).toFixed(3)} + ${(2*c.grassVariation).toFixed(3)} * th_noise(wxz / ${c.grassWave.toFixed(1)})) / groundShade, forestGrass);
       gN = normalize(mix(gN, canopyNormal, canopyWeight * ${c.normalMix.toFixed(3)}));
       canopyCheck = mix(vec3(${new THREE.Color(c.debug[2]).toArray().map(x=>x.toFixed(4)).join(',')}), mix(vec3(${new THREE.Color(c.debug[0]).toArray().map(x=>x.toFixed(4)).join(',')}), vec3(${new THREE.Color(c.debug[1]).toArray().map(x=>x.toFixed(4)).join(',')}), step(.35, canopyField.g)), step(.1, canopyWeight));
       }`)
@@ -316,7 +334,16 @@ function patchCanopyMaterial(material) {
         vec3 canopySight = normalize(vWorldPos - cameraPosition);
         float canopyGlow = pow(max(0.0, dot(canopySight, uCanopySun)), ${TREES.backlight.farPower.toFixed(2)}) * ${TREES.backlight.far.toFixed(2)} * smoothstep(${TREES.backlight.farFrom[0].toFixed(1)}, ${TREES.backlight.farFrom[1].toFixed(1)}, distance(vWorldPos, cameraPosition));
         totalEmissiveRadiance += min(vec3(${TREES.backlight.cap.toFixed(2)}), diffuseColor.rgb * vec3(${TREES.backlight.farTint.map(v => v.toFixed(2)).join(', ')}) * canopyGlow) * canopyWeight * uCanopyGlow;`)
-      .replace('#include <fog_fragment>', '#include <fog_fragment>\n if (uCanopyDebug > .5 && uCanopy > .5) gl_FragColor.rgb = canopyCheck;\n if (uFortDebug > .5 && hillWeight > .1) gl_FragColor.rgb = vec3(1.0, .1328683, .5028865);');
+      .replace('#include <fog_fragment>', `#include <fog_fragment>
+        if (uCanopyDebug > .5 && uCanopy > .5) gl_FragColor.rgb = canopyCheck;
+        if (uFortDebug > .5 && hillWeight > .1) gl_FragColor.rgb = vec3(1.0, .1328683, .5028865);
+        if (uForest3Debug > .5 && uForest3 > .5) {
+          vec4 fp = texture(uForestPatch, (vWorldPos.xz + ${FAR.half.toFixed(1)} + ${(c.mapStep/2).toFixed(1)}) / ${(FAR.half*2+c.mapStep).toFixed(1)});
+          if (fp.b > .5) {
+            int zone = fp.a > .5 ? 3 : int(floor(fp.r * 3.0 + .5));
+            ${TREES.forest3.debug.map((hex, i) => `${i ? 'else ' : ''}if (zone == ${i}) gl_FragColor.rgb = vec3(${new THREE.Color(hex).toArray().map(v => v.toFixed(5)).join(',')});`).join('\n')}
+          }
+        }`);
   };
 }
 
@@ -336,6 +363,7 @@ export function buildTerrain({ terrain, textures, quality = 'standard', search =
   const t0 = performance.now(), flags = new URLSearchParams(search);
   const canopyEnabled = flags.get('canopy') !== '0', fortEnabled = flags.get('fort2') !== '0';
   terrain.fort2 = fortEnabled;
+  terrain.forest3 = flags.get('forest3') !== '0';
   const { x0, x1, z0, z1, step } = NEAR;
   const nx = Math.round((x1 - x0) / step) + 1, nz = Math.round((z1 - z0) / step) + 1;
 
@@ -481,6 +509,8 @@ export function buildTerrain({ terrain, textures, quality = 'standard', search =
   };
   const field = canopyMap(WORLD, terrain, fortEnabled), palette = canopyPalettes();
   const canopyUniforms = {
+    uForestPatch: { value: field.patchTexture }, uForest3: { value: terrain.forest3 ? 1 : 0 }, uForest3Debug: { value: flags.get('forest3debug') === '1' ? 1 : 0 },
+    uForestGrass: { value: new THREE.Color(TREES.forest3.grassShade).lerp(new THREE.Color(TREES.forest3.grass), TREES.forest3.grassMix) },
     uCanopyField: { value: field.texture }, uCanopy: { value: canopyEnabled ? 1 : 0 },
     uCanopyDebug: { value: flags.get('canopydebug') === '1' ? 1 : 0 }, uFortDebug: { value: flags.get('riverdebug') === '1' ? 1 : 0 }, uFortGround: { value: fortEnabled ? 1 : 0 },
     uCanopyDetail: { value: quality === 'light' ? 0 : 1 }, uCanopySun: { value: ATMOS.sunDir }, uCanopyGlow: { value: flags.get('glow') === '0' ? 0 : 1 },
@@ -491,7 +521,7 @@ export function buildTerrain({ terrain, textures, quality = 'standard', search =
   terrain.groundStats = () => ({ canopyAreaFraction: canopyEnabled ? field.area : 0, hillGrassArea: fortEnabled ? field.hillArea : 0,
     mapSamples: field.work, textureBytes: field.bytes, addedDraws: 0, addedTriangles: 0, programCount: 1 });
   const material = terrainMaterial(textures, quality, coverUniforms, canopyUniforms);
-  material.addEventListener('dispose', () => field.texture.dispose());
+  material.addEventListener('dispose', () => { field.texture.dispose(); field.patchTexture.dispose(); });
   const paddy = paddyOptions(search);
   let paddyCoverage = 0;
   if (paddy.enabled) {

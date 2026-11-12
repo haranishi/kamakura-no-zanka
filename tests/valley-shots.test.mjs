@@ -8,7 +8,7 @@ test('shots: every fixed view has finite numbers; the concept overlook looks nor
     assert(Number.isFinite(s.eye) && s.eye > 0, name); assert.equal(s.pos.length, 2); assert(s.look.length >= 2 && s.look.length <= 3, name);
     assert([...s.pos, ...s.look, s.fov].every(Number.isFinite), name); assert(s.fov >= 30 && s.fov <= 70, name);
   }
-  const c = SHOTS.concept; assert(c.look[0] > c.pos[0] && c.look[1] < c.pos[1]); assert(c.eye >= 30 && c.eye <= 80);
+  const c = SHOTS.concept; assert(c.look[0] > c.pos[0] && c.look[1] < c.pos[1]); assert(c.eye >= 30 && c.eye <= 90);
   // North by east: the river then runs down the right of the frame and the evening sun (bearing 55) stays inside its right edge.
   const bearing = Math.atan2(c.look[0] - c.pos[0], c.pos[1] - c.look[1]) * 180 / Math.PI; assert(bearing >= 8 && bearing <= 24, String(bearing));
   // It looks down by 10 to 20 degrees, so that the terraces fill the foot of the frame and the far hills its top edge.

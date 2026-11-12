@@ -8,12 +8,12 @@ import path from 'node:path';
 import os from 'node:os';
 import { spawnSync } from 'node:child_process';
 import { WORLD } from '../dist/valley/world-data.js';
-import { createTerrain, FORT_HILL, fortPeakHeight } from '../dist/valley/terrain-height.js';
+import { createTerrain, FORT_HILL, fortPeakHeight, forestPatchAt } from '../dist/valley/terrain-height.js';
 import { scatterTrees, fortClearRadius, FORT_CLEAR } from '../dist/valley/scatter.js';
 import { assignTreeSpecies } from '../dist/valley/tree-species.js';
 import { riverLayout, riverFlags, fortOutcrops, fortPathEdge, FORT_GROUND } from '../dist/valley/river-rocks.js';
 import { loadView, THREE } from './helpers/valley-view-modules.mjs';
-const { buildTerrain, canopyBlendAt, canopyColorAt, CANOPY } = await loadView('terrain.js');
+const { buildTerrain, canopyBlendAt, canopyColorAt, canopyFieldAt, CANOPY } = await loadView('terrain.js');
 const { buildRiverDetails } = await loadView('water.js');
 const terrain = createTerrain(), oldTerrain = createTerrain(WORLD, { fortShape: 0 }), peak = WORLD.peaks[0];
 const trees = scatterTrees(WORLD, terrain), oldTrees = scatterTrees(WORLD, oldTerrain, { fort2: false });
@@ -73,8 +73,8 @@ test('露頭6〜12個は急斜面の草地。川・橋・砦の物は旗を切�
 
 let built;
 test('同一の樹冠地図を両メッシュで参照し、全ての縁頂点の色と材質重みが一致。近景は切り戻しと同色', t => {
-  built = buildTerrain({ terrain, textures: {}, search: '?paddy=0' });
-  const old = buildTerrain({ terrain: oldTerrain, textures: {}, search: '?canopy=0&fort2=0&paddy=0' });
+  built = buildTerrain({ terrain, textures: {}, search: '?forest3=0&paddy=0' });
+  const old = buildTerrain({ terrain: oldTerrain, textures: {}, search: '?forest3=0&canopy=0&fort2=0&paddy=0' });
   const s = compile(built), p = built.near.geometry.attributes.position, near = built.near.geometry.attributes, far = built.far.geometry.attributes;
   assert.equal(built.near.material, built.far.material);
   const farPoints = new Map(); for (let i = 0; i < far.position.count; i++) farPoints.set(`${far.position.getX(i)},${far.position.getZ(i)}`, i);
@@ -106,7 +106,7 @@ test('同一の樹冠地図を両メッシュで参照し、全ての縁頂点�
 });
 
 test('品質と自動調整は同じプログラムと地図のままセル探索を9から4へ減らす。QAへ数と旗が届く', () => {
-  const b = buildTerrain({ terrain: createTerrain(), textures: {}, search: '?qa=1&canopydebug=1&fort2=0&paddy=0&w=1280' }), s = compile(b), key = b.material.customProgramCacheKey(), map = s.uniforms.uCanopyField.value;
+  const b = buildTerrain({ terrain: createTerrain(), textures: {}, search: '?forest3=0&qa=1&canopydebug=1&fort2=0&paddy=0&w=1280' }), s = compile(b), key = b.material.customProgramCacheKey(), map = s.uniforms.uCanopyField.value;
   assert.equal(s.uniforms.uCanopyDebug.value, 1); assert.equal(s.uniforms.uFortGround.value, 0);
   assert.equal(built.material.customProgramCacheKey(), key);
   assert.equal(b.material.userData.uDetailU.value, 1); b.setQuality('light'); assert.equal(s.uniforms.uCanopyDetail.value, 0);
@@ -142,8 +142,8 @@ test('実際のThree材質のGLSLは全旗・品質でコンパイルし、未�
     if (valid) assert.equal(result.status, 0, result.stderr); else assert.notEqual(result.status, 0); stages++;
   };
   try {
-    for (const search of ['?canopy=0&fort2=0', '?canopydebug=1', '?fort2=0', '']) {
-      const b = buildTerrain({ terrain: createTerrain(), textures: {}, search });
+    for (const search of ['?canopy=0&fort2=0', '?canopydebug=1', '?fort2=0', '', '?forest3=1&forest3debug=1']) {
+      const b = buildTerrain({ terrain: createTerrain(), textures: {}, search: search + (search ? '&' : '?') + 'forest3=0' });
       const shader = compile(b);
       assert(!/\bfloat\s+sample\b/.test(shader.fragmentShader));
       for (const q of ['standard', 'light']) { b.setQuality(q); compileStage(shader.vertexShader, 'vert'); compileStage(shader.fragmentShader, 'frag'); }
@@ -152,4 +152,44 @@ test('実際のThree材質のGLSLは全旗・品質でコンパイルし、未�
     }
     t.diagnostic(JSON.stringify({ compiledStages: stages - 1, negativeChecks: 1, cell: CANOPY.cell }));
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+});
+
+
+test('森の開地では樹冠がなく、草と岩を共有地図で描く。密林と保護域、近遠の継ぎ目を保つ', t => {
+  const current = createTerrain(), previous = createTerrain();
+  const b = buildTerrain({ terrain: current, textures: {}, search: '?forest3debug=1&paddy=0' });
+  const shader = compile(b), near = b.near.geometry.attributes, far = b.far.geometry.attributes;
+  assert.equal(current.forest3, true);
+  assert.equal(shader.uniforms.uForest3.value, 1); assert.equal(shader.uniforms.uForest3Debug.value, 1);
+  let openings = 0, dense = 0;
+  for (let z = -600; z <= 600; z += 12) for (let x = -600; x <= 600; x += 12) {
+    const patch = forestPatchAt(WORLD, x, z), f = canopyFieldAt(WORLD, current, x, z);
+    if (patch.zone === 2) { assert.equal(f[0], 0); assert.equal(current.forestDensity(x, z), 0); openings++; }
+    if (patch.zone === 0) {
+      assert.equal(current.forestDensity(x, z), previous.forestDensity(x, z));
+      assert.equal(f[0], canopyFieldAt(WORLD, previous, x, z)[0]); dense++;
+    }
+  }
+  assert(openings > 500 && dense > 3000);
+  const farPoints = new Map();
+  for (let i = 0; i < far.position.count; i++) farPoints.set(`${far.position.getX(i)},${far.position.getZ(i)}`, i);
+  let edges = 0;
+  for (let i = 0; i < near.position.count; i++) {
+    const x = near.position.getX(i), z = near.position.getZ(i);
+    if (!(x === -152 || x === 192 || z === -152 || z === 136) || !farPoints.has(`${x},${z}`)) continue;
+    const j = farPoints.get(`${x},${z}`); edges++;
+    for (const key of ['color', 'aS0', 'aS1']) for (let c = 0; c < 3; c++) assert(Math.abs(near[key].array[i * 3 + c] - far[key].array[j * 3 + c]) < 1e-6);
+  }
+  assert(edges > 100);
+  const map = shader.uniforms.uForestPatch.value;
+  let grass = 0, rock = 0;
+  for (let i = 0; i < map.image.data.length; i += 4) { grass += map.image.data[i + 1] > 128 ? 1 : 0; rock += map.image.data[i + 3] > 128 ? 1 : 0; }
+  assert(grass > 100 && rock > 100);
+  assert.equal(b.group.children.reduce((n, m) => n + m.geometry.index.count / 3, 0), 246248);
+  t.diagnostic(JSON.stringify({ ...current.groundStats(), edges, openings, dense, grass, rock }));
+  dispose(b);
+  const off = buildTerrain({ terrain: current, textures: {}, search: '?forest3=0&paddy=0' });
+  assert.equal(current.forest3, false); assert.equal(compile(off).uniforms.uForest3.value, 0);
+  for (let z = -600; z <= 600; z += 40) for (let x = -600; x <= 600; x += 40) assert.equal(current.forestDensity(x, z), previous.forestDensity(x, z));
+  dispose(off);
 });

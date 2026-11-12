@@ -23,7 +23,15 @@ export const PADDY = Object.freeze({
   stoneDepthMin: .25, stoneDepthMax: .45, stoneNear: 40, // m：石の厚みと個別の石から帯へ切り替える距離。
   stoneTilt: 12, stoneHeightMin: .18, shallowDrop: .25, // 度／m：最大傾斜・一段積みへ切り替える落差。
   bundSegments: 6, lightBundSegments: 4, bundSpaceX: .73, bundSpaceZ: .61, // 点数-1／mの逆数：畦の断面分割・起伏の空間位相。
-  bundJitter: .10, bundHeightJitter: .02, bundGrassDensity: 4, grassMin: .15, grassMax: .4, // m／株毎m：畦の起伏・草密度・草丈。
+  bundJitter: .10, bundHeightJitter: .02, bundGrassDensity: 7, grassMin: .15, grassMax: .5, // m／株毎m：畦の起伏・草密度・草丈。
+  grassShoulder: .36, grassAlongJitter: .35, lightGrassDensity: .75, // 幅比／比：肩への配置幅・条内の揺れ・軽量の密度。
+  riceLeaves: 1, lightRiceLeaves: 1, riceHeads: 3, lightRiceHeads: 2, // 枚／本：近景の葉と垂れ穂。まとめ描きの予算内で配置。
+  riceHeight: .88, riceSpread: .32, riceWidth: .026, riceDroop: .16, // m：葉の丈・開き・半幅・先端の垂れ。
+  headLength: .23, headWidth: .012, headReachRatio: .70, headDropRatio: .52, headSegments: 4, // m／比／節：穂の長さ・半幅・外への弓・垂れ・粒列の分割。
+  leafRootWidth: .12, headPhase: .35, headStemSpread: .48, stemWidth: .004, // 幅比／周／開き比／m：葉元の細さ・穂の向き・茎の開き・茎の半幅。
+  grainEnd: .08, grainTaper: .84, grainNotch: .55, // 比：穂の両端の幅・紡錘形の絞り・粒間のくびれ。
+  shoulderStoneChance: .05, // 比：草畦の所々に半ば埋める小石の採用率。
+  riceDetailEnd: 25, stubbleDetailEnd: 25, lightRiceDensity: .45, riceFade: 3, // m／比：穂と切株の距離・軽量の株密度・近遠の混合幅。
   stubbleStep: .3, stubblePitch: .26, stubbleHeight: .11, stubbleDiameter: .10, stubbleStems: 5, // m／本：条間・株間・丈・径・茎数。
   grassRadius: .075, grassBladeWidth: .018, stubbleBladeWidth: .008, // m：草の房の開き・草葉と藁茎の幅。
   detailEnd: 40, lightDetailEnd: 18, detailAdapt: 5, // m：草・切り株の形の距離（品質段階で短縮）。
@@ -31,14 +39,28 @@ export const PADDY = Object.freeze({
   triangleBudget: 120000, lightTriangleBudget: 50000, updateStep: .5, // 三角形／m：品質上限と位置更新間隔。
 
 });
+// 実際の画面（歩く視点）で見て直した値：
+// - 地色の地図は 0.5m の升目を補間せずに読む（種類を α に入れているため）。畦の土と草の斑を升目ごとに二値で決めると、緑と茶の
+//   市松模様に見えた。地図には、ゆっくり変わる色（bundMapPatch・bundMapSoft）だけを入れ、細かいむらは材質の雑音で足す（bundMottle）。
+// - 刈った田のひびは、明るい金色の地に暗い線の網で、石畳に見えた。線を淡く・目を細かくし（crack…）、地色の彩度と明るさを下げた（cut…）。
+// - 畦の草（grass・bundCrownGain）は、日が当たると蛍光の黄緑の板に見えた。まわりの草地に近い、暗いオリーブへ。
+// - 近くの稲は、穂の付いた株だけにすると、予算の中では数が足りず、まばらに見えた。葉は、前からある密な株（vegetation.js）に任せ、
+//   ここでは穂と茎を主に足す（riceLeaves）。
 export const PADDY_LOOK = Object.freeze({
   tintA: '#b8963c', tintB: '#d6b658', // 既存の稲のインスタンス色（sRGB）。
   tip: [.84, .64, .27], groundGain: 1.10, // 既存の穂の頂点色と、地面・刈田の明るさ倍率。
-  grass: '#65803d', rock: '#d2d2c8', wood: '#bfae92', // 既存の高草・里の薄い岩・木材の色。
-  soil: '#967850', soilGain: .42, cutRiceMix: .65, cutGain: 1.38, cutPatch: .15, patchGain: 1.25, // 土は既存地図の土色(150,120,80)。刈田は稲を65%混色、15%に落ち藁。
+  grass: '#5d7039', rock: '#d2d2c8', wood: '#bfae92', // 既存の高草・里の薄い岩・木材の色。
+  soil: '#967850', soilGain: .42, cutRiceMix: .55, cutGain: 1.4, cutGrey: .38, cutPatch: .15, patchGain: 1.12, // 土は既存地図の土色(150,120,80)。刈田は稲を55%混色・灰へ38%寄せる。15%に落ち藁（升目が目立たない淡さ。1.25 では升目が見えた）。
   riceGreen: .18, rootEnd: 40, rootStart: 22, waveShade: .08, // 緑の残る黄・根元の暗土から地色への距離m・条と風の明暗比。
   rockGain: .66, rockVariation: .12, rockSoil: .5, rockGrass: .10, // 既存岩色の明度・石ごとの差・上段の土と草色の混合。
-  bundSoil: .25, bundCrownGain: 1.25, strawWhite: .35, // 比：畦の土の混色率・壁上の畦の明度倍率・藁束の白木色混合率。
+  bundSoil: .35, bundCrownGain: 1.0, strawWhite: .35, // 比：土の面積・壁上の畦の明度倍率・藁束の白木色混合率。
+  bundPatch: .72, bundPatchSoft: .04, bundMapPatch: 2.6, bundMapSoft: .3, bundMottle: .16, bundMottleScale: .9, bundGrassWarmth: .38, bundNoiseRange: [.2,.8], // m／比：土草の斑・ぼかし・草の土色・雑音の有効幅。
+  leafRoot: [.38,.40,.17], leafTip: [.72,.58,.28], headRoot: [.88,.66,.28], headTip: [1,.81,.42], // 線形RGB：根・葉先・穂元・穂先。既存の葉と穂の金から作る。
+  mudGain: .72, mudPatch: .18, mudRelief: .14, crackCell: .34, crackWidth: .012, crackShade: .82, // 比／m：湿土の明度・落藁率・浅いむら・乾土のひびの目と幅と明度。
+  mudScale: .38, mudStrawMix: .42, mudRowBase: .78, mudRowContrast: .22, grassTipGain: 1.12, grassRootGain: .85, // m／比：湿土の斑・落藁混色・条間と根の明暗・草の先と根の明度。
+  wallTint: [.94,.98,1.06], // 線形RGB倍率：壁の陰を青みの灰茶へ寄せる。
+  shadowLength: 2.2, flatShadowLength: .6, shadowGain: .50, shadowSoft: .35, wallShade: .60, // m／比：段／平畦の南影の長さ・日なた比・ぼかし幅・壁の陰。
+  shadowSearch: 6, shadowIterations: 12, // m／回：曲がる段の北縁を探す範囲と二分探索の精度。
   phaseRange: 256, phaseOffset: 128, // m：条の座標テクスチャの符号化範囲と原点。
   rowGradient: .1, rowPeriod: 1.05, rowStrength: .06, cutRowStrength: .10, // m/m／m／比：条の高さ方向換算・周期・立稲と刈田の筋。
   groundWaveDirection: [Math.SQRT1_2, Math.SQRT1_2], // 単位方向：地色を渡る風。波長を斜め方向でもm単位に保つ。
@@ -143,6 +165,25 @@ export function paddyAt(plots,x,z) {
   const bund=(!hasDrop&&flatBoundary)||(!p.outerLeft&&x-splitX(p,z)<PADDY.bundWidth/2)||(!p.outerRight&&splitX(p,z,true)-x<PADDY.bundWidth/2)||(hasDrop&&(frac<PADDY.bundEdgeFraction||frac>field.edge-PADDY.bundEdgeFraction));
   return {plot:p,bund:bund||riser||!flat,riser,frac,mask,cultivated:flat&&!riser,
     rowPhase:f*T.drop/PADDY_LOOK.rowGradient,cut:p.kind==='harvested'||(p.kind==='partial'&&frac<field.edge/2)};
+}
+// 最寄りの北側の境から南への距離。地形の連続した段座標を使い、画角に依存しない。
+export function paddyShadowAt(plots, x, z) {
+  const field = plots.field, f = field.value(x,z), level = Math.floor(f);
+  if (!plots.bands.some(b => b.level === level)) return 1;
+  const e = field.step, gradient = (field.value(x,z-e)-field.value(x,z+e))/(2*e);
+  if (gradient <= 0) return 1;
+  const raised = level >= 0, iso = level + (raised ? (1+field.edge)/2 : 1);
+  if(f>iso||field.value(x,z-PADDY_LOOK.shadowSearch)<iso)return 1;
+  let north=z-PADDY_LOOK.shadowSearch,south=z;
+  for(let i=0;i<PADDY_LOOK.shadowIterations;i++){const mid=(north+south)/2;if(field.value(x,mid)>iso)north=mid;else south=mid;}
+  const boundary=(north+south)/2;
+  const gz=(field.value(x,boundary-e)-field.value(x,boundary+e))/(2*e),gx=(field.value(x+e,boundary)-field.value(x-e,boundary))/(2*e);
+  const nz=gz/(Math.hypot(gx,gz)||1);
+  if(nz<=0)return 1;
+  const distance = z-boundary-(raised ? PADDY.stoneBandWidth/2 : PADDY.bundWidth/2)/nz;
+  const length = raised ? PADDY_LOOK.shadowLength : PADDY_LOOK.flatShadowLength;
+  if (distance < 0 || distance > length+PADDY_LOOK.shadowSoft) return 1;
+  return PADDY_LOOK.shadowGain + (1-PADDY_LOOK.shadowGain)*smooth(length,length+PADDY_LOOK.shadowSoft,distance);
 }
 // Marching squares：各セルの辺の交点を繋ぐ。位置ハッシュによる配置と同じく再現可能。
 function terraceLines(plots) {
@@ -267,8 +308,15 @@ export function createPaddyLayout(world, terrain) {
   fillRows(PADDY.rowSpacing*PADDY_LOOK.rowGradient,PADDY.farStep,PADDY.rowJitter,(x,z,s,row)=>{if(!s.cut)far.push({x,z,y:paddyGroundHeight(terrain,x,z),plot:s.plot.id,row,rank:hash(world.seed+3,x,z),height:s.plot.height});});
   fillRows(PADDY.stubbleStep*PADDY_LOOK.rowGradient,PADDY.stubblePitch,0,(x,z,s,row)=>{if(s.cut)stubble.push({x,z,y:paddyGroundHeight(terrain,x,z),plot:s.plot.id,row,alongX:true,height:PADDY.stubbleHeight*(.8+.4*hash(world.seed+12,x,z))});});
   for(const b of bunds)for(let i=0,count=Math.ceil(b.sx*PADDY.bundGrassDensity);i<count;i++) {
-    const t=(i+.5)/count,x=b.a.x+(b.b.x-b.a.x)*t,z=b.a.z+(b.b.z-b.a.z)*t;
-    grass.push({x,z,y:b.y0+t*(b.y1-b.y0)+PADDY.bundHeight+paddyBundLift(x,z),height:PADDY.grassMin+(PADDY.grassMax-PADDY.grassMin)*hash(world.seed+13,x,z)});
+    const t=(i+.5+(hash(world.seed+14,b.x+i,b.z)-.5)*PADDY.grassAlongJitter)/count;
+    const across=(hash(world.seed+15,b.x+i,b.z)*2-1)*PADDY.grassShoulder;
+    const x=b.a.x+(b.b.x-b.a.x)*t-(b.b.z-b.a.z)/b.sx*across*b.sz,z=b.a.z+(b.b.z-b.a.z)*t+(b.b.x-b.a.x)/b.sx*across*b.sz;
+    grass.push({x,z,y:b.y0+t*(b.y1-b.y0)+paddyBundSection(across+.5,x,z),height:PADDY.grassMin+(PADDY.grassMax-PADDY.grassMin)*hash(world.seed+13,x,z),wind:true,grass:true,rank:hash(world.seed+17,x,z)});
+  }
+  for(const b of bunds)if(hash(world.seed+24,b.x,b.z)<PADDY.shoulderStoneChance) {
+    const x=b.x-(b.b.z-b.a.z)/b.sx*b.sz*PADDY.grassShoulder,z=b.z+(b.b.x-b.a.x)/b.sx*b.sz*PADDY.grassShoulder;
+    const height=PADDY.stoneHeightMin,y=b.y+paddyBundSection(.5+PADDY.grassShoulder,x,z);
+    stones.push({x,z,y,top:y+height/2,bottom:y-height/2,height,width:PADDY.stoneMin,depth:PADDY.stoneDepthMin,tilt:0,turn:hash(world.seed+25,x,z)*Math.PI,shade:1,layer:0,layers:1,shoulder:true});
   }
   const rackQuota=Math.ceil(PADDY.rackCount/plots.filter(p=>p.kind==='harvested').length);
   // 小物の全ての足が同じ踏み面に収まることを確認。道・任務・巡回の余白は元の判定を使う。
@@ -286,7 +334,8 @@ export function createPaddyLayout(world, terrain) {
     if(cluster.length===4)straw.push(...cluster);
   }
   far.sort((a,b)=>a.rank-b.rank);
-  return {bounds:T,plots,lines,stones,walls,bunds,far,stubble,grass,racks,straw,stoneLength,contourLength,terraces:plots.bands.length,raisedBoundaries:[...boundaries.values()].filter(Boolean).length,flatBoundaries:[...boundaries.values()].filter(v=>!v).length,maxPlotArea:Math.max(...plots.map(p=>p.area)),stoneBandVertices:walls.length*18};
+  const rice=far.map(s=>({...s,height:PADDY.riceHeight*s.height,wind:true,rice:true,turn:hash(world.seed+18,s.x,s.z)*Math.PI*2}));
+  return {bounds:T,plots,lines,stones,walls,bunds,far,rice,stubble,grass,racks,straw,stoneLength,contourLength,terraces:plots.bands.length,raisedBoundaries:[...boundaries.values()].filter(Boolean).length,flatBoundaries:[...boundaries.values()].filter(v=>!v).length,maxPlotArea:Math.max(...plots.map(p=>p.area)),stoneBandVertices:walls.length*18};
 }
 export function paddyNearRice(data, plots) {
   const out = { x: [], y: [], z: [], s: [], rot: [], tint: [] }, plotKinds = [];

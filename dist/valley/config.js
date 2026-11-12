@@ -63,6 +63,23 @@ export const GRASS = Object.freeze({
 
 // Tree species are derived; legacy placement and collision keep using kind.
 export const TREES = Object.freeze({
+  forest3: Object.freeze({
+    // 実際の画面（見渡し）で見て直した。はじめは、120m の升目ごとに半径 27〜35m の開地を 1 つ置き、開地 19%・疎林 33% だった。
+    // 斜面に、同じ大きさの丸い面が水玉のように並び、深い森の谷でなく「木のかたまりが点在する丘」に見えた。開地は、升目の一部
+    // （openChance）にだけ・小さく・細長く・中心を大きく散らして置く。森の大半は、密な森のままにする。
+    largeWave: 105, smallWave: 35, smallWeight: .3, seed: 53401, openChance: .5, // m・比率・seed・升目に開地を置く割合：大きな塊と縁の細かなむら。
+    radius: [13, 22], stretch: [.55, 1.7], jitter: .38, warp: 14, far: 9, // m・比率・比率・m・半径比：開地の半径、縦横比、中心の散らし、歪み、開地の無い所の値。
+    ridgeBias: .18, valleyBias: .12, ridgeFrequency: .0055, shoulderRange: [.75, 1, 1.5], // 半径比・半径比・1/m・谷半径比：尾根と谷の両肩へ密林を寄せる量と測定範囲。
+    openLimit: 1, denseLimit: 1.95, centreLimit: 3.4, // 半径比：開地／疎林／密林と、丈が最大になる中心。
+    spacing: .82, sparseKeep: .5, maxCount: .95, protectedGuard: 8, // 旧間隔の倍率・旧密度の比・旧本数の上限・m：保護木との干渉を調べる帯（最大樹冠半径の和以上）。
+    groupWave: 90, groupHeight: [.8, 1.35], edgeHeight: .72, centreHeight: 1.22, // m・倍率：塊ごとの丈と、縁から中心への丈。
+    sparseHeight: [.55, .9], heightJitter: .09, // 倍率・±比率：疎林の丈、密林の個体差。
+    groupBrightness: .10, groupHue: .06, sparsePine: .14, groveDense: .8, groveSparse: 1.5, // ±比率・比率・倍率：塊の色差、疎林の松、密林の紅葉、疎林の群れの広がり。
+    toneWave: 29, leafBrightness: .10, leafHue: .06, // m・±比率：保護域の紅葉の色の場と個体差。
+    mapHalf: 640, mapStep: 8, rockSlope: 43, grassSlope: [36, 52], // m・m・度・度：面積と開地の連結数を測る格子、露岩、枯れ草から岩への区間。
+    grass: '#c2a040', grassShade: '#6b6a35', grassMix: .34, // 既存の欅の黄と里の草から作る秋の枯れ草（.62 では、日なたの開地が金色の面として目立ちすぎた）。
+    debug: ['#164b28', '#a3bc45', '#e1c638', '#808080'], // 密林・疎林・開地・露岩。
+  }),
   forest2: Object.freeze({
     margin: 12, // m: bounds の外側もこの幅までは従来の木を保護する。
     cell: 100, radius: Object.freeze([25, 35]), jitter: .24, edge: .14, // m・比率: 群れの間隔、半径、中心のずれ、縁のまだら。
