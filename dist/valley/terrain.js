@@ -2,6 +2,8 @@
 // 高さ・路面の重みは terrain-height.js（純関数）から取る。近景と遠景は縁で縫合して、継ぎ目に割れを出さない。
 import * as THREE from 'three';
 import { smooth, fbm } from './terrain-height.js';
+import { WORLD } from './world-data.js';
+import { paddyAt, paddyOptions, createPaddyPlots, PADDY_LOOK, PADDY_DEBUG } from './paddy.js';
 
 const LAYERS = ['grass', 'dirt', 'rock', 'gravel', 'mud', 'litter'];
 // 1回繰り返しあたりのメートル数
@@ -9,6 +11,24 @@ const TILE = { grass: 2.8, dirt: 2.4, rock: 4.2, gravel: 2.0, mud: 2.6, litter: 
 const NEAR = { x0: -152, x1: 192, z0: -152, z1: 136, step: 1 };
 const FAR = { half: 640, step: 8 };
 const SIZE = 1024;
+
+const riceColor = () => new THREE.Color(PADDY_LOOK.tintA).lerp(new THREE.Color(PADDY_LOOK.tintB), .5).multiply(new THREE.Color().setRGB(...PADDY_LOOK.tip));
+export function paddyGroundMap(world, terrain, debug = false) {
+  const T = world.terraces, plots = createPaddyPlots(world), step = PADDY_LOOK.mapStep;
+  const nx = Math.ceil((T.x1 - T.x0) / step), nz = Math.ceil((T.z1 - T.z0) / step), data = new Uint8Array(nx * nz * 4);
+  let covered = 0, eligible = 0;
+  for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) {
+    const x = T.x0 + (i + .5) * step, z = T.z0 + (j + .5) * step, s = paddyAt(plots, x, z), road = terrain.roadInfo(x, z);
+    if (!s || (road && road.dist <= step / Math.SQRT2)) continue;
+    eligible++;
+    const color = debug ? new THREE.Color(PADDY_DEBUG[s.bund ? 'bund' : s.plot.kind]) : s.bund ? new THREE.Color(PADDY_LOOK.grass) : riceColor().multiplyScalar(PADDY_LOOK.groundGain * s.plot.tint * (s.cut ? PADDY_LOOK.cutGain : 1));
+    const k = (j * nx + i) * 4;
+    data[k] = Math.round(color.r * 255); data[k + 1] = Math.round(color.g * 255); data[k + 2] = Math.round(color.b * 255); data[k + 3] = 255;
+    if (!s.bund) covered++;
+  }
+  return { data, nx, nz, x0: T.x0, z0: T.z0, width: nx * step, depth: nz * step, coverage: covered / eligible };
+}
+
 
 async function decode(url) {
   const blob = await (await fetch(url)).blob();
@@ -156,7 +176,7 @@ function gridNormals(heights, nx, nz, step) {
   return n;
 }
 
-export function buildTerrain({ terrain, textures, quality = 'standard' }) {
+export function buildTerrain({ terrain, textures, quality = 'standard', search = globalThis.location?.search || '' }) {
   const t0 = performance.now();
   const { x0, x1, z0, z1, step } = NEAR;
   const nx = Math.round((x1 - x0) / step) + 1, nz = Math.round((z1 - z0) / step) + 1;
@@ -274,6 +294,30 @@ export function buildTerrain({ terrain, textures, quality = 'standard' }) {
     coverStats = { nx, nz, mean: sum / data.length / 255, max: max / 255 };
   };
   const material = terrainMaterial(textures, quality, coverUniforms);
+  const paddy = paddyOptions(search);
+  let paddyCoverage = 0;
+  if (paddy.enabled) {
+    const map = paddyGroundMap(WORLD, terrain, paddy.debug); paddyCoverage = map.coverage;
+    const texture = new THREE.DataTexture(map.data, map.nx, map.nz, THREE.RGBAFormat, THREE.UnsignedByteType);
+    texture.magFilter = texture.minFilter = THREE.NearestFilter; texture.generateMipmaps = false; texture.needsUpdate = true;
+    const before = material.onBeforeCompile;
+    material.onBeforeCompile = shader => {
+      before(shader);
+      shader.uniforms.uPaddyGround = { value: texture };
+      shader.fragmentShader = shader.fragmentShader
+        .replace('#include <common>', `#include <common>
+ uniform sampler2D uPaddyGround;`)
+        .replace('diffuseColor.rgb *= albedo;', `
+          vec2 paddyUV = (vWorldPos.xz-vec2(${map.x0.toFixed(1)},${map.z0.toFixed(1)}))/vec2(${map.width.toFixed(1)},${map.depth.toFixed(1)});
+          vec4 paddyGround = texture2D(uPaddyGround,paddyUV);
+          if (any(lessThan(paddyUV,vec2(0.0))) || any(greaterThanEqual(paddyUV,vec2(1.0)))) paddyGround.a=0.0;
+          albedo = mix(albedo,paddyGround.rgb,paddyGround.a);
+          diffuseColor.rgb *= albedo;`);
+      if (paddy.debug) shader.fragmentShader = shader.fragmentShader.replace('#include <opaque_fragment>', 'if(paddyGround.a > 0.5) outgoingLight = paddyGround.rgb;\n #include <opaque_fragment>');
+    };
+    material.customProgramCacheKey = () => 'valley-terrain-paddy';
+    material.addEventListener('dispose', () => texture.dispose());
+  }
   material.addEventListener('dispose', () => coverUniforms.uCover.value.dispose());
   const near = new THREE.Mesh(nearGeo, material); near.name = 'terrain-near'; near.receiveShadow = true; near.castShadow = false;
   const far = new THREE.Mesh(farGeo, material); far.name = 'terrain-far'; far.receiveShadow = false;
@@ -281,5 +325,5 @@ export function buildTerrain({ terrain, textures, quality = 'standard' }) {
   const group = new THREE.Group(); group.name = 'terrain'; group.add(far, near);
   // 品質の切り替え（軽量は細かい法線の凹凸を読まない）
   const setQuality = q => { const u = material.userData.uDetailU; if (u) u.value = q === 'light' ? 0 : 1; };
-  return { group, near, far, material, setQuality, setMeadowCover, meadowCover: () => ({ ...coverStats }), buildMs: performance.now() - t0, stats: { nearVertices: nx * nz, farVertices: fn * fn } };
+  return { group, near, far, material, setQuality, setMeadowCover, paddyCoverage: () => paddyCoverage, meadowCover: () => ({ ...coverStats }), buildMs: performance.now() - t0, stats: { nearVertices: nx * nz, farVertices: fn * fn } };
 }
