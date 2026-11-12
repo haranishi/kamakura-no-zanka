@@ -22,12 +22,16 @@ export const SKY = Object.freeze({
   // 高さ 7.5 度では、谷を囲む山の縁（日の方向で約 14.65 度）に隠れて、谷のどこからも夕日が見えなかった。縁のすぐ上へ上げた。
   bearingDeg: 55, elevationDeg: 15.5, sunColor: '#ffca85', // 北東の山の端にかかる、金橙色の日。
   hemiIntensity: 1.12, fillIntensity: 0.58, // 逆光の地面・人物を支える照度。
+  horizon: '#ff9050', mid: '#d59a9c', zenith: '#4d568c', // 谷専用：金橙・珊瑚桃・青紫。lkのhorc/midc/zencで上書き。
+  rimDeg: 15, lowTopDeg: 18, midTopDeg: 45, // 山の縁の仰角、縁からの低い帯／中間帯の上端(度)。
+  sunSideDeg: 50, sunFadeDeg: 90, goldMix: 0.48, backGain: 0.72, // 暖色が満ちる／消える方位差(度)、日の色の混合率、反対側の明るさ。
   cloudAmount: 0.72, cloudLow: 0.40, cloudHigh: 0.75, // 被覆率と連続した雲の閾値。
   cloudSpeed: 0.002, cloudScale: 2.2, // 投影座標/秒、雲塊の尺度。
   cloudShadeMix: 0.32, cloudShadeGain: 0.65, cloudWarmGain: 1.05, // 既存の天頂・中間・地平色から雲色を作る。
-  cloudVioletMix: 0.65, skyVioletMix: 0.20, // 既存の青成分を赤へ混ぜる割合。雲と太陽から遠い空を青紫へ。
-  rimGain: 0.65, undersideGain: 0.30, // 太陽側の縁と雲の下面の暖色量。
-  haloGain: 0.55, discGain: 18, discRadiusDeg: 0.40, // にじみ、円盤の輝度、見かけの半径。
+  cloudVioletMix: 0.65, cloudWarmFullDeg: 45, cloudWarmEndDeg: 90, // 雲の紫の混合率、暖色が最大／消える方位差(度)。
+  rimGain: 0.95, undersideGain: 0.78, undersideLowDeg: 8, undersideHighDeg: 38, // 縁／下面の暖色量、下面が光る仰角の範囲(度)。
+  haloRadiusDeg: 26, haloGain: 0.65, coreRadiusDeg: 4, coreGain: 0.35, // 広いにじみ／円盤の近傍の半径(度)と線形輝度。
+  discGain: 2.4, discRadiusDeg: 0.40, discSoftDeg: 0.06, radianceMax: 3.0, // 円盤の線形輝度・半径／縁の幅(度)、空の各成分の上限。
   dither: 1 / 255, // 最終出力の階調雑音幅（片側はこの半分）。
 });
 const search = () => typeof location === 'undefined' ? '' : location.search;
@@ -37,6 +41,7 @@ export function valleyAtmosphere(searchValue = '') {
   return { ...LEGACY_ATMOS, mist: { ...LEGACY_ATMOS.mist },
     sunDir: old ? LEGACY_ATMOS.sunDir.clone() : new THREE.Vector3(Math.sin(bearing) * Math.cos(elevation), Math.sin(elevation), -Math.cos(bearing) * Math.cos(elevation)),
     ...(!old ? { sunColor: SKY.sunColor, hemiIntensity: SKY.hemiIntensity, fillIntensity: SKY.fillIntensity } : {}),
+    ...(!old && q.get('sky2') !== '0' ? { horizon: SKY.horizon, mid: SKY.mid, zenith: SKY.zenith } : {}),
     sky2: q.get('sky2') !== '0', skyDebug: q.get('sky2debug') === '1', mist2: q.get('mist2') !== '0',
   };
 }
@@ -162,35 +167,87 @@ export function legacySkyMaterial(a, time) {
   });
 }
 
-// 単調な暖色量。Node の標本検査とシェーダーで同じ式を使う。
-export function cloudWarmth(sunDot) { return Math.pow(Math.max(0, Math.min(1, sunDot)), 4); }
+const smooth = (a, b, x) => { const t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+const cosDeg = angle => Math.cos(angle * Math.PI / 180);
+// 以下のスカラー式はGLSLの同名関数と照合する。角度は度、azimuthDotは水平な方位の内積。
+export function skyChannel(horizon, mid, zenith, sunColor, elevation, azimuthDot) {
+  const altitude = Math.max(0, elevation - SKY.rimDeg);
+  const low = smooth(0, SKY.lowTopDeg, altitude), high = smooth(SKY.lowTopDeg, SKY.midTopDeg, altitude);
+  const side = smooth(cosDeg(SKY.sunFadeDeg), cosDeg(SKY.sunSideDeg), azimuthDot);
+  const gold = horizon + (sunColor - horizon) * SKY.goldMix * side;
+  const front = gold + (mid - gold) * low;
+  const back = mid * SKY.backGain;
+  const lower = back + (front - back) * side;
+  return lower + (zenith - lower) * high;
+}
+export function cloudWarmth(azimuthDot) { return smooth(cosDeg(SKY.cloudWarmEndDeg), cosDeg(SKY.cloudWarmFullDeg), azimuthDot); }
+export function sunGlow(sunDot) {
+  const wide = smooth(cosDeg(SKY.haloRadiusDeg), 1, sunDot);
+  const core = smooth(cosDeg(SKY.coreRadiusDeg), 1, sunDot);
+  return wide * wide * SKY.haloGain + core * SKY.coreGain;
+}
+export function sunDisc(sunDot) { return smooth(cosDeg(SKY.discRadiusDeg + SKY.discSoftDeg), cosDeg(SKY.discRadiusDeg), sunDot) * SKY.discGain; }
+export function skyRadiance(base, sunColor, sunDot, discVisibility = 1) { return Math.min(SKY.radianceMax, Math.max(0, base + sunColor * (sunGlow(sunDot) + sunDisc(sunDot) * discVisibility))); }
+
+const f = n => n.toFixed(15);
+export const SUNSET_GLSL = `
+  float skyChannel(float horizon, float mid, float zenith, float sunColor, float elevation, float azimuthDot) {
+    float altitude = max(0.0, elevation - ${f(SKY.rimDeg)});
+    float low = smoothstep(0.0, ${f(SKY.lowTopDeg)}, altitude), high = smoothstep(${f(SKY.lowTopDeg)}, ${f(SKY.midTopDeg)}, altitude);
+    float side = smoothstep(${f(cosDeg(SKY.sunFadeDeg))}, ${f(cosDeg(SKY.sunSideDeg))}, azimuthDot);
+    float gold = horizon + (sunColor - horizon) * ${f(SKY.goldMix)} * side;
+    float front = gold + (mid - gold) * low;
+    float back = mid * ${f(SKY.backGain)};
+    float lower = back + (front - back) * side;
+    return lower + (zenith - lower) * high;
+  }
+  float cloudWarmth(float azimuthDot) { return smoothstep(${f(cosDeg(SKY.cloudWarmEndDeg))}, ${f(cosDeg(SKY.cloudWarmFullDeg))}, azimuthDot); }
+  float sunGlow(float sunDot) {
+    float wide = smoothstep(${f(cosDeg(SKY.haloRadiusDeg))}, 1.0, sunDot);
+    float core = smoothstep(${f(cosDeg(SKY.coreRadiusDeg))}, 1.0, sunDot);
+    return wide * wide * ${f(SKY.haloGain)} + core * ${f(SKY.coreGain)};
+  }
+  float sunDisc(float sunDot) { return smoothstep(${f(cosDeg(SKY.discRadiusDeg + SKY.discSoftDeg))}, ${f(cosDeg(SKY.discRadiusDeg))}, sunDot) * ${f(SKY.discGain)}; }
+  float skyRadiance(float base, float sunColor, float sunDot, float discVisibility) { return min(${f(SKY.radianceMax)}, max(0.0, base + sunColor * (sunGlow(sunDot) + sunDisc(sunDot) * discVisibility))); }
+`;
 export function skyMaterial(a, time) {
   if (!a.sky2) return legacySkyMaterial(a, time);
+  // 色はmainのlk適用後にuniformへ読む。旧い空の地平線の霞でhorizonを上書きしない。
   const m = legacySkyMaterial(a, time), C = SKY;
-  const f = n => n.toFixed(8);
-  const begin = m.fragmentShader.indexOf('        // 薄い雲');
-  const end = m.fragmentShader.indexOf('        // 地平線は霧', begin);
-  if (begin < 0 || end < begin) throw new Error('Sky cloud anchors missing');
-  m.fragmentShader = m.fragmentShader.slice(0, begin) + `
-        vec2 cp = d.xz / (max(h, 0.0) + 0.18) * ${f(C.cloudScale)} + vec2(uTime * ${f(C.cloudSpeed)}, 0.0);
-        float c = fbm(cp);
-        float cover = smoothstep(${f(C.cloudLow)}, ${f(C.cloudHigh)}, c) * smoothstep(0.015, 0.12, h) * (1.0 - smoothstep(0.65, 1.0, h));
-        float warm = pow(sd, 4.0);
-        float edge = 1.0 - smoothstep(${f(C.cloudLow)}, ${f(C.cloudHigh)}, c);
-        float underside = 1.0 - smoothstep(0.08, 0.42, h);
-        vec3 shade = mix(zenith, mid, ${f(C.cloudShadeMix)}) * ${f(C.cloudShadeGain)};
-        shade.r = mix(shade.r, shade.b, ${f(C.cloudVioletMix)});
-        vec3 lit = mix(horizon, sunColor, warm) * ${f(C.cloudWarmGain)};
-        vec3 cloudCol = mix(shade, lit, warm * clamp(edge * ${f(C.rimGain)} + underside * ${f(C.undersideGain)}, 0.0, 1.0));
-        col = mix(col, cloudCol, cover * ${f(C.cloudAmount)});
-        ${a.skyDebug ? 'col = mix(vec3(0.12, 0.05, 0.4), vec3(1.0, 0.35, 0.0), cover);' : ''}
-  ` + m.fragmentShader.slice(end);
-  m.fragmentShader = m.fragmentShader
-    .replace('float sd = max(dot(d, normalize(sunDir)), 0.0);', `float sd = max(dot(d, normalize(sunDir)), 0.0);
-        col.r = mix(col.r, col.b, ${f(C.skyVioletMix)} * (1.0 - pow(sd, 4.0)));`)
-    .replace('pow(sd, 40.0) * 0.55', `pow(sd, 40.0) * ${f(C.haloGain)}`)
-    .replace('22.0 * smoothstep(0.99965, 0.9999, sd)', `${f(C.discGain)} * smoothstep(${f(Math.cos((C.discRadiusDeg + 0.06) * Math.PI / 180))}, ${f(Math.cos(C.discRadiusDeg * Math.PI / 180))}, sd)`)
-    .replace('(hash(gl_FragCoord.xy) - 0.5) / 255.0', `(hash(gl_FragCoord.xy) - 0.5) * ${f(C.dither)}`);
+  m.fragmentShader = `
+    varying vec3 vDir; uniform vec3 sunDir, sunColor, zenith, mid, horizon, below, fogColor; uniform float uTime;
+    ${SUNSET_GLSL}
+    float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+    float noise(vec2 p){ vec2 i = floor(p), f = fract(p); f = f*f*(3.0-2.0*f);
+      return mix(mix(hash(i), hash(i+vec2(1.,0.)), f.x), mix(hash(i+vec2(0.,1.)), hash(i+vec2(1.)), f.x), f.y); }
+    float fbm(vec2 p){ return noise(p)*0.5 + noise(p*2.07+3.1)*0.28 + noise(p*4.3-7.7)*0.16 + noise(p*8.9+1.9)*0.06; }
+    void main(){
+      vec3 d = normalize(vDir);
+      float h = d.y, elevation = degrees(asin(clamp(h, -1.0, 1.0)));
+      float azimuthDot = dot(normalize(d.xz + vec2(1e-5)), normalize(sunDir.xz));
+      float sd = dot(d, normalize(sunDir));
+      vec3 col = vec3(skyChannel(horizon.r, mid.r, zenith.r, sunColor.r, elevation, azimuthDot),
+        skyChannel(horizon.g, mid.g, zenith.g, sunColor.g, elevation, azimuthDot),
+        skyChannel(horizon.b, mid.b, zenith.b, sunColor.b, elevation, azimuthDot));
+      col = mix(below, col, smoothstep(-0.18, 0.0, h));
+      vec2 cp = d.xz / (max(h, 0.0) + 0.18) * ${f(C.cloudScale)} + vec2(uTime * ${f(C.cloudSpeed)}, 0.0);
+      float c = fbm(cp);
+      float cover = smoothstep(${f(C.cloudLow)}, ${f(C.cloudHigh)}, c) * smoothstep(0.015, 0.12, h) * (1.0 - smoothstep(0.65, 1.0, h));
+      float warm = cloudWarmth(azimuthDot);
+      float edge = 1.0 - smoothstep(${f(C.cloudLow)}, ${f(C.cloudHigh)}, c);
+      float underside = 1.0 - smoothstep(${f(C.undersideLowDeg)}, ${f(C.undersideHighDeg)}, elevation);
+      vec3 shade = mix(zenith, mid, ${f(C.cloudShadeMix)}) * ${f(C.cloudShadeGain)};
+      shade.r = mix(shade.r, shade.b, ${f(C.cloudVioletMix)});
+      vec3 lit = mix(horizon, sunColor, warm) * ${f(C.cloudWarmGain)};
+      vec3 cloudCol = mix(shade, lit, warm * clamp(edge * ${f(C.rimGain)} + underside * ${f(C.undersideGain)}, 0.0, 1.0));
+      col = mix(col, cloudCol, cover * ${f(C.cloudAmount)});
+      // 大きなにじみは雲の後にも届く。円盤は雲で薄まり、HDRの上限で白い塊を防ぐ。
+      float discVisibility = 1.0 - cover * ${f(C.cloudAmount)};
+      col = vec3(skyRadiance(col.r, sunColor.r, sd, discVisibility), skyRadiance(col.g, sunColor.g, sd, discVisibility), skyRadiance(col.b, sunColor.b, sd, discVisibility));
+      ${a.skyDebug ? 'col = mix(vec3(0.12, 0.05, 0.4), vec3(1.0, 0.35, 0.0), cover);' : ''}
+      col += (hash(gl_FragCoord.xy) - 0.5) * ${f(C.dither)};
+      gl_FragColor = vec4(col, 1.0);
+    }`;
   return m;
 }
 

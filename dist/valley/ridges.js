@@ -19,9 +19,10 @@ export const RIDGES = Object.freeze({
   ]),
 });
 export const MIST = Object.freeze({
-  height: 3.5, thickness: 11, width: 110, // 地形からの高さ・縦厚・横幅(m)。
-  farThickness: 42, farOffset: 24, // 山の段間の厚み・麓からの高さ(m)。
-  opacity: 0.30, near: 24, far: 100, // 不透明度上限・接近時の消失距離(m)。
+  height: 3.5, thickness: 16, width: 110, depth: 44, // 地形からの高さ・縦厚・横幅・奥行き(m)。
+  farThickness: 180, farOffset: 24, // 段間の厚み・稜線の投影から帯の中心までの差(m)。裾を厚く隠す。
+  opacity: 0.48, opacityMax: 0.5, densityFloor: 0.55, near: 24, far: 100, // 不透明度・上限・斑の最低密度、接近時の消失距離(m)。
+  coolLift: 0.70, warmMix: 0.48, warmEndDeg: 90, warmFullDeg: 40, villageFade: 1.45, // 青白の持上げ／桃色の混合率、暖色の方位差(度)、里の保護域の倍率。
   speed: 0.7, scale: 0.018, breakup: 0.35, // 流速(m/s)・斑の尺度(1/m)・端の欠け。
   segments: 64, rows: 4, basinStep: 32, // 帯の分割数、くぼ地を探す格子(m)。
 });
@@ -126,6 +127,15 @@ function mountainMesh(center) {
   }));
   m.name = 'ridge-layers'; m.frustumCulled = false; m.renderOrder = -5; return m;
 }
+const village = WORLD.flats.find(flat => flat.id === 'village');
+export function mistVillageFade(x, z) {
+  const dx = x - village.x, dz = z - village.z, c = Math.cos(village.rot), s = Math.sin(village.rot);
+  return smooth(1, MIST.villageFade, Math.max(Math.abs(c * dx + s * dz) / village.hx, Math.abs(-s * dx + c * dz) / village.hz));
+}
+export function mistOpacity(shape, edge, noise, distance, x, z) {
+  const density = MIST.densityFloor + (1 - MIST.densityFloor) * smooth(MIST.breakup, 0.78, noise);
+  return Math.max(0, Math.min(MIST.opacityMax, shape * edge * density * mistNearFade(distance) * MIST.opacity * mistVillageFade(x, z)));
+}
 export const MIST_VERTEX = `attribute vec2 bandUv;varying vec2 vUv;varying vec3 vWorld;
   void main(){vUv=bandUv;vWorld=position;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}`;
 export const MIST_FRAGMENT = `uniform vec3 cool,warm,sun;uniform float clock,debug;
@@ -141,15 +151,19 @@ export const MIST_FRAGMENT = `uniform vec3 cool,warm,sun;uniform float clock,deb
     float top=.65+noise(p*.7+7.0)*.35;
     float shape=smoothstep(0.0,.28,vUv.y)*(1.0-smoothstep(top-.25,top,vUv.y));
     float edge=smoothstep(0.0,.18,vUv.x)*(1.0-smoothstep(.82,1.0,vUv.x));
-    float alpha=clamp(shape*edge*smoothstep(${MIST.breakup.toFixed(3)},.78,n)*fade*${MIST.opacity.toFixed(3)},0.0,.5);
+    float density=${MIST.densityFloor.toFixed(3)}+(1.0-${MIST.densityFloor.toFixed(3)})*smoothstep(${MIST.breakup.toFixed(3)},.78,n);
+    vec2 localP=vWorld.xz-vec2(${village.x.toFixed(3)},${village.z.toFixed(3)});
+    localP=mat2(${Math.cos(village.rot).toFixed(5)},${(-Math.sin(village.rot)).toFixed(5)},${Math.sin(village.rot).toFixed(5)},${Math.cos(village.rot).toFixed(5)})*localP;
+    float villageMask=smoothstep(1.0,${MIST.villageFade.toFixed(3)},max(abs(localP.x)/${village.hx.toFixed(3)},abs(localP.y)/${village.hz.toFixed(3)}));
+    float alpha=clamp(shape*edge*density*fade*${MIST.opacity.toFixed(3)}*villageMask,0.0,${MIST.opacityMax.toFixed(3)});
     vec3 direction=normalize(vWorld-cameraPosition);
-    float facing=pow(max(0.0,dot(direction,sun)),6.5);
+    float facing=smoothstep(${Math.cos(MIST.warmEndDeg * Math.PI / 180).toFixed(5)},${Math.cos(MIST.warmFullDeg * Math.PI / 180).toFixed(5)},dot(normalize(direction.xz),normalize(sun.xz)));
     vec3 c=mix(cool,warm,facing);
     if(debug>.5)c=vec3(0.0,1.0,1.0);
     gl_FragColor=vec4(c,alpha);
   }`;
 function mistMesh(sites, center) {
-  const pos = [], uv = [], idx = [];
+  const pos = [], uv = [], idx = [], ridgeVertices = [];
   const bands = [];
   for (let l = 0; l < RIDGES.layers.length - 1; l++) {
     const layer = RIDGES.layers[l];
@@ -166,7 +180,11 @@ function mistMesh(sites, center) {
       const z = band.kind === 'ridge' ? center[1] + Math.sin(angle) * band.radius : band.z + Math.sin(u * Math.PI * 2) * MIST.thickness;
       for (let k = 0; k <= MIST.rows; k++) { const v = k / MIST.rows;
         const base = band.kind === 'ridge' ? ridgeHeight(band.layer, angle) * band.radius / band.layer.radius + MIST.farOffset : band.y;
-        pos.push(x, base + (v - .4) * band.thickness * (.85 + .15 * Math.sin(u * Math.PI * 6)), z); uv.push(u, v);
+        // 近い帯は奥行きのある低い弧にする。垂直な幕は上から見ると消えた。
+        const swell = .85 + .15 * Math.sin(u * Math.PI * 6);
+        const y = base + (band.kind === 'ridge' ? (v - .4) : Math.sin(v * Math.PI)) * band.thickness * swell;
+        if (band.kind === 'ridge') ridgeVertices.push({ index: pos.length / 3, band, angle, offset: y - base });
+        pos.push(x, y, band.kind === 'ridge' ? z : z + (v - .5) * MIST.depth); uv.push(u, v);
       }
     }
     for (let i = 0; i < MIST.segments; i++) for (let k = 0; k < MIST.rows; k++) {
@@ -179,7 +197,7 @@ function mistMesh(sites, center) {
     uniforms: { cool: { value: new THREE.Color() }, warm: { value: new THREE.Color() }, sun: { value: new THREE.Vector3() }, clock: { value: 0 }, debug: { value: 0 } },
     vertexShader: MIST_VERTEX, fragmentShader: MIST_FRAGMENT,
   }));
-  m.name = 'valley-mist'; m.frustumCulled = false; return { mesh: m, bands, indices: g.index.array.slice() };
+  m.name = 'valley-mist'; m.frustumCulled = false; return { mesh: m, bands, ridgeVertices, indices: g.index.array.slice() };
 }
 export function buildRidges({ center = [WORLD.valley.cx, WORLD.valley.cz], search = typeof location === 'undefined' ? '' : location.search } = {}) {
   const q = new URLSearchParams(search), old = q.get('ridges2') === '0', mistEnabled = q.get('mist2') !== '0';
@@ -204,6 +222,12 @@ export function buildRidges({ center = [WORLD.valley.cx, WORLD.valley.cz], searc
       mountains.material.uniforms.debug.value = +(q.get('ridges2debug') === '1');
     }
     if (mist) {
+      const p = mist.mesh.geometry.attributes.position;
+      for (const vertex of mist.ridgeVertices) {
+        const { band, angle, offset } = vertex;
+        p.setY(vertex.index, ridgeHeight(band.layer, angle, a.sunDir) * band.radius / band.layer.radius + MIST.farOffset + offset); work++;
+      }
+      p.needsUpdate = true;
       // 軽量では帯を交互に残す。山間・川・くぼ地のすべてが残る。
       activeBands = tier >= 3 ? Math.ceil(mist.bands.length / 3) : quality === 'light' || tier >= 2 ? Math.ceil(mist.bands.length / 2) : tier ? mist.bands.length - 2 : mist.bands.length;
       const eligible = mist.bands.map((band, i) => ({ band, i })).filter(({band}) => band.kind !== 'ridge' || RIDGES.layers.indexOf(band.layer) < activeLayers - 1);
@@ -214,7 +238,7 @@ export function buildRidges({ center = [WORLD.valley.cx, WORLD.valley.cz], searc
       for (let i = 0; i < selected.length; i++) index.array.set(mist.indices.subarray(selected[i] * perBand, (selected[i] + 1) * perBand), i * perBand);
       index.needsUpdate = true; mist.mesh.geometry.setDrawRange(0, activeBands * perBand);
       const u = mist.mesh.material.uniforms;
-      u.cool.value.set(a.fogColor); u.warm.value.set(a.hazeWarm); u.sun.value.copy(a.sunDir); u.debug.value = +(q.get('mist2debug') === '1');
+      u.cool.value.set(a.fogColor).multiplyScalar(1 + MIST.coolLift); u.warm.value.set(a.hazeWarm).lerp(new THREE.Color(a.mid), MIST.warmMix); u.sun.value.copy(a.sunDir); u.debug.value = +(q.get('mist2debug') === '1');
     }
   };
   group.userData.update = dt => { if (mist) mist.mesh.material.uniforms.clock.value += dt; };
