@@ -3,7 +3,10 @@ import { fbm, smooth } from './terrain-height.js';
 
 export const MIST3 = Object.freeze({
   size: 1280, resolution: 256, threshold: 0.05, // m・格子数・面積を数える濃さの下限。
-  sigma: 0.035, maxPath: 120, maxOpacity: 0.8, epsilon: 0.001, // 1/m・m・不透明度・水平視線の高さ差(m)。
+  sigma: 0.012, maxDistance: 650, maxOpacity: 0.62, epsilon: 0.000001, // 1/m・m・不透明度・水平視線の方向の許容差。
+  steps: 28, reducedSteps: 20, lightSteps: 14, bottomSoft: 0.25, topSoft: 0.45, // 点数（標準／自動1／自動2以降・軽量）・上下のぼかし比。
+  boundsPadding: 0.5, topGain: 1.12, bottomGain: 0.78, bottomBlue: 0.18, // m：HalfFloat誤差の余白・層の上／下の輝度・下の青白の混色率。
+  jitterDot: [127.1, 311.7], jitterGain: 43758.5453, // 画素ハッシュと斑のハッシュの固定係数（時間で変えない）。
   near: 25, nearEnd: 55, // m：足元を消す距離と、霧が全量に戻る距離。
   largePeriod: 115, finePeriod: 40, fineWeight: 0.3, heightNoise: 0.08, // m・m・比率・高さを雑音座標へ混ぜる比率。
   speed: 0.7, thicknessMin: 0.6, thicknessMax: 1.2, // m/s（旧霧と同じ−X向き）・厚さの雑音倍率。
@@ -96,26 +99,78 @@ export function bakeMistField(world, terrain) {
     kinds[k] = ['river', 'basin', 'north', 'forest'].indexOf(f.kind);
     if (f.strength > m.threshold) { occupied++; area[f.kind] += step * step; }
   }
-  return { data, kinds, heightAt, x0, z0, step, stats: { occupiedFraction: occupied / (n * n), area, heightSamples: n * n, fieldSamples: n * n, ringLookups, textureBytes: n * n * 8 } };
+  // 線形補間は隣の無霧セルも混ぜるため、その高さも含める。厚さ倍率は配線側で反映する。
+  let minBottom = Infinity, maxBottom = -Infinity, maxThickness = 0;
+  for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) {
+    if (data[(j * n + i) * 4 + 1] <= 0) continue;
+    for (let dz = -1; dz <= 1; dz++) for (let dx = -1; dx <= 1; dx++) {
+      const k = (clamp(j + dz, 0, n - 1) * n + clamp(i + dx, 0, n - 1)) * 4;
+      const bottom = data[k] + data[k + 2];
+      minBottom = Math.min(minBottom, bottom); maxBottom = Math.max(maxBottom, bottom);
+      maxThickness = Math.max(maxThickness, data[k + 3]);
+    }
+  }
+  const heightRange = { minBottom, maxBottom, maxThickness };
+  return { data, kinds, heightAt, x0, z0, step, stats: { occupiedFraction: occupied / (n * n), area, heightRange, heightSamples: n * n, fieldSamples: n * n, ringLookups, textureBytes: n * n * 8 } };
 }
-export function mistPath(yc, yp, distance, bottom, thick) {
-  const delta = Math.abs(yc - yp);
-  const overlap = Math.max(0, Math.min(Math.max(yc, yp), bottom + thick) - Math.max(Math.min(yc, yp), bottom));
-  const path = delta < MIST3.epsilon ? (yp >= bottom && yp <= bottom + thick ? distance : 0) : distance * overlap / Math.max(delta, MIST3.epsilon);
-  return Math.min(MIST3.maxPath, path);
+// 視線上の等間隔積算のJS写し。GLSLと同じ断面・区間・消散式を試験する。
+export const mistSteps = (quality = 'standard', tier = 0) => quality === 'light' || tier >= 2 ? MIST3.lightSteps : tier >= 1 ? MIST3.reducedSteps : MIST3.steps;
+export function mistHeightBounds(range, thicknessScale = 1) {
+  return [range.minBottom - MIST3.boundsPadding, range.maxBottom + range.maxThickness * MIST3.thicknessMax * thicknessScale + MIST3.boundsPadding];
 }
-export function mistAmount(yc, yp, distance, bottom, thick, strength, noiseValue = 1, sigma = MIST3.sigma) {
-  return Math.min(MIST3.maxOpacity, 1 - Math.exp(-sigma * strength * noiseValue * mistPath(yc, yp, distance, bottom, thick))) * smooth(MIST3.near, MIST3.nearEnd, distance);
+export function mistInterval(y, dy, distance, low, high) {
+  let begin = MIST3.near, end = Math.min(distance, MIST3.maxDistance);
+  if (Math.abs(dy) < MIST3.epsilon) { if (y < low || y > high) return [0, 0]; }
+  else {
+    const a = (low - y) / dy, b = (high - y) / dy;
+    begin = Math.max(begin, Math.min(a, b)); end = Math.min(end, Math.max(a, b));
+  }
+  return end > begin ? [begin, end] : [0, 0];
 }
-// 量の式はJSとGLSLの双方を標本試験で照合する。定数の変更を両方へ届ける。
+export function mistJitter(x, y) {
+  const v = Math.sin(x * MIST3.jitterDot[0] + y * MIST3.jitterDot[1]) * MIST3.jitterGain;
+  return v - Math.floor(v);
+}
+export function mistProfile(h, thick, n) {
+  if (thick <= 0) return 0;
+  const top = thick * n;
+  return smooth(0, thick * MIST3.bottomSoft, h) * (1 - smooth(top * (1 - MIST3.topSoft), top, h));
+}
+export function mistStepAlpha(transmittance, density, dt) {
+  return Math.min(1 - Math.exp(-density * dt), Math.max(0, 1 - (1 - MIST3.maxOpacity) / transmittance));
+}
+export function marchMist({ origin, direction, distance = MIST3.maxDistance, bounds, sample, noiseAt = () => 1,
+  colourAt = () => [1, 1, 1], steps = MIST3.steps, pixel = [0, 0], sigma = MIST3.sigma, thicknessScale = 1 }) {
+  const [begin, end] = mistInterval(origin[1], direction[1], distance, ...bounds);
+  let transmittance = 1, reads = 0; const scattering = [0, 0, 0];
+  if (end <= begin || sigma <= 0 || thicknessScale <= 0) return { amount: 0, transmittance, scattering, reads };
+  const dt = (end - begin) / steps, jitter = mistJitter(...pixel);
+  for (let i = 0; i < steps; i++) {
+    const t = begin + (i + jitter) * dt, p = origin.map((v, k) => v + direction[k] * t);
+    const f = sample(p); reads++;
+    const noise = noiseAt(p), thick = f.thick * thicknessScale, h = p[1] - (f.g + f.lift);
+    const n = mix(MIST3.thicknessMin, MIST3.thicknessMax, noise);
+    const profile = mistProfile(h, thick, n);
+    const density = sigma * f.strength * noise * profile * smooth(MIST3.near, MIST3.nearEnd, t);
+    const a = mistStepAlpha(transmittance, density, dt), colour = colourAt(p, h / Math.max(thick, MIST3.epsilon));
+    for (let k = 0; k < 3; k++) scattering[k] += transmittance * a * colour[k];
+    transmittance *= 1 - a;
+  }
+  return { amount: 1 - transmittance, transmittance, scattering, reads };
+}
 const f = x => Number(x).toFixed(8);
 export const MIST3_AMOUNT_GLSL = `
-float mistPath(float yc,float yp,float distance,float bottom,float thick){
-  float delta=abs(yc-yp);
-  float overlap=max(0.0,min(max(yc,yp),bottom+thick)-max(min(yc,yp),bottom));
-  float path=delta<${f(MIST3.epsilon)} ? (yp>=bottom && yp<=bottom+thick ? distance : 0.0) : distance*overlap/max(delta,${f(MIST3.epsilon)});
-  return min(${f(MIST3.maxPath)},path);
+vec2 mistInterval(float y,float dy,float distance,float low,float high){
+  float begin=${f(MIST3.near)},end=min(distance,${f(MIST3.maxDistance)});
+  if(abs(dy)<${f(MIST3.epsilon)}){if(y<low||y>high)return vec2(0.0);}
+  else {float a=(low-y)/dy,b=(high-y)/dy;begin=max(begin,min(a,b));end=min(end,max(a,b));}
+  return end>begin?vec2(begin,end):vec2(0.0);
 }
-float mistAmount(float yc,float yp,float distance,float bottom,float thick,float strength,float noiseValue,float sigma){
-  return min(${f(MIST3.maxOpacity)},1.0-exp(-sigma*strength*noiseValue*mistPath(yc,yp,distance,bottom,thick)))*smoothstep(${f(MIST3.near)},${f(MIST3.nearEnd)},distance);
+float mistProfile(float h,float thick,float n){
+  if(thick<=0.0)return 0.0;
+  float top=thick*n;
+  return smoothstep(0.0,thick*${f(MIST3.bottomSoft)},h)*(1.0-smoothstep(top*(1.0-${f(MIST3.topSoft)}),top,h));
+}
+float mistStepAlpha(float transmittance,float density,float dt){
+  return min(1.0-exp(-density*dt),max(0.0,1.0-(1.0-${f(MIST3.maxOpacity)})/transmittance));
 }`;

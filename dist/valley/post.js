@@ -1,7 +1,7 @@
 // post.js — 後処理の最小パス：MSAA（HalfFloat）→谷の局所霧→ブルーム→階調（ACES風）＋色調整→ビネット（view層）。
 // 依存を増やさず、必要な効果だけを自前で持つ（design.md の判断）。標準／軽量で内容を切り替える。
 import * as THREE from 'three';
-import { MIST3, MIST3_AMOUNT_GLSL, bakeMistField } from './mist-field.js';
+import { MIST3, MIST3_AMOUNT_GLSL, bakeMistField, mistHeightBounds, mistSteps } from './mist-field.js';
 
 export const OUTPUT_DITHER = 1 / 255; // sRGB出力の雑音幅。片側±0.5/255、描画追加なし。
 
@@ -14,36 +14,52 @@ const TONEMAP = `
   vec3 srgb(vec3 c){ return mix(c*12.92, 1.055*pow(c, vec3(1.0/2.4)) - 0.055, step(0.0031308, c)); }
   float luma(vec3 c){ return dot(c, vec3(0.2126, 0.7152, 0.0722)); }`;
 
-// 深度から面の世界座標へ戻す。空と地図の外は入力の色を保つ。
+// 面まで（空なら最遠まで）の視線を、霧の高さ帯に絞って等間隔に積む。
 export const MIST3_FRAGMENT = `
   varying vec2 vUv;
   uniform sampler2D tex, depthTex, field;
   uniform mat4 inverseProjection, cameraWorld;
-  uniform vec2 mapCenter;
+  uniform vec2 mapCenter, heightBounds;
   uniform vec3 eye, sun, cool, warm;
   uniform float clock, sigma, thicknessScale, lightQuality, debug;
-  float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
+  uniform int stepCount;
+  float hash(vec2 p){return fract(sin(dot(p,vec2(${MIST3.jitterDot.map(n => n.toFixed(1)).join(',')})))*${MIST3.jitterGain.toFixed(4)});}
   float noise(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);
     return mix(mix(hash(i),hash(i+vec2(1.0,0.0)),f.x),mix(hash(i+vec2(0.0,1.0)),hash(i+vec2(1.0)),f.x),f.y);}
   ${MIST3_AMOUNT_GLSL}
   void main(){
     vec4 original=texture2D(tex,vUv);float depth=texture2D(depthTex,vUv).r;
-    if(depth>=1.0){gl_FragColor=debug>0.5?vec4(0.0,0.0,0.0,1.0):original;return;}
     vec4 view=inverseProjection*vec4(vUv*2.0-1.0,depth*2.0-1.0,1.0);
     vec3 p=(cameraWorld*vec4(view.xyz/view.w,1.0)).xyz;
-    vec2 uv=(p.xz-mapCenter)/${MIST3.size.toFixed(1)}+0.5;
-    if(any(lessThan(uv,vec2(0.0)))||any(greaterThan(uv,vec2(1.0)))){gl_FragColor=debug>0.5?vec4(0.0,0.0,0.0,1.0):original;return;}
-    vec4 f=texture2D(field,uv);
-    vec2 moving=p.xz+vec2(clock*${MIST3.speed.toFixed(3)},p.y*${MIST3.heightNoise.toFixed(3)});
-    float large=noise(moving/${MIST3.largePeriod.toFixed(1)});
-    float n=large;
-    if(lightQuality<0.5)n=mix(large,noise(moving/${MIST3.finePeriod.toFixed(1)}),${MIST3.fineWeight.toFixed(3)});
-    float thick=f.a*thicknessScale*mix(${MIST3.thicknessMin.toFixed(3)},${MIST3.thicknessMax.toFixed(3)},n);
-    vec3 ray=p-eye;float distance=length(ray);
-    float amount=mistAmount(eye.y,p.y,distance,f.r+f.b,thick,f.g,n,sigma);
-    float facing=pow(max(0.0,dot(ray/max(distance,0.0001),sun)),${MIST3.sunPower.toFixed(1)});
-    vec3 colour=mix(cool,warm,facing)*mix(${MIST3.backGain.toFixed(3)},${MIST3.sunGain.toFixed(3)},facing);
-    gl_FragColor=debug>0.5?vec4(vec3(amount),1.0):vec4(mix(original.rgb,colour,amount),original.a);
+    vec3 ray=p-eye;float distance=length(ray);vec3 direction=ray/max(distance,${MIST3.epsilon.toFixed(8)});
+    if(depth>=1.0)distance=${MIST3.maxDistance.toFixed(1)};
+    vec2 interval=mistInterval(eye.y,direction.y,distance,heightBounds.x,heightBounds.y);
+    float transmittance=1.0;vec3 scattering=vec3(0.0);
+    if(interval.y>interval.x && sigma>0.0 && thicknessScale>0.0){
+      float dt=(interval.y-interval.x)/float(stepCount),jitter=hash(gl_FragCoord.xy);
+      float facing=pow(max(0.0,dot(direction,sun)),${MIST3.sunPower.toFixed(1)});
+      vec3 sunColour=mix(cool,warm,facing)*mix(${MIST3.backGain.toFixed(3)},${MIST3.sunGain.toFixed(3)},facing);
+      for(int i=0;i<${MIST3.steps};i++){
+        if(i>=stepCount)break;
+        float t=interval.x+(float(i)+jitter)*dt;
+        vec3 point=eye+direction*t;
+        vec2 uv=(point.xz-mapCenter)/${MIST3.size.toFixed(1)}+0.5;
+        if(any(lessThan(uv,vec2(0.0)))||any(greaterThan(uv,vec2(1.0))))continue;
+        vec4 f=texture2D(field,uv);
+        if(f.g<=0.0)continue;
+        vec2 moving=point.xz+vec2(clock*${MIST3.speed.toFixed(3)},point.y*${MIST3.heightNoise.toFixed(3)});
+        float large=noise(moving/${MIST3.largePeriod.toFixed(1)}),n=large;
+        if(lightQuality<0.5)n=mix(large,noise(moving/${MIST3.finePeriod.toFixed(1)}),${MIST3.fineWeight.toFixed(3)});
+        float thick=f.a*thicknessScale,h=point.y-(f.r+f.b);
+        float profile=mistProfile(h,thick,mix(${MIST3.thicknessMin.toFixed(3)},${MIST3.thicknessMax.toFixed(3)},n));
+        float density=sigma*f.g*n*profile*smoothstep(${MIST3.near.toFixed(1)},${MIST3.nearEnd.toFixed(1)},t);
+        float a=mistStepAlpha(transmittance,density,dt);
+        float heightFraction=clamp(h/max(thick,${MIST3.epsilon.toFixed(8)}),0.0,1.0);
+        vec3 colour=mix(cool,sunColour,mix(${(1-MIST3.bottomBlue).toFixed(3)},1.0,heightFraction))*mix(${MIST3.bottomGain.toFixed(3)},${MIST3.topGain.toFixed(3)},heightFraction);
+        scattering+=transmittance*a*colour;transmittance*=1.0-a;
+      }
+    }
+    gl_FragColor=debug>0.5?vec4(vec3(1.0-transmittance),1.0):vec4(original.rgb*transmittance+scattering,original.a);
   }`;
 
 function pass(fragment, uniforms, extra = {}) {
@@ -122,6 +138,7 @@ export class Post {
         inverseProjection: { value: new THREE.Matrix4() }, cameraWorld: { value: new THREE.Matrix4() },
         mapCenter: { value: new THREE.Vector2(world.valley.cx, world.valley.cz) }, eye: { value: new THREE.Vector3() }, sun: { value: a.sunDir.clone().normalize() },
         cool: { value: new THREE.Color(a.fogColor).multiplyScalar(1 + MIST3.coolLift) }, warm: { value: new THREE.Color(a.hazeWarm).lerp(new THREE.Color(a.mid), MIST3.warmMix) },
+        heightBounds: { value: new THREE.Vector2(...mistHeightBounds(m.map.stats.heightRange, m.thicknessScale)) }, stepCount: { value: mistSteps(this.quality, tier()) },
         clock: { value: 0 }, sigma: { value: m.sigma }, thicknessScale: { value: m.thicknessScale }, lightQuality: { value: 0 }, debug: { value: +m.debug } });
     }
     scene.getObjectByName('ridges')?.userData.setMist3?.(!this.mistReason);
@@ -141,7 +158,10 @@ export class Post {
     this.mist = null; this.mistActive = false;
   }
   stats() {
-    return { mist3: { ...this.mist?.map?.stats, enabled: !!this.mist?.material && !this.mistReason, active: this.mistActive, reason: this.mistReason || (this.mist?.tier() >= 3 ? 'adaptive-tier' : ''),
+    return { mist3: { ...this.mist?.map?.stats, enabled: !!this.mist?.material && !this.mistReason, active: this.mistActive, reason: this.mistReason,
+      steps: mistSteps(this.quality, this.mist?.tier() ?? 0), noiseOctaves: this.quality === 'light' ? 1 : 2,
+      maxFieldReads: mistSteps(this.quality, this.mist?.tier() ?? 0), maxNoiseReads: mistSteps(this.quality, this.mist?.tier() ?? 0) * (this.quality === 'light' ? 1 : 2),
+      heightBounds: this.mist?.material?.uniforms.heightBounds.value.toArray(), maxDistance: MIST3.maxDistance, maxOpacity: MIST3.maxOpacity,
       sigma: this.mist?.sigma, thicknessScale: this.mist?.thicknessScale, drawCalls: this.mistActive ? 1 : 0, triangles: this.mistActive ? 1 : 0,
       targetBytes: this.mistTarget ? this.mistTarget.width * this.mistTarget.height * 12 : 0 } };
   }
@@ -215,12 +235,13 @@ export class Post {
     r.render(scene, camera);
     r.toneMapping = prevTone;
     let sceneTexture = this.target.texture;
-    this.mistActive = !!(this.mist?.material && !this.mistReason && scene === this.mist.scene && this.mistTarget && this.mist.tier() < 3);
+    this.mistActive = !!(this.mist?.material && !this.mistReason && scene === this.mist.scene && this.mistTarget);
     if (this.mistActive) {
       const u = this.mist.material.uniforms;
       u.tex.value = sceneTexture; u.depthTex.value = this.target.depthTexture;
       u.inverseProjection.value.copy(camera.projectionMatrixInverse); u.cameraWorld.value.copy(camera.matrixWorld);
       u.eye.value.setFromMatrixPosition(camera.matrixWorld); u.clock.value += dt; u.lightQuality.value = +(this.quality === 'light');
+      u.stepCount.value = mistSteps(this.quality, this.mist.tier());
       this.run(this.mist.material, this.mistTarget); sceneTexture = this.mistTarget.texture;
     }
     const mistDebug = this.mistActive && this.mist.debug;
