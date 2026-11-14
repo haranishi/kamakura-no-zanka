@@ -106,6 +106,7 @@ export function installQA(game, ctl) {
     meadowCover() { return ctl.meadowCover(); },
     grassStats() { return game.veg.grass.stats(); },
     paddyStats() { return game.veg.paddy.stats(); },
+    yardStats() { return game.props?.yard?.stats?.() || { smoke: 0, workers: 0, puffs: 0 }; },
     windState() { return JSON.parse(JSON.stringify(game.wind)); },
     guideWind(dir) {
       if (dir === null) return { state: api.windState(), accepted: false, reason: '指定なし' };

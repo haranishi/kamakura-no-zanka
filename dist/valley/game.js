@@ -765,7 +765,7 @@ export class Game {
     const wind = toUniforms(this.wind, { reduced: this.reducedMotion() });
     this.veg.wind.uTime.value = wind.uTime; this.veg.wind.uWind.value = wind.uWind;
     this.veg.wind.uWindDir.value.set(...wind.uWindDir); this.veg.wind.uGuideMix.value = wind.uGuideMix;
-    this.veg.trees.update(this.camera); this.veg.grass.update(this.camera); this.veg.rice.update(this.camera); this.veg.crops?.update(this.camera); this.props?.update(this.time); this.props?.life?.update(this.time, this.camera, this.veg.wind); this.water?.update(this.time);
+    this.veg.trees.update(this.camera); this.veg.grass.update(this.camera); this.veg.rice.update(this.camera); this.veg.crops?.update(this.camera); this.props?.update(this.time); this.props?.life?.update(this.time, this.camera, this.veg.wind); this.props?.yard?.update(this.time, this.camera, this.veg.wind); this.water?.update(this.time);
     const h = this.hero.pos;
     this.atmosphere.follow(new THREE.Vector3(h.x - Math.sin(this.rig.yaw) * 8, h.y, h.z - Math.cos(this.rig.yaw) * 8));
     this.listenerT -= dt;
