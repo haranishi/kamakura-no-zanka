@@ -27,6 +27,9 @@ import { applyLookOverrides, LOOK } from './config.js';
 import { ATMOS } from './atmosphere.js';
 import { installQA } from './qa.js';
 import { configureLoco } from './actors.js';
+import { detectTouchMode, selectInitialQuality } from './touch-math.js';
+import { ValleyTouchControls, onTap } from './valley-touch.js';
+import { initShareAndCredits } from './share-ui.js';
 
 const q = new URLSearchParams(location.search);
 const QA = q.get('qa') === '1';
@@ -35,8 +38,10 @@ const SETTINGS_KEY = 'kamakura-valley-settings';
 const store = { get(k) { try { return localStorage.getItem(k); } catch { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch { /* 保存できない環境でも遊べる */ } } };
 const $ = id => document.getElementById(id);
 const wait = ms => new Promise(r => setTimeout(r, ms));
+const coarsePointer = typeof matchMedia === 'function' ? matchMedia('(pointer: coarse)').matches : false;
+const touchMode = detectTouchMode(location.search, coarsePointer);
 const saved = (() => { try { return JSON.parse(store.get(SETTINGS_KEY) || '{}'); } catch { return {}; } })();
-let quality = q.get('q') || saved.quality || 'standard';
+let quality = selectInitialQuality({ queryQuality: q.get('q') || '', savedQuality: saved.quality || '', touchMode });
 applyLookOverrides();
 // 見た目の調整を、書き換えずに試せる（?lk=fog:0.0008,mist:0.002,sun:3.6,hemi:0.7,env:1,exp:1.05,bloom:0.4,vig:0.3,sat:1.1,con:1.06,warm:1.5）
 // 太陽の向き sx,sy,sz／霧の暖色の広がり hexp／色は末尾 c のキーに16進6桁（sunc zenc midc horc belc fogc hzcoolc hzwarmc hemisc hemigc）
@@ -64,7 +69,9 @@ if (ATMOS.grade) Object.assign(post.params, ATMOS.grade);   // 谷の夕方の�
 for (const [k, key] of [['exp', 'exposure'], ['bloom', 'bloomStrength'], ['vig', 'vignette'], ['sat', 'saturation'], ['con', 'contrast'], ['warm', 'warmth'], ['grain', 'grain']]) if (LOOK[k] != null) post.params[key] = LOOK[k];
 const input = new Input(renderer.domElement);
 const audio = new ValleyAudio(msg => hud.toast(msg, 3000));
-let game = null, frozen = false, titleT = 0;
+const touch = new ValleyTouchControls({ input, mode: touchMode, onMenu: () => openPause() });
+const shareUi = initShareAndCredits();
+let game = null, frozen = false, titleT = 0, resultShared = false;
 
 // 描画の解像度は、重いと感じたら自動で下げ、余裕があれば戻す（コマ時間の移動平均で判断）。?w= の固定撮影・QA では動かさない。
 const SCALES = [1, 0.85, 0.7, 0.58];
@@ -129,6 +136,7 @@ async function boot() {
   await step(1, '準備ができました');
   wire();
   if (QA) installQA(game, { setFrozen: v => { frozen = v; }, start, quality: setQuality, meadowCover: () => built.meadowCover() });
+  if (QA) window.__valleyTouch = touch;
   hud.setState('title'); hud.showTitle(loadValley(game.storage).hasSave);
   document.getElementById('loading').classList.add('hidden');
   window.__valleyReady = true;
@@ -177,16 +185,19 @@ function setQuality(v) {
 
 function start(mode) {
   if (!game || game.flow !== 'idle') return;
+  resultShared = false;
   audio.unlock().then(() => audio.setPaused(false));
   if (mode === 'continue') game.continueGame(); else game.startNew();
   input.setEnabled(true);
-  if (!QA) input.requestLock();
+  if (!QA && !input.touchMode) input.requestLock();
+  touch.sync(game, $('pause').open);
 }
 
 function openPause() {
   const dlg = $('pause');
   if (dlg.open) return;
   if (game?.flow !== 'idle') { game.paused = true; audio.setPaused(true); }
+  touch.sync(game, true);
   input.releaseLock(); input.clear();
   // タイトルから開いたときは、遊びの途中の項目（区切りへ戻る・タイトルへ）を出さない。オープニングの間は、戻る区切りがまだ無い
   const inGame = game?.flow !== 'idle';
@@ -203,14 +214,14 @@ function wire() {
   $('btn-howto').onclick = openPause;
   $('menu-btn').onclick = openPause;
   const dlg = $('pause');
-  dlg.addEventListener('close', () => { if (!game) return; game.paused = false; if (game.flow !== 'idle') audio.setPaused(false); if (pausable() && !QA) input.requestLock(); });
-  $('pause-resume').onclick = () => dlg.close();
-  $('pause-checkpoint').onclick = () => { dlg.close(); if (game.flow !== 'idle') game.toCheckpoint(); };
-  $('pause-title').onclick = () => { location.href = location.pathname; };
-  $('result-again').onclick = () => { game.hud.hideResult(); game.flow = 'idle'; start('new'); };
-  $('result-title').onclick = () => { location.href = location.pathname; };
-  $('death-retry').onclick = () => game.retry();
-  input.onLockChange = locked => { if (!locked && pausable() && !dlg.open && !QA) openPause(); };
+  dlg.addEventListener('close', () => { if (!game) return; game.paused = false; if (game.flow !== 'idle') audio.setPaused(false); if (pausable() && !QA && !input.touchMode) input.requestLock(); touch.sync(game, false); });
+  onTap($('pause-resume'), () => dlg.close());
+  onTap($('pause-checkpoint'), () => { dlg.close(); if (game.flow !== 'idle') game.toCheckpoint(); });
+  onTap($('pause-title'), () => { location.href = location.pathname; });
+  onTap($('result-again'), () => { game.hud.hideResult(); game.flow = 'idle'; start('new'); });
+  onTap($('result-title'), () => { location.href = location.pathname; });
+  onTap($('death-retry'), () => game.retry());
+  input.onLockChange = locked => { if (!locked && !input.touchMode && pausable() && !dlg.open && !QA) openPause(); };
   addEventListener('keydown', e => { if (e.code === 'KeyP' && pausable() && !dlg.open) openPause(); });
   $('set-waymarks').onchange = e => game.setWaymarks(e.target.value);
   $('set-blood').onchange = e => game.setBlood(e.target.value);
@@ -246,7 +257,9 @@ function tick() {
   const dt = Math.min(clock.getDelta(), 0.1);
   if (!game || frozen) return;
   if (game.flow === 'idle') { titleCamera(dt); }
+  if (game.flow === 'result' && !resultShared) { resultShared = true; shareUi.mountToResult(); }
   game.update(dt);
+  touch.sync(game, $('pause').open);
   game.render(dt);
   adaptScale(dt);
   fpsAcc += dt; fpsN++;

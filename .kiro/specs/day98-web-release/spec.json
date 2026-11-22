@@ -1,0 +1,30 @@
+{
+  "feature_name": "day98-web-release",
+  "created_at": "2026-11-22T20:22:00+09:00",
+  "language": "ja",
+  "phase": "implementation",
+  "parent_spec": "hidden-valley-slice",
+  "approvals": {
+    "requirements": { "generated": true, "approved": true },
+    "design": { "generated": true, "approved": true },
+    "tasks": { "generated": true, "approved": true }
+  },
+  "approval_basis": "2026-11-22の本人確認（第一章「隠れ谷の灯」単体・外部Day day98.rairakku.com・スマホ用タッチ操作＋自動軽量品質・SDDから両リポPRまで一気通貫）",
+  "decisions": [
+    {
+      "topic": "公開範囲",
+      "adopted": "第一章「隠れ谷の灯」（dist/valley/）単体をルート / として公開。前作 v18（scene.glb 19MB）と設計マップ・実地形データ（KZ_WORLD_DIR）は公開出力に含めない",
+      "reason": "戦闘・任務・物語まで完結した10〜15分の体験に絞り、容量を約81MBに抑え、測量法未確認の実地形データを含めないため"
+    },
+    {
+      "topic": "配信方式",
+      "adopted": "外部Day（専用 Cloudflare Pages: https://day98.rairakku.com/）。hundred-days からは 302 転送",
+      "reason": "約81MBの配信物と CC BY 4.0 素材を hundred-days リポ・rairakku.com の Pages Functions 無料枠から分離するため"
+    },
+    {
+      "topic": "スマホ操作と品質",
+      "adopted": "dist/valley/ にタッチ操作（フローティングスティック・視点ドラッグ・5主ボタン＋補助ピル・近接360度補助・2本目タップ対応）と初回自動軽量品質を追加",
+      "reason": "100日チャレンジ共通のスマホ対応方針に合わせつつ、既存のデスクトップ操作・見た目・2,271件のテストを無変更で保つため"
+    }
+  ]
+}

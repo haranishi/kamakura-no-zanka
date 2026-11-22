@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="残火の鎌倉">
+  <rect width="64" height="64" rx="10" fill="#171e1b"/>
+  <rect x="7" y="7" width="50" height="50" rx="6" fill="none" stroke="#b65b46" stroke-width="2.5"/>
+  <text x="32" y="30" text-anchor="middle" fill="#eee9dc" font-family="serif" font-size="18" letter-spacing="2">残</text>
+  <text x="32" y="50" text-anchor="middle" fill="#d7705a" font-family="serif" font-size="18" letter-spacing="2">火</text>
+</svg>

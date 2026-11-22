@@ -7,8 +7,10 @@ const uiTarget = t => !!t?.closest?.('button,input,select,textarea,dialog,[conte
 export class Input {
   constructor(element, { signal } = {}) {
     const listen = (target, type, listener, options) => target.addEventListener(type, listener, signal ? { ...options, signal } : options);
-    this.el = element; this.enabled = false; this.locked = false;
+    this.el = element; this.enabled = false; this.locked = false; this.touchMode = false;
     this.held = new Set(); this.pressed = new Set(); this.mouse = new Set(); this.mousePressed = new Set();
+    this.touchKeys = new Set(); this.touchMouse = new Set();
+    this.stick = { forward: 0, right: 0, run: false, active: false };
     this.lookX = 0; this.lookY = 0; this.wheel = 0; this.mouseDownAt = new Map();
     this.onLockChange = null;
     listen(globalThis, 'keydown', e => {
@@ -21,7 +23,7 @@ export class Input {
     listen(globalThis, 'blur', () => this.clear());
     listen(document, 'visibilitychange', () => this.clear());
     listen(element, 'mousedown', e => {
-      if (!this.enabled) return;
+      if (!this.enabled || this.touchMode) return;
       if (!this.locked) { this.requestLock(); return; }
       e.preventDefault(); this.mouse.add(e.button); this.mousePressed.add(e.button); this.mouseDownAt.set(e.button, performance.now());
     });
@@ -36,14 +38,38 @@ export class Input {
     });
   }
 
+  setTouchMode(on) { this.touchMode = !!on; if (this.touchMode) this.releaseLock(); }
+  injectStick(right, forward, run = false) {
+    const mag = Math.hypot(right, forward);
+    this.stick = { right, forward, run: !!run, active: mag > 0.01 };
+  }
+  injectLook(dx, dy) { if (!this.enabled) return; this.lookX += dx; this.lookY += dy; }
+  touchKeyDown(code) { if (!this.enabled) return; if (!this.held.has(code)) this.pressed.add(code); this.held.add(code); this.touchKeys.add(code); }
+  touchKeyUp(code) { this.held.delete(code); this.touchKeys.delete(code); }
+  touchMouseDown(b) { if (!this.enabled) return; if (!this.mouse.has(b)) this.mousePressed.add(b); this.mouse.add(b); this.mouseDownAt.set(b, performance.now()); this.touchMouse.add(b); }
+  touchMouseUp(b) { this.mouse.delete(b); this.touchMouse.delete(b); }
+  releaseTouch() {
+    this.stick = { forward: 0, right: 0, run: false, active: false };
+    for (const c of this.touchKeys) this.held.delete(c);
+    this.touchKeys.clear();
+    for (const b of this.touchMouse) this.mouse.delete(b);
+    this.touchMouse.clear();
+  }
+
   requestLock() {
+    if (this.touchMode) return;
     try { const p = this.el.requestPointerLock?.(); p?.catch?.(() => {}); } catch { /* ヘッドレスなど。IJKLで見回せる */ }
   }
   releaseLock() { if (document.pointerLockElement) document.exitPointerLock(); }
-  clear() { this.held.clear(); this.pressed.clear(); this.mouse.clear(); this.mousePressed.clear(); this.lookX = this.lookY = 0; }
+  clear() {
+    this.held.clear(); this.pressed.clear(); this.mouse.clear(); this.mousePressed.clear();
+    this.touchKeys.clear(); this.touchMouse.clear();
+    this.stick = { forward: 0, right: 0, run: false, active: false };
+    this.lookX = this.lookY = 0;
+  }
   setEnabled(on) { this.enabled = on; if (!on) this.clear(); }
 
-  down(code) { return this.held.has(code); }
+  down(code) { return this.held.has(code) || ((code === 'ShiftLeft' || code === 'ShiftRight') && this.stick.run); }
   wasPressed(code) { return this.pressed.has(code); }
   mouseDown(b) { return this.mouse.has(b); }
   mouseWasPressed(b) { return this.mousePressed.has(b); }
@@ -51,8 +77,15 @@ export class Input {
   axis() {
     const f = (this.down('KeyW') || this.down('ArrowUp') ? 1 : 0) - (this.down('KeyS') || this.down('ArrowDown') ? 1 : 0);
     const r = (this.down('KeyD') || this.down('ArrowRight') ? 1 : 0) - (this.down('KeyA') || this.down('ArrowLeft') ? 1 : 0);
-    const l = Math.hypot(f, r) || 1;
-    return { forward: f / l, right: r / l, active: !!(f || r) };
+    if (f || r) {
+      const l = Math.hypot(f, r) || 1;
+      return { forward: f / l, right: r / l, active: true };
+    }
+    if (this.stick.active) {
+      const l = Math.max(1, Math.hypot(this.stick.forward, this.stick.right));
+      return { forward: this.stick.forward / l, right: this.stick.right / l, active: true };
+    }
+    return { forward: 0, right: 0, active: false };
   }
   look(dt) {
     let dx = this.lookX, dy = this.lookY; this.lookX = this.lookY = 0;
