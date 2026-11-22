@@ -248,7 +248,7 @@ export class HeroActor extends Actor {
     const f = this.fighter, m = MOVES[id], ctl = this.ctl;
     if (aim) {
       const want = ctl.axis.active ? ctl.moveYaw : this.yaw;
-      const t = this.lockTarget && this.lockTarget.fighter.alive ? this.lockTarget : this.nearestEnemy(3.6, 75, want);
+      const t = this.lockTarget && this.lockTarget.fighter.alive ? this.lockTarget : this.nearestEnemy(3.6, ctl.input?.touchMode ? null : 75, want);
       this.yaw = t ? yawOf(t.pos.x - this.pos.x, t.pos.z - this.pos.z) : want;
       this.foe = t;                          // 見た目の踏み込みの先（8.3a 第3周）。とどめ（aim=false）は updateDash が決める
     }

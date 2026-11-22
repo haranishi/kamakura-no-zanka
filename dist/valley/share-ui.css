@@ -1,0 +1,166 @@
+/* share-ui.css — SNSシェア4点セットと共有・権利モーダルのスタイル。
+   地色（#10171b / #0e1411）に対しボタン枠コントラスト 3:1 以上、ボタン高さ 44px 以上を保証する。 */
+
+.share {
+  margin: 16px 0 0;
+  padding-top: 14px;
+  border-top: 1px solid rgba(238, 233, 220, 0.22);
+  font-size: 13px;
+  box-sizing: border-box;
+  width: 100%;
+  text-align: left;
+  color: var(--paper, #eee9dc);
+}
+
+.share__label {
+  margin: 0 0 12px;
+  font: 500 14px/1.5 var(--serif);
+  letter-spacing: 0.14em;
+  color: var(--gold, #e9c98d);
+}
+
+.share__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.share__button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0 16px;
+  border-radius: 6px;
+  border: 1.5px solid rgba(238, 233, 220, 0.88);
+  background: rgba(238, 233, 220, 0.1);
+  color: var(--paper, #eee9dc);
+  font: 500 14px/1 var(--sans);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.share__button:hover {
+  background: rgba(238, 233, 220, 0.2);
+}
+
+.share__button:focus-visible {
+  outline: 2px solid var(--gold, #e9c98d);
+  outline-offset: 2px;
+}
+
+.share__button--primary {
+  border-color: var(--paper, #eee9dc);
+  background: rgba(182, 91, 70, 0.45);
+}
+
+.share__button[data-done='true'] {
+  border-color: var(--gold, #e9c98d);
+}
+
+.share__said {
+  display: block;
+  min-height: 1.5em;
+  margin-top: 8px;
+  font-size: 13px;
+  color: var(--gold, #e9c98d);
+}
+
+.share__manual {
+  width: 100%;
+  margin: 4px 0 8px;
+  padding: 8px 10px;
+  background: #0b110f;
+  border: 1px solid rgba(238, 233, 220, 0.5);
+  border-radius: 4px;
+  color: var(--paper, #eee9dc);
+  font-size: 13px;
+}
+
+.share__note {
+  margin: 6px 0 0;
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--paper, #eee9dc);
+  max-width: 60ch;
+}
+
+/* 共有・権利モーダル */
+dialog.kz-modal {
+  width: min(560px, 92vw);
+  max-height: 86vh;
+  padding: 0;
+  border: 1px solid rgba(238, 233, 220, 0.28);
+  border-top: 2px solid var(--red, #b65b46);
+  background: #10171b;
+  color: var(--paper, #eee9dc);
+  overflow: auto;
+}
+
+.kz-modal-in {
+  padding: 22px 24px 24px;
+}
+
+.kz-modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.kz-modal-head h2 {
+  margin: 0;
+  font: 400 22px/1.4 var(--serif);
+  letter-spacing: 0.16em;
+}
+
+.kz-modal-close {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid rgba(238, 233, 220, 0.55);
+  border-radius: 4px;
+  background: rgba(238, 233, 220, 0.08);
+  color: var(--paper, #eee9dc);
+  font-size: 13px;
+}
+
+.kz-modal-close:hover {
+  border-color: var(--red2, #d7705a);
+}
+
+.kz-credits-list {
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 10px;
+  font-size: 13px;
+  line-height: 1.75;
+  color: #dad6c7;
+}
+
+.kz-credits-list li {
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(238, 233, 220, 0.12);
+}
+
+.kz-credits-list strong {
+  display: block;
+  font-family: var(--serif);
+  font-weight: 500;
+  color: var(--gold, #e9c98d);
+  margin-bottom: 2px;
+}
+
+.kz-credits-list a {
+  color: #f0d7a7;
+  text-underline-offset: 3px;
+}
+
+#result-share {
+  margin-top: 22px;
+  padding: 0 4px;
+}

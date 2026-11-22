@@ -2,9 +2,10 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#171e1b"><title>残火の鎌倉 | 第一章 隠れ谷の灯</title>
-<meta name="description" content="谷の廃寺から村を救い、負傷した旧臣と帰る。三人称アクションの縦切り。">
-<link rel="icon" href="data:,"><link rel="stylesheet" href="./valley.css">
+<meta name="theme-color" content="#171e1b"><title>残火の鎌倉 — 隠れ谷の灯</title>
+<meta name="description" content="1333年、鎌倉幕府滅亡後の信濃の隠れ谷。旧臣の侍として里を守り、負傷した仲間と廃寺へ帰る三人称3D時代劇アクション。登録なし・無料でブラウザだけで遊べます。">
+<meta name="share:text" content="残火の鎌倉 — 隠れ谷の灯｜ブラウザだけで遊べる三人称3D時代劇アクション（登録なし・無料）">
+<link rel="icon" href="./favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="./valley.css"><link rel="stylesheet" href="./valley-touch.css"><link rel="stylesheet" href="./share-ui.css">
 <script type="importmap">{"imports":{"three":"../vendor/three.module.min.js","three/addons/":"../vendor/"}}</script>
 </head>
 <body data-state="loading">
@@ -20,16 +21,19 @@
     <nav class="menu" aria-label="メインメニュー">
       <button id="btn-start" class="primary">はじめる<span aria-hidden="true">→</span></button>
       <button id="btn-continue" class="hidden">つづきから<span aria-hidden="true">→</span></button>
-      <button id="btn-howto">操作</button>
+      <button id="btn-howto">操作・設定</button>
+      <button id="btn-share" aria-label="このアプリを共有する">共有する</button>
+      <button id="btn-credits">権利・出典</button>
     </nav>
-    <p class="note">架空の谷を舞台にした創作です（鎌倉幕府の滅亡後・1333年ごろ）。キーボードとマウスで遊びます。</p>
+    <p class="note">架空の谷を舞台にした創作です（鎌倉幕府の滅亡後・1333年ごろ）。PC（キーボード・マウス）でもスマホ（タッチ操作）でも、登録なしで遊べます。</p>
   </div>
-  <div class="title-foot"><span>信濃・隠れ谷</span><span>縦切り v19</span></div>
+  <div class="title-foot"><span>信濃・隠れ谷</span><span>第一章（試作 v19）</span></div>
 </section>
 
 <section id="loading" class="loading" aria-live="polite">
   <div class="load-in"><p class="kicker2">残火の鎌倉</p><h2 id="load-title">谷をひらいています</h2>
-    <div class="load-bar"><span id="load-fill"></span></div><p id="load-note">地形・人物・建物を読み込んでいます</p></div>
+    <div class="load-bar"><span id="load-fill"></span></div><p id="load-note">地形・人物・建物を読み込んでいます</p>
+    <p class="load-size">初回は約78MBの3Dモデル等を読み込みます（Wi-Fi推奨）</p></div>
 </section>
 
 <div id="hud" class="hud hidden">
@@ -66,7 +70,8 @@
   <div class="result-in"><p class="kicker2">第一章　隠れ谷の灯</p><h2>灯は、まだ消えていない。</h2>
     <ul class="result-lines" id="result-lines"></ul>
     <dl class="result-nums" id="result-nums"></dl>
-    <div class="result-actions"><button id="result-again">もう一度（最初から）</button><button id="result-title">タイトルへ</button></div></div>
+    <div class="result-actions"><button id="result-again">もう一度（最初から）</button><button id="result-title">タイトルへ</button></div>
+    <div id="result-share"></div></div>
 </section>
 
 <section id="death" class="death hidden" aria-live="assertive">
@@ -79,9 +84,11 @@
       <nav class="pause-nav"><button id="pause-resume" class="primary">つづける</button><button id="pause-checkpoint">直前の区切りへ戻る</button><button id="pause-title">タイトルへ</button></nav>
       <div class="pause-main">
         <h3>操作</h3>
-        <dl class="keys"><div><dt>W A S D</dt><dd>歩く</dd></div><div><dt>マウス</dt><dd>見回す</dd></div><div><dt>Shift</dt><dd>走る</dd></div><div><dt>C</dt><dd>屈む（気づかれにくい）</dd></div>
+        <dl class="keys keys-pc"><div><dt>W A S D</dt><dd>歩く</dd></div><div><dt>マウス</dt><dd>見回す</dd></div><div><dt>Shift</dt><dd>走る</dd></div><div><dt>C</dt><dd>屈む（気づかれにくい）</dd></div>
           <div><dt>左クリック</dt><dd>斬る（続けて三連）</dd></div><div><dt>F</dt><dd>強く斬る</dd></div><div><dt>右クリック</dt><dd>受ける（光を見て押すと弾く）</dd></div><div><dt>Space</dt><dd>転がって避ける</dd></div>
           <div><dt>E</dt><dd>調べる・話す・とどめ・闇討ち</dd></div><div><dt>Tab</dt><dd>敵を狙う</dd></div><div><dt>Q / 1〜4</dt><dd>弥十郎へ指示</dd></div><div><dt>G</dt><dd>導きの風</dd></div><div><dt>H</dt><dd>画面の表示を隠す</dd></div></dl>
+        <dl class="keys keys-touch"><div><dt>左ドラッグ</dt><dd>歩く（外側の輪まで倒すと走る）</dd></div><div><dt>右ドラッグ</dt><dd>見回す</dd></div><div><dt>斬る／強斬り</dt><dd>斬る（三連・弾き後は反撃）／強く斬る</dd></div><div><dt>受ける</dt><dd>長押しで受ける（光を見て押すと弾く）</dd></div>
+          <div><dt>避ける</dt><dd>転がって避ける</dd></div><div><dt>調べる</dt><dd>調べる・とどめ・闇討ち・縛めを解く</dd></div><div><dt>屈む／狙う／風</dt><dd>右上のボタンで切替・導きの風</dd></div><div><dt>弥十郎の札</dt><dd>タップで仲間への指示を切替</dd></div><div><dt>会話・演出</dt><dd>画面タップで次へ（戦闘演出は長押しで飛ばす）</dd></div></dl>
         <h3>設定</h3>
         <div class="settings">
           <label>描画品質<select id="set-quality"><option value="standard">標準</option><option value="light">軽量</option></select></label>
@@ -102,6 +109,25 @@
   <div id="nr-bottom" class="nr-bar nr-bottom"><p id="nr-line" class="nr-line" aria-live="polite"></p></div>
   <div id="nr-title" class="nr-title"><h2 id="nr-title-text"></h2><p id="nr-note"></p></div>
 </section>
+<dialog id="share-dialog" class="kz-modal" aria-labelledby="share-modal-head">
+  <div class="kz-modal-in">
+    <div class="kz-modal-head"><h2 id="share-modal-head">共有</h2><button id="share-close" class="kz-modal-close" type="button">閉じる</button></div>
+    <div id="share-dialog-body"></div>
+  </div>
+</dialog>
+
+<dialog id="credits-dialog" class="kz-modal" aria-labelledby="credits-modal-head">
+  <div class="kz-modal-in">
+    <div class="kz-modal-head"><h2 id="credits-modal-head">権利・出典</h2><button id="credits-close" class="kz-modal-close" type="button">閉じる</button></div>
+    <ul class="kz-credits-list">
+      <li><strong>作品について</strong>鎌倉幕府滅亡後（1333年ごろ）の架空の谷を舞台にした創作です。ログイン・アカウント・外部通信はなく、進行と設定は端末のブラウザ内だけに保存します。</li>
+      <li><strong>コード（MIT License）</strong>© 2026 Ikki Nishihara — <a href="https://github.com/haranishi/kamakura-no-zanka" target="_blank" rel="noopener noreferrer">github.com/haranishi/kamakura-no-zanka</a></li>
+      <li><strong>3Dモデル・動き・物語（CC BY 4.0）</strong>© 2026 Ikki Nishihara。人物と小道具は有料プランの Meshy で生成し、Blender で動作を焼いています（詳細はリポジトリの NOTICE.md / LICENSE-ASSETS.md）。</li>
+      <li><strong>第三者ライブラリ・素材</strong>Three.js 0.180.0（MIT）／地面・自然テクスチャは Poly Haven（CC0 1.0）／歩行・走行モーションの一部は CMU Graphics Lab Motion Capture Database（mocap.cs.cmu.edu、NSF EIA-0196217）を変換して使用しています。</li>
+    </ul>
+  </div>
+</dialog>
+
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
 <div id="fade" class="fade" aria-hidden="true"></div>
 <script type="module" src="./entry.js"></script>

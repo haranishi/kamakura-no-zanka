@@ -1,0 +1,475 @@
+/* valley-touch.css — 第一章「隠れ谷の灯」スマホ向けタッチ操作層。
+   すべて <html class="kz-touch"> 配下に閉じ込め、デスクトップの表示には一切影響しない。 */
+
+.kz-touch {
+  --kz-safe-top: env(safe-area-inset-top, 0px);
+  --kz-safe-right: env(safe-area-inset-right, 0px);
+  --kz-safe-bottom: env(safe-area-inset-bottom, 0px);
+  --kz-safe-left: env(safe-area-inset-left, 0px);
+  --kz-tbtn-main: 70px;
+  --kz-tbtn-sub: 56px;
+}
+
+html.kz-touch,
+html.kz-touch body {
+  overscroll-behavior: none;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+/* タッチ操作の全体層（プレイ中のみ .kz-on で表示） */
+.kz-touch-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 8;
+  display: none;
+  touch-action: none;
+  pointer-events: none;
+}
+
+.kz-touch .kz-touch-layer.kz-on {
+  display: block;
+}
+
+.kz-touch-look {
+  position: absolute;
+  inset: 0;
+  touch-action: none;
+  pointer-events: auto;
+}
+
+.kz-touch-stick-zone {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 45%;
+  height: 75%;
+  touch-action: none;
+  pointer-events: auto;
+}
+
+/* フローティングスティック */
+.kz-stick {
+  --r: 52px;
+  position: absolute;
+  left: var(--sx, 0px);
+  top: var(--sy, 0px);
+  width: 0;
+  height: 0;
+  display: none;
+  pointer-events: none;
+}
+
+.kz-stick.kz-on {
+  display: block;
+}
+
+.kz-stick-ring,
+.kz-stick-run {
+  position: absolute;
+  left: 0;
+  top: 0;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  box-sizing: border-box;
+}
+
+.kz-stick-ring {
+  width: calc(var(--r) * 2);
+  height: calc(var(--r) * 2);
+  border: 2px solid rgba(238, 233, 220, 0.58);
+  background: rgba(15, 21, 19, 0.32);
+}
+
+.kz-stick-run {
+  width: calc(var(--r) * 2.76);
+  height: calc(var(--r) * 2.76);
+  border: 1px dashed rgba(233, 201, 141, 0.62);
+}
+
+.kz-stick-run-label {
+  position: absolute;
+  left: 50%;
+  top: -4px;
+  transform: translate(-50%, -100%);
+  font-family: var(--serif);
+  font-size: 12px;
+  color: var(--gold);
+  text-shadow: 0 1px 4px #000;
+}
+
+.kz-stick-knob {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  transform: translate(calc(-50% + var(--kx, 0px)), calc(-50% + var(--ky, 0px)));
+  background: rgba(238, 233, 220, 0.76);
+  border: 2px solid var(--paper);
+  color: var(--ink2);
+  font-family: var(--serif);
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+}
+
+.kz-stick.kz-run .kz-stick-ring,
+.kz-stick.kz-run .kz-stick-run {
+  border-color: var(--red2);
+  border-style: solid;
+}
+
+.kz-stick.kz-run .kz-stick-knob {
+  background: var(--red);
+  border-color: #f4b7a5;
+  color: var(--paper);
+}
+
+.kz-stick-hint {
+  position: absolute;
+  left: calc(22px + var(--kz-safe-left));
+  bottom: calc(24px + var(--kz-safe-bottom));
+  width: 88px;
+  height: 88px;
+  border-radius: 50%;
+  border: 2px solid rgba(238, 233, 220, 0.34);
+  background: rgba(15, 21, 19, 0.22);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.kz-stick-hint.kz-off {
+  display: none;
+}
+
+.kz-stick-hint-text {
+  font-family: var(--serif);
+  font-size: 14px;
+  letter-spacing: 0.18em;
+  color: rgba(238, 233, 220, 0.76);
+  text-shadow: 0 1px 4px #000;
+}
+
+/* 右下 5ボタン弧 */
+.kz-touch-btns {
+  position: absolute;
+  right: calc(16px + var(--kz-safe-right));
+  bottom: calc(16px + var(--kz-safe-bottom));
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+.kz-tbtn {
+  position: absolute;
+  width: var(--kz-tbtn-sub);
+  height: var(--kz-tbtn-sub);
+  min-width: 44px;
+  min-height: 44px;
+  border-radius: 50%;
+  border: 2px solid rgba(233, 201, 141, 0.78);
+  background: rgba(15, 21, 19, 0.68);
+  color: var(--paper);
+  font-family: var(--serif);
+  font-size: 13px;
+  letter-spacing: 0.04em;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  touch-action: none;
+  pointer-events: auto;
+  white-space: nowrap;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.45);
+}
+
+.kz-tbtn-label {
+  pointer-events: none;
+}
+
+.kz-tbtn.kz-down {
+  background: rgba(233, 201, 141, 0.38);
+  transform: scale(0.95);
+}
+
+.kz-tbtn.kz-dim {
+  opacity: 0.52;
+}
+
+/* 主役：斬る（右下） */
+.kz-tbtn-attack {
+  right: 0;
+  bottom: 0;
+  width: var(--kz-tbtn-main);
+  height: var(--kz-tbtn-main);
+  font-size: 16px;
+  letter-spacing: 0.12em;
+  border-color: var(--red2);
+  background: rgba(74, 29, 22, 0.74);
+}
+
+.kz-tbtn-attack.kz-counter {
+  border-color: #ffd399;
+  border-width: 3px;
+  box-shadow: 0 0 16px rgba(233, 201, 141, 0.75);
+}
+
+/* 受ける（斬るの左） */
+.kz-tbtn-guard {
+  right: 82px;
+  bottom: 4px;
+  width: 60px;
+  height: 60px;
+}
+
+/* 避ける（斬るの左上斜め） */
+.kz-tbtn-dodge {
+  right: 76px;
+  bottom: 74px;
+}
+
+/* 強斬り（斬るの上） */
+.kz-tbtn-heavy {
+  right: 6px;
+  bottom: 84px;
+}
+
+/* 調べる／とどめ／闇討ち（避けるの左） */
+.kz-tbtn-interact {
+  right: 146px;
+  bottom: 40px;
+  width: 58px;
+  height: 58px;
+}
+
+.kz-tbtn-interact.kz-ready {
+  opacity: 1;
+  border-color: var(--gold);
+  background: rgba(40, 34, 20, 0.82);
+}
+
+.kz-tbtn-interact.kz-urgent {
+  border-color: var(--red2);
+  border-width: 3px;
+  background: rgba(98, 28, 18, 0.86);
+  box-shadow: 0 0 14px rgba(215, 112, 90, 0.7);
+}
+
+/* 上部右側の補助ピル（屈む・狙う・風） */
+.kz-touch-aux {
+  position: absolute;
+  right: calc(16px + var(--kz-safe-right));
+  top: calc(64px + var(--kz-safe-top));
+  display: flex;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.kz-tbtn-pill {
+  position: static;
+  width: auto;
+  height: 44px;
+  min-width: 50px;
+  padding: 0 12px;
+  border-radius: 22px;
+  font-size: 13px;
+  border-width: 1.5px;
+}
+
+.kz-tbtn-pill.kz-toggled {
+  border-color: var(--gold);
+  background: rgba(233, 201, 141, 0.28);
+  color: #fff5df;
+}
+
+/* タッチ時の HUD・オーバーレイ再配置 */
+.kz-touch .hud {
+  z-index: 12;
+}
+
+.kz-touch .hud .menu-btn {
+  min-height: 44px;
+  padding: 8px 14px;
+  right: calc(16px + var(--kz-safe-right));
+  top: calc(12px + var(--kz-safe-top));
+}
+
+.kz-touch .hud .menu-btn kbd,
+.kz-touch .hud .party kbd,
+.kz-touch .hud .prompt kbd {
+  display: none;
+}
+
+.kz-touch .obj {
+  left: calc(14px + var(--kz-safe-left));
+  top: calc(8px + var(--kz-safe-top));
+  max-width: min(290px, 52vw);
+  padding: 6px 28px 6px 10px;
+  margin: 0;
+}
+
+.kz-touch .obj p {
+  margin: 3px 0 2px;
+  font-size: 14px;
+  line-height: 1.35;
+}
+
+.kz-touch .bars {
+  left: calc(14px + var(--kz-safe-left));
+  top: calc(114px + var(--kz-safe-top));
+  bottom: auto;
+  width: min(196px, 44vw);
+}
+
+.kz-touch .granary {
+  left: calc(14px + var(--kz-safe-left));
+  top: calc(162px + var(--kz-safe-top));
+  bottom: auto;
+  width: min(196px, 44vw);
+}
+
+.kz-touch .hint {
+  top: calc(168px + var(--kz-safe-top));
+  font-size: 13px;
+  padding: 8px 14px;
+  max-width: min(520px, 88vw);
+}
+
+.kz-touch .party {
+  pointer-events: auto;
+  cursor: pointer;
+  right: calc(16px + var(--kz-safe-right));
+  top: calc(116px + var(--kz-safe-top));
+  bottom: auto;
+  min-height: 44px;
+  padding: 8px 12px;
+  border-color: rgba(233, 201, 141, 0.55);
+}
+
+.kz-touch .prompt {
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: auto;
+  top: calc(64px + var(--kz-safe-top));
+  font-size: 14px;
+  padding: 6px 14px;
+}
+
+.kz-touch .dialogue {
+  pointer-events: auto;
+  cursor: pointer;
+  z-index: 25;
+  width: min(740px, 94vw);
+  bottom: calc(18px + var(--kz-safe-bottom));
+}
+
+.kz-touch .narration {
+  pointer-events: auto;
+  touch-action: none;
+}
+
+.kz-touch .subtitle {
+  bottom: calc(126px + var(--kz-safe-bottom));
+  font-size: 14px;
+}
+
+/* 休止メニューの操作説明をタッチ向けに切替 */
+.keys-touch {
+  display: none;
+}
+
+.kz-touch .keys-pc {
+  display: none;
+}
+
+.kz-touch .keys-touch {
+  display: grid;
+}
+
+/* 縦向き時の控えめな横向き推奨バナー（閉じられる） */
+.kz-orient-banner {
+  position: fixed;
+  left: 50%;
+  bottom: calc(168px + var(--kz-safe-bottom));
+  transform: translateX(-50%);
+  z-index: 22;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: min(352px, calc(100vw - 24px));
+  padding: 8px 12px 8px 16px;
+  background: rgba(15, 21, 19, 0.92);
+  border: 1px solid rgba(233, 201, 141, 0.65);
+  border-radius: 6px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--paper);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.55);
+}
+
+.kz-orient-close {
+  flex-shrink: 0;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid rgba(238, 233, 220, 0.65);
+  border-radius: 4px;
+  background: rgba(238, 233, 220, 0.12);
+  font-family: var(--serif);
+  font-size: 12px;
+  color: var(--paper);
+}
+
+/* 小さい横向き画面（568×320 等）でボタンが重ならないよう縮小 */
+@media (max-height: 410px) {
+  .kz-touch {
+    --kz-tbtn-main: 62px;
+    --kz-tbtn-sub: 50px;
+  }
+  .kz-tbtn-guard {
+    right: 72px;
+    bottom: 2px;
+    width: 54px;
+    height: 54px;
+  }
+  .kz-tbtn-dodge {
+    right: 68px;
+    bottom: 64px;
+  }
+  .kz-tbtn-heavy {
+    right: 4px;
+    bottom: 72px;
+  }
+  .kz-tbtn-interact {
+    right: 132px;
+    bottom: 34px;
+    width: 52px;
+    height: 52px;
+  }
+  .kz-stick-hint {
+    width: 72px;
+    height: 72px;
+    left: calc(16px + var(--kz-safe-left));
+    bottom: calc(14px + var(--kz-safe-bottom));
+  }
+  .kz-touch .bars {
+    top: calc(88px + var(--kz-safe-top));
+  }
+  .kz-touch .granary {
+    top: calc(134px + var(--kz-safe-top));
+  }
+  .kz-touch .hint {
+    top: 16%;
+    max-width: min(440px, 50vw);
+  }
+}

@@ -1,6 +1,18 @@
 // hud.js — 画面の表示（目的・体力と構え・会話・字幕・結果・メニュー）（view層・DOM）。ゲームの規則は持たない。
 const $ = id => document.getElementById(id);
 
+const TOUCH_HINTS = {
+  move: '左ドラッグで歩く（外枠まで倒すと走る）　右ドラッグで見回す',
+  crouch: '右上の「屈む」でしゃがむ。屈むと、敵に気づかれにくい',
+  attack: '「斬る」で斬る（続けて三連）。「受ける」長押しで防ぐ',
+  parry: '敵の刃が光ったら、見てから「受ける」で弾く。弾いたら「反撃」で切り返す',
+  officer: '侍大将は続けて三度斬る。「受ける」を押したままにすれば、三度とも防げる',
+  dodge: '「避ける」で転がって避ける',
+  finisher: '崩れた敵には「とどめ」ボタンで、とどめを刺せる',
+  stealth: '気づかれていない敵の背後から「闇討ち」ボタンで、静かに倒せる',
+  command: '右上の「弥十郎」枠をタップして指示（同行・待機・援護・撤退）',
+};
+
 export class HUD {
   constructor() {
     this.el = Object.fromEntries(['hud', 'obj-text', 'compass', 'compass-needle', 'compass-dist', 'bar-hp', 'bar-posture', 'party', 'party-mode', 'boss', 'boss-name', 'boss-hp', 'markers', 'prompt', 'prompt-text', 'hint', 'subtitle',
@@ -44,7 +56,8 @@ export class HUD {
   hint(key, text, ms = 5200) {
     if (this.hintsShown.has(key)) return false;
     this.hintsShown.add(key);
-    const h = this.el.hint; h.textContent = text; h.classList.remove('hidden');
+    const touchOn = document.documentElement.classList.contains('kz-touch');
+    const h = this.el.hint; h.textContent = (touchOn && TOUCH_HINTS[key]) || text; h.classList.remove('hidden');
     this.after('hint', ms / 1000, () => h.classList.add('hidden'));
     return true;
   }
@@ -79,7 +92,11 @@ export class HUD {
   // オープニングと節目の演出の語りの枠（HUDの外）。字幕の設定（subsOn）に依らず出す。o = { colors, title, note, skip? }（opening-data.js）
   narration(on, o = null) {
     this.el.narration.classList.toggle('hidden', !on);
-    this.el['nr-skip'].innerHTML = (on && o?.skip) || this.skipHTML;
+    const touchOn = document.documentElement.classList.contains('kz-touch');
+    const skipText = on && touchOn
+      ? (o?.skip?.includes('長押し') ? '画面を長押しして飛ばす' : '画面をタップして飛ばす')
+      : ((on && o?.skip) || this.skipHTML);
+    this.el['nr-skip'].innerHTML = skipText;
     this.nr = on ? { line: undefined, black: -1, title: -1, hint: -1, alpha: -1 } : null;
     if (!on || !o) return;
     for (const k of ['nr-veil', 'nr-top', 'nr-bottom']) this.el[k].style.background = o.colors.bar;
