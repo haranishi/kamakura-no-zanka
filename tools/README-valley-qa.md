@@ -2,7 +2,7 @@
 
 遊びの本体は `dist/valley/`。開発用の道具は `tools/valley-play.mjs`（ヘッドレスChromeを動かし、`?qa=1` のとき入る `window.__valley` を呼ぶ）。
 ランタイムは依存なし。Playwright は `PLAYWRIGHT_MODULE=<…/playwright/index.mjs>` で渡す。
-ブラウザの試験ツール（`valley-play`・`valley-shot`・`lab-play`・`measure-load-bytes`）は、ページを開く前に `tools/lib/pointerlock-guard.mjs` でマウスの固定を本物のOSへ届かせない（ヘッドレスChromeは固定を求められると本物のカーソルを動かし、試験のたびに使っている人のカーソルが飛ぶため。ページからは固定できたように見え、見た目も結果も変わらない）。新しく試験ツールを足すときも、`browser.newPage()` の直後に `await guardPointerLock(page);` を入れる。旧い庭用の `browser-check`・`measure-frame-time` は対象外（使うときは、画面を触っていない時間に回す）。
+ブラウザを起動する試験ツール（`valley-play`・`valley-shot`・`lab-play`・`measure-load-bytes`、旧い庭用の `browser-check`・`measure-frame-time`）は、ページを開く前に `tools/lib/pointerlock-guard.mjs` でマウスの固定を本物のOSへ届かせない（ヘッドレスChromeは固定を求められると本物のカーソルを動かし、試験のたびに使っている人のカーソルが飛ぶため）。ページからは、本物のChromeと同じ決まり（操作の無い要求は `NotAllowedError` で断る、など）で「固定できた／断られた」ように見え、見た目も結果も変わらない。新しく試験ツールを足すときも、`browser.newPage()` の直後に `await guardPointerLock(page);` を入れる。context を何個も作るなら、launch の直後に `guardBrowser(browser);` を1回。固定中に `page.mouse.move` したときの `clientX/Y` だけは、本物と違って固定されず動く（`movementX/Y` は同じ）。
 
 ```
 PLAYWRIGHT_MODULE=… node tools/valley-play.mjs <シナリオ.mjs> --out <出力フォルダ> [--w 1280 --h 720 --q standard|light --seed 1333 --intro 1 --lk <見た目の調整> --log --strict]
